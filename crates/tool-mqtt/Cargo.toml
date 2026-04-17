@@ -1,0 +1,14 @@
+[package]
+name = "tool-mqtt"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+rumqttc.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

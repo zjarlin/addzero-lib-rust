@@ -1,0 +1,15 @@
+[package]
+name = "tool-excel"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+quick-xml.workspace = true
+thiserror.workspace = true
+zip.workspace = true
+
+[lints]
+workspace = true
