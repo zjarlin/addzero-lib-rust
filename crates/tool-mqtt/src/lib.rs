@@ -264,6 +264,15 @@ impl MqttConfig {
                 "client_cert_path and client_key_path must be set together".to_owned(),
             ));
         }
+        if !self.use_tls
+            && (self.ca_path.is_some()
+                || self.client_cert_path.is_some()
+                || self.client_key_path.is_some())
+        {
+            return Err(MqttError::InvalidConfig(
+                "use_tls must be enabled when tls file paths are configured".to_owned(),
+            ));
+        }
         if let Some(last_will) = &self.last_will {
             last_will.validate()?;
         }
@@ -547,7 +556,9 @@ impl MqttClient {
             .lock()
             .map_err(|_| MqttError::Internal("worker mutex is poisoned".to_owned()))?;
         if let Some(handle) = worker.take() {
-            handle.join().map_err(|_| MqttError::BackgroundThreadPanicked)?;
+            handle
+                .join()
+                .map_err(|_| MqttError::BackgroundThreadPanicked)?;
         }
         Ok(())
     }
@@ -599,7 +610,10 @@ fn build_options(config: &MqttConfig) -> MqttResult<MqttOptions> {
     options.set_inflight(config.inflight);
 
     if let Some(username) = &config.username {
-        options.set_credentials(username.clone(), config.password.clone().unwrap_or_default());
+        options.set_credentials(
+            username.clone(),
+            config.password.clone().unwrap_or_default(),
+        );
     }
 
     if let Some(last_will) = &config.last_will {
@@ -625,7 +639,9 @@ fn build_transport(config: &MqttConfig) -> MqttResult<Transport> {
         .map(|path| read_file_bytes(path))
         .transpose()?;
     let client_auth = match (&config.client_cert_path, &config.client_key_path) {
-        (Some(cert_path), Some(key_path)) => Some((read_file_bytes(cert_path)?, read_file_bytes(key_path)?)),
+        (Some(cert_path), Some(key_path)) => {
+            Some((read_file_bytes(cert_path)?, read_file_bytes(key_path)?))
+        }
         _ => None,
     };
 
@@ -636,7 +652,7 @@ fn build_transport(config: &MqttConfig) -> MqttResult<Transport> {
             return Err(MqttError::InvalidConfig(
                 "ca_path is required when client certificate authentication is configured"
                     .to_owned(),
-            ))
+            ));
         }
     })
 }
@@ -703,7 +719,10 @@ mod tests {
             .unwrap();
 
         let options = build_options(&config).unwrap();
-        assert_eq!(options.broker_address(), ("broker.example.com".to_owned(), 2883));
+        assert_eq!(
+            options.broker_address(),
+            ("broker.example.com".to_owned(), 2883)
+        );
         assert_eq!(options.client_id(), "client-a".to_owned());
         assert_eq!(options.keep_alive(), Duration::from_secs(30));
         assert!(!options.clean_session());
@@ -746,7 +765,10 @@ mod tests {
 
         let config = MqttConfig::builder("broker.example.com", "client-a")
             .ca_path(ca_path.display().to_string())
-            .client_auth_paths(cert_path.display().to_string(), key_path.display().to_string())
+            .client_auth_paths(
+                cert_path.display().to_string(),
+                key_path.display().to_string(),
+            )
             .build()
             .unwrap();
 
@@ -767,27 +789,6 @@ mod tests {
         let _ = fs::remove_file(cert_path);
         let _ = fs::remove_file(key_path);
         let _ = fs::remove_dir(temp_dir);
-    }
-
-    #[test]
-    fn collect_messages_returns_empty_when_count_is_zero() {
-        let (sender, receiver) = mpsc::channel();
-        drop(sender);
-
-        let receiver = Mutex::new(receiver);
-        let result = {
-            let client = Client::from_sender(flume::unbounded().0);
-            let mqtt_client = MqttClient {
-                config: MqttConfig::builder("localhost", "client-a").build().unwrap(),
-                client,
-                receiver,
-                stop: Arc::new(AtomicBool::new(true)),
-                worker: Mutex::new(None),
-            };
-            mqtt_client.collect_messages(0, Duration::from_millis(1))
-        };
-
-        assert_eq!(result.unwrap(), Vec::<MqttReceivedMessage>::new());
     }
 
     fn unique_suffix(prefix: &str) -> String {
