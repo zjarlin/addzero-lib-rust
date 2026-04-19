@@ -1,5 +1,5 @@
 [package]
-name = "tool-common-jvm"
+name = "tool-common"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

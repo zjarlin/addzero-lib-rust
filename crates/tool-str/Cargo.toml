@@ -1,5 +1,5 @@
 [package]
-name = "tool-jvmstr"
+name = "tool-str"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

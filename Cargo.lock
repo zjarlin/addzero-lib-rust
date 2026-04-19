@@ -2325,7 +2325,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tool-common-jvm"
+name = "tool-common"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -2389,15 +2389,6 @@ version = "0.1.0"
 dependencies = [
  "tempfile",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "tool-jvmstr"
-version = "0.1.0"
-dependencies = [
- "deunicode",
- "regex",
- "tempfile",
 ]
 
 [[package]]
@@ -2466,6 +2457,15 @@ dependencies = [
  "ssh2",
  "tempfile",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "tool-str"
+version = "0.1.0"
+dependencies = [
+ "deunicode",
+ "regex",
+ "tempfile",
 ]
 
 [[package]]
