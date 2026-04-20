@@ -1,5 +1,5 @@
 [package]
-name = "tool-mqtt"
+name = "tool-creates"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,8 +7,9 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-rumqttc.workspace = true
-rustls = { version = "0.23.37", features = ["ring"] }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 
 [lints]

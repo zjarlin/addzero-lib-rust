@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="EMPTY_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/crates/stream-wrapper/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-area/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-cli-repl/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-common/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-context/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-curl/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-docker/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-email/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-excel/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-funbox/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-io/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-log/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-math/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-minio/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-mqtt/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-pinyin/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-reflection/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-rustfs/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-ssh/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-str/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-toml/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-yml/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-creates/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

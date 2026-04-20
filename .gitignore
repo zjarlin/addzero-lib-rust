@@ -1,1 +1,6 @@
 /target
+/docs/build/
+/docs/content/
+/docs/.docusaurus/
+/docs/.xiaoeyu/
+/docs/node_modules/

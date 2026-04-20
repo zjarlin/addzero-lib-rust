@@ -1,29 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-  "crates/tool-yml",
-  "crates/tool-toml",
-  "crates/tool-io",
-  "crates/tool-common",
-  "crates/stream-wrapper",
-  "crates/tool-context",
-  "crates/tool-log",
-  "crates/tool-docker",
-  "crates/tool-cli-repl",
-  "crates/tool-pinyin",
-  "crates/tool-curl",
-  "crates/tool-reflection",
-  "crates/tool-area",
-  "crates/tool-email",
-  "crates/tool-ssh",
-  "crates/tool-rustfs",
-  "crates/tool-minio",
-  "crates/tool-funbox",
-  "crates/tool-math",
-  "crates/tool-excel",
-  "crates/tool-mqtt",
-  "crates/tool-str",
-]
+members = ["crates/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -44,7 +21,6 @@ quick-xml = "0.38.4"
 regex = "1.12.2"
 reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "multipart", "rustls-tls"] }
 rumqttc = "0.25.1"
-s3 = { version = "0.1.22", default-features = false, features = ["blocking", "rustls", "multipart"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 serde_yaml = "0.9.34"

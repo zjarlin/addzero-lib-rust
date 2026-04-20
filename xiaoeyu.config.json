@@ -1,0 +1,57 @@
+{
+  "source": {
+    "type": "local",
+    "path": "."
+  },
+  "site": {
+    "title": "小鳄鱼",
+    "tagline": "addzero-lib-rust 自动化文档站点",
+    "url": "https://zjarlin.github.io",
+    "baseUrl": "/addzero-lib-rust/",
+    "organizationName": "zjarlin",
+    "projectName": "addzero-lib-rust",
+    "repositoryUrl": "https://github.com/zjarlin/addzero-lib-rust",
+    "editUrl": "https://github.com/zjarlin/addzero-lib-rust/tree/main",
+    "defaultLocale": "zh-Hans",
+    "locales": ["zh-Hans"],
+    "navbar": {
+      "docsLabel": "文档",
+      "repositoryLabel": "GitHub"
+    }
+  },
+  "collect": {
+    "include": [
+      "README.md",
+      "crates/**/README.md"
+    ],
+    "exclude": [
+      "docs/**",
+      "**/.git/**",
+      "**/node_modules/**",
+      "**/build/**",
+      "**/target/**"
+    ],
+    "rulesFile": "docs/readme-collection.rules"
+  },
+  "render": {
+    "contentDir": "docs/content",
+    "generatedMetaFile": "docs/.xiaoeyu/site-metadata.json",
+    "stripFirstH1": true,
+    "generateIndex": true,
+    "indexSlug": "/",
+    "sourceNotice": "自动收集自 `{path}`。",
+    "index": {
+      "title": "小鳄鱼",
+      "heading": "小鳄鱼",
+      "description": "addzero-lib-rust 的自动化文档站点，当前重点包含 workspace 总览与 tool-creates 用法。",
+      "featuresTitle": "说明",
+      "features": [
+        "自动收集仓库根 README 和 crate README。",
+        "适合把工具库用法沉淀成统一可浏览文档。",
+        "可后续配合 GitHub Pages 发布。"
+      ],
+      "emptyMessage": "暂未发现可收集的 README 文档。",
+      "sectionTitle": "模块导航"
+    }
+  }
+}

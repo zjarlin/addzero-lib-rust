@@ -7,6 +7,7 @@ use rumqttc::{
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::sync::Once;
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},
@@ -646,7 +647,10 @@ fn build_transport(config: &MqttConfig) -> MqttResult<Transport> {
     };
 
     Ok(match (ca, client_auth) {
-        (None, None) => Transport::tls_with_default_config(),
+        (None, None) => {
+            install_rustls_provider();
+            Transport::tls_with_default_config()
+        }
         (Some(ca), client_auth) => Transport::tls(ca, client_auth, None),
         (None, Some(_)) => {
             return Err(MqttError::InvalidConfig(
@@ -655,6 +659,14 @@ fn build_transport(config: &MqttConfig) -> MqttResult<Transport> {
             ));
         }
     })
+}
+
+fn install_rustls_provider() {
+    static INSTALL_RUSTLS_PROVIDER: Once = Once::new();
+
+    INSTALL_RUSTLS_PROVIDER.call_once(|| {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    });
 }
 
 fn read_file_bytes(path: impl AsRef<Path>) -> MqttResult<Vec<u8>> {

@@ -8,7 +8,6 @@ authors.workspace = true
 
 [dependencies]
 mime_guess.workspace = true
-s3.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
