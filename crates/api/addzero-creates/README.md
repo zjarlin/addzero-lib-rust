@@ -2,6 +2,8 @@
 
 把 `addzero-lib-jvm/lib/tool-jvm/network-call` 里适合公开、适合沉淀为 Rust 工具库的常见 HTTP API，统一收口成一个可复用的创建器 crate。
 
+其中音乐领域能力已经独立抽到 `addzero-music`，这里保留兼容创建入口，避免上层调用一次性断裂。
+
 当前已落下这些常见能力：
 
 - Maven Central 检索与文件下载
@@ -17,14 +19,14 @@
 
 ```toml
 [dependencies]
-addzero-creates = { path = "../addzero-creates" }
+addzero-creates = { path = "../../api/addzero-creates" }
 ```
 
 如果你从仓库外部引用当前本地 checkout：
 
 ```toml
 [dependencies]
-addzero-creates = { path = "/absolute/path/to/addzero-lib-rust/crates/addzero-creates" }
+addzero-creates = { path = "/absolute/path/to/addzero-lib-rust/crates/api/addzero-creates" }
 ```
 
 ## 基础用法
@@ -97,7 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## 网易云音乐搜索
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::music_search()?;
@@ -130,7 +132,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Suno
 
 ```rust
-use tool_creates::{Creates, SunoMusicRequest};
+use addzero_creates::{Creates, SunoMusicRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::suno("your-suno-token")?;
@@ -163,7 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## 天眼查
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha("your-authorization", "your-x-auth-token")?;
@@ -187,7 +189,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 这个版本会在 Rust 侧真实生成 `SDK-HMAC-SHA256` 签名头，而不是简单拼 URL。
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha_huawei("your-ak", "your-sk")?;
@@ -265,5 +267,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 这次没有直接把 `network-call` 全量照搬到 Rust：
 
 - 浏览器自动化、支付、私有供应商接入这类模块，不适合在当前仓库做一层“看起来统一、实际不可复用”的硬迁移
-- `tool-api-weather` 这类依赖特定站点抓取细节和 cookie 的实现，稳定性不足，不适合作为通用公开 API 默认暴露
+- `addzero-api-weather` 这类依赖特定站点抓取细节和 cookie 的实现，稳定性不足，不适合作为通用公开 API 默认暴露
 - 后续如果确认某个接口长期稳定，再按 crate 继续补进 `addzero-creates`

@@ -1,5 +1,9 @@
 #![forbid(unsafe_code)]
 
+use addzero_rustfs::{
+    ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig, S3StorageClient, StorageError,
+    create_storage_client, guess_content_type,
+};
 use base64::Engine as _;
 use ring::aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey};
 use ring::pbkdf2::{self, PBKDF2_HMAC_SHA256};
@@ -10,10 +14,6 @@ use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::{Arc, OnceLock, RwLock};
 use thiserror::Error;
-use tool_rustfs::{
-    ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig, S3StorageClient, StorageError,
-    create_storage_client, guess_content_type,
-};
 
 pub const DEFAULT_PRESIGNED_EXPIRATION_SECONDS: u64 = 3600;
 const URL_CIPHER_SALT_LEN: usize = 16;
@@ -755,9 +755,9 @@ fn derive_url_cipher_key(encryption_secret: &str, salt: &[u8]) -> [u8; URL_CIPHE
 #[cfg(test)]
 mod tests {
     use super::*;
+    use addzero_rustfs::InMemoryS3StorageClient;
     use std::fs;
     use tempfile::NamedTempFile;
-    use tool_rustfs::InMemoryS3StorageClient;
 
     fn test_client() -> MinioClient {
         let config = MinioConfig::builder("http://localhost:9000", "minioadmin", "minioadmin")

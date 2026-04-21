@@ -28,6 +28,7 @@ version = "0.1.0"
 name = "addzero-creates"
 version = "0.1.0"
 dependencies = [
+ "addzero-music",
  "chrono",
  "hmac",
  "reqwest",
@@ -124,6 +125,16 @@ version = "0.1.0"
 dependencies = [
  "rumqttc",
  "rustls",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-music"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

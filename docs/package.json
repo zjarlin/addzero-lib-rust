@@ -1,0 +1,32 @@
+{
+  "name": "xiaoeyu-docs",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "docusaurus": "docusaurus",
+    "prepare:content": "xiaoeyu generate --config ../xiaoeyu.config.json",
+    "start": "npm run prepare:content && docusaurus start",
+    "build": "npm run prepare:content && docusaurus build",
+    "clear": "docusaurus clear",
+    "serve": "docusaurus serve"
+  },
+  "dependencies": {
+    "xiaoeyu": "^0.2.0",
+    "@easyops-cn/docusaurus-search-local": "0.55.1",
+    "@docusaurus/core": "3.10.0",
+    "@docusaurus/faster": "3.10.0",
+    "@docusaurus/preset-classic": "3.10.0",
+    "@mdx-js/react": "^3.0.0",
+    "clsx": "^2.0.0",
+    "prism-react-renderer": "^2.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@docusaurus/module-type-aliases": "3.10.0",
+    "@docusaurus/types": "3.10.0"
+  },
+  "engines": {
+    "node": ">=20.0"
+  }
+}

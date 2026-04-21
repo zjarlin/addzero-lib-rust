@@ -1,6 +1,17 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = [
+    "crates/api/*",
+    "crates/config/*",
+    "crates/core/*",
+    "crates/data/*",
+    "crates/music/*",
+    "crates/network/*",
+    "crates/runtime/*",
+    "crates/storage/*",
+    "crates/text/*",
+]
+exclude = []
 
 [workspace.package]
 version = "0.1.0"
@@ -21,7 +32,7 @@ mime_guess = "2.0.5"
 pinyin = "0.11.0"
 quick-xml = "0.38.4"
 regex = "1.12.2"
-reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "multipart", "rustls-tls"] }
+reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "json", "multipart", "rustls-tls"] }
 ring = "0.17.14"
 rumqttc = "0.25.1"
 serde = { version = "1.0.228", features = ["derive"] }

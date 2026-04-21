@@ -10,7 +10,7 @@
 - 根目录 `README.md`
 - `crates/**/README.md`
 
-这意味着这次新增在 `tool-creates` README 里的网易云音乐、Suno、天眼查、华为云签名版用法，会直接进入小鳄鱼生成站点。
+这意味着这次新增在 `addzero-creates` README 里的网易云音乐、Suno、天眼查、华为云签名版用法，会直接进入小鳄鱼生成站点。
 
 默认不会收录：
 
@@ -20,13 +20,22 @@
 
 ## 在当前仓库生成文档站
 
-如果你已经把 `@addzero/xiaoeyu` 发布到 npm：
+截至 2026-04-21，npm 上实际已发布的包名是 `xiaoeyu`，不是 `@addzero/xiaoeyu`。
+
+如果你要用当前 npm 已发布版本：
 
 ```bash
-npx @addzero/xiaoeyu scaffold-site --target docs
+npx xiaoeyu scaffold-site --target docs
 npm install --prefix docs
-npm run build --prefix docs
 ```
+
+我在这个仓库里实测过：
+
+- `npx xiaoeyu scaffold-site --target docs` 可以成功生成站点骨架
+- `npm install --prefix docs` 可以成功安装依赖
+- `npm run build --prefix docs` 在 `xiaoeyu@0.1.0` 下仍会失败，当前报错是 Docusaurus / webpack `ProgressPlugin` 选项兼容问题
+
+所以如果你现在要稳定生成站点，优先建议继续使用本地源码版，或者等 npm 发一个修复这个构建问题的新版本。
 
 如果你还没发 npm，但本地有 `addzero-lib-jvm/xiaoeyu` 源码 checkout：
 
@@ -46,7 +55,7 @@ npm run build --prefix docs
 - `!` 开头表示重新放行
 - 后写的规则覆盖前写的规则
 
-## 发布 `@addzero/xiaoeyu` 到 npm 前你要先改什么
+## 如果你后面要把它改成 `@addzero/xiaoeyu`
 
 你现在 `addzero-lib-jvm/xiaoeyu/package.json` 里最直接的阻塞是：
 
@@ -69,6 +78,8 @@ npm run build --prefix docs
   }
 }
 ```
+
+如果你只是继续维护当前已经在线的 npm 包，那就应该保持包名为 `xiaoeyu`，不要把下面这段 scoped 配置和当前线上状态混为一谈。
 
 还建议一起补齐：
 

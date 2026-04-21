@@ -10,7 +10,7 @@ authors.workspace = true
 base64.workspace = true
 ring.workspace = true
 thiserror.workspace = true
-addzero-rustfs = { path = "../tool-rustfs" }
+addzero-rustfs = { path = "../addzero-rustfs" }
 
 [dev-dependencies]
 tempfile.workspace = true
