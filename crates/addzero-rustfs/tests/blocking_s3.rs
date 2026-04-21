@@ -9,7 +9,9 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use tempfile::NamedTempFile;
-use tool_rustfs::{BlockingS3StorageClient, PartInfo, PartStatus, S3ClientConfig, S3StorageClient};
+use addzero_rustfs::{
+    BlockingS3StorageClient, PartInfo, PartStatus, S3ClientConfig, S3StorageClient,
+};
 
 #[test]
 fn blocking_client_supports_bucket_and_object_lifecycle() -> Result<(), Box<dyn Error>> {

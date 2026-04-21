@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## 网易云音乐搜索
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::music_search()?;
@@ -130,7 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Suno
 
 ```rust
-use tool_creates::{Creates, SunoMusicRequest};
+use addzero_creates::{Creates, SunoMusicRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::suno("your-suno-token")?;
@@ -163,7 +163,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## 天眼查
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha("your-authorization", "your-x-auth-token")?;
@@ -187,7 +187,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 这个版本会在 Rust 侧真实生成 `SDK-HMAC-SHA256` 签名头，而不是简单拼 URL。
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha_huawei("your-ak", "your-sk")?;

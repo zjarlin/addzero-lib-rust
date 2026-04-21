@@ -10,7 +10,7 @@ use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::{Arc, OnceLock, RwLock};
 use thiserror::Error;
-use tool_rustfs::{
+use addzero_rustfs::{
     ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig, S3StorageClient, StorageError,
     create_storage_client, guess_content_type,
 };
@@ -757,7 +757,7 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::NamedTempFile;
-    use tool_rustfs::InMemoryS3StorageClient;
+    use addzero_rustfs::InMemoryS3StorageClient;
 
     fn test_client() -> MinioClient {
         let config = MinioConfig::builder("http://localhost:9000", "minioadmin", "minioadmin")

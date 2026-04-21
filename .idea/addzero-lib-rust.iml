@@ -25,6 +25,30 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/tool-toml/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/tool-yml/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/tool-creates/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/stream-wrapper/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-area/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-cli-repl/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-common/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-context/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-creates/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-curl/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-docker/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-email/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-excel/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-funbox/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-io/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-log/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-math/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-minio/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-minio/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-mqtt/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-pinyin/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-reflection/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-rustfs/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-ssh/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-str/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-toml/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/tool-yml/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

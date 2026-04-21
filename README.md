@@ -2,20 +2,20 @@
 
 `addzero-lib-rust` 是一组偏工具型的 Rust workspace，目标是把常用、可复用、低耦合的能力沉淀成独立 crate。
 
-这次新增了 `tool-creates`，用于把 `addzero-lib-jvm/lib/tool-jvm/network-call` 里适合公开沉淀的常见 API 收口为 Rust 创建器。
+这次新增了 `addzero-creates`，用于把 `addzero-lib-jvm/lib/tool-jvm/network-call` 里适合公开沉淀的常见 API 收口为 Rust 创建器。
 
 ## 当前重点模块
 
 | Crate | 说明 |
 | --- | --- |
-| `tool-creates` | 常见 HTTP API 创建器，现已包含 Maven Central、mail.tm、网易云音乐搜索、Suno、天眼查 |
-| `tool-curl` | curl 命令解析、请求构建与响应辅助 |
-| `tool-email` | SMTP 邮件发送与附件处理 |
-| `tool-rustfs` | Rust S3 兼容对象存储客户端 |
-| `tool-minio` | 基于 `tool-rustfs` 的 MinIO 便利封装 |
-| `tool-mqtt` | MQTT blocking 客户端与消息辅助 |
-| `tool-ssh` | SSH 命令执行与文件传输 |
-| `tool-excel` | 纯 Rust `.xlsx` 读写与结构处理 |
+| `addzero-creates` | 常见 HTTP API 创建器，现已包含 Maven Central、mail.tm、网易云音乐搜索、Suno、天眼查 |
+| `addzero-curl` | curl 命令解析、请求构建与响应辅助 |
+| `addzero-email` | SMTP 邮件发送与附件处理 |
+| `addzero-rustfs` | Rust S3 兼容对象存储客户端 |
+| `addzero-minio` | 基于 `addzero-rustfs` 的 MinIO 便利封装 |
+| `addzero-mqtt` | MQTT blocking 客户端与消息辅助 |
+| `addzero-ssh` | SSH 命令执行与文件传输 |
+| `addzero-excel` | 纯 Rust `.xlsx` 读写与结构处理 |
 
 ## 快速开始
 
@@ -28,15 +28,15 @@ cargo test
 如果你只想验证新增的 API 创建器：
 
 ```bash
-cargo test -p tool-creates
+cargo test -p addzero-creates
 ```
 
-## `tool-creates` 用法
+## `addzero-creates` 用法
 
 ### 1. Maven Central
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::maven_central()?;
@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 2. 网易云音乐搜索
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::music_search()?;
@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 3. Suno
 
 ```rust
-use tool_creates::{Creates, SunoMusicRequest};
+use addzero_creates::{Creates, SunoMusicRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::suno("your-suno-token")?;
@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 4. 天眼查
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha("your-authorization", "your-x-auth-token")?;
@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 5. Temp Mail
 
 ```rust
-use tool_creates::Creates;
+use addzero_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::temp_mail()?;
@@ -107,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use std::time::Duration;
-use tool_creates::{ApiConfig, Creates};
+use addzero_creates::{ApiConfig, Creates};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ApiConfig::builder("https://search.maven.org")
@@ -123,9 +123,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-更完整的 `tool-creates` API 和范围说明见：
+更完整的 `addzero-creates` API 和范围说明见：
 
-- [crates/tool-creates/README.md](crates/tool-creates/README.md)
+- [crates/addzero-creates/](crates/addzero-creates/)
 
 ## 为什么没有直接全量搬运 JVM `network-call`
 
@@ -143,7 +143,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 文档接入说明见：
 
-- [docs/README.md](docs/README.md)
+- [docs/README.md](https://github.com/zjarlin/addzero-lib-rust/blob/main/docs/README.md)
 
 ## 仓库文档范围
 
@@ -152,7 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - 根目录 `README.md`
 - `crates/**/README.md`
 
-这次新增的 `tool-creates` 音乐、Suno、天眼查用法，也会跟着这两个 README 一起被小鳄鱼站点收录。
+这次新增的 `addzero-creates` 音乐、Suno、天眼查用法，也会跟着这两个 README 一起被小鳄鱼站点收录。
 
 默认不会收录：
 
