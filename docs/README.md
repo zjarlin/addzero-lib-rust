@@ -10,6 +10,8 @@
 - 根目录 `README.md`
 - `crates/**/README.md`
 
+这意味着这次新增在 `tool-creates` README 里的网易云音乐、Suno、天眼查、华为云签名版用法，会直接进入小鳄鱼生成站点。
+
 默认不会收录：
 
 - `docs/**`

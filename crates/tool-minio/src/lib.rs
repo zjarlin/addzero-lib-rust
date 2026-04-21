@@ -1,21 +1,34 @@
 #![forbid(unsafe_code)]
 
-use addzero_rustfs::{
-    ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig, S3StorageClient, StorageError,
-    create_storage_client, guess_content_type,
-};
+use base64::Engine as _;
+use ring::aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey};
+use ring::pbkdf2::{self, PBKDF2_HMAC_SHA256};
+use ring::rand::{SecureRandom, SystemRandom};
 use std::collections::BTreeMap;
 use std::io::Read;
+use std::num::NonZeroU32;
 use std::path::Path;
 use std::sync::{Arc, OnceLock, RwLock};
 use thiserror::Error;
+use tool_rustfs::{
+    ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig, S3StorageClient, StorageError,
+    create_storage_client, guess_content_type,
+};
 
 pub const DEFAULT_PRESIGNED_EXPIRATION_SECONDS: u64 = 3600;
+const URL_CIPHER_SALT_LEN: usize = 16;
+const URL_CIPHER_NONCE_LEN: usize = 12;
+const URL_CIPHER_KEY_LEN: usize = 32;
+const URL_CIPHER_ITERATIONS: u32 = 100_000;
 
 #[derive(Debug, Error)]
 pub enum MinioError {
     #[error("invalid minio configuration: {0}")]
     InvalidConfig(String),
+    #[error("invalid encrypted value: {0}")]
+    InvalidEncryptedValue(String),
+    #[error("crypto error: {0}")]
+    Crypto(String),
     #[error("storage backend error: {0}")]
     Storage(#[from] StorageError),
     #[error("I/O error: {0}")]
@@ -170,6 +183,15 @@ impl From<ObjectMetadata> for ObjectInfo {
             content_type: value.content_type,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObjectUrlAccess {
+    pub bucket_name: String,
+    pub object_name: String,
+    pub relative_path: String,
+    pub plain_url: String,
+    pub encrypted_url: String,
 }
 
 #[derive(Clone)]
@@ -429,6 +451,35 @@ impl MinioClient {
             .generate_presigned_url(bucket_name, object_name, expiration_seconds)
             .map_err(MinioError::from)
     }
+
+    pub fn upload_text_and_encrypt_url(
+        &self,
+        bucket_name: &str,
+        object_name: &str,
+        text: &str,
+        encryption_secret: &str,
+        expiration_seconds: u64,
+    ) -> MinioResult<ObjectUrlAccess> {
+        self.put_object_bytes(
+            bucket_name,
+            object_name,
+            text.as_bytes(),
+            Some("text/plain; charset=utf-8"),
+        )?;
+
+        let plain_url = self
+            .get_presigned_object_url_with_expiration(bucket_name, object_name, expiration_seconds)?
+            .url;
+        let encrypted_url = encrypt_url(encryption_secret, &plain_url)?;
+
+        Ok(ObjectUrlAccess {
+            bucket_name: bucket_name.to_owned(),
+            object_name: object_name.to_owned(),
+            relative_path: object_name.to_owned(),
+            plain_url,
+            encrypted_url,
+        })
+    }
 }
 
 static CLIENTS: OnceLock<RwLock<BTreeMap<String, MinioClient>>> = OnceLock::new();
@@ -604,4 +655,232 @@ pub fn get_presigned_object_url_with_expiration(
     expiration_seconds: u64,
 ) -> MinioResult<PresignedUrl> {
     client.get_presigned_object_url_with_expiration(bucket_name, object_name, expiration_seconds)
+}
+
+pub fn encrypt_url(encryption_secret: &str, plain_url: &str) -> MinioResult<String> {
+    if encryption_secret.trim().is_empty() {
+        return Err(MinioError::InvalidConfig(
+            "encryption_secret cannot be blank".to_owned(),
+        ));
+    }
+    if plain_url.is_empty() {
+        return Err(MinioError::InvalidConfig(
+            "plain_url cannot be blank".to_owned(),
+        ));
+    }
+
+    let rng = SystemRandom::new();
+    let mut salt = [0u8; URL_CIPHER_SALT_LEN];
+    let mut nonce_bytes = [0u8; URL_CIPHER_NONCE_LEN];
+    rng.fill(&mut salt)
+        .map_err(|_| MinioError::Crypto("failed to generate salt".to_owned()))?;
+    rng.fill(&mut nonce_bytes)
+        .map_err(|_| MinioError::Crypto("failed to generate nonce".to_owned()))?;
+
+    let key = derive_url_cipher_key(encryption_secret, &salt);
+    let unbound = UnboundKey::new(&AES_256_GCM, &key)
+        .map_err(|_| MinioError::Crypto("failed to initialize AES-256-GCM".to_owned()))?;
+    let sealing_key = LessSafeKey::new(unbound);
+    let nonce = Nonce::assume_unique_for_key(nonce_bytes);
+
+    let mut ciphertext = plain_url.as_bytes().to_vec();
+    sealing_key
+        .seal_in_place_append_tag(nonce, Aad::empty(), &mut ciphertext)
+        .map_err(|_| MinioError::Crypto("failed to encrypt URL".to_owned()))?;
+
+    let mut payload =
+        Vec::with_capacity(URL_CIPHER_SALT_LEN + URL_CIPHER_NONCE_LEN + ciphertext.len());
+    payload.extend_from_slice(&salt);
+    payload.extend_from_slice(&nonce_bytes);
+    payload.extend_from_slice(&ciphertext);
+    Ok(base64::engine::general_purpose::STANDARD.encode(payload))
+}
+
+pub fn decrypt_url(encryption_secret: &str, encrypted_url: &str) -> MinioResult<String> {
+    if encryption_secret.trim().is_empty() {
+        return Err(MinioError::InvalidConfig(
+            "encryption_secret cannot be blank".to_owned(),
+        ));
+    }
+    if encrypted_url.trim().is_empty() {
+        return Err(MinioError::InvalidEncryptedValue(
+            "encrypted_url cannot be blank".to_owned(),
+        ));
+    }
+
+    let payload = base64::engine::general_purpose::STANDARD
+        .decode(encrypted_url)
+        .map_err(|error| MinioError::InvalidEncryptedValue(error.to_string()))?;
+    let minimum_len = URL_CIPHER_SALT_LEN + URL_CIPHER_NONCE_LEN + 16;
+    if payload.len() < minimum_len {
+        return Err(MinioError::InvalidEncryptedValue(
+            "encrypted_url payload is too short".to_owned(),
+        ));
+    }
+
+    let salt = &payload[..URL_CIPHER_SALT_LEN];
+    let nonce_slice = &payload[URL_CIPHER_SALT_LEN..URL_CIPHER_SALT_LEN + URL_CIPHER_NONCE_LEN];
+    let ciphertext = payload[URL_CIPHER_SALT_LEN + URL_CIPHER_NONCE_LEN..].to_vec();
+    let nonce = Nonce::try_assume_unique_for_key(nonce_slice).map_err(|_| {
+        MinioError::InvalidEncryptedValue("encrypted_url nonce is invalid".to_owned())
+    })?;
+
+    let key = derive_url_cipher_key(encryption_secret, salt);
+    let unbound = UnboundKey::new(&AES_256_GCM, &key)
+        .map_err(|_| MinioError::Crypto("failed to initialize AES-256-GCM".to_owned()))?;
+    let opening_key = LessSafeKey::new(unbound);
+    let mut buffer = ciphertext;
+    let plaintext = opening_key
+        .open_in_place(nonce, Aad::empty(), &mut buffer)
+        .map_err(|_| MinioError::InvalidEncryptedValue("failed to decrypt URL".to_owned()))?;
+
+    String::from_utf8(plaintext.to_vec())
+        .map_err(|error| MinioError::InvalidEncryptedValue(error.to_string()))
+}
+
+fn derive_url_cipher_key(encryption_secret: &str, salt: &[u8]) -> [u8; URL_CIPHER_KEY_LEN] {
+    let mut key = [0u8; URL_CIPHER_KEY_LEN];
+    let iterations = NonZeroU32::new(URL_CIPHER_ITERATIONS)
+        .expect("URL_CIPHER_ITERATIONS should always be non-zero");
+    pbkdf2::derive(
+        PBKDF2_HMAC_SHA256,
+        iterations,
+        salt,
+        encryption_secret.as_bytes(),
+        &mut key,
+    );
+    key
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::NamedTempFile;
+    use tool_rustfs::InMemoryS3StorageClient;
+
+    fn test_client() -> MinioClient {
+        let config = MinioConfig::builder("http://localhost:9000", "minioadmin", "minioadmin")
+            .region("us-east-1")
+            .build()
+            .expect("config should build");
+        MinioClient::from_storage_client(config, Arc::new(InMemoryS3StorageClient::default()))
+            .expect("client should build")
+    }
+
+    #[test]
+    fn config_builder_matches_minio_defaults() {
+        let config = MinioConfig::builder("http://localhost:9000", "minioadmin", "minioadmin")
+            .build()
+            .expect("config should build");
+
+        assert_eq!(config.endpoint, "http://localhost:9000");
+        assert_eq!(config.access_key, "minioadmin");
+        assert_eq!(config.secret_key, "minioadmin");
+        assert_eq!(config.region, None);
+        assert!(config.path_style_access);
+    }
+
+    #[test]
+    fn bucket_and_object_lifecycle_matches_jvm_api() {
+        let client = test_client();
+        ensure_bucket(&client, "demo").expect("bucket should be ensured");
+
+        let payload = b"hello minio";
+        put_object(&client, "demo", "hello.txt", payload, Some("text/plain"))
+            .expect("object should upload");
+
+        assert!(bucket_exists(&client, "demo").expect("bucket check should work"));
+        assert!(object_exists(&client, "demo", "hello.txt").expect("object check should work"));
+        assert_eq!(
+            get_object(&client, "demo", "hello.txt").expect("download should work"),
+            payload
+        );
+
+        let info = stat_object(&client, "demo", "hello.txt")
+            .expect("stat should work")
+            .expect("object should exist");
+        assert_eq!(info.object_name, "hello.txt");
+        assert_eq!(info.size, payload.len() as u64);
+        assert_eq!(info.content_type.as_deref(), Some("text/plain"));
+
+        copy_object(&client, "demo", "hello.txt", "demo", "copy.txt").expect("copy should work");
+        delete_object(&client, "demo", "hello.txt").expect("delete should work");
+
+        let objects = list_objects(&client, "demo", None, true).expect("list should work");
+        assert_eq!(objects.len(), 1);
+        assert_eq!(objects[0].object_name, "copy.txt");
+    }
+
+    #[test]
+    fn file_upload_and_presigned_url_are_supported() {
+        let client = test_client();
+        ensure_bucket(&client, "demo").expect("bucket should be ensured");
+
+        let file = NamedTempFile::new().expect("tempfile should exist");
+        fs::write(file.path(), "{\"ok\":true}").expect("tempfile should be written");
+
+        put_object_file(&client, "demo", "payload.json", file.path(), None)
+            .expect("file upload should work");
+
+        let info = stat_object(&client, "demo", "payload.json")
+            .expect("stat should work")
+            .expect("object should exist");
+        assert_eq!(info.content_type.as_deref(), Some("application/json"));
+
+        let download = NamedTempFile::new().expect("download tempfile should exist");
+        get_object_to_file(&client, "demo", "payload.json", download.path())
+            .expect("download should work");
+        assert_eq!(
+            fs::read_to_string(download.path()).expect("download should be readable"),
+            "{\"ok\":true}"
+        );
+
+        let url = get_presigned_object_url(&client, "demo", "payload.json")
+            .expect("presigned url should be created");
+        assert!(url.contains("demo"));
+        assert!(url.contains("payload.json"));
+    }
+
+    #[test]
+    fn cached_clients_reuse_the_same_key() {
+        let config = MinioConfig::new("http://localhost:9000", "minioadmin", "minioadmin");
+        let first =
+            get_or_create_client("default", config.clone()).expect("first client should build");
+        let second = get_or_create_client("default", config).expect("second client should reuse");
+
+        assert_eq!(first.config(), second.config());
+    }
+
+    #[test]
+    fn url_cipher_roundtrip_works() {
+        let plain_url = "http://localhost:9000/demo/testaaa.txt?token=abc";
+        let encrypted = encrypt_url("secret-123", plain_url).expect("url should encrypt");
+        let decrypted = decrypt_url("secret-123", &encrypted).expect("url should decrypt");
+
+        assert_ne!(encrypted, plain_url);
+        assert_eq!(decrypted, plain_url);
+    }
+
+    #[test]
+    fn upload_text_and_encrypt_url_returns_plain_and_encrypted_values() {
+        let client = test_client();
+        ensure_bucket(&client, "demo").expect("bucket should be ensured");
+
+        let access = client
+            .upload_text_and_encrypt_url("demo", "testaaa.txt", "hello addzero", "secret-123", 600)
+            .expect("upload should work");
+
+        assert_eq!(access.relative_path, "testaaa.txt");
+        assert!(access.plain_url.contains("demo"));
+        assert!(access.plain_url.contains("testaaa.txt"));
+        assert_eq!(
+            decrypt_url("secret-123", &access.encrypted_url).expect("url should decrypt"),
+            access.plain_url
+        );
+        assert_eq!(
+            get_object(&client, "demo", "testaaa.txt").expect("object should be readable"),
+            b"hello addzero"
+        );
+    }
 }
