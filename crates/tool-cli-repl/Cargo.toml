@@ -1,5 +1,5 @@
 [package]
-name = "tool-cli-repl"
+name = "addzero-cli-repl"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

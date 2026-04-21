@@ -1,5 +1,5 @@
 [package]
-name = "tool-minio"
+name = "addzero-minio"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,7 +8,7 @@ authors.workspace = true
 
 [dependencies]
 thiserror.workspace = true
-tool-rustfs = { path = "../tool-rustfs" }
+addzero-rustfs = { path = "../tool-rustfs" }
 
 [dev-dependencies]
 tempfile.workspace = true

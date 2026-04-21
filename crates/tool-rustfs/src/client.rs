@@ -159,7 +159,7 @@ impl BlockingS3StorageClient {
     fn backend_unavailable(&self, operation: &str) -> StorageError {
         StorageError::Backend(format!(
             "blocking backend unavailable for `{operation}` with endpoint `{}`; \
-             current tool-rustfs only provides the in-memory backend and has not wired a real blocking S3 transport yet",
+             current addzero-rustfs only provides the in-memory backend and has not wired a real blocking S3 transport yet",
             self.config.endpoint
         ))
     }

@@ -1,5 +1,5 @@
 [package]
-name = "tool-context"
+name = "addzero-context"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

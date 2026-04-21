@@ -1,5 +1,5 @@
 [package]
-name = "tool-toml"
+name = "addzero-toml"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

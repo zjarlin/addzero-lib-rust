@@ -1,5 +1,5 @@
 [package]
-name = "tool-funbox"
+name = "addzero-funbox"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

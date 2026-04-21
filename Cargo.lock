@@ -3,6 +3,195 @@
 version = 4
 
 [[package]]
+name = "addzero-area"
+version = "0.1.0"
+
+[[package]]
+name = "addzero-cli-repl"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+]
+
+[[package]]
+name = "addzero-context"
+version = "0.1.0"
+
+[[package]]
+name = "addzero-creates"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-curl"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "shlex",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-docker"
+version = "0.1.0"
+dependencies = [
+ "shlex",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-email"
+version = "0.1.0"
+dependencies = [
+ "lettre",
+ "mime_guess",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-excel"
+version = "0.1.0"
+dependencies = [
+ "quick-xml",
+ "thiserror",
+ "zip",
+]
+
+[[package]]
+name = "addzero-funbox"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "addzero-io"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-log"
+version = "0.1.0"
+dependencies = [
+ "log",
+]
+
+[[package]]
+name = "addzero-math"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-minio"
+version = "0.1.0"
+dependencies = [
+ "addzero-rustfs",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-mqtt"
+version = "0.1.0"
+dependencies = [
+ "rumqttc",
+ "rustls",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-pinyin"
+version = "0.1.0"
+dependencies = [
+ "pinyin",
+ "regex",
+]
+
+[[package]]
+name = "addzero-reflection"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-rustfs"
+version = "0.1.0"
+dependencies = [
+ "mime_guess",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-ssh"
+version = "0.1.0"
+dependencies = [
+ "ssh2",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "addzero-str"
+version = "0.1.0"
+dependencies = [
+ "deunicode",
+ "regex",
+ "tempfile",
+]
+
+[[package]]
+name = "addzero-stream-wrapper"
+version = "0.1.0"
+
+[[package]]
+name = "addzero-toml"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tempfile",
+ "thiserror",
+ "toml_edit",
+]
+
+[[package]]
+name = "addzero-yml"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_yaml",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1733,10 +1922,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
-name = "stream-wrapper"
-version = "0.1.0"
-
-[[package]]
 name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1938,191 +2123,6 @@ name = "toml_write"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
-
-[[package]]
-name = "tool-area"
-version = "0.1.0"
-
-[[package]]
-name = "tool-cli-repl"
-version = "0.1.0"
-dependencies = [
- "thiserror",
-]
-
-[[package]]
-name = "tool-common"
-version = "0.1.0"
-dependencies = [
- "chrono",
-]
-
-[[package]]
-name = "tool-context"
-version = "0.1.0"
-
-[[package]]
-name = "tool-creates"
-version = "0.1.0"
-dependencies = [
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "tool-curl"
-version = "0.1.0"
-dependencies = [
- "base64",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "shlex",
- "thiserror",
-]
-
-[[package]]
-name = "tool-docker"
-version = "0.1.0"
-dependencies = [
- "shlex",
- "thiserror",
-]
-
-[[package]]
-name = "tool-email"
-version = "0.1.0"
-dependencies = [
- "lettre",
- "mime_guess",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
-name = "tool-excel"
-version = "0.1.0"
-dependencies = [
- "quick-xml",
- "thiserror",
- "zip",
-]
-
-[[package]]
-name = "tool-funbox"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "tool-io"
-version = "0.1.0"
-dependencies = [
- "tempfile",
- "thiserror",
-]
-
-[[package]]
-name = "tool-log"
-version = "0.1.0"
-dependencies = [
- "log",
-]
-
-[[package]]
-name = "tool-math"
-version = "0.1.0"
-dependencies = [
- "thiserror",
-]
-
-[[package]]
-name = "tool-minio"
-version = "0.1.0"
-dependencies = [
- "tempfile",
- "thiserror",
- "tool-rustfs",
-]
-
-[[package]]
-name = "tool-mqtt"
-version = "0.1.0"
-dependencies = [
- "rumqttc",
- "rustls",
- "thiserror",
-]
-
-[[package]]
-name = "tool-pinyin"
-version = "0.1.0"
-dependencies = [
- "pinyin",
- "regex",
-]
-
-[[package]]
-name = "tool-reflection"
-version = "0.1.0"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "tool-rustfs"
-version = "0.1.0"
-dependencies = [
- "mime_guess",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
-name = "tool-ssh"
-version = "0.1.0"
-dependencies = [
- "ssh2",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
-name = "tool-str"
-version = "0.1.0"
-dependencies = [
- "deunicode",
- "regex",
- "tempfile",
-]
-
-[[package]]
-name = "tool-toml"
-version = "0.1.0"
-dependencies = [
- "serde",
- "tempfile",
- "thiserror",
- "toml_edit",
-]
-
-[[package]]
-name = "tool-yml"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_yaml",
- "tempfile",
- "thiserror",
-]
 
 [[package]]
 name = "tower"

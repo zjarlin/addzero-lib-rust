@@ -1,5 +1,5 @@
 [package]
-name = "stream-wrapper"
+name = "addzero-stream-wrapper"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

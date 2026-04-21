@@ -1,5 +1,5 @@
 [package]
-name = "tool-area"
+name = "addzero-area"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

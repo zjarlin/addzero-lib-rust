@@ -1,5 +1,5 @@
 [package]
-name = "tool-docker"
+name = "addzero-docker"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

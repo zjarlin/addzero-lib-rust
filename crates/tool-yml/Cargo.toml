@@ -1,5 +1,5 @@
 [package]
-name = "tool-yml"
+name = "addzero-yml"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
