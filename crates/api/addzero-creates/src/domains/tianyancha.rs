@@ -266,9 +266,10 @@ impl TianyanchaHuaweiApi {
                 None => host.to_owned(),
             })
             .ok_or_else(|| CreatesError::InvalidResponse("huawei url missing host".to_owned()))?;
-        let request_time = timestamp
-            .map(ToOwned::to_owned)
-            .unwrap_or_else(|| Utc::now().format("%Y%m%dT%H%M%SZ").to_string());
+        let request_time = timestamp.map_or_else(
+            || Utc::now().format("%Y%m%dT%H%M%SZ").to_string(),
+            ToOwned::to_owned,
+        );
 
         let canonical_uri = canonical_uri(url);
         let canonical_query = canonical_query_string(url);

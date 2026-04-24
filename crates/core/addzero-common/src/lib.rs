@@ -1,35 +1,42 @@
 use chrono::{
-    DateTime, Datelike, Days, Duration, Local, LocalResult, NaiveDate, NaiveDateTime, TimeZone,
-    Utc, Weekday,
+    DateTime, Datelike, Days, Duration, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime,
+    TimeZone, Utc, Weekday,
 };
 use std::collections::BTreeSet;
 use std::time::SystemTime;
 
+#[must_use]
 pub fn to_system_time(date: NaiveDate) -> SystemTime {
-    let local_datetime = localize(date.and_hms_opt(0, 0, 0).expect("valid midnight"));
+    let local_datetime = localize(date.and_time(NaiveTime::MIN));
     SystemTime::from(local_datetime.with_timezone(&Utc))
 }
 
+#[must_use]
 pub fn to_system_time_from_datetime(datetime: NaiveDateTime) -> SystemTime {
     SystemTime::from(localize(datetime).with_timezone(&Utc))
 }
 
+#[must_use]
 pub fn to_local_date(system_time: SystemTime) -> NaiveDate {
     DateTime::<Local>::from(system_time).date_naive()
 }
 
+#[must_use]
 pub fn to_local_datetime(system_time: SystemTime) -> NaiveDateTime {
     DateTime::<Local>::from(system_time).naive_local()
 }
 
+#[must_use]
 pub fn week_of_date(date: NaiveDate) -> &'static str {
     weekday_zh_cn(date.weekday())
 }
 
+#[must_use]
 pub fn week_of_datetime(datetime: NaiveDateTime) -> &'static str {
     weekday_zh_cn(datetime.weekday())
 }
 
+#[must_use]
 pub fn weekday_zh_cn(day_of_week: Weekday) -> &'static str {
     match day_of_week {
         Weekday::Mon => "周一",
@@ -42,26 +49,26 @@ pub fn weekday_zh_cn(day_of_week: Weekday) -> &'static str {
     }
 }
 
+#[must_use]
 pub fn all_days_in_month(year: i32, month: u32) -> BTreeSet<NaiveDate> {
-    let first_day = NaiveDate::from_ymd_opt(year, month, 1).expect("year-month should be valid");
-    let next_month = if month == 12 {
-        NaiveDate::from_ymd_opt(year + 1, 1, 1).expect("year-month should be valid")
-    } else {
-        NaiveDate::from_ymd_opt(year, month + 1, 1).expect("year-month should be valid")
+    let Some(first_day) = NaiveDate::from_ymd_opt(year, month, 1) else {
+        return BTreeSet::new();
     };
 
     let mut current = first_day;
     let mut days = BTreeSet::new();
-    while current < next_month {
+    while current.year() == year && current.month() == month {
         days.insert(current);
-        current = current
-            .checked_add_days(Days::new(1))
-            .expect("date increment should remain valid");
+        let Some(next_day) = current.checked_add_days(Days::new(1)) else {
+            break;
+        };
+        current = next_day;
     }
 
     days
 }
 
+#[must_use]
 pub fn mid_month_supplement<I>(source_dates: I) -> BTreeSet<NaiveDate>
 where
     I: IntoIterator<Item = NaiveDate>,
@@ -75,6 +82,7 @@ where
     month_days.difference(&source_dates).copied().collect()
 }
 
+#[must_use]
 pub fn count_workdays(year: i32, month: u32) -> usize {
     all_days_in_month(year, month)
         .into_iter()
@@ -82,22 +90,30 @@ pub fn count_workdays(year: i32, month: u32) -> usize {
         .count()
 }
 
+#[must_use]
 pub fn is_workday(date: NaiveDate) -> bool {
     !matches!(date.weekday(), Weekday::Sat | Weekday::Sun)
 }
 
+#[must_use]
 pub fn min_max_of_day(date: NaiveDate) -> (NaiveDateTime, NaiveDateTime) {
-    let start = date.and_hms_opt(0, 0, 0).expect("midnight should be valid");
-    let end = date
-        .and_hms_nano_opt(23, 59, 59, 999_999_999)
-        .expect("max datetime should be valid");
+    let start = date.and_time(NaiveTime::MIN);
+    let end = if let Some(next_day) = date.checked_add_days(Days::new(1)) {
+        next_day.and_time(NaiveTime::MIN) - Duration::nanoseconds(1)
+    } else if let Some(max_time) = NaiveTime::from_hms_nano_opt(23, 59, 59, 999_999_999) {
+        date.and_time(max_time)
+    } else {
+        start
+    };
     (start, end)
 }
 
+#[must_use]
 pub fn today_min_max() -> (NaiveDateTime, NaiveDateTime) {
     min_max_of_day(Local::now().date_naive())
 }
 
+#[must_use]
 pub fn add_days(system_time: SystemTime, days: i64) -> SystemTime {
     let local_datetime = DateTime::<Local>::from(system_time) + Duration::days(days);
     SystemTime::from(local_datetime.with_timezone(&Utc))

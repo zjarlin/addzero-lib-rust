@@ -50,6 +50,11 @@ fn all_days_in_month_and_mid_month_supplement_match_expected_dates() {
 }
 
 #[test]
+fn invalid_month_returns_empty_days() {
+    assert!(all_days_in_month(2024, 13).is_empty());
+}
+
+#[test]
 fn count_workdays_matches_manual_filter() {
     let expected = all_days_in_month(2024, 4)
         .into_iter()

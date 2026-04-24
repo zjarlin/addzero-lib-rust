@@ -785,7 +785,7 @@ impl PendingCell {
 
 fn finalize_cell(cell: PendingCell, shared_strings: &[String]) -> (usize, usize, CellValue) {
     let value = match cell.cell_type.as_deref() {
-        Some("inlineStr") | Some("str") => {
+        Some("inlineStr" | "str") => {
             if cell.inline_text.is_empty() {
                 CellValue::String(cell.raw_value)
             } else {

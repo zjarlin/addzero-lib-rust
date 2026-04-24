@@ -47,7 +47,7 @@ impl DockerRunCommand {
 
         while let Some(arg) = args.next() {
             match arg.as_str() {
-                "docker" | "run" => continue,
+                "docker" | "run" => {}
                 "--name" => name = args.next(),
                 "-p" | "--publish" => {
                     if let Some(port) = args.next() {
@@ -79,8 +79,9 @@ impl DockerRunCommand {
                 _ if arg.starts_with("-v") && arg.len() > 2 => volumes.push(arg[2..].to_owned()),
                 _ if !arg.starts_with('-') && image.is_none() => image = Some(arg),
                 _ if arg.starts_with("--") && arg.contains('=') => {
-                    let (key, value) = arg[2..].split_once('=').expect("contains `=`");
-                    other_options.insert(key.to_owned(), value.to_owned());
+                    if let Some((key, value)) = arg[2..].split_once('=') {
+                        other_options.insert(key.to_owned(), value.to_owned());
+                    }
                 }
                 _ if arg.starts_with("--") => {
                     let key = arg.trim_start_matches("--").to_owned();
@@ -105,6 +106,7 @@ impl DockerRunCommand {
         })
     }
 
+    #[must_use]
     pub fn service_name(&self) -> String {
         self.name.clone().unwrap_or_else(|| {
             self.image
@@ -118,41 +120,60 @@ impl DockerRunCommand {
         })
     }
 
+    #[must_use]
     pub fn to_docker_compose_yml(&self) -> String {
         let mut yaml = String::new();
         yaml.push_str("version: '3.8'\n");
         yaml.push_str("services:\n");
-        yaml.push_str(&format!("  {}:\n", self.service_name()));
-        yaml.push_str(&format!("    image: {}\n", self.image));
+        yaml.push_str("  ");
+        yaml.push_str(&self.service_name());
+        yaml.push_str(":\n");
+        yaml.push_str("    image: ");
+        yaml.push_str(&self.image);
+        yaml.push('\n');
 
         if let Some(name) = &self.name {
-            yaml.push_str(&format!("    container_name: {}\n", name));
+            yaml.push_str("    container_name: ");
+            yaml.push_str(name);
+            yaml.push('\n');
         }
         if !self.ports.is_empty() {
             yaml.push_str("    ports:\n");
             for port in &self.ports {
-                yaml.push_str(&format!("      - \"{}\"\n", port));
+                yaml.push_str("      - \"");
+                yaml.push_str(port);
+                yaml.push_str("\"\n");
             }
         }
         if !self.environment.is_empty() {
             yaml.push_str("    environment:\n");
             for (key, value) in &self.environment {
                 let escaped = value.replace('\"', "\\\"");
-                yaml.push_str(&format!("      {}: \"{}\"\n", key, escaped));
+                yaml.push_str("      ");
+                yaml.push_str(key);
+                yaml.push_str(": \"");
+                yaml.push_str(&escaped);
+                yaml.push_str("\"\n");
             }
         }
         if !self.volumes.is_empty() {
             yaml.push_str("    volumes:\n");
             for volume in &self.volumes {
-                yaml.push_str(&format!("      - \"{}\"\n", volume));
+                yaml.push_str("      - \"");
+                yaml.push_str(volume);
+                yaml.push_str("\"\n");
             }
         }
         if let Some(network) = &self.network {
             yaml.push_str("    networks:\n");
-            yaml.push_str(&format!("      - {}\n", network));
+            yaml.push_str("      - ");
+            yaml.push_str(network);
+            yaml.push('\n');
         }
         if let Some(restart) = &self.restart {
-            yaml.push_str(&format!("    restart: {}\n", restart));
+            yaml.push_str("    restart: ");
+            yaml.push_str(restart);
+            yaml.push('\n');
         }
 
         yaml
