@@ -14,9 +14,9 @@ pub(crate) struct HttpApiClient {
 
 impl HttpApiClient {
     pub(crate) fn new(config: ApiConfig) -> CreatesResult<Self> {
-        config.validate()?;
+        config.validate().map_err(CreatesError::from)?;
         let base_url = Url::parse(&config.base_url)
-            .map_err(|_| CreatesError::InvalidBaseUrl(config.base_url))?;
+            .map_err(|_| CreatesError::InvalidBaseUrl(config.base_url.clone()))?;
         let default_headers = build_header_map(&config.default_headers)?;
 
         let mut builder = Client::builder()

@@ -53,7 +53,7 @@ impl EmailConfig {
         username: impl Into<String>,
         password: impl Into<String>,
     ) -> EmailConfigBuilder {
-        EmailConfigBuilder {
+        Self {
             host: host.into(),
             port: 587,
             username: username.into(),
@@ -85,20 +85,7 @@ impl EmailConfig {
         }
         Ok(())
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct EmailConfigBuilder {
-    host: String,
-    port: u16,
-    username: String,
-    password: String,
-    protocol: String,
-    enable_ssl: bool,
-    enable_tls: bool,
-}
-
-impl EmailConfigBuilder {
     pub fn port(mut self, value: u16) -> Self {
         self.port = value;
         self
@@ -120,21 +107,14 @@ impl EmailConfigBuilder {
     }
 
     pub fn build(self) -> Result<EmailConfig, EmailError> {
-        let config = EmailConfig {
-            host: self.host,
-            port: self.port,
-            username: self.username,
-            password: self.password,
-            protocol: self.protocol,
-            enable_ssl: self.enable_ssl,
-            enable_tls: self.enable_tls,
-        };
-        config.validate()?;
-        Ok(config)
+        self.validate()?;
+        Ok(self)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+pub type EmailConfigBuilder = EmailConfig;
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct EmailMessage {
     pub from: String,
     pub to: Vec<String>,
@@ -148,7 +128,7 @@ pub struct EmailMessage {
 
 impl EmailMessage {
     pub fn builder() -> EmailMessageBuilder {
-        EmailMessageBuilder::default()
+        Self::default()
     }
 
     pub fn validate(&self) -> Result<(), EmailError> {
@@ -169,23 +149,9 @@ impl EmailMessage {
         }
         Ok(())
     }
-}
 
-#[derive(Debug, Default, Clone)]
-pub struct EmailMessageBuilder {
-    from: Option<String>,
-    to: Vec<String>,
-    cc: Vec<String>,
-    bcc: Vec<String>,
-    subject: Option<String>,
-    text_content: Option<String>,
-    html_content: Option<String>,
-    attachments: Vec<String>,
-}
-
-impl EmailMessageBuilder {
     pub fn from(mut self, value: impl Into<String>) -> Self {
-        self.from = Some(value.into());
+        self.from = value.into();
         self
     }
 
@@ -205,7 +171,7 @@ impl EmailMessageBuilder {
     }
 
     pub fn subject(mut self, value: impl Into<String>) -> Self {
-        self.subject = Some(value.into());
+        self.subject = value.into();
         self
     }
 
@@ -225,20 +191,12 @@ impl EmailMessageBuilder {
     }
 
     pub fn build(self) -> Result<EmailMessage, EmailError> {
-        let message = EmailMessage {
-            from: self.from.unwrap_or_default(),
-            to: self.to,
-            cc: self.cc,
-            bcc: self.bcc,
-            subject: self.subject.unwrap_or_default(),
-            text_content: self.text_content,
-            html_content: self.html_content,
-            attachments: self.attachments,
-        };
-        message.validate()?;
-        Ok(message)
+        self.validate()?;
+        Ok(self)
     }
 }
+
+pub type EmailMessageBuilder = EmailMessage;
 
 pub trait EmailSender: Send + Sync {
     fn send(&self, message: &EmailMessage) -> Result<(), EmailError>;

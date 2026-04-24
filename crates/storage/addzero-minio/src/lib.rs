@@ -66,13 +66,7 @@ impl MinioConfig {
         access_key: impl Into<String>,
         secret_key: impl Into<String>,
     ) -> MinioConfigBuilder {
-        MinioConfigBuilder {
-            endpoint: endpoint.into(),
-            access_key: access_key.into(),
-            secret_key: secret_key.into(),
-            region: None,
-            path_style_access: true,
-        }
+        Self::new(endpoint, access_key, secret_key)
     }
 
     pub fn validate(&self) -> MinioResult<()> {
@@ -93,18 +87,7 @@ impl MinioConfig {
         }
         Ok(())
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct MinioConfigBuilder {
-    endpoint: String,
-    access_key: String,
-    secret_key: String,
-    region: Option<String>,
-    path_style_access: bool,
-}
-
-impl MinioConfigBuilder {
     pub fn region(mut self, value: impl Into<String>) -> Self {
         self.region = Some(value.into());
         self
@@ -116,17 +99,12 @@ impl MinioConfigBuilder {
     }
 
     pub fn build(self) -> MinioResult<MinioConfig> {
-        let config = MinioConfig {
-            endpoint: self.endpoint,
-            access_key: self.access_key,
-            secret_key: self.secret_key,
-            region: self.region,
-            path_style_access: self.path_style_access,
-        };
-        config.validate()?;
-        Ok(config)
+        self.validate()?;
+        Ok(self)
     }
 }
+
+pub type MinioConfigBuilder = MinioConfig;
 
 impl From<MinioConfig> for S3ClientConfig {
     fn from(value: MinioConfig) -> Self {

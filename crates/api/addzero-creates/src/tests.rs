@@ -418,27 +418,27 @@ impl TestResponse {
 }
 
 fn test_music_config(base_url: &str) -> CreatesResult<ApiConfig> {
-    ApiConfig::builder(base_url)
+    Ok(ApiConfig::builder(base_url)
         .default_header("Referer", "https://music.163.com/")
         .user_agent("Mozilla/5.0")
-        .build()
+        .build()?)
 }
 
 fn test_suno_config(base_url: &str) -> CreatesResult<ApiConfig> {
-    ApiConfig::builder(base_url)
+    Ok(ApiConfig::builder(base_url)
         .default_header(ACCEPT.as_str(), "application/json")
-        .build()
+        .build()?)
 }
 
 fn test_tianyancha_config(base_url: &str) -> CreatesResult<ApiConfig> {
-    ApiConfig::builder(base_url)
+    Ok(ApiConfig::builder(base_url)
         .default_header(CONTENT_TYPE.as_str(), "application/json")
         .default_header(HOST.as_str(), "api9.tianyancha.com")
         .default_header(ACCEPT.as_str(), "*/*")
         .default_header("version", "TYC-XCX-WX")
         .default_header("User-Agent", "Mozilla/5.0")
         .default_header("Accept-Language", "zh-cn")
-        .build()
+        .build()?)
 }
 
 struct TestServer {

@@ -7,12 +7,13 @@ description: >
   (3) deciding between borrowing vs cloning or ownership patterns,
   (4) implementing error handling with Result types,
   (5) optimizing Rust code for performance,
-  (6) writing tests or documentation for Rust projects.
+  (6) writing tests or documentation for Rust projects,
+  (7) reducing repetitive Rust boilerplate with derive crates or local macros.
 license: MIT
 compatibility: Rust 1.70+, Cargo
 metadata:
   author: apollographql
-  version: "1.1.0"
+  version: "1.2.0"
 allowed-tools: Bash(cargo:*) Bash(rustc:*) Bash(rustfmt:*) Bash(clippy:*) Read Write Edit Glob Grep
 ---
 
@@ -47,6 +48,15 @@ Before reviewing, familiarize yourself with Apollo's Rust best practices. Read A
 - Never use `unwrap()`/`expect()` outside tests
 - Use `thiserror` for library errors, `anyhow` for binaries only
 - Prefer `?` operator over match chains for error propagation
+
+### Boilerplate Reduction
+- Prefer `thiserror` for library-facing error enums instead of hand-writing `Display`, `Error`, and `From` impls
+- Use `anyhow` only at binary/application boundaries; do not expose `anyhow::Error` in reusable library APIs
+- Use `derive_builder` or `typed-builder` when config/data structs have many optional fields or fluent construction improves readability
+- Skip builder crates for tiny structs where `new(...)` or struct literals are clearer
+- Prefer small local `macro_rules!` macros for repeated declarations such as register tables, enum mappings, or repetitive tests
+- Keep macros shallow: generate declarations and impls, not hidden control flow or opaque DSLs
+- If repetition spans files like `lib.rs`, `tests/public_api.rs`, or crate skeletons, prefer templates or repo scripts over macros
 
 ### Performance
 - Always benchmark with `--release` flag
@@ -92,3 +102,14 @@ impl Connection<Connected> {
 - `///` doc comments explain *what* and *how* for public APIs
 - Every `TODO` needs a linked issue: `// TODO(#42): ...`
 - Enable `#![deny(missing_docs)]` for libraries
+
+## Boilerplate Policy
+
+When code is purely mechanical, prefer generation over hand-writing it repeatedly. Good targets:
+
+- error enums and conversions via `thiserror`
+- verbose builders via `derive_builder` or `typed-builder`
+- repetitive declarations via small local `macro_rules!`
+- repeated crate/test skeletons via templates or scripts
+
+Do not hide design decisions inside macros. Public API shape, ownership boundaries, error semantics, module exports, and concurrency behavior must remain explicit Rust code that reviewers can read directly.

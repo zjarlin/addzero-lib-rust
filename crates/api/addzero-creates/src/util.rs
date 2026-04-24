@@ -92,10 +92,6 @@ pub(crate) fn canonical_query_string(url: &Url) -> String {
         .join("&")
 }
 
-pub(crate) fn default_user_agent() -> String {
-    format!("{}/{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
-}
-
 pub(crate) fn sanitize_prefix(prefix: &str) -> String {
     let sanitized = prefix
         .chars()

@@ -19,7 +19,7 @@ pub type NeteaseMusicApi = MusicSearchApi;
 impl MusicSearchApi {
     pub fn new(config: ApiConfig) -> CreatesResult<Self> {
         Ok(Self {
-            inner: InnerMusicSearchApi::new(config.into_music_config())?,
+            inner: InnerMusicSearchApi::new(config)?,
         })
     }
 
@@ -128,7 +128,7 @@ pub struct SunoApi {
 impl SunoApi {
     pub fn new(api_token: impl Into<String>, config: ApiConfig) -> CreatesResult<Self> {
         Ok(Self {
-            inner: InnerSunoApi::new(api_token, config.into_music_config())?,
+            inner: InnerSunoApi::new(api_token, config)?,
         })
     }
 

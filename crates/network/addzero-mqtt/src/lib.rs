@@ -80,8 +80,8 @@ pub struct MqttMessage {
 
 impl MqttMessage {
     pub fn builder(topic: impl Into<String>) -> MqttMessageBuilder {
-        MqttMessageBuilder {
-            topic: Some(topic.into()),
+        Self {
+            topic: topic.into(),
             payload: Vec::new(),
             qos: MqttQoS::AtMostOnce,
             retain: false,
@@ -96,17 +96,7 @@ impl MqttMessage {
         }
         Ok(())
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct MqttMessageBuilder {
-    topic: Option<String>,
-    payload: Vec<u8>,
-    qos: MqttQoS,
-    retain: bool,
-}
-
-impl MqttMessageBuilder {
     pub fn payload(mut self, value: impl Into<Vec<u8>>) -> Self {
         self.payload = value.into();
         self
@@ -128,16 +118,12 @@ impl MqttMessageBuilder {
     }
 
     pub fn build(self) -> MqttResult<MqttMessage> {
-        let message = MqttMessage {
-            topic: self.topic.unwrap_or_default(),
-            payload: self.payload,
-            qos: self.qos,
-            retain: self.retain,
-        };
-        message.validate()?;
-        Ok(message)
+        self.validate()?;
+        Ok(self)
     }
 }
+
+pub type MqttMessageBuilder = MqttMessage;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MqttReceivedMessage {
@@ -201,7 +187,7 @@ pub struct MqttConfig {
 
 impl MqttConfig {
     pub fn builder(host: impl Into<String>, client_id: impl Into<String>) -> MqttConfigBuilder {
-        MqttConfigBuilder {
+        Self {
             host: host.into(),
             port: 1883,
             client_id: client_id.into(),
@@ -279,29 +265,7 @@ impl MqttConfig {
         }
         Ok(())
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct MqttConfigBuilder {
-    host: String,
-    port: u16,
-    client_id: String,
-    username: Option<String>,
-    password: Option<String>,
-    keep_alive_secs: u64,
-    clean_session: bool,
-    request_channel_capacity: usize,
-    inflight: u16,
-    connect_timeout_secs: u64,
-    poll_timeout_ms: u64,
-    use_tls: bool,
-    ca_path: Option<String>,
-    client_cert_path: Option<String>,
-    client_key_path: Option<String>,
-    last_will: Option<MqttMessage>,
-}
-
-impl MqttConfigBuilder {
     pub fn port(mut self, value: u16) -> Self {
         self.port = value;
         self
@@ -375,28 +339,12 @@ impl MqttConfigBuilder {
     }
 
     pub fn build(self) -> MqttResult<MqttConfig> {
-        let config = MqttConfig {
-            host: self.host,
-            port: self.port,
-            client_id: self.client_id,
-            username: self.username,
-            password: self.password,
-            keep_alive_secs: self.keep_alive_secs,
-            clean_session: self.clean_session,
-            request_channel_capacity: self.request_channel_capacity,
-            inflight: self.inflight,
-            connect_timeout_secs: self.connect_timeout_secs,
-            poll_timeout_ms: self.poll_timeout_ms,
-            use_tls: self.use_tls,
-            ca_path: self.ca_path,
-            client_cert_path: self.client_cert_path,
-            client_key_path: self.client_key_path,
-            last_will: self.last_will,
-        };
-        config.validate()?;
-        Ok(config)
+        self.validate()?;
+        Ok(self)
     }
 }
+
+pub type MqttConfigBuilder = MqttConfig;
 
 pub struct MqttClient {
     config: MqttConfig,

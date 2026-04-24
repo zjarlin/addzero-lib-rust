@@ -63,7 +63,7 @@ pub struct SshConfig {
 
 impl SshConfig {
     pub fn builder(host: impl Into<String>, username: impl Into<String>) -> SshConfigBuilder {
-        SshConfigBuilder {
+        Self {
             host: host.into(),
             port: 22,
             username: username.into(),
@@ -96,21 +96,7 @@ impl SshConfig {
         }
         Ok(())
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct SshConfigBuilder {
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    private_key_passphrase: Option<String>,
-    connect_timeout_ms: u32,
-    read_timeout_ms: u32,
-}
-
-impl SshConfigBuilder {
     pub fn port(mut self, value: u16) -> Self {
         self.port = value;
         self
@@ -142,20 +128,12 @@ impl SshConfigBuilder {
     }
 
     pub fn build(self) -> SshResult<SshConfig> {
-        let config = SshConfig {
-            host: self.host,
-            port: self.port,
-            username: self.username,
-            password: self.password,
-            private_key_path: self.private_key_path,
-            private_key_passphrase: self.private_key_passphrase,
-            connect_timeout_ms: self.connect_timeout_ms,
-            read_timeout_ms: self.read_timeout_ms,
-        };
-        config.validate()?;
-        Ok(config)
+        self.validate()?;
+        Ok(self)
     }
 }
+
+pub type SshConfigBuilder = SshConfig;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SshExecutionResult {
