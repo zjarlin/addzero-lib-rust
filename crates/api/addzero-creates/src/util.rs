@@ -77,7 +77,7 @@ pub(crate) fn canonical_query_string(url: &Url) -> String {
             )
         })
         .collect::<Vec<_>>();
-    pairs.sort_by(|left, right| left.cmp(right));
+    pairs.sort();
     pairs
         .into_iter()
         .map(|(name, value)| format!("{name}={value}"))

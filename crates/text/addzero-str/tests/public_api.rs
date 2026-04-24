@@ -1,4 +1,5 @@
 use addzero_str::*;
+use std::f64::consts::PI;
 use tempfile::TempDir;
 
 #[test]
@@ -163,7 +164,7 @@ fn format_helpers_work() {
         &["John".into(), 30.into(), 95.5.into(), 255.into()],
     );
     assert_eq!(value, "Name: John, Age: 30, Score: 95.5, Hex: ff, Done: %");
-    assert_eq!(kmp_format("Value: %.2f", &[3.14159.into()]), "Value: 3.14");
+    assert_eq!(kmp_format("Value: %.2f", &[PI.into()]), "Value: 3.14");
     assert_eq!(format_currency(19.99, 2), "19.99");
 }
 

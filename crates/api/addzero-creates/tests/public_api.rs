@@ -245,10 +245,7 @@ fn read_request(stream: &mut TcpStream) -> std::io::Result<CapturedRequest> {
         let normalized_name = name.trim().to_ascii_lowercase();
         let trimmed_value = value.trim().to_owned();
         if normalized_name == "content-length" {
-            content_length = match trimmed_value.parse::<usize>() {
-                Ok(value) => value,
-                Err(_) => 0,
-            };
+            content_length = trimmed_value.parse::<usize>().unwrap_or_default();
         }
         headers.insert(normalized_name, trimmed_value);
     }

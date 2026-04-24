@@ -214,7 +214,7 @@ impl TempMailMessageDetail {
             Value::Array(values) => values
                 .into_iter()
                 .find_map(|item| item.as_str().map(ToOwned::to_owned))
-                .map_or_else(String::new, |value| value),
+                .unwrap_or_else(String::new),
             Value::Null => String::new(),
             other => {
                 return Err(CreatesError::InvalidResponse(format!(

@@ -161,7 +161,7 @@ fn progress_helpers_compute_expected_values() {
     };
     assert!(progress.formatted().contains("50.00%"));
     assert!(progress.formatted().contains("(2/4)"));
-    assert!(progress.is_complete() == false);
+    assert!(!progress.is_complete());
 }
 
 #[test]

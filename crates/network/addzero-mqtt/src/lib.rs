@@ -634,11 +634,7 @@ fn build_options(config: &MqttConfig) -> MqttResult<MqttOptions> {
 }
 
 fn build_transport(config: &MqttConfig) -> MqttResult<Transport> {
-    let ca = config
-        .ca_path
-        .as_ref()
-        .map(|path| read_file_bytes(path))
-        .transpose()?;
+    let ca = config.ca_path.as_ref().map(read_file_bytes).transpose()?;
     let client_auth = match (&config.client_cert_path, &config.client_key_path) {
         (Some(cert_path), Some(key_path)) => {
             Some((read_file_bytes(cert_path)?, read_file_bytes(key_path)?))

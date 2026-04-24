@@ -352,11 +352,11 @@ impl UploadProgressListener for SpeedTrackingProgressListener {
             let _ = storage.update_uploaded_size(&storage_key, progress.uploaded);
         }
 
-        let remaining_seconds = speed.and_then(|speed| {
+        let remaining_seconds = speed.map(|speed| {
             if speed == 0 || progress.total <= progress.uploaded {
-                Some(0)
+                0
             } else {
-                Some((progress.total - progress.uploaded) / speed)
+                (progress.total - progress.uploaded) / speed
             }
         });
 

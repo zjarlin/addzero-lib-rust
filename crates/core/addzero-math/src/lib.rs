@@ -424,8 +424,7 @@ fn solve_linear_system(matrix: &[Vec<f64>], rhs: &[f64]) -> Option<Vec<f64>> {
             .max_by(|left, right| {
                 augmented[*left][pivot]
                     .abs()
-                    .partial_cmp(&augmented[*right][pivot].abs())
-                    .expect("finite comparison should work")
+                    .total_cmp(&augmented[*right][pivot].abs())
             })
             .unwrap_or(pivot);
 
@@ -438,8 +437,8 @@ fn solve_linear_system(matrix: &[Vec<f64>], rhs: &[f64]) -> Option<Vec<f64>> {
         }
 
         let divisor = augmented[pivot][pivot];
-        for col in pivot..=size {
-            augmented[pivot][col] /= divisor;
+        for value in augmented[pivot].iter_mut().skip(pivot) {
+            *value /= divisor;
         }
 
         for row in 0..size {
@@ -450,8 +449,19 @@ fn solve_linear_system(matrix: &[Vec<f64>], rhs: &[f64]) -> Option<Vec<f64>> {
             if factor.abs() <= DEFAULT_TOLERANCE {
                 continue;
             }
-            for col in pivot..=size {
-                augmented[row][col] -= factor * augmented[pivot][col];
+            let (pivot_row, current_row) = if row < pivot {
+                let (before_pivot, after_pivot) = augmented.split_at_mut(pivot);
+                (&after_pivot[0], &mut before_pivot[row])
+            } else {
+                let (before_row, after_row) = augmented.split_at_mut(row);
+                (&before_row[pivot], &mut after_row[0])
+            };
+            for (current, pivot_value) in current_row
+                .iter_mut()
+                .skip(pivot)
+                .zip(pivot_row.iter().skip(pivot))
+            {
+                *current -= factor * *pivot_value;
             }
         }
     }

@@ -180,8 +180,9 @@ pub fn create_suno_api(api_token: impl Into<String>) -> MusicResult<SunoApi> {
     SunoApi::new(api_token, config)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MusicSearchType {
+    #[default]
     Song,
     Album,
     Artist,
@@ -191,12 +192,6 @@ pub enum MusicSearchType {
     Lyric,
     Radio,
     Video,
-}
-
-impl Default for MusicSearchType {
-    fn default() -> Self {
-        Self::Song
-    }
 }
 
 impl MusicSearchType {
