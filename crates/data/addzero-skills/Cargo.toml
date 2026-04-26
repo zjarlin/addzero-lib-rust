@@ -1,0 +1,23 @@
+[package]
+name = "addzero-skills"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+regex = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true, features = ["v4", "serde"] }
+tokio = { workspace = true, features = ["fs", "rt-multi-thread", "macros", "sync", "io-util"] }
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio-rustls", "chrono", "uuid", "macros"] }
+log = { workspace = true }
+
+[lints]
+workspace = true

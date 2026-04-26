@@ -1,0 +1,30 @@
+[package]
+name = "dioxus-admin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+dioxus = { workspace = true, features = ["router", "fullstack"] }
+dioxus-components = { path = "../../crates/ui/dioxus-components" }
+serde = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+
+# Server-side only deps. They don't compile to wasm (sqlx is std-only) so we
+# gate them behind the `server` feature; `dx serve --features server` enables
+# them when bundling the server binary.
+addzero-skills = { path = "../../crates/data/addzero-skills", optional = true }
+tokio = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+
+[features]
+default = ["web"]
+desktop = ["dioxus/desktop"]
+web = ["dioxus/web"]
+server = ["dioxus/server", "dep:addzero-skills", "dep:tokio", "dep:anyhow", "dep:log"]
+
+[lints]
+workspace = true
