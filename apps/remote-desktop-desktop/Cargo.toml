@@ -1,0 +1,23 @@
+[package]
+name = "remote-desktop-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+bundle = []
+
+[dependencies]
+addzero-remote-host = { path = "../../crates/runtime/addzero-remote-host" }
+addzero-remote-model = { path = "../../crates/core/addzero-remote-model" }
+addzero-remote-session = { path = "../../crates/runtime/addzero-remote-session" }
+addzero-remote-ui = { path = "../../crates/ui/addzero-remote-ui" }
+chrono = { workspace = true, features = ["serde"] }
+dioxus = { workspace = true, features = ["desktop"] }
+uuid.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,13 @@
+[application]
+name = "remote-desktop-desktop"
+default_platform = "desktop"
+out_dir = "dist"
+
+[bundle]
+identifier = "site.addzero.remote-desktop-desktop"
+publisher = "zjarlin"
+icon = ["assets/icon.png"]
+category = "DeveloperTool"
+short_description = "Addzero remote desktop viewer"
+long_description = "A Dioxus-based remote desktop viewer with relay-first session orchestration for macOS and Windows."
+copyright = "Copyright (c) zjarlin"

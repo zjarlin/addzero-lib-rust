@@ -1,0 +1,9 @@
+[application]
+name = "remote-desktop-web"
+default_platform = "web"
+
+[web.app]
+title = "Remote Desktop Web"
+
+[bundle]
+identifier = "site.addzero.remote-desktop-web"

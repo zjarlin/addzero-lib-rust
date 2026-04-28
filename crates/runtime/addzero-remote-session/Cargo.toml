@@ -1,0 +1,20 @@
+[package]
+name = "addzero-remote-session"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+addzero-remote-model = { path = "../../core/addzero-remote-model" }
+addzero-remote-protocol = { path = "../../network/addzero-remote-protocol" }
+chrono = { workspace = true, features = ["serde"] }
+quinn.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

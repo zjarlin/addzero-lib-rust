@@ -57,6 +57,8 @@ anyhow = "1.0.99"
 uuid = { version = "1.18.1", features = ["v4", "serde"] }
 tokio = { version = "1.47.1", features = ["full"] }
 sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "runtime-tokio-rustls", "chrono", "uuid", "macros"] }
+futures-util = "0.3.31"
+quinn = { version = "0.11.9", default-features = false, features = ["runtime-tokio", "rustls"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

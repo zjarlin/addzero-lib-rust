@@ -1,0 +1,18 @@
+[package]
+name = "remote-desktop-web"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+addzero-remote-model = { path = "../../crates/core/addzero-remote-model" }
+addzero-remote-session = { path = "../../crates/runtime/addzero-remote-session" }
+addzero-remote-ui = { path = "../../crates/ui/addzero-remote-ui" }
+chrono = { workspace = true, features = ["serde"] }
+dioxus = { workspace = true, features = ["web"] }
+uuid.workspace = true
+
+[lints]
+workspace = true

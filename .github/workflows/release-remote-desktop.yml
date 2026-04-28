@@ -1,0 +1,140 @@
+name: Release Remote Desktop Desktop
+
+on:
+  push:
+    tags:
+      - 'remote-desktop-desktop-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version without leading v, e.g. 0.1.0'
+        required: true
+      draft:
+        description: 'Create draft release'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+env:
+  APP_PACKAGE: remote-desktop-desktop
+  APP_DIR: apps/remote-desktop-desktop
+  BUNDLE_OUT_DIR: release-artifacts
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      draft: ${{ steps.meta.outputs.draft }}
+    steps:
+      - name: Derive release metadata
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            TAG="remote-desktop-desktop-v${{ github.event.inputs.version }}"
+            VERSION="${{ github.event.inputs.version }}"
+            DRAFT="${{ github.event.inputs.draft }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#remote-desktop-desktop-v}"
+            DRAFT="false"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "draft=${DRAFT}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          DRAFT: ${{ steps.meta.outputs.draft }}
+        shell: bash
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            if [[ "${DRAFT}" == "true" ]]; then
+              gh release edit "${TAG}" --title "Remote Desktop Desktop v${VERSION}" --draft
+            else
+              gh release edit "${TAG}" --title "Remote Desktop Desktop v${VERSION}" --draft=false
+            fi
+          else
+            gh release create "${TAG}" \
+              --title "Remote Desktop Desktop v${VERSION}" \
+              --notes-file docs/release/remote-desktop-desktop.md \
+              --target "${GITHUB_SHA}" \
+              $( [[ "${DRAFT}" == "true" ]] && echo "--draft" )
+          fi
+
+  build:
+    needs: prepare-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            package_types: "dmg"
+            artifact_glob: "*.dmg"
+            artifact_suffix: "macos"
+          - os: windows-latest
+            package_types: "msi"
+            artifact_glob: "*.msi"
+            artifact_suffix: "windows"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Dioxus CLI
+        shell: bash
+        run: cargo install dioxus-cli --version 0.7.6 --locked
+
+      - name: Cache cargo registry
+        uses: swatinem/rust-cache@v2
+
+      - name: Bundle installer
+        shell: bash
+        run: |
+          dx bundle \
+            --platform desktop \
+            --release \
+            --features bundle \
+            --package "${APP_PACKAGE}" \
+            --package-types "${{ matrix.package_types }}" \
+            --out-dir "${GITHUB_WORKSPACE}/${BUNDLE_OUT_DIR}"
+
+      - name: Rename artifacts with platform suffix
+        shell: bash
+        run: |
+          mkdir -p renamed-artifacts
+          shopt -s nullglob
+          for file in "${BUNDLE_OUT_DIR}"/${{ matrix.artifact_glob }}; do
+            base="$(basename "$file")"
+            ext="${base##*.}"
+            stem="${base%.*}"
+            cp "$file" "renamed-artifacts/${stem}-${{ matrix.artifact_suffix }}.${ext}"
+          done
+          compgen -G "renamed-artifacts/*" >/dev/null || { echo "No bundled artifacts found"; exit 1; }
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-desktop-desktop-${{ matrix.artifact_suffix }}
+          path: renamed-artifacts/*
+
+      - name: Upload assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        shell: bash
+        run: gh release upload "${TAG}" renamed-artifacts/* --clobber

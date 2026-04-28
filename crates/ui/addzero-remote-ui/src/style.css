@@ -1,0 +1,32 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --panel: rgba(255, 255, 255, 0.68);
+  --panel-strong: rgba(255, 255, 255, 0.86);
+  --line: rgba(20, 29, 45, 0.08);
+  --shadow: 0 18px 50px rgba(46, 61, 88, 0.08);
+  --text: #172033;
+  --muted: #69758c;
+  --accent: #1f7aff;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "SF Pro Text", "PingFang SC", sans-serif; background: radial-gradient(circle at top left, rgba(31, 122, 255, 0.08), transparent 20%), var(--bg); color: var(--text); }
+.rd-shell { min-height: 100vh; }
+.rd-topbar { padding: 20px 28px 12px; }
+.rd-eyebrow { margin: 0 0 6px; color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.rd-title { margin: 0; font-size: 28px; font-weight: 650; }
+.rd-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr) 320px; gap: 18px; padding: 0 24px 24px; }
+.rd-sidebar, .rd-stage, .rd-detail { min-height: 75vh; }
+.glass-card, .device-card, .rd-stage__surface { border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-radius: 22px; box-shadow: var(--shadow); }
+.glass-card { padding: 18px; }
+.device-card { padding: 16px; margin-bottom: 12px; }
+.device-card--active { border-color: rgba(31, 122, 255, 0.26); background: var(--panel-strong); }
+.device-card__title { font-size: 15px; font-weight: 640; }
+.device-card__meta, .device-card__note, .muted { color: var(--muted); font-size: 13px; line-height: 1.45; }
+.rd-stage__surface { padding: 20px; min-height: 100%; display: flex; flex-direction: column; gap: 16px; }
+.stage-screen { min-height: 440px; border-radius: 18px; border: 1px solid var(--line); background: linear-gradient(135deg, rgba(31, 122, 255, 0.12), rgba(255, 255, 255, 0.55)); display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
+.toolbar button, .toolbar input { border: 1px solid var(--line); background: rgba(255,255,255,0.72); border-radius: 14px; padding: 10px 12px; font: inherit; }
+.toolbar button { cursor: pointer; color: var(--text); }
+@media (max-width: 1100px) { .rd-layout { grid-template-columns: 1fr; } }
