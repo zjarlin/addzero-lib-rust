@@ -1,0 +1,21 @@
+{
+  "code": "board_transport_type",
+  "name": "Board Transport Type",
+  "scope": "transport",
+  "rawValueKind": "string",
+  "openEnum": false,
+  "items": [
+    {
+      "code": "RTU",
+      "label": "RTU",
+      "description": "Rtu transport",
+      "rawTextValue": "RTU"
+    },
+    {
+      "code": "TCP",
+      "label": "TCP",
+      "description": "Tcp transport",
+      "rawTextValue": "TCP"
+    }
+  ]
+}

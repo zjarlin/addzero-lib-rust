@@ -1,0 +1,25 @@
+{
+  "code": "board_parity",
+  "name": "Board Parity",
+  "scope": "board.static",
+  "rawValueKind": "int",
+  "openEnum": true,
+  "unknownVariant": "Other",
+  "items": [
+    {
+      "code": "NONE",
+      "label": "None",
+      "description": "No parity",
+      "rawIntValue": 0
+    },
+    {
+      "code": "ODD",
+      "label": "Odd",
+      "description": "Odd parity",
+      "rawIntValue": 2,
+      "meta": {
+        "legacy": true
+      }
+    }
+  ]
+}
