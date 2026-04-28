@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::Row;
+use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::time::Duration;
 use uuid::Uuid;
 

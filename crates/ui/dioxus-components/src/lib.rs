@@ -177,7 +177,11 @@ pub fn Surface(children: Element) -> Element {
 }
 
 #[component]
-pub fn SurfaceHeader(title: String, #[props(optional)] subtitle: Option<String>, #[props(optional)] actions: Option<Element>) -> Element {
+pub fn SurfaceHeader(
+    title: String,
+    #[props(optional)] subtitle: Option<String>,
+    #[props(optional)] actions: Option<Element>,
+) -> Element {
     rsx! {
         div { class: "surface__header",
             div {
@@ -233,7 +237,11 @@ pub fn MetricRow(label: String, value: String, #[props(optional)] tone: Option<T
 }
 
 #[component]
-pub fn ListItem(title: String, #[props(optional)] detail: Option<String>, #[props(optional)] meta: Option<String>) -> Element {
+pub fn ListItem(
+    title: String,
+    #[props(optional)] detail: Option<String>,
+    #[props(optional)] meta: Option<String>,
+) -> Element {
     rsx! {
         div { class: "activity-item",
             div { class: "activity-item__title", "{title}" }
@@ -248,7 +256,12 @@ pub fn ListItem(title: String, #[props(optional)] detail: Option<String>, #[prop
 }
 
 #[component]
-pub fn StatTile(label: String, value: String, #[props(optional)] detail: Option<String>, #[props(optional)] leading: Option<Element>) -> Element {
+pub fn StatTile(
+    label: String,
+    value: String,
+    #[props(optional)] detail: Option<String>,
+    #[props(optional)] leading: Option<Element>,
+) -> Element {
     rsx! {
         div { class: "summary-block",
             if let Some(leading) = leading {
@@ -452,7 +465,10 @@ pub struct BadgeProps {
 
 #[component]
 pub fn Badge(props: BadgeProps) -> Element {
-    let variant = props.variant.clone().unwrap_or_else(|| "default".to_string());
+    let variant = props
+        .variant
+        .clone()
+        .unwrap_or_else(|| "default".to_string());
     let class = format!("badge badge--{variant}");
     rsx! {
         span { class: class, "{props.label}" }

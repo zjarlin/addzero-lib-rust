@@ -11,8 +11,8 @@ mod scenes;
 mod server;
 
 use api::{
-    delete_skill, list_skills, server_status, sync_skills, upsert_skill, SkillDto, SkillSourceDto,
-    SkillUpsertDto, SyncReportDto,
+    SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto, delete_skill, list_skills,
+    server_status, sync_skills, upsert_skill,
 };
 use scenes::auth::{AuthSession, LoginPage};
 use scenes::knowledge_base::{ConfigFilesScene, NotesScene, SoftwareScene};
@@ -159,7 +159,10 @@ fn NavLink(to: Route, label: &'static str) -> Element {
         matches!(&current, Route::AgentEditor { .. }) && matches!(&to, Route::Agents);
     let knowledge_group_active = matches!(
         (&current, &to),
-        (Route::KnowledgeNotes | Route::KnowledgeSoftware | Route::KnowledgeConfigs, Route::KnowledgeNotes)
+        (
+            Route::KnowledgeNotes | Route::KnowledgeSoftware | Route::KnowledgeConfigs,
+            Route::KnowledgeNotes
+        )
     );
     let system_group_active = matches!(
         (&current, &to),
@@ -168,11 +171,12 @@ fn NavLink(to: Route, label: &'static str) -> Element {
             Route::SystemUsers
         )
     );
-    let class = if current == to || is_agents_subroute || knowledge_group_active || system_group_active {
-        "nav-item nav-item--active"
-    } else {
-        "nav-item"
-    };
+    let class =
+        if current == to || is_agents_subroute || knowledge_group_active || system_group_active {
+            "nav-item nav-item--active"
+        } else {
+            "nav-item"
+        };
 
     rsx! {
         Link { to, class: class, "{label}" }
@@ -402,9 +406,7 @@ fn Agents() -> Element {
                 true
             } else {
                 s.name.to_lowercase().contains(&query)
-                    || s.keywords
-                        .iter()
-                        .any(|k| k.to_lowercase().contains(&query))
+                    || s.keywords.iter().any(|k| k.to_lowercase().contains(&query))
                     || s.description.to_lowercase().contains(&query)
             }
         })
@@ -473,7 +475,9 @@ fn Agents() -> Element {
 #[component]
 fn SkillRow(skill: SkillDto) -> Element {
     let nav = use_navigator();
-    let route = Route::AgentEditor { name: skill.name.clone() };
+    let route = Route::AgentEditor {
+        name: skill.name.clone(),
+    };
     let preview: Vec<&String> = skill.keywords.iter().take(3).collect();
     let extra = skill.keywords.len().saturating_sub(preview.len());
     let badge = source_badge_props(&skill.source);
@@ -917,7 +921,11 @@ fn AgentContext() -> Element {
     let view = status.read();
 
     let (pg_online, fs_root, last_report) = match view.as_ref() {
-        Some(Ok(report)) => (report.pg_online, report.fs_root.clone(), Some(report.clone())),
+        Some(Ok(report)) => (
+            report.pg_online,
+            report.fs_root.clone(),
+            Some(report.clone()),
+        ),
         Some(Err(_)) => (false, String::new(), None),
         None => (false, String::new(), None),
     };
@@ -1009,7 +1017,12 @@ fn DefaultContext() -> Element {
 }
 
 #[component]
-fn DataRow(name: &'static str, owner: &'static str, status: &'static str, updated_at: &'static str) -> Element {
+fn DataRow(
+    name: &'static str,
+    owner: &'static str,
+    status: &'static str,
+    updated_at: &'static str,
+) -> Element {
     let status_class = match status {
         "稳定" => "status-pill status-pill--ok",
         "待校验" => "status-pill status-pill--warn",
