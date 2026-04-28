@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use syn::parse::{Parse, ParseStream, Parser};
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, Expr, Ident, LitInt, LitStr, Result, Token, Type};
+use syn::{Expr, Ident, LitInt, LitStr, Result, Token, Type, parse_macro_input};
 
 #[proc_macro]
 pub fn dict_enum(input: TokenStream) -> TokenStream {

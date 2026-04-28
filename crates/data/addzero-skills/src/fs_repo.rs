@@ -37,7 +37,9 @@ impl FsRepo {
             return Ok(Self::new(PathBuf::from(raw)));
         }
         let home = std::env::var("HOME").context("HOME env var is not set")?;
-        Ok(Self::new(PathBuf::from(home).join(".agents").join("skills")))
+        Ok(Self::new(
+            PathBuf::from(home).join(".agents").join("skills"),
+        ))
     }
 
     pub fn root(&self) -> &Path {

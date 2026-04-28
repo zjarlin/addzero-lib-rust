@@ -7,24 +7,51 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-dioxus = { workspace = true, features = ["router", "fullstack"] }
-dioxus-components = { path = "../../crates/ui/dioxus-components" }
-serde = { workspace = true }
+addzero-agent-runtime-contract = { path = "../../crates/data/addzero-agent-runtime-contract" }
+base64.workspace = true
 chrono = { workspace = true, features = ["serde"] }
+dioxus = { workspace = true, features = ["router"] }
+dioxus-components = { path = "../../crates/ui/dioxus-components" }
+dioxus-free-icons.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
 
-# Server-side only deps. They don't compile to wasm (sqlx is std-only) so we
-# gate them behind the `server` feature; `dx serve --features server` enables
-# them when bundling the server binary.
-addzero-skills = { path = "../../crates/data/addzero-skills", optional = true }
-tokio = { workspace = true, optional = true }
-anyhow = { workspace = true, optional = true }
-log = { workspace = true, optional = true }
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3.77"
+wasm-bindgen = "0.2.100"
+wasm-bindgen-futures = "0.4.50"
+web-sys = { version = "0.3.77", features = [
+    "Headers",
+    "Request",
+    "RequestCredentials",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Window",
+] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+addzero-skills = { path = "../../crates/data/addzero-skills" }
+addzero-rustfs = { path = "../../crates/storage/addzero-rustfs" }
+anyhow.workspace = true
+axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
+hmac.workspace = true
+log.workspace = true
+regex.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+
+[build-dependencies]
+addzero-knowledge = { path = "../../crates/data/addzero-knowledge" }
+tokio.workspace = true
 
 [features]
 default = ["web"]
 desktop = ["dioxus/desktop"]
 web = ["dioxus/web"]
-server = ["dioxus/server", "dep:addzero-skills", "dep:tokio", "dep:anyhow", "dep:log"]
 
 [lints]
 workspace = true

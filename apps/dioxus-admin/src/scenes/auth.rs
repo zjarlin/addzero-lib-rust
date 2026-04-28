@@ -1,24 +1,28 @@
 use dioxus::prelude::*;
 use dioxus_components::{ContentHeader, Field, Surface, SurfaceHeader, WorkbenchButton};
+use dioxus_free_icons::{
+    Icon,
+    icons::ld_icons::{LdMoonStar, LdSun},
+};
 
-use crate::Route;
-
-#[derive(Clone, Copy)]
-pub struct AuthSession {
-    pub logged_in: Signal<bool>,
-    pub username: Signal<String>,
-}
+use crate::app::Route;
+use crate::state::{AuthSession, ThemePrefs};
 
 #[component]
 pub fn LoginPage() -> Element {
     let mut auth = use_context::<AuthSession>();
+    let mut theme = use_context::<ThemePrefs>();
+    let auth_api = use_context::<crate::state::AppServices>().auth_api.clone();
+
     let nav = use_navigator();
     let mut username = use_signal(String::new);
     let mut password = use_signal(String::new);
     let mut err = use_signal::<Option<String>>(|| None);
+    let mut submitting = use_signal(|| false);
+    let is_dark = *theme.dark_mode.read();
 
-    if *auth.logged_in.read() {
-        nav.replace(Route::Dashboard);
+    if *auth.ready.read() && *auth.logged_in.read() {
+        nav.replace(Route::Home);
     }
 
     let submit = move |_| {
@@ -28,13 +32,48 @@ pub fn LoginPage() -> Element {
             err.set(Some("请输入用户名和密码".to_string()));
             return;
         }
-        auth.username.set(user);
-        auth.logged_in.set(true);
-        nav.replace(Route::Dashboard);
+        submitting.set(true);
+        let auth_api = auth_api.clone();
+        spawn(async move {
+            match auth_api
+                .login(addzero_agent_runtime_contract::LoginRequest {
+                    username: user.clone(),
+                    password: pass,
+                })
+                .await
+            {
+                Ok(session) if session.authenticated => {
+                    auth.username.set(session.username.unwrap_or(user));
+                    auth.logged_in.set(true);
+                    auth.ready.set(true);
+                    err.set(None);
+                    nav.replace(Route::Home);
+                }
+                Ok(_) => {
+                    err.set(Some("登录失败：服务端没有返回有效会话".to_string()));
+                }
+                Err(error) => {
+                    err.set(Some(error.to_string()));
+                }
+            }
+            submitting.set(false);
+        });
     };
 
     rsx! {
         div { class: "login-shell",
+            div { class: "login-shell__theme-toggle",
+                WorkbenchButton {
+                    class: "icon-button".to_string(),
+                    onclick: move |_| theme.dark_mode.set(!is_dark),
+                    title: if is_dark { "切换到白天模式" } else { "切换到黑夜模式" },
+                    if is_dark {
+                        Icon { width: 16, height: 16, icon: LdSun }
+                    } else {
+                        Icon { width: 16, height: 16, icon: LdMoonStar }
+                    }
+                }
+            }
             Surface {
                 ContentHeader {
                     title: "用户登录".to_string(),
@@ -42,7 +81,7 @@ pub fn LoginPage() -> Element {
                 }
                 SurfaceHeader {
                     title: "登录凭据".to_string(),
-                    subtitle: "演示阶段使用本地登录态，不接后端鉴权。".to_string()
+                    subtitle: "当前使用最小真实后台会话：签名 Cookie + 单管理员凭据。".to_string()
                 }
                 div { class: "login-form",
                     Field {
@@ -61,9 +100,9 @@ pub fn LoginPage() -> Element {
                         div { class: "callout", "{msg}" }
                     }
                     WorkbenchButton {
-                        class: "action-button".to_string(),
+                        class: "action-button action-button--primary".to_string(),
                         onclick: submit,
-                        "登录"
+                        if *submitting.read() { "登录中…" } else { "登录" }
                     }
                 }
             }

@@ -2,6 +2,80 @@
 
 `addzero-lib-rust` 是一组偏工具型的 Rust workspace，目标是把常用、可复用、低耦合的能力沉淀成独立 crate。
 
+## `msc-aio` 蓝图
+
+当前仓库的一个明确方向是沉淀 `msc-aio`：
+
+- 一套面向个人知识资产、同步任务和命令化能力的 AIO 平台
+- 一个以 PostgreSQL 为唯一正式持久化源的后台系统
+- 一个同时提供 Dioxus 管理界面、Axum REST API、以及同源 CLI 的工作台
+
+这套系统的目标不是只做一个“网页后台”，而是把自己日常要管理的知识库、同步任务、脚本能力、导入导出流程统一收进同一个平台里，让“万事万物都 CLI 化”成为默认交付形态，而不是补充能力。
+
+### 核心原则
+
+- `all in pg`：正式业务数据全部进入 PostgreSQL，数据库名为 `msc_aio`
+- `axum + dioxus`：Axum 负责后端 API 与任务入口，Dioxus 负责管理界面
+- `REST + CLI 同源`：后端写 REST API 的同时，CLI 从同一套操作定义生成，避免手写两套接口
+- `import != source of truth`：文件系统扫描、构建期嵌入、临时内存实现都只作为导入态或开发态，不作为最终数据落点
+- `大功能一模块`：按功能边界拆模块，文件粒度保持在人类可以轻松阅读的范围内
+
+### 规划中的系统分层
+
+1. PostgreSQL `msc_aio`
+   作为知识资产、同步任务、操作日志、配置、索引元数据的唯一正式存储
+2. 领域服务层
+   放在 workspace crate 中，承载知识库、同步、任务、导入导出、资产管理等核心用例
+3. Axum API 层
+   暴露 REST API、认证、任务调度入口、OpenAPI 文档以及自动化调用面
+4. CLI 层
+   从与 REST 同源的操作定义生成命令，保证后台能力天然可脚本化
+5. Dioxus Admin 层
+   作为管理工作台，用于查看知识资产、同步状态、任务历史、配置与系统上下文
+
+### 当前状态
+
+- `dioxus-admin` 已经开始承接 admin 壳子、多模块场景与知识库可视化
+- 技能数据仍有内存实现
+- 知识库已经新增 `addzero-knowledge` 数据域 crate，可把本机候选知识目录同步进 PostgreSQL `msc_aio`
+- `dioxus-admin` 的知识页现在会优先从 PG 镜像生成目录，PG 不可用时才退回文件系统快照
+- PG 能力在部分底层 crate 已经存在，但还没有完全打通到 `all in pg`
+- `msc-aio` 的正式 REST + CLI 同源链路仍处于蓝图阶段，下一步需要优先收敛 contract 与数据模型
+
+### 知识同步落地
+
+当前知识导入先覆盖这台机器上最像“个人知识资产”的来源：
+
+- `~/Desktop/tech-content-automation/rust/sources`
+- `~/Nextcloud/一些未整理的资料/Documents`
+- `~/Nextcloud/软件文档`
+- `~/Nextcloud/DockerCompose`
+- `~/Nextcloud/DockerCompose_Unuse`
+- `~/memory`
+- `~/.config/shell`
+- `~/.config/mole`
+- `~/Nextcloud/要件`
+- `~/Music/addzero/config-sys`
+
+明显的第三方噪音会在导入时跳过，例如 `target/`、`legal/`、`data/`、`LICENSE*`、`CHANGELOG*`、`SECURITY*` 一类文件。
+
+本地运行时，`dioxus-admin` 与同步 CLI 会按以下优先级读取数据库连接：
+
+1. `MSC_AIO_DATABASE_URL`
+2. `DATABASE_URL`
+3. `~/.config/msc-aio/dioxus-admin.env`
+
+示例：
+
+```bash
+printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > ~/.config/msc-aio/dioxus-admin.env
+cargo run -p addzero-knowledge --bin knowledge-sync
+```
+
+更完整的蓝图说明见：
+
+- [docs/plans/2026-04-28-msc-aio-blueprint.md](docs/plans/2026-04-28-msc-aio-blueprint.md)
+
 这次新增了 `addzero-creates`，用于把 `addzero-lib-jvm/lib/tool-jvm/network-call` 里适合公开沉淀的常见 API 收口为 Rust 创建器；同时把音乐领域能力单独抽到了 `addzero-music`。
 
 ## 当前重点模块

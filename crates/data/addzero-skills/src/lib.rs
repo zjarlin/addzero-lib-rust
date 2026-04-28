@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 pub use fs_repo::FsRepo;
 pub use pg_repo::PgRepo;
 pub use sync::sync_all;
-pub use types::{skill_from_upsert, Skill, SkillSource, SkillUpsert, SyncReport};
+pub use types::{Skill, SkillSource, SkillUpsert, SyncReport, skill_from_upsert};
 
 /// Top-level facade. Wraps an optional PG repo + a mandatory fs repo and
 /// exposes CRUD operations plus a manual `sync_now()`.
