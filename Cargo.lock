@@ -112,6 +112,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "addzero-error"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "addzero-excel"
 version = "0.1.0"
 dependencies = [
@@ -134,6 +143,14 @@ version = "0.1.0"
 dependencies = [
  "tempfile",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "addzero-json"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -266,6 +283,60 @@ dependencies = [
 ]
 
 [[package]]
+name = "addzero-remote-host"
+version = "0.1.0"
+dependencies = [
+ "addzero-remote-model",
+ "chrono",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "addzero-remote-model"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
+name = "addzero-remote-protocol"
+version = "0.1.0"
+dependencies = [
+ "addzero-remote-model",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "addzero-remote-session"
+version = "0.1.0"
+dependencies = [
+ "addzero-remote-model",
+ "addzero-remote-protocol",
+ "chrono",
+ "quinn",
+ "serde",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "addzero-remote-ui"
+version = "0.1.0"
+dependencies = [
+ "addzero-remote-model",
+ "dioxus",
+]
+
+[[package]]
 name = "addzero-rustfs"
 version = "0.1.0"
 dependencies = [
@@ -394,6 +465,14 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "toml_edit 0.22.27",
+]
+
+[[package]]
+name = "addzero-tree"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -5428,6 +5507,46 @@ name = "regex-syntax"
 version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
+
+[[package]]
+name = "remote-desktop-desktop"
+version = "0.1.0"
+dependencies = [
+ "addzero-remote-host",
+ "addzero-remote-model",
+ "addzero-remote-session",
+ "addzero-remote-ui",
+ "chrono",
+ "dioxus",
+ "uuid",
+]
+
+[[package]]
+name = "remote-desktop-host"
+version = "0.1.0"
+dependencies = [
+ "addzero-remote-host",
+]
+
+[[package]]
+name = "remote-desktop-relay"
+version = "0.1.0"
+dependencies = [
+ "addzero-remote-session",
+ "tokio",
+]
+
+[[package]]
+name = "remote-desktop-web"
+version = "0.1.0"
+dependencies = [
+ "addzero-remote-model",
+ "addzero-remote-session",
+ "addzero-remote-ui",
+ "chrono",
+ "dioxus",
+ "uuid",
+]
 
 [[package]]
 name = "reqwest"
