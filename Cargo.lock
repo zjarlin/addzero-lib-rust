@@ -300,6 +300,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "addzero-regex"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "addzero-remote-host"
 version = "0.1.0"
 dependencies = [
@@ -384,6 +393,14 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "addzero-sql"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
