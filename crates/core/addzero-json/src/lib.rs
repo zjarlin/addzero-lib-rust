@@ -124,21 +124,18 @@ pub fn get_bool(json: &Value, path: &str) -> Option<bool> {
 /// assert_eq!(base, json!({ "a": 1, "b": { "x": 10, "y": 20 }, "c": 3 }));
 /// ```
 pub fn merge(base: &mut Value, overlay: &Value) {
-    match (base, overlay) {
-        (Value::Object(base_map), Value::Object(overlay_map)) => {
-            for (key, value) in overlay_map {
-                if let Some(base_val) = base_map.get_mut(key) {
-                    if base_val.is_object() && value.is_object() {
-                        merge(base_val, value);
-                    } else {
-                        base_map.insert(key.clone(), value.clone());
-                    }
+    if let (Value::Object(base_map), Value::Object(overlay_map)) = (base, overlay) {
+        for (key, value) in overlay_map {
+            if let Some(base_val) = base_map.get_mut(key) {
+                if base_val.is_object() && value.is_object() {
+                    merge(base_val, value);
                 } else {
                     base_map.insert(key.clone(), value.clone());
                 }
+            } else {
+                base_map.insert(key.clone(), value.clone());
             }
         }
-        _ => {}
     }
 }
 
