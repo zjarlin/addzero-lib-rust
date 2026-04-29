@@ -16,6 +16,14 @@ name = "addzero-area"
 version = "0.1.0"
 
 [[package]]
+name = "addzero-array"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "addzero-browser-automation"
 version = "0.1.0"
 dependencies = [
@@ -192,6 +200,15 @@ dependencies = [
  "ring",
  "tempfile",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "addzero-model"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
