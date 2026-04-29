@@ -1,0 +1,20 @@
+[package]
+name = "addzero-api-translate"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Translation API client supporting multiple providers"
+
+[dependencies]
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+urlencoding.workspace = true
+
+[lints]
+workspace = true

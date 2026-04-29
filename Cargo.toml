@@ -56,6 +56,8 @@ zip = "4.6.1"
 dioxus = { version = "0.7.5", features = ["router"] }
 dioxus-free-icons = { version = "0.10.0", features = ["lucide"] }
 anyhow = "1.0.99"
+async-trait = "0.1"
+urlencoding = "2.1"
 uuid = { version = "1.23.1", features = ["v4", "serde", "js"] }
 tokio = { version = "1.47.1", features = ["full"] }
 sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "runtime-tokio-rustls", "chrono", "uuid", "macros"] }
