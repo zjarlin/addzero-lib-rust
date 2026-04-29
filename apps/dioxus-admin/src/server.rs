@@ -21,7 +21,9 @@ use addzero_agent_runtime_contract::{
 };
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 
-use crate::services::{SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto};
+use crate::services::{
+    LogoUploadRequest, SkillDto, SkillSourceDto, SkillUpsertDto, StoredLogoDto, SyncReportDto,
+};
 
 use self::auth::AdminSessionService;
 use self::runtime::AgentRuntimeService;
@@ -71,6 +73,7 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/admin/session", get(get_session))
         .route("/api/admin/session/login", post(login))
         .route("/api/admin/session/logout", post(logout))
+        .route("/api/admin/storage/logo", post(upload_logo))
         .route("/api/skills", get(list_skills))
         .route("/api/skills/status", get(skill_status))
         .route("/api/skills/sync", post(sync_skills))
@@ -126,6 +129,21 @@ async fn logout() -> ApiResult<Response> {
             .map_err(|_| ApiError::internal("failed to encode logout cookie"))?,
     );
     Ok(response)
+}
+
+async fn upload_logo(
+    headers: HeaderMap,
+    Json(input): Json<LogoUploadRequest>,
+) -> ApiResult<Json<StoredLogoDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let stored = tokio::task::spawn_blocking(move || {
+        crate::services::logo_storage::upload_logo_on_server(input)
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("logo 上传任务失败：{err}")))?
+    .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(stored))
 }
 
 async fn list_skills(headers: HeaderMap) -> ApiResult<Json<Vec<SkillDto>>> {

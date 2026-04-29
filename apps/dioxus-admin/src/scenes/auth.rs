@@ -15,11 +15,28 @@ pub fn LoginPage() -> Element {
     let auth_api = use_context::<crate::state::AppServices>().auth_api.clone();
 
     let nav = use_navigator();
-    let mut username = use_signal(String::new);
-    let mut password = use_signal(String::new);
+    let mut username = use_signal(|| {
+        if cfg!(debug_assertions) {
+            "admin".to_string()
+        } else {
+            String::new()
+        }
+    });
+    let mut password = use_signal(|| {
+        if cfg!(debug_assertions) {
+            "admin".to_string()
+        } else {
+            String::new()
+        }
+    });
     let mut err = use_signal::<Option<String>>(|| None);
     let mut submitting = use_signal(|| false);
     let is_dark = *theme.dark_mode.read();
+    let session_hint = if cfg!(debug_assertions) {
+        "开发模式会优先尝试 admin/admin，并继续兼容真实签名 Cookie 会话。".to_string()
+    } else {
+        "当前使用最小真实后台会话：签名 Cookie + 单管理员凭据。".to_string()
+    };
 
     if *auth.ready.read() && *auth.logged_in.read() {
         nav.replace(Route::Home);
@@ -81,7 +98,7 @@ pub fn LoginPage() -> Element {
                 }
                 SurfaceHeader {
                     title: "登录凭据".to_string(),
-                    subtitle: "当前使用最小真实后台会话：签名 Cookie + 单管理员凭据。".to_string()
+                    subtitle: session_hint
                 }
                 div { class: "login-form",
                     Field {

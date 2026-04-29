@@ -1,0 +1,17 @@
+[package]
+name = "addzero-plugin-kernel"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+addzero-plugin-contract = { path = "../addzero-plugin-contract" }
+addzero-plugin-registry = { path = "../addzero-plugin-registry" }
+addzero-plugin-runtime = { path = "../addzero-plugin-runtime" }
+shaku.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
