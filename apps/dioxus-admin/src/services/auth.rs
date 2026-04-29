@@ -26,6 +26,23 @@ const DEV_ADMIN_USERNAME: &str = "admin";
 #[cfg(target_arch = "wasm32")]
 const DEV_ADMIN_PASSWORD: &str = "admin";
 
+#[cfg(target_arch = "wasm32")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DevCredentialError {
+    UsernameNotFound,
+    PasswordIncorrect,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl DevCredentialError {
+    fn message(self) -> &'static str {
+        match self {
+            Self::UsernameNotFound => "用户名不存在",
+            Self::PasswordIncorrect => "密码错误",
+        }
+    }
+}
+
 pub trait AuthApi: 'static {
     fn current_session(&self) -> LocalBoxFuture<'_, AuthServiceResult<SessionUser>>;
 
@@ -57,25 +74,26 @@ impl AuthApi for BrowserAuthApi {
         Box::pin(async move {
             match super::browser_http::get_json::<SessionUser>("/api/admin/session").await {
                 Ok(session) if session.authenticated => Ok(session),
-                Ok(session) => try_browser_dev_login().await.unwrap_or(Ok(session)),
-                Err(err) => {
-                    if let Some(session) = try_browser_dev_login().await.transpose()? {
-                        Ok(session)
-                    } else if cfg!(debug_assertions) {
-                        Ok(dev_session())
-                    } else {
-                        Err(AuthServiceError::new(err))
-                    }
-                }
+                Ok(session) => resolve_browser_dev_session(Some(session), None).await,
+                Err(err) => resolve_browser_dev_session(None, Some(err)).await,
             }
         })
     }
 
     fn login(&self, input: LoginRequest) -> LocalBoxFuture<'_, AuthServiceResult<SessionUser>> {
         Box::pin(async move {
-            super::browser_http::post_json("/api/admin/session/login", &input)
-                .await
-                .map_err(AuthServiceError::new)
+            match super::browser_http::post_json("/api/admin/session/login", &input).await {
+                Ok(session) => Ok(session),
+                Err(_err) if should_fallback_to_dev_session(&input) => Ok(dev_session()),
+                Err(_err) if cfg!(debug_assertions) => {
+                    if let Err(reason) = validate_dev_credentials(&input) {
+                        Err(AuthServiceError::new(reason.message()))
+                    } else {
+                        Ok(dev_session())
+                    }
+                }
+                Err(err) => Err(AuthServiceError::new(non_empty_browser_error(err))),
+            }
         })
     }
 
@@ -116,7 +134,7 @@ impl AuthApi for EmbeddedAuthApi {
             let cookie = backend
                 .admin_auth
                 .authenticate(&input)
-                .ok_or_else(|| AuthServiceError::new("用户名或密码不正确"))?;
+                .map_err(|err| AuthServiceError::new(err.message()))?;
             let _ = cookie;
             let username = input.username.trim().to_string();
             CURRENT_USER.with(|slot| slot.replace(Some(username.clone())));
@@ -159,6 +177,53 @@ fn dev_session() -> SessionUser {
     SessionUser {
         authenticated: true,
         username: Some(DEV_ADMIN_USERNAME.to_string()),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn resolve_browser_dev_session(
+    session: Option<SessionUser>,
+    err: Option<String>,
+) -> AuthServiceResult<SessionUser> {
+    if !cfg!(debug_assertions) {
+        return match (session, err) {
+            (Some(session), _) => Ok(session),
+            (_, Some(err)) => Err(AuthServiceError::new(non_empty_browser_error(err))),
+            (None, None) => Ok(dev_session()),
+        };
+    }
+
+    match try_browser_dev_login().await {
+        Some(Ok(session)) => Ok(session),
+        Some(Err(_)) | None => Ok(dev_session()),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn should_fallback_to_dev_session(input: &LoginRequest) -> bool {
+    cfg!(debug_assertions)
+        && input.username.trim() == DEV_ADMIN_USERNAME
+        && input.password == DEV_ADMIN_PASSWORD
+}
+
+#[cfg(target_arch = "wasm32")]
+fn validate_dev_credentials(input: &LoginRequest) -> Result<(), DevCredentialError> {
+    if input.username.trim() != DEV_ADMIN_USERNAME {
+        return Err(DevCredentialError::UsernameNotFound);
+    }
+    if input.password != DEV_ADMIN_PASSWORD {
+        return Err(DevCredentialError::PasswordIncorrect);
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn non_empty_browser_error(err: String) -> String {
+    let trimmed = err.trim();
+    if trimmed.is_empty() {
+        "登录失败：后台接口未就绪或没有返回错误消息".to_string()
+    } else {
+        trimmed.to_string()
     }
 }
 

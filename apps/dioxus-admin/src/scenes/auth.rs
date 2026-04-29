@@ -33,9 +33,9 @@ pub fn LoginPage() -> Element {
     let mut submitting = use_signal(|| false);
     let is_dark = *theme.dark_mode.read();
     let session_hint = if cfg!(debug_assertions) {
-        "开发模式会优先尝试 admin/admin，并继续兼容真实签名 Cookie 会话。".to_string()
+        "开发模式默认 admin/admin。".to_string()
     } else {
-        "当前使用最小真实后台会话：签名 Cookie + 单管理员凭据。".to_string()
+        "签名 Cookie 单管理员会话。".to_string()
     };
 
     if *auth.ready.read() && *auth.logged_in.read() {
@@ -94,7 +94,7 @@ pub fn LoginPage() -> Element {
             Surface {
                 ContentHeader {
                     title: "用户登录".to_string(),
-                    subtitle: "登录后可访问知识库、Agent 和系统管理场景。".to_string(),
+                    subtitle: "进入当前工作台。".to_string(),
                 }
                 SurfaceHeader {
                     title: "登录凭据".to_string(),

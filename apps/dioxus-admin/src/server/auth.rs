@@ -20,6 +20,21 @@ pub struct AdminSessionService {
     ttl: Duration,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdminAuthFailure {
+    UsernameNotFound,
+    PasswordIncorrect,
+}
+
+impl AdminAuthFailure {
+    pub fn message(&self) -> &'static str {
+        match self {
+            Self::UsernameNotFound => "用户名不存在",
+            Self::PasswordIncorrect => "密码错误",
+        }
+    }
+}
+
 impl AdminSessionService {
     pub fn from_env() -> Self {
         let username = std::env::var("DIOXUS_ADMIN_USERNAME").unwrap_or_else(|_| "admin".into());
@@ -39,12 +54,9 @@ impl AdminSessionService {
         }
     }
 
-    pub fn authenticate(&self, input: &LoginRequest) -> Option<String> {
-        if input.username.trim() != self.username || input.password != self.password {
-            return None;
-        }
-
-        Some(self.issue_cookie(input.username.trim()))
+    pub fn authenticate(&self, input: &LoginRequest) -> Result<String, AdminAuthFailure> {
+        self.validate_credentials(input)?;
+        Ok(self.issue_cookie(input.username.trim()))
     }
 
     pub fn current_user(&self, headers: &HeaderMap) -> Option<String> {
@@ -75,6 +87,16 @@ impl AdminSessionService {
 
     pub fn clear_cookie_header(&self) -> String {
         format!("{COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0")
+    }
+
+    pub fn validate_credentials(&self, input: &LoginRequest) -> Result<(), AdminAuthFailure> {
+        if input.username.trim() != self.username {
+            return Err(AdminAuthFailure::UsernameNotFound);
+        }
+        if input.password != self.password {
+            return Err(AdminAuthFailure::PasswordIncorrect);
+        }
+        Ok(())
     }
 
     fn issue_cookie(&self, username: &str) -> String {

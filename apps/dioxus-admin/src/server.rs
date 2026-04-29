@@ -78,15 +78,21 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/skills/status", get(skill_status))
         .route("/api/skills/sync", post(sync_skills))
         .route("/api/skills/upsert", post(upsert_skill))
-        .route("/api/skills/:name", get(get_skill).delete(delete_skill))
+        .route("/api/skills/{name}", get(get_skill).delete(delete_skill))
         .route("/api/runtime/overview", get(runtime_overview))
         .route("/api/runtime/pairings", post(create_pairing))
-        .route("/api/runtime/pairings/:id", get(get_pairing))
-        .route("/api/runtime/pairings/:id/approve", post(approve_pairing))
-        .route("/api/runtime/pairings/:id/exchange", post(exchange_pairing))
+        .route("/api/runtime/pairings/{id}", get(get_pairing))
+        .route("/api/runtime/pairings/{id}/approve", post(approve_pairing))
+        .route(
+            "/api/runtime/pairings/{id}/exchange",
+            post(exchange_pairing),
+        )
         .route("/api/runtime/heartbeat", post(heartbeat))
         .route("/api/runtime/skills/sync", post(runtime_skill_sync))
-        .route("/api/runtime/conflicts/:id/resolve", post(resolve_conflict));
+        .route(
+            "/api/runtime/conflicts/{id}/resolve",
+            post(resolve_conflict),
+        );
 
     axum::serve(listener, router).await?;
     Ok(())
@@ -102,7 +108,7 @@ async fn login(Json(input): Json<LoginRequest>) -> ApiResult<Response> {
     let cookie = backend
         .admin_auth
         .authenticate(&input)
-        .ok_or_else(|| ApiError::unauthorized("用户名或密码不正确"))?;
+        .map_err(|err| ApiError::unauthorized(err.message()))?;
     let mut response = Json(SessionUser {
         authenticated: true,
         username: Some(input.username.trim().to_string()),

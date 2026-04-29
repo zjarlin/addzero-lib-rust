@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_components::{
-    ContentHeader, Divider, ListItem, MetricRow, ResponsiveGrid, SidebarSection, Stack, StatTile,
+    ContentHeader, Field, ListItem, MetricRow, ResponsiveGrid, SidebarSection, Stack, StatTile,
     Surface, SurfaceHeader, Tone, WorkbenchButton,
 };
 
@@ -13,10 +13,79 @@ use crate::{
     },
     package_catalog::{
         PACKAGE_CHANNELS, PackageAsset, first_package_asset_slug_for_channel, package_asset,
-        package_asset_count, package_assets, package_channel, package_pending_checks,
-        package_platform_count, total_package_assets, total_package_channels,
+        package_asset_count, package_assets, package_channel,
     },
 };
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct PackageAssetDraft {
+    slug: String,
+    channel_slug: String,
+    software_title: String,
+    package_name: String,
+    version: String,
+    platform: String,
+    format: String,
+    status: String,
+    source: String,
+    install_target: String,
+    checksum_state: String,
+    relation: String,
+    note: String,
+}
+
+impl PackageAssetDraft {
+    fn from_asset(asset: PackageAsset) -> Self {
+        Self {
+            slug: asset.slug.to_string(),
+            channel_slug: asset.channel_slug.to_string(),
+            software_title: asset.software_title.to_string(),
+            package_name: asset.package_name.to_string(),
+            version: asset.version.to_string(),
+            platform: asset.platform.to_string(),
+            format: asset.format.to_string(),
+            status: asset.status.to_string(),
+            source: asset.source.to_string(),
+            install_target: asset.install_target.to_string(),
+            checksum_state: asset.checksum_state.to_string(),
+            relation: asset.relation.to_string(),
+            note: asset.note.to_string(),
+        }
+    }
+
+    fn empty(channel_slug: &str) -> Self {
+        Self {
+            slug: String::new(),
+            channel_slug: channel_slug.to_string(),
+            software_title: String::new(),
+            package_name: String::new(),
+            version: String::new(),
+            platform: String::new(),
+            format: String::new(),
+            status: "整理中".to_string(),
+            source: String::new(),
+            install_target: String::new(),
+            checksum_state: "待补 SHA256".to_string(),
+            relation: String::new(),
+            note: String::new(),
+        }
+    }
+
+    fn title(&self) -> String {
+        if self.software_title.trim().is_empty() {
+            "未命名安装包".to_string()
+        } else {
+            self.software_title.clone()
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PackageCrudMode {
+    View,
+    Create,
+    Update,
+}
 
 #[component]
 pub fn KnowledgeNotes() -> Element {
@@ -266,26 +335,33 @@ pub fn SoftwareScene() -> Element {
     rsx! {
         Surface {
             SurfaceHeader {
-                title: "软件位".to_string(),
-                subtitle: "这部分继续保留给软件台账和安装记录，不和知识文档混排。".to_string()
+                title: "软件矩阵".to_string(),
+                subtitle: "软件对象按工作块组织，直接看对象、用途、依赖面和当前状态。".to_string()
             }
-            ResponsiveGrid { columns: 3,
-                StatTile { label: "已登记软件".to_string(), value: "42".to_string(), detail: "含 CLI / GUI / 服务".to_string() }
-                StatTile { label: "待升级".to_string(), value: "6".to_string(), detail: "已超过安全基线".to_string() }
-                StatTile { label: "高风险依赖".to_string(), value: "2".to_string(), detail: "等待兼容性验证".to_string() }
-            }
-        }
-        Surface {
-            SurfaceHeader {
-                title: "软件台账".to_string(),
-                subtitle: "按用途和运行环境做分组。".to_string()
-            }
-            table { class: "data-table",
-                thead { tr { th { "软件" } th { "版本" } th { "用途" } th { "状态" } } }
-                tbody {
-                    tr { td { "Cursor" } td { "0.52.x" } td { "编码与代理协作" } td { "稳定" } }
-                    tr { td { "Docker Desktop" } td { "4.40.x" } td { "本地容器编排" } td { "待升级" } }
-                    tr { td { "cloudflared" } td { "2026.4" } td { "隧道与公网访问" } td { "稳定" } }
+            div { class: "software-matrix",
+                SoftwareGroup {
+                    title: "创作与笔记".to_string(),
+                    items: vec![
+                        ("Cursor", "编码与 Agent 协作", "桌面 IDE", "稳定"),
+                        ("Obsidian", "笔记编辑与知识沉淀", "桌面应用", "稳定"),
+                        ("Raycast", "命令入口与启动器", "桌面工具", "观察中"),
+                    ]
+                }
+                SoftwareGroup {
+                    title: "构建与运行".to_string(),
+                    items: vec![
+                        ("Docker Desktop", "本地容器编排", "容器运行时", "待升级"),
+                        ("Rust Toolchain", "Rust 构建与测试", "CLI 工具链", "稳定"),
+                        ("Node.js", "前端构建与脚本运行", "CLI 运行时", "待升级"),
+                    ]
+                }
+                SoftwareGroup {
+                    title: "网络与分发".to_string(),
+                    items: vec![
+                        ("cloudflared", "隧道与公网访问", "CLI 服务", "稳定"),
+                        ("GitHub", "代码托管与发布", "云端服务", "稳定"),
+                        ("MinIO", "对象存储与品牌资源", "基础设施", "整理中"),
+                    ]
                 }
             }
         }
@@ -303,63 +379,47 @@ pub fn PackageAssetsScene() -> Element {
         .and_then(|channel| first_package_asset_slug_for_channel(channel.slug))
         .map(str::to_string)
         .unwrap_or_default();
-    let selected_channel_slug = use_signal(|| default_channel);
-    let selected_asset_slug = use_signal(|| default_asset);
+    let initial_assets = PACKAGE_CHANNELS
+        .iter()
+        .flat_map(|channel| package_assets(channel.slug))
+        .map(|asset| PackageAssetDraft::from_asset(*asset))
+        .collect::<Vec<_>>();
+    let selected_channel_slug = use_signal(|| default_channel.clone());
+    let selected_asset_slug = use_signal(|| default_asset.clone());
+    let package_assets_state = use_signal(|| initial_assets);
+    let editor_mode = use_signal(|| PackageCrudMode::View);
+    let form_state = use_signal(|| {
+        package_asset(default_asset.as_str())
+            .map(|asset| PackageAssetDraft::from_asset(*asset))
+            .unwrap_or_else(|| PackageAssetDraft::empty(""))
+    });
 
     let selected_channel =
         package_channel(selected_channel_slug.read().as_str()).or_else(|| PACKAGE_CHANNELS.first());
     let selected_assets = selected_channel
-        .map(|channel| package_assets(channel.slug).collect::<Vec<_>>())
+        .map(|channel| {
+            package_assets_state
+                .read()
+                .iter()
+                .filter(|asset| asset.channel_slug == channel.slug)
+                .cloned()
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
-    let selected_asset = package_asset(selected_asset_slug.read().as_str())
-        .filter(|asset| selected_channel.map(|channel| channel.slug) == Some(asset.channel_slug))
-        .or_else(|| selected_assets.first().copied());
+    let selected_asset = selected_assets
+        .iter()
+        .find(|asset| asset.slug == *selected_asset_slug.read())
+        .cloned()
+        .or_else(|| selected_assets.first().cloned());
+    let mode = *editor_mode.read();
+    let form = form_state.read().clone();
 
     rsx! {
-        ResponsiveGrid { columns: 4,
-            StatTile {
-                label: "分发组".to_string(),
-                value: total_package_channels().to_string(),
-                detail: "把桌面安装器、CLI 二进制和知识附件包拆开管理。".to_string()
-            }
-            StatTile {
-                label: "安装包资产".to_string(),
-                value: total_package_assets().to_string(),
-                detail: "软件对象和可分发文件分开建模，避免把“软件”和“包”混成一层。".to_string()
-            }
-            StatTile {
-                label: "平台覆盖".to_string(),
-                value: package_platform_count().to_string(),
-                detail: "显式保留平台与架构，避免下载链接和目标环境脱节。".to_string()
-            }
-            StatTile {
-                label: "待补校验".to_string(),
-                value: package_pending_checks().to_string(),
-                detail: "优先补 checksum、来源和回滚版本，再考虑自动同步。".to_string()
-            }
-        }
-        Surface {
-            SurfaceHeader {
-                title: "入湖约定".to_string(),
-                subtitle: "先把安装包目录做清楚，再补镜像、同步和版本治理。".to_string()
-            }
-            Stack {
-                div { class: "callout callout--info",
-                    "安装包和软件对象分开记：软件是概念与用途，安装包是某个平台上的可分发物。"
-                }
-                div { class: "callout",
-                    "每个安装包至少保留版本、平台、来源、格式、目标落地位置和 checksum 状态。"
-                }
-                div { class: "callout",
-                    "先做“人能看懂的目录”，后面再让 agent 接镜像缓存、自动下载和分发校验。"
-                }
-            }
-        }
-        div { class: "knowledge-board",
+        div { class: "package-workbench",
             Surface {
                 SurfaceHeader {
                     title: "分发组".to_string(),
-                    subtitle: "按分发形态和用途分组，不把桌面安装器、CLI 包和知识附件混成一张表。".to_string()
+                    subtitle: "先选工作面，再处理当前组内的安装包对象。".to_string()
                 }
                 for channel in PACKAGE_CHANNELS.iter() {
                     button {
@@ -372,14 +432,29 @@ pub fn PackageAssetsScene() -> Element {
                         onclick: {
                             let mut selected_channel_slug = selected_channel_slug;
                             let mut selected_asset_slug = selected_asset_slug;
+                            let mut editor_mode = editor_mode;
+                            let mut form_state = form_state;
                             let channel_slug = channel.slug.to_string();
-                            let next_asset = package_assets(channel.slug)
-                                .next()
-                                .map(|asset| asset.slug.to_string())
+                            let next_asset = package_assets_state
+                                .read()
+                                .iter()
+                                .find(|asset| asset.channel_slug == channel.slug)
+                                .map(|asset| asset.slug.clone())
                                 .unwrap_or_default();
                             move |_| {
                                 selected_channel_slug.set(channel_slug.clone());
                                 selected_asset_slug.set(next_asset.clone());
+                                editor_mode.set(PackageCrudMode::View);
+                                if let Some(asset) = package_assets_state
+                                    .read()
+                                    .iter()
+                                    .find(|asset| asset.slug == next_asset)
+                                    .cloned()
+                                {
+                                    form_state.set(asset);
+                                } else {
+                                    form_state.set(PackageAssetDraft::empty(&channel_slug));
+                                }
                             }
                         },
                         div { class: "config-space__eyebrow",
@@ -395,125 +470,384 @@ pub fn PackageAssetsScene() -> Element {
             if let Some(channel) = selected_channel {
                 Surface {
                     SurfaceHeader {
-                        title: channel.title.to_string(),
-                        subtitle: channel.description.to_string()
+                        title: "安装包对象".to_string(),
+                        subtitle: "只保留对象列表，选中后在右侧直接增删改查。".to_string()
                     }
-                    div { class: "knowledge-source",
-                        span { class: "badge badge--fs", "{channel.distribution}" }
-                        span { class: "badge", "{package_asset_count(channel.slug)} 个安装包" }
-                        span { class: "badge", "Package catalog" }
-                    }
-                    div { class: "callout callout--info",
-                        "分组规则："
-                        "{channel.rule}"
-                    }
-                    table { class: "data-table",
-                        thead {
-                            tr {
-                                th { "软件对象" }
-                                th { "安装包" }
-                                th { "版本" }
-                                th { "平台" }
+                    div { class: "package-list",
+                        for asset in selected_assets.iter() {
+                            button {
+                                r#type: "button",
+                                class: if selected_asset.as_ref().map(|item| item.slug == asset.slug).unwrap_or(false) {
+                                    "package-list__item package-list__item--active"
+                                } else {
+                                    "package-list__item"
+                                },
+                                onclick: {
+                                    let mut selected_asset_slug = selected_asset_slug;
+                                    let mut editor_mode = editor_mode;
+                                    let mut form_state = form_state;
+                                    let asset = asset.clone();
+                                    move |_| {
+                                        selected_asset_slug.set(asset.slug.clone());
+                                        editor_mode.set(PackageCrudMode::View);
+                                        form_state.set(asset.clone());
+                                    }
+                                },
+                                div { class: "package-list__title", "{asset.software_title}" }
+                                div { class: "package-list__meta",
+                                    span { "{asset.version}" }
+                                    span { "·" }
+                                    span { "{asset.platform}" }
+                                }
+                                div { class: "package-list__copy", "{asset.package_name}" }
                             }
                         }
-                        tbody {
-                            for asset in selected_assets.iter() {
-                                PackageAssetRow {
-                                    asset: **asset,
-                                    active: selected_asset.map(|item| item.slug == asset.slug).unwrap_or(false),
-                                    on_select: {
-                                        let mut selected_asset_slug = selected_asset_slug;
-                                        let slug = asset.slug.to_string();
-                                        move || selected_asset_slug.set(slug.clone())
+                    }
+                }
+                Surface {
+                    SurfaceHeader {
+                        title: package_editor_title(mode, &form, channel.title),
+                        subtitle: channel.rule.to_string()
+                    }
+                    div { class: "package-editor__actions",
+                        WorkbenchButton {
+                            class: "action-button action-button--primary".to_string(),
+                            onclick: {
+                                let mut editor_mode = editor_mode;
+                                let mut form_state = form_state;
+                                let channel_slug = channel.slug.to_string();
+                                move |_| {
+                                    editor_mode.set(PackageCrudMode::Create);
+                                    form_state.set(PackageAssetDraft::empty(&channel_slug));
+                                }
+                            },
+                            "新增"
+                        }
+                        if let Some(asset) = selected_asset.clone() {
+                            WorkbenchButton {
+                                class: "action-button".to_string(),
+                                onclick: {
+                                    let mut editor_mode = editor_mode;
+                                    let mut form_state = form_state;
+                                    let edit_asset = asset.clone();
+                                    move |_| {
+                                        editor_mode.set(PackageCrudMode::Update);
+                                        form_state.set(edit_asset.clone());
+                                    }
+                                },
+                                "编辑"
+                            }
+                            WorkbenchButton {
+                                class: "action-button".to_string(),
+                                onclick: {
+                                    let mut package_assets_state = package_assets_state;
+                                    let mut selected_asset_slug = selected_asset_slug;
+                                    let mut editor_mode = editor_mode;
+                                    let mut form_state = form_state;
+                                    let asset_slug = asset.slug.clone();
+                                    let channel_slug = channel.slug.to_string();
+                                    move |_| {
+                                        package_assets_state.with_mut(|items| {
+                                            items.retain(|item| item.slug != asset_slug);
+                                        });
+                                        let next_slug = package_assets_state
+                                            .read()
+                                            .iter()
+                                            .find(|item| item.channel_slug == channel_slug)
+                                            .map(|item| item.slug.clone())
+                                            .unwrap_or_default();
+                                        selected_asset_slug.set(next_slug.clone());
+                                        editor_mode.set(PackageCrudMode::View);
+                                        if let Some(next) = package_assets_state
+                                            .read()
+                                            .iter()
+                                            .find(|item| item.slug == next_slug)
+                                            .cloned()
+                                        {
+                                            form_state.set(next);
+                                        } else {
+                                            form_state.set(PackageAssetDraft::empty(&channel_slug));
+                                        }
+                                    }
+                                },
+                                "删除"
+                            }
+                        }
+                    }
+                    div { class: "package-editor" ,
+                        ResponsiveGrid { columns: 2,
+                            Field {
+                                label: "软件对象".to_string(),
+                                value: form.software_title.clone(),
+                                placeholder: Some("例如 Cursor".to_string()),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.software_title = value;
+                                        form_state.set(next);
+                                    }
+                                }
+                            }
+                            Field {
+                                label: "安装包文件".to_string(),
+                                value: form.package_name.clone(),
+                                placeholder: Some("例如 cursor-macos-universal.dmg".to_string()),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.package_name = value;
+                                        form_state.set(next);
+                                    }
+                                }
+                            }
+                            Field {
+                                label: "版本".to_string(),
+                                value: form.version.clone(),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.version = value;
+                                        form_state.set(next);
+                                    }
+                                }
+                            }
+                            Field {
+                                label: "平台".to_string(),
+                                value: form.platform.clone(),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.platform = value;
+                                        form_state.set(next);
+                                    }
+                                }
+                            }
+                            Field {
+                                label: "格式".to_string(),
+                                value: form.format.clone(),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.format = value;
+                                        form_state.set(next);
+                                    }
+                                }
+                            }
+                            Field {
+                                label: "状态".to_string(),
+                                value: form.status.clone(),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.status = value;
+                                        form_state.set(next);
+                                    }
+                                }
+                            }
+                            Field {
+                                label: "来源".to_string(),
+                                value: form.source.clone(),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.source = value;
+                                        form_state.set(next);
+                                    }
+                                }
+                            }
+                            Field {
+                                label: "落地位置".to_string(),
+                                value: form.install_target.clone(),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.install_target = value;
+                                        form_state.set(next);
+                                    }
+                                }
+                            }
+                            Field {
+                                label: "校验状态".to_string(),
+                                value: form.checksum_state.clone(),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.checksum_state = value;
+                                        form_state.set(next);
+                                    }
+                                }
+                            }
+                            Field {
+                                label: "关联关系".to_string(),
+                                value: form.relation.clone(),
+                                on_input: {
+                                    let mut form_state = form_state;
+                                    move |value| {
+                                        let mut next = form_state.read().clone();
+                                        next.relation = value;
+                                        form_state.set(next);
                                     }
                                 }
                             }
                         }
+                        Field {
+                            label: "备注".to_string(),
+                            value: form.note.clone(),
+                            on_input: {
+                                let mut form_state = form_state;
+                                move |value| {
+                                    let mut next = form_state.read().clone();
+                                    next.note = value;
+                                    form_state.set(next);
+                                }
+                            }
+                        }
+                        div { class: "package-editor__footer",
+                            WorkbenchButton {
+                                class: "action-button action-button--primary".to_string(),
+                                onclick: {
+                                    let mut package_assets_state = package_assets_state;
+                                    let mut selected_asset_slug = selected_asset_slug;
+                                    let mut editor_mode = editor_mode;
+                                    let form_state = form_state;
+                                    let channel_slug = channel.slug.to_string();
+                                    move |_| {
+                                        let mut draft = form_state.read().clone();
+                                        draft.channel_slug = channel_slug.clone();
+                                        if draft.slug.trim().is_empty() {
+                                            draft.slug = format!(
+                                                "{}-{}",
+                                                channel_slug,
+                                                draft.package_name
+                                                    .to_lowercase()
+                                                    .replace(' ', "-")
+                                                    .replace('/', "-")
+                                            );
+                                        }
+                                        package_assets_state.with_mut(|items| {
+                                            if let Some(existing) = items.iter_mut().find(|item| item.slug == draft.slug) {
+                                                *existing = draft.clone();
+                                            } else {
+                                                items.push(draft.clone());
+                                            }
+                                        });
+                                        selected_asset_slug.set(draft.slug.clone());
+                                        editor_mode.set(PackageCrudMode::View);
+                                    }
+                                },
+                                if matches!(mode, PackageCrudMode::Create) { "创建安装包" } else { "保存修改" }
+                            }
+                            if !matches!(mode, PackageCrudMode::View) {
+                                WorkbenchButton {
+                                    class: "action-button".to_string(),
+                                    onclick: {
+                                        let mut editor_mode = editor_mode;
+                                        let mut form_state = form_state;
+                                        let selected_asset = selected_asset.clone();
+                                        let channel_slug = channel.slug.to_string();
+                                        move |_| {
+                                            editor_mode.set(PackageCrudMode::View);
+                                            if let Some(asset) = selected_asset.clone() {
+                                                form_state.set(asset);
+                                            } else {
+                                                form_state.set(PackageAssetDraft::empty(&channel_slug));
+                                            }
+                                        }
+                                    },
+                                    "取消"
+                                }
+                            }
+                        }
                     }
-                    Divider {}
-                    if let Some(asset) = selected_asset {
-                        PackageAssetDetail { asset: *asset }
+                }
+                Surface {
+                    SurfaceHeader {
+                        title: "操作摘要".to_string(),
+                        subtitle: "只保留当前对象做增删改查时最需要的判断信息。".to_string()
                     }
-                }
-            }
-        }
-        Surface {
-            SurfaceHeader {
-                title: "后续补齐".to_string(),
-                subtitle: "安装包目录先稳定，之后再接下载、镜像和自动分发能力。".to_string()
-            }
-            Stack {
-                ListItem {
-                    title: "阶段 1 · 目录与元数据".to_string(),
-                    detail: "把来源、版本、checksum、平台、落地位置和关联软件对象记完整，先形成可靠目录。".to_string(),
-                    meta: "当前".to_string()
-                }
-                ListItem {
-                    title: "阶段 2 · 镜像与校验".to_string(),
-                    detail: "补校验和、来源镜像、历史版本和过期包规则，避免知识库里只有名字没有分发事实。".to_string(),
-                    meta: "后续".to_string()
-                }
-                ListItem {
-                    title: "阶段 3 · Agent 下载与分发".to_string(),
-                    detail: "Win/mac agent 再接下载、缓存、验证和落地流程，把“看到包”推进到“可自动分发”。".to_string(),
-                    meta: "再后面".to_string()
+                    Stack {
+                        ListItem {
+                            title: "当前分发组".to_string(),
+                            detail: channel.description.to_string(),
+                            meta: channel.distribution.to_string()
+                        }
+                        ListItem {
+                            title: "当前对象".to_string(),
+                            detail: selected_asset
+                                .as_ref()
+                                .map(|asset| asset.package_name.clone())
+                                .unwrap_or_else(|| "还没有选中安装包对象".to_string()),
+                            meta: selected_asset
+                                .as_ref()
+                                .map(|asset| asset.status.clone())
+                                .unwrap_or_else(|| "空".to_string())
+                        }
+                        ListItem {
+                            title: "当前动作".to_string(),
+                            detail: match mode {
+                                PackageCrudMode::View => "查看当前对象并准备下一步动作".to_string(),
+                                PackageCrudMode::Create => "录入新的安装包对象，保存后回到列表".to_string(),
+                                PackageCrudMode::Update => "在当前上下文里直接修改对象字段".to_string(),
+                            },
+                            meta: match mode {
+                                PackageCrudMode::View => "Read",
+                                PackageCrudMode::Create => "Create",
+                                PackageCrudMode::Update => "Update",
+                            }
+                            .to_string()
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+#[derive(Props, Clone, PartialEq)]
+struct SoftwareGroupProps {
+    title: String,
+    items: Vec<(&'static str, &'static str, &'static str, &'static str)>,
+}
+
 #[component]
-fn PackageAssetRow(asset: PackageAsset, active: bool, on_select: EventHandler<()>) -> Element {
+fn SoftwareGroup(props: SoftwareGroupProps) -> Element {
     rsx! {
-        tr {
-            class: if active {
-                "row-link config-row config-row--active"
-            } else {
-                "row-link config-row"
-            },
-            onclick: move |_| on_select.call(()),
-            td {
-                div { class: "stack",
-                    strong { "{asset.software_title}" }
-                    span { class: "cell-overflow", "{asset.package_name}" }
+        div { class: "software-group",
+            div { class: "software-group__title", "{props.title}" }
+            div { class: "software-group__grid",
+                for (name, usage, kind, status) in props.items {
+                    div { class: "software-tile",
+                        div { class: "software-tile__head",
+                            strong { "{name}" }
+                            span { class: "badge badge--fs", "{status}" }
+                        }
+                        div { class: "software-tile__usage", "{usage}" }
+                        div { class: "software-tile__meta", "{kind}" }
+                    }
                 }
             }
-            td { "{asset.package_name}" }
-            td { "{asset.version}" }
-            td { "{asset.platform}" }
         }
     }
 }
 
-#[component]
-fn PackageAssetDetail(asset: PackageAsset) -> Element {
-    rsx! {
-        div { class: "knowledge-detail",
-            div { class: "knowledge-meta",
-                span { class: "badge badge--fs", "{asset.status}" }
-                span { class: "badge badge--fs", "{asset.version}" }
-                span { class: "badge", "{asset.format}" }
-                span { class: "badge", "{asset.platform}" }
-                span { class: "badge", "{asset.checksum_state}" }
-            }
-            div { class: "callout callout--info",
-                "来源："
-                "{asset.source}"
-            }
-            div { class: "callout",
-                "落地位置："
-                "{asset.install_target}"
-            }
-            div { class: "callout",
-                "关联关系："
-                "{asset.relation}"
-            }
-            div { class: "callout",
-                "备注："
-                "{asset.note}"
-            }
-        }
+fn package_editor_title(
+    mode: PackageCrudMode,
+    draft: &PackageAssetDraft,
+    channel_title: &str,
+) -> String {
+    match mode {
+        PackageCrudMode::View => format!("{} · 当前对象", channel_title),
+        PackageCrudMode::Create => format!("{} · 新增安装包", channel_title),
+        PackageCrudMode::Update => format!("{} · 编辑 {}", channel_title, draft.title()),
     }
 }
 

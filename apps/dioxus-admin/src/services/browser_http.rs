@@ -49,7 +49,12 @@ where
 {
     let response = send_request(method, path, body).await?;
     let text = response_text(response).await?;
-    serde_json::from_str(&text).map_err(|err| format!("解析响应失败：{err}"))
+    serde_json::from_str(&text).map_err(|err| {
+        format!(
+            "解析响应失败：{err}；响应前缀：{}",
+            summarize_response_body(&text)
+        )
+    })
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -93,7 +98,18 @@ where
     if response.ok() {
         Ok(response)
     } else {
-        Err(response_text(response).await?)
+        let status = response.status();
+        let status_text = response.status_text();
+        let body = response_text(response).await?;
+        let body = body.trim();
+        if body.is_empty() {
+            Err(format!("HTTP {status} {status_text}"))
+        } else {
+            Err(format!(
+                "HTTP {status} {status_text}: {}",
+                summarize_response_body(body)
+            ))
+        }
     }
 }
 
@@ -110,4 +126,11 @@ async fn response_text(response: Response) -> Result<String, String> {
 fn js_error_to_string(err: JsValue) -> String {
     err.as_string()
         .unwrap_or_else(|| "浏览器请求失败".to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn summarize_response_body(body: &str) -> String {
+    const MAX_CHARS: usize = 160;
+    let compact = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    compact.chars().take(MAX_CHARS).collect()
 }

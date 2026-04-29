@@ -286,7 +286,7 @@ pub fn Dashboard() -> Element {
     rsx! {
         ContentHeader {
             title: "知识图谱概览".to_string(),
-            subtitle: "默认选中“笔记”标签，把图谱查询、节点右键操作和知识条目录入收在同一工作面里。".to_string()
+            subtitle: "图谱浏览、节点操作和条目录入放在同一工作面。".to_string()
         }
         div { class: "lens-strip",
             for item in DashboardLens::ALL {
@@ -318,7 +318,11 @@ pub fn Dashboard() -> Element {
         Surface {
             SurfaceHeader {
                 title: format!("{} 标签图谱", lens.label()),
-                subtitle: lens.subtitle().to_string(),
+                subtitle: match lens {
+                    DashboardLens::Notes => "聚焦当前知识图谱。".to_string(),
+                    DashboardLens::Software => "软件台账与关联节点。".to_string(),
+                    DashboardLens::Packages => "安装包清单与依赖关系。".to_string(),
+                },
                 actions: rsx!(
                     div { class: "graph-toolbar",
                         input {

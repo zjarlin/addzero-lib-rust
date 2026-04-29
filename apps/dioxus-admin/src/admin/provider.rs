@@ -268,12 +268,9 @@ fn render_brand(
     let active_domain = domain_for_route(current);
 
     let brand_detail = if let Some(logo) = logo {
-        format!(
-            "当前用户：{username} · Logo 已上传到 {}",
-            logo.backend_label
-        )
+        format!("{username} · {}", logo.backend_label)
     } else {
-        format!("当前用户：{username} · 去系统设置维护品牌资产")
+        username.clone()
     };
 
     let brand_panel = rsx! {

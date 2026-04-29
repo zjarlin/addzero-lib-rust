@@ -226,11 +226,7 @@ fn build_object_key(file_name: &str) -> String {
         .filter(|ext| !ext.is_empty())
         .unwrap_or_else(|| "png".to_string());
 
-    format!(
-        "branding/logo-{}.{}",
-        Utc::now().timestamp_millis(),
-        extension
-    )
+    format!("logos/logo-{}.{}", Utc::now().timestamp_millis(), extension)
 }
 
 pub fn build_preview_url(relative_path: &str) -> String {
@@ -292,16 +288,16 @@ mod tests {
     #[test]
     fn relative_path_should_include_bucket_and_object_key() {
         assert_eq!(
-            build_relative_path("branding", "branding/logo-1.png"),
-            "branding/branding/logo-1.png"
+            build_relative_path("branding", "logos/logo-1.png"),
+            "branding/logos/logo-1.png"
         );
     }
 
     #[test]
     fn preview_url_should_use_public_minio_domain() {
         assert_eq!(
-            build_preview_url("branding/branding/logo-1.png"),
-            "https://minio-api.addzero.site/branding/branding/logo-1.png"
+            build_preview_url("branding/logos/logo-1.png"),
+            "https://minio-api.addzero.site/branding/logos/logo-1.png"
         );
     }
 

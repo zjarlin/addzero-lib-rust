@@ -89,18 +89,18 @@ textarea {
 
 .admin-shell {
   position: relative;
-  min-height: calc(100vh - 28px);
-  margin: 14px;
+  min-height: calc(100vh - 12px);
+  margin: 6px;
   display: flex;
   flex-direction: column;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 70%, transparent);
-  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
+  border-radius: 18px;
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--panel-strong) 92%, transparent),
     color-mix(in srgb, var(--panel) 96%, transparent)
   );
-  box-shadow: var(--shadow-strong);
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(28px) saturate(160%);
   overflow: hidden;
 }
@@ -120,13 +120,13 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 20;
-  min-height: 64px;
-  padding: 12px 22px;
+  min-height: 48px;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px 18px;
+  gap: 8px 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
   background: color-mix(in srgb, var(--panel-strong) 86%, transparent);
   backdrop-filter: blur(20px) saturate(160%);
@@ -146,7 +146,7 @@ textarea {
 }
 
 .topbar__left {
-  gap: 14px;
+  gap: 10px;
   flex: 1 1 auto;
   min-width: 0;
   flex-wrap: wrap;
@@ -178,26 +178,24 @@ textarea {
 }
 
 .topbar__actions {
-  gap: 10px;
+  gap: 6px;
   margin-left: auto;
 }
 
 .topbar-brand {
   min-width: 0;
-  padding: 12px 18px;
+  padding: 4px 0;
   display: flex;
   align-items: center;
   gap: 0;
-  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--panel-strong) 90%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .topbar-brand--text-only {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 88%, transparent), transparent),
-    color-mix(in srgb, var(--panel-strong) 90%, transparent);
+  background: transparent;
 }
 
 .topbar-brand__media {
@@ -232,18 +230,18 @@ textarea {
 .topbar-brand__meta {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .topbar-brand__label {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 620;
   letter-spacing: -0.02em;
 }
 
 .topbar-brand__detail {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -256,23 +254,24 @@ textarea {
 }
 
 .topbar-brand-shell {
-  gap: 18px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .domain-switcher {
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .domain-switcher__button {
-  padding: 10px 16px;
+  padding: 7px 10px;
   border: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel) 76%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  background: color-mix(in srgb, var(--panel) 64%, transparent);
+  box-shadow: none;
   color: color-mix(in srgb, var(--text) 82%, var(--muted));
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 560;
   white-space: nowrap;
 }
 
@@ -287,20 +286,20 @@ textarea {
 
 .workspace {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 232px minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
   background:
     linear-gradient(
       90deg,
       color-mix(in srgb, var(--panel-sidebar) 96%, transparent) 0,
-      color-mix(in srgb, var(--panel-sidebar) 96%, transparent) 280px,
-      transparent 280px
+      color-mix(in srgb, var(--panel-sidebar) 96%, transparent) 232px,
+      transparent 232px
     );
 }
 
 .sidebar {
-  padding: 20px 14px 24px;
+  padding: 12px 10px 16px;
 }
 
 .sidebar--left {
@@ -317,11 +316,11 @@ textarea {
 .form-divider,
 .surface,
 .summary-grid {
-  margin-top: 22px;
+  margin-top: 14px;
 }
 
 .content-stack {
-  margin-top: 22px;
+  margin-top: 14px;
 }
 
 .sidebar__label,
@@ -359,26 +358,26 @@ textarea {
 
 .sidebar__workspace {
   width: 100%;
-  padding: 12px 14px;
+  padding: 9px 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel-strong) 50%, transparent);
+  box-shadow: none;
 }
 
 .nav-item {
   width: 100%;
-  padding: 11px 13px;
-  margin-bottom: 6px;
+  padding: 8px 10px;
+  margin-bottom: 2px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: 10px;
   cursor: pointer;
   text-align: left;
   transition:
@@ -389,10 +388,10 @@ textarea {
 }
 
 .nav-item:hover {
-  transform: translateY(-1px);
-  background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
-  border-color: color-mix(in srgb, var(--line) 72%, transparent);
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+  transform: none;
+  background: color-mix(in srgb, var(--panel-strong) 76%, transparent);
+  border-color: color-mix(in srgb, var(--line) 50%, transparent);
+  box-shadow: none;
 }
 
 .nav-tree {
@@ -405,8 +404,8 @@ textarea {
 }
 
 .nav-tree__children {
-  margin: 4px 0 10px 16px;
-  padding-left: 12px;
+  margin: 2px 0 6px 10px;
+  padding-left: 8px;
   border-left: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
 }
 
@@ -443,50 +442,50 @@ textarea {
 }
 
 .nav-item__main {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 520;
 }
 
 .nav-item__meta {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
 }
 
 .content {
-  padding: 28px 30px 36px;
+  padding: 14px 16px 20px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 16%);
 }
 
 .content-header {
   justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
 }
 
 .content-header__title {
   margin: 0;
-  font-size: 30px;
-  font-weight: 650;
-  letter-spacing: -0.04em;
+  font-size: 22px;
+  font-weight: 640;
+  letter-spacing: -0.03em;
 }
 
 .surface__title {
   margin: 0;
-  font-size: 19px;
+  font-size: 15px;
   font-weight: 620;
   letter-spacing: -0.02em;
 }
 
 .content-header__subtitle,
 .surface__subtitle {
-  margin: 8px 0 0;
-  font-size: 13px;
-  line-height: 1.65;
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .content-header__actions,
 .surface__actions {
-  gap: 10px;
+  gap: 6px;
 }
 
 .surface,
@@ -518,10 +517,10 @@ textarea {
 }
 
 .knowledge-tabs {
-  margin-top: 18px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -537,11 +536,12 @@ textarea {
 }
 
 .lens-strip {
-  margin-top: 18px;
+  margin-top: 8px;
 }
 
 .lens-pill {
-  padding: 10px 14px;
+  padding: 7px 10px;
+  font-size: 12px;
 }
 
 .graph-toolbar {
@@ -550,19 +550,20 @@ textarea {
 
 .graph-search {
   width: min(100%, 360px);
-  height: 42px;
-  padding: 0 14px;
+  height: 34px;
+  padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow: none;
   color: var(--text);
+  font-size: 12px;
 }
 
 .graph-caption {
-  margin-top: 12px;
+  margin-top: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .graph-caption__dot,
@@ -575,10 +576,10 @@ textarea {
 .graph-workbench,
 .graph-stage,
 .entry-stage {
-  margin-top: 18px;
+  margin-top: 10px;
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.92fr);
-  gap: 18px;
+  gap: 12px;
   align-items: start;
 }
 
@@ -586,15 +587,15 @@ textarea {
 .graph-detail,
 .entry-dock,
 .entry-log {
-  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--panel-strong) 80%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  border: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel-strong) 72%, transparent);
+  box-shadow: none;
 }
 
 .graph-canvas {
-  padding: 14px;
-  min-height: 520px;
+  padding: 10px;
+  min-height: 460px;
   background:
     radial-gradient(circle at top right, color-mix(in srgb, var(--accent-glow) 72%, transparent), transparent 28%),
     color-mix(in srgb, var(--panel-strong) 84%, transparent);
@@ -658,24 +659,24 @@ textarea {
 .graph-detail,
 .entry-dock,
 .entry-log {
-  padding: 18px;
+  padding: 12px;
 }
 
 .graph-sidepanel {
   display: grid;
-  gap: 18px;
+  gap: 12px;
   align-content: start;
 }
 
 .graph-detail {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: 8px;
 }
 
 .entry-dock {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .entry-dock__header {
@@ -686,18 +687,18 @@ textarea {
 .entry-kind-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
 }
 
 .graph-detail__title {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
 }
 
 .graph-detail__copy {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.7;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .graph-detail__copy--muted {
@@ -714,7 +715,7 @@ textarea {
 
 .entry-stage__editor {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .entry-actions {
@@ -785,13 +786,14 @@ textarea {
 .toolbar-button,
 .form-tab,
 .entry-kind-pill {
-  padding: 10px 12px;
+  padding: 7px 10px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
   background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  font-size: 12px;
 }
 
 .segment-button:hover,
@@ -800,8 +802,8 @@ textarea {
 .entry-kind-pill:hover,
 .icon-button:hover,
 .action-button:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-soft);
+  transform: none;
+  box-shadow: none;
 }
 
 .tone-accent,
@@ -813,22 +815,23 @@ textarea {
 }
 
 .icon-button {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
   border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow: none;
   color: var(--text);
 }
 
 .action-button {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
   background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  box-shadow: none;
+  font-size: 12px;
 }
 
 .action-button--primary {
@@ -836,9 +839,7 @@ textarea {
   border-color: transparent;
   color: #f8fbff;
   font-weight: 600;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    0 14px 30px rgba(10, 132, 255, 0.22);
+  box-shadow: 0 8px 18px rgba(10, 132, 255, 0.18);
 }
 
 .summary-grid {
@@ -1042,6 +1043,150 @@ textarea {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.55;
+}
+
+.software-matrix {
+  margin-top: 10px;
+  display: grid;
+  gap: 18px;
+}
+
+.software-group {
+  display: grid;
+  gap: 12px;
+}
+
+.software-group__title {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.software-group__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.software-tile {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-strong) 86%, transparent), color-mix(in srgb, var(--panel) 90%, transparent));
+}
+
+.software-tile__head,
+.package-list__meta,
+.package-editor__actions,
+.package-editor__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.software-tile__head {
+  justify-content: space-between;
+}
+
+.software-tile__usage {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.software-tile__meta,
+.package-list__copy,
+.package-list__meta {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.package-workbench {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.78fr) minmax(0, 1.45fr) minmax(240px, 0.78fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 16px 36px rgba(15, 23, 42, 0.06);
+}
+
+.package-workbench > .surface {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, transparent), color-mix(in srgb, var(--panel-strong) 80%, transparent));
+}
+
+.package-workbench > .surface + .surface {
+  border-left: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+}
+
+.package-list {
+  margin-top: 8px;
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel-soft) 74%, transparent);
+}
+
+.package-list__item {
+  width: 100%;
+  padding: 14px 15px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 6px;
+}
+
+.package-list__item + .package-list__item {
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.package-list__item--active {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--selection) 72%, transparent) 0 5px,
+      transparent 5px
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--selection) 18%, var(--panel-strong) 82%),
+      color-mix(in srgb, var(--selection) 8%, var(--panel) 92%)
+    );
+}
+
+.package-list__title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.package-editor {
+  margin-top: 14px;
+  display: grid;
+  gap: 14px;
+}
+
+.package-editor__actions {
+  margin-top: 10px;
 }
 
 .config-space {
@@ -1749,14 +1894,14 @@ textarea {
 
 .callout {
   margin-top: 0;
-  padding: 12px 14px;
+  padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--selection-line) 32%, var(--line));
-  border-radius: 16px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--selection) 28%, var(--panel-strong));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  box-shadow: none;
   color: color-mix(in srgb, var(--warn) 88%, var(--text));
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .callout--info {
@@ -1797,7 +1942,7 @@ textarea {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: 12px;
   position: relative;
   background:
     radial-gradient(circle at top right, var(--accent-glow), transparent 30%),
@@ -1806,20 +1951,20 @@ textarea {
 
 .login-shell__theme-toggle {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 12px;
+  right: 12px;
 }
 
 .login-shell .surface {
-  width: min(520px, 92vw);
+  width: min(460px, 92vw);
   margin-top: 0;
-  padding: 24px;
-  border-radius: 28px;
+  padding: 18px;
+  border-radius: 18px;
 }
 
 .login-form {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 @media (max-width: 1180px) {
@@ -1843,8 +1988,18 @@ textarea {
   .graph-workbench,
   .graph-stage,
   .entry-stage,
-  .knowledge-board {
+  .knowledge-board,
+  .package-workbench {
     grid-template-columns: 1fr;
+  }
+
+  .package-workbench > .surface + .surface {
+    border-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  }
+
+  .software-group__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .knowledge-board > .surface + .surface {
@@ -1878,6 +2033,10 @@ textarea {
   .summary-grid,
   .form-grid,
   .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .software-group__grid {
     grid-template-columns: 1fr;
   }
 
