@@ -1,9 +1,15 @@
 use dioxus::prelude::*;
 
+mod admin;
+
+pub use admin::{
+    AdminAction, AdminActionIcon, AdminCommand, AdminMenu, AdminProvider, AdminSection, AdminShell,
+    AdminTopbar, SharedAdminProvider,
+};
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SidebarSide {
     Left,
-    Right,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -30,7 +36,6 @@ pub struct AdminWorkbenchProps {
     pub topbar: Element,
     pub left: Element,
     pub center: Element,
-    pub right: Element,
 }
 
 #[component]
@@ -41,7 +46,6 @@ pub fn AdminWorkbench(props: AdminWorkbenchProps) -> Element {
             div { class: "workspace",
                 {props.left}
                 {props.center}
-                {props.right}
             }
         }
     }
@@ -49,6 +53,8 @@ pub fn AdminWorkbench(props: AdminWorkbenchProps) -> Element {
 
 #[derive(Props, Clone, PartialEq)]
 pub struct ThinTopbarProps {
+    #[props(optional)]
+    pub brand: Option<Element>,
     #[props(optional)]
     pub eyebrow: Option<String>,
     pub title: String,
@@ -63,10 +69,14 @@ pub fn ThinTopbar(props: ThinTopbarProps) -> Element {
     rsx! {
         header { class: "topbar",
             div { class: "topbar__left",
-                if let Some(eyebrow) = &props.eyebrow {
-                    span { class: "topbar__eyebrow", "{eyebrow}" }
+                if let Some(brand) = props.brand {
+                    div { class: "topbar__brand", {brand} }
+                } else {
+                    if let Some(eyebrow) = &props.eyebrow {
+                        span { class: "topbar__eyebrow", "{eyebrow}" }
+                    }
+                    h1 { class: "topbar__title", "{props.title}" }
                 }
-                h1 { class: "topbar__title", "{props.title}" }
                 if let Some(left_actions) = props.left_actions {
                     div { class: "topbar__cluster", {left_actions} }
                 }
@@ -88,7 +98,6 @@ pub struct SidebarProps {
 pub fn Sidebar(props: SidebarProps) -> Element {
     let side_class = match props.side {
         SidebarSide::Left => "sidebar sidebar--left",
-        SidebarSide::Right => "sidebar sidebar--right",
     };
 
     rsx! {
@@ -120,6 +129,10 @@ pub struct WorkbenchButtonProps {
     pub tone: Option<Tone>,
     #[props(optional)]
     pub onclick: Option<EventHandler<MouseEvent>>,
+    #[props(optional)]
+    pub title: Option<String>,
+    #[props(default = false)]
+    pub disabled: bool,
     pub children: Element,
 }
 
@@ -128,14 +141,20 @@ pub fn WorkbenchButton(props: WorkbenchButtonProps) -> Element {
     let tone_class = props.tone.unwrap_or(Tone::Default).class_name();
     let class = format!("{}{}", props.class, tone_class);
     let onclick = props.onclick;
+    let title = props.title;
+    let disabled = props.disabled;
 
     rsx! {
         button {
             class: class,
             "type": "button",
+            title: title,
+            disabled: disabled,
             onclick: move |evt| {
-                if let Some(h) = onclick.as_ref() {
-                    h.call(evt);
+                if !disabled {
+                    if let Some(h) = onclick.as_ref() {
+                        h.call(evt);
+                    }
                 }
             },
             {props.children}
@@ -212,7 +231,7 @@ pub fn ResponsiveGrid(columns: u8, children: Element) -> Element {
 #[component]
 pub fn Stack(children: Element) -> Element {
     rsx! {
-        div { class: "stack", {children} }
+        div { class: "stack content-stack", {children} }
     }
 }
 

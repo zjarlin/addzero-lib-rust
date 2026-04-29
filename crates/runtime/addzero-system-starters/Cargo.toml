@@ -1,0 +1,18 @@
+[package]
+name = "addzero-system-starters"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+addzero-starter-audit = { path = "../addzero-starter-audit" }
+addzero-starter-dictionary = { path = "../addzero-starter-dictionary" }
+addzero-starter-identity = { path = "../addzero-starter-identity" }
+addzero-starter-menu = { path = "../addzero-starter-menu" }
+addzero-starter-organization = { path = "../addzero-starter-organization" }
+addzero-starter-storage = { path = "../addzero-starter-storage" }
+
+[lints]
+workspace = true

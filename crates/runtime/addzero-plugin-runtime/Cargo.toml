@@ -1,0 +1,23 @@
+[package]
+name = "addzero-plugin-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+addzero-plugin-contract = { path = "../addzero-plugin-contract" }
+chrono = { workspace = true, features = ["serde"] }
+serde.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+toml_edit.workspace = true
+uuid.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

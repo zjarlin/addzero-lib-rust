@@ -1,0 +1,15 @@
+[package]
+name = "addzero-starter-organization"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+addzero-plugin-contract = { path = "../addzero-plugin-contract" }
+addzero-plugin-macros = { path = "../addzero-plugin-macros" }
+addzero-plugin-registry = { path = "../addzero-plugin-registry" }
+
+[lints]
+workspace = true
