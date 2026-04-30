@@ -1,6 +1,7 @@
 use addzero_reflection::*;
 use serde::Serialize;
 use serde_json::json;
+use std::num::NonZeroUsize;
 use std::thread;
 use std::time::Duration;
 
@@ -122,25 +123,25 @@ fn metadata_macros_build_nested_field_information() {
 
 #[test]
 fn expiring_cache_reuses_values_and_evicts_old_entries() {
-    let cache = ExpiringCache::new(Duration::from_secs(5), 2);
+    let cache = ExpiringCache::new(Duration::from_secs(5), NonZeroUsize::new(2).unwrap());
 
-    let first = cache.compute_if_absent("alpha", |_| 1usize);
-    let second = cache.compute_if_absent("alpha", |_| 2usize);
-    cache.compute_if_absent("beta", |_| 3usize);
-    cache.compute_if_absent("gamma", |_| 4usize);
+    let first = cache.compute_if_absent("alpha", |_| 1usize).unwrap();
+    let second = cache.compute_if_absent("alpha", |_| 2usize).unwrap();
+    cache.compute_if_absent("beta", |_| 3usize).unwrap();
+    cache.compute_if_absent("gamma", |_| 4usize).unwrap();
 
     assert_eq!(first, 1);
     assert_eq!(second, 1);
-    assert_eq!(cache.len(), 2);
+    assert_eq!(cache.len().unwrap(), 2);
 }
 
 #[test]
 fn expiring_cache_cleans_up_elapsed_entries() {
-    let cache = ExpiringCache::new(Duration::from_millis(5), 4);
-    cache.compute_if_absent("alpha", |_| 1usize);
+    let cache = ExpiringCache::new(Duration::from_millis(5), NonZeroUsize::new(4).unwrap());
+    cache.compute_if_absent("alpha", |_| 1usize).unwrap();
     thread::sleep(Duration::from_millis(10));
 
-    cache.cleanup_expired();
+    cache.cleanup_expired().unwrap();
 
-    assert!(cache.is_empty());
+    assert!(cache.is_empty().unwrap());
 }
