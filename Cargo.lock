@@ -163,6 +163,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "addzero-database-model"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "addzero-dict-macros"
 version = "0.1.0"
 dependencies = [
