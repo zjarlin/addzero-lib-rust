@@ -2,7 +2,7 @@ mod cache;
 mod metainfo;
 mod value;
 
-pub use cache::ExpiringCache;
+pub use cache::{CacheError, ExpiringCache};
 pub use metainfo::{
     FieldInfo, FieldInfoSimple, MetaInfo, extract_table_name, get_field_infos,
     get_simple_field_info_str, guess_column_name,
