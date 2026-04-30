@@ -1974,7 +1974,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dioxus-admin"
+name = "msc-aio"
 version = "0.1.0"
 dependencies = [
  "addzero-agent-runtime-contract",

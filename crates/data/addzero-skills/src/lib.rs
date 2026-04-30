@@ -1,6 +1,6 @@
 //! Skill management against `~/.agents/skills/<name>/SKILL.md` and an optional
 //! Postgres mirror. The service is the single entry point used by the
-//! dioxus-admin server functions.
+//! msc-aio server functions.
 pub mod fs_repo;
 pub mod pg_repo;
 pub mod sync;

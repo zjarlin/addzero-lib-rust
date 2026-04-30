@@ -4,7 +4,7 @@ use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbE
 use sea_orm_migration::prelude::*;
 use thiserror::Error;
 
-const LOCAL_ENV_FILE: &str = ".config/msc-aio/dioxus-admin.env";
+const LOCAL_ENV_FILE: &str = ".config/msc-aio/msc-aio.env";
 
 /// Shared database context for workspace services.
 #[derive(Clone)]
@@ -155,7 +155,7 @@ impl MigrationTrait for AgentRuntimeSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/dioxus-admin/src/server/migrations/0001_agent_runtime.sql"
+                "../../../../apps/msc-aio/src/server/migrations/0001_agent_runtime.sql"
             ),
         )
         .await
@@ -175,7 +175,7 @@ impl MigrationTrait for CliMarketSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/dioxus-admin/src/server/migrations/0002_clianything_market.sql"
+                "../../../../apps/msc-aio/src/server/migrations/0002_clianything_market.sql"
             ),
         )
         .await
@@ -195,7 +195,7 @@ impl MigrationTrait for AdminAssetGraphSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/dioxus-admin/src/server/migrations/0003_admin_asset_graph.sql"
+                "../../../../apps/msc-aio/src/server/migrations/0003_admin_asset_graph.sql"
             ),
         )
         .await

@@ -35,10 +35,10 @@
 
 ### 当前状态
 
-- `dioxus-admin` 已经开始承接 admin 壳子、多模块场景与知识库可视化
+- `msc-aio` 已经开始承接 admin 壳子、多模块场景与知识库可视化
 - 技能数据仍有内存实现
 - 知识库已经新增 `addzero-knowledge` 数据域 crate，可把本机候选知识目录同步进 PostgreSQL `msc_aio`
-- `dioxus-admin` 的知识页现在会优先从 PG 镜像生成目录，PG 不可用时才退回文件系统快照
+- `msc-aio` 的知识页现在会优先从 PG 镜像生成目录，PG 不可用时才退回文件系统快照
 - PG 能力在部分底层 crate 已经存在，但还没有完全打通到 `all in pg`
 - `msc-aio` 的正式 REST + CLI 同源链路仍处于蓝图阶段，下一步需要优先收敛 contract 与数据模型
 
@@ -59,16 +59,16 @@
 
 明显的第三方噪音会在导入时跳过，例如 `target/`、`legal/`、`data/`、`LICENSE*`、`CHANGELOG*`、`SECURITY*` 一类文件。
 
-本地运行时，`dioxus-admin` 与同步 CLI 会按以下优先级读取数据库连接：
+本地运行时，`msc-aio` 与同步 CLI 会按以下优先级读取数据库连接：
 
 1. `MSC_AIO_DATABASE_URL`
 2. `DATABASE_URL`
-3. `~/.config/msc-aio/dioxus-admin.env`
+3. `~/.config/msc-aio/msc-aio.env`
 
 示例：
 
 ```bash
-printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > ~/.config/msc-aio/dioxus-admin.env
+printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > ~/.config/msc-aio/msc-aio.env
 cargo run -p addzero-knowledge --bin knowledge-sync
 ```
 

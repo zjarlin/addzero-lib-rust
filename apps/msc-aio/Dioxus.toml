@@ -1,5 +1,5 @@
 [application]
-name = "dioxus-admin"
+name = "msc-aio"
 default_platform = "web"
 
 [web.app]
@@ -9,4 +9,4 @@ title = "Dioxus Admin"
 reload_html = true
 
 [bundle]
-identifier = "site.addzero.dioxus-admin"
+identifier = "site.addzero.msc-aio"

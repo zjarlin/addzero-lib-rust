@@ -700,7 +700,7 @@ fn StorageSettingsTab(props: StorageSettingsTabProps) -> Element {
                 div { class: "settings-row settings-row--static",
                     div { class: "settings-row__copy",
                         div { class: "settings-row__title", "前端边界" }
-                        div { class: "settings-row__detail", "当前 dioxus-admin 通过后台上传口统一写入 MinIO；浏览器只消费后台返回的相对路径并自行拼接预览域名。" }
+                        div { class: "settings-row__detail", "当前 msc-aio 通过后台上传口统一写入 MinIO；浏览器只消费后台返回的相对路径并自行拼接预览域名。" }
                     }
                 }
                 div { class: "settings-row settings-row--static",

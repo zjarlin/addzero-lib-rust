@@ -1000,7 +1000,7 @@ fn resolve_local_package_root() -> Result<ResolvedLocalRoot, String> {
     } else if let Some(value) = from_file {
         (
             value,
-            "本地配置文件 ~/.config/msc-aio/dioxus-admin.env".to_string(),
+            "本地配置文件 ~/.config/msc-aio/msc-aio.env".to_string(),
             Vec::new(),
         )
     } else {
