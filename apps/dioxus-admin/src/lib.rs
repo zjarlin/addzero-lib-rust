@@ -1,3 +1,6 @@
+#[cfg(target_arch = "wasm32")]
+use getrandom as _;
+
 pub mod admin;
 pub mod app;
 pub mod dotfiles_catalog;

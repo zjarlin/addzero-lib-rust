@@ -7,11 +7,12 @@ use anyhow::Result;
 use axum::{
     Json, Router,
     extract::{Path, Query},
-    http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
+    http::{HeaderMap, HeaderValue, Method, StatusCode, header, header::SET_COOKIE},
     response::{IntoResponse, Response},
     routing::{get, post},
 };
 use tokio::sync::OnceCell;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use uuid::Uuid;
 
 use addzero_agent_runtime_contract::{
@@ -92,10 +93,39 @@ pub async fn run_api_server() -> Result<()> {
         .route(
             "/api/runtime/conflicts/{id}/resolve",
             post(resolve_conflict),
-        );
+        )
+        .layer(cors_layer());
 
     axum::serve(listener, router).await?;
     Ok(())
+}
+
+fn cors_layer() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::predicate(|origin, _| {
+            is_allowed_admin_origin(origin)
+        }))
+        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE])
+        .allow_credentials(true)
+}
+
+fn is_allowed_admin_origin(origin: &HeaderValue) -> bool {
+    let Ok(origin) = origin.to_str() else {
+        return false;
+    };
+
+    ["http://localhost:", "http://127.0.0.1:", "http://[::1]:"]
+        .iter()
+        .any(|prefix| {
+            origin
+                .strip_prefix(prefix)
+                .is_some_and(is_valid_local_dev_port)
+        })
+}
+
+fn is_valid_local_dev_port(port: &str) -> bool {
+    !port.is_empty() && port.parse::<u16>().is_ok()
 }
 
 async fn get_session(headers: HeaderMap) -> ApiResult<Json<SessionUser>> {

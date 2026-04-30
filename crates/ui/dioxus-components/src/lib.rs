@@ -113,10 +113,22 @@ pub fn MainContent(children: Element) -> Element {
 }
 
 #[component]
-pub fn SidebarSection(label: String, children: Element) -> Element {
+pub fn SidebarSection(
+    label: String,
+    #[props(default = false)] compact: bool,
+    children: Element,
+) -> Element {
+    let class = if compact {
+        "sidebar__section sidebar__section--compact"
+    } else {
+        "sidebar__section"
+    };
+
     rsx! {
-        section { class: "sidebar__section",
-            div { class: "sidebar__label", "{label}" }
+        section { class: class,
+            if !compact {
+                div { class: "sidebar__label", "{label}" }
+            }
             {children}
         }
     }
@@ -251,6 +263,7 @@ pub fn SurfaceHeader(
 pub fn ResponsiveGrid(columns: u8, children: Element) -> Element {
     let class = match columns {
         3 => "summary-grid",
+        4 => "summary-grid summary-grid--quad",
         _ => "form-grid",
     };
 
@@ -509,6 +522,8 @@ pub struct FieldProps {
     #[props(optional)]
     pub readonly: Option<bool>,
     #[props(optional)]
+    pub input_type: Option<String>,
+    #[props(optional)]
     pub on_input: Option<EventHandler<String>>,
     #[props(optional)]
     pub placeholder: Option<String>,
@@ -519,11 +534,16 @@ pub fn Field(props: FieldProps) -> Element {
     let readonly = props.readonly.unwrap_or(false);
     let on_input = props.on_input;
     let placeholder = props.placeholder.clone().unwrap_or_default();
+    let input_type = props
+        .input_type
+        .clone()
+        .unwrap_or_else(|| "text".to_string());
     rsx! {
         label { class: "field",
             span { class: "field__label", "{props.label}" }
             input {
                 class: "field__input",
+                r#type: "{input_type}",
                 value: "{props.value}",
                 readonly: readonly,
                 placeholder: "{placeholder}",

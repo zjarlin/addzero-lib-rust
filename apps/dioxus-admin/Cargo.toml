@@ -8,7 +8,10 @@ authors.workspace = true
 
 [dependencies]
 addzero-agent-runtime-contract = { path = "../../crates/data/addzero-agent-runtime-contract" }
+addzero-cli-market-contract = { path = "../../crates/api/addzero-cli-market-contract" }
+addzero-software-catalog = { path = "../../crates/data/addzero-software-catalog" }
 base64.workspace = true
+blake3 = "1.5.5"
 chrono = { workspace = true, features = ["serde"] }
 dioxus = { workspace = true, features = ["router"] }
 dioxus-components = { path = "../../crates/ui/dioxus-components" }
@@ -19,11 +22,14 @@ thiserror.workspace = true
 uuid.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3.4", features = ["wasm_js"] }
 js-sys = "0.3.77"
 wasm-bindgen = "0.2.100"
 wasm-bindgen-futures = "0.4.50"
 web-sys = { version = "0.3.77", features = [
     "Headers",
+    "Location",
+    "Navigator",
     "Request",
     "RequestCredentials",
     "RequestInit",
@@ -33,16 +39,26 @@ web-sys = { version = "0.3.77", features = [
 ] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+addzero-ai-agent = { path = "../../crates/runtime/addzero-ai-agent" }
+addzero-assets = { path = "../../crates/data/addzero-assets" }
+addzero-knowledge = { path = "../../crates/data/addzero-knowledge" }
+addzero-persistence = { path = "../../crates/data/addzero-persistence" }
 addzero-skills = { path = "../../crates/data/addzero-skills" }
 addzero-rustfs = { path = "../../crates/storage/addzero-rustfs" }
 anyhow.workspace = true
-axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
+axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
+futures-util = "0.3.31"
 hmac.workspace = true
 log.workspace = true
+quick-xml.workspace = true
 regex.workspace = true
+reqwest.workspace = true
 sha2.workspace = true
+shlex.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
+tower-http = { version = "0.6.8", features = ["cors"] }
+zip.workspace = true
 
 [build-dependencies]
 addzero-knowledge = { path = "../../crates/data/addzero-knowledge" }

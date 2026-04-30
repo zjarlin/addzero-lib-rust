@@ -1,30 +1,20 @@
 use std::{
-    collections::BTreeMap,
-    env, fs,
+    env,
     path::{Path, PathBuf},
 };
 
+use addzero_persistence as persistence;
 use deunicode::deunicode;
 
 use crate::types::KnowledgeSourceSpec;
 
 const DEFAULT_RUST_ROOT: &str = "/Users/zjarlin/Desktop/tech-content-automation/rust/sources";
-const LOCAL_ENV_FILE: &str = ".config/msc-aio/dioxus-admin.env";
-
 pub fn database_url() -> Option<String> {
-    env::var("MSC_AIO_DATABASE_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| {
-            env::var("DATABASE_URL")
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        })
-        .or_else(read_database_url_from_file)
+    persistence::database_url()
 }
 
 pub fn local_env_path() -> Option<PathBuf> {
-    home_dir().map(|home| home.join(LOCAL_ENV_FILE))
+    persistence::local_env_path()
 }
 
 pub fn source_specs() -> Vec<KnowledgeSourceSpec> {
@@ -123,30 +113,6 @@ fn extra_source_specs_from_env() -> Vec<KnowledgeSourceSpec> {
                 .unwrap_or_else(|| value.to_string());
             let slug = slugify(&name);
             Some(KnowledgeSourceSpec::new(slug, name, path))
-        })
-        .collect()
-}
-
-fn read_database_url_from_file() -> Option<String> {
-    let path = local_env_path()?;
-    let content = fs::read_to_string(path).ok()?;
-    let vars = parse_env_pairs(&content);
-    vars.get("MSC_AIO_DATABASE_URL")
-        .or_else(|| vars.get("DATABASE_URL"))
-        .cloned()
-        .filter(|value| !value.trim().is_empty())
-}
-
-fn parse_env_pairs(content: &str) -> BTreeMap<String, String> {
-    content
-        .lines()
-        .filter_map(|line| {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') {
-                return None;
-            }
-            let (key, value) = trimmed.split_once('=')?;
-            Some((key.trim().to_string(), value.trim().to_string()))
         })
         .collect()
 }

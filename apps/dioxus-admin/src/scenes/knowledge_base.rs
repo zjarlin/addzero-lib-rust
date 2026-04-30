@@ -458,7 +458,7 @@ pub fn PackageAssetsScene() -> Element {
                 Surface {
                     SurfaceHeader {
                         title: "安装包对象".to_string(),
-                        subtitle: "只保留对象列表，选中后在右侧直接增删改查。".to_string()
+                        subtitle: "只保留条目列表，选中后在右侧直接增删改查。".to_string()
                     }
                     div { class: "package-list",
                         for asset in selected_assets.iter() {

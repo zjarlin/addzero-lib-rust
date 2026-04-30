@@ -1,0 +1,23 @@
+[package]
+name = "addzero-software-catalog"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+uuid.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+addzero-persistence = { path = "../addzero-persistence" }
+chrono = { workspace = true, features = ["serde"] }
+regex.workspace = true
+reqwest.workspace = true
+sea-orm.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -5,7 +5,7 @@ use crate::scenes::{
     agent_nodes::{SystemAgentNodes, SystemAgentPairingApproval},
     agents::{AgentEditor, Agents},
     auth::LoginPage,
-    dashboard::{Audit, Dashboard, Objects, Workflows},
+    dashboard::{Audit, Dashboard},
     knowledge_base::{KnowledgeNotes, KnowledgePackages, KnowledgeSoftware},
     system_management::{
         SystemDepartments, SystemDictionaries, SystemMenus, SystemRoles, SystemUsers,
@@ -25,10 +25,6 @@ pub enum Route {
     Home,
     #[route("/dashboard")]
     Dashboard,
-    #[route("/objects")]
-    Objects,
-    #[route("/workflows")]
-    Workflows,
     #[route("/agents")]
     Agents,
     #[route("/agents/:name")]
@@ -128,13 +124,19 @@ fn Home() -> Element {
 pub fn AppLayout() -> Element {
     let auth = use_context::<AuthSession>();
     let nav = use_navigator();
+    let redirect_nav = nav.clone();
+
+    use_effect(move || {
+        if *auth.ready.read() && !*auth.logged_in.read() {
+            redirect_nav.replace(Route::Login);
+        }
+    });
 
     if !*auth.ready.read() {
         return rsx! { div { class: "empty-state", "正在恢复登录态…" } };
     }
 
     if !*auth.logged_in.read() {
-        nav.replace(Route::Login);
         return rsx! {};
     }
 

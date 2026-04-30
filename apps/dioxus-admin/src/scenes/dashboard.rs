@@ -3,9 +3,8 @@ use std::collections::{HashMap, HashSet};
 use chrono::Local;
 use dioxus::prelude::*;
 use dioxus_components::{
-    ContentHeader, Divider, Field, KeywordChips, ListItem, MetricRow, ResponsiveGrid,
-    SidebarSection, Stack, StatTile, Surface, SurfaceHeader, TabStrip, Textarea, Tone,
-    WorkbenchButton,
+    ContentHeader, Field, KeywordChips, ListItem, MetricRow, ResponsiveGrid, SidebarSection, Stack,
+    Surface, SurfaceHeader, Textarea, Tone, WorkbenchButton,
 };
 
 use crate::{
@@ -864,51 +863,6 @@ pub fn Dashboard() -> Element {
 }
 
 #[component]
-pub fn Objects() -> Element {
-    rsx! {
-        ContentHeader {
-            title: "对象管理".to_string(),
-            subtitle: "从列表、筛选和同页编辑开始长。".to_string()
-        }
-        ObjectsSurface {}
-        ConfigSurface {}
-    }
-}
-
-#[component]
-pub fn Workflows() -> Element {
-    rsx! {
-        ContentHeader {
-            title: "流程编排".to_string(),
-            subtitle: "先给流程面板和阶段分组，后面再接动作节点。".to_string()
-        }
-        Surface {
-            SurfaceHeader {
-                title: "流程阶段".to_string(),
-                subtitle: "保持单页上下文，不把流程拆成厚重向导。".to_string()
-            }
-            ResponsiveGrid { columns: 3,
-                StatTile { label: "采集".to_string(), value: "12".to_string(), detail: "等待输入映射".to_string() }
-                StatTile { label: "校验".to_string(), value: "04".to_string(), detail: "规则链已挂载".to_string() }
-                StatTile { label: "分发".to_string(), value: "09".to_string(), detail: "2 个节点待审批".to_string() }
-            }
-        }
-        Surface {
-            SurfaceHeader {
-                title: "流程参数".to_string(),
-                subtitle: "继续沿用双栏表单。".to_string()
-            }
-            ResponsiveGrid { columns: 2,
-                Field { label: "流程名称".to_string(), value: "履约流程 B-02".to_string() }
-                Field { label: "当前版本".to_string(), value: "2026.04".to_string() }
-                Field { label: "触发条件".to_string(), value: "订单已支付".to_string() }
-                Field { label: "重试策略".to_string(), value: "3 次指数退避".to_string() }
-            }
-        }
-    }
-}
-
-#[component]
 pub fn Audit() -> Element {
     rsx! {
         ContentHeader {
@@ -992,98 +946,6 @@ pub fn DefaultContext() -> Element {
                     meta: "今天 09:12".to_string()
                 }
             }
-        }
-    }
-}
-
-#[component]
-fn ObjectsSurface() -> Element {
-    rsx! {
-        Surface {
-            SurfaceHeader {
-                title: "对象列表".to_string(),
-                subtitle: "表格和工具条作为内容层拼在布局件之上。".to_string(),
-                actions: rsx!(
-                    WorkbenchButton { class: "toolbar-button".to_string(), "筛选" }
-                    WorkbenchButton { class: "toolbar-button".to_string(), "导出" }
-                    WorkbenchButton { class: "toolbar-button".to_string(), "列设置" }
-                )
-            }
-            table { class: "data-table",
-                thead {
-                    tr {
-                        th { "对象" }
-                        th { "负责人" }
-                        th { "状态" }
-                        th { "更新时间" }
-                    }
-                }
-                tbody {
-                    DataRow { name: "风控规则 A-17", owner: "Luna", status: "稳定", updated_at: "10:32" }
-                    DataRow { name: "履约流程 B-02", owner: "Mika", status: "待校验", updated_at: "09:48" }
-                    DataRow { name: "权限模板 P-09", owner: "Chen", status: "变更中", updated_at: "09:16" }
-                    DataRow { name: "告警编排 S-11", owner: "Wen", status: "稳定", updated_at: "昨天" }
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn ConfigSurface() -> Element {
-    rsx! {
-        Surface {
-            SurfaceHeader {
-                title: "对象配置".to_string(),
-                subtitle: "表单按器官分层，后续继续填入领域字段。".to_string()
-            }
-            TabStrip {
-                WorkbenchButton { class: "form-tab".to_string(), tone: Tone::Accent, "基本信息" }
-                WorkbenchButton { class: "form-tab".to_string(), "执行策略" }
-                WorkbenchButton { class: "form-tab".to_string(), "通知" }
-            }
-            ResponsiveGrid { columns: 2,
-                Field { label: "对象名称".to_string(), value: "风控规则 A-17".to_string() }
-                Field { label: "业务域".to_string(), value: "支付".to_string() }
-                Field { label: "负责人".to_string(), value: "Luna".to_string() }
-                Field { label: "变更批次".to_string(), value: "release-0426".to_string() }
-                Field { label: "优先级".to_string(), value: "P1".to_string() }
-                Field { label: "执行环境".to_string(), value: "production".to_string() }
-            }
-            Divider {}
-            Stack {
-                ListItem {
-                    title: "发布前检查".to_string(),
-                    detail: "2 个字段需要补充说明".to_string()
-                }
-                ListItem {
-                    title: "策略审计".to_string(),
-                    detail: "最近一次审计通过".to_string()
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn DataRow(
-    name: &'static str,
-    owner: &'static str,
-    status: &'static str,
-    updated_at: &'static str,
-) -> Element {
-    let status_class = match status {
-        "稳定" => "status-pill status-pill--ok",
-        "待校验" => "status-pill status-pill--warn",
-        _ => "status-pill",
-    };
-
-    rsx! {
-        tr {
-            td { "{name}" }
-            td { "{owner}" }
-            td { span { class: status_class, "{status}" } }
-            td { "{updated_at}" }
         }
     }
 }

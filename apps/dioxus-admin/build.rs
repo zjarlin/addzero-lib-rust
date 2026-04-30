@@ -48,7 +48,7 @@ fn load_docs(
                     eprintln!("knowledge sync failed, falling back to pg snapshot: {err}");
                 }
 
-                match service.repo().list_documents().await {
+                match service.list_documents().await {
                     Ok(docs) if !docs.is_empty() => ("postgres-sync".to_string(), docs),
                     Ok(_) => {
                         let scan = discover_documents(sources);

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Shrimp favicon">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff8ef"/>
+      <stop offset="1" stop-color="#ffe2c6"/>
+    </linearGradient>
+    <linearGradient id="shell" x1="18" y1="14" x2="51" y2="55" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff875f"/>
+      <stop offset="1" stop-color="#ff5b3f"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="url(#bg)"/>
+  <path
+    d="M46 18c-7-6-18-7-26-1-8 6-10 18-3 27 4 6 11 10 18 10l-6 6 8 1-1 7 10-7c10-1 18-9 19-19 1-9-5-18-14-21-1 3-4 5-7 5-5 0-9-4-9-9 0-5 4-9 9-9h2Z"
+    fill="url(#shell)"
+  />
+  <path
+    d="M22 31c6 5 15 7 24 4"
+    fill="none"
+    stroke="#fff7f1"
+    stroke-linecap="round"
+    stroke-width="3.5"
+  />
+  <path
+    d="M23 39c6 4 13 5 20 2"
+    fill="none"
+    stroke="#fff7f1"
+    stroke-linecap="round"
+    stroke-width="3.5"
+  />
+  <circle cx="44.5" cy="24.5" r="2.5" fill="#381a10"/>
+  <path
+    d="M47 18c4-1 7-3 9-7"
+    fill="none"
+    stroke="#ff946d"
+    stroke-linecap="round"
+    stroke-width="2.5"
+  />
+  <path
+    d="M43 18c3-3 5-7 5-11"
+    fill="none"
+    stroke="#ff946d"
+    stroke-linecap="round"
+    stroke-width="2.5"
+  />
+</svg>

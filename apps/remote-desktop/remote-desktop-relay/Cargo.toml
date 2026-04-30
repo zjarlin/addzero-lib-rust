@@ -1,5 +1,5 @@
 [package]
-name = "remote-desktop-host"
+name = "remote-desktop-relay"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,7 +7,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-addzero-remote-host = { path = "../../crates/runtime/addzero-remote-host" }
+addzero-remote-session = { path = "../../../crates/runtime/addzero-remote-session" }
+tokio.workspace = true
 
 [lints]
 workspace = true

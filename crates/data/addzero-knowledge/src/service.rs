@@ -1,25 +1,33 @@
+use addzero_persistence::PersistenceContext;
 use chrono::Utc;
 
 use crate::{
     discovery::discover_source_documents,
-    pg_repo::PgRepo,
-    types::{KnowledgeError, KnowledgeSourceSpec, KnowledgeSyncReport},
+    repository::KnowledgeRepository,
+    types::{KnowledgeDocument, KnowledgeError, KnowledgeSourceSpec, KnowledgeSyncReport},
 };
 
 #[derive(Clone)]
 pub struct KnowledgeService {
-    pg: PgRepo,
+    repository: KnowledgeRepository,
 }
 
 impl KnowledgeService {
     pub async fn connect(database_url: &str) -> Result<Self, KnowledgeError> {
-        let pg = PgRepo::connect(database_url).await?;
-        pg.ensure_schema().await?;
-        Ok(Self { pg })
+        let persistence = PersistenceContext::connect_with_url(database_url).await?;
+        Ok(Self {
+            repository: KnowledgeRepository::new(persistence.into_connection()),
+        })
     }
 
-    pub fn repo(&self) -> &PgRepo {
-        &self.pg
+    pub fn from_persistence(persistence: &PersistenceContext) -> Self {
+        Self {
+            repository: KnowledgeRepository::new(persistence.db().clone()),
+        }
+    }
+
+    pub async fn list_documents(&self) -> Result<Vec<KnowledgeDocument>, KnowledgeError> {
+        self.repository.list_documents().await
     }
 
     pub async fn sync_sources(
@@ -34,15 +42,15 @@ impl KnowledgeService {
             }
 
             let scan = discover_source_documents(source);
-            let source_id = self.pg.upsert_source(source).await?;
+            let source_id = self.repository.upsert_source(source).await?;
             let mut active_paths = Vec::with_capacity(scan.documents.len());
 
             for doc in &scan.documents {
-                self.pg.upsert_document(source_id, doc).await?;
+                self.repository.upsert_document(source_id, doc).await?;
                 active_paths.push(doc.source_path.clone());
             }
 
-            self.pg
+            self.repository
                 .deactivate_missing_documents(source_id, &active_paths)
                 .await?;
 

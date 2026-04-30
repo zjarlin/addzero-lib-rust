@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
+use addzero_persistence::PersistenceError;
 use chrono::{DateTime, Utc};
+use sea_orm::DbErr;
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -61,10 +63,10 @@ pub struct KnowledgeSyncReport {
 pub enum KnowledgeError {
     #[error("could not resolve home directory")]
     MissingHomeDir,
-    #[error("connect to postgres: {0}")]
-    ConnectPostgres(#[source] sqlx::Error),
-    #[error("apply knowledge schema: {0}")]
-    ApplySchema(#[source] sqlx::Error),
+    #[error("connect knowledge persistence: {0}")]
+    Persistence(#[from] PersistenceError),
     #[error("query knowledge rows: {0}")]
-    Query(#[source] sqlx::Error),
+    Query(#[source] DbErr),
+    #[error("{0}")]
+    Message(String),
 }

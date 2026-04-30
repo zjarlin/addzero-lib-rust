@@ -18,8 +18,6 @@ pub struct DefaultAdminProvider {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum AdminDomain {
     Overview,
-    Objects,
-    Workflows,
     Agents,
     Knowledge,
     System,
@@ -30,8 +28,6 @@ impl AdminDomain {
     fn label(self) -> &'static str {
         match self {
             Self::Overview => "总览",
-            Self::Objects => "对象管理",
-            Self::Workflows => "流程编排",
             Self::Agents => "Agent 技能",
             Self::Knowledge => "知识库",
             Self::System => "系统管理",
@@ -42,8 +38,6 @@ impl AdminDomain {
     fn route(self) -> Route {
         match self {
             Self::Overview => Route::Home,
-            Self::Objects => Route::Objects,
-            Self::Workflows => Route::Workflows,
             Self::Agents => Route::Agents,
             Self::Knowledge => Route::KnowledgeNotes,
             Self::System => Route::SystemUsers,
@@ -157,8 +151,6 @@ impl AdminProvider<Route> for DefaultAdminProvider {
 fn domain_for_route(route: &Route) -> AdminDomain {
     match route {
         Route::Home | Route::Dashboard => AdminDomain::Overview,
-        Route::Objects => AdminDomain::Objects,
-        Route::Workflows => AdminDomain::Workflows,
         Route::Agents | Route::AgentEditor { .. } => AdminDomain::Agents,
         Route::KnowledgeNotes | Route::KnowledgeSoftware | Route::KnowledgePackages => {
             AdminDomain::Knowledge
@@ -182,18 +174,6 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
             label: domain.label().to_string(),
             menus: vec![AdminMenu::leaf("知识图谱概览", Route::Home, |route| {
                 matches!(route, Route::Home | Route::Dashboard)
-            })],
-        },
-        AdminDomain::Objects => AdminSection {
-            label: domain.label().to_string(),
-            menus: vec![AdminMenu::leaf("对象列表", Route::Objects, |route| {
-                matches!(route, Route::Objects)
-            })],
-        },
-        AdminDomain::Workflows => AdminSection {
-            label: domain.label().to_string(),
-            menus: vec![AdminMenu::leaf("流程看板", Route::Workflows, |route| {
-                matches!(route, Route::Workflows)
             })],
         },
         AdminDomain::Agents => AdminSection {
@@ -296,8 +276,6 @@ fn DomainSwitcher(active: AdminDomain) -> Element {
         div { class: "domain-switcher",
             for domain in [
                 AdminDomain::Overview,
-                AdminDomain::Objects,
-                AdminDomain::Workflows,
                 AdminDomain::Agents,
                 AdminDomain::Knowledge,
                 AdminDomain::System,

@@ -37,10 +37,13 @@ pub fn LoginPage() -> Element {
     } else {
         "签名 Cookie 单管理员会话。".to_string()
     };
+    let redirect_nav = nav.clone();
 
-    if *auth.ready.read() && *auth.logged_in.read() {
-        nav.replace(Route::Home);
-    }
+    use_effect(move || {
+        if *auth.ready.read() && *auth.logged_in.read() {
+            redirect_nav.replace(Route::Home);
+        }
+    });
 
     let submit = move |_| {
         let user = username.read().trim().to_string();
