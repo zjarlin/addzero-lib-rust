@@ -269,7 +269,6 @@ pub fn SystemAgentPairingApproval(id: String) -> Element {
     let mut feedback = use_signal::<Option<String>>(|| None);
     let mut pairing_resource = {
         let runtime_api = runtime_api.clone();
-        let parsed_id = parsed_id;
         use_resource(move || {
             let runtime_api = runtime_api.clone();
             async move {

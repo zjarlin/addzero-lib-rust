@@ -237,7 +237,7 @@ pub fn AgentEditor(name: String) -> Element {
     };
 
     let save_skills_api = skills_api.clone();
-    let save_nav = nav.clone();
+    let save_nav = nav;
     let save = move |_| {
         let payload = SkillUpsertDto {
             name: name_state.read().trim().to_string(),
@@ -274,7 +274,7 @@ pub fn AgentEditor(name: String) -> Element {
     let request_delete = move |_| confirm_open.set(true);
     let cancel_delete = move |_: ()| confirm_open.set(false);
     let delete_skills_api = skills_api.clone();
-    let delete_nav = nav.clone();
+    let delete_nav = nav;
     let confirm_delete = move |_: ()| {
         confirm_open.set(false);
         let skills_api = delete_skills_api.clone();

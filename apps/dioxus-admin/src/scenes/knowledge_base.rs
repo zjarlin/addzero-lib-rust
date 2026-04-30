@@ -718,7 +718,6 @@ pub fn PackageAssetsScene() -> Element {
                                     let mut package_assets_state = package_assets_state;
                                     let mut selected_asset_slug = selected_asset_slug;
                                     let mut editor_mode = editor_mode;
-                                    let form_state = form_state;
                                     let channel_slug = channel.slug.to_string();
                                     move |_| {
                                         let mut draft = form_state.read().clone();
@@ -729,8 +728,7 @@ pub fn PackageAssetsScene() -> Element {
                                                 channel_slug,
                                                 draft.package_name
                                                     .to_lowercase()
-                                                    .replace(' ', "-")
-                                                    .replace('/', "-")
+                                                    .replace([' ', '/'], "-")
                                             );
                                         }
                                         package_assets_state.with_mut(|items| {

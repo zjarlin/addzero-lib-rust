@@ -31,14 +31,6 @@ impl DashboardLens {
         }
     }
 
-    fn subtitle(self) -> &'static str {
-        match self {
-            Self::Notes => "默认聚焦已纳入的 Rust 笔记图谱。",
-            Self::Software => "查看软件资产、基础设施和发布链路的关联。",
-            Self::Packages => "查看安装包资产、平台归属、分发来源与后续落地路径。",
-        }
-    }
-
     fn root_id(self) -> &'static str {
         match self {
             Self::Notes => "lens-notes",
@@ -1217,11 +1209,15 @@ fn packages_graph() -> GraphViewModel {
     )
 }
 
+
+/// (label, detail, meta) tuple for graph cluster items.
+type ClusterItem<'a> = (&'a str, &'a str, &'a str);
+
 fn graph_from_seed(
     lens: DashboardLens,
     root_label: &str,
     root_detail: &str,
-    seed: Vec<(&str, Vec<(&str, &str, &str)>)>,
+    seed: Vec<(&str, Vec<ClusterItem<'_>>)>,
 ) -> GraphViewModel {
     let root_id = lens.root_id().to_string();
     let mut nodes = vec![GraphNodeItem {

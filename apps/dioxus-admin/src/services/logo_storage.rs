@@ -222,7 +222,7 @@ fn build_object_key(file_name: &str) -> String {
         .rsplit_once('.')
         .map(|(_, ext)| ext)
         .filter(|ext| !ext.trim().is_empty())
-        .map(|ext| sanitize_segment(ext))
+        .map(sanitize_segment)
         .filter(|ext| !ext.is_empty())
         .unwrap_or_else(|| "png".to_string());
 
