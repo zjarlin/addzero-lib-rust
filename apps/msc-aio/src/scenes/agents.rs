@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
+
 use chrono::{DateTime, Utc};
 use dioxus::prelude::*;
 use dioxus_components::{
-    Badge, ConfirmDialog, ContentHeader, DataTable, Divider, Field, KeywordChips, MetricRow,
-    MetricStrip, SidebarSection, Stack, Surface, SurfaceHeader, Textarea, Tone, WorkbenchButton,
+    Badge, ConfirmDialog, ContentHeader, Divider, Field, KeywordChips, MetricRow, MetricStrip,
+    SidebarSection, Stack, Surface, SurfaceHeader, Textarea, Tone, WorkbenchButton,
 };
 
 use crate::app::Route;
@@ -80,6 +82,7 @@ pub fn Agents() -> Element {
         })
         .cloned()
         .collect();
+    let grouped_skills = build_skill_tree(&filtered);
 
     rsx! {
         ContentHeader {
@@ -94,7 +97,7 @@ pub fn Agents() -> Element {
         Surface {
             SurfaceHeader {
                 title: "Skills 资产".to_string(),
-                subtitle: "按名称或关键词搜索；当前只管理 SKILL.md 这一类资产。".to_string(),
+                subtitle: "按名称或关键词搜索；以树状目录呈现技能资产，可同时看到分组与条目。".to_string(),
                 actions: rsx!(
                     WorkbenchButton {
                         class: "toolbar-button".to_string(),
@@ -119,10 +122,41 @@ pub fn Agents() -> Element {
             if filtered.is_empty() {
                 div { class: "empty-state", "没有匹配的技能。" }
             } else {
-                DataTable {
-                    columns: vec!["名称".to_string(), "关键词".to_string(), "来源".to_string(), "更新时间".to_string()],
-                    for skill in filtered.iter() {
-                        SkillRow { skill: skill.clone() }
+                div { class: "knowledge-board",
+                    Surface {
+                        SurfaceHeader {
+                            title: "技能目录树".to_string(),
+                            subtitle: "按命名空间 / 前缀分组；点击节点直接进入编辑。".to_string()
+                        }
+                        div { class: "stack",
+                            for group in grouped_skills.iter() {
+                                div { class: "sidebar-section",
+                                    div { class: "context-line",
+                                        strong { "{group.label}" }
+                                        span { class: "cell-overflow", "{group.items.len()} 项" }
+                                    }
+                                    div { class: "stack", style: "padding-left: 12px;",
+                                        for skill in group.items.iter() {
+                                            SkillTreeItem { skill: skill.clone() }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Surface {
+                        SurfaceHeader {
+                            title: "目录说明".to_string(),
+                            subtitle: "支持多个部署路径；同一技能组下会并列展示多个条目。".to_string()
+                        }
+                        div { class: "stack",
+                            for group in grouped_skills.iter() {
+                                div { class: "context-line",
+                                    strong { "{group.label}" }
+                                    span { " · {group.items.len()} 项" }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -130,42 +164,75 @@ pub fn Agents() -> Element {
     }
 }
 
+#[derive(Clone, PartialEq)]
+struct SkillTreeGroup {
+    label: String,
+    items: Vec<SkillDto>,
+}
+
 #[component]
-fn SkillRow(skill: SkillDto) -> Element {
+fn SkillTreeItem(skill: SkillDto) -> Element {
     let nav = use_navigator();
     let route = Route::AgentEditor {
         name: skill.name.clone(),
     };
-    let preview: Vec<&String> = skill.keywords.iter().take(3).collect();
-    let extra = skill.keywords.len().saturating_sub(preview.len());
+    let preview = if skill.keywords.is_empty() {
+        Some(skill.description.clone())
+    } else {
+        Some(skill.keywords.iter().take(3).cloned().collect::<Vec<_>>().join(" · "))
+    };
     let badge = source_badge_props(&skill.source);
     let updated = skill.updated_at.format("%Y-%m-%d %H:%M").to_string();
 
     rsx! {
-        tr {
+        div {
             class: "row-link",
             onclick: move |_| {
                 nav.push(route.clone());
             },
-            td { "{skill.name}" }
-            td {
-                div { class: "cell-keywords",
-                    for keyword in preview.iter() {
-                        span { class: "chip",
-                            span { class: "chip__label", "{keyword}" }
-                        }
-                    }
-                    if extra > 0 {
-                        span { class: "cell-overflow", "+{extra}" }
-                    }
+            div { class: "context-line",
+                strong { "{skill.name}" }
+                span { class: "cell-overflow", "{updated}" }
+            }
+            div { class: "context-line",
+                Badge { label: badge.0, variant: badge.1 }
+                if let Some(text) = preview.as_ref() {
+                    span { "{text}" }
                 }
             }
-            td {
-                Badge { label: badge.0, variant: badge.1 }
-            }
-            td { "{updated}" }
         }
     }
+}
+
+fn build_skill_tree(skills: &[SkillDto]) -> Vec<SkillTreeGroup> {
+    let mut groups: BTreeMap<String, Vec<SkillDto>> = BTreeMap::new();
+
+    for skill in skills {
+        let group = skill_group_label(&skill.name);
+        groups.entry(group).or_default().push(skill.clone());
+    }
+
+    groups
+        .into_iter()
+        .map(|(label, mut items)| {
+            items.sort_by(|a, b| a.name.cmp(&b.name));
+            SkillTreeGroup { label, items }
+        })
+        .collect()
+}
+
+fn skill_group_label(name: &str) -> String {
+    if let Some((head, _)) = name.split_once('/') {
+        return head.to_string();
+    }
+    if let Some((head, _)) = name.split_once(':') {
+        return head.to_string();
+    }
+    name.split('-')
+        .next()
+        .filter(|value| !value.is_empty())
+        .unwrap_or("ungrouped")
+        .to_string()
 }
 
 fn source_badge_props(source: &SkillSourceDto) -> (String, String) {

@@ -6,6 +6,7 @@ use crate::scenes::{
     agents::{AgentEditor, Agents},
     auth::LoginPage,
     dashboard::{Audit, Dashboard},
+    files::FilesScene,
     knowledge_base::{KnowledgeNotes, KnowledgePackages, KnowledgeSoftware},
     system_management::{
         SystemDepartments, SystemDictionaries, SystemMenus, SystemRoles, SystemUsers,
@@ -35,6 +36,8 @@ pub enum Route {
     KnowledgeSoftware,
     #[route("/knowledge/packages")]
     KnowledgePackages,
+    #[route("/files")]
+    Files,
     #[route("/system/users")]
     SystemUsers,
     #[route("/system/menus")]
@@ -118,6 +121,11 @@ fn Login() -> Element {
 #[component]
 fn Home() -> Element {
     rsx! { Dashboard {} }
+}
+
+#[component]
+fn Files() -> Element {
+    rsx! { FilesScene {} }
 }
 
 #[component]
