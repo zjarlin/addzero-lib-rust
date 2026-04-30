@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use dioxus::prelude::*;
 use dioxus_components::{
-    Badge, ConfirmDialog, ContentHeader, Divider, Field, KeywordChips, MetricRow, ResponsiveGrid,
-    SidebarSection, Stack, Surface, SurfaceHeader, Textarea, Tone, WorkbenchButton,
+    Badge, ConfirmDialog, ContentHeader, DataTable, Divider, Field, KeywordChips, MetricRow,
+    MetricStrip, SidebarSection, Stack, Surface, SurfaceHeader, Textarea, Tone, WorkbenchButton,
 };
 
 use crate::app::Route;
@@ -119,19 +119,10 @@ pub fn Agents() -> Element {
             if filtered.is_empty() {
                 div { class: "empty-state", "没有匹配的技能。" }
             } else {
-                table { class: "data-table",
-                    thead {
-                        tr {
-                            th { "名称" }
-                            th { "关键词" }
-                            th { "来源" }
-                            th { "更新时间" }
-                        }
-                    }
-                    tbody {
-                        for skill in filtered.iter() {
-                            SkillRow { skill: skill.clone() }
-                        }
+                DataTable {
+                    columns: vec!["名称".to_string(), "关键词".to_string(), "来源".to_string(), "更新时间".to_string()],
+                    for skill in filtered.iter() {
+                        SkillRow { skill: skill.clone() }
                     }
                 }
             }
@@ -326,7 +317,7 @@ pub fn AgentEditor(name: String) -> Element {
                     title: "元信息".to_string(),
                     subtitle: "name 是文件夹与 PG 的主键，关键词决定触发范围。".to_string()
                 }
-                ResponsiveGrid { columns: 2,
+                MetricStrip { columns: 2,
                     Field {
                         label: "名称".to_string(),
                         value: name_state.read().clone(),

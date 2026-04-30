@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_components::{
-    Badge, ContentHeader, MetricRow, ResponsiveGrid, Stack, StatTile, Surface, SurfaceHeader, Tone,
-    WorkbenchButton,
+    Badge, ContentHeader, DataTable, MetricRow, MetricStrip, Stack, StatTile, Surface, SurfaceHeader,
+    Tone, WorkbenchButton,
 };
 use uuid::Uuid;
 
@@ -70,7 +70,7 @@ pub fn SystemAgentNodes() -> Element {
             title: "系统管理".to_string(),
             subtitle: "Agent 节点：独立 runtime 的下载、配对、在线状态和 skills 双向同步。".to_string()
         }
-        ResponsiveGrid { columns: 4,
+        MetricStrip { columns: 4,
             StatTile {
                 label: "分发形态".to_string(),
                 value: overview.artifacts.len().to_string(),
@@ -114,19 +114,10 @@ pub fn SystemAgentNodes() -> Element {
             if overview.pairing_sessions.is_empty() {
                 div { class: "empty-state", "还没有任何 pairing session。" }
             } else {
-                table { class: "data-table",
-                    thead {
-                        tr {
-                            th { "节点" }
-                            th { "交付形态" }
-                            th { "状态" }
-                            th { "批准页" }
-                        }
-                    }
-                    tbody {
-                        for pairing in overview.pairing_sessions.iter() {
-                            PairingRow { pairing: pairing.clone() }
-                        }
+                DataTable {
+                    columns: vec!["节点".to_string(), "交付形态".to_string(), "状态".to_string(), "批准页".to_string()],
+                    for pairing in overview.pairing_sessions.iter() {
+                        PairingRow { pairing: pairing.clone() }
                     }
                 }
             }

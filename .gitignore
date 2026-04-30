@@ -4,6 +4,8 @@
 /docs/.docusaurus/
 /docs/.xiaoeyu/
 /docs/node_modules/
-.idea
+.idea/
+*.iml
+.DS_Store
 .agents/skills/rust-best-practices/.DS_Store
 .playwright-mcp
