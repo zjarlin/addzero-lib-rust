@@ -1,7 +1,8 @@
 use dioxus::prelude::*;
 use dioxus_components::{
-    ContentHeader, Field, ListItem, MetricRow, ResponsiveGrid, SidebarSection, Stack, StatTile,
-    Surface, SurfaceHeader, Tone, WorkbenchButton,
+    ContentHeader, Field, GroupedListPanel, GroupedListPanelGroup, GroupedListPanelItem, ListItem,
+    MetricRow, ResponsiveGrid, SidebarSection, Stack, StatTile, Surface, SurfaceHeader, Tone,
+    WorkbenchTabItem, WorkbenchTabs, WorkbenchButton,
 };
 
 use crate::{
@@ -120,50 +121,44 @@ pub fn KnowledgeNotes() -> Element {
             }
         } else {
             div { class: "knowledge-board",
-                Surface {
-                    SurfaceHeader {
-                        title: "笔记目录".to_string(),
-                        subtitle: format!("已纳入 {} 份知识文档，覆盖 {} 个来源目录。", KNOWLEDGE_DOCS.len(), total_sources())
-                    }
-                    div { class: "knowledge-source",
-                        span { class: "badge", "{data_mode_label()}" }
-                        span { class: "badge badge--fs", "{KNOWLEDGE_DATA_MODE}" }
-                    }
-                    for summary in KNOWLEDGE_SOURCE_SUMMARIES.iter().filter(|summary| summary.count > 0) {
-                        div { class: "knowledge-group",
-                            div { class: "knowledge-group__label",
-                                span { "{summary.label}" }
-                                span { class: "knowledge-group__count", "{summary.count} 篇" }
-                            }
-                            div { class: "callout callout--info",
-                                "{summary.root}"
-                            }
-                            for doc in KNOWLEDGE_DOCS.iter().filter(|doc| doc.source_slug == summary.slug) {
-                                button {
-                                    type: "button",
-                                    class: if selected.map(|item| item.slug == doc.slug).unwrap_or(false) {
-                                        "knowledge-doc knowledge-doc--active"
-                                    } else {
-                                        "knowledge-doc"
-                                    },
-                                    onclick: {
-                                        let slug = doc.slug.to_string();
-                                        move |_| selected_slug.set(slug.clone())
-                                    },
-                                    div { class: "knowledge-doc__eyebrow",
-                                        span { class: "badge", "{doc.source_name}" }
-                                        span { class: "knowledge-doc__file", "{doc.relative_path}" }
-                                    }
-                                    div { class: "knowledge-doc__title", "{doc.title}" }
-                                    div { class: "knowledge-doc__preview", "{doc.preview}" }
-                                    div { class: "knowledge-doc__meta",
-                                        span { "{doc.section_count} 个章节标题" }
-                                        span { "{format_bytes(doc.bytes)}" }
-                                    }
-                                }
-                            }
+                GroupedListPanel {
+                    title: "笔记目录".to_string(),
+                    subtitle: format!("已纳入 {} 份知识文档，覆盖 {} 个来源目录。", KNOWLEDGE_DOCS.len(), total_sources()),
+                    children: rsx!(
+                        div { class: "knowledge-source",
+                            span { class: "badge", "{data_mode_label()}" }
+                            span { class: "badge badge--fs", "{KNOWLEDGE_DATA_MODE}" }
                         }
-                    }
+                    ),
+                    groups: KNOWLEDGE_SOURCE_SUMMARIES
+                        .iter()
+                        .filter(|summary| summary.count > 0)
+                        .map(|summary| GroupedListPanelGroup {
+                            label: summary.label.to_string(),
+                            count_label: Some(format!("{} 篇", summary.count)),
+                            description: Some(summary.root.to_string()),
+                            items: KNOWLEDGE_DOCS
+                                .iter()
+                                .filter(|doc| doc.source_slug == summary.slug)
+                                .map(|doc| {
+                                    let slug = doc.slug.to_string();
+                                    GroupedListPanelItem {
+                                        key: slug.clone(),
+                                        title: doc.title.to_string(),
+                                        eyebrow: Some(doc.source_name.to_string()),
+                                        preview: Some(doc.preview.to_string()),
+                                        meta: vec![
+                                            doc.relative_path.to_string(),
+                                            format!("{} 个章节标题", doc.section_count),
+                                            format_bytes(doc.bytes),
+                                        ],
+                                        active: selected.map(|item| item.slug == doc.slug).unwrap_or(false),
+                                        onpress: EventHandler::new(move |_| selected_slug.set(slug.clone())),
+                                    }
+                                })
+                                .collect(),
+                        })
+                        .collect()
                 }
                 if let Some(doc) = selected {
                     KnowledgeDetailSurface { doc: *doc }
@@ -207,24 +202,16 @@ fn KnowledgeSceneHeader(subtitle: &'static str) -> Element {
 
 #[component]
 fn KnowledgeSectionTabs(active: &'static str) -> Element {
-    let tab = |label: &'static str| -> Option<Tone> {
-        if label == active {
-            Some(Tone::Accent)
-        } else {
-            None
-        }
-    };
-
     rsx! {
-        div { class: "knowledge-tabs",
+        WorkbenchTabs {
             Link { to: Route::KnowledgeNotes,
-                WorkbenchButton { class: "segment-button".to_string(), tone: tab("笔记"), "笔记" }
+                WorkbenchTabItem { label: "笔记".to_string(), active: active == "笔记" }
             }
             Link { to: Route::KnowledgeSoftware,
-                WorkbenchButton { class: "segment-button".to_string(), tone: tab("软件"), "软件" }
+                WorkbenchTabItem { label: "软件".to_string(), active: active == "软件" }
             }
             Link { to: Route::KnowledgePackages,
-                WorkbenchButton { class: "segment-button".to_string(), tone: tab("安装包"), "安装包" }
+                WorkbenchTabItem { label: "安装包".to_string(), active: active == "安装包" }
             }
         }
     }

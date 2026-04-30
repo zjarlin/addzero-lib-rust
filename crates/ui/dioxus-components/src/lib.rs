@@ -188,6 +188,37 @@ pub fn ContentHeader(props: ContentHeaderProps) -> Element {
     }
 }
 
+#[derive(Props, Clone, PartialEq)]
+pub struct SectionHeaderProps {
+    pub title: String,
+    #[props(optional)]
+    pub subtitle: Option<String>,
+    #[props(optional)]
+    pub eyebrow: Option<String>,
+    #[props(optional)]
+    pub actions: Option<Element>,
+}
+
+#[component]
+pub fn SectionHeader(props: SectionHeaderProps) -> Element {
+    rsx! {
+        section { class: "content-header section-header",
+            div {
+                if let Some(eyebrow) = &props.eyebrow {
+                    div { class: "section-header__eyebrow", "{eyebrow}" }
+                }
+                h2 { class: "content-header__title", "{props.title}" }
+                if let Some(subtitle) = &props.subtitle {
+                    p { class: "content-header__subtitle", "{subtitle}" }
+                }
+            }
+            if let Some(actions) = props.actions {
+                div { class: "content-header__actions", {actions} }
+            }
+        }
+    }
+}
+
 #[component]
 pub fn Surface(children: Element) -> Element {
     rsx! {
@@ -221,6 +252,18 @@ pub fn ResponsiveGrid(columns: u8, children: Element) -> Element {
     let class = match columns {
         3 => "summary-grid",
         _ => "form-grid",
+    };
+
+    rsx! {
+        div { class: class, {children} }
+    }
+}
+
+#[component]
+pub fn MetricStrip(columns: u8, children: Element) -> Element {
+    let class = match columns {
+        4 => "metric-strip metric-strip--4",
+        _ => "metric-strip",
     };
 
     rsx! {
@@ -291,6 +334,161 @@ pub fn StatTile(
                 div { class: "summary-block__value", "{value}" }
                 if let Some(detail) = &detail {
                     div { class: "summary-block__detail", "{detail}" }
+                }
+            }
+        }
+    }
+}
+
+#[derive(Props, Clone, PartialEq)]
+pub struct DataTableProps {
+    pub columns: Vec<String>,
+    pub children: Element,
+    #[props(optional)]
+    pub empty: Option<Element>,
+}
+
+#[component]
+pub fn DataTable(props: DataTableProps) -> Element {
+    rsx! {
+        table { class: "data-table",
+            thead {
+                tr {
+                    for column in props.columns.iter() {
+                        th { "{column}" }
+                    }
+                }
+            }
+            tbody {
+                {props.children}
+                if let Some(empty) = props.empty {
+                    {empty}
+                }
+            }
+        }
+    }
+}
+
+#[derive(Props, Clone, PartialEq)]
+pub struct WorkbenchTabItemProps {
+    pub label: String,
+    #[props(optional)]
+    pub href: Option<String>,
+    #[props(default = false)]
+    pub active: bool,
+}
+
+#[component]
+pub fn WorkbenchTabItem(props: WorkbenchTabItemProps) -> Element {
+    let tone = if props.active { Some(Tone::Accent) } else { None };
+    let label = props.label.clone();
+
+    if let Some(href) = props.href.clone() {
+        rsx! {
+            a { class: "workbench-tabs__link", href: href,
+                WorkbenchButton { class: "segment-button".to_string(), tone: tone, "{label}" }
+            }
+        }
+    } else {
+        rsx! {
+            WorkbenchButton { class: "segment-button".to_string(), tone: tone, "{label}" }
+        }
+    }
+}
+
+#[component]
+pub fn WorkbenchTabs(children: Element) -> Element {
+    rsx! {
+        div { class: "knowledge-tabs workbench-tabs", {children} }
+    }
+}
+
+#[derive(Props, Clone, PartialEq)]
+pub struct GroupedListPanelProps {
+    pub title: String,
+    #[props(optional)]
+    pub subtitle: Option<String>,
+    #[props(optional)]
+    pub children: Option<Element>,
+    pub groups: Vec<GroupedListPanelGroup>,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct GroupedListPanelGroup {
+    pub label: String,
+    pub count_label: Option<String>,
+    pub description: Option<String>,
+    pub items: Vec<GroupedListPanelItem>,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct GroupedListPanelItem {
+    pub key: String,
+    pub title: String,
+    pub eyebrow: Option<String>,
+    pub preview: Option<String>,
+    pub meta: Vec<String>,
+    pub active: bool,
+    pub onpress: EventHandler<MouseEvent>,
+}
+
+#[component]
+pub fn GroupedListPanel(props: GroupedListPanelProps) -> Element {
+    rsx! {
+        Surface {
+            SurfaceHeader {
+                title: props.title,
+                subtitle: props.subtitle
+            }
+            if let Some(children) = props.children {
+                {children}
+            }
+            for group in props.groups.iter() {
+                div { class: "knowledge-group",
+                    div { class: "knowledge-group__label",
+                        span { "{group.label}" }
+                        if let Some(count_label) = &group.count_label {
+                            span { class: "knowledge-group__count", "{count_label}" }
+                        }
+                    }
+                    if let Some(description) = &group.description {
+                        div { class: "callout callout--info",
+                            "{description}"
+                        }
+                    }
+                    for item in group.items.iter() {
+                        button {
+                            key: "{item.key}",
+                            type: "button",
+                            class: if item.active {
+                                "knowledge-doc knowledge-doc--active"
+                            } else {
+                                "knowledge-doc"
+                            },
+                            onclick: {
+                                let onpress = item.onpress;
+                                move |evt| onpress.call(evt)
+                            },
+                            if item.eyebrow.is_some() {
+                                div { class: "knowledge-doc__eyebrow",
+                                    if let Some(eyebrow) = &item.eyebrow {
+                                        span { class: "badge", "{eyebrow}" }
+                                    }
+                                }
+                            }
+                            div { class: "knowledge-doc__title", "{item.title}" }
+                            if let Some(preview) = &item.preview {
+                                div { class: "knowledge-doc__preview", "{preview}" }
+                            }
+                            if !item.meta.is_empty() {
+                                div { class: "knowledge-doc__meta",
+                                    for meta in item.meta.iter() {
+                                        span { "{meta}" }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
