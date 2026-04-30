@@ -28,7 +28,7 @@ impl AdminDomain {
     fn label(self) -> &'static str {
         match self {
             Self::Overview => "总览",
-            Self::Agents => "Agent 技能",
+            Self::Agents => "Agent资产",
             Self::Knowledge => "知识库",
             Self::System => "系统管理",
             Self::Audit => "审计日志",

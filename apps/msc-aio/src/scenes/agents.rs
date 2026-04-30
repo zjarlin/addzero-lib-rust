@@ -42,7 +42,7 @@ pub fn Agents() -> Element {
         Some(Err(err)) => {
             return rsx! {
                 ContentHeader {
-                    title: "Agent 技能".to_string(),
+                    title: "Agent资产".to_string(),
                     subtitle: "当前先把 SKILL.md 作为 Skills 资产管理，后续再扩到其它 Agent 资产。".to_string()
                 }
                 Surface {
@@ -55,7 +55,7 @@ pub fn Agents() -> Element {
         None => {
             return rsx! {
                 ContentHeader {
-                    title: "Agent 技能".to_string(),
+                    title: "Agent资产".to_string(),
                     subtitle: "当前先把 SKILL.md 作为 Skills 资产管理，后续再扩到其它 Agent 资产。".to_string()
                 }
                 Surface { div { class: "empty-state", "正在加载…" } }
@@ -83,7 +83,7 @@ pub fn Agents() -> Element {
 
     rsx! {
         ContentHeader {
-            title: "Agent 技能".to_string(),
+            title: "Agent资产".to_string(),
             subtitle: "当前先把 SKILL.md 作为 Skills 资产管理，后续再扩到模型、提示词和工具配置等资产。".to_string(),
             actions: rsx!(
                 Link { to: Route::AgentEditor { name: "_new".to_string() },
