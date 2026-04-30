@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,28 @@ pub struct TreeNode<T> {
     pub data: Option<serde_json::Value>,
 }
 
+/// Errors that can occur during tree construction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TreeError<T> {
+    /// A cycle was detected involving the given node id.
+    Cycle(T),
+    /// A node references a parent_id that does not exist in the input.
+    MissingParent(T),
+}
+
+impl<T: std::fmt::Debug> std::fmt::Display for TreeError<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TreeError::Cycle(id) => write!(f, "cycle detected involving node {:?}", id),
+            TreeError::MissingParent(id) => {
+                write!(f, "node {:?} references a missing parent", id)
+            }
+        }
+    }
+}
+
+impl<T: std::fmt::Debug + Send + Sync> std::error::Error for TreeError<T> {}
+
 /// A trait for building tree structures from flat (id, parent_id) pairs.
 pub trait TreeBuilder<T> {
     /// Builds a forest (list of root trees) from a flat list of `(id, parent_id)` pairs.
@@ -26,11 +48,19 @@ pub trait TreeBuilder<T> {
     /// Nodes whose `parent_id` is `None` become roots. The returned `Vec` may contain
     /// multiple trees if there are multiple roots.
     fn build_tree(items: Vec<(T, Option<T>)>) -> Vec<TreeNode<T>>;
+
+    /// Like [`build_tree`], but returns an error on cycles or missing parents
+    /// instead of panicking.
+    fn try_build_tree(items: Vec<(T, Option<T>)>) -> Result<Vec<TreeNode<T>>, TreeError<T>>;
 }
 
-impl<T: Eq + Hash + Clone> TreeBuilder<T> for TreeNode<T> {
+impl<T: Eq + Hash + Clone + std::fmt::Debug> TreeBuilder<T> for TreeNode<T> {
     fn build_tree(items: Vec<(T, Option<T>)>) -> Vec<TreeNode<T>> {
         build_tree(items)
+    }
+
+    fn try_build_tree(items: Vec<(T, Option<T>)>) -> Result<Vec<TreeNode<T>>, TreeError<T>> {
+        try_build_tree(items)
     }
 }
 
@@ -88,12 +118,7 @@ impl<T: Eq + Hash + Clone> TreeNode<T> {
         if self.children.is_empty() {
             return 1;
         }
-        1 + self
-            .children
-            .iter()
-            .map(|c| c.depth())
-            .max()
-            .unwrap_or(0)
+        1 + self.children.iter().map(|c| c.depth()).max().unwrap_or(0)
     }
 
     /// Returns the total number of nodes in this subtree (including this node).
@@ -150,53 +175,130 @@ impl<T: Eq + Hash + Clone> TreeNode<T> {
 ///
 /// # Panics
 ///
-/// Panics if the input contains cycles, missing parents, or duplicate ids.
-pub fn build_tree<T: Eq + Hash + Clone>(items: Vec<(T, Option<T>)>) -> Vec<TreeNode<T>> {
-    let mut index: HashMap<T, usize> = HashMap::new();
-    let mut parent_map: HashMap<T, Option<T>> = HashMap::new();
+/// Panics if the input contains cycles or missing parents. Use [`try_build_tree`]
+/// for a non-panicking variant.
+pub fn build_tree<T: Eq + Hash + Clone + std::fmt::Debug>(
+    items: Vec<(T, Option<T>)>,
+) -> Vec<TreeNode<T>> {
+    try_build_tree(items).expect("build_tree: input contains cycles or missing parents")
+}
 
-    for (i, (id, parent_id)) in items.iter().enumerate() {
-        index.insert(id.clone(), i);
-        parent_map.insert(id.clone(), parent_id.clone());
+/// Builds a forest from a flat list of `(id, parent_id)` pairs, returning an error
+/// if cycles or missing parents are detected.
+///
+/// Nodes whose `parent_id` is `None` become roots. The returned `Vec` may contain
+/// multiple trees if there are multiple roots.
+pub fn try_build_tree<T: Eq + Hash + Clone>(
+    items: Vec<(T, Option<T>)>,
+) -> Result<Vec<TreeNode<T>>, TreeError<T>> {
+    let all_ids: HashSet<&T> = items.iter().map(|(id, _)| id).collect();
+
+    // Validate: all parent_ids (when Some) must exist in the id set.
+    for (id, parent_id) in &items {
+        if let Some(pid) = parent_id {
+            if !all_ids.contains(pid) {
+                return Err(TreeError::MissingParent(id.clone()));
+            }
+        }
     }
 
-    // Collect children lists per parent.
-    let mut children_map: HashMap<Option<T>, Vec<T>> = HashMap::new();
+    // Validate: detect cycles using iterative DFS.
+    // Build children map for traversal.
+    let children_map: HashMap<&T, Vec<&T>> = {
+        let mut map: HashMap<&T, Vec<&T>> = HashMap::new();
+        for (id, parent_id) in &items {
+            if let Some(pid) = parent_id {
+                map.entry(pid).or_default().push(id);
+            }
+        }
+        map
+    };
+
+    // Iterative DFS cycle detection with explicit visit tracking.
+    // Must start from ALL nodes, not just roots, because a pure cycle
+    // (e.g. 1→2→1) has no roots at all.
+    {
+        let all_node_ids: Vec<&T> = items.iter().map(|(id, _)| id).collect();
+        let mut visited = HashSet::<&T>::new();
+
+        for &start in &all_node_ids {
+            if visited.contains(start) {
+                continue;
+            }
+            // Trace from start following children; track the current path.
+            let mut path = Vec::<&T>::new();
+            let mut dfs_stack: Vec<(&T, bool)> = vec![(start, false)];
+
+            while let Some((node_id, processed)) = dfs_stack.pop() {
+                if processed {
+                    // All children explored, remove from current path.
+                    path.pop();
+                    visited.insert(node_id);
+                    continue;
+                }
+                if visited.contains(node_id) {
+                    continue;
+                }
+                // Check if node is already on the current path (cycle).
+                if path.contains(&node_id) {
+                    return Err(TreeError::Cycle((*node_id).clone()));
+                }
+                path.push(node_id);
+                // Push "processed" marker.
+                dfs_stack.push((node_id, true));
+                // Push children.
+                let kids = children_map.get(node_id).cloned().unwrap_or_default();
+                for kid in kids {
+                    if path.contains(&kid) {
+                        return Err(TreeError::Cycle((*kid).clone()));
+                    }
+                    if !visited.contains(kid) {
+                        dfs_stack.push((kid, false));
+                    }
+                }
+            }
+        }
+    }
+
+    // Build the actual tree.
+    let mut index: HashMap<T, usize> = HashMap::new();
+    for (i, (id, _)) in items.iter().enumerate() {
+        index.insert(id.clone(), i);
+    }
+
+    let mut children_list_map: HashMap<Option<T>, Vec<T>> = HashMap::new();
     for (id, parent_id) in &items {
-        children_map
+        children_list_map
             .entry(parent_id.clone())
             .or_default()
             .push(id.clone());
     }
 
-    // Recursive builder.
     fn build_node<T: Eq + Hash + Clone>(
         id: T,
-        children_map: &HashMap<Option<T>, Vec<T>>,
-        data_map: &HashMap<T, Option<serde_json::Value>>,
+        children_list_map: &HashMap<Option<T>, Vec<T>>,
     ) -> TreeNode<T> {
-        let children_ids = children_map.get(&Some(id.clone())).cloned().unwrap_or_default();
+        let children_ids = children_list_map
+            .get(&Some(id.clone()))
+            .cloned()
+            .unwrap_or_default();
         let children = children_ids
             .into_iter()
-            .map(|cid| build_node(cid, children_map, data_map))
+            .map(|cid| build_node(cid, children_list_map))
             .collect();
-        let data = data_map.get(&id).cloned().unwrap_or(None);
         TreeNode {
             id,
-            parent_id: None, // parent_id not needed once tree is built structurally
+            parent_id: None,
             children,
-            data,
+            data: None,
         }
     }
 
-    // No data map for the basic builder; build with None data.
-    let data_map: HashMap<T, Option<serde_json::Value>> = HashMap::new();
-
-    let roots = children_map.get(&None).cloned().unwrap_or_default();
-    roots
+    let roots = children_list_map.get(&None).cloned().unwrap_or_default();
+    Ok(roots
         .into_iter()
-        .map(|id| build_node(id, &children_map, &data_map))
-        .collect()
+        .map(|id| build_node(id, &children_list_map))
+        .collect())
 }
 
 #[cfg(test)]
@@ -210,12 +312,7 @@ mod tests {
         // 2   3
         // |
         // 4
-        let items = vec![
-            (1, None),
-            (2, Some(1)),
-            (3, Some(1)),
-            (4, Some(2)),
-        ];
+        let items = vec![(1, None), (2, Some(1)), (3, Some(1)), (4, Some(2))];
         let forest = build_tree(items);
         assert_eq!(forest.len(), 1);
         assert_eq!(forest[0].id, 1);
@@ -227,12 +324,7 @@ mod tests {
 
     #[test]
     fn test_find_found() {
-        let items = vec![
-            (1, None),
-            (2, Some(1)),
-            (3, Some(1)),
-            (4, Some(2)),
-        ];
+        let items = vec![(1, None), (2, Some(1)), (3, Some(1)), (4, Some(2))];
         let forest = build_tree(items);
         let found = forest[0].find(&3);
         assert!(found.is_some());
@@ -241,10 +333,7 @@ mod tests {
 
     #[test]
     fn test_find_not_found() {
-        let items = vec![
-            (1, None),
-            (2, Some(1)),
-        ];
+        let items = vec![(1, None), (2, Some(1))];
         let forest = build_tree(items);
         assert!(forest[0].find(&99).is_none());
     }
@@ -274,24 +363,14 @@ mod tests {
 
     #[test]
     fn test_size() {
-        let items = vec![
-            (1, None),
-            (2, Some(1)),
-            (3, Some(1)),
-            (4, Some(2)),
-        ];
+        let items = vec![(1, None), (2, Some(1)), (3, Some(1)), (4, Some(2))];
         let forest = build_tree(items);
         assert_eq!(forest[0].size(), 4);
     }
 
     #[test]
     fn test_ancestors() {
-        let items = vec![
-            (1, None),
-            (2, Some(1)),
-            (3, Some(1)),
-            (4, Some(2)),
-        ];
+        let items = vec![(1, None), (2, Some(1)), (3, Some(1)), (4, Some(2))];
         let forest = build_tree(items);
         let path = forest[0].ancestors(&4);
         assert_eq!(path, vec![&1, &2, &4]);
@@ -302,11 +381,7 @@ mod tests {
         //   1
         //  / \
         // 2   3
-        let items = vec![
-            (1, None),
-            (2, Some(1)),
-            (3, Some(1)),
-        ];
+        let items = vec![(1, None), (2, Some(1)), (3, Some(1))];
         let forest = build_tree(items);
         let flat: Vec<&i32> = forest[0].flatten().iter().map(|n| &n.id).collect();
         assert_eq!(flat, vec![&1, &2, &3]);
@@ -332,12 +407,7 @@ mod tests {
     fn test_multiple_roots_forest() {
         // Root A: 1 -> 2
         // Root B: 10 -> 20
-        let items = vec![
-            (1, None),
-            (2, Some(1)),
-            (10, None),
-            (20, Some(10)),
-        ];
+        let items = vec![(1, None), (2, Some(1)), (10, None), (20, Some(10))];
         let forest = build_tree(items);
         assert_eq!(forest.len(), 2);
         assert_eq!(forest[0].id, 1);
@@ -348,14 +418,35 @@ mod tests {
 
     #[test]
     fn test_find_mut() {
-        let items = vec![
-            (1, None),
-            (2, Some(1)),
-        ];
+        let items = vec![(1, None), (2, Some(1))];
         let mut forest = build_tree(items);
         let node = forest[0].find_mut(&2).unwrap();
         node.data = Some(serde_json::json!({"key": "value"}));
         let found = forest[0].find(&2).unwrap();
         assert_eq!(found.data, Some(serde_json::json!({"key": "value"})));
+    }
+
+    #[test]
+    fn test_try_build_tree_missing_parent() {
+        let items = vec![(1, Some(99))];
+        let result = try_build_tree(items);
+        assert!(matches!(result, Err(TreeError::MissingParent(1))));
+    }
+
+    #[test]
+    fn test_try_build_tree_cycle() {
+        let items = vec![(1, Some(2)), (2, Some(1))];
+        let result = try_build_tree(items);
+        assert!(matches!(result, Err(TreeError::Cycle(_))));
+    }
+
+    #[test]
+    fn test_try_build_tree_valid() {
+        let items = vec![(1, None), (2, Some(1)), (3, Some(1))];
+        let result = try_build_tree(items);
+        assert!(result.is_ok());
+        let forest = result.unwrap();
+        assert_eq!(forest.len(), 1);
+        assert_eq!(forest[0].children.len(), 2);
     }
 }
