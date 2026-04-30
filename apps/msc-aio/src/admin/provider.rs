@@ -152,7 +152,7 @@ fn domain_for_route(route: &Route) -> AdminDomain {
     match route {
         Route::Home | Route::Dashboard => AdminDomain::Overview,
         Route::Agents | Route::AgentEditor { .. } => AdminDomain::Agents,
-        Route::KnowledgeNotes | Route::KnowledgeSoftware | Route::KnowledgePackages => {
+        Route::KnowledgeNotes | Route::KnowledgeSoftware | Route::KnowledgePackages | Route::Files => {
             AdminDomain::Knowledge
         }
         Route::SystemUsers
@@ -193,6 +193,9 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                 }),
                 AdminMenu::leaf("安装包", Route::KnowledgePackages, |route| {
                     matches!(route, Route::KnowledgePackages)
+                }),
+                AdminMenu::leaf("文件中心", Route::Files, |route| {
+                    matches!(route, Route::Files)
                 }),
             ],
         },
