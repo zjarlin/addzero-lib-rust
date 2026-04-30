@@ -1,0 +1,16 @@
+[package]
+name = "addzero-ddl-generator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "DDL statement generator supporting multiple database dialects"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

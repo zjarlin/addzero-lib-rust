@@ -164,6 +164,7 @@ dependencies = [
 
 [[package]]
 name = "addzero-database-model"
+name = "addzero-ddl-generator"
 version = "0.1.0"
 dependencies = [
  "serde",
