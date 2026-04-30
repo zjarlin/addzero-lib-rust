@@ -2,11 +2,10 @@ use dioxus::prelude::*;
 use dioxus_components::{
     ContentHeader, Field, GroupedListPanel, GroupedListPanelGroup, GroupedListPanelItem, ListItem,
     MetricRow, ResponsiveGrid, SidebarSection, Stack, StatTile, Surface, SurfaceHeader, Tone,
-    WorkbenchTabItem, WorkbenchTabs, WorkbenchButton,
+    WorkbenchButton,
 };
 
 use crate::{
-    app::Route,
     knowledge_catalog::{
         KNOWLEDGE_DATA_MODE, KNOWLEDGE_DOCS, KNOWLEDGE_SOURCE_AVAILABLE,
         KNOWLEDGE_SOURCE_SUMMARIES, KnowledgeDoc, knowledge_doc, total_bytes, total_sections,
@@ -102,7 +101,6 @@ pub fn KnowledgeNotes() -> Element {
         KnowledgeSceneHeader {
             subtitle: "当前笔记目录优先从 PostgreSQL 镜像生成，缺省会扫描本机候选知识目录后再渲染后台目录。"
         }
-        KnowledgeSectionTabs { active: "笔记" }
         KnowledgeSummary {}
         if KNOWLEDGE_DOCS.is_empty() {
             Surface {
@@ -174,7 +172,6 @@ pub fn KnowledgeSoftware() -> Element {
         KnowledgeSceneHeader {
             subtitle: "软件资产和知识文档先拆成独立子场景，避免一开始把台账和笔记混在一起。"
         }
-        KnowledgeSectionTabs { active: "软件" }
         SoftwareScene {}
     }
 }
@@ -183,9 +180,8 @@ pub fn KnowledgeSoftware() -> Element {
 pub fn KnowledgePackages() -> Element {
     rsx! {
         KnowledgeSceneHeader {
-            subtitle: "安装包资产先按平台、来源、分发格式和落地位置纳入目录，后续再补版本与校验链路。"
+            subtitle: "安装包资产聚焦归档、校验与安装目标；文件浏览与 recent outputs 统一收敛到 /files，不再在这里重复承载下载列表。"
         }
-        KnowledgeSectionTabs { active: "安装包" }
         PackageAssetsScene {}
     }
 }
@@ -196,23 +192,6 @@ fn KnowledgeSceneHeader(subtitle: &'static str) -> Element {
         ContentHeader {
             title: "知识库".to_string(),
             subtitle: subtitle.to_string()
-        }
-    }
-}
-
-#[component]
-fn KnowledgeSectionTabs(active: &'static str) -> Element {
-    rsx! {
-        WorkbenchTabs {
-            Link { to: Route::KnowledgeNotes,
-                WorkbenchTabItem { label: "笔记".to_string(), active: active == "笔记" }
-            }
-            Link { to: Route::KnowledgeSoftware,
-                WorkbenchTabItem { label: "软件".to_string(), active: active == "软件" }
-            }
-            Link { to: Route::KnowledgePackages,
-                WorkbenchTabItem { label: "安装包".to_string(), active: active == "安装包" }
-            }
         }
     }
 }
@@ -458,7 +437,7 @@ pub fn PackageAssetsScene() -> Element {
                 Surface {
                     SurfaceHeader {
                         title: "安装包对象".to_string(),
-                        subtitle: "只保留条目列表，选中后在右侧直接增删改查。".to_string()
+                        subtitle: "安装包对象只维护归档元数据与安装目标；文件浏览、下载记录和 recent outputs 统一走 /files。".to_string()
                     }
                     div { class: "package-list",
                         for asset in selected_assets.iter() {
@@ -775,6 +754,11 @@ pub fn PackageAssetsScene() -> Element {
                                 .as_ref()
                                 .map(|asset| asset.status.clone())
                                 .unwrap_or_else(|| "空".to_string())
+                        }
+                        ListItem {
+                            title: "文件能力边界".to_string(),
+                            detail: "文件浏览、下载记录与 recent outputs 已约定统一收敛到 /files；当前这里仅保留安装包资产台账。".to_string(),
+                            meta: "Files".to_string()
                         }
                         ListItem {
                             title: "当前动作".to_string(),
