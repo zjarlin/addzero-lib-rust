@@ -152,9 +152,10 @@ fn domain_for_route(route: &Route) -> AdminDomain {
     match route {
         Route::Home | Route::Dashboard => AdminDomain::Overview,
         Route::Agents | Route::AgentEditor { .. } => AdminDomain::Agents,
-        Route::KnowledgeNotes | Route::KnowledgeSoftware | Route::KnowledgePackages | Route::Files => {
-            AdminDomain::Knowledge
-        }
+        Route::KnowledgeNotes
+        | Route::KnowledgeSoftware
+        | Route::KnowledgePackages
+        | Route::Files => AdminDomain::Knowledge,
         Route::SystemUsers
         | Route::SystemMenus
         | Route::SystemRoles
@@ -188,7 +189,7 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                 AdminMenu::leaf("笔记", Route::KnowledgeNotes, |route| {
                     matches!(route, Route::KnowledgeNotes)
                 }),
-                AdminMenu::leaf("软件", Route::KnowledgeSoftware, |route| {
+                AdminMenu::leaf("Skill", Route::KnowledgeSoftware, |route| {
                     matches!(route, Route::KnowledgeSoftware)
                 }),
                 AdminMenu::leaf("安装包", Route::KnowledgePackages, |route| {

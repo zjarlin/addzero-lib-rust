@@ -15,6 +15,7 @@ use crate::{
         PACKAGE_CHANNELS, PackageAsset, first_package_asset_slug_for_channel, package_asset,
         package_asset_count, package_assets, package_channel,
     },
+    services::{SkillDto, SkillSourceDto, default_skills_api},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -80,8 +81,57 @@ impl PackageAssetDraft {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct SkillDraft {
+    name: String,
+    keywords: String,
+    description: String,
+    body: String,
+    source: String,
+    updated_at: String,
+}
+
+impl SkillDraft {
+    fn from_skill(skill: &SkillDto) -> Self {
+        Self {
+            name: skill.name.clone(),
+            keywords: skill.keywords.join(", "),
+            description: skill.description.clone(),
+            body: skill.body.clone(),
+            source: skill_source_label(skill.source.clone()).to_string(),
+            updated_at: skill.updated_at.format("%Y-%m-%d %H:%M UTC").to_string(),
+        }
+    }
+
+    fn empty() -> Self {
+        Self {
+            name: String::new(),
+            keywords: String::new(),
+            description: String::new(),
+            body: String::new(),
+            source: "未保存".to_string(),
+            updated_at: "待保存".to_string(),
+        }
+    }
+
+    fn title(&self) -> String {
+        if self.name.trim().is_empty() {
+            "未命名 Skill".to_string()
+        } else {
+            self.name.clone()
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PackageCrudMode {
+    View,
+    Create,
+    Update,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SkillCrudMode {
     View,
     Create,
     Update,
@@ -99,7 +149,7 @@ pub fn KnowledgeNotes() -> Element {
 
     rsx! {
         KnowledgeSceneHeader {
-            subtitle: "当前笔记目录优先从 PostgreSQL 镜像生成，缺省会扫描本机候选知识目录后再渲染后台目录。"
+            subtitle: "笔记目录会把 PostgreSQL 镜像、桌面研究成果、Hermes 输出等文本资产统一纳入知识视图。"
         }
         KnowledgeSummary {}
         if KNOWLEDGE_DOCS.is_empty() {
@@ -170,9 +220,9 @@ pub fn KnowledgeNotes() -> Element {
 pub fn KnowledgeSoftware() -> Element {
     rsx! {
         KnowledgeSceneHeader {
-            subtitle: "软件资产和知识文档先拆成独立子场景，避免一开始把台账和笔记混在一起。"
+            subtitle: "知识域拆成笔记、安装包、Skill 三条对象轴；避免继续把软件台账和其他资产揉成静态说明页。"
         }
-        SoftwareScene {}
+        SkillAssetsScene {}
     }
 }
 
@@ -266,6 +316,7 @@ pub fn KnowledgeContext() -> Element {
                 MetricRow { label: "来源数".to_string(), value: total_sources().to_string() }
                 MetricRow { label: "文档数".to_string(), value: KNOWLEDGE_DOCS.len().to_string() }
                 MetricRow { label: "体量".to_string(), value: format_bytes(total_bytes()) }
+                MetricRow { label: "Download Station".to_string(), value: knowledge_source_item_count("download-station") }
             }
         }
         SidebarSection { label: "来源目录".to_string(),
@@ -296,38 +347,214 @@ fn data_mode_label() -> &'static str {
     }
 }
 
+fn knowledge_source_item_count(prefix: &str) -> String {
+    KNOWLEDGE_DOCS
+        .iter()
+        .filter(|doc| doc.source_slug.starts_with(prefix))
+        .count()
+        .to_string()
+}
+
+fn skill_source_label(source: SkillSourceDto) -> &'static str {
+    match source {
+        SkillSourceDto::Postgres => "Postgres",
+        SkillSourceDto::FileSystem => "Filesystem",
+        SkillSourceDto::Both => "Both",
+    }
+}
+
+fn skill_editor_title(mode: SkillCrudMode, form: &SkillDraft) -> String {
+    match mode {
+        SkillCrudMode::View => format!("Skill · {}", form.title()),
+        SkillCrudMode::Create => "新建 Skill".to_string(),
+        SkillCrudMode::Update => format!("编辑 Skill · {}", form.title()),
+    }
+}
+
 #[component]
-pub fn SoftwareScene() -> Element {
-    rsx! {
-        Surface {
-            SurfaceHeader {
-                title: "软件矩阵".to_string(),
-                subtitle: "软件对象按工作块组织，直接看对象、用途、依赖面和当前状态。".to_string()
+pub fn SkillAssetsScene() -> Element {
+    let skills_api = use_hook(default_skills_api);
+    let mut skills_state = use_signal(Vec::<SkillDto>::new);
+    let mut selected_name = use_signal(String::new);
+    let mut editor_mode = use_signal(|| SkillCrudMode::View);
+    let mut form_state = use_signal(SkillDraft::empty);
+    let mut status_message = use_signal(|| Some("正在加载 Skill 目录…".to_string()));
+
+    use_effect(move || {
+        let skills_api = skills_api.clone();
+        spawn(async move {
+            match skills_api.list_skills().await {
+                Ok(items) => {
+                    let count = items.len();
+                    let selected = items
+                        .iter()
+                        .find(|skill| skill.name == *selected_name.read())
+                        .cloned()
+                        .or_else(|| items.first().cloned());
+                    skills_state.set(items);
+                    if let Some(skill) = selected {
+                        selected_name.set(skill.name.clone());
+                        form_state.set(SkillDraft::from_skill(&skill));
+                        editor_mode.set(SkillCrudMode::View);
+                        status_message.set(Some(format!("已加载 {} 个 Skill。", count)));
+                    } else {
+                        selected_name.set(String::new());
+                        form_state.set(SkillDraft::empty());
+                        editor_mode.set(SkillCrudMode::Create);
+                        status_message.set(Some("当前还没有 Skill，可直接新建。".to_string()));
+                    }
+                }
+                Err(err) => {
+                    skills_state.set(Vec::new());
+                    selected_name.set(String::new());
+                    form_state.set(SkillDraft::empty());
+                    editor_mode.set(SkillCrudMode::Create);
+                    status_message.set(Some(format!("加载 Skill 失败：{err}")));
+                }
             }
-            div { class: "software-matrix",
-                SoftwareGroup {
-                    title: "创作与笔记".to_string(),
-                    items: vec![
-                        ("Cursor", "编码与 Agent 协作", "桌面 IDE", "稳定"),
-                        ("Obsidian", "笔记编辑与知识沉淀", "桌面应用", "稳定"),
-                        ("Raycast", "命令入口与启动器", "桌面工具", "观察中"),
-                    ]
+        });
+    });
+
+    let skills = skills_state.read().clone();
+    let selected_skill = skills
+        .iter()
+        .find(|skill| skill.name == *selected_name.read())
+        .cloned()
+        .or_else(|| skills.first().cloned());
+    let mode = *editor_mode.read();
+    let form = form_state.read().clone();
+
+    rsx! {
+        div { class: "package-workbench",
+            Surface {
+                SurfaceHeader {
+                    title: "Skill 目录".to_string(),
+                    subtitle: "Skill 作为独立对象维护名称、关键词、摘要与正文，不再混在软件矩阵占位页里。".to_string()
                 }
-                SoftwareGroup {
-                    title: "构建与运行".to_string(),
-                    items: vec![
-                        ("Docker Desktop", "本地容器编排", "容器运行时", "待升级"),
-                        ("Rust Toolchain", "Rust 构建与测试", "CLI 工具链", "稳定"),
-                        ("Node.js", "前端构建与脚本运行", "CLI 运行时", "待升级"),
-                    ]
+                if let Some(message) = status_message.read().clone() {
+                    div { class: "callout callout--info", "{message}" }
                 }
-                SoftwareGroup {
-                    title: "网络与分发".to_string(),
-                    items: vec![
-                        ("cloudflared", "隧道与公网访问", "CLI 服务", "稳定"),
-                        ("GitHub", "代码托管与发布", "云端服务", "稳定"),
-                        ("MinIO", "对象存储与品牌资源", "基础设施", "整理中"),
-                    ]
+                div { class: "package-list",
+                    for skill in skills.iter() {
+                        button {
+                            r#type: "button",
+                            class: if selected_skill.as_ref().map(|item| item.name == skill.name).unwrap_or(false) {
+                                "package-list__item package-list__item--active"
+                            } else {
+                                "package-list__item"
+                            },
+                            onclick: {
+                                let mut selected_name = selected_name;
+                                let mut editor_mode = editor_mode;
+                                let mut form_state = form_state;
+                                let skill = skill.clone();
+                                move |_| {
+                                    selected_name.set(skill.name.clone());
+                                    editor_mode.set(SkillCrudMode::View);
+                                    form_state.set(SkillDraft::from_skill(&skill));
+                                }
+                            },
+                            div { class: "package-list__title", "{skill.name}" }
+                            div { class: "package-list__meta",
+                                span { "{skill_source_label(skill.source.clone())}" }
+                                span { "·" }
+                                span { "{skill.updated_at}" }
+                            }
+                            div { class: "package-list__copy", "{skill.description}" }
+                        }
+                    }
+                }
+            }
+            Surface {
+                SurfaceHeader {
+                    title: skill_editor_title(mode, &form),
+                    subtitle: "先做 Skill 对象 workbench；真实保存/同步动作后续再接 API。".to_string()
+                }
+                div { class: "package-editor__actions",
+                    WorkbenchButton {
+                        class: "action-button action-button--primary".to_string(),
+                        onclick: {
+                            let mut editor_mode = editor_mode;
+                            let mut form_state = form_state;
+                            move |_| {
+                                editor_mode.set(SkillCrudMode::Create);
+                                form_state.set(SkillDraft::empty());
+                            }
+                        },
+                        "新增 Skill"
+                    }
+                    if let Some(skill) = selected_skill.clone() {
+                        WorkbenchButton {
+                            class: "action-button".to_string(),
+                            onclick: {
+                                let mut editor_mode = editor_mode;
+                                let mut form_state = form_state;
+                                let skill = skill.clone();
+                                move |_| {
+                                    editor_mode.set(SkillCrudMode::Update);
+                                    form_state.set(SkillDraft::from_skill(&skill));
+                                }
+                            },
+                            "编辑"
+                        }
+                    }
+                }
+                div { class: "package-editor",
+                    ResponsiveGrid { columns: 2,
+                        Field {
+                            label: "Skill 名称".to_string(),
+                            value: form.name.clone(),
+                            placeholder: Some("例如 hermes-agent".to_string()),
+                            on_input: {
+                                let mut form_state = form_state;
+                                move |value| {
+                                    let mut next = form_state.read().clone();
+                                    next.name = value;
+                                    form_state.set(next);
+                                }
+                            }
+                        }
+                        Field {
+                            label: "关键词".to_string(),
+                            value: form.keywords.clone(),
+                            placeholder: Some("以逗号分隔".to_string()),
+                            on_input: {
+                                let mut form_state = form_state;
+                                move |value| {
+                                    let mut next = form_state.read().clone();
+                                    next.keywords = value;
+                                    form_state.set(next);
+                                }
+                            }
+                        }
+                    }
+                    Field {
+                        label: "摘要".to_string(),
+                        value: form.description.clone(),
+                        placeholder: Some("这个 Skill 解决什么问题".to_string()),
+                        on_input: {
+                            let mut form_state = form_state;
+                            move |value| {
+                                let mut next = form_state.read().clone();
+                                next.description = value;
+                                form_state.set(next);
+                            }
+                        }
+                    }
+                    div { class: "callout", "来源：{form.source} · 最近更新：{form.updated_at}" }
+                    Field {
+                        label: "正文".to_string(),
+                        value: form.body.clone(),
+                        placeholder: Some("SKILL.md 正文或主要片段".to_string()),
+                        on_input: {
+                            let mut form_state = form_state;
+                            move |value| {
+                                let mut next = form_state.read().clone();
+                                next.body = value;
+                                form_state.set(next);
+                            }
+                        }
+                    }
                 }
             }
         }
