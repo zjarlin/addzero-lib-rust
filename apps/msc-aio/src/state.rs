@@ -6,9 +6,11 @@ use dioxus_components::SharedAdminProvider;
 use crate::admin::DefaultAdminProvider;
 use crate::app::Route;
 use crate::services::{
-    SharedAgentRuntimeApi, SharedAuthApi, SharedLogoStorageApi, SharedSkillsApi, StoredLogoDto,
-    build_preview_url, default_agent_runtime_api, default_auth_api, default_logo_storage_api,
-    default_skills_api,
+    build_preview_url, default_agent_runtime_api, default_asset_graph_api, default_auth_api,
+    default_knowledge_graph_api, default_logo_storage_api, default_skills_api,
+    default_software_catalog_api, SharedAgentRuntimeApi, SharedAssetGraphApi, SharedAuthApi,
+    SharedKnowledgeGraphApi, SharedLogoStorageApi, SharedSkillsApi, SharedSoftwareCatalogApi,
+    StoredLogoDto,
 };
 
 pub const DEFAULT_SITE_NAME: &str = "MSC_AIO";
@@ -77,6 +79,9 @@ pub struct AppServices {
     pub auth_api: SharedAuthApi,
     pub skills: SharedSkillsApi,
     pub agent_runtime: SharedAgentRuntimeApi,
+    pub asset_graph: SharedAssetGraphApi,
+    pub knowledge_graph: SharedKnowledgeGraphApi,
+    pub software_catalog: SharedSoftwareCatalogApi,
     pub logo_storage: SharedLogoStorageApi,
     pub admin: SharedAdminProvider<Route>,
     pub branding: BrandingPrefs,
@@ -91,6 +96,9 @@ impl AppServices {
             auth_api: auth_api.clone(),
             skills,
             agent_runtime,
+            asset_graph: default_asset_graph_api(),
+            knowledge_graph: default_knowledge_graph_api(),
+            software_catalog: default_software_catalog_api(),
             logo_storage: default_logo_storage_api(),
             admin: Rc::new(DefaultAdminProvider::new(auth, theme, branding, auth_api)),
             branding,

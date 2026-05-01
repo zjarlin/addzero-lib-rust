@@ -201,10 +201,7 @@ impl TranslateClient for MyMemoryClient {
         }
     }
 
-    async fn detect_language(
-        &self,
-        text: &str,
-    ) -> Result<DetectedLanguage, TranslateError> {
+    async fn detect_language(&self, text: &str) -> Result<DetectedLanguage, TranslateError> {
         // MyMemory doesn't have a dedicated detection endpoint.
         // We use a heuristic: translate to English and check if the source was English.
         if text.is_empty() {
@@ -272,10 +269,7 @@ mod tests {
         }"#;
         let resp: MyMemoryMatchesResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.matches.as_ref().unwrap().len(), 2);
-        assert_eq!(
-            resp.matches.as_ref().unwrap()[1].translation,
-            "Hi"
-        );
+        assert_eq!(resp.matches.as_ref().unwrap()[1].translation, "Hi");
     }
 
     #[test]

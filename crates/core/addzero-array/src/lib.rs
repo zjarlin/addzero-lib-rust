@@ -35,10 +35,7 @@ pub fn chunk<T: Clone>(slice: &[T], size: usize) -> Vec<Vec<T>> {
     if size == 0 || slice.is_empty() {
         return Vec::new();
     }
-    slice
-        .chunks(size)
-        .map(<[T]>::to_vec)
-        .collect()
+    slice.chunks(size).map(<[T]>::to_vec).collect()
 }
 
 /// Returns a new `Vec` with duplicate elements removed, preserving the
@@ -150,10 +147,7 @@ pub fn window<T: Clone>(slice: &[T], size: usize) -> Vec<Vec<T>> {
     if size == 0 || size > slice.len() {
         return Vec::new();
     }
-    slice
-        .windows(size)
-        .map(<[T]>::to_vec)
-        .collect()
+    slice.windows(size).map(<[T]>::to_vec).collect()
 }
 
 /// Counts the occurrences of each element in `slice`.
@@ -235,7 +229,10 @@ mod tests {
 
     #[test]
     fn test_chunk_normal() {
-        assert_eq!(chunk(&[1, 2, 3, 4, 5], 2), vec![vec![1, 2], vec![3, 4], vec![5]]);
+        assert_eq!(
+            chunk(&[1, 2, 3, 4, 5], 2),
+            vec![vec![1, 2], vec![3, 4], vec![5]]
+        );
     }
 
     #[test]
@@ -262,7 +259,10 @@ mod tests {
 
     #[test]
     fn test_flatten_nested() {
-        assert_eq!(flatten_nested(&[vec![1, 2], vec![3], vec![4, 5]]), vec![1, 2, 3, 4, 5]);
+        assert_eq!(
+            flatten_nested(&[vec![1, 2], vec![3], vec![4, 5]]),
+            vec![1, 2, 3, 4, 5]
+        );
         assert_eq!(flatten_nested::<i32>(&[]), vec![]);
     }
 

@@ -154,9 +154,7 @@ impl MigrationTrait for AgentRuntimeSchemaMigration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         execute_sql(
             manager,
-            include_str!(
-                "../../../../apps/msc-aio/src/server/migrations/0001_agent_runtime.sql"
-            ),
+            include_str!("../../../../apps/msc-aio/src/server/migrations/0001_agent_runtime.sql"),
         )
         .await
     }

@@ -6,7 +6,7 @@ use crate::util::{
 use crate::{ApiConfig, CreatesError, CreatesResult};
 use chrono::Utc;
 use hmac::{Hmac, Mac};
-use reqwest::header::{AUTHORIZATION, HOST};
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HOST};
 use reqwest::{Method, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -86,6 +86,34 @@ impl TianyanchaApi {
             ("X-AUTH-TOKEN".to_owned(), self.auth_token.clone()),
         ])
     }
+}
+
+pub fn create_tianyancha_api(
+    authorization: impl Into<String>,
+    auth_token: impl Into<String>,
+) -> CreatesResult<TianyanchaApi> {
+    let config = ApiConfig::builder("https://api9.tianyancha.com")
+        .default_header(CONTENT_TYPE.as_str(), "application/json")
+        .default_header(HOST.as_str(), "api9.tianyancha.com")
+        .default_header(ACCEPT.as_str(), "*/*")
+        .default_header("version", "TYC-XCX-WX")
+        .default_header(
+            "User-Agent",
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 12_1_4 like Mac OS X)              AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/16D57              MicroMessenger/7.0.5(0x17000523) NetType/WIFI Language/zh_CN",
+        )
+        .default_header("Accept-Language", "zh-cn")
+        .build()?;
+    TianyanchaApi::new(authorization, auth_token, config)
+}
+
+pub fn create_tianyancha_huawei_api(
+    access_key: impl Into<String>,
+    secret_key: impl Into<String>,
+) -> CreatesResult<TianyanchaHuaweiApi> {
+    let config = ApiConfig::builder("http://kzenterprisewmh.apistore.huaweicloud.com")
+        .default_header(ACCEPT.as_str(), "application/json")
+        .build()?;
+    TianyanchaHuaweiApi::new(access_key, secret_key, config)
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

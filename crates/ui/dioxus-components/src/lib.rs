@@ -393,7 +393,11 @@ pub struct WorkbenchTabItemProps {
 
 #[component]
 pub fn WorkbenchTabItem(props: WorkbenchTabItemProps) -> Element {
-    let tone = if props.active { Some(Tone::Accent) } else { None };
+    let tone = if props.active {
+        Some(Tone::Accent)
+    } else {
+        None
+    };
     let label = props.label.clone();
 
     if let Some(href) = props.href.clone() {

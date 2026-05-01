@@ -22,8 +22,10 @@ impl DeleteQuery {
 
     /// Add a WHERE condition with parameterized values.
     pub fn r#where(mut self, condition: &str, params: Vec<&str>) -> Self {
-        self.conditions
-            .push((condition.to_string(), params.into_iter().map(String::from).collect()));
+        self.conditions.push((
+            condition.to_string(),
+            params.into_iter().map(String::from).collect(),
+        ));
         self
     }
 

@@ -1,7 +1,7 @@
+use crate::DdlError;
 use crate::column::{Column, ColumnType};
 use crate::dialect::Dialect;
 use crate::table::Table;
-use crate::DdlError;
 
 /// DDL statement generator.
 ///

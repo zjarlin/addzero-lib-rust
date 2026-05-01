@@ -139,7 +139,8 @@ impl SoftwareCatalogRepository {
             .await
             .map_err(SoftwareCatalogError::query)?;
 
-        self.replace_methods(&tx, persisted_id, &entry.methods).await?;
+        self.replace_methods(&tx, persisted_id, &entry.methods)
+            .await?;
         tx.commit().await.map_err(SoftwareCatalogError::query)?;
 
         self.get_entry(persisted_id)
@@ -241,7 +242,8 @@ fn entry_from_models(
     methods: Vec<software_install_method::Model>,
 ) -> SoftwareEntryDto {
     let tags = serde_json::from_value::<Vec<String>>(entry.tags).unwrap_or_default();
-    let trial_codes = serde_json::from_value::<Vec<String>>(entry.trial_platforms).unwrap_or_default();
+    let trial_codes =
+        serde_json::from_value::<Vec<String>>(entry.trial_platforms).unwrap_or_default();
 
     SoftwareEntryDto {
         id: entry.id.to_string(),

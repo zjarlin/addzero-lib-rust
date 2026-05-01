@@ -216,6 +216,11 @@ impl MavenCentralApi {
     }
 }
 
+pub fn create_maven_central_api() -> CreatesResult<MavenCentralApi> {
+    let config = ApiConfig::builder("https://search.maven.org").build()?;
+    MavenCentralApi::new(config)
+}
+
 #[derive(Debug, Deserialize)]
 struct MavenSearchResponseEnvelope {
     response: MavenSearchResponse,

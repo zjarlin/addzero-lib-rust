@@ -23,7 +23,10 @@ use addzero_agent_runtime_contract::{
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 
 use crate::services::{
-    LogoUploadRequest, SkillDto, SkillSourceDto, SkillUpsertDto, StoredLogoDto, SyncReportDto,
+    KnowledgeExceptionCardDto, KnowledgeFeedDto, KnowledgeMaintenanceReportDto,
+    KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto, KnowledgeSourceRefDto,
+    LogoUploadRequest, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
+    StoredLogoDto, SyncReportDto,
 };
 
 use self::auth::AdminSessionService;
@@ -33,6 +36,7 @@ pub struct BackendServices {
     pub skills: SkillService,
     pub runtime: AgentRuntimeService,
     pub admin_auth: AdminSessionService,
+    pub software_catalog: Option<addzero_software_catalog::SoftwareCatalogService>,
 }
 
 static SERVICES: OnceCell<BackendServices> = OnceCell::const_new();
@@ -56,11 +60,19 @@ pub async fn services() -> &'static BackendServices {
                 .unwrap_or_else(|_| "http://127.0.0.1:8787".into());
             let runtime = AgentRuntimeService::try_attach(database_url.as_deref(), base_url).await;
             let admin_auth = AdminSessionService::from_env();
+            let software_catalog = if let Some(url) = database_url.as_deref().filter(|url| !url.trim().is_empty()) {
+                addzero_software_catalog::SoftwareCatalogService::connect(url)
+                    .await
+                    .ok()
+            } else {
+                None
+            };
 
             BackendServices {
                 skills,
                 runtime,
                 admin_auth,
+                software_catalog,
             }
         })
         .await
@@ -93,6 +105,25 @@ pub async fn run_api_server() -> Result<()> {
         .route(
             "/api/runtime/conflicts/{id}/resolve",
             post(resolve_conflict),
+        )
+        .route("/api/admin/knowledge/feed", get(knowledge_feed))
+        .route(
+            "/api/admin/knowledge/nodes/{id}",
+            get(knowledge_node_detail),
+        )
+        .route(
+            "/api/admin/knowledge/nodes/{id}/sources",
+            get(knowledge_node_sources),
+        )
+        .route("/api/admin/knowledge/exceptions", get(knowledge_exceptions))
+        .route("/api/admin/knowledge/raw-items", post(knowledge_ingest_raw))
+        .route(
+            "/api/admin/knowledge/exceptions/{id}/resolve",
+            post(knowledge_resolve_exception),
+        )
+        .route(
+            "/api/admin/knowledge/maintenance/run",
+            post(knowledge_run_maintenance),
         )
         .layer(cors_layer());
 
@@ -375,6 +406,86 @@ async fn resolve_conflict(
         .await
         .map_err(ApiError::bad_request_from)?;
     Ok(Json(conflict))
+}
+
+async fn knowledge_feed(headers: HeaderMap) -> ApiResult<Json<KnowledgeFeedDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let feed = crate::services::knowledge_graph::load_knowledge_feed_on_server()
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(feed))
+}
+
+async fn knowledge_node_detail(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult<Json<KnowledgeNodeDetailDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let detail = crate::services::knowledge_graph::load_knowledge_node_detail_on_server(&id)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(detail))
+}
+
+async fn knowledge_node_sources(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult<Json<Vec<KnowledgeSourceRefDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let sources = crate::services::knowledge_graph::load_knowledge_node_sources_on_server(&id)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(sources))
+}
+
+async fn knowledge_exceptions(
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<KnowledgeExceptionCardDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let items = crate::services::knowledge_graph::load_knowledge_exceptions_on_server()
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(items))
+}
+
+async fn knowledge_ingest_raw(
+    headers: HeaderMap,
+    Json(input): Json<crate::services::IngestKnowledgeRawInput>,
+) -> ApiResult<Json<KnowledgeNodeSummaryDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let node = crate::services::knowledge_graph::ingest_knowledge_raw_on_server(input)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(node))
+}
+
+async fn knowledge_resolve_exception(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(input): Json<ResolveKnowledgeExceptionInput>,
+) -> ApiResult<Json<KnowledgeExceptionCardDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let item = crate::services::knowledge_graph::resolve_knowledge_exception_on_server(&id, input)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(item))
+}
+
+async fn knowledge_run_maintenance(
+    headers: HeaderMap,
+) -> ApiResult<Json<KnowledgeMaintenanceReportDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let report = crate::services::knowledge_graph::run_knowledge_maintenance_on_server()
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(report))
 }
 
 fn ensure_auth(auth: &AdminSessionService, headers: &HeaderMap) -> ApiResult<()> {

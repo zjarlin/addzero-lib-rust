@@ -23,14 +23,17 @@ impl UpdateQuery {
 
     /// Add a SET clause.
     pub fn set(mut self, column: &str, value: &str) -> Self {
-        self.set_clauses.push((column.to_string(), value.to_string()));
+        self.set_clauses
+            .push((column.to_string(), value.to_string()));
         self
     }
 
     /// Add a WHERE condition with parameterized values.
     pub fn r#where(mut self, condition: &str, params: Vec<&str>) -> Self {
-        self.conditions
-            .push((condition.to_string(), params.into_iter().map(String::from).collect()));
+        self.conditions.push((
+            condition.to_string(),
+            params.into_iter().map(String::from).collect(),
+        ));
         self
     }
 

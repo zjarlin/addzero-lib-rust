@@ -28,7 +28,8 @@ impl InsertQuery {
 
     /// Add a row of values.
     pub fn values(mut self, values: Vec<&str>) -> Self {
-        self.rows.push(values.into_iter().map(String::from).collect());
+        self.rows
+            .push(values.into_iter().map(String::from).collect());
         self
     }
 

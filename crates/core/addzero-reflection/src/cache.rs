@@ -158,7 +158,9 @@ where
     }
 
     /// Acquires the entries lock, recovering from poisoned mutexes gracefully.
-    fn lock_entries(&self) -> Result<std::sync::MutexGuard<'_, HashMap<K, CacheEntry<V>>>, CacheError> {
+    fn lock_entries(
+        &self,
+    ) -> Result<std::sync::MutexGuard<'_, HashMap<K, CacheEntry<V>>>, CacheError> {
         match self.entries.lock() {
             Ok(guard) => Ok(guard),
             Err(poisoned) => Ok(poisoned.into_inner()),

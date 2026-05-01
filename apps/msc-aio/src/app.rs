@@ -6,6 +6,7 @@ use crate::scenes::{
     agents::{AgentEditor, Agents},
     auth::LoginPage,
     dashboard::{Audit, Dashboard},
+    download_station::FilesScene as DownloadStationScene,
     files::FilesScene,
     knowledge_base::{KnowledgeNotes, KnowledgePackages, KnowledgeSoftware},
     system_management::{
@@ -36,6 +37,8 @@ pub enum Route {
     KnowledgeSoftware,
     #[route("/knowledge/packages")]
     KnowledgePackages,
+    #[route("/download-station")]
+    DownloadStation,
     #[route("/files")]
     Files,
     #[route("/system/users")]
@@ -121,6 +124,11 @@ fn Login() -> Element {
 #[component]
 fn Home() -> Element {
     rsx! { Dashboard {} }
+}
+
+#[component]
+fn DownloadStation() -> Element {
+    rsx! { DownloadStationScene {} }
 }
 
 #[component]

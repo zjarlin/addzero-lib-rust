@@ -57,14 +57,8 @@ mod tests {
     #[test]
     fn table_builder() {
         let table = Table::new("users")
-            .column(
-                super::super::Column::new("id", DataType::BigInt)
-                    .primary_key(),
-            )
-            .column(
-                super::super::Column::new("name", DataType::Varchar(100))
-                    .not_null(),
-            )
+            .column(super::super::Column::new("id", DataType::BigInt).primary_key())
+            .column(super::super::Column::new("name", DataType::Varchar(100)).not_null())
             .comment("User accounts");
 
         assert_eq!(table.name, "users");
@@ -102,10 +96,7 @@ mod tests {
     fn required_columns() {
         let table = Table::new("items")
             .column(super::super::Column::new("id", DataType::BigInt).not_null())
-            .column(
-                super::super::Column::new("name", DataType::Varchar(255))
-                    .not_null(),
-            )
+            .column(super::super::Column::new("name", DataType::Varchar(255)).not_null())
             .column(super::super::Column::new("description", DataType::Text));
 
         let required = table.required_columns();

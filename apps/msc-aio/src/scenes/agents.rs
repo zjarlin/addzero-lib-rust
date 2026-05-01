@@ -179,7 +179,15 @@ fn SkillTreeItem(skill: SkillDto) -> Element {
     let preview = if skill.keywords.is_empty() {
         Some(skill.description.clone())
     } else {
-        Some(skill.keywords.iter().take(3).cloned().collect::<Vec<_>>().join(" · "))
+        Some(
+            skill
+                .keywords
+                .iter()
+                .take(3)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" · "),
+        )
     };
     let badge = source_badge_props(&skill.source);
     let updated = skill.updated_at.format("%Y-%m-%d %H:%M").to_string();

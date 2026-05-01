@@ -155,6 +155,7 @@ fn domain_for_route(route: &Route) -> AdminDomain {
         Route::KnowledgeNotes
         | Route::KnowledgeSoftware
         | Route::KnowledgePackages
+        | Route::DownloadStation
         | Route::Files => AdminDomain::Knowledge,
         Route::SystemUsers
         | Route::SystemMenus
@@ -194,6 +195,9 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                 }),
                 AdminMenu::leaf("安装包", Route::KnowledgePackages, |route| {
                     matches!(route, Route::KnowledgePackages)
+                }),
+                AdminMenu::leaf("Download Station", Route::DownloadStation, |route| {
+                    matches!(route, Route::DownloadStation)
                 }),
                 AdminMenu::leaf("文件中心", Route::Files, |route| {
                     matches!(route, Route::Files)

@@ -1,7 +1,5 @@
 use dioxus::prelude::*;
-use dioxus_components::{
-    DataTable, MetricStrip, SectionHeader, StatTile, Surface, SurfaceHeader,
-};
+use dioxus_components::{DataTable, MetricStrip, SectionHeader, StatTile, Surface, SurfaceHeader};
 
 #[component]
 pub fn SystemUsers() -> Element {

@@ -15,11 +15,7 @@ pub struct Index {
 
 impl Index {
     /// Create a new non-unique index.
-    pub fn new(
-        name: impl Into<String>,
-        table: impl Into<String>,
-        columns: Vec<String>,
-    ) -> Self {
+    pub fn new(name: impl Into<String>, table: impl Into<String>, columns: Vec<String>) -> Self {
         Self {
             name: name.into(),
             table: table.into(),
@@ -29,11 +25,7 @@ impl Index {
     }
 
     /// Create a new unique index.
-    pub fn unique(
-        name: impl Into<String>,
-        table: impl Into<String>,
-        columns: Vec<String>,
-    ) -> Self {
+    pub fn unique(name: impl Into<String>, table: impl Into<String>, columns: Vec<String>) -> Self {
         Self {
             name: name.into(),
             table: table.into(),

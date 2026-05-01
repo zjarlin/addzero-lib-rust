@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "apps/*",
+    "apps/remote-desktop/*",
     "crates/api/*",
     "crates/config/*",
     "crates/core/*",
@@ -13,7 +14,7 @@ members = [
     "crates/text/*",
     "crates/ui/*",
 ]
-exclude = []
+exclude = ["apps/remote-desktop"]
 
 [workspace.package]
 version = "0.1.0"

@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_components::{
-    Badge, ContentHeader, DataTable, MetricRow, MetricStrip, Stack, StatTile, Surface, SurfaceHeader,
-    Tone, WorkbenchButton,
+    Badge, ContentHeader, DataTable, MetricRow, MetricStrip, Stack, StatTile, Surface,
+    SurfaceHeader, Tone, WorkbenchButton,
 };
 use uuid::Uuid;
 

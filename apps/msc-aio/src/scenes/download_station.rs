@@ -1,6 +1,6 @@
 use std::{fs, path::{Path, PathBuf}, time::SystemTime};
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Duration, Local};
 use dioxus::prelude::*;
 use dioxus_components::{
     ContentHeader, DataTable, GroupedListPanel, GroupedListPanelGroup, GroupedListPanelItem,
@@ -36,38 +36,41 @@ const FILE_SCOPE_SUMMARIES: [FileScopeSummary; 4] = [
 
 #[component]
 pub fn FilesScene() -> Element {
-    let selected_scope = use_signal(|| "yesterday-research".to_string());
+    let selected_scope = use_signal(|| "downloads".to_string());
     let scope = selected_scope.read().clone();
     let records_resource = use_resource(load_file_records);
 
     let records = match records_resource.read().as_ref() {
         Some(Ok(records)) => records.clone(),
         Some(Err(err)) => {
-            return rsx! { ContentHeader { title: "文件中心".to_string(), subtitle: "统一承接 recent outputs、桌面研究产物、下载记录与对象存储浏览。".to_string() } div { class: "callout", "文件清单加载失败：{err}" } };
+            return rsx! {
+                ContentHeader { title: "文件中心".to_string(), subtitle: "统一承接 recent outputs、桌面研究产物、下载记录与对象存储浏览。".to_string() }
+                div { class: "callout", "文件清单加载失败：{err}" }
+            };
         }
         None => {
-            return rsx! { ContentHeader { title: "文件中心".to_string(), subtitle: "统一承接 recent outputs、桌面研究产物、下载记录与对象存储浏览。".to_string() } div { class: "empty-state", "正在扫描桌面、Downloads 与 recent outputs…" } };
+            return rsx! {
+                ContentHeader { title: "文件中心".to_string(), subtitle: "统一承接 recent outputs、桌面研究产物、下载记录与对象存储浏览。".to_string() }
+                div { class: "empty-state", "正在扫描桌面、Downloads 与 recent outputs…" }
+            };
         }
     };
 
     let rows: Vec<FileRecord> = records.iter().filter(|item| item.scope == scope).cloned().collect();
-    let yesterday_count = records.iter().filter(|item| item.scope == "yesterday-research").count();
-    let recent_count = records.iter().filter(|item| item.scope == "recent-outputs").count();
-    let desktop_count = records.iter().filter(|item| item.scope == "desktop").count();
     let downloads_count = records.iter().filter(|item| item.scope == "downloads").count();
 
     rsx! {
-        ContentHeader { title: "文件中心".to_string(), subtitle: "统一承接 recent outputs、桌面研究产物、下载记录与对象存储浏览；其它场景只保留元数据，不再重复做文件列表。".to_string() }
+        ContentHeader { title: "Download Station".to_string(), subtitle: "Rust 化的本地下载站，先承接 Downloads 与安装包归档入口。".to_string() }
         MetricStrip { columns: 4,
-            StatTile { label: "昨天研究成果".to_string(), value: yesterday_count.to_string(), detail: "优先聚合昨天变更过的桌面与输出文件。".to_string() }
-            StatTile { label: "recent outputs".to_string(), value: recent_count.to_string(), detail: "cron、批处理、生成结果统一回看。".to_string() }
-            StatTile { label: "Desktop".to_string(), value: desktop_count.to_string(), detail: "桌面文件总览。".to_string() }
-            StatTile { label: "Downloads".to_string(), value: downloads_count.to_string(), detail: "安装包与归档素材浏览入口。".to_string() }
+            StatTile { label: "Downloads".to_string(), value: downloads_count.to_string(), detail: "本地下载文件与安装包。".to_string() }
+            StatTile { label: "桌面".to_string(), value: records.iter().filter(|item| item.scope == "desktop").count().to_string(), detail: "桌面研究产物。".to_string() }
+            StatTile { label: "recent outputs".to_string(), value: records.iter().filter(|item| item.scope == "recent-outputs").count().to_string(), detail: "自动任务输出。".to_string() }
+            StatTile { label: "昨天研究成果".to_string(), value: records.iter().filter(|item| item.scope == "yesterday-research").count().to_string(), detail: "昨日更新的研究文件。".to_string() }
         }
         div { class: "knowledge-board",
-            GroupedListPanel { title: "文件域".to_string(), subtitle: "先选范围，再在右侧查看真实文件清单。".to_string(), groups: vec![GroupedListPanelGroup { label: "统一入口".to_string(), count_label: Some("4 个分区".to_string()), description: Some("避免桌面、downloads、recent outputs、安装包台账多头维护。".to_string()), items: FILE_SCOPE_SUMMARIES.iter().map(|summary| { let key = summary.key.to_string(); let title = summary.title.to_string(); let eyebrow = Some(summary.eyebrow.to_string()); let preview = Some(summary.preview.to_string()); let meta = vec![summary.meta[0].to_string(), summary.meta[1].to_string()]; let active = scope == summary.key; let mut selected_scope = selected_scope; GroupedListPanelItem { key: key.clone(), title, eyebrow, preview, meta, active, onpress: EventHandler::new(move |_| selected_scope.set(key.clone())), } }).collect::<Vec<_>>() }] }
+            GroupedListPanel { title: "下载域".to_string(), subtitle: "先看 Downloads，再看桌面/输出的关联文件。".to_string(), groups: vec![GroupedListPanelGroup { label: "统一入口".to_string(), count_label: Some("4 个分区".to_string()), description: Some("避免下载、桌面、outputs 反复各自维护。".to_string()), items: FILE_SCOPE_SUMMARIES.iter().map(|summary| { let key = summary.key.to_string(); let title = summary.title.to_string(); let eyebrow = Some(summary.eyebrow.to_string()); let preview = Some(summary.preview.to_string()); let meta = vec![summary.meta[0].to_string(), summary.meta[1].to_string()]; let active = scope == summary.key; let mut selected_scope = selected_scope; GroupedListPanelItem { key: key.clone(), title, eyebrow, preview, meta, active, onpress: EventHandler::new(move |_| selected_scope.set(key.clone())), } }).collect::<Vec<_>>() }] }
             Surface {
-                SurfaceHeader { title: "文件清单".to_string(), subtitle: match scope.as_str() { "yesterday-research" => "聚合昨天修改过的桌面研究成果与 recent outputs。".to_string(), "recent-outputs" => "统一浏览最近生成结果，避免其它页面再维护输出列表。".to_string(), "desktop" => "统一浏览桌面上的真实文件。".to_string(), _ => "统一浏览 Downloads 与待归档文件。".to_string(), } }
+                SurfaceHeader { title: "文件清单".to_string(), subtitle: "先落地最小可运行版：扫描本机 Downloads / Desktop / recent outputs。".to_string() }
                 if rows.is_empty() { div { class: "empty-state", "当前分区没有匹配文件。" } } else { DataTable { columns: vec!["名称".to_string(), "位置".to_string(), "类型".to_string(), "修改时间".to_string(), "说明".to_string(),], for row in rows.iter() { tr { td { "{row.name}" } td { "{row.location}" } td { "{row.kind}" } td { "{row.modified_label}" } td { "{row.note}" } } } } }
             }
         }
@@ -149,4 +152,4 @@ fn infer_kind(path: &Path, metadata: &fs::Metadata) -> String {
 fn format_modified(modified: SystemTime) -> String { let dt: DateTime<Local> = modified.into(); dt.format("%Y-%m-%d %H:%M").to_string() }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn is_yesterday(modified: SystemTime) -> bool { let dt: DateTime<Local> = modified.into(); let now = Local::now(); dt.date_naive() == (now - chrono::Duration::days(1)).date_naive() }
+fn is_yesterday(modified: SystemTime) -> bool { let dt: DateTime<Local> = modified.into(); let now = Local::now(); dt.date_naive() == (now - Duration::days(1)).date_naive() }

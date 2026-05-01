@@ -3,7 +3,10 @@ use addzero_remote_model::{
     SessionCapability, SessionSummary, VideoCodec, VideoFrameEnvelope,
 };
 use addzero_remote_session::RemoteRelayService;
-use addzero_remote_ui::{DeviceCard, REMOTE_STYLE, RemoteShell, SessionPanel};
+use addzero_remote_ui::{
+    DeviceCard, REMOTE_STYLE, RemoteActionItem, RemoteActionTone, RemoteShell, RemoteStage,
+    RemoteStageViewModel, RemoteStatusChip, SessionPanel,
+};
 use chrono::Utc;
 use dioxus::prelude::*;
 use uuid::Uuid;
@@ -21,7 +24,7 @@ fn seed() -> (Vec<DeviceDescriptor>, SessionSummary) {
         capabilities: SessionCapability::web_viewer(),
         online_status: OnlineStatus::Online,
         last_seen_at: Utc::now(),
-        notes: Some("Web 端不支持文件传输。".into()),
+        notes: Some("Web 端聚焦观看与轻交互，不暴露桌面端文件传输。".into()),
     };
     let host = DeviceDescriptor {
         device_id: Uuid::new_v4(),
@@ -31,7 +34,7 @@ fn seed() -> (Vec<DeviceDescriptor>, SessionSummary) {
         capabilities: SessionCapability::full_host(),
         online_status: OnlineStatus::Online,
         last_seen_at: Utc::now(),
-        notes: Some("Wayland 受限，首版仅保证观看与基础控制。".into()),
+        notes: Some("Wayland 首版优先保证观看、焦点同步与基础输入。".into()),
     };
     let mut relay = RemoteRelayService::new();
     let viewer = relay.register_device(viewer);
@@ -50,7 +53,7 @@ fn seed() -> (Vec<DeviceDescriptor>, SessionSummary) {
         .push_clipboard(
             request.session_id,
             ClipboardPayload {
-                content: "web clipboard bridge ready".into(),
+                content: "浏览器剪贴板桥已就绪。".into(),
                 updated_at: Utc::now(),
             },
         )
@@ -77,6 +80,50 @@ fn seed() -> (Vec<DeviceDescriptor>, SessionSummary) {
 #[component]
 fn App() -> Element {
     let (devices, summary) = seed();
+    let selected_host = devices
+        .iter()
+        .find(|device| matches!(device.role, DeviceRole::Host))
+        .cloned();
+
+    let stage_model = RemoteStageViewModel {
+        title: selected_host
+            .as_ref()
+            .map(|device| format!("{} · Web Viewer · 已连接", device.device_name))
+            .unwrap_or_else(|| "Web Viewer".to_string()),
+        subtitle: "Web 端保留观看与基础控制能力，把文件传输和重度诊断留给桌面端。".to_string(),
+        actions: vec![
+            RemoteActionItem {
+                label: "连接".to_string(),
+                tone: RemoteActionTone::Primary,
+            },
+            RemoteActionItem {
+                label: "全屏观看".to_string(),
+                tone: RemoteActionTone::Neutral,
+            },
+            RemoteActionItem {
+                label: "断开".to_string(),
+                tone: RemoteActionTone::Danger,
+            },
+        ],
+        status_chips: vec![
+            RemoteStatusChip {
+                label: "观看模式".to_string(),
+                emphasis: true,
+            },
+            RemoteStatusChip {
+                label: "文本剪贴板：可用".to_string(),
+                emphasis: false,
+            },
+            RemoteStatusChip {
+                label: "文件传输：桌面端处理".to_string(),
+                emphasis: false,
+            },
+        ],
+        placeholder_title: "浏览器安全画布".to_string(),
+        placeholder_body: "这里强调观看和轻交互体验，不再出现 mock/debug 文案；如果需要重度远控或文件传输，建议切回桌面端控制台。".to_string(),
+        permission_notice: None,
+    };
+
     rsx! {
         document::Style { "{REMOTE_STYLE}" }
         RemoteShell {
@@ -91,16 +138,7 @@ fn App() -> Element {
                     }
                 }
             ),
-            stage: rsx!(
-                section { class: "rd-stage__surface",
-                    div { class: "toolbar",
-                        button { "Connect" }
-                        input { value: "Text clipboard only" }
-                    }
-                    div { class: "stage-screen", "Browser-safe remote stage placeholder." }
-                    p { class: "muted", "This viewer intentionally omits file transfer in v1." }
-                }
-            ),
+            stage: rsx!(RemoteStage { model: stage_model }),
             detail: rsx!(SessionPanel { summary: Some(summary), allow_files: false })
         }
     }

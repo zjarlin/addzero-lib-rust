@@ -1,4 +1,5 @@
 use crate::*;
+use addzero_temp_mail::{ApiConfig as TempMailApiConfig, TempMailApi};
 use reqwest::Url;
 use reqwest::header::{ACCEPT, CONTENT_TYPE, HOST};
 use std::collections::BTreeMap;
@@ -67,7 +68,7 @@ fn temp_mail_create_mailbox_and_login_runs_full_flow() -> Result<(), Box<dyn Err
         TestResponse::json(r#"{"token":"token-1"}"#),
     ])?;
 
-    let api = TempMailApi::new(ApiConfig::builder(server.base_url()).build()?)?;
+    let api = TempMailApi::new(TempMailApiConfig::builder(server.base_url()).build()?)?;
     let mailbox = api.create_mailbox_and_login("az_", 10)?;
 
     assert!(mailbox.address.ends_with("@mail.tm"));
@@ -91,7 +92,7 @@ fn temp_mail_get_message_flattens_html_array() -> Result<(), Box<dyn Error>> {
         r#"{"id":"msg-1","from":{"address":"from@mail.tm","name":"Sender"},"to":[{"address":"to@mail.tm","name":"Receiver"}],"subject":"Hello","text":"Plain","html":["<p>Hello</p>"],"createdAt":"2026-04-20T12:00:00.000Z"}"#,
     )])?;
 
-    let api = TempMailApi::new(ApiConfig::builder(server.base_url()).build()?)?;
+    let api = TempMailApi::new(TempMailApiConfig::builder(server.base_url()).build()?)?;
     let message = api.get_message("token-1", "msg-1")?;
 
     assert_eq!(message.id, "msg-1");

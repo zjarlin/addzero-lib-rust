@@ -229,14 +229,8 @@ mod tests {
     #[test]
     fn duplicate_table_fails_validation() {
         let schema = Schema::new("test")
-            .table(
-                Table::new("users")
-                    .column(Column::new("id", DataType::Integer)),
-            )
-            .table(
-                Table::new("users")
-                    .column(Column::new("id", DataType::Integer)),
-            );
+            .table(Table::new("users").column(Column::new("id", DataType::Integer)))
+            .table(Table::new("users").column(Column::new("id", DataType::Integer)));
         let errors = schema.validate().unwrap_err();
         assert!(errors.contains(&ModelError::DuplicateTable("users".to_string())));
     }
@@ -258,10 +252,7 @@ mod tests {
     #[test]
     fn relation_to_unknown_table_fails() {
         let schema = Schema::new("test")
-            .table(
-                Table::new("users")
-                    .column(Column::new("id", DataType::BigInt)),
-            )
+            .table(Table::new("users").column(Column::new("id", DataType::BigInt)))
             .relation(Relation::new(
                 "fk_bad",
                 "users",
@@ -277,14 +268,8 @@ mod tests {
     #[test]
     fn relation_to_unknown_column_fails() {
         let schema = Schema::new("test")
-            .table(
-                Table::new("users")
-                    .column(Column::new("id", DataType::BigInt)),
-            )
-            .table(
-                Table::new("orders")
-                    .column(Column::new("id", DataType::BigInt)),
-            )
+            .table(Table::new("users").column(Column::new("id", DataType::BigInt)))
+            .table(Table::new("orders").column(Column::new("id", DataType::BigInt)))
             .relation(Relation::new(
                 "fk_bad",
                 "orders",
@@ -313,10 +298,7 @@ mod tests {
     #[test]
     fn index_references_unknown_column() {
         let schema = Schema::new("test")
-            .table(
-                Table::new("users")
-                    .column(Column::new("id", DataType::BigInt)),
-            )
+            .table(Table::new("users").column(Column::new("id", DataType::BigInt)))
             .index(crate::Index::new(
                 "idx_bad",
                 "users",

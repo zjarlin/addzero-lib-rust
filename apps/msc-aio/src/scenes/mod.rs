@@ -6,3 +6,4 @@ pub mod files;
 pub mod knowledge_base;
 pub mod system_management;
 pub mod system_settings;
+pub mod download_station;

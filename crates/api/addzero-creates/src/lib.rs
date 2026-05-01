@@ -1,29 +1,35 @@
 #![forbid(unsafe_code)]
 
 mod config;
-mod domains;
 mod error;
 mod http;
+pub mod maven;
+pub mod tianyancha;
 mod util;
 
 #[cfg(test)]
 mod tests;
 
-pub use config::{ApiConfig, ApiConfigBuilder};
-pub use domains::maven::{MavenArtifact, MavenCentralApi};
-pub use domains::music::*;
-pub use domains::temp_mail::{
-    TempMailApi, TempMailDomain, TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary,
-    TempMailRecipient,
+pub use addzero_music::{
+    BatchFetchRequest, ConcatSongsRequest, GenerateLyricsRequest, LyricContent, LyricResponse,
+    Music, MusicAlbum, MusicArtist, MusicCreator, MusicPlaylist, MusicPrivilege, MusicSearchApi,
+    MusicSearchRequest, MusicSearchResponse, MusicSearchResult, MusicSearchType, MusicSong,
+    NeteaseMusicApi, SongDetailResponse, SongWithLyric, SunoApi, SunoMusicRequest, SunoTask,
+    create_netease_api as create_music_search_api, create_suno_api,
 };
-pub use domains::tianyancha::{
+pub use addzero_temp_mail::{
+    ApiConfig as TempMailApiConfig, ApiConfigBuilder as TempMailApiConfigBuilder, TempMailApi,
+    TempMailDomain, TempMailError, TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary,
+    TempMailRecipient, TempMailResult, create_temp_mail_api,
+};
+pub use config::{ApiConfig, ApiConfigBuilder};
+pub use error::{CreatesError, CreatesResult};
+pub use maven::{MavenArtifact, MavenCentralApi, create_maven_central_api};
+pub use tianyancha::{
     TianyanchaApi, TianyanchaCompany, TianyanchaCompanyDetail, TianyanchaCompanySearchData,
     TianyanchaHuaweiApi, TianyanchaHuaweiCompany, TianyanchaHuaweiCompanySearchData,
-    TianyanchaHuaweiPageInfo,
+    TianyanchaHuaweiPageInfo, create_tianyancha_api, create_tianyancha_huawei_api,
 };
-pub use error::{CreatesError, CreatesResult};
-
-use reqwest::header::{ACCEPT, CONTENT_TYPE, HOST};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Creates;
@@ -37,31 +43,31 @@ impl Creates {
         MavenCentralApi::new(config)
     }
 
-    pub fn temp_mail() -> CreatesResult<TempMailApi> {
+    pub fn temp_mail() -> TempMailResult<TempMailApi> {
         create_temp_mail_api()
     }
 
-    pub fn temp_mail_with_config(config: ApiConfig) -> CreatesResult<TempMailApi> {
+    pub fn temp_mail_with_config(config: TempMailApiConfig) -> TempMailResult<TempMailApi> {
         TempMailApi::new(config)
     }
 
     pub fn music_search() -> CreatesResult<MusicSearchApi> {
-        create_music_search_api()
+        Ok(create_music_search_api()?)
     }
 
     pub fn music_search_with_config(config: ApiConfig) -> CreatesResult<MusicSearchApi> {
-        MusicSearchApi::new(config)
+        Ok(MusicSearchApi::new(config)?)
     }
 
     pub fn suno(api_token: impl Into<String>) -> CreatesResult<SunoApi> {
-        create_suno_api(api_token)
+        Ok(create_suno_api(api_token)?)
     }
 
     pub fn suno_with_config(
         api_token: impl Into<String>,
         config: ApiConfig,
     ) -> CreatesResult<SunoApi> {
-        SunoApi::new(api_token, config)
+        Ok(SunoApi::new(api_token, config)?)
     }
 
     pub fn tianyancha(
@@ -93,65 +99,4 @@ impl Creates {
     ) -> CreatesResult<TianyanchaHuaweiApi> {
         TianyanchaHuaweiApi::new(access_key, secret_key, config)
     }
-}
-
-pub fn create_maven_central_api() -> CreatesResult<MavenCentralApi> {
-    let config = ApiConfig::builder("https://search.maven.org").build()?;
-    MavenCentralApi::new(config)
-}
-
-pub fn create_temp_mail_api() -> CreatesResult<TempMailApi> {
-    let config = ApiConfig::builder("https://api.mail.tm")
-        .default_header(ACCEPT.as_str(), "application/json")
-        .build()?;
-    TempMailApi::new(config)
-}
-
-pub fn create_music_search_api() -> CreatesResult<MusicSearchApi> {
-    let config = ApiConfig::builder("https://music.163.com/api/")
-        .default_header(ACCEPT.as_str(), "application/json")
-        .default_header("Referer", "https://music.163.com/")
-        .user_agent(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-             (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        )
-        .build()?;
-    MusicSearchApi::new(config)
-}
-
-pub fn create_suno_api(api_token: impl Into<String>) -> CreatesResult<SunoApi> {
-    let config = ApiConfig::builder("https://api.vectorengine.ai")
-        .default_header(ACCEPT.as_str(), "application/json")
-        .build()?;
-    SunoApi::new(api_token, config)
-}
-
-pub fn create_tianyancha_api(
-    authorization: impl Into<String>,
-    auth_token: impl Into<String>,
-) -> CreatesResult<TianyanchaApi> {
-    let config = ApiConfig::builder("https://api9.tianyancha.com")
-        .default_header(CONTENT_TYPE.as_str(), "application/json")
-        .default_header(HOST.as_str(), "api9.tianyancha.com")
-        .default_header(ACCEPT.as_str(), "*/*")
-        .default_header("version", "TYC-XCX-WX")
-        .default_header(
-            "User-Agent",
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 12_1_4 like Mac OS X) \
-             AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/16D57 \
-             MicroMessenger/7.0.5(0x17000523) NetType/WIFI Language/zh_CN",
-        )
-        .default_header("Accept-Language", "zh-cn")
-        .build()?;
-    TianyanchaApi::new(authorization, auth_token, config)
-}
-
-pub fn create_tianyancha_huawei_api(
-    access_key: impl Into<String>,
-    secret_key: impl Into<String>,
-) -> CreatesResult<TianyanchaHuaweiApi> {
-    let config = ApiConfig::builder("http://kzenterprisewmh.apistore.huaweicloud.com")
-        .default_header(ACCEPT.as_str(), "application/json")
-        .build()?;
-    TianyanchaHuaweiApi::new(access_key, secret_key, config)
 }

@@ -160,11 +160,7 @@ mod tests {
 
     #[test]
     fn enum_data_type() {
-        let dt = DataType::Enum(vec![
-            "active".into(),
-            "inactive".into(),
-            "banned".into(),
-        ]);
+        let dt = DataType::Enum(vec!["active".into(), "inactive".into(), "banned".into()]);
         let json = serde_json::to_string(&dt).unwrap();
         let deserialized: DataType = serde_json::from_str(&json).unwrap();
         assert_eq!(dt, deserialized);

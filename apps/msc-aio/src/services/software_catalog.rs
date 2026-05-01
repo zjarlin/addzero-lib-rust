@@ -110,7 +110,12 @@ impl SoftwareCatalogApi for EmbeddedSoftwareCatalogApi {
     fn catalog(&self) -> LocalBoxFuture<'_, SoftwareCatalogResult<SoftwareCatalogDto>> {
         Box::pin(async move {
             let backend = crate::server::services().await;
-            backend.software_catalog.catalog().await
+            let service = backend.software_catalog.as_ref().ok_or_else(|| {
+                addzero_software_catalog::SoftwareCatalogError::Message(
+                    "software catalog backend unavailable".to_string(),
+                )
+            })?;
+            service.catalog().await
         })
     }
 
@@ -120,14 +125,24 @@ impl SoftwareCatalogApi for EmbeddedSoftwareCatalogApi {
     ) -> LocalBoxFuture<'_, SoftwareCatalogResult<SoftwareEntryDto>> {
         Box::pin(async move {
             let backend = crate::server::services().await;
-            backend.software_catalog.save_entry(input).await
+            let service = backend.software_catalog.as_ref().ok_or_else(|| {
+                addzero_software_catalog::SoftwareCatalogError::Message(
+                    "software catalog backend unavailable".to_string(),
+                )
+            })?;
+            service.save_entry(input).await
         })
     }
 
     fn delete_entry(&self, id: String) -> LocalBoxFuture<'_, SoftwareCatalogResult<()>> {
         Box::pin(async move {
             let backend = crate::server::services().await;
-            backend.software_catalog.delete_entry(&id).await
+            let service = backend.software_catalog.as_ref().ok_or_else(|| {
+                addzero_software_catalog::SoftwareCatalogError::Message(
+                    "software catalog backend unavailable".to_string(),
+                )
+            })?;
+            service.delete_entry(&id).await
         })
     }
 
@@ -137,7 +152,12 @@ impl SoftwareCatalogApi for EmbeddedSoftwareCatalogApi {
     ) -> LocalBoxFuture<'_, SoftwareCatalogResult<SoftwareMetadataDto>> {
         Box::pin(async move {
             let backend = crate::server::services().await;
-            backend.software_catalog.fetch_metadata(input).await
+            let service = backend.software_catalog.as_ref().ok_or_else(|| {
+                addzero_software_catalog::SoftwareCatalogError::Message(
+                    "software catalog backend unavailable".to_string(),
+                )
+            })?;
+            service.fetch_metadata(input).await
         })
     }
 
@@ -147,7 +167,12 @@ impl SoftwareCatalogApi for EmbeddedSoftwareCatalogApi {
     ) -> LocalBoxFuture<'_, SoftwareCatalogResult<SoftwareEntryInput>> {
         Box::pin(async move {
             let backend = crate::server::services().await;
-            backend.software_catalog.build_draft(input).await
+            let service = backend.software_catalog.as_ref().ok_or_else(|| {
+                addzero_software_catalog::SoftwareCatalogError::Message(
+                    "software catalog backend unavailable".to_string(),
+                )
+            })?;
+            service.build_draft(input).await
         })
     }
 }

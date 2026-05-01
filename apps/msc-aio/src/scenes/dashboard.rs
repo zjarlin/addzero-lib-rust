@@ -1071,7 +1071,6 @@ fn packages_graph() -> GraphViewModel {
     )
 }
 
-
 /// (label, detail, meta) tuple for graph cluster items.
 type ClusterItem<'a> = (&'a str, &'a str, &'a str);
 
