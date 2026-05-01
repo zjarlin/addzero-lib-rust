@@ -814,7 +814,9 @@ fn markdown_heading_title(line: &str) -> Option<String> {
         return None;
     }
 
-    Some(strip_inline_markdown_title(title.trim_end_matches('#').trim()))
+    Some(strip_inline_markdown_title(
+        title.trim_end_matches('#').trim(),
+    ))
 }
 
 fn strip_inline_markdown_title(line: &str) -> String {
@@ -822,6 +824,35 @@ fn strip_inline_markdown_title(line: &str) -> String {
         .trim_matches(|ch| matches!(ch, '*' | '_' | '`' | '~'))
         .trim()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn derive_markdown_entry_title_should_use_first_heading() {
+        assert_eq!(
+            derive_markdown_entry_title("# 自动识别为标题\n后面是正文", KnowledgeEntryKind::Note),
+            "自动识别为标题"
+        );
+    }
+
+    #[test]
+    fn derive_markdown_entry_title_should_fallback_to_first_line() {
+        assert_eq!(
+            derive_markdown_entry_title("第一行普通文本\n第二行正文", KnowledgeEntryKind::Note),
+            "第一行普通文本"
+        );
+    }
+
+    #[test]
+    fn derive_markdown_entry_title_should_fallback_when_empty() {
+        assert_eq!(
+            derive_markdown_entry_title("   \n\t", KnowledgeEntryKind::Note),
+            "未命名笔记"
+        );
+    }
 }
 
 fn note_docs() -> Vec<&'static KnowledgeDoc> {
