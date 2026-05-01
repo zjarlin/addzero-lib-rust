@@ -15,7 +15,7 @@ pub struct DefaultAdminProvider {
     auth_api: SharedAuthApi,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AdminDomain {
     Overview,
     Agents,
@@ -314,12 +314,16 @@ fn DomainLink(domain: AdminDomain, active: bool) -> Element {
 
 #[cfg(test)]
 mod tests {
-    use super::{AdminDomain, domain_for_route, section_for_domain};
+    use super::{domain_for_route, section_for_domain, AdminDomain};
     use crate::app::Route;
     use std::collections::BTreeSet;
 
     #[test]
-    fn files_route_stays_inside_knowledge_domain() {
+    fn knowledge_aux_routes_stay_inside_knowledge_domain() {
+        assert_eq!(
+            domain_for_route(&Route::DownloadStation),
+            AdminDomain::Knowledge
+        );
         assert_eq!(domain_for_route(&Route::Files), AdminDomain::Knowledge);
         assert_eq!(AdminDomain::Knowledge.route(), Route::KnowledgeNotes);
     }
@@ -340,7 +344,10 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(section.label, "知识库");
-        assert_eq!(labels, vec!["笔记", "软件", "安装包", "文件中心"]);
+        assert_eq!(
+            labels,
+            vec!["笔记", "Skill", "安装包", "Download Station", "文件中心"]
+        );
         assert_eq!(unique_labels.len(), labels.len());
         assert_eq!(
             routes,
@@ -348,6 +355,7 @@ mod tests {
                 Some(Route::KnowledgeNotes),
                 Some(Route::KnowledgeSoftware),
                 Some(Route::KnowledgePackages),
+                Some(Route::DownloadStation),
                 Some(Route::Files),
             ]
         );

@@ -6,7 +6,9 @@ mod http;
 mod util;
 
 pub use config::{ApiConfig, ApiConfigBuilder};
-pub use error::{CreatesError as TempMailError, CreatesResult as TempMailResult};
+pub use error::{
+    CreatesError, CreatesError as TempMailError, CreatesResult, CreatesResult as TempMailResult,
+};
 
 use crate::http::HttpApiClient;
 use crate::util::{non_blank, random_alpha_numeric, sanitize_prefix};

@@ -18,7 +18,7 @@ use crate::state::{AppServices, AuthSession, BrandingPrefs, ThemePrefs};
 
 const STYLE: Asset = asset!("/assets/admin.css");
 
-#[derive(Routable, Clone, PartialEq)]
+#[derive(Routable, Clone, Debug, PartialEq)]
 pub enum Route {
     #[route("/login")]
     Login,
