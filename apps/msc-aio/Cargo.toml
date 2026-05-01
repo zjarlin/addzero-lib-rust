@@ -65,6 +65,7 @@ zip.workspace = true
 
 [build-dependencies]
 addzero-knowledge = { path = "../../crates/data/addzero-knowledge" }
+png = "0.17.16"
 tokio.workspace = true
 
 [features]

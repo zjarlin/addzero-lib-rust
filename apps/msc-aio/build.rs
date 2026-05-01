@@ -1,4 +1,7 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use addzero_knowledge::{
     KnowledgeService, KnowledgeSourceSpec, database_url, discover_documents, local_env_path,
@@ -10,6 +13,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=DATABASE_URL");
     println!("cargo:rerun-if-env-changed=MSC_AIO_DATABASE_URL");
     println!("cargo:rerun-if-env-changed=MSC_AIO_KNOWLEDGE_EXTRA_ROOTS");
+    println!("cargo:rerun-if-changed=assets/app-icon.png");
 
     if let Some(path) = local_env_path() {
         println!("cargo:rerun-if-changed={}", path.display());
@@ -26,6 +30,38 @@ fn main() {
         PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set")).join("knowledge_catalog.rs");
 
     fs::write(out_path, output).expect("failed to write generated knowledge catalog");
+    write_app_icon_rgba();
+}
+
+fn write_app_icon_rgba() {
+    let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
+    let icon_path = Path::new("assets/app-icon.png");
+    let file = fs::File::open(icon_path).expect("failed to open app icon");
+    let decoder = png::Decoder::new(file);
+    let mut reader = decoder
+        .read_info()
+        .expect("failed to read app icon metadata");
+    let mut buffer = vec![0; reader.output_buffer_size()];
+    let info = reader
+        .next_frame(&mut buffer)
+        .expect("failed to decode app icon");
+    let bytes = &buffer[..info.buffer_size()];
+
+    let rgba = match (info.color_type, info.bit_depth) {
+        (png::ColorType::Rgba, png::BitDepth::Eight) => bytes.to_vec(),
+        (png::ColorType::Rgb, png::BitDepth::Eight) => bytes
+            .chunks_exact(3)
+            .flat_map(|pixel| [pixel[0], pixel[1], pixel[2], 255])
+            .collect(),
+        (color, depth) => panic!("unsupported app icon format: {color:?} {depth:?}"),
+    };
+
+    let metadata = format!(
+        "pub const APP_ICON_WIDTH: u32 = {};\npub const APP_ICON_HEIGHT: u32 = {};\n",
+        info.width, info.height
+    );
+    fs::write(out_dir.join("app_icon.rgba"), rgba).expect("failed to write decoded app icon");
+    fs::write(out_dir.join("app_icon.rs"), metadata).expect("failed to write app icon metadata");
 }
 
 fn load_docs(

@@ -2,7 +2,8 @@ use clap::Parser;
 
 use msc_aio::cli::{Cli, Command};
 
-const APP_ICON: &[u8] = include_bytes!("../assets/app-icon.png");
+include!(concat!(env!("OUT_DIR"), "/app_icon.rs"));
+const APP_ICON_RGBA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/app_icon.rgba"));
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
@@ -27,7 +28,11 @@ fn desktop_config() -> dioxus_desktop::Config {
     let window = dioxus_desktop::WindowBuilder::new().with_title("msc-aio");
     let config = dioxus_desktop::Config::new().with_window(window);
 
-    match dioxus_desktop::icon_from_memory(APP_ICON) {
+    match dioxus_desktop::tao::window::Icon::from_rgba(
+        APP_ICON_RGBA.to_vec(),
+        APP_ICON_WIDTH,
+        APP_ICON_HEIGHT,
+    ) {
         Ok(icon) => config.with_icon(icon),
         Err(err) => {
             eprintln!("failed to load app icon: {err}");
