@@ -15,7 +15,7 @@ use crate::{
         PACKAGE_CHANNELS, PackageAsset, first_package_asset_slug_for_channel, package_asset,
         package_asset_count, package_assets, package_channel,
     },
-    services::{SkillDto, SkillSourceDto, default_skills_api},
+    scenes::asset_chat::{AssetChatFact, AssetChatKind, AssetChatPanel},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -81,57 +81,8 @@ impl PackageAssetDraft {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct SkillDraft {
-    name: String,
-    keywords: String,
-    description: String,
-    body: String,
-    source: String,
-    updated_at: String,
-}
-
-impl SkillDraft {
-    fn from_skill(skill: &SkillDto) -> Self {
-        Self {
-            name: skill.name.clone(),
-            keywords: skill.keywords.join(", "),
-            description: skill.description.clone(),
-            body: skill.body.clone(),
-            source: skill_source_label(skill.source.clone()).to_string(),
-            updated_at: skill.updated_at.format("%Y-%m-%d %H:%M UTC").to_string(),
-        }
-    }
-
-    fn empty() -> Self {
-        Self {
-            name: String::new(),
-            keywords: String::new(),
-            description: String::new(),
-            body: String::new(),
-            source: "未保存".to_string(),
-            updated_at: "待保存".to_string(),
-        }
-    }
-
-    fn title(&self) -> String {
-        if self.name.trim().is_empty() {
-            "未命名 Skill".to_string()
-        } else {
-            self.name.clone()
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PackageCrudMode {
-    View,
-    Create,
-    Update,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum SkillCrudMode {
     View,
     Create,
     Update,
@@ -145,6 +96,24 @@ pub fn KnowledgeNotes() -> Element {
             .map(|doc| doc.slug.to_string())
             .unwrap_or_default()
     });
+    let mut search = use_signal(String::new);
+    let mut chat_draft = use_signal(String::new);
+    let query = search.read().trim().to_lowercase();
+    let visible_docs = KNOWLEDGE_DOCS
+        .iter()
+        .filter(|doc| {
+            query.is_empty()
+                || doc.title.to_lowercase().contains(&query)
+                || doc.preview.to_lowercase().contains(&query)
+                || doc.excerpt.to_lowercase().contains(&query)
+                || doc.source_name.to_lowercase().contains(&query)
+                || doc.filename.to_lowercase().contains(&query)
+                || doc
+                    .headings
+                    .iter()
+                    .any(|heading| heading.to_lowercase().contains(&query))
+        })
+        .collect::<Vec<_>>();
     let selected = knowledge_doc(selected_slug.read().as_str()).or_else(|| KNOWLEDGE_DOCS.first());
 
     rsx! {
@@ -171,11 +140,21 @@ pub fn KnowledgeNotes() -> Element {
             div { class: "knowledge-board",
                 GroupedListPanel {
                     title: "笔记目录".to_string(),
-                    subtitle: format!("已纳入 {} 份知识文档，覆盖 {} 个来源目录。", KNOWLEDGE_DOCS.len(), total_sources()),
+                    subtitle: format!("已纳入 {} 份知识文档，当前显示 {} 份。", KNOWLEDGE_DOCS.len(), visible_docs.len()),
                     children: rsx!(
                         div { class: "knowledge-source",
                             span { class: "badge", "{data_mode_label()}" }
                             span { class: "badge badge--fs", "{KNOWLEDGE_DATA_MODE}" }
+                        }
+                        div { class: "graph-toolbar note-toolbar knowledge-search-row",
+                            input {
+                                "data-command-search": "true",
+                                class: "graph-search note-search",
+                                r#type: "search",
+                                value: "{search}",
+                                placeholder: "搜索笔记标题、正文、标签或来源",
+                                oninput: move |evt| search.set(evt.value())
+                            }
                         }
                     ),
                     groups: KNOWLEDGE_SOURCE_SUMMARIES
@@ -183,13 +162,21 @@ pub fn KnowledgeNotes() -> Element {
                         .filter(|summary| summary.count > 0)
                         .map(|summary| GroupedListPanelGroup {
                             label: summary.label.to_string(),
-                            count_label: Some(format!("{} 篇", summary.count)),
+                            count_label: Some(format!(
+                                "{} / {} 篇",
+                                visible_docs
+                                    .iter()
+                                    .filter(|doc| doc.source_slug == summary.slug)
+                                    .count(),
+                                summary.count
+                            )),
                             description: Some(summary.root.to_string()),
-                            items: KNOWLEDGE_DOCS
+                            items: visible_docs
                                 .iter()
                                 .filter(|doc| doc.source_slug == summary.slug)
                                 .map(|doc| {
                                     let slug = doc.slug.to_string();
+                                    let mut chat_draft = chat_draft;
                                     GroupedListPanelItem {
                                         key: slug.clone(),
                                         title: doc.title.to_string(),
@@ -201,7 +188,10 @@ pub fn KnowledgeNotes() -> Element {
                                             format_bytes(doc.bytes),
                                         ],
                                         active: selected.map(|item| item.slug == doc.slug).unwrap_or(false),
-                                        onpress: EventHandler::new(move |_| selected_slug.set(slug.clone())),
+                                        onpress: EventHandler::new(move |_| {
+                                            selected_slug.set(slug.clone());
+                                            chat_draft.set(String::new());
+                                        }),
                                     }
                                 })
                                 .collect(),
@@ -209,7 +199,12 @@ pub fn KnowledgeNotes() -> Element {
                         .collect()
                 }
                 if let Some(doc) = selected {
-                    KnowledgeDetailSurface { doc: *doc }
+                    KnowledgeDetailSurface {
+                        doc: *doc,
+                        chat_draft: chat_draft.read().clone(),
+                        on_chat_draft: move |value| chat_draft.set(value),
+                        on_chat_submit: move |_| chat_draft.set(String::new()),
+                    }
                 }
             }
         }
@@ -217,20 +212,10 @@ pub fn KnowledgeNotes() -> Element {
 }
 
 #[component]
-pub fn KnowledgeSoftware() -> Element {
-    rsx! {
-        KnowledgeSceneHeader {
-            subtitle: "知识域拆成笔记、安装包、Skill 三条对象轴；避免继续把软件台账和其他资产揉成静态说明页。"
-        }
-        SkillAssetsScene {}
-    }
-}
-
-#[component]
 pub fn KnowledgePackages() -> Element {
     rsx! {
         KnowledgeSceneHeader {
-            subtitle: "安装包资产聚焦归档、校验与安装目标；文件浏览与 recent outputs 统一收敛到 /files，不再在这里重复承载下载列表。"
+            subtitle: "安装包资产聚焦归档、校验与安装目标；下载记录统一收敛到下载站。"
         }
         PackageAssetsScene {}
     }
@@ -270,7 +255,12 @@ fn KnowledgeSummary() -> Element {
 }
 
 #[component]
-fn KnowledgeDetailSurface(doc: KnowledgeDoc) -> Element {
+fn KnowledgeDetailSurface(
+    doc: KnowledgeDoc,
+    chat_draft: String,
+    on_chat_draft: EventHandler<String>,
+    on_chat_submit: EventHandler<String>,
+) -> Element {
     rsx! {
         Surface {
             SurfaceHeader {
@@ -301,6 +291,20 @@ fn KnowledgeDetailSurface(doc: KnowledgeDoc) -> Element {
                 }
                 div { class: "knowledge-detail__label", "内容摘录" }
                 div { class: "knowledge-excerpt", "{doc.excerpt}" }
+                AssetChatPanel {
+                    kind: AssetChatKind::Note,
+                    object_title: doc.title.to_string(),
+                    facts: vec![
+                        AssetChatFact::new("来源", doc.source_name),
+                        AssetChatFact::new("路径", doc.relative_path),
+                        AssetChatFact::new("章节", format!("{} 个", doc.section_count)),
+                    ],
+                    draft: chat_draft,
+                    placeholder: "输入笔记整理、摘要、关联或待办".to_string(),
+                    readonly_excerpt: Some(doc.excerpt.to_string()),
+                    on_draft: on_chat_draft,
+                    on_submit: on_chat_submit,
+                }
             }
         }
     }
@@ -316,7 +320,7 @@ pub fn KnowledgeContext() -> Element {
                 MetricRow { label: "来源数".to_string(), value: total_sources().to_string() }
                 MetricRow { label: "文档数".to_string(), value: KNOWLEDGE_DOCS.len().to_string() }
                 MetricRow { label: "体量".to_string(), value: format_bytes(total_bytes()) }
-                MetricRow { label: "Download Station".to_string(), value: knowledge_source_item_count("download-station") }
+                MetricRow { label: "下载站".to_string(), value: knowledge_source_item_count("download-station") }
             }
         }
         SidebarSection { label: "来源目录".to_string(),
@@ -355,212 +359,6 @@ fn knowledge_source_item_count(prefix: &str) -> String {
         .to_string()
 }
 
-fn skill_source_label(source: SkillSourceDto) -> &'static str {
-    match source {
-        SkillSourceDto::Postgres => "Postgres",
-        SkillSourceDto::FileSystem => "Filesystem",
-        SkillSourceDto::Both => "Both",
-    }
-}
-
-fn skill_editor_title(mode: SkillCrudMode, form: &SkillDraft) -> String {
-    match mode {
-        SkillCrudMode::View => format!("Skill · {}", form.title()),
-        SkillCrudMode::Create => "新建 Skill".to_string(),
-        SkillCrudMode::Update => format!("编辑 Skill · {}", form.title()),
-    }
-}
-
-#[component]
-pub fn SkillAssetsScene() -> Element {
-    let skills_api = use_hook(default_skills_api);
-    let mut skills_state = use_signal(Vec::<SkillDto>::new);
-    let mut selected_name = use_signal(String::new);
-    let mut editor_mode = use_signal(|| SkillCrudMode::View);
-    let mut form_state = use_signal(SkillDraft::empty);
-    let mut status_message = use_signal(|| Some("正在加载 Skill 目录…".to_string()));
-
-    use_effect(move || {
-        let skills_api = skills_api.clone();
-        spawn(async move {
-            match skills_api.list_skills().await {
-                Ok(items) => {
-                    let count = items.len();
-                    let selected = items
-                        .iter()
-                        .find(|skill| skill.name == *selected_name.read())
-                        .cloned()
-                        .or_else(|| items.first().cloned());
-                    skills_state.set(items);
-                    if let Some(skill) = selected {
-                        selected_name.set(skill.name.clone());
-                        form_state.set(SkillDraft::from_skill(&skill));
-                        editor_mode.set(SkillCrudMode::View);
-                        status_message.set(Some(format!("已加载 {} 个 Skill。", count)));
-                    } else {
-                        selected_name.set(String::new());
-                        form_state.set(SkillDraft::empty());
-                        editor_mode.set(SkillCrudMode::Create);
-                        status_message.set(Some("当前还没有 Skill，可直接新建。".to_string()));
-                    }
-                }
-                Err(err) => {
-                    skills_state.set(Vec::new());
-                    selected_name.set(String::new());
-                    form_state.set(SkillDraft::empty());
-                    editor_mode.set(SkillCrudMode::Create);
-                    status_message.set(Some(format!("加载 Skill 失败：{err}")));
-                }
-            }
-        });
-    });
-
-    let skills = skills_state.read().clone();
-    let selected_skill = skills
-        .iter()
-        .find(|skill| skill.name == *selected_name.read())
-        .cloned()
-        .or_else(|| skills.first().cloned());
-    let mode = *editor_mode.read();
-    let form = form_state.read().clone();
-
-    rsx! {
-        div { class: "package-workbench",
-            Surface {
-                SurfaceHeader {
-                    title: "Skill 目录".to_string(),
-                    subtitle: "Skill 作为独立对象维护名称、关键词、摘要与正文，不再混在软件矩阵占位页里。".to_string()
-                }
-                if let Some(message) = status_message.read().clone() {
-                    div { class: "callout callout--info", "{message}" }
-                }
-                div { class: "package-list",
-                    for skill in skills.iter() {
-                        button {
-                            r#type: "button",
-                            class: if selected_skill.as_ref().map(|item| item.name == skill.name).unwrap_or(false) {
-                                "package-list__item package-list__item--active"
-                            } else {
-                                "package-list__item"
-                            },
-                            onclick: {
-                                let mut selected_name = selected_name;
-                                let mut editor_mode = editor_mode;
-                                let mut form_state = form_state;
-                                let skill = skill.clone();
-                                move |_| {
-                                    selected_name.set(skill.name.clone());
-                                    editor_mode.set(SkillCrudMode::View);
-                                    form_state.set(SkillDraft::from_skill(&skill));
-                                }
-                            },
-                            div { class: "package-list__title", "{skill.name}" }
-                            div { class: "package-list__meta",
-                                span { "{skill_source_label(skill.source.clone())}" }
-                                span { "·" }
-                                span { "{skill.updated_at}" }
-                            }
-                            div { class: "package-list__copy", "{skill.description}" }
-                        }
-                    }
-                }
-            }
-            Surface {
-                SurfaceHeader {
-                    title: skill_editor_title(mode, &form),
-                    subtitle: "先做 Skill 对象 workbench；真实保存/同步动作后续再接 API。".to_string()
-                }
-                div { class: "package-editor__actions",
-                    WorkbenchButton {
-                        class: "action-button action-button--primary".to_string(),
-                        onclick: {
-                            let mut editor_mode = editor_mode;
-                            let mut form_state = form_state;
-                            move |_| {
-                                editor_mode.set(SkillCrudMode::Create);
-                                form_state.set(SkillDraft::empty());
-                            }
-                        },
-                        "新增 Skill"
-                    }
-                    if let Some(skill) = selected_skill.clone() {
-                        WorkbenchButton {
-                            class: "action-button".to_string(),
-                            onclick: {
-                                let mut editor_mode = editor_mode;
-                                let mut form_state = form_state;
-                                let skill = skill.clone();
-                                move |_| {
-                                    editor_mode.set(SkillCrudMode::Update);
-                                    form_state.set(SkillDraft::from_skill(&skill));
-                                }
-                            },
-                            "编辑"
-                        }
-                    }
-                }
-                div { class: "package-editor",
-                    ResponsiveGrid { columns: 2,
-                        Field {
-                            label: "Skill 名称".to_string(),
-                            value: form.name.clone(),
-                            placeholder: Some("例如 hermes-agent".to_string()),
-                            on_input: {
-                                let mut form_state = form_state;
-                                move |value| {
-                                    let mut next = form_state.read().clone();
-                                    next.name = value;
-                                    form_state.set(next);
-                                }
-                            }
-                        }
-                        Field {
-                            label: "关键词".to_string(),
-                            value: form.keywords.clone(),
-                            placeholder: Some("以逗号分隔".to_string()),
-                            on_input: {
-                                let mut form_state = form_state;
-                                move |value| {
-                                    let mut next = form_state.read().clone();
-                                    next.keywords = value;
-                                    form_state.set(next);
-                                }
-                            }
-                        }
-                    }
-                    Field {
-                        label: "摘要".to_string(),
-                        value: form.description.clone(),
-                        placeholder: Some("这个 Skill 解决什么问题".to_string()),
-                        on_input: {
-                            let mut form_state = form_state;
-                            move |value| {
-                                let mut next = form_state.read().clone();
-                                next.description = value;
-                                form_state.set(next);
-                            }
-                        }
-                    }
-                    div { class: "callout", "来源：{form.source} · 最近更新：{form.updated_at}" }
-                    Field {
-                        label: "正文".to_string(),
-                        value: form.body.clone(),
-                        placeholder: Some("SKILL.md 正文或主要片段".to_string()),
-                        on_input: {
-                            let mut form_state = form_state;
-                            move |value| {
-                                let mut next = form_state.read().clone();
-                                next.body = value;
-                                form_state.set(next);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 #[component]
 pub fn PackageAssetsScene() -> Element {
     let default_channel = PACKAGE_CHANNELS
@@ -586,6 +384,7 @@ pub fn PackageAssetsScene() -> Element {
             .map(|asset| PackageAssetDraft::from_asset(*asset))
             .unwrap_or_else(|| PackageAssetDraft::empty(""))
     });
+    let mut chat_draft = use_signal(String::new);
 
     let selected_channel =
         package_channel(selected_channel_slug.read().as_str()).or_else(|| PACKAGE_CHANNELS.first());
@@ -664,7 +463,7 @@ pub fn PackageAssetsScene() -> Element {
                 Surface {
                     SurfaceHeader {
                         title: "安装包对象".to_string(),
-                        subtitle: "安装包对象只维护归档元数据与安装目标；文件浏览、下载记录和 recent outputs 统一走 /files。".to_string()
+                        subtitle: "安装包对象只维护归档元数据与安装目标；下载记录和 recent outputs 统一走下载站。".to_string()
                     }
                     div { class: "package-list",
                         for asset in selected_assets.iter() {
@@ -676,16 +475,18 @@ pub fn PackageAssetsScene() -> Element {
                                     "package-list__item"
                                 },
                                 onclick: {
-                                    let mut selected_asset_slug = selected_asset_slug;
-                                    let mut editor_mode = editor_mode;
-                                    let mut form_state = form_state;
-                                    let asset = asset.clone();
-                                    move |_| {
-                                        selected_asset_slug.set(asset.slug.clone());
-                                        editor_mode.set(PackageCrudMode::View);
-                                        form_state.set(asset.clone());
-                                    }
-                                },
+                                let mut selected_asset_slug = selected_asset_slug;
+                                let mut editor_mode = editor_mode;
+                                let mut form_state = form_state;
+                                let mut chat_draft = chat_draft;
+                                let asset = asset.clone();
+                                move |_| {
+                                    selected_asset_slug.set(asset.slug.clone());
+                                    editor_mode.set(PackageCrudMode::View);
+                                    form_state.set(asset.clone());
+                                    chat_draft.set(String::new());
+                                }
+                            },
                                 div { class: "package-list__title", "{asset.software_title}" }
                                 div { class: "package-list__meta",
                                     span { "{asset.version}" }
@@ -698,20 +499,40 @@ pub fn PackageAssetsScene() -> Element {
                     }
                 }
                 Surface {
-                    SurfaceHeader {
-                        title: package_editor_title(mode, &form, channel.title),
-                        subtitle: channel.rule.to_string()
-                    }
-                    div { class: "package-editor__actions",
-                        WorkbenchButton {
+                        SurfaceHeader {
+                            title: package_editor_title(mode, &form, channel.title),
+                            subtitle: channel.rule.to_string()
+                        }
+                        AssetChatPanel {
+                            kind: AssetChatKind::Package,
+                            object_title: form.title(),
+                            facts: vec![
+                                AssetChatFact::new("分发组", channel.title),
+                                AssetChatFact::new("安装包", form.package_name.clone()),
+                                AssetChatFact::new("版本", form.version.clone()),
+                                AssetChatFact::new("状态", form.status.clone()),
+                            ],
+                            draft: chat_draft.read().clone(),
+                            placeholder: "输入安装包校验、归档、安装目标或关联记录".to_string(),
+                            readonly_excerpt: Some(format!(
+                                "{}\n{}\n{}",
+                                form.source, form.install_target, form.note
+                            )),
+                            on_draft: move |value| chat_draft.set(value),
+                            on_submit: move |_| chat_draft.set(String::new()),
+                        }
+                        div { class: "package-editor__actions",
+                            WorkbenchButton {
                             class: "action-button action-button--primary".to_string(),
                             onclick: {
                                 let mut editor_mode = editor_mode;
                                 let mut form_state = form_state;
+                                let mut chat_draft = chat_draft;
                                 let channel_slug = channel.slug.to_string();
                                 move |_| {
                                     editor_mode.set(PackageCrudMode::Create);
                                     form_state.set(PackageAssetDraft::empty(&channel_slug));
+                                    chat_draft.set(String::new());
                                 }
                             },
                             "新增"
@@ -722,10 +543,12 @@ pub fn PackageAssetsScene() -> Element {
                                 onclick: {
                                     let mut editor_mode = editor_mode;
                                     let mut form_state = form_state;
+                                    let mut chat_draft = chat_draft;
                                     let edit_asset = asset.clone();
                                     move |_| {
                                         editor_mode.set(PackageCrudMode::Update);
                                         form_state.set(edit_asset.clone());
+                                        chat_draft.set(String::new());
                                     }
                                 },
                                 "编辑"
@@ -737,6 +560,7 @@ pub fn PackageAssetsScene() -> Element {
                                     let mut selected_asset_slug = selected_asset_slug;
                                     let mut editor_mode = editor_mode;
                                     let mut form_state = form_state;
+                                    let mut chat_draft = chat_draft;
                                     let asset_slug = asset.slug.clone();
                                     let channel_slug = channel.slug.to_string();
                                     move |_| {
@@ -761,6 +585,7 @@ pub fn PackageAssetsScene() -> Element {
                                         } else {
                                             form_state.set(PackageAssetDraft::empty(&channel_slug));
                                         }
+                                        chat_draft.set(String::new());
                                     }
                                 },
                                 "删除"
@@ -984,8 +809,8 @@ pub fn PackageAssetsScene() -> Element {
                         }
                         ListItem {
                             title: "文件能力边界".to_string(),
-                            detail: "文件浏览、下载记录与 recent outputs 已约定统一收敛到 /files；当前这里仅保留安装包资产台账。".to_string(),
-                            meta: "Files".to_string()
+                            detail: "下载记录与归档来源统一收敛到下载站；当前这里仅保留安装包资产台账。".to_string(),
+                            meta: "下载站".to_string()
                         }
                         ListItem {
                             title: "当前动作".to_string(),
@@ -1001,33 +826,6 @@ pub fn PackageAssetsScene() -> Element {
                             }
                             .to_string()
                         }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[derive(Props, Clone, PartialEq)]
-struct SoftwareGroupProps {
-    title: String,
-    items: Vec<(&'static str, &'static str, &'static str, &'static str)>,
-}
-
-#[component]
-fn SoftwareGroup(props: SoftwareGroupProps) -> Element {
-    rsx! {
-        div { class: "software-group",
-            div { class: "software-group__title", "{props.title}" }
-            div { class: "software-group__grid",
-                for (name, usage, kind, status) in props.items {
-                    div { class: "software-tile",
-                        div { class: "software-tile__head",
-                            strong { "{name}" }
-                            span { class: "badge badge--fs", "{status}" }
-                        }
-                        div { class: "software-tile__usage", "{usage}" }
-                        div { class: "software-tile__meta", "{kind}" }
                     }
                 }
             }

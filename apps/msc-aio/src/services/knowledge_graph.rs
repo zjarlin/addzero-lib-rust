@@ -5,9 +5,9 @@ use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use sqlx::Row;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
@@ -337,11 +337,9 @@ impl KnowledgeGraphApi for BrowserKnowledgeGraphApi {
         node_id: String,
     ) -> LocalBoxFuture<'_, KnowledgeGraphResult<Vec<KnowledgeSourceRefDto>>> {
         Box::pin(async move {
-            super::browser_http::get_json(&format!(
-                "/api/admin/knowledge/nodes/{node_id}/sources"
-            ))
-            .await
-            .map_err(KnowledgeGraphError::new)
+            super::browser_http::get_json(&format!("/api/admin/knowledge/nodes/{node_id}/sources"))
+                .await
+                .map_err(KnowledgeGraphError::new)
         })
     }
 
@@ -476,8 +474,8 @@ pub async fn load_knowledge_node_sources_on_server(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn load_knowledge_exceptions_on_server(
-) -> KnowledgeGraphResult<Vec<KnowledgeExceptionCardDto>> {
+pub async fn load_knowledge_exceptions_on_server()
+-> KnowledgeGraphResult<Vec<KnowledgeExceptionCardDto>> {
     let pool = connect_pool().await?;
     ensure_knowledge_schema(&pool).await?;
     read_knowledge_exceptions(&pool).await
@@ -629,7 +627,8 @@ pub async fn resolve_knowledge_exception_on_server(
         id: row.try_get("id").map_err(query_error)?,
         exception_type: row.try_get("exception_type").map_err(query_error)?,
         severity: row.try_get("severity").map_err(query_error)?,
-        subject_title: node_title_by_id(&pool, row.try_get("subject_node_id").ok().flatten()).await?,
+        subject_title: node_title_by_id(&pool, row.try_get("subject_node_id").ok().flatten())
+            .await?,
         related_title: match row.try_get::<Option<String>, _>("related_node_id") {
             Ok(value) => node_title_by_id(&pool, value).await.ok(),
             Err(_) => None,
@@ -645,8 +644,8 @@ pub async fn resolve_knowledge_exception_on_server(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn run_knowledge_maintenance_on_server(
-) -> KnowledgeGraphResult<KnowledgeMaintenanceReportDto> {
+pub async fn run_knowledge_maintenance_on_server()
+-> KnowledgeGraphResult<KnowledgeMaintenanceReportDto> {
     let pool = connect_pool().await?;
     ensure_knowledge_schema(&pool).await?;
 
@@ -655,11 +654,8 @@ pub async fn run_knowledge_maintenance_on_server(
         "SELECT COUNT(*)::BIGINT FROM admin_knowledge_raw_items",
     )
     .await?;
-    let nodes_created = scalar_count(
-        &pool,
-        "SELECT COUNT(*)::BIGINT FROM admin_knowledge_nodes",
-    )
-    .await?;
+    let nodes_created =
+        scalar_count(&pool, "SELECT COUNT(*)::BIGINT FROM admin_knowledge_nodes").await?;
     let exceptions_opened = scalar_count(
         &pool,
         "SELECT COUNT(*)::BIGINT FROM admin_knowledge_exceptions WHERE status = 'open'",
@@ -679,7 +675,9 @@ pub async fn run_knowledge_maintenance_on_server(
 #[cfg(not(target_arch = "wasm32"))]
 async fn connect_pool() -> KnowledgeGraphResult<sqlx::postgres::PgPool> {
     let database_url = addzero_knowledge::database_url().ok_or_else(|| {
-        KnowledgeGraphError::new("缺少 PostgreSQL 连接：请设置 MSC_AIO_DATABASE_URL 或 DATABASE_URL")
+        KnowledgeGraphError::new(
+            "缺少 PostgreSQL 连接：请设置 MSC_AIO_DATABASE_URL 或 DATABASE_URL",
+        )
     })?;
 
     sqlx::postgres::PgPoolOptions::new()
@@ -706,7 +704,9 @@ async fn ensure_knowledge_schema(pool: &sqlx::postgres::PgPool) -> KnowledgeGrap
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn read_knowledge_feed(pool: &sqlx::postgres::PgPool) -> KnowledgeGraphResult<KnowledgeFeedDto> {
+async fn read_knowledge_feed(
+    pool: &sqlx::postgres::PgPool,
+) -> KnowledgeGraphResult<KnowledgeFeedDto> {
     let rows = sqlx::query(
         r#"
         SELECT
@@ -817,8 +817,14 @@ async fn read_knowledge_node_detail(
         status: row.try_get("status").map_err(query_error)?,
         visibility: row.try_get("visibility").map_err(query_error)?,
         confidence: row.try_get("confidence").map_err(query_error)?,
-        source_count: row.try_get::<i64, _>("source_count").map_err(query_error)?.max(0) as usize,
-        relation_count: row.try_get::<i64, _>("relation_count").map_err(query_error)?.max(0) as usize,
+        source_count: row
+            .try_get::<i64, _>("source_count")
+            .map_err(query_error)?
+            .max(0) as usize,
+        relation_count: row
+            .try_get::<i64, _>("relation_count")
+            .map_err(query_error)?
+            .max(0) as usize,
         has_conflict: row.try_get("has_conflict").map_err(query_error)?,
         updated_at: row
             .try_get::<Option<DateTime<Utc>>, _>("updated_at")
@@ -860,7 +866,9 @@ async fn read_knowledge_node_sources(
         .into_iter()
         .map(|row| KnowledgeSourceRefDto {
             raw_item_id: row.try_get("raw_item_id").unwrap_or_default(),
-            source_type: row.try_get("source_type").unwrap_or_else(|_| "note".to_string()),
+            source_type: row
+                .try_get("source_type")
+                .unwrap_or_else(|_| "note".to_string()),
             raw_type: row.try_get("raw_type").unwrap_or_default(),
             title: row.try_get("title").unwrap_or_default(),
             excerpt: row.try_get("excerpt").unwrap_or_default(),

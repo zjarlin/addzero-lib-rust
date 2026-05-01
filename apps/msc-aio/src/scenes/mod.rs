@@ -1,9 +1,10 @@
 pub mod agent_nodes;
 pub mod agents;
+pub mod asset_chat;
 pub mod auth;
+pub mod cli_market;
 pub mod dashboard;
-pub mod files;
+pub mod download_station;
 pub mod knowledge_base;
 pub mod system_management;
 pub mod system_settings;
-pub mod download_station;

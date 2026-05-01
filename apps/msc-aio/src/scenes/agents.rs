@@ -7,9 +7,12 @@ use dioxus_components::{
     SidebarSection, Stack, Surface, SurfaceHeader, Textarea, Tone, WorkbenchButton,
 };
 
-use crate::app::Route;
-use crate::services::{SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto};
-use crate::state::AppServices;
+use crate::{
+    app::Route,
+    scenes::asset_chat::{AssetChatFact, AssetChatKind, AssetChatPanel},
+    services::{SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto},
+    state::AppServices,
+};
 
 #[component]
 pub fn Agents() -> Element {
@@ -267,6 +270,7 @@ pub fn AgentEditor(name: String) -> Element {
     let mut feedback = use_signal::<Option<String>>(|| None);
     let mut confirm_open = use_signal(|| false);
     let mut loading = use_signal(|| !is_new);
+    let mut chat_draft = use_signal(String::new);
 
     let _loader = {
         let skills_api = skills_api.clone();
@@ -407,12 +411,12 @@ pub fn AgentEditor(name: String) -> Element {
                     }
                     Field {
                         label: "最后更新".to_string(),
-                        value: updated_display,
+                        value: updated_display.clone(),
                         readonly: true,
                     }
                     Field {
                         label: "Content hash".to_string(),
-                        value: hash_display,
+                        value: hash_display.clone(),
                         readonly: true,
                     }
                 }
@@ -432,6 +436,21 @@ pub fn AgentEditor(name: String) -> Element {
                 SurfaceHeader {
                     title: "说明与正文".to_string(),
                     subtitle: "description 是 SKILL.md frontmatter；正文写技能的具体指令。".to_string()
+                }
+                AssetChatPanel {
+                    kind: AssetChatKind::Skill,
+                    object_title: name_state.read().clone(),
+                    facts: vec![
+                        AssetChatFact::new("来源", source_display.clone()),
+                        AssetChatFact::new("最后更新", updated_display.clone()),
+                        AssetChatFact::new("Content hash", hash_display.clone()),
+                        AssetChatFact::new("关键词", keywords_state.read().join("，")),
+                    ],
+                    draft: chat_draft.read().clone(),
+                    placeholder: "输入技能触发、正文调整、安装或同步记录".to_string(),
+                    readonly_excerpt: Some(description_state.read().clone()),
+                    on_draft: move |value| chat_draft.set(value),
+                    on_submit: move |_| chat_draft.set(String::new()),
                 }
                 Stack {
                     Textarea {

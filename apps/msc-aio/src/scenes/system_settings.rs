@@ -1,8 +1,10 @@
 use dioxus::prelude::*;
 use dioxus_components::{ContentHeader, Field, Surface, SurfaceHeader, WorkbenchButton};
 
-use crate::services::{LOGO_PREVIEW_BASE_URL, LogoUploadRequest};
-use crate::state::AppServices;
+use crate::services::{
+    BrandingLogoSource, LOGO_PREVIEW_BASE_URL, LogoUploadRequest, SharedBrandingSettingsApi,
+};
+use crate::state::{APP_ICON_ASSET_PATH, AppServices, BrandingState};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SettingsTab {
@@ -45,8 +47,8 @@ pub fn SystemSettings() -> Element {
     let compact_navigation = use_signal(|| false);
     let show_entry_dock = use_signal(|| true);
 
-    let brand_copy = use_signal(|| "顶部品牌区展示 logo、站点名称和当前工作区说明。".to_string());
-    let header_badge = use_signal(|| "Knowledge Workspace".to_string());
+    let brand_copy = use_signal(|| branding.state.read().brand_copy.clone());
+    let header_badge = use_signal(|| branding.state.read().header_badge.clone());
 
     let require_mfa = use_signal(|| true);
     let audit_notice = use_signal(|| true);
@@ -169,6 +171,35 @@ fn SettingsTabButton(props: SettingsTabButtonProps) -> Element {
 }
 
 #[derive(Props, Clone, PartialEq)]
+struct SettingsSelectFieldProps {
+    label: String,
+    value: String,
+    options: Vec<(String, String)>,
+    on_input: EventHandler<String>,
+}
+
+#[component]
+fn SettingsSelectField(props: SettingsSelectFieldProps) -> Element {
+    let on_input = props.on_input;
+
+    rsx! {
+        label { class: "field",
+            span { class: "field__label", "{props.label}" }
+            select {
+                class: "field__input field__select",
+                value: props.value,
+                onchange: move |evt| {
+                    on_input.call(evt.value());
+                },
+                for (option_value, option_label) in props.options {
+                    option { value: option_value, "{option_label}" }
+                }
+            }
+        }
+    }
+}
+
+#[derive(Props, Clone, PartialEq)]
 struct GeneralSettingsTabProps {
     site_name: Signal<String>,
     site_tagline: Signal<String>,
@@ -181,6 +212,7 @@ struct GeneralSettingsTabProps {
 fn GeneralSettingsTab(props: GeneralSettingsTabProps) -> Element {
     let services = use_context::<AppServices>();
     let branding = services.branding;
+    let branding_api = services.branding_settings.clone();
 
     rsx! {
         Surface {
@@ -191,14 +223,20 @@ fn GeneralSettingsTab(props: GeneralSettingsTabProps) -> Element {
                     WorkbenchButton {
                         class: "action-button action-button--primary".to_string(),
                         onclick: {
-                            let mut branding_state = branding.state;
+                            let branding_state = branding.state;
                             let site_name = props.site_name;
-                            let mut feedback = props.feedback;
+                            let feedback = props.feedback;
+                            let branding_api = branding_api.clone();
                             move |_| {
                                 let mut current = branding_state.read().clone();
-                                current.site_name = site_name.read().clone();
-                                branding_state.set(current);
-                                feedback.set(Some("已保存工作台名称，顶部品牌区已同步更新。".to_string()));
+                                current.site_name = site_name.read().trim().to_string();
+                                persist_branding_state(
+                                    branding_state,
+                                    branding_api.clone(),
+                                    feedback,
+                                    current,
+                                    "已保存工作台名称，顶部品牌区已同步更新。".to_string(),
+                                );
                             }
                         },
                         "保存"
@@ -273,13 +311,20 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
     let services = use_context::<AppServices>();
     let branding = services.branding;
     let logo_storage = services.logo_storage.clone();
+    let branding_api = services.branding_settings.clone();
     let mut uploading = use_signal(|| false);
-    let current_logo = branding.state.read().logo.clone();
+    let current_state = branding.state.read().clone();
+    let current_logo = current_state.logo.clone();
+    let logo_source = current_state.logo_source;
 
-    let logo_name = current_logo
-        .as_ref()
-        .map(|logo| logo.file_name.clone())
-        .unwrap_or_default();
+    let logo_name = match logo_source {
+        BrandingLogoSource::AppIcon => "app-icon.png".to_string(),
+        BrandingLogoSource::CustomUpload => current_logo
+            .as_ref()
+            .map(|logo| logo.file_name.clone())
+            .unwrap_or_default(),
+        BrandingLogoSource::TextOnly => "不显示图形 Logo".to_string(),
+    };
     let object_key = current_logo
         .as_ref()
         .map(|logo| logo.object_key.clone())
@@ -288,14 +333,20 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
         .as_ref()
         .map(|logo| logo.relative_path.clone())
         .unwrap_or_default();
-    let preview_url = current_logo
-        .as_ref()
-        .map(|logo| logo.preview_url())
-        .unwrap_or_default();
-    let backend_label = current_logo
-        .as_ref()
-        .map(|logo| logo.backend_label.clone())
-        .unwrap_or_else(storage_backend_hint);
+    let preview_url = current_state.active_logo_url().unwrap_or_default();
+    let backend_label = match logo_source {
+        BrandingLogoSource::AppIcon => "应用内置资产".to_string(),
+        BrandingLogoSource::CustomUpload => current_logo
+            .as_ref()
+            .map(|logo| logo.backend_label.clone())
+            .unwrap_or_else(storage_backend_hint),
+        BrandingLogoSource::TextOnly => "顶部品牌位仅显示文字".to_string(),
+    };
+    let preview_empty_text = match logo_source {
+        BrandingLogoSource::TextOnly => "当前设置为仅文字品牌位",
+        BrandingLogoSource::CustomUpload => "还没有上传 logo",
+        BrandingLogoSource::AppIcon => "App 图标未加载",
+    };
 
     rsx! {
         Surface {
@@ -306,14 +357,24 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
                     WorkbenchButton {
                         class: "action-button action-button--primary".to_string(),
                         onclick: {
-                            let mut branding_state = branding.state;
+                            let branding_state = branding.state;
                             let site_name = props.site_name;
-                            let mut feedback = props.feedback;
+                            let feedback = props.feedback;
+                            let brand_copy = props.brand_copy;
+                            let header_badge = props.header_badge;
+                            let branding_api = branding_api.clone();
                             move |_| {
                                 let mut current = branding_state.read().clone();
-                                current.site_name = site_name.read().clone();
-                                branding_state.set(current);
-                                feedback.set(Some("品牌名称已保存，顶部标题已同步更新。".to_string()));
+                                current.site_name = site_name.read().trim().to_string();
+                                current.brand_copy = brand_copy.read().trim().to_string();
+                                current.header_badge = header_badge.read().trim().to_string();
+                                persist_branding_state(
+                                    branding_state,
+                                    branding_api.clone(),
+                                    feedback,
+                                    current,
+                                    "品牌配置已保存到数据库，顶部标题已同步更新。".to_string(),
+                                );
                             }
                         },
                         "保存"
@@ -356,14 +417,47 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
         Surface {
             SurfaceHeader {
                 title: "品牌 Logo".to_string(),
-                subtitle: "Logo 继续作为品牌资产保留，但顶部左上角改为纯文字品牌位。".to_string()
+                subtitle: "顶部品牌位可以使用 App 图标，也可以切换为数据库记录的自定义上传资产。".to_string()
+            }
+            div { class: "logo-source-options",
+                for source in [
+                    BrandingLogoSource::AppIcon,
+                    BrandingLogoSource::CustomUpload,
+                    BrandingLogoSource::TextOnly,
+                ] {
+                    LogoSourceButton {
+                        source,
+                        active: logo_source == source,
+                        disabled: *uploading.read(),
+                        on_select: {
+                            let branding_state = branding.state;
+                            let mut feedback = props.feedback;
+                            let branding_api = branding_api.clone();
+                            move |selected| {
+                                let mut next = branding_state.read().clone();
+                                if selected == BrandingLogoSource::CustomUpload && next.logo.is_none() {
+                                    feedback.set(Some("先上传一个 logo，再切换为自定义上传。".to_string()));
+                                    return;
+                                }
+                                next.logo_source = selected;
+                                persist_branding_state(
+                                    branding_state,
+                                    branding_api.clone(),
+                                    feedback,
+                                    next,
+                                    format!("Logo 来源已切换为{}。", selected.label()),
+                                );
+                            }
+                        }
+                    }
+                }
             }
             div { class: "settings-grid",
                 div { class: "settings-panel stack",
                     label { class: "upload-dropzone",
                         span { class: "upload-dropzone__eyebrow", "品牌入口" }
                         span { class: "upload-dropzone__title", "上传一张横向 logo" }
-                        span { class: "upload-dropzone__detail", "建议透明底 PNG / SVG / WebP，文件不超过 4MB。" }
+                        span { class: "upload-dropzone__detail", "上传后文件进入对象存储，数据库保存当前品牌配置和对象引用。" }
                         input {
                             class: "upload-dropzone__input",
                             r#type: "file",
@@ -379,6 +473,7 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
                                 feedback.set(Some("正在读取并上传 logo…".to_string()));
 
                                 let logo_storage = logo_storage.clone();
+                                let branding_api = branding_api.clone();
                                 let mut feedback = props.feedback;
                                 let mut uploading = uploading;
                                 let mut branding_state = branding.state;
@@ -399,10 +494,23 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
                                                     let file_name = stored.file_name.clone();
                                                     let mut current = branding_state.read().clone();
                                                     current.logo = Some(stored.into());
-                                                    branding_state.set(current);
-                                                    feedback.set(Some(format!(
-                                                        "Logo 已更新：{file_name}，当前存储后端 {backend}"
-                                                    )));
+                                                    current.logo_source = BrandingLogoSource::CustomUpload;
+                                                    match branding_api
+                                                        .save_settings(current.to_settings_update())
+                                                        .await
+                                                    {
+                                                        Ok(saved) => {
+                                                            branding_state.set(saved.into());
+                                                            feedback.set(Some(format!(
+                                                                "Logo 已更新并写入数据库：{file_name}，当前存储后端 {backend}"
+                                                            )));
+                                                        }
+                                                        Err(err) => {
+                                                            feedback.set(Some(format!(
+                                                                "Logo 已上传但保存配置失败：{err}"
+                                                            )));
+                                                        }
+                                                    }
                                                 }
                                                 Err(err) => {
                                                     feedback.set(Some(format!("上传失败：{err}")));
@@ -421,22 +529,27 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
                     }
 
                     div { class: "settings-note",
-                        "对象存储优先走 RustFS / S3-compatible；MinIO 可直接按同一协议接入。"
+                        "内置 App 图标不需要上传；自定义 Logo 会走 RustFS / S3-compatible 存储，PG 只保存配置引用。"
                     }
                 }
 
                 div { class: "logo-preview-card stack",
                     div {
-                        class: if current_logo.is_some() { "logo-preview logo-preview--filled" } else { "logo-preview" },
-                        if let Some(logo) = current_logo.as_ref() {
+                        class: if preview_url.is_empty() { "logo-preview" } else { "logo-preview logo-preview--filled" },
+                        if !preview_url.is_empty() {
                             img {
                                 class: "logo-preview__image",
-                                src: logo.preview_url(),
-                                alt: format!("{} preview", logo.file_name)
+                                src: "{preview_url}",
+                                alt: format!("{} preview", logo_name)
                             }
                         } else {
-                            div { class: "logo-preview__empty", "还没有上传 logo" }
+                            div { class: "logo-preview__empty", "{preview_empty_text}" }
                         }
+                    }
+                    Field {
+                        label: "当前来源".to_string(),
+                        value: logo_source.label().to_string(),
+                        readonly: true
                     }
                     Field {
                         label: "当前文件".to_string(),
@@ -457,9 +570,9 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
                     }
                     Field {
                         label: "预览地址".to_string(),
-                        value: preview_url,
+                        value: preview_url.clone(),
                         readonly: true,
-                        placeholder: "前端会拼接 minio-api.addzero.site"
+                        placeholder: APP_ICON_ASSET_PATH.to_string()
                     }
                     Field {
                         label: "存储后端".to_string(),
@@ -468,6 +581,36 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
                     }
                 }
             }
+        }
+    }
+}
+
+#[derive(Props, Clone, PartialEq)]
+struct LogoSourceButtonProps {
+    source: BrandingLogoSource,
+    active: bool,
+    disabled: bool,
+    on_select: EventHandler<BrandingLogoSource>,
+}
+
+#[component]
+fn LogoSourceButton(props: LogoSourceButtonProps) -> Element {
+    let class = if props.active {
+        "logo-source-button logo-source-button--active"
+    } else {
+        "logo-source-button"
+    };
+    let label = props.source.label();
+    let source = props.source;
+    let on_select = props.on_select;
+
+    rsx! {
+        button {
+            class,
+            r#type: "button",
+            disabled: props.disabled,
+            onclick: move |_| on_select.call(source),
+            "{label}"
         }
     }
 }
@@ -578,17 +721,27 @@ fn DefaultValueSettingsTab(props: DefaultValueSettingsTabProps) -> Element {
                         move |value| default_home.set(value)
                     }
                 }
-                Field {
+                SettingsSelectField {
                     label: "默认知识视角".to_string(),
                     value: props.default_lens.read().clone(),
+                    options: vec![
+                        ("笔记".to_string(), "笔记".to_string()),
+                        ("软件".to_string(), "软件".to_string()),
+                        ("安装包".to_string(), "安装包".to_string()),
+                    ],
                     on_input: {
                         let mut default_lens = props.default_lens;
                         move |value| default_lens.set(value)
                     }
                 }
-                Field {
+                SettingsSelectField {
                     label: "默认主题".to_string(),
                     value: props.default_theme.read().clone(),
+                    options: vec![
+                        ("浅色".to_string(), "浅色".to_string()),
+                        ("深色".to_string(), "深色".to_string()),
+                        ("跟随系统".to_string(), "跟随系统".to_string()),
+                    ],
                     on_input: {
                         let mut default_theme = props.default_theme;
                         move |value| default_theme.set(value)
@@ -758,4 +911,24 @@ fn storage_backend_hint() -> String {
     {
         "MinIO / S3-compatible · 需要配置 ADMIN_LOGO_S3_* 环境变量".to_string()
     }
+}
+
+fn persist_branding_state(
+    mut branding_state: Signal<BrandingState>,
+    branding_api: SharedBrandingSettingsApi,
+    mut feedback: Signal<Option<String>>,
+    next: BrandingState,
+    success_message: String,
+) {
+    spawn(async move {
+        match branding_api.save_settings(next.to_settings_update()).await {
+            Ok(saved) => {
+                branding_state.set(saved.into());
+                feedback.set(Some(success_message));
+            }
+            Err(err) => {
+                feedback.set(Some(format!("保存失败：{err}")));
+            }
+        }
+    });
 }

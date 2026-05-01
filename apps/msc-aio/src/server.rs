@@ -23,10 +23,10 @@ use addzero_agent_runtime_contract::{
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 
 use crate::services::{
-    KnowledgeExceptionCardDto, KnowledgeFeedDto, KnowledgeMaintenanceReportDto,
-    KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto, KnowledgeSourceRefDto,
-    LogoUploadRequest, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
-    StoredLogoDto, SyncReportDto,
+    BrandingSettingsDto, BrandingSettingsUpdate, KnowledgeExceptionCardDto, KnowledgeFeedDto,
+    KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto,
+    KnowledgeSourceRefDto, LogoUploadRequest, ResolveKnowledgeExceptionInput, SkillDto,
+    SkillSourceDto, SkillUpsertDto, StoredLogoDto, SyncReportDto,
 };
 
 use self::auth::AdminSessionService;
@@ -36,6 +36,7 @@ pub struct BackendServices {
     pub skills: SkillService,
     pub runtime: AgentRuntimeService,
     pub admin_auth: AdminSessionService,
+    pub cli_market: crate::services::cli_market::CliMarketService,
     pub software_catalog: Option<addzero_software_catalog::SoftwareCatalogService>,
 }
 
@@ -60,18 +61,23 @@ pub async fn services() -> &'static BackendServices {
                 .unwrap_or_else(|_| "http://127.0.0.1:8787".into());
             let runtime = AgentRuntimeService::try_attach(database_url.as_deref(), base_url).await;
             let admin_auth = AdminSessionService::from_env();
-            let software_catalog = if let Some(url) = database_url.as_deref().filter(|url| !url.trim().is_empty()) {
-                addzero_software_catalog::SoftwareCatalogService::connect(url)
-                    .await
-                    .ok()
-            } else {
-                None
-            };
+            let cli_market =
+                crate::services::cli_market::CliMarketService::try_attach(database_url.as_deref())
+                    .await;
+            let software_catalog =
+                if let Some(url) = database_url.as_deref().filter(|url| !url.trim().is_empty()) {
+                    addzero_software_catalog::SoftwareCatalogService::connect(url)
+                        .await
+                        .ok()
+                } else {
+                    None
+                };
 
             BackendServices {
                 skills,
                 runtime,
                 admin_auth,
+                cli_market,
                 software_catalog,
             }
         })
@@ -87,6 +93,10 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/admin/session/login", post(login))
         .route("/api/admin/session/logout", post(logout))
         .route("/api/admin/storage/logo", post(upload_logo))
+        .route(
+            "/api/admin/settings/branding",
+            get(get_branding_settings).post(save_branding_settings),
+        )
         .route("/api/skills", get(list_skills))
         .route("/api/skills/status", get(skill_status))
         .route("/api/skills/sync", post(sync_skills))
@@ -196,6 +206,27 @@ async fn logout() -> ApiResult<Response> {
             .map_err(|_| ApiError::internal("failed to encode logout cookie"))?,
     );
     Ok(response)
+}
+
+async fn get_branding_settings(headers: HeaderMap) -> ApiResult<Json<BrandingSettingsDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let settings = crate::services::branding_settings::load_branding_settings_on_server()
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(settings))
+}
+
+async fn save_branding_settings(
+    headers: HeaderMap,
+    Json(input): Json<BrandingSettingsUpdate>,
+) -> ApiResult<Json<BrandingSettingsDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let settings = crate::services::branding_settings::save_branding_settings_on_server(input)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(settings))
 }
 
 async fn upload_logo(

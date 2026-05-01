@@ -207,7 +207,7 @@ textarea {
   padding: 2px 0;
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 7px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -216,6 +216,25 @@ textarea {
 
 .topbar-brand--text-only {
   background: transparent;
+}
+
+.topbar-brand__mark {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel-strong) 88%, transparent);
+}
+
+.topbar-brand__mark-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .topbar-brand__media {
@@ -524,6 +543,7 @@ textarea {
 .activity-item,
 .knowledge-doc,
 .knowledge-outline__item,
+.note-card,
 .callout,
 .segment-button,
 .toolbar-button,
@@ -636,10 +656,299 @@ textarea {
 }
 
 .graph-caption__dot,
+.note-feed-meta__query,
 .graph-detail__kind,
 .entry-actions__hint,
 .entry-log__title {
   color: var(--muted);
+}
+
+.shortcut-hint {
+  min-height: 30px;
+  padding: 5px 10px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 86%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel-strong) 86%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.note-toolbar {
+  min-width: min(100%, 420px);
+}
+
+.note-search {
+  width: min(100%, 420px);
+}
+
+.note-feed-layout {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.78fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.note-feed-main,
+.note-feed-aside {
+  min-width: 0;
+}
+
+.note-feed-aside {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.note-feed-meta,
+.note-card__tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.note-feed-meta {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.note-rich-editor {
+  margin: 0 0 12px;
+}
+
+.note-rich-editor__root {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel-strong) 88%, transparent);
+}
+
+.note-rich-editor__toolbar {
+  min-height: 34px;
+  padding: 5px 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
+}
+
+.note-rich-editor__button,
+.note-rich-editor__mode {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text) 86%, var(--muted));
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.note-rich-editor__button:hover,
+.note-rich-editor__mode:hover,
+.note-rich-editor__mode[data-state="active"] {
+  background: color-mix(in srgb, var(--accent-soft) 76%, transparent);
+  color: color-mix(in srgb, var(--accent) 78%, var(--text));
+}
+
+.note-rich-editor__spacer {
+  flex: 1;
+}
+
+.note-rich-editor__modes {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.note-rich-editor__mode {
+  width: auto;
+  min-width: 34px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.note-rich-editor__body {
+  min-height: 160px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.note-rich-editor__root[data-md-mode="live-preview"] .note-rich-editor__body {
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+}
+
+.note-rich-editor__editor,
+.note-rich-editor__preview {
+  min-width: 0;
+  min-height: 160px;
+}
+
+.note-rich-editor__editor[data-state="inactive"],
+.note-rich-editor__preview[data-state="inactive"] {
+  display: none;
+}
+
+.note-rich-editor__root[data-md-mode="live-preview"] .note-rich-editor__editor[data-state="active"],
+.note-rich-editor__root[data-md-mode="live-preview"] .note-rich-editor__preview[data-state="active"] {
+  display: block;
+}
+
+.note-rich-editor__editor textarea {
+  width: 100%;
+  min-height: 160px;
+  height: 160px;
+  padding: 12px 14px;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 1.62;
+}
+
+.note-rich-editor__divider {
+  display: none;
+  background: color-mix(in srgb, var(--line) 80%, transparent);
+}
+
+.note-rich-editor__root[data-md-mode="live-preview"] .note-rich-editor__divider {
+  display: block;
+}
+
+.note-rich-editor__preview {
+  padding: 12px 14px;
+  overflow: auto;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.62;
+}
+
+.note-rich-editor__preview h1,
+.note-rich-editor__preview h2,
+.note-rich-editor__preview h3 {
+  margin: 0.2em 0 0.45em;
+  font-size: 1.08em;
+  line-height: 1.35;
+}
+
+.note-rich-editor__preview p {
+  margin: 0 0 0.7em;
+}
+
+.note-rich-editor__preview ul,
+.note-rich-editor__preview ol {
+  margin: 0.2em 0 0.8em;
+  padding-left: 1.25em;
+}
+
+.note-rich-editor__preview code {
+  padding: 1px 4px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--panel-soft) 94%, transparent);
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.note-rich-editor__preview pre {
+  margin: 0.4em 0 0.8em;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel-soft) 96%, transparent);
+  overflow: auto;
+}
+
+.note-card-grid {
+  columns: 2 340px;
+  column-gap: 12px;
+}
+
+.note-card {
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 17px 18px;
+  break-inside: avoid;
+  display: inline-block;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-strong) 94%, transparent), color-mix(in srgb, var(--panel) 90%, transparent));
+  color: var(--text);
+  box-shadow: none;
+}
+
+.note-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-strong) 98%, transparent), color-mix(in srgb, var(--accent-soft) 12%, var(--panel) 88%));
+}
+
+.note-card--software {
+  border-top: 3px solid color-mix(in srgb, var(--good) 74%, transparent);
+}
+
+.note-card--package {
+  border-top: 3px solid color-mix(in srgb, var(--warn) 78%, transparent);
+}
+
+.note-card__time {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.note-card__title {
+  margin: 8px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.28;
+  letter-spacing: 0;
+}
+
+.note-card__body {
+  margin: 9px 0 0;
+  color: color-mix(in srgb, var(--text) 82%, var(--muted));
+  font-size: 14px;
+  line-height: 1.68;
+  white-space: pre-wrap;
+}
+
+.note-card__outline {
+  margin-top: 12px;
+  display: grid;
+  gap: 7px;
+}
+
+.note-card__outline span {
+  padding-left: 10px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.note-card__tags {
+  margin-top: 14px;
+}
+
+.note-entry-dock,
+.note-entry-log {
+  position: sticky;
+  top: 66px;
 }
 
 .graph-workbench,
@@ -1220,6 +1529,87 @@ textarea {
 
 .package-workbench > .surface + .surface {
   border-left: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+}
+
+.asset-chat {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
+}
+
+.asset-chat__thread {
+  display: grid;
+  gap: 10px;
+}
+
+.asset-chat__message {
+  display: grid;
+  gap: 6px;
+  max-width: 94%;
+}
+
+.asset-chat__message--user {
+  justify-self: end;
+}
+
+.asset-chat__message--assistant {
+  justify-self: start;
+}
+
+.asset-chat__role {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.asset-chat__body {
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.asset-chat__message--user .asset-chat__body {
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--panel-strong));
+}
+
+.asset-chat__title {
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.asset-chat__facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 5px 10px;
+  margin: 8px 0 0;
+}
+
+.asset-chat__facts dt {
+  color: var(--muted);
+}
+
+.asset-chat__facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-chat__body--pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.asset-chat__footer {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .package-list {
@@ -2095,6 +2485,37 @@ textarea {
   color: var(--text);
 }
 
+.logo-source-options {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.logo-source-button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  color: color-mix(in srgb, var(--text) 84%, var(--muted));
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.logo-source-button--active {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+  background: color-mix(in srgb, var(--accent-soft) 80%, var(--panel-strong) 20%);
+  color: color-mix(in srgb, var(--accent) 74%, var(--text));
+}
+
+.logo-source-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
 .logo-preview {
   min-height: 164px;
   padding: 18px;
@@ -2138,6 +2559,11 @@ textarea {
   box-shadow: none;
   color: var(--text);
   font-size: 13px;
+}
+
+.field__select {
+  cursor: pointer;
+  padding-right: 28px;
 }
 
 .form-divider {
@@ -3026,6 +3452,7 @@ textarea {
   .graph-workbench,
   .graph-stage,
   .entry-stage,
+  .note-feed-layout,
   .knowledge-board,
   .dictionary-board,
   .package-workbench {
@@ -3110,8 +3537,18 @@ textarea {
   }
 
   .graph-search,
+  .note-search,
   .graph-toolbar {
     width: 100%;
+  }
+
+  .note-card-grid {
+    columns: 1;
+  }
+
+  .note-entry-dock,
+  .note-entry-log {
+    position: static;
   }
 
   .software-market-layout {

@@ -1,13 +1,12 @@
-use std::collections::BTreeSet;
-
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
 
 use crate::config::{Config, PlatformType};
 use crate::error::{Result, io_error};
 use crate::package_manager::PackageManager;
 use crate::platform::{
-    command_exists, prompt_yes_no, quote_sh, run_interactive_shell, run_shell, run_shell_checked,
+    command_exists, prompt_yes_no, run_interactive_shell, run_shell, run_shell_checked,
 };
 use crate::settings::Settings;
 use crate::status::StatusStore;
@@ -356,13 +355,4 @@ fn hash_command(command: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(command.as_bytes());
     format!("{:x}", hasher.finalize())
-}
-
-#[allow(dead_code)]
-fn shell_join_command(program: &str, args: &[&str]) -> String {
-    std::iter::once(program)
-        .chain(args.iter().copied())
-        .map(quote_sh)
-        .collect::<Vec<_>>()
-        .join(" ")
 }

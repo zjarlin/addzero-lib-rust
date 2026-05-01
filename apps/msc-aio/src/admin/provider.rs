@@ -5,8 +5,9 @@ use dioxus_components::{
 };
 
 use crate::app::Route;
+use crate::services::BrandingLogoSource;
 use crate::services::SharedAuthApi;
-use crate::state::{AuthSession, BrandingPrefs, ThemePrefs};
+use crate::state::{AuthSession, BrandingPrefs, BrandingState, ThemePrefs};
 
 pub struct DefaultAdminProvider {
     auth: AuthSession,
@@ -69,8 +70,6 @@ impl AdminProvider<Route> for DefaultAdminProvider {
         let branding = self.branding;
         let user = auth.username.read().clone();
         let brand_state = branding.state.read().clone();
-        let logo = brand_state.logo;
-        let site_name = brand_state.site_name;
         let is_dark = *theme.dark_mode.read();
         let dark_mode = theme.dark_mode;
         let logged_in = auth.logged_in;
@@ -79,12 +78,7 @@ impl AdminProvider<Route> for DefaultAdminProvider {
         let auth_api = self.auth_api.clone();
 
         AdminTopbar {
-            brand: Some(render_brand(
-                logo.as_ref(),
-                site_name.as_str(),
-                user.as_str(),
-                current,
-            )),
+            brand: Some(render_brand(&brand_state, user.as_str(), current)),
             eyebrow: None,
             title: String::new(),
             left: Vec::new(),
@@ -112,7 +106,11 @@ impl AdminProvider<Route> for DefaultAdminProvider {
                     title: "搜索".to_string(),
                     tone: None,
                     icon: AdminActionIcon::Search,
-                    cmd: AdminCommand::default(),
+                    cmd: AdminCommand::run(|| {
+                        document::eval(
+                            "if (window.mscFocusCommandSearch) window.mscFocusCommandSearch();",
+                        );
+                    }),
                 },
                 AdminAction {
                     class: "icon-button".to_string(),
@@ -153,10 +151,11 @@ fn domain_for_route(route: &Route) -> AdminDomain {
         Route::Home | Route::Dashboard => AdminDomain::Overview,
         Route::Agents | Route::AgentEditor { .. } => AdminDomain::Agents,
         Route::KnowledgeNotes
-        | Route::KnowledgeSoftware
         | Route::KnowledgePackages
-        | Route::DownloadStation
-        | Route::Files => AdminDomain::Knowledge,
+        | Route::KnowledgeCliMarket
+        | Route::KnowledgeCliMarketImports
+        | Route::KnowledgeCliMarketDocs
+        | Route::DownloadStation => AdminDomain::Knowledge,
         Route::SystemUsers
         | Route::SystemMenus
         | Route::SystemRoles
@@ -174,13 +173,13 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
     match domain {
         AdminDomain::Overview => AdminSection {
             label: domain.label().to_string(),
-            menus: vec![AdminMenu::leaf("知识图谱概览", Route::Home, |route| {
+            menus: vec![AdminMenu::leaf("闪念", Route::Home, |route| {
                 matches!(route, Route::Home | Route::Dashboard)
             })],
         },
         AdminDomain::Agents => AdminSection {
             label: domain.label().to_string(),
-            menus: vec![AdminMenu::leaf("技能资产", Route::Agents, |route| {
+            menus: vec![AdminMenu::leaf("技能", Route::Agents, |route| {
                 matches!(route, Route::Agents | Route::AgentEditor { .. })
             })],
         },
@@ -190,17 +189,34 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                 AdminMenu::leaf("笔记", Route::KnowledgeNotes, |route| {
                     matches!(route, Route::KnowledgeNotes)
                 }),
-                AdminMenu::leaf("Skill", Route::KnowledgeSoftware, |route| {
-                    matches!(route, Route::KnowledgeSoftware)
-                }),
                 AdminMenu::leaf("安装包", Route::KnowledgePackages, |route| {
                     matches!(route, Route::KnowledgePackages)
                 }),
-                AdminMenu::leaf("Download Station", Route::DownloadStation, |route| {
+                AdminMenu::branch(
+                    "CLI 市场",
+                    Some(Route::KnowledgeCliMarket),
+                    vec![
+                        AdminMenu::leaf("注册表", Route::KnowledgeCliMarket, |route| {
+                            matches!(route, Route::KnowledgeCliMarket)
+                        }),
+                        AdminMenu::leaf("导入任务", Route::KnowledgeCliMarketImports, |route| {
+                            matches!(route, Route::KnowledgeCliMarketImports)
+                        }),
+                        AdminMenu::leaf("CLI 文档", Route::KnowledgeCliMarketDocs, |route| {
+                            matches!(route, Route::KnowledgeCliMarketDocs)
+                        }),
+                    ],
+                    |route| {
+                        matches!(
+                            route,
+                            Route::KnowledgeCliMarket
+                                | Route::KnowledgeCliMarketImports
+                                | Route::KnowledgeCliMarketDocs
+                        )
+                    },
+                ),
+                AdminMenu::leaf("下载站", Route::DownloadStation, |route| {
                     matches!(route, Route::DownloadStation)
-                }),
-                AdminMenu::leaf("文件中心", Route::Files, |route| {
-                    matches!(route, Route::Files)
                 }),
             ],
         },
@@ -243,26 +259,36 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
 }
 
 fn render_brand(
-    logo: Option<&crate::state::BrandingLogo>,
-    site_name: &str,
+    brand_state: &BrandingState,
     username: &str,
     current: &Route,
 ) -> dioxus::prelude::Element {
+    let site_name = brand_state.site_name.as_str();
     let username = if username.is_empty() {
         "未登录用户".to_string()
     } else {
         username.to_string()
     };
     let active_domain = domain_for_route(current);
+    let logo_url = brand_state.active_logo_url();
 
-    let brand_detail = if let Some(logo) = logo {
-        format!("{username} · {}", logo.backend_label)
-    } else {
-        username.clone()
+    let brand_detail = match brand_state.logo_source {
+        BrandingLogoSource::AppIcon => format!("{username} · App 图标"),
+        BrandingLogoSource::CustomUpload => format!("{username} · 自定义 Logo"),
+        BrandingLogoSource::TextOnly => username.clone(),
     };
 
     let brand_panel = rsx! {
-        div { class: "topbar-brand topbar-brand--text-only",
+        div { class: "topbar-brand",
+            if let Some(url) = logo_url {
+                div { class: "topbar-brand__mark",
+                    img {
+                        class: "topbar-brand__mark-image",
+                        src: "{url}",
+                        alt: "{site_name} Logo"
+                    }
+                }
+            }
             div { class: "topbar-brand__meta",
                 span { class: "topbar-brand__label", "{site_name}" }
                 span { class: "topbar-brand__detail", "{brand_detail}" }
@@ -314,7 +340,7 @@ fn DomainLink(domain: AdminDomain, active: bool) -> Element {
 
 #[cfg(test)]
 mod tests {
-    use super::{domain_for_route, section_for_domain, AdminDomain};
+    use super::{AdminDomain, domain_for_route, section_for_domain};
     use crate::app::Route;
     use std::collections::BTreeSet;
 
@@ -324,7 +350,7 @@ mod tests {
             domain_for_route(&Route::DownloadStation),
             AdminDomain::Knowledge
         );
-        assert_eq!(domain_for_route(&Route::Files), AdminDomain::Knowledge);
+        assert_eq!(domain_for_route(&Route::Agents), AdminDomain::Agents);
         assert_eq!(AdminDomain::Knowledge.route(), Route::KnowledgeNotes);
     }
 
@@ -344,20 +370,35 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(section.label, "知识库");
-        assert_eq!(
-            labels,
-            vec!["笔记", "Skill", "安装包", "Download Station", "文件中心"]
-        );
+        assert_eq!(labels, vec!["笔记", "安装包", "CLI 市场", "下载站"]);
         assert_eq!(unique_labels.len(), labels.len());
         assert_eq!(
             routes,
             vec![
                 Some(Route::KnowledgeNotes),
-                Some(Route::KnowledgeSoftware),
                 Some(Route::KnowledgePackages),
+                Some(Route::KnowledgeCliMarket),
                 Some(Route::DownloadStation),
-                Some(Route::Files),
             ]
         );
+    }
+
+    #[test]
+    fn agent_section_owns_skill_assets() {
+        let section = section_for_domain(AdminDomain::Agents);
+        let labels = section
+            .menus
+            .iter()
+            .map(|menu| menu.label.as_str())
+            .collect::<Vec<_>>();
+        let routes = section
+            .menus
+            .iter()
+            .map(|menu| menu.to.clone())
+            .collect::<Vec<_>>();
+
+        assert_eq!(section.label, "Agent资产");
+        assert_eq!(labels, vec!["技能"]);
+        assert_eq!(routes, vec![Some(Route::Agents)]);
     }
 }

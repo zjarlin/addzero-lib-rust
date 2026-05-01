@@ -16,7 +16,7 @@ authors = ["zjarlin"]
 
 [workspace.dependencies]
 chrono = { version = "0.4.42", features = ["clock"] }
-dioxus = { version = "0.7.5", features = ["router"] }
+dioxus = { version = "=0.7.5", features = ["router"] }
 uuid = { version = "1.23.1", features = ["v4", "serde", "js"] }
 tokio = { version = "1.47.1", features = ["full"] }
 

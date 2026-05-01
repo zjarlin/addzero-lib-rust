@@ -5,10 +5,10 @@ use crate::scenes::{
     agent_nodes::{SystemAgentNodes, SystemAgentPairingApproval},
     agents::{AgentEditor, Agents},
     auth::LoginPage,
+    cli_market::{KnowledgeCliMarket, KnowledgeCliMarketDocs, KnowledgeCliMarketImports},
     dashboard::{Audit, Dashboard},
-    download_station::FilesScene as DownloadStationScene,
-    files::FilesScene,
-    knowledge_base::{KnowledgeNotes, KnowledgePackages, KnowledgeSoftware},
+    download_station::DownloadStationScene,
+    knowledge_base::{KnowledgeNotes, KnowledgePackages},
     system_management::{
         SystemDepartments, SystemDictionaries, SystemMenus, SystemRoles, SystemUsers,
     },
@@ -17,6 +17,34 @@ use crate::scenes::{
 use crate::state::{AppServices, AuthSession, BrandingPrefs, ThemePrefs};
 
 const STYLE: Asset = asset!("/assets/admin.css");
+const COMMAND_SEARCH_SCRIPT: &str = r#"
+(() => {
+  if (window.__mscCommandSearchReady) {
+    return;
+  }
+  window.__mscCommandSearchReady = true;
+
+  window.mscFocusCommandSearch = () => {
+    const input = document.querySelector('[data-command-search="true"]');
+    if (!input) {
+      return false;
+    }
+    input.focus();
+    if (typeof input.select === 'function') {
+      input.select();
+    }
+    return true;
+  };
+
+  document.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      if (window.mscFocusCommandSearch && window.mscFocusCommandSearch()) {
+        event.preventDefault();
+      }
+    }
+  });
+})();
+"#;
 
 #[derive(Routable, Clone, Debug, PartialEq)]
 pub enum Route {
@@ -33,14 +61,16 @@ pub enum Route {
     AgentEditor { name: String },
     #[route("/knowledge/notes")]
     KnowledgeNotes,
-    #[route("/knowledge/software")]
-    KnowledgeSoftware,
     #[route("/knowledge/packages")]
     KnowledgePackages,
+    #[route("/knowledge/cli-market")]
+    KnowledgeCliMarket,
+    #[route("/knowledge/cli-market/imports")]
+    KnowledgeCliMarketImports,
+    #[route("/knowledge/cli-market/docs")]
+    KnowledgeCliMarketDocs,
     #[route("/download-station")]
     DownloadStation,
-    #[route("/files")]
-    Files,
     #[route("/system/users")]
     SystemUsers,
     #[route("/system/menus")]
@@ -85,6 +115,7 @@ pub fn App() -> Element {
     use_context_provider(|| app_services.clone());
 
     let auth_api = app_services.auth_api.clone();
+    let branding_api = app_services.branding_settings.clone();
     let _auth_bootstrap = use_resource(move || {
         let auth_api = auth_api.clone();
         async move {
@@ -101,6 +132,20 @@ pub fn App() -> Element {
             auth.ready.set(true);
         }
     });
+    let _branding_bootstrap = use_resource(move || {
+        let branding_api = branding_api.clone();
+        let is_ready = *auth.ready.read();
+        let is_logged_in = *auth.logged_in.read();
+        let mut branding_state = branding.state;
+        async move {
+            if !is_ready || !is_logged_in {
+                return;
+            }
+            if let Ok(settings) = branding_api.load_settings().await {
+                branding_state.set(settings.into());
+            }
+        }
+    });
 
     let shell_class = if *theme.dark_mode.read() {
         "theme-root theme-dark"
@@ -110,6 +155,7 @@ pub fn App() -> Element {
 
     rsx! {
         document::Link { rel: "stylesheet", href: STYLE }
+        document::Script { {COMMAND_SEARCH_SCRIPT} }
         div { class: shell_class,
             Router::<Route> {}
         }
@@ -129,11 +175,6 @@ fn Home() -> Element {
 #[component]
 fn DownloadStation() -> Element {
     rsx! { DownloadStationScene {} }
-}
-
-#[component]
-fn Files() -> Element {
-    rsx! { FilesScene {} }
 }
 
 #[component]

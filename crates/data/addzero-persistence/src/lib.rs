@@ -128,6 +128,7 @@ impl MigratorTrait for WorkspaceMigrator {
             Box::new(CliMarketSchemaMigration),
             Box::new(AdminAssetGraphSchemaMigration),
             Box::new(AdminSoftwareCatalogSchemaMigration),
+            Box::new(AdminBrandingSettingsSchemaMigration),
             Box::new(AssetSchemaMigration),
             Box::new(KnowledgeSchemaMigration),
             Box::new(SkillSchemaMigration),
@@ -213,6 +214,26 @@ impl MigrationTrait for AdminSoftwareCatalogSchemaMigration {
         execute_sql(
             manager,
             include_str!("../../addzero-software-catalog/migrations/0001_init.sql"),
+        )
+        .await
+    }
+
+    async fn down(&self, _manager: &SchemaManager) -> Result<(), DbErr> {
+        Ok(())
+    }
+}
+
+#[derive(DeriveMigrationName)]
+struct AdminBrandingSettingsSchemaMigration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for AdminBrandingSettingsSchemaMigration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        execute_sql(
+            manager,
+            include_str!(
+                "../../../../apps/msc-aio/src/server/migrations/0006_admin_branding_settings.sql"
+            ),
         )
         .await
     }

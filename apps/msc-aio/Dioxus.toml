@@ -1,12 +1,16 @@
 [application]
 name = "msc-aio"
-default_platform = "web"
+default_platform = "desktop"
 
 [web.app]
-title = "Dioxus Admin"
+title = "msc-aio"
 
 [web.watcher]
 reload_html = true
 
 [bundle]
 identifier = "site.addzero.msc-aio"
+icon = [
+    "assets/app-icon.png",
+    "assets/app-icon.icns",
+]

@@ -1,8 +1,4 @@
-use std::{
-    future::Future,
-    pin::Pin,
-    rc::Rc,
-};
+use std::{future::Future, pin::Pin, rc::Rc};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::{

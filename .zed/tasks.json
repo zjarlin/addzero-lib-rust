@@ -1,0 +1,15 @@
+[
+  {
+    "label": "Debug GUI: msc-aio",
+    "command": "pkill -x msc-aio 2>/dev/null || true; cargo run -p msc-aio --bin msc-aio",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "hide": "never",
+    "save": "all",
+    "shell": "system",
+    "show_summary": true,
+    "show_command": true
+  }
+]
