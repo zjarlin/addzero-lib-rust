@@ -1,8 +1,8 @@
 use chrono::Local;
 use dioxus::prelude::*;
 use dioxus_components::{
-    ContentHeader, Field, KeywordChips, ListItem, MetricRow, ResponsiveGrid, SidebarSection, Stack,
-    Surface, SurfaceHeader, Tone, WorkbenchButton,
+    ContentHeader, KeywordChips, ListItem, MetricRow, SidebarSection, Stack, Surface,
+    SurfaceHeader, Tone, WorkbenchButton,
 };
 use dioxus_nox_markdown::{
     markdown,
@@ -90,8 +90,6 @@ struct KnowledgeEntryRecord {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct EntryFormState {
-    title: String,
-    source: String,
     body: String,
     tags: Vec<String>,
     kind: KnowledgeEntryKind,
@@ -100,8 +98,6 @@ struct EntryFormState {
 impl EntryFormState {
     fn for_capture(kind: KnowledgeEntryKind) -> Self {
         Self {
-            title: String::new(),
-            source: kind.default_source().to_string(),
             body: String::new(),
             tags: vec![kind.label().to_string()],
             kind,
@@ -195,6 +191,14 @@ pub fn Dashboard() -> Element {
             }
             div { class: "note-feed-layout",
                 div { class: "note-feed-main",
+                    NoteCaptureEditor {
+                        value: form.body.clone(),
+                        on_change: move |value| {
+                            let mut next = entry_form.read().clone();
+                            next.body = value;
+                            entry_form.set(next);
+                        }
+                    }
                     div { class: "note-feed-meta",
                         span { class: "badge badge--fs", "{lens.label()}" }
                         span { "{result_count} 条结果" }
@@ -219,7 +223,7 @@ pub fn Dashboard() -> Element {
                         div { class: "entry-dock__header",
                             h3 { class: "graph-detail__title", "条目录入" }
                             p { class: "graph-detail__copy graph-detail__copy--muted",
-                                "统一录入笔记、软件、安装包三类条目，当前先进入本地队列。"
+                                "正文来自左侧 Markdown，首行 # 会自动成为标题。"
                             }
                         }
                         div { class: "entry-kind-strip",
@@ -233,35 +237,10 @@ pub fn Dashboard() -> Element {
                                         if next.tags.is_empty() {
                                             next.tags = vec![kind.label().to_string()];
                                         }
-                                        if next.source.trim().is_empty() {
-                                            next.source = kind.default_source().to_string();
-                                        }
                                         entry_form.set(next);
                                         active_lens.set(kind.lens());
                                     },
                                     "{kind.label()}"
-                                }
-                            }
-                        }
-                        ResponsiveGrid { columns: 2,
-                            Field {
-                                label: "标题".to_string(),
-                                value: form.title.clone(),
-                                placeholder: Some("例如：ownership 讲解适合补图示".to_string()),
-                                on_input: move |value| {
-                                    let mut next = entry_form.read().clone();
-                                    next.title = value;
-                                    entry_form.set(next);
-                                }
-                            }
-                            Field {
-                                label: "来源 / 元信息".to_string(),
-                                value: form.source.clone(),
-                                placeholder: Some("阅读 / 对话 / 研究".to_string()),
-                                on_input: move |value| {
-                                    let mut next = entry_form.read().clone();
-                                    next.source = value;
-                                    entry_form.set(next);
                                 }
                             }
                         }
@@ -274,31 +253,18 @@ pub fn Dashboard() -> Element {
                                 entry_form.set(form);
                             }
                         }
-                        NoteCaptureEditor {
-                            value: form.body.clone(),
-                            on_change: move |value| {
-                                let mut next = entry_form.read().clone();
-                                next.body = value;
-                                entry_form.set(next);
-                            }
-                        }
                         div { class: "entry-actions",
                             WorkbenchButton {
                                 class: "action-button action-button--primary".to_string(),
                                 onclick: move |_| {
                                     let form = entry_form.read().clone();
-                                    let title = form.title.trim();
                                     let body = form.body.trim();
 
-                                    if title.is_empty() && body.is_empty() {
+                                    if body.is_empty() {
                                         return;
                                     }
 
-                                    let source = if form.source.trim().is_empty() {
-                                        "未注明来源".to_string()
-                                    } else {
-                                        form.source.trim().to_string()
-                                    };
+                                    let title = derive_markdown_entry_title(body, form.kind);
                                     let tags = {
                                         let tags = form.cleaned_tags();
                                         if tags.is_empty() {
@@ -311,9 +277,9 @@ pub fn Dashboard() -> Element {
                                         queue.insert(
                                             0,
                                             KnowledgeEntryRecord {
-                                                title: fallback_entry_title(title),
+                                                title,
                                                 body: body.to_string(),
-                                                source,
+                                                source: form.kind.default_source().to_string(),
                                                 tags,
                                                 kind: form.kind,
                                                 captured_at: Local::now().format("%H:%M").to_string(),
@@ -394,7 +360,7 @@ fn NoteCaptureEditor(value: String, on_change: EventHandler<String>) -> Element 
                 div { class: "note-rich-editor__body",
                     markdown::Editor {
                         class: "note-rich-editor__editor",
-                        placeholder: "记录说明、关系、待验证假设，或节点的补充上下文。",
+                        placeholder: "第一行写 # 标题，下面直接记录笔记正文。",
                         editor_aria_label: "条目说明 Markdown 编辑器",
                         spell_check: true,
                     }
@@ -826,12 +792,36 @@ fn seed_entry_log() -> Vec<KnowledgeEntryRecord> {
     ]
 }
 
-fn fallback_entry_title(title: &str) -> String {
-    if title.trim().is_empty() {
-        "未命名条目".to_string()
-    } else {
-        title.trim().to_string()
+fn derive_markdown_entry_title(body: &str, kind: KnowledgeEntryKind) -> String {
+    let Some(first_line) = body.lines().map(str::trim).find(|line| !line.is_empty()) else {
+        return format!("未命名{}", kind.label());
+    };
+
+    markdown_heading_title(first_line)
+        .or_else(|| Some(strip_inline_markdown_title(first_line)))
+        .filter(|title| !title.is_empty())
+        .unwrap_or_else(|| format!("未命名{}", kind.label()))
+}
+
+fn markdown_heading_title(line: &str) -> Option<String> {
+    let heading_level = line.bytes().take_while(|byte| *byte == b'#').count();
+    if heading_level == 0 || heading_level > 6 {
+        return None;
     }
+
+    let title = line[heading_level..].trim();
+    if title.is_empty() {
+        return None;
+    }
+
+    Some(strip_inline_markdown_title(title.trim_end_matches('#').trim()))
+}
+
+fn strip_inline_markdown_title(line: &str) -> String {
+    line.trim()
+        .trim_matches(|ch| matches!(ch, '*' | '_' | '`' | '~'))
+        .trim()
+        .to_string()
 }
 
 fn note_docs() -> Vec<&'static KnowledgeDoc> {

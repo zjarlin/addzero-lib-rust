@@ -16,7 +16,7 @@ use crate::scenes::{
 };
 use crate::state::{AppServices, AuthSession, BrandingPrefs, ThemePrefs};
 
-const STYLE: Asset = asset!("/assets/admin.css");
+const STYLE: &str = include_str!("../assets/admin.css");
 const COMMAND_SEARCH_SCRIPT: &str = r#"
 (() => {
   if (window.__mscCommandSearchReady) {
@@ -154,7 +154,7 @@ pub fn App() -> Element {
     };
 
     rsx! {
-        document::Link { rel: "stylesheet", href: STYLE }
+        document::Style { {STYLE} }
         document::Script { {COMMAND_SEARCH_SCRIPT} }
         div { class: shell_class,
             Router::<Route> {}
