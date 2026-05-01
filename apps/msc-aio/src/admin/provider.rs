@@ -19,7 +19,6 @@ pub struct DefaultAdminProvider {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AdminDomain {
     Overview,
-    Agents,
     Knowledge,
     System,
     Audit,
@@ -29,7 +28,6 @@ impl AdminDomain {
     fn label(self) -> &'static str {
         match self {
             Self::Overview => "总览",
-            Self::Agents => "Agent资产",
             Self::Knowledge => "知识库",
             Self::System => "系统管理",
             Self::Audit => "审计日志",
@@ -39,7 +37,6 @@ impl AdminDomain {
     fn route(self) -> Route {
         match self {
             Self::Overview => Route::Home,
-            Self::Agents => Route::Agents,
             Self::Knowledge => Route::KnowledgeNotes,
             Self::System => Route::SystemUsers,
             Self::Audit => Route::Audit,
@@ -149,7 +146,7 @@ impl AdminProvider<Route> for DefaultAdminProvider {
 fn domain_for_route(route: &Route) -> AdminDomain {
     match route {
         Route::Home | Route::Dashboard => AdminDomain::Overview,
-        Route::Agents | Route::AgentEditor { .. } => AdminDomain::Agents,
+        Route::Agents | Route::AgentEditor { .. } => AdminDomain::Knowledge,
         Route::KnowledgeNotes
         | Route::KnowledgePackages
         | Route::KnowledgeCliMarket
@@ -177,17 +174,14 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                 matches!(route, Route::Home | Route::Dashboard)
             })],
         },
-        AdminDomain::Agents => AdminSection {
-            label: domain.label().to_string(),
-            menus: vec![AdminMenu::leaf("技能", Route::Agents, |route| {
-                matches!(route, Route::Agents | Route::AgentEditor { .. })
-            })],
-        },
         AdminDomain::Knowledge => AdminSection {
             label: domain.label().to_string(),
             menus: vec![
                 AdminMenu::leaf("笔记", Route::KnowledgeNotes, |route| {
                     matches!(route, Route::KnowledgeNotes)
+                }),
+                AdminMenu::leaf("Skills", Route::Agents, |route| {
+                    matches!(route, Route::Agents | Route::AgentEditor { .. })
                 }),
                 AdminMenu::leaf("安装包", Route::KnowledgePackages, |route| {
                     matches!(route, Route::KnowledgePackages)
@@ -310,7 +304,6 @@ fn DomainSwitcher(active: AdminDomain) -> Element {
         div { class: "domain-switcher",
             for domain in [
                 AdminDomain::Overview,
-                AdminDomain::Agents,
                 AdminDomain::Knowledge,
                 AdminDomain::System,
                 AdminDomain::Audit,
@@ -350,7 +343,7 @@ mod tests {
             domain_for_route(&Route::DownloadStation),
             AdminDomain::Knowledge
         );
-        assert_eq!(domain_for_route(&Route::Agents), AdminDomain::Agents);
+        assert_eq!(domain_for_route(&Route::Agents), AdminDomain::Knowledge);
         assert_eq!(AdminDomain::Knowledge.route(), Route::KnowledgeNotes);
     }
 
@@ -370,35 +363,20 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(section.label, "知识库");
-        assert_eq!(labels, vec!["笔记", "安装包", "CLI 市场", "下载站"]);
+        assert_eq!(
+            labels,
+            vec!["笔记", "Skills", "安装包", "CLI 市场", "下载站"]
+        );
         assert_eq!(unique_labels.len(), labels.len());
         assert_eq!(
             routes,
             vec![
                 Some(Route::KnowledgeNotes),
+                Some(Route::Agents),
                 Some(Route::KnowledgePackages),
                 Some(Route::KnowledgeCliMarket),
                 Some(Route::DownloadStation),
             ]
         );
-    }
-
-    #[test]
-    fn agent_section_owns_skill_assets() {
-        let section = section_for_domain(AdminDomain::Agents);
-        let labels = section
-            .menus
-            .iter()
-            .map(|menu| menu.label.as_str())
-            .collect::<Vec<_>>();
-        let routes = section
-            .menus
-            .iter()
-            .map(|menu| menu.to.clone())
-            .collect::<Vec<_>>();
-
-        assert_eq!(section.label, "Agent资产");
-        assert_eq!(labels, vec!["技能"]);
-        assert_eq!(routes, vec![Some(Route::Agents)]);
     }
 }

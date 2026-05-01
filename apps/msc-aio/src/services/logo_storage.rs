@@ -1,11 +1,11 @@
-use std::{future::Future, pin::Pin, rc::Rc};
+use std::rc::Rc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+pub use super::LocalBoxFuture;
 
 pub const LOGO_PREVIEW_BASE_URL: &str = "https://minio-api.addzero.site";
 

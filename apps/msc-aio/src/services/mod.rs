@@ -1,3 +1,9 @@
+use std::future::Future;
+use std::pin::Pin;
+
+/// Canonical boxed future alias for service trait methods.
+pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+
 pub mod agent_runtime;
 pub mod asset_graph;
 pub mod auth;

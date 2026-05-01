@@ -89,7 +89,7 @@ pub fn MenusScene() -> Element {
             }
             DataTable {
                 columns: vec!["菜单名".to_string(), "路由".to_string(), "父级".to_string(), "排序".to_string()],
-                tr { td { "Agent资产" } td { "/agents" } td { "后台" } td { "30" } }
+                tr { td { "Skills" } td { "/agents" } td { "后台" } td { "30" } }
                 tr { td { "系统管理 / Agent 节点" } td { "/system/agent-nodes" } td { "系统管理" } td { "48" } }
                 tr { td { "知识库 / 笔记" } td { "/knowledge/notes" } td { "知识库" } td { "10" } }
                 tr { td { "系统管理 / 用户" } td { "/system/users" } td { "系统管理" } td { "10" } }

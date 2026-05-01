@@ -3,14 +3,14 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use dioxus::prelude::*;
 use dioxus_components::{
-    Badge, ConfirmDialog, ContentHeader, Divider, Field, KeywordChips, MetricRow, MetricStrip,
-    SidebarSection, Stack, Surface, SurfaceHeader, Textarea, Tone, WorkbenchButton,
+    Badge, ContentHeader, Field, MetricRow, MetricStrip, SidebarSection, Stack, Surface,
+    SurfaceHeader, Tone, WorkbenchButton,
 };
 
 use crate::{
     app::Route,
-    scenes::asset_chat::{AssetChatFact, AssetChatKind, AssetChatPanel},
-    services::{SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto},
+    domains::asset_chat::{AssetChatFact, AssetChatKind, AssetChatPanel},
+    services::{SkillDto, SkillSourceDto, SyncReportDto},
     state::AppServices,
 };
 
@@ -47,7 +47,7 @@ pub fn Agents() -> Element {
         Some(Err(err)) => {
             return rsx! {
                 ContentHeader {
-                    title: "Agent资产".to_string(),
+                    title: "Skills".to_string(),
                     subtitle: "当前先把 SKILL.md 作为 Skills 资产管理，后续再扩到其它 Agent 资产。".to_string()
                 }
                 Surface {
@@ -60,7 +60,7 @@ pub fn Agents() -> Element {
         None => {
             return rsx! {
                 ContentHeader {
-                    title: "Agent资产".to_string(),
+                    title: "Skills".to_string(),
                     subtitle: "当前先把 SKILL.md 作为 Skills 资产管理，后续再扩到其它 Agent 资产。".to_string()
                 }
                 Surface { div { class: "empty-state", "正在加载…" } }
@@ -89,18 +89,13 @@ pub fn Agents() -> Element {
 
     rsx! {
         ContentHeader {
-            title: "Agent资产".to_string(),
-            subtitle: "当前先把 SKILL.md 作为 Skills 资产管理，后续再扩到模型、提示词和工具配置等资产。".to_string(),
-            actions: rsx!(
-                Link { to: Route::AgentEditor { name: "_new".to_string() },
-                    WorkbenchButton { class: "action-button".to_string(), tone: Tone::Accent, "新增 Skills 资产" }
-                }
-            )
+            title: "Skills".to_string(),
+            subtitle: "作为知识库资产查看 Skills、模型、提示词和工具配置；内容在来源侧维护。".to_string()
         }
         Surface {
             SurfaceHeader {
                 title: "Skills 资产".to_string(),
-                subtitle: "按名称或关键词搜索；以树状目录呈现技能资产，可同时看到分组与条目。".to_string(),
+                subtitle: "按名称或关键词搜索；目录树保持紧凑，只做查看与定位。".to_string(),
                 actions: rsx!(
                     WorkbenchButton {
                         class: "toolbar-button".to_string(),
@@ -129,7 +124,7 @@ pub fn Agents() -> Element {
                     Surface {
                         SurfaceHeader {
                             title: "技能目录树".to_string(),
-                            subtitle: "按命名空间 / 前缀分组；点击节点直接进入编辑。".to_string()
+                            subtitle: "按命名空间 / 前缀分组；点击节点查看详情。".to_string()
                         }
                         div { class: "stack",
                             for group in grouped_skills.iter() {
@@ -148,10 +143,7 @@ pub fn Agents() -> Element {
                         }
                     }
                     Surface {
-                        SurfaceHeader {
-                            title: "目录说明".to_string(),
-                            subtitle: "支持多个部署路径；同一技能组下会并列展示多个条目。".to_string()
-                        }
+                        SurfaceHeader { title: "分组".to_string(), subtitle: "当前筛选结果。".to_string() }
                         div { class: "stack",
                             for group in grouped_skills.iter() {
                                 div { class: "context-line",
@@ -256,7 +248,6 @@ fn source_badge_props(source: &SkillSourceDto) -> (String, String) {
 
 #[component]
 pub fn AgentEditor(name: String) -> Element {
-    let nav = use_navigator();
     let skills_api = use_context::<AppServices>().skills.clone();
     let is_new = name == "_new";
     let load_name = name.clone();
@@ -268,7 +259,6 @@ pub fn AgentEditor(name: String) -> Element {
     let mut updated_at_state = use_signal::<Option<DateTime<Utc>>>(|| None);
     let mut hash_state = use_signal(String::new);
     let mut feedback = use_signal::<Option<String>>(|| None);
-    let mut confirm_open = use_signal(|| false);
     let mut loading = use_signal(|| !is_new);
     let mut chat_draft = use_signal(String::new);
 
@@ -306,63 +296,10 @@ pub fn AgentEditor(name: String) -> Element {
         })
     };
 
-    let save_skills_api = skills_api.clone();
-    let save_nav = nav;
-    let save = move |_| {
-        let payload = SkillUpsertDto {
-            name: name_state.read().trim().to_string(),
-            keywords: keywords_state.read().clone(),
-            description: description_state.read().clone(),
-            body: body_state.read().clone(),
-        };
-        if payload.name.is_empty() {
-            feedback.set(Some("名称不能为空。".into()));
-            return;
-        }
-
-        let skills_api = save_skills_api.clone();
-        spawn(async move {
-            feedback.set(Some("正在保存…".into()));
-            match skills_api.upsert_skill(payload).await {
-                Ok(skill) => {
-                    feedback.set(Some(format!("已保存（{}）。", source_label(&skill.source))));
-                    name_state.set(skill.name.clone());
-                    source_state.set(skill.source.clone());
-                    updated_at_state.set(Some(skill.updated_at));
-                    hash_state.set(skill.content_hash.clone());
-                    if is_new {
-                        save_nav.replace(Route::AgentEditor {
-                            name: skill.name.clone(),
-                        });
-                    }
-                }
-                Err(err) => feedback.set(Some(format!("保存失败：{err}"))),
-            }
-        });
-    };
-
-    let request_delete = move |_| confirm_open.set(true);
-    let cancel_delete = move |_: ()| confirm_open.set(false);
-    let delete_skills_api = skills_api.clone();
-    let delete_nav = nav;
-    let confirm_delete = move |_: ()| {
-        confirm_open.set(false);
-        let skills_api = delete_skills_api.clone();
-        let skill_name = name_state.read().clone();
-        spawn(async move {
-            match skills_api.delete_skill(skill_name).await {
-                Ok(()) => {
-                    delete_nav.replace(Route::Agents);
-                }
-                Err(err) => feedback.set(Some(format!("删除失败：{err}"))),
-            }
-        });
-    };
-
     let header_title = if is_new {
-        "新增 Skills 资产".to_string()
+        "Skills 资产".to_string()
     } else {
-        format!("编辑：{name}")
+        format!("查看：{name}")
     };
     let updated_display = match *updated_at_state.read() {
         Some(timestamp) => timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -381,7 +318,7 @@ pub fn AgentEditor(name: String) -> Element {
     rsx! {
         ContentHeader {
             title: header_title,
-            subtitle: "管理 Skills 资产的 SKILL.md 元信息、关键词触发与正文。".to_string(),
+            subtitle: "Agent 资产已并入知识库，这里只读查看 SKILL.md 元信息、关键词触发与正文。".to_string(),
             actions: rsx!(
                 Link { to: Route::Agents,
                     WorkbenchButton { class: "toolbar-button".to_string(), "返回列表" }
@@ -400,8 +337,7 @@ pub fn AgentEditor(name: String) -> Element {
                     Field {
                         label: "名称".to_string(),
                         value: name_state.read().clone(),
-                        readonly: !is_new,
-                        on_input: move |value: String| name_state.set(value),
+                        readonly: true,
                         placeholder: "kebab-case，例如 my-skill".to_string(),
                     }
                     Field {
@@ -420,22 +356,18 @@ pub fn AgentEditor(name: String) -> Element {
                         readonly: true,
                     }
                 }
-                Divider {}
-                div {
-                    div { class: "field__label", style: "margin-bottom: 8px;", "触发关键词" }
-                    KeywordChips {
-                        value: keywords_state.read().clone(),
-                        on_change: move |next: Vec<String>| keywords_state.set(next),
-                    }
-                    div { class: "context-line",
-                        span { "保存时会写回 description 头部 \"当用户提到 …\" 模板段。" }
+                if !keywords_state.read().is_empty() {
+                    div { class: "knowledge-meta",
+                        for keyword in keywords_state.read().iter() {
+                            span { class: "badge", "{keyword}" }
+                        }
                     }
                 }
             }
             Surface {
                 SurfaceHeader {
                     title: "说明与正文".to_string(),
-                    subtitle: "description 是 SKILL.md frontmatter；正文写技能的具体指令。".to_string()
+                    subtitle: "description 是 SKILL.md frontmatter；正文来自来源目录，只读展示。".to_string()
                 }
                 AssetChatPanel {
                     kind: AssetChatKind::Skill,
@@ -453,20 +385,13 @@ pub fn AgentEditor(name: String) -> Element {
                     on_submit: move |_| chat_draft.set(String::new()),
                 }
                 Stack {
-                    Textarea {
-                        label: "Description".to_string(),
-                        value: description_state.read().clone(),
-                        rows: 4,
-                        placeholder: "保存时关键词会自动渲染到开头".to_string(),
-                        on_input: move |value: String| description_state.set(value),
+                    div { class: "readonly-block",
+                        div { class: "knowledge-detail__label", "Description" }
+                        div { class: "knowledge-excerpt", "{description_state.read()}" }
                     }
-                    Textarea {
-                        label: "Body (Markdown)".to_string(),
-                        value: body_state.read().clone(),
-                        rows: 14,
-                        monospace: true,
-                        placeholder: "# 技能名\n\n操作指南……".to_string(),
-                        on_input: move |value: String| body_state.set(value),
+                    div { class: "readonly-block",
+                        div { class: "knowledge-detail__label", "Body (Markdown)" }
+                        pre { class: "knowledge-excerpt knowledge-excerpt--mono", "{body_state.read()}" }
                     }
                 }
             }
@@ -474,35 +399,9 @@ pub fn AgentEditor(name: String) -> Element {
                 div { class: "callout callout--info", "{msg}" }
             }
             div { class: "editor-footer",
-                if !is_new {
-                    WorkbenchButton {
-                        class: "toolbar-button".to_string(),
-                        onclick: request_delete,
-                        "删除"
-                    }
-                }
-                span { class: "editor-footer__spacer" }
                 Link { to: Route::Agents,
-                    WorkbenchButton { class: "toolbar-button".to_string(), "取消" }
+                    WorkbenchButton { class: "toolbar-button".to_string(), "返回" }
                 }
-                WorkbenchButton {
-                    class: "action-button".to_string(),
-                    tone: Tone::Accent,
-                    onclick: save,
-                    "保存"
-                }
-            }
-            ConfirmDialog {
-                open: *confirm_open.read(),
-                title: "确认删除".to_string(),
-                message: format!(
-                    "将删除 SKILL.md 与（如果在线）PG 中的 {} 记录。该操作不可撤销。",
-                    name_state.read()
-                ),
-                confirm_label: "删除".to_string(),
-                cancel_label: "取消".to_string(),
-                on_confirm: confirm_delete,
-                on_cancel: cancel_delete,
             }
         }
     }

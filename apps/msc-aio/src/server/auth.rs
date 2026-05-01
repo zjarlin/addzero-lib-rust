@@ -41,6 +41,16 @@ impl AdminSessionService {
         let password = std::env::var("DIOXUS_ADMIN_PASSWORD").unwrap_or_else(|_| "admin".into());
         let secret = std::env::var("DIOXUS_ADMIN_SESSION_SECRET")
             .unwrap_or_else(|_| "dev-session-secret-change-me".into());
+        if secret == "dev-session-secret-change-me" {
+            log::warn!(
+                "⚠️  DIOXUS_ADMIN_SESSION_SECRET 未设置，使用默认密钥。生产环境请务必配置！"
+            );
+        }
+        if username == "admin" && password == "admin" {
+            log::warn!(
+                "⚠️  使用默认凭证 admin/admin，生产环境请配置 DIOXUS_ADMIN_USERNAME 和 DIOXUS_ADMIN_PASSWORD"
+            );
+        }
         let ttl_hours = std::env::var("DIOXUS_ADMIN_SESSION_HOURS")
             .ok()
             .and_then(|value| value.parse::<u64>().ok())
@@ -56,7 +66,8 @@ impl AdminSessionService {
 
     pub fn authenticate(&self, input: &LoginRequest) -> Result<String, AdminAuthFailure> {
         self.validate_credentials(input)?;
-        Ok(self.issue_cookie(input.username.trim()))
+        self.issue_cookie(input.username.trim())
+            .map_err(|_| AdminAuthFailure::PasswordIncorrect)
     }
 
     pub fn current_user(&self, headers: &HeaderMap) -> Option<String> {
@@ -99,20 +110,24 @@ impl AdminSessionService {
         Ok(())
     }
 
-    fn issue_cookie(&self, username: &str) -> String {
+    fn issue_cookie(&self, username: &str) -> Result<String, anyhow::Error> {
         let expires_at = Utc::now()
             + chrono::Duration::from_std(self.ttl).unwrap_or_else(|_| chrono::Duration::hours(12));
-        let payload = format!("{username}|{}", expires_at.timestamp());
+        let payload = format!("{}|{}", username, expires_at.timestamp());
         let payload_encoded = URL_SAFE_NO_PAD.encode(payload.as_bytes());
-        let signature = sign(&self.signing_key, payload.as_bytes()).unwrap_or_default();
-        format!("{payload_encoded}.{}", URL_SAFE_NO_PAD.encode(signature))
+        let signature = sign(&self.signing_key, payload.as_bytes())?;
+        Ok(format!(
+            "{}.{}",
+            payload_encoded,
+            URL_SAFE_NO_PAD.encode(signature)
+        ))
     }
 
     fn verify_cookie(&self, cookie_value: &str) -> Option<String> {
         let (payload_encoded, signature_encoded) = cookie_value.split_once('.')?;
         let payload = URL_SAFE_NO_PAD.decode(payload_encoded).ok()?;
         let signature = URL_SAFE_NO_PAD.decode(signature_encoded).ok()?;
-        let expected = sign(&self.signing_key, &payload)?;
+        let expected = sign(&self.signing_key, &payload).ok()?;
         if expected != signature {
             return None;
         }
@@ -128,10 +143,11 @@ impl AdminSessionService {
     }
 }
 
-fn sign(key: &[u8], payload: &[u8]) -> Option<Vec<u8>> {
-    let mut mac = HmacSha256::new_from_slice(key).ok()?;
+fn sign(key: &[u8], payload: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let mut mac =
+        HmacSha256::new_from_slice(key).map_err(|err| anyhow::anyhow!("HMAC 初始化失败: {err}"))?;
     mac.update(payload);
-    Some(mac.finalize().into_bytes().to_vec())
+    Ok(mac.finalize().into_bytes().to_vec())
 }
 
 fn find_cookie<'a>(header: &'a str, key: &str) -> Option<&'a str> {

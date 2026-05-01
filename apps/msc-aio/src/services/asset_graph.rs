@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin, rc::Rc};
+use std::rc::Rc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::{
@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+pub use super::LocalBoxFuture;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

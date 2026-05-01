@@ -1,10 +1,10 @@
-use std::{future::Future, pin::Pin, rc::Rc};
+use std::rc::Rc;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+pub use super::LocalBoxFuture;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SkillSourceDto {

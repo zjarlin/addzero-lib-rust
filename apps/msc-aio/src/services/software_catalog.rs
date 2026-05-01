@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin, rc::Rc};
+use std::rc::Rc;
 
 #[cfg(target_arch = "wasm32")]
 use addzero_software_catalog::SoftwareCatalogError;
@@ -10,7 +10,7 @@ pub use addzero_software_catalog::{
     SoftwarePlatform, current_platform,
 };
 
-pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+pub use super::LocalBoxFuture;
 
 pub trait SoftwareCatalogApi: 'static {
     fn catalog(&self) -> LocalBoxFuture<'_, SoftwareCatalogResult<SoftwareCatalogDto>>;

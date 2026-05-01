@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin, rc::Rc};
+use std::rc::Rc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
@@ -8,7 +8,7 @@ use thiserror::Error;
 
 use crate::services::StoredLogoDto;
 
-pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+pub use super::LocalBoxFuture;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

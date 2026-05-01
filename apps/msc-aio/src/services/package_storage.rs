@@ -1,7 +1,5 @@
 use std::{
-    future::Future,
     path::{Path, PathBuf},
-    pin::Pin,
     rc::Rc,
 };
 
@@ -18,7 +16,7 @@ use thiserror::Error;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::sync::broadcast;
 
-pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+pub use super::LocalBoxFuture;
 
 pub const PACKAGE_BUCKET: &str = "msc-aio";
 pub const PACKAGE_RELATIVE_PREFIX: &str = "installation";

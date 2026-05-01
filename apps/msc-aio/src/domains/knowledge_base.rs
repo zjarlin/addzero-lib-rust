@@ -1,21 +1,20 @@
 use dioxus::prelude::*;
 use dioxus_components::{
     ContentHeader, Field, GroupedListPanel, GroupedListPanelGroup, GroupedListPanelItem, ListItem,
-    MetricRow, ResponsiveGrid, SidebarSection, Stack, StatTile, Surface, SurfaceHeader, Tone,
+    MetricRow, ResponsiveGrid, SidebarSection, Stack, Surface, SurfaceHeader, Tone,
     WorkbenchButton,
 };
 
 use crate::{
+    domains::asset_chat::{AssetChatFact, AssetChatKind, AssetChatPanel},
     knowledge_catalog::{
         KNOWLEDGE_DATA_MODE, KNOWLEDGE_DOCS, KNOWLEDGE_SOURCE_AVAILABLE,
-        KNOWLEDGE_SOURCE_SUMMARIES, KnowledgeDoc, knowledge_doc, total_bytes, total_sections,
-        total_sources,
+        KNOWLEDGE_SOURCE_SUMMARIES, KnowledgeDoc, knowledge_doc, total_bytes, total_sources,
     },
     package_catalog::{
         PACKAGE_CHANNELS, PackageAsset, first_package_asset_slug_for_channel, package_asset,
         package_asset_count, package_assets, package_channel,
     },
-    scenes::asset_chat::{AssetChatFact, AssetChatKind, AssetChatPanel},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -118,9 +117,8 @@ pub fn KnowledgeNotes() -> Element {
 
     rsx! {
         KnowledgeSceneHeader {
-            subtitle: "笔记目录会把 PostgreSQL 镜像、桌面研究成果、Hermes 输出等文本资产统一纳入知识视图。"
+            subtitle: "笔记、Agent 资产、安装包、CLI 文档和下载站输出统一纳入知识视图。"
         }
-        KnowledgeSummary {}
         if KNOWLEDGE_DOCS.is_empty() {
             Surface {
                 SurfaceHeader {
@@ -140,7 +138,7 @@ pub fn KnowledgeNotes() -> Element {
             div { class: "knowledge-board",
                 GroupedListPanel {
                     title: "笔记目录".to_string(),
-                    subtitle: format!("已纳入 {} 份知识文档，当前显示 {} 份。", KNOWLEDGE_DOCS.len(), visible_docs.len()),
+                    subtitle: format!("{} / {} 份", visible_docs.len(), KNOWLEDGE_DOCS.len()),
                     children: rsx!(
                         div { class: "knowledge-source",
                             span { class: "badge", "{data_mode_label()}" }
@@ -152,7 +150,7 @@ pub fn KnowledgeNotes() -> Element {
                                 class: "graph-search note-search",
                                 r#type: "search",
                                 value: "{search}",
-                                placeholder: "搜索笔记标题、正文、标签或来源",
+                                placeholder: "搜索标题、正文、标签或来源",
                                 oninput: move |evt| search.set(evt.value())
                             }
                         }
@@ -232,29 +230,6 @@ fn KnowledgeSceneHeader(subtitle: &'static str) -> Element {
 }
 
 #[component]
-fn KnowledgeSummary() -> Element {
-    rsx! {
-        ResponsiveGrid { columns: 3,
-            StatTile {
-                label: "已纳入文档".to_string(),
-                value: KNOWLEDGE_DOCS.len().to_string(),
-                detail: "当前全部挂在“笔记”子场景下。".to_string()
-            }
-            StatTile {
-                label: "来源目录".to_string(),
-                value: total_sources().to_string(),
-                detail: "每个来源目录都单独分组，避免不同资产混在一起。".to_string()
-            }
-            StatTile {
-                label: "章节小节".to_string(),
-                value: total_sections().to_string(),
-                detail: format!("当前目录快照体量约 {}。", format_bytes(total_bytes()))
-            }
-        }
-    }
-}
-
-#[component]
 fn KnowledgeDetailSurface(
     doc: KnowledgeDoc,
     chat_draft: String,
@@ -277,8 +252,8 @@ fn KnowledgeDetailSurface(
                     "源文件路径："
                     "{doc.source_path}"
                 }
-                div { class: "callout",
-                    "来源目录："
+                div { class: "knowledge-path-row",
+                    span { class: "knowledge-detail__label-inline", "来源目录" }
                     "{doc.source_root}"
                 }
                 if !doc.headings.is_empty() {

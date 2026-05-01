@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_components::AdminShell;
 
-use crate::scenes::{
+use crate::domains::{
     agent_nodes::{SystemAgentNodes, SystemAgentPairingApproval},
     agents::{AgentEditor, Agents},
     auth::LoginPage,
