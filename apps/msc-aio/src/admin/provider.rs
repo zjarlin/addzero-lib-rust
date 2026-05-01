@@ -311,3 +311,45 @@ fn DomainLink(domain: AdminDomain, active: bool) -> Element {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{AdminDomain, domain_for_route, section_for_domain};
+    use crate::app::Route;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn files_route_stays_inside_knowledge_domain() {
+        assert_eq!(domain_for_route(&Route::Files), AdminDomain::Knowledge);
+        assert_eq!(AdminDomain::Knowledge.route(), Route::KnowledgeNotes);
+    }
+
+    #[test]
+    fn knowledge_section_exposes_single_unique_navigation_tree() {
+        let section = section_for_domain(AdminDomain::Knowledge);
+        let labels = section
+            .menus
+            .iter()
+            .map(|menu| menu.label.as_str())
+            .collect::<Vec<_>>();
+        let unique_labels = labels.iter().copied().collect::<BTreeSet<_>>();
+        let routes = section
+            .menus
+            .iter()
+            .map(|menu| menu.to.clone())
+            .collect::<Vec<_>>();
+
+        assert_eq!(section.label, "知识库");
+        assert_eq!(labels, vec!["笔记", "软件", "安装包", "文件中心"]);
+        assert_eq!(unique_labels.len(), labels.len());
+        assert_eq!(
+            routes,
+            vec![
+                Some(Route::KnowledgeNotes),
+                Some(Route::KnowledgeSoftware),
+                Some(Route::KnowledgePackages),
+                Some(Route::Files),
+            ]
+        );
+    }
+}
