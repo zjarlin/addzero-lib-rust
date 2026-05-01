@@ -4776,6 +4776,7 @@ dependencies = [
  "base64",
  "blake3",
  "chrono",
+ "clap",
  "dioxus",
  "dioxus-components",
  "dioxus-free-icons",

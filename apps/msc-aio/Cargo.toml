@@ -13,6 +13,7 @@ addzero-software-catalog = { path = "../../crates/data/addzero-software-catalog"
 base64.workspace = true
 blake3 = "1.5.5"
 chrono = { workspace = true, features = ["serde"] }
+clap = { version = "4.5.38", features = ["derive"] }
 dioxus = { workspace = true, features = ["router"] }
 dioxus-components = { path = "../../crates/ui/dioxus-components" }
 dioxus-free-icons.workspace = true
@@ -65,7 +66,7 @@ addzero-knowledge = { path = "../../crates/data/addzero-knowledge" }
 tokio.workspace = true
 
 [features]
-default = ["web"]
+default = ["desktop"]
 desktop = ["dioxus/desktop"]
 web = ["dioxus/web"]
 
