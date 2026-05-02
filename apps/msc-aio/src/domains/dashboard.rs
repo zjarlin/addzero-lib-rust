@@ -158,7 +158,7 @@ pub fn Dashboard() -> Element {
 
     rsx! {
         ContentHeader {
-            title: "Agent 工作台".to_string(),
+            title: "工作台".to_string(),
             subtitle: "树形资产、CLI 安装、笔记录入和附件采集收敛到同一个对话入口。".to_string(),
             actions: rsx!(
                 div { class: "shortcut-hint", "Cmd K" }
