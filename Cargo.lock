@@ -17,6 +17,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "addzero-admin-domain-audit"
+version = "0.1.0"
+dependencies = [
+ "addzero-admin-plugin-registry",
+ "dioxus",
+ "dioxus-components",
+]
+
+[[package]]
+name = "addzero-admin-plugin-registry"
+version = "0.1.0"
+dependencies = [
+ "inventory",
+]
+
+[[package]]
 name = "addzero-agent-runtime-contract"
 version = "0.1.0"
 dependencies = [
@@ -2627,19 +2643,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
-name = "dotfiles"
-version = "0.1.0"
-dependencies = [
- "clap",
- "serde",
- "serde_json",
- "sha2",
- "shlex",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "dpi"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4601,11 +4604,14 @@ dependencies = [
 name = "msc-aio"
 version = "0.1.0"
 dependencies = [
+ "addzero-admin-domain-audit",
+ "addzero-admin-plugin-registry",
  "addzero-agent-runtime-contract",
  "addzero-ai-agent",
  "addzero-assets",
  "addzero-cli-market-contract",
  "addzero-knowledge",
+ "addzero-minio",
  "addzero-persistence",
  "addzero-rustfs",
  "addzero-skills",
@@ -4624,6 +4630,7 @@ dependencies = [
  "dioxus-nox-markdown",
  "futures-util",
  "getrandom 0.3.4",
+ "gloo-timers",
  "hmac",
  "js-sys",
  "log",
