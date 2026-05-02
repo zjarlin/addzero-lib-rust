@@ -301,11 +301,26 @@ impl SpringYaml {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DatabaseConfig {
     pub jdbc_url: String,
     pub jdbc_username: Option<String>,
     pub jdbc_password: Option<String>,
+}
+
+impl std::fmt::Debug for DatabaseConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("DatabaseConfig")
+            .field("jdbc_url", &self.jdbc_url)
+            .field("jdbc_username", &self.jdbc_username)
+            .field(
+                "jdbc_password",
+                &self.jdbc_password.as_ref().map(|_| REDACTED),
+            )
+            .finish()
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -576,4 +591,22 @@ macro_rules! yaml_get {
         let __path = $crate::yaml_path!($($path)+);
         $crate::get_yaml_path_value(&$doc, &__path)
     }};
+}
+
+#[cfg(test)]
+mod debug_redaction_tests {
+    use super::DatabaseConfig;
+
+    #[test]
+    fn database_config_debug_redacts_password() {
+        let config = DatabaseConfig {
+            jdbc_url: "jdbc:postgresql://localhost/app".to_owned(),
+            jdbc_username: Some("demo".to_owned()),
+            jdbc_password: Some("super-secret".to_owned()),
+        };
+
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("super-secret"));
+    }
 }

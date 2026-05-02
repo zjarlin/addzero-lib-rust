@@ -36,7 +36,7 @@ pub enum EmailError {
     MissingDefaultSender,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct EmailConfig {
     pub host: String,
     pub port: u16,
@@ -45,6 +45,22 @@ pub struct EmailConfig {
     pub protocol: String,
     pub enable_ssl: bool,
     pub enable_tls: bool,
+}
+
+impl std::fmt::Debug for EmailConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("EmailConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("username", &self.username)
+            .field("password", &REDACTED)
+            .field("protocol", &self.protocol)
+            .field("enable_ssl", &self.enable_ssl)
+            .field("enable_tls", &self.enable_tls)
+            .finish()
+    }
 }
 
 impl EmailConfig {
@@ -373,4 +389,20 @@ fn build_attachment(path: &str) -> Result<SinglePart, EmailError> {
         })?;
 
     Ok(Attachment::new(filename).body(bytes, content_type))
+}
+
+#[cfg(test)]
+mod debug_redaction_tests {
+    use super::EmailConfig;
+
+    #[test]
+    fn email_config_debug_redacts_password() {
+        let config = EmailConfig::builder("smtp.example.com", "mailer", "top-secret")
+            .build()
+            .expect("email config should build");
+
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("top-secret"));
+    }
 }

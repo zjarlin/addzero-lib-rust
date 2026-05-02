@@ -49,7 +49,7 @@ pub enum SshError {
 
 pub type SshResult<T> = Result<T, SshError>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct SshConfig {
     pub host: String,
     pub port: u16,
@@ -59,6 +59,29 @@ pub struct SshConfig {
     pub private_key_passphrase: Option<String>,
     pub connect_timeout_ms: u32,
     pub read_timeout_ms: u32,
+}
+
+impl std::fmt::Debug for SshConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("SshConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("username", &self.username)
+            .field("password", &self.password.as_ref().map(|_| REDACTED))
+            .field(
+                "private_key_path",
+                &self.private_key_path.as_ref().map(|_| REDACTED),
+            )
+            .field(
+                "private_key_passphrase",
+                &self.private_key_passphrase.as_ref().map(|_| REDACTED),
+            )
+            .field("connect_timeout_ms", &self.connect_timeout_ms)
+            .field("read_timeout_ms", &self.read_timeout_ms)
+            .finish()
+    }
 }
 
 impl SshConfig {
@@ -676,6 +699,27 @@ fn expand_local_path(path: &Path) -> PathBuf {
         }
     }
     path.to_path_buf()
+}
+
+#[cfg(test)]
+mod debug_redaction_tests {
+    use super::SshConfig;
+
+    #[test]
+    fn ssh_config_debug_redacts_credentials() {
+        let config = SshConfig::builder("example.com", "alice")
+            .password("secret-password")
+            .private_key_path("/tmp/id_rsa")
+            .private_key_passphrase("ssh-phrase-secret")
+            .build()
+            .expect("ssh config should build");
+
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("secret-password"));
+        assert!(!output.contains("/tmp/id_rsa"));
+        assert!(!output.contains("ssh-phrase-secret"));
+    }
 }
 
 fn file_name_string(path: &Path) -> Option<String> {

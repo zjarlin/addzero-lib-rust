@@ -165,7 +165,7 @@ impl MqttSubscription {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,
@@ -183,6 +183,34 @@ pub struct MqttConfig {
     pub client_cert_path: Option<String>,
     pub client_key_path: Option<String>,
     pub last_will: Option<MqttMessage>,
+}
+
+impl std::fmt::Debug for MqttConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("MqttConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("client_id", &self.client_id)
+            .field("username", &self.username)
+            .field("password", &self.password.as_ref().map(|_| REDACTED))
+            .field("keep_alive_secs", &self.keep_alive_secs)
+            .field("clean_session", &self.clean_session)
+            .field("request_channel_capacity", &self.request_channel_capacity)
+            .field("inflight", &self.inflight)
+            .field("connect_timeout_secs", &self.connect_timeout_secs)
+            .field("poll_timeout_ms", &self.poll_timeout_ms)
+            .field("use_tls", &self.use_tls)
+            .field("ca_path", &self.ca_path)
+            .field("client_cert_path", &self.client_cert_path)
+            .field(
+                "client_key_path",
+                &self.client_key_path.as_ref().map(|_| REDACTED),
+            )
+            .field("last_will", &self.last_will)
+            .finish()
+    }
 }
 
 impl MqttConfig {
@@ -631,5 +659,28 @@ impl From<rumqttc::Publish> for MqttReceivedMessage {
             duplicate: value.dup,
             packet_id: (value.pkid != 0).then_some(value.pkid),
         }
+    }
+}
+
+#[cfg(test)]
+mod debug_redaction_tests {
+    use super::MqttConfig;
+
+    #[test]
+    fn mqtt_config_debug_redacts_credentials() {
+        let config = MqttConfig::builder("localhost", "client-1")
+            .username("alice")
+            .password("mqtt-secret")
+            .ca_path("/tmp/ca.pem")
+            .client_auth_paths("/tmp/client.crt", "/tmp/client.key")
+            .build()
+            .expect("mqtt config should build");
+
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("mqtt-secret"));
+        assert!(!output.contains("/tmp/client.key"));
+        assert!(output.contains("/tmp/ca.pem"));
+        assert!(output.contains("/tmp/client.crt"));
     }
 }

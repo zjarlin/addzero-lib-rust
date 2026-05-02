@@ -38,13 +38,27 @@ pub enum MinioError {
 
 pub type MinioResult<T> = Result<T, MinioError>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct MinioConfig {
     pub endpoint: String,
     pub access_key: String,
     pub secret_key: String,
     pub region: Option<String>,
     pub path_style_access: bool,
+}
+
+impl std::fmt::Debug for MinioConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("MinioConfig")
+            .field("endpoint", &self.endpoint)
+            .field("access_key", &REDACTED)
+            .field("secret_key", &REDACTED)
+            .field("region", &self.region)
+            .field("path_style_access", &self.path_style_access)
+            .finish()
+    }
 }
 
 impl MinioConfig {
@@ -758,6 +772,16 @@ mod tests {
         assert_eq!(config.secret_key, "minioadmin");
         assert_eq!(config.region, None);
         assert!(config.path_style_access);
+    }
+
+    #[test]
+    fn minio_config_debug_redacts_keys() {
+        let config = MinioConfig::new("http://localhost:9000", "minioadmin", "minio-secret");
+
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("minioadmin"));
+        assert!(!output.contains("minio-secret"));
     }
 
     #[test]
