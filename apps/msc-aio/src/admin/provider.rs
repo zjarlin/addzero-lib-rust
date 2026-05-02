@@ -7,13 +7,14 @@ use dioxus_components::{
 use crate::app::Route;
 use crate::services::BrandingLogoSource;
 use crate::services::SharedAuthApi;
-use crate::state::{AuthSession, BrandingPrefs, BrandingState, ThemePrefs};
+use crate::state::{AuthSession, BrandingPrefs, BrandingState, PermissionState, ThemePrefs};
 
 pub struct DefaultAdminProvider {
     auth: AuthSession,
     theme: ThemePrefs,
     branding: BrandingPrefs,
     auth_api: SharedAuthApi,
+    permissions: PermissionState,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -50,12 +51,14 @@ impl DefaultAdminProvider {
         theme: ThemePrefs,
         branding: BrandingPrefs,
         auth_api: SharedAuthApi,
+        permissions: PermissionState,
     ) -> Self {
         Self {
             auth,
             theme,
             branding,
             auth_api,
+            permissions,
         }
     }
 }
@@ -139,7 +142,9 @@ impl AdminProvider<Route> for DefaultAdminProvider {
     }
 
     fn menu(&self, current: &Route) -> Vec<AdminSection<Route>> {
-        vec![section_for_domain(domain_for_route(current))]
+        let section = section_for_domain(domain_for_route(current));
+        let perms = self.permissions;
+        vec![filter_section_by_permissions(section, perms)]
     }
 }
 
@@ -249,6 +254,65 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                 matches!(route, Route::Audit)
             })],
         },
+    }
+}
+
+/// 菜单项对应的权限标识。返回 None 表示始终可见（如仪表盘）。
+fn permission_for_menu(menu_label: &str) -> Option<&'static str> {
+    match menu_label {
+        "闪念" => Some("overview"),
+        "笔记" => Some("knowledge:note"),
+        "Skills" => Some("knowledge:skill"),
+        "安装包" => Some("knowledge:pkg"),
+        "CLI 市场" => Some("knowledge:cli"),
+        "导入任务" => Some("knowledge:cli"),
+        "CLI 文档" => Some("knowledge:cli"),
+        "下载站" => Some("knowledge:dl"),
+        "用户" => Some("system:user"),
+        "菜单" => Some("system:menu"),
+        "角色" => Some("system:role"),
+        "部门" => Some("system:dept"),
+        "字典管理" => Some("system:dict"),
+        "Agent 节点" => Some("system:agent"),
+        "系统设置" => Some("system:setting"),
+        "审计日志" => Some("audit"),
+        _ => None,
+    }
+}
+
+/// 递归过滤菜单树：只保留用户拥有权限的菜单项。
+fn filter_menu_by_permissions(menu: AdminMenu<Route>, perms: PermissionState) -> Option<AdminMenu<Route>> {
+    let visible = match permission_for_menu(&menu.label) {
+        None => true, // 无权限码 = 始终可见
+        Some(code) => perms.has(code),
+    };
+    if !visible {
+        return None;
+    }
+    // 过滤子菜单
+    let filtered_children: Vec<AdminMenu<Route>> = menu
+        .children
+        .into_iter()
+        .filter_map(|child| filter_menu_by_permissions(child, perms))
+        .collect();
+    Some(AdminMenu {
+        label: menu.label,
+        to: menu.to,
+        on_select: menu.on_select,
+        is_active: menu.is_active,
+        children: filtered_children,
+    })
+}
+
+fn filter_section_by_permissions(section: AdminSection<Route>, perms: PermissionState) -> AdminSection<Route> {
+    let filtered_menus = section
+        .menus
+        .into_iter()
+        .filter_map(|menu| filter_menu_by_permissions(menu, perms))
+        .collect();
+    AdminSection {
+        label: section.label,
+        menus: filtered_menus,
     }
 }
 

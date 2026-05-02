@@ -236,21 +236,6 @@ pub fn Dashboard() -> Element {
                         AgentDetailPanel { item: selected_item.clone(), axis }
                     }
                     div { class: "agent-composer-wrap",
-                        div { class: "agent-composer-axis",
-                            for item in WorkspaceAxis::ALL {
-                                button {
-                                    class: if item == axis { "agent-composer-axis__tab is-active" } else { "agent-composer-axis__tab" },
-                                    r#type: "button",
-                                    onclick: move |_| {
-                                        active_axis.set(item);
-                                        if let Some(first) = first_item_for_axis(&tree_items.read(), item) {
-                                            selected_item_id.set(first.id);
-                                        }
-                                    },
-                                    "{item.label()}"
-                                }
-                            }
-                        }
                         if let Some(message) = feedback.read().clone() {
                             div { class: "agent-feedback", "{message}" }
                         }

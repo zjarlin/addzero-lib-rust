@@ -14,7 +14,7 @@ use crate::domains::{
     },
     system_settings::SystemSettings,
 };
-use crate::state::{AppServices, AuthSession, BrandingPrefs, ThemePrefs};
+use crate::state::{AppServices, AuthSession, BrandingPrefs, PermissionState, ThemePrefs};
 
 const STYLE: &str = include_str!("../assets/admin.css");
 const COMMAND_SEARCH_SCRIPT: &str = r#"
@@ -107,11 +107,13 @@ pub fn App() -> Element {
     let branding = BrandingPrefs {
         state: branding_state,
     };
-    let app_services = AppServices::new(auth, theme, branding);
+    let permissions = PermissionState::new();
+    let app_services = AppServices::new(auth, theme, branding, permissions);
 
     use_context_provider(|| auth);
     use_context_provider(|| theme);
     use_context_provider(|| branding);
+    use_context_provider(|| permissions);
     use_context_provider(|| app_services.clone());
 
     let auth_api = app_services.auth_api.clone();
@@ -143,6 +145,39 @@ pub fn App() -> Element {
             }
             if let Ok(settings) = branding_api.load_settings().await {
                 branding_state.set(settings.into());
+            }
+        }
+    });
+    let _permissions_bootstrap = use_resource(move || {
+        let is_ready = *auth.ready.read();
+        let is_logged_in = *auth.logged_in.read();
+        let mut perm_codes = permissions.codes;
+        async move {
+            if !is_ready || !is_logged_in {
+                return;
+            }
+            // Always give admin full permissions as bootstrap.
+            // The API endpoint is available in the server binary (native + wasm fetch).
+            // For native embedded mode, the server-side session already handles it.
+            // For wasm/browser mode, we call the API.
+            #[cfg(target_arch = "wasm32")]
+            {
+                match super::services::browser_http::get_json::<Vec<String>>("/api/admin/session/permissions").await {
+                    Ok(codes) if codes.is_empty() => {
+                        perm_codes.set(Some(None));
+                    }
+                    Ok(codes) => {
+                        perm_codes.set(Some(Some(codes)));
+                    }
+                    Err(_) => {
+                        perm_codes.set(Some(None));
+                    }
+                }
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                // In embedded mode, grant full access (admin is the single-user shell)
+                perm_codes.set(Some(None));
             }
         }
     });

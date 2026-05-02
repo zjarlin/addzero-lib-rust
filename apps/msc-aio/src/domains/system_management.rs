@@ -506,21 +506,40 @@ fn RolesScene() -> Element {
                             match menus_resource.read().as_ref() {
                                 Some(Ok(menus)) => {
                                     let roots: Vec<MenuDto> = menus.iter().filter(|m| m.parent_id.is_none()).cloned().collect();
+                                    let all_ids: Vec<i32> = menus.iter().map(|m| m.id).collect();
                                     rsx! {
-                                        div { style: "padding:8px 0;",
+                                        div { style: "display:flex;gap:8px;padding:8px 0;",
+                                            WorkbenchButton {
+                                                class: "workbench-button".to_string(),
+                                                children: rsx! { "全选" },
+                                                onclick: {
+                                                    let ids = all_ids.clone();
+                                                    move |_| selected_menu_ids.set(ids.clone())
+                                                }
+                                            }
+                                            WorkbenchButton {
+                                                class: "workbench-button".to_string(),
+                                                children: rsx! { "全不选" },
+                                                onclick: move |_| selected_menu_ids.set(Vec::new())
+                                            }
+                                        }
+                                        div { style: "padding:4px 0;",
                                             for root in &roots {
                                                 MenuCheckbox {
                                                     menu: root.clone(),
                                                     all_menus: menus.clone(),
                                                     selected: selected_menu_ids.read().clone(),
                                                     on_toggle: {
-                                                        let mid = root.id;
-                                                        move |checked: bool| {
+                                                        let all_m = menus.clone();
+                                                        move |(clicked_id, now_checked): (i32, bool)| {
                                                             let mut ids = selected_menu_ids.read().clone();
-                                                            if checked {
-                                                                if !ids.contains(&mid) { ids.push(mid); }
+                                                            let descendants = collect_descendant_ids(clicked_id, &all_m);
+                                                            if now_checked {
+                                                                for did in &descendants {
+                                                                    if !ids.contains(did) { ids.push(*did); }
+                                                                }
                                                             } else {
-                                                                ids.retain(|x| *x != mid);
+                                                                ids.retain(|x| !descendants.contains(x));
                                                             }
                                                             selected_menu_ids.set(ids);
                                                         }
@@ -638,28 +657,63 @@ fn RolesScene() -> Element {
     }
 }
 
-/// 递归菜单 checkbox 组件
+/// 收集指定菜单及其所有后代 ID
+fn collect_descendant_ids(menu_id: i32, all_menus: &[MenuDto]) -> Vec<i32> {
+    let mut ids = vec![menu_id];
+    for m in all_menus.iter().filter(|m| m.parent_id == Some(menu_id)) {
+        ids.extend(collect_descendant_ids(m.id, all_menus));
+    }
+    ids
+}
+
+/// 判断节点是否"全选"（所有后代都在 selected 中）
+fn is_all_selected(menu_id: i32, all_menus: &[MenuDto], selected: &[i32]) -> bool {
+    let descendants = collect_descendant_ids(menu_id, all_menus);
+    descendants.iter().all(|id| selected.contains(id))
+}
+
+/// 判断节点是否"部分选中"（有后代在 selected 中但不是全部）
+fn is_indeterminate(menu_id: i32, all_menus: &[MenuDto], selected: &[i32]) -> bool {
+    let descendants = collect_descendant_ids(menu_id, all_menus);
+    let any_selected = descendants.iter().any(|id| selected.contains(id));
+    any_selected && !is_all_selected(menu_id, all_menus, selected)
+}
+
+/// 递归菜单 checkbox 组件（父子级联）
 #[component]
 fn MenuCheckbox(
     menu: MenuDto,
     all_menus: Vec<MenuDto>,
     selected: Vec<i32>,
-    on_toggle: EventHandler<bool>,
+    on_toggle: EventHandler<(i32, bool)>,
 ) -> Element {
     let children: Vec<MenuDto> = all_menus.iter().filter(|m| m.parent_id == Some(menu.id)).cloned().collect();
-    let checked = selected.contains(&menu.id);
+    let has_children = !children.is_empty();
+    let is_leaf_checked = selected.contains(&menu.id);
+    let node_checked = if has_children { is_all_selected(menu.id, &all_menus, &selected) } else { is_leaf_checked };
+    let _indeterminate = has_children && is_indeterminate(menu.id, &all_menus, &selected);
+    let type_badge = match menu.menu_type.as_str() {
+        "dir" => "📁",
+        "button" => "🔘",
+        _ => "📄",
+    };
 
     rsx! {
         div { style: "padding-left: 16px;",
             div { style: "display:flex;align-items:center;gap:6px;padding:2px 0;",
                 input {
                     r#type: "checkbox",
-                    checked: "{checked}",
-                    onchange: move |e: Event<FormData>| on_toggle.call(e.value() == "true")
+                    checked: "{node_checked}",
+                    // Note: Dioxus doesn't support indeterminate directly, visual hint via style
+                    onchange: move |e: Event<FormData>| {
+                        let now_checked = e.value() == "true";
+                        on_toggle.call((menu.id, now_checked));
+                    }
                 }
+                span { "{type_badge}" }
                 span { style: "font-size:14px;", "{menu.name}" }
-                if !menu.route.is_empty() {
-                    span { style: "color:var(--text-secondary,#888);font-size:12px;", "{menu.route}" }
+                if !menu.permission_code.is_empty() {
+                    span { style: "color:var(--text-tertiary,#aaa);font-size:11px;font-family:monospace;", "{menu.permission_code}" }
                 }
             }
             for child in children {
@@ -693,6 +747,8 @@ fn MenusScene() -> Element {
     let mut form_sort = use_signal(|| "0".to_string());
     let mut form_parent = use_signal(|| "0".to_string());
     let mut form_visible = use_signal(|| true);
+    let mut form_permission = use_signal(String::new);
+    let mut form_menu_type = use_signal(|| "menu".to_string());
     let mut error_msg = use_signal::<Option<String>>(|| None);
 
     let _reload = move || {
@@ -703,7 +759,7 @@ fn MenusScene() -> Element {
         Surface {
             SurfaceHeader {
                 title: "菜单树".to_string(),
-                subtitle: "管理后台导航菜单，支持树形嵌套。".to_string()
+                subtitle: "管理后台导航菜单，支持树形嵌套、权限标识与类型分级。".to_string()
             }
             div { style: "margin-bottom: 12px;",
                 WorkbenchButton {
@@ -715,6 +771,8 @@ fn MenusScene() -> Element {
                         form_sort.set("0".to_string());
                         form_parent.set("0".to_string());
                         form_visible.set(true);
+                        form_permission.set(String::new());
+                        form_menu_type.set("menu".to_string());
                         editing_id.set(None);
                         editing.set(Some(MenuUpsertDto::default()));
                         error_msg.set(None);
@@ -789,6 +847,27 @@ fn MenusScene() -> Element {
                             }
                         }
                         div { style: "display:flex;align-items:center;gap:8px;",
+                            label { style: "width:80px;text-align:right;", "类型" }
+                            select {
+                                value: "{form_menu_type}",
+                                onchange: move |e| form_menu_type.set(e.value()),
+                                style: "flex:1;padding:4px 8px;border:1px solid var(--border,#ccc);border-radius:4px;",
+                                option { value: "dir", "目录" }
+                                option { value: "menu", "菜单" }
+                                option { value: "button", "按钮" }
+                            }
+                        }
+                        div { style: "display:flex;align-items:center;gap:8px;",
+                            label { style: "width:80px;text-align:right;", "权限标识" }
+                            input {
+                                r#type: "text",
+                                value: "{form_permission}",
+                                oninput: move |e| form_permission.set(e.value()),
+                                placeholder: "例如 system:user:list".to_string(),
+                                style: "flex:1;padding:4px 8px;border:1px solid var(--border,#ccc);border-radius:4px;"
+                            }
+                        }
+                        div { style: "display:flex;align-items:center;gap:8px;",
                             label { style: "width:80px;text-align:right;", "可见" }
                             input {
                                 r#type: "checkbox",
@@ -813,6 +892,8 @@ fn MenusScene() -> Element {
                                         let pid_raw: i32 = form_parent.read().parse().unwrap_or(0);
                                         let pid = if pid_raw == 0 { None } else { Some(pid_raw) };
                                         let vis = *form_visible.read();
+                                        let pc = form_permission.read().trim().to_string();
+                                        let mt = form_menu_type.read().clone();
                                         let eid = *editing_id.read();
                                         if n.is_empty() {
                                             error_msg.set(Some("菜单名不能为空".into()));
@@ -820,7 +901,7 @@ fn MenusScene() -> Element {
                                         }
                                         error_msg.set(None);
                                         spawn(async move {
-                                            let input = MenuUpsertDto { name: n, route: r, icon: ic, sort_order: sort, parent_id: pid, visible: vis };
+                                            let input = MenuUpsertDto { name: n, route: r, icon: ic, sort_order: sort, parent_id: pid, visible: vis, permission_code: pc, menu_type: mt };
                                             let res = match eid {
                                                 Some(id) => sys.update_menu(id, input).await,
                                                 None => sys.create_menu(input).await,
@@ -857,11 +938,21 @@ fn MenusScene() -> Element {
                         let parent_map: Vec<(i32, String)> = menus.iter().map(|m| (m.id, m.name.clone())).collect();
                         rsx! {
                             DataTable {
-                                columns: vec!["菜单名".to_string(), "路由".to_string(), "父级".to_string(), "排序".to_string(), "可见".to_string(), "操作".to_string()],
+                                columns: vec!["菜单名".to_string(), "类型".to_string(), "权限标识".to_string(), "路由".to_string(), "父级".to_string(), "排序".to_string(), "可见".to_string(), "操作".to_string()],
                                 for menu in rows {
                                     tr {
                                         key: "{menu.id}",
                                         td { style: if menu.parent_id.is_some() { "padding-left:24px;" } else { "" }, "{menu.name}" }
+                                        td {
+                                            {
+                                                match menu.menu_type.as_str() {
+                                                    "dir" => "📁 目录",
+                                                    "button" => "🔘 按钮",
+                                                    _ => "📄 菜单",
+                                                }
+                                            }
+                                        }
+                                        td { style: "color:var(--text-secondary,#888);font-size:12px;", { if menu.permission_code.is_empty() { "—".to_string() } else { menu.permission_code.clone() } } }
                                         td { style: "color:var(--text-secondary,#888);", { if menu.route.is_empty() { "—".to_string() } else { menu.route.clone() } } }
                                         td {
                                             {
@@ -885,8 +976,10 @@ fn MenusScene() -> Element {
                                                         form_sort.set(m.sort_order.to_string());
                                                         form_parent.set(m.parent_id.map_or("0".to_string(), |v| v.to_string()));
                                                         form_visible.set(m.visible);
+                                                        form_permission.set(m.permission_code.clone());
+                                                        form_menu_type.set(m.menu_type.clone());
                                                         editing_id.set(Some(m.id));
-                                                        editing.set(Some(MenuUpsertDto { name: m.name.clone(), route: m.route.clone(), icon: m.icon.clone(), sort_order: m.sort_order, parent_id: m.parent_id, visible: m.visible }));
+                                                        editing.set(Some(MenuUpsertDto { name: m.name.clone(), route: m.route.clone(), icon: m.icon.clone(), sort_order: m.sort_order, parent_id: m.parent_id, visible: m.visible, permission_code: m.permission_code.clone(), menu_type: m.menu_type.clone() }));
                                                         error_msg.set(None);
                                                     }
                                                 }

@@ -62,6 +62,8 @@ pub struct MenuDto {
     pub icon: String,
     pub sort_order: i32,
     pub visible: bool,
+    pub permission_code: String,
+    pub menu_type: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -72,6 +74,8 @@ pub struct MenuUpsertDto {
     pub icon: String,
     pub sort_order: i32,
     pub visible: bool,
+    pub permission_code: String,
+    pub menu_type: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -197,6 +201,7 @@ pub trait SystemManagementApi: 'static {
     fn update_user(&self, id: i32, input: UserUpsertDto) -> LocalBoxFuture<'_, SystemManagementResult<UserDto>>;
     fn delete_user(&self, id: i32) -> LocalBoxFuture<'_, SystemManagementResult<()>>;
     fn authorize_user_roles(&self, user_id: i32, role_ids: Vec<i32>) -> LocalBoxFuture<'_, SystemManagementResult<()>>;
+    fn get_user_effective_menu_ids(&self, user_id: i32) -> LocalBoxFuture<'_, SystemManagementResult<Vec<i32>>>;
 
     // Departments
     fn list_departments(&self) -> LocalBoxFuture<'_, SystemManagementResult<Vec<DepartmentDto>>>;
@@ -313,6 +318,13 @@ impl SystemManagementApi for BrowserSystemManagementApi {
                 .map_err(SystemManagementError::msg)
         })
     }
+    fn get_user_effective_menu_ids(&self, user_id: i32) -> LocalBoxFuture<'_, SystemManagementResult<Vec<i32>>> {
+        Box::pin(async move {
+            super::browser_http::get_json(&format!("/api/admin/system/users/{user_id}/menus"))
+                .await
+                .map_err(SystemManagementError::msg)
+        })
+    }
 
     // Departments
     fn list_departments(&self) -> LocalBoxFuture<'_, SystemManagementResult<Vec<DepartmentDto>>> {
@@ -424,6 +436,9 @@ impl SystemManagementApi for EmbeddedSystemManagementApi {
     fn authorize_user_roles(&self, user_id: i32, role_ids: Vec<i32>) -> LocalBoxFuture<'_, SystemManagementResult<()>> {
         Box::pin(async move { authorize_user_roles_on_server(user_id, role_ids).await })
     }
+    fn get_user_effective_menu_ids(&self, user_id: i32) -> LocalBoxFuture<'_, SystemManagementResult<Vec<i32>>> {
+        Box::pin(async move { get_user_effective_menu_ids_on_server(user_id).await })
+    }
     fn list_departments(&self) -> LocalBoxFuture<'_, SystemManagementResult<Vec<DepartmentDto>>> {
         Box::pin(async { list_departments_on_server().await })
     }
@@ -467,16 +482,16 @@ impl SystemManagementApi for EmbeddedSystemManagementApi {
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn list_menus_on_server() -> SystemManagementResult<Vec<MenuDto>> {
     let pool = pg_pool()?;
-    let rows = sqlx::query_as::<_, (i32, Option<i32>, String, String, String, i32, bool)>(
-        "SELECT id, parent_id, name, route, icon, sort_order, visible FROM sys_menu ORDER BY sort_order, id",
+    let rows = sqlx::query_as::<_, (i32, Option<i32>, String, String, String, i32, bool, String, String)>(
+        "SELECT id, parent_id, name, route, icon, sort_order, visible, permission_code, menu_type FROM sys_menu ORDER BY sort_order, id",
     )
     .fetch_all(&pool)
     .await
     .map_err(|e| SystemManagementError::msg(format!("list_menus: {e}")))?;
     Ok(rows
         .into_iter()
-        .map(|(id, parent_id, name, route, icon, sort_order, visible)| MenuDto {
-            id, parent_id, name, route, icon, sort_order, visible,
+        .map(|(id, parent_id, name, route, icon, sort_order, visible, permission_code, menu_type)| MenuDto {
+            id, parent_id, name, route, icon, sort_order, visible, permission_code, menu_type,
         })
         .collect())
 }
@@ -485,7 +500,7 @@ pub async fn list_menus_on_server() -> SystemManagementResult<Vec<MenuDto>> {
 pub async fn create_menu_on_server(input: MenuUpsertDto) -> SystemManagementResult<MenuDto> {
     let pool = pg_pool()?;
     let row = sqlx::query_as::<_, (i32,)>(
-        "INSERT INTO sys_menu (parent_id, name, route, icon, sort_order, visible) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+        "INSERT INTO sys_menu (parent_id, name, route, icon, sort_order, visible, permission_code, menu_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
     )
     .bind(input.parent_id)
     .bind(&input.name)
@@ -493,17 +508,19 @@ pub async fn create_menu_on_server(input: MenuUpsertDto) -> SystemManagementResu
     .bind(&input.icon)
     .bind(input.sort_order)
     .bind(input.visible)
+    .bind(&input.permission_code)
+    .bind(&input.menu_type)
     .fetch_one(&pool)
     .await
     .map_err(|e| SystemManagementError::msg(format!("create_menu: {e}")))?;
-    Ok(MenuDto { id: row.0, parent_id: input.parent_id, name: input.name, route: input.route, icon: input.icon, sort_order: input.sort_order, visible: input.visible })
+    Ok(MenuDto { id: row.0, parent_id: input.parent_id, name: input.name, route: input.route, icon: input.icon, sort_order: input.sort_order, visible: input.visible, permission_code: input.permission_code, menu_type: input.menu_type })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn update_menu_on_server(id: i32, input: MenuUpsertDto) -> SystemManagementResult<MenuDto> {
     let pool = pg_pool()?;
     sqlx::query(
-        "UPDATE sys_menu SET parent_id = $1, name = $2, route = $3, icon = $4, sort_order = $5, visible = $6, updated_at = NOW() WHERE id = $7",
+        "UPDATE sys_menu SET parent_id = $1, name = $2, route = $3, icon = $4, sort_order = $5, visible = $6, permission_code = $7, menu_type = $8, updated_at = NOW() WHERE id = $9",
     )
     .bind(input.parent_id)
     .bind(&input.name)
@@ -511,11 +528,13 @@ pub async fn update_menu_on_server(id: i32, input: MenuUpsertDto) -> SystemManag
     .bind(&input.icon)
     .bind(input.sort_order)
     .bind(input.visible)
+    .bind(&input.permission_code)
+    .bind(&input.menu_type)
     .bind(id)
     .execute(&pool)
     .await
     .map_err(|e| SystemManagementError::msg(format!("update_menu: {e}")))?;
-    Ok(MenuDto { id, parent_id: input.parent_id, name: input.name, route: input.route, icon: input.icon, sort_order: input.sort_order, visible: input.visible })
+    Ok(MenuDto { id, parent_id: input.parent_id, name: input.name, route: input.route, icon: input.icon, sort_order: input.sort_order, visible: input.visible, permission_code: input.permission_code, menu_type: input.menu_type })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -778,6 +797,38 @@ pub async fn authorize_user_roles_on_server(user_id: i32, role_ids: Vec<i32>) ->
     }
     tx.commit().await.map_err(|e| SystemManagementError::msg(format!("tx commit: {e}")))?;
     Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_user_effective_menu_ids_on_server(user_id: i32) -> SystemManagementResult<Vec<i32>> {
+    let pool = pg_pool()?;
+    let rows = sqlx::query_as::<_, (i32,)>(
+        "SELECT DISTINCT rm.menu_id FROM sys_user_role ur          JOIN sys_role_menu rm ON rm.role_id = ur.role_id          WHERE ur.user_id = $1",
+    )
+    .bind(user_id)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| SystemManagementError::msg(format!("get_user_effective_menu_ids: {e}")))?;
+    Ok(rows.into_iter().map(|r| r.0).collect())
+}
+
+/// 根据用户名查询其所有角色关联的菜单 permission_code 集合。
+/// admin 用户自动拥有全部权限（返回 None 表示不做过滤）。
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_effective_permission_codes_on_server(username: &str) -> SystemManagementResult<Option<Vec<String>>> {
+    let pool = pg_pool()?;
+    // admin 超级管理员不限制
+    if username == "admin" {
+        return Ok(None);
+    }
+    let rows = sqlx::query_as::<_, (String,)>(
+        "SELECT DISTINCT m.permission_code FROM sys_user u          JOIN sys_user_role ur ON ur.user_id = u.id          JOIN sys_role_menu rm ON rm.role_id = ur.role_id          JOIN sys_menu m ON m.id = rm.menu_id          WHERE u.username = $1 AND m.permission_code != ''",
+    )
+    .bind(username)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| SystemManagementError::msg(format!("get_effective_permission_codes: {e}")))?;
+    Ok(Some(rows.into_iter().map(|r| r.0).collect()))
 }
 
 // ─── Server functions: Departments ──────────────────────────────────────────

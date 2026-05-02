@@ -92,6 +92,7 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/admin/session", get(get_session))
         .route("/api/admin/session/login", post(login))
         .route("/api/admin/session/logout", post(logout))
+        .route("/api/admin/session/permissions", get(get_session_permissions))
         .route("/api/admin/storage/logo", post(upload_logo))
         .route(
             "/api/admin/settings/branding",
@@ -158,6 +159,10 @@ pub async fn run_api_server() -> Result<()> {
         .route(
             "/api/admin/system/users/{id}/roles",
             put(sys_authorize_user_roles),
+        )
+        .route(
+            "/api/admin/system/users/{id}/menus",
+            get(sys_get_user_effective_menus),
         )
         // ─── Departments ──────────────────────────────────────────
         .route("/api/admin/system/departments", get(sys_list_departments).post(sys_create_department))
@@ -248,6 +253,21 @@ async fn logout() -> ApiResult<Response> {
             .map_err(|_| ApiError::internal("failed to encode logout cookie"))?,
     );
     Ok(response)
+}
+
+async fn get_session_permissions(headers: HeaderMap) -> ApiResult<Json<Vec<String>>> {
+    let backend = services().await;
+    let username = backend
+        .admin_auth
+        .current_user(&headers)
+        .ok_or_else(|| ApiError::unauthorized("未登录"))?;
+    let codes = crate::services::system_management::get_effective_permission_codes_on_server(&username)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+    match codes {
+        None => Ok(Json(Vec::new())), // admin: empty vec = no restriction (frontend treats empty=all)
+        Some(codes) => Ok(Json(codes)),
+    }
 }
 
 async fn get_branding_settings(headers: HeaderMap) -> ApiResult<Json<BrandingSettingsDto>> {
@@ -747,6 +767,18 @@ async fn sys_authorize_user_roles(
         .await
         .map_err(|e| ApiError::bad_request(e.to_string()))?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn sys_get_user_effective_menus(
+    headers: HeaderMap,
+    Path(user_id): Path<i32>,
+) -> ApiResult<Json<Vec<i32>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::get_user_effective_menu_ids_on_server(user_id)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::internal(e.to_string()))
 }
 
 // ─── Department Handlers ────────────────────────────────────────────────────
