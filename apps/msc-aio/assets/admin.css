@@ -483,6 +483,10 @@
   .agent-stage {
     min-height: 560px;
   }
+
+  .note-workspace {
+    grid-template-columns: 1fr;
+  }
 }
 
 .theme-dark {
@@ -1753,6 +1757,109 @@ a {
   border-radius: var(--radius);
   background: var(--panel-soft);
   overflow: auto;
+}
+
+.note-workspace {
+  display: grid;
+  grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.note-workspace__main {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.note-list {
+  display: grid;
+  gap: 8px;
+}
+
+.note-list__row {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-list__row:hover,
+.note-list__row.is-active {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+}
+
+.note-list__row-head,
+.note-list__row-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.note-list__row-head strong {
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.note-list__row-body {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.note-list__row-meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.note-assistant__thread {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  padding: 2px 0;
+  overflow: auto;
+}
+
+.note-assistant__message {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.note-assistant__message strong {
+  color: var(--text-strong);
+  font-size: 12px;
+}
+
+.note-assistant__message--user {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+}
+
+.note-assistant__message--assistant {
+  background: color-mix(in srgb, var(--good) 6%, var(--panel));
+}
+
+.note-assistant__body {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.note-assistant__composer {
+  display: grid;
+  gap: 8px;
 }
 
 .note-card-grid {

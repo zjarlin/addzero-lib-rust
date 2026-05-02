@@ -142,19 +142,60 @@ fn resolve_request_url(path: &str) -> String {
         return path.to_string();
     }
 
-    match WEB_API_BASE_URL
+    configured_api_base_url()
+        .or_else(|| local_dev_admin_api_base_url(path))
+        .map(|base| join_base_url(base.as_str(), path))
+        .unwrap_or_else(|| path.to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn configured_api_base_url() -> Option<String> {
+    WEB_API_BASE_URL
         .map(str::trim)
         .filter(|base| !base.is_empty())
-    {
-        Some(base) => {
-            if path.starts_with('/') {
-                format!("{}{}", base.trim_end_matches('/'), path)
-            } else {
-                format!("{}/{}", base.trim_end_matches('/'), path)
-            }
-        }
-        None => path.to_string(),
+        .map(str::to_string)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn local_dev_admin_api_base_url(path: &str) -> Option<String> {
+    if !path.starts_with("/api/") {
+        return None;
     }
+
+    let window = web_sys::window()?;
+    let location = window.location();
+    let protocol = location.protocol().ok()?;
+    let hostname = location.hostname().ok()?;
+    let current_port = location.port().ok().unwrap_or_default();
+    let normalized_host = hostname.trim_matches(['[', ']']);
+
+    if !matches!(normalized_host, "localhost" | "127.0.0.1" | "::1")
+        || current_port == local_dev_admin_api_port()
+    {
+        return None;
+    }
+
+    let host = if normalized_host.contains(':') {
+        format!("[{normalized_host}]")
+    } else {
+        normalized_host.to_string()
+    };
+
+    Some(format!("{protocol}//{host}:{}", local_dev_admin_api_port()))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn join_base_url(base: &str, path: &str) -> String {
+    if path.starts_with('/') {
+        format!("{}{}", base.trim_end_matches('/'), path)
+    } else {
+        format!("{}/{}", base.trim_end_matches('/'), path)
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn local_dev_admin_api_port() -> &'static str {
+    option_env!("MSC_AIO_WEB_API_PORT").unwrap_or("18787")
 }
 
 #[cfg(target_arch = "wasm32")]

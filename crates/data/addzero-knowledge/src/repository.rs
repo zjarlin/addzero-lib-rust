@@ -196,4 +196,19 @@ impl KnowledgeRepository {
         update.exec(&self.db).await.map_err(KnowledgeError::Query)?;
         Ok(())
     }
+
+    pub(crate) async fn deactivate_document_by_source_path(
+        &self,
+        source_path: &str,
+    ) -> Result<(), KnowledgeError> {
+        let now = Utc::now();
+        knowledge_document::Entity::update_many()
+            .col_expr(knowledge_document::Column::IsActive, Expr::value(false))
+            .col_expr(knowledge_document::Column::UpdatedAt, Expr::value(now))
+            .filter(knowledge_document::Column::SourcePath.eq(source_path.to_string()))
+            .exec(&self.db)
+            .await
+            .map_err(KnowledgeError::Query)?;
+        Ok(())
+    }
 }

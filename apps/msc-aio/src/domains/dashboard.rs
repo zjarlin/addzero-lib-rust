@@ -415,7 +415,7 @@ impl WorkspaceAxis {
         match self {
             Self::Notes => "笔记",
             Self::Packages => "安装包",
-            Self::Skills => "技能",
+            Self::Skills => "Skill 资产",
             Self::Cli => "CLI 树",
         }
     }
@@ -424,7 +424,7 @@ impl WorkspaceAxis {
         match self {
             Self::Notes => "Notes",
             Self::Packages => "Packages",
-            Self::Skills => "Skills",
+            Self::Skills => "Skill Assets",
             Self::Cli => "CLI",
         }
     }
@@ -433,7 +433,9 @@ impl WorkspaceAxis {
         match self {
             Self::Notes => "直接写 Markdown；第一行 # 会自动成为标题。",
             Self::Packages => "粘贴软件名、安装包路径、版本、校验信息；安装会被封装成 CLI 记录。",
-            Self::Skills => "粘贴 skill 描述、触发词或 README；后续可生成双语技能元数据。",
+            Self::Skills => {
+                "粘贴单个 Skill 定义、触发词或 README；这里承载的是 Skill 本体，不是市场条目。"
+            }
             Self::Cli => "粘贴命令、仓库、安装方式或文档链接；会进入 CLI 字典。",
         }
     }
@@ -442,7 +444,7 @@ impl WorkspaceAxis {
         match self {
             Self::Notes => "笔记先入树，再逐步提取实体、关系和来源。",
             Self::Packages => "安装包被视为 CLI 安装资产，和软件台账绑定。",
-            Self::Skills => "技能节点用于承载 agent 能力、触发词和安装入口。",
+            Self::Skills => "Skill 节点用于承载单个 agent 能力定义，不等同于市场分发项。",
             Self::Cli => "CLI 节点是插件市场的主索引，支持中英双语与渐进式搜索。",
         }
     }
@@ -734,7 +736,7 @@ fn seed_chat_tree() -> Vec<ChatTreeItem> {
             axis: WorkspaceAxis::Skills,
             title: item.0.to_string(),
             body: item.1.to_string(),
-            source: "本地 skill".to_string(),
+            source: "本地 Skill".to_string(),
             tags: vec!["Skill".to_string(), "Agent".to_string()],
             attachments: Vec::new(),
             created_at: "ready".to_string(),

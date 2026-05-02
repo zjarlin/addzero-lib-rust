@@ -47,12 +47,12 @@ pub fn Agents() -> Element {
         Some(Err(err)) => {
             return rsx! {
                 ContentHeader {
-                    title: "Skills".to_string(),
-                    subtitle: "当前先把 SKILL.md 作为 Skills 资产管理，后续再扩到其它 Agent 资产。".to_string()
+                    title: "Skill 资产".to_string(),
+                    subtitle: "这里管理单个 Skill 定义与同步状态，不是 Skills 市场或分发入口。".to_string()
                 }
                 Surface {
                     div { class: "callout",
-                        "无法加载技能列表：{err}"
+                        "无法加载 Skill 列表：{err}"
                     }
                 }
             };
@@ -60,8 +60,8 @@ pub fn Agents() -> Element {
         None => {
             return rsx! {
                 ContentHeader {
-                    title: "Skills".to_string(),
-                    subtitle: "当前先把 SKILL.md 作为 Skills 资产管理，后续再扩到其它 Agent 资产。".to_string()
+                    title: "Skill 资产".to_string(),
+                    subtitle: "这里管理单个 Skill 定义与同步状态，不是 Skills 市场或分发入口。".to_string()
                 }
                 Surface { div { class: "empty-state", "正在加载…" } }
             };
@@ -89,13 +89,13 @@ pub fn Agents() -> Element {
 
     rsx! {
         ContentHeader {
-            title: "Skills".to_string(),
-            subtitle: "作为知识库资产查看 Skills、模型、提示词和工具配置；内容在来源侧维护。".to_string()
+            title: "Skill 资产".to_string(),
+            subtitle: "这里查看和同步单个 Skill 定义；安装、分发和市场能力走独立入口。".to_string()
         }
         Surface {
             SurfaceHeader {
-                title: "Skills 资产".to_string(),
-                subtitle: "按名称或关键词搜索；目录树保持紧凑，只做查看与定位。".to_string(),
+                title: "Skill 资产列表".to_string(),
+                subtitle: "按名称或关键词搜索；这里只做定义查看与定位，不承担市场分发语义。".to_string(),
                 actions: rsx!(
                     WorkbenchButton {
                         class: "toolbar-button".to_string(),
@@ -118,13 +118,13 @@ pub fn Agents() -> Element {
                 div { class: "callout callout--info", "{msg}" }
             }
             if filtered.is_empty() {
-                div { class: "empty-state", "没有匹配的技能。" }
+                div { class: "empty-state", "没有匹配的 Skill。" }
             } else {
                 div { class: "knowledge-board",
                     Surface {
                         SurfaceHeader {
-                            title: "技能目录树".to_string(),
-                            subtitle: "按命名空间 / 前缀分组；点击节点查看详情。".to_string()
+                            title: "Skill 分组树".to_string(),
+                            subtitle: "按命名空间 / 前缀分组；点击节点查看单个 Skill 详情。".to_string()
                         }
                         div { class: "stack",
                             for group in grouped_skills.iter() {
@@ -284,7 +284,7 @@ pub fn AgentEditor(name: String) -> Element {
                         loading.set(false);
                     }
                     Ok(None) => {
-                        feedback.set(Some("未找到该技能。".into()));
+                        feedback.set(Some("未找到该 Skill。".into()));
                         loading.set(false);
                     }
                     Err(err) => {
@@ -297,9 +297,9 @@ pub fn AgentEditor(name: String) -> Element {
     };
 
     let header_title = if is_new {
-        "Skills 资产".to_string()
+        "Skill 资产".to_string()
     } else {
-        format!("查看：{name}")
+        format!("Skill：{name}")
     };
     let updated_display = match *updated_at_state.read() {
         Some(timestamp) => timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -318,7 +318,7 @@ pub fn AgentEditor(name: String) -> Element {
     rsx! {
         ContentHeader {
             title: header_title,
-            subtitle: "Agent 资产已并入知识库，这里只读查看 SKILL.md 元信息、关键词触发与正文。".to_string(),
+            subtitle: "这里是单个 Skill 定义查看页，不是 Skills 市场；只读展示 SKILL.md 元信息、关键词与正文。".to_string(),
             actions: rsx!(
                 Link { to: Route::Agents,
                     WorkbenchButton { class: "toolbar-button".to_string(), "返回列表" }
@@ -330,8 +330,8 @@ pub fn AgentEditor(name: String) -> Element {
         } else {
             Surface {
                 SurfaceHeader {
-                    title: "元信息".to_string(),
-                    subtitle: "name 是文件夹与 PG 的主键，关键词决定触发范围。".to_string()
+                    title: "Skill 元信息".to_string(),
+                    subtitle: "name 是单个 Skill 在文件夹与 PG 里的主键，关键词决定触发范围。".to_string()
                 }
                 MetricStrip { columns: 2,
                     Field {
@@ -367,7 +367,7 @@ pub fn AgentEditor(name: String) -> Element {
             Surface {
                 SurfaceHeader {
                     title: "说明与正文".to_string(),
-                    subtitle: "description 是 SKILL.md frontmatter；正文来自来源目录，只读展示。".to_string()
+                    subtitle: "description 是当前 Skill 的 SKILL.md frontmatter；正文来自来源目录，只读展示。".to_string()
                 }
                 AssetChatPanel {
                     kind: AssetChatKind::Skill,
@@ -379,7 +379,7 @@ pub fn AgentEditor(name: String) -> Element {
                         AssetChatFact::new("关键词", keywords_state.read().join("，")),
                     ],
                     draft: chat_draft.read().clone(),
-                    placeholder: "输入技能触发、正文调整、安装或同步记录".to_string(),
+                    placeholder: "输入 Skill 触发、正文调整、安装或同步记录".to_string(),
                     readonly_excerpt: Some(description_state.read().clone()),
                     on_draft: move |value| chat_draft.set(value),
                     on_submit: move |_| chat_draft.set(String::new()),

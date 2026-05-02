@@ -1,5 +1,4 @@
 mod auth;
-mod runtime;
 
 use std::net::SocketAddr;
 
@@ -13,20 +12,16 @@ use axum::{
 };
 use tokio::sync::OnceCell;
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use uuid::Uuid;
 
-use addzero_agent_runtime_contract::{
-    AgentHeartbeat, AgentRuntimeOverview, LoginRequest, PairingCreateResponse,
-    PairingExchangeRequest, PairingSessionSummary, ResolveConflictRequest, SessionUser,
-    SkillSyncRequest, SkillSyncResponse,
-};
+use addzero_agent_runtime_contract::{LoginRequest, SessionUser};
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 
 use crate::services::{
-    AssetGraphDto, AssetSyncReportDto, BrandingSettingsDto, BrandingSettingsUpdate,
-    KnowledgeExceptionCardDto, KnowledgeFeedDto, KnowledgeMaintenanceReportDto,
-    KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto, KnowledgeSourceRefDto, LogoUploadRequest,
-    ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
+    AssetGraphDto, AssetSyncReportDto, BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto,
+    ChatResponseDto, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto,
+    KnowledgeFeedDto, KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto,
+    KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest,
+    OpenAiChatConfigDto, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
     StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
     StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,
     StorageDeleteResultDto, StorageShareRequestDto, StorageShareResultDto, StorageUploadRequestDto,
@@ -34,11 +29,9 @@ use crate::services::{
 };
 
 use self::auth::AdminSessionService;
-use self::runtime::AgentRuntimeService;
 
 pub struct BackendServices {
     pub skills: SkillService,
-    pub runtime: AgentRuntimeService,
     pub admin_auth: AdminSessionService,
     pub cli_market: crate::services::cli_market::CliMarketService,
     pub software_catalog: Option<addzero_software_catalog::SoftwareCatalogService>,
@@ -61,9 +54,6 @@ pub async fn services() -> &'static BackendServices {
                 }
             }
 
-            let base_url = std::env::var("ADDZERO_ADMIN_BASE_URL")
-                .unwrap_or_else(|_| "http://127.0.0.1:8787".into());
-            let runtime = AgentRuntimeService::try_attach(database_url.as_deref(), base_url).await;
             let admin_auth = AdminSessionService::from_env();
             let cli_market =
                 crate::services::cli_market::CliMarketService::try_attach(database_url.as_deref())
@@ -79,7 +69,6 @@ pub async fn services() -> &'static BackendServices {
 
             BackendServices {
                 skills,
-                runtime,
                 admin_auth,
                 cli_market,
                 software_catalog,
@@ -125,20 +114,19 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/skills/sync", post(sync_skills))
         .route("/api/skills/upsert", post(upsert_skill))
         .route("/api/skills/{name}", get(get_skill).delete(delete_skill))
-        .route("/api/runtime/overview", get(runtime_overview))
-        .route("/api/runtime/pairings", post(create_pairing))
-        .route("/api/runtime/pairings/{id}", get(get_pairing))
-        .route("/api/runtime/pairings/{id}/approve", post(approve_pairing))
         .route(
-            "/api/runtime/pairings/{id}/exchange",
-            post(exchange_pairing),
+            "/api/knowledge/entries",
+            get(list_knowledge_entries).post(save_knowledge_entry),
         )
-        .route("/api/runtime/heartbeat", post(heartbeat))
-        .route("/api/runtime/skills/sync", post(runtime_skill_sync))
         .route(
-            "/api/runtime/conflicts/{id}/resolve",
-            post(resolve_conflict),
+            "/api/knowledge/entries/delete",
+            post(delete_knowledge_entry),
         )
+        .route(
+            "/api/openai-chat/config",
+            get(load_openai_chat_config).post(save_openai_chat_config),
+        )
+        .route("/api/openai-chat/chat", post(run_openai_chat))
         .route("/api/admin/knowledge/feed", get(knowledge_feed))
         .route(
             "/api/admin/knowledge/nodes/{id}",
@@ -558,118 +546,70 @@ async fn skill_status(headers: HeaderMap) -> ApiResult<Json<SyncReportDto>> {
     )))
 }
 
-async fn runtime_overview(headers: HeaderMap) -> ApiResult<Json<AgentRuntimeOverview>> {
+async fn list_knowledge_entries(headers: HeaderMap) -> ApiResult<Json<Vec<KnowledgeNoteDto>>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
-    let overview = backend
-        .runtime
-        .overview(
-            backend.skills.fs_root_display(),
-            backend.skills.is_pg_online(),
-        )
+    let notes = crate::services::knowledge_entries::list_knowledge_entries_on_server()
         .await
-        .map_err(ApiError::internal_from)?;
-    Ok(Json(overview))
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(notes))
 }
 
-async fn create_pairing(
-    Json(input): Json<addzero_agent_runtime_contract::PairingRequest>,
-) -> ApiResult<Json<PairingCreateResponse>> {
-    let backend = services().await;
-    let response = backend
-        .runtime
-        .create_pairing(input)
-        .await
-        .map_err(ApiError::bad_request_from)?;
-    Ok(Json(response))
-}
-
-#[derive(serde::Deserialize)]
-struct PollQuery {
-    poll_token: Option<String>,
-}
-
-async fn get_pairing(
+async fn save_knowledge_entry(
     headers: HeaderMap,
-    Path(id): Path<Uuid>,
-    Query(query): Query<PollQuery>,
-) -> ApiResult<Json<PairingSessionSummary>> {
-    let backend = services().await;
-    if query.poll_token.is_none() {
-        ensure_auth(&backend.admin_auth, &headers)?;
-    }
-    let pairing = backend
-        .runtime
-        .get_pairing(id, query.poll_token.as_deref())
-        .await
-        .map_err(ApiError::bad_request_from)?;
-    Ok(Json(pairing))
-}
-
-async fn approve_pairing(
-    headers: HeaderMap,
-    Path(id): Path<Uuid>,
-) -> ApiResult<Json<PairingSessionSummary>> {
+    Json(input): Json<KnowledgeEntryUpsertDto>,
+) -> ApiResult<Json<KnowledgeNoteDto>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
-    let pairing = backend
-        .runtime
-        .approve_pairing(id)
+    let saved = crate::services::knowledge_entries::save_knowledge_entry_on_server(input)
         .await
-        .map_err(ApiError::bad_request_from)?;
-    Ok(Json(pairing))
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(saved))
 }
 
-async fn exchange_pairing(
-    Path(id): Path<Uuid>,
-    Json(input): Json<PairingExchangeRequest>,
-) -> ApiResult<Json<addzero_agent_runtime_contract::PairingExchangeResponse>> {
-    let backend = services().await;
-    let response = backend
-        .runtime
-        .exchange_pairing(id, input)
-        .await
-        .map_err(ApiError::bad_request_from)?;
-    Ok(Json(response))
-}
-
-async fn heartbeat(
-    Json(input): Json<AgentHeartbeat>,
-) -> ApiResult<Json<addzero_agent_runtime_contract::AgentNode>> {
-    let backend = services().await;
-    let node = backend
-        .runtime
-        .heartbeat(input)
-        .await
-        .map_err(ApiError::bad_request_from)?;
-    Ok(Json(node))
-}
-
-async fn runtime_skill_sync(
-    Json(input): Json<SkillSyncRequest>,
-) -> ApiResult<Json<SkillSyncResponse>> {
-    let backend = services().await;
-    let response = backend
-        .runtime
-        .sync_skills(input, &backend.skills)
-        .await
-        .map_err(ApiError::bad_request_from)?;
-    Ok(Json(response))
-}
-
-async fn resolve_conflict(
+async fn delete_knowledge_entry(
     headers: HeaderMap,
-    Path(id): Path<Uuid>,
-    Json(input): Json<ResolveConflictRequest>,
-) -> ApiResult<Json<addzero_agent_runtime_contract::SkillConflict>> {
+    Json(input): Json<KnowledgeEntryDeleteDto>,
+) -> ApiResult<Json<serde_json::Value>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
-    let conflict = backend
-        .runtime
-        .resolve_conflict(id, input, &backend.skills)
+    crate::services::knowledge_entries::delete_knowledge_entry_on_server(input)
         .await
-        .map_err(ApiError::bad_request_from)?;
-    Ok(Json(conflict))
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+async fn load_openai_chat_config(headers: HeaderMap) -> ApiResult<Json<OpenAiChatConfigDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let config = crate::services::openai_chat::load_config_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(config))
+}
+
+async fn save_openai_chat_config(
+    headers: HeaderMap,
+    Json(input): Json<OpenAiChatConfigDto>,
+) -> ApiResult<Json<OpenAiChatConfigDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let config = crate::services::openai_chat::save_config_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(config))
+}
+
+async fn run_openai_chat(
+    headers: HeaderMap,
+    Json(input): Json<ChatRequestDto>,
+) -> ApiResult<Json<ChatResponseDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let response = crate::services::openai_chat::chat_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(response))
 }
 
 async fn knowledge_feed(headers: HeaderMap) -> ApiResult<Json<KnowledgeFeedDto>> {

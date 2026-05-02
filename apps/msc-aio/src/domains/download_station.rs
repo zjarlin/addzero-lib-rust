@@ -9,8 +9,8 @@ use dioxus_components::{
 
 use crate::services::{
     StorageBrowseRequestDto, StorageCreateFolderDto, StorageDeleteFolderDto,
-    StorageDeleteObjectDto, StorageShareRequestDto, StorageShareResultDto, StorageUploadFileDto,
-    StorageUploadRequestDto,
+    StorageDeleteObjectDto, StorageFileDto, StorageFolderDto, StorageShareRequestDto,
+    StorageShareResultDto, StorageUploadFileDto, StorageUploadRequestDto,
 };
 use crate::state::AppServices;
 
@@ -34,6 +34,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
     let share_result = use_signal(|| None::<StorageShareResultDto>);
     let new_folder_path = use_signal(String::new);
     let pending = use_signal(|| false);
+    let refresh_nonce = use_signal(|| 0_u64);
     let search_query = use_signal(String::new);
     let selected_category = use_signal(|| None::<FileCategory>);
     let file_sort = use_signal(|| FileSortKey::Updated);
@@ -46,6 +47,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
         use_resource(move || {
             let minio_files = minio_files.clone();
             let prefix = current_prefix.read().clone();
+            let _refresh_nonce = *refresh_nonce.read();
             async move { minio_files.browse(StorageBrowseRequestDto { prefix }).await }
         })
     };
@@ -54,6 +56,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
         use_resource(move || {
             let minio_files = minio_files.clone();
             let current_prefix_value = current_prefix.read().clone();
+            let _refresh_nonce = *refresh_nonce.read();
             async move {
                 if current_prefix_value.is_empty() {
                     Ok(None)
@@ -270,7 +273,6 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                 let minio_files = minio_files.clone();
                                 let mut feedback = feedback;
                                 let mut pending = pending;
-                                let explorer_resource = explorer_resource;
                                 let mut share_result = share_result;
                                 let current_prefix = current_prefix;
                                 move |evt| {
@@ -288,7 +290,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                     let minio_files = minio_files.clone();
                                     let mut feedback = feedback;
                                     let mut pending = pending;
-                                    let mut explorer_resource = explorer_resource;
+                                    let refresh_nonce = refresh_nonce;
 
                                     spawn(async move {
                                         let mut upload_files = Vec::with_capacity(selected_count);
@@ -320,7 +322,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                         {
                                             Ok(report) => {
                                                 feedback.set(Some(report.message));
-                                                explorer_resource.restart();
+                                                bump_refresh_nonce(refresh_nonce);
                                             }
                                             Err(err) => {
                                                 feedback.set(Some(format!("上传失败：{err}")));
@@ -359,7 +361,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                 let minio_files = minio_files.clone();
                                 let mut feedback = feedback;
                                 let mut pending = pending;
-                                let explorer_resource = explorer_resource;
+                                let refresh_nonce = refresh_nonce;
                                 let mut share_result = share_result;
                                 let new_folder_path = new_folder_path;
                                 let current_prefix = current_prefix;
@@ -377,7 +379,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                     let minio_files = minio_files.clone();
                                     let mut feedback = feedback;
                                     let mut pending = pending;
-                                    let mut explorer_resource = explorer_resource;
+                                    let refresh_nonce = refresh_nonce;
                                     let mut new_folder_path = new_folder_path;
 
                                     spawn(async move {
@@ -391,7 +393,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                             Ok(result) => {
                                                 new_folder_path.set(String::new());
                                                 feedback.set(Some(result.message));
-                                                explorer_resource.restart();
+                                                bump_refresh_nonce(refresh_nonce);
                                             }
                                             Err(err) => {
                                                 feedback.set(Some(format!("创建目录失败：{err}")));
@@ -564,7 +566,9 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                     }
                                 },
                                 "{folder.name}"
-                                span { class: "download-pill__count", "{folder.object_count}" }
+                                if let Some(count) = source_badge_label(folder) {
+                                    span { class: "download-pill__count", "{count}" }
+                                }
                             }
                         }
                     }
@@ -681,7 +685,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
         Surface {
             SurfaceHeader {
                 title: "目录".to_string(),
-                subtitle: "目录由对象 key 前缀推导，新建目录会写入一个零字节 marker 对象。".to_string()
+                subtitle: "目录由对象 key 前缀推导；当前按层浏览，不递归统计整棵子树的对象数和体量。".to_string()
             }
             if visible_folders.is_empty() {
                 div { class: "empty-state",
@@ -696,16 +700,16 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                     columns: vec![
                         "名称".to_string(),
                         "前缀".to_string(),
-                        "对象数".to_string(),
-                        "体量".to_string(),
+                        "当前层文件数".to_string(),
+                        "当前层体量".to_string(),
                         "操作".to_string(),
                     ],
                     for folder in visible_folders.iter() {
                         tr {
                             td { "{folder.name}" }
                             td { "/{folder.prefix}" }
-                            td { "{folder.object_count}" }
-                            td { "{format_bytes(folder.size_bytes)}" }
+                            td { "{folder_object_count_label(folder)}" }
+                            td { "{folder_size_label(folder)}" }
                             td {
                                 div { class: "file-row-actions",
                                     WorkbenchButton {
@@ -729,7 +733,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                             let minio_files = minio_files.clone();
                                             let mut feedback = feedback;
                                             let mut pending = pending;
-                                            let explorer_resource = explorer_resource;
+                                            let refresh_nonce = refresh_nonce;
                                             let folder_prefix = folder.prefix.clone();
                                             move |_| {
                                                 if *pending.read() {
@@ -745,7 +749,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                                 let minio_files = minio_files.clone();
                                                 let mut feedback = feedback;
                                                 let mut pending = pending;
-                                                let mut explorer_resource = explorer_resource;
+                                                let refresh_nonce = refresh_nonce;
                                                 let folder_prefix = folder_prefix.clone();
 
                                                 spawn(async move {
@@ -757,7 +761,7 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                                     {
                                                         Ok(result) => {
                                                             feedback.set(Some(result.message));
-                                                            explorer_resource.restart();
+                                                            bump_refresh_nonce(refresh_nonce);
                                                         }
                                                         Err(err) => {
                                                             feedback.set(Some(format!(
@@ -825,117 +829,13 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                                 span { "{format_bytes(file.size_bytes)}" }
                                                 span { "{file.last_modified}" }
                                             }
-                                            div { class: "file-row-actions",
-                                                a {
-                                                    class: "action-button",
-                                                    href: file.download_path.clone(),
-                                                    target: "_blank",
-                                                    rel: "noreferrer",
-                                                    "{download_action_label(file)}"
-                                                }
-                                                WorkbenchButton {
-                                                    class: "action-button".to_string(),
-                                                    disabled: *pending.read(),
-                                                    onclick: {
-                                                        let minio_files = minio_files.clone();
-                                                        let mut feedback = feedback;
-                                                        let mut pending = pending;
-                                                        let share_result = share_result;
-                                                        let object_key = file.object_key.clone();
-                                                        let relative_path = file.relative_path.clone();
-                                                        move |_| {
-                                                            if *pending.read() {
-                                                                return;
-                                                            }
-
-                                                            pending.set(true);
-                                                            feedback.set(Some(format!(
-                                                                "正在生成 `{relative_path}` 的分享链接…"
-                                                            )));
-
-                                                            let minio_files = minio_files.clone();
-                                                            let mut feedback = feedback;
-                                                            let mut pending = pending;
-                                                            let mut share_result = share_result;
-                                                            let object_key = object_key.clone();
-
-                                                            spawn(async move {
-                                                                match minio_files
-                                                                    .share_file(StorageShareRequestDto {
-                                                                        object_key,
-                                                                        expiration_seconds: Some(share_expiration_seconds),
-                                                                    })
-                                                                    .await
-                                                                {
-                                                                    Ok(result) => {
-                                                                        share_result.set(Some(result));
-                                                                        feedback.set(Some(
-                                                                            "分享链接已生成，已更新到右侧面板。"
-                                                                                .to_string(),
-                                                                        ));
-                                                                    }
-                                                                    Err(err) => {
-                                                                        feedback.set(Some(format!(
-                                                                            "生成分享链接失败：{err}"
-                                                                        )));
-                                                                    }
-                                                                }
-
-                                                                pending.set(false);
-                                                            });
-                                                        }
-                                                    },
-                                                    "分享"
-                                                }
-                                                WorkbenchButton {
-                                                    class: "action-button".to_string(),
-                                                    disabled: *pending.read(),
-                                                    onclick: {
-                                                        let minio_files = minio_files.clone();
-                                                        let mut feedback = feedback;
-                                                        let mut pending = pending;
-                                                        let explorer_resource = explorer_resource;
-                                                        let object_key = file.object_key.clone();
-                                                        move |_| {
-                                                            if *pending.read() {
-                                                                return;
-                                                            }
-
-                                                            pending.set(true);
-                                                            feedback.set(Some(format!(
-                                                                "正在删除文件 `{object_key}`…"
-                                                            )));
-
-                                                            let minio_files = minio_files.clone();
-                                                            let mut feedback = feedback;
-                                                            let mut pending = pending;
-                                                            let mut explorer_resource = explorer_resource;
-                                                            let object_key = object_key.clone();
-
-                                                            spawn(async move {
-                                                                match minio_files
-                                                                    .delete_file(StorageDeleteObjectDto {
-                                                                        object_key,
-                                                                    })
-                                                                    .await
-                                                                {
-                                                                    Ok(result) => {
-                                                                        feedback.set(Some(result.message));
-                                                                        explorer_resource.restart();
-                                                                    }
-                                                                    Err(err) => {
-                                                                        feedback.set(Some(format!(
-                                                                            "删除文件失败：{err}"
-                                                                        )));
-                                                                    }
-                                                                }
-
-                                                                pending.set(false);
-                                                            });
-                                                        }
-                                                    },
-                                                    "删除"
-                                                }
+                                            DownloadFileActions {
+                                                file: file.clone(),
+                                                pending,
+                                                feedback,
+                                                share_result,
+                                                refresh_nonce,
+                                                share_expiration_seconds
                                             }
                                         }
                                     }
@@ -962,117 +862,13 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                     span { "{format_bytes(file.size_bytes)}" }
                                     span { "{file.last_modified}" }
                                 }
-                                div { class: "file-row-actions",
-                                    a {
-                                        class: "action-button",
-                                        href: file.download_path.clone(),
-                                        target: "_blank",
-                                        rel: "noreferrer",
-                                        "{download_action_label(file)}"
-                                    }
-                                    WorkbenchButton {
-                                        class: "action-button".to_string(),
-                                        disabled: *pending.read(),
-                                        onclick: {
-                                            let minio_files = minio_files.clone();
-                                            let mut feedback = feedback;
-                                            let mut pending = pending;
-                                            let share_result = share_result;
-                                            let object_key = file.object_key.clone();
-                                            let relative_path = file.relative_path.clone();
-                                            move |_| {
-                                                if *pending.read() {
-                                                    return;
-                                                }
-
-                                                pending.set(true);
-                                                feedback.set(Some(format!(
-                                                    "正在生成 `{relative_path}` 的分享链接…"
-                                                )));
-
-                                                let minio_files = minio_files.clone();
-                                                let mut feedback = feedback;
-                                                let mut pending = pending;
-                                                let mut share_result = share_result;
-                                                let object_key = object_key.clone();
-
-                                                spawn(async move {
-                                                    match minio_files
-                                                        .share_file(StorageShareRequestDto {
-                                                            object_key,
-                                                            expiration_seconds: Some(share_expiration_seconds),
-                                                        })
-                                                        .await
-                                                    {
-                                                        Ok(result) => {
-                                                            share_result.set(Some(result));
-                                                            feedback.set(Some(
-                                                                "分享链接已生成，已更新到右侧面板。"
-                                                                    .to_string(),
-                                                            ));
-                                                        }
-                                                        Err(err) => {
-                                                            feedback.set(Some(format!(
-                                                                "生成分享链接失败：{err}"
-                                                            )));
-                                                        }
-                                                    }
-
-                                                    pending.set(false);
-                                                });
-                                            }
-                                        },
-                                        "分享"
-                                    }
-                                    WorkbenchButton {
-                                        class: "action-button".to_string(),
-                                        disabled: *pending.read(),
-                                        onclick: {
-                                            let minio_files = minio_files.clone();
-                                            let mut feedback = feedback;
-                                            let mut pending = pending;
-                                            let explorer_resource = explorer_resource;
-                                            let object_key = file.object_key.clone();
-                                            move |_| {
-                                                if *pending.read() {
-                                                    return;
-                                                }
-
-                                                pending.set(true);
-                                                feedback.set(Some(format!(
-                                                    "正在删除文件 `{object_key}`…"
-                                                )));
-
-                                                let minio_files = minio_files.clone();
-                                                let mut feedback = feedback;
-                                                let mut pending = pending;
-                                                let mut explorer_resource = explorer_resource;
-                                                let object_key = object_key.clone();
-
-                                                spawn(async move {
-                                                    match minio_files
-                                                        .delete_file(StorageDeleteObjectDto {
-                                                            object_key,
-                                                        })
-                                                        .await
-                                                    {
-                                                        Ok(result) => {
-                                                            feedback.set(Some(result.message));
-                                                            explorer_resource.restart();
-                                                        }
-                                                        Err(err) => {
-                                                            feedback.set(Some(format!(
-                                                                "删除文件失败：{err}"
-                                                            )));
-                                                        }
-                                                    }
-
-                                                    pending.set(false);
-                                                });
-                                            }
-                                        },
-                                        "删除"
-                                    }
+                                DownloadFileActions {
+                                    file: file.clone(),
+                                    pending,
+                                    feedback,
+                                    share_result,
+                                    refresh_nonce,
+                                    share_expiration_seconds
                                 }
                             }
                         }
@@ -1109,117 +905,13 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                             td { "{format_bytes(file.size_bytes)}" }
                                             td { "{file.last_modified}" }
                                             td {
-                                                div { class: "file-row-actions",
-                                                    a {
-                                                        class: "action-button",
-                                                        href: file.download_path.clone(),
-                                                        target: "_blank",
-                                                        rel: "noreferrer",
-                                                        "{download_action_label(file)}"
-                                                    }
-                                                    WorkbenchButton {
-                                                        class: "action-button".to_string(),
-                                                        disabled: *pending.read(),
-                                                        onclick: {
-                                                            let minio_files = minio_files.clone();
-                                                            let mut feedback = feedback;
-                                                            let mut pending = pending;
-                                                            let share_result = share_result;
-                                                            let object_key = file.object_key.clone();
-                                                            let relative_path = file.relative_path.clone();
-                                                            move |_| {
-                                                                if *pending.read() {
-                                                                    return;
-                                                                }
-
-                                                                pending.set(true);
-                                                                feedback.set(Some(format!(
-                                                                    "正在生成 `{relative_path}` 的分享链接…"
-                                                                )));
-
-                                                                let minio_files = minio_files.clone();
-                                                                let mut feedback = feedback;
-                                                                let mut pending = pending;
-                                                                let mut share_result = share_result;
-                                                                let object_key = object_key.clone();
-
-                                                                spawn(async move {
-                                                                    match minio_files
-                                                                        .share_file(StorageShareRequestDto {
-                                                                            object_key,
-                                                                            expiration_seconds: Some(share_expiration_seconds),
-                                                                        })
-                                                                        .await
-                                                                    {
-                                                                        Ok(result) => {
-                                                                            share_result.set(Some(result));
-                                                                            feedback.set(Some(
-                                                                                "分享链接已生成，已更新到右侧面板。"
-                                                                                    .to_string(),
-                                                                            ));
-                                                                        }
-                                                                        Err(err) => {
-                                                                            feedback.set(Some(format!(
-                                                                                "生成分享链接失败：{err}"
-                                                                            )));
-                                                                        }
-                                                                    }
-
-                                                                    pending.set(false);
-                                                                });
-                                                            }
-                                                        },
-                                                        "分享"
-                                                    }
-                                                    WorkbenchButton {
-                                                        class: "action-button".to_string(),
-                                                        disabled: *pending.read(),
-                                                        onclick: {
-                                                            let minio_files = minio_files.clone();
-                                                            let mut feedback = feedback;
-                                                            let mut pending = pending;
-                                                            let explorer_resource = explorer_resource;
-                                                            let object_key = file.object_key.clone();
-                                                            move |_| {
-                                                                if *pending.read() {
-                                                                    return;
-                                                                }
-
-                                                                pending.set(true);
-                                                                feedback.set(Some(format!(
-                                                                    "正在删除文件 `{object_key}`…"
-                                                                )));
-
-                                                                let minio_files = minio_files.clone();
-                                                                let mut feedback = feedback;
-                                                                let mut pending = pending;
-                                                                let mut explorer_resource = explorer_resource;
-                                                                let object_key = object_key.clone();
-
-                                                                spawn(async move {
-                                                                    match minio_files
-                                                                        .delete_file(StorageDeleteObjectDto {
-                                                                            object_key,
-                                                                        })
-                                                                        .await
-                                                                    {
-                                                                        Ok(result) => {
-                                                                            feedback.set(Some(result.message));
-                                                                            explorer_resource.restart();
-                                                                        }
-                                                                        Err(err) => {
-                                                                            feedback.set(Some(format!(
-                                                                                "删除文件失败：{err}"
-                                                                            )));
-                                                                        }
-                                                                    }
-
-                                                                    pending.set(false);
-                                                                });
-                                                            }
-                                                        },
-                                                        "删除"
-                                                    }
+                                                DownloadFileActions {
+                                                    file: file.clone(),
+                                                    pending,
+                                                    feedback,
+                                                    share_result,
+                                                    refresh_nonce,
+                                                    share_expiration_seconds
                                                 }
                                             }
                                         }
@@ -1251,117 +943,13 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
                                 td { "{format_bytes(file.size_bytes)}" }
                                 td { "{file.last_modified}" }
                                 td {
-                                    div { class: "file-row-actions",
-                                        a {
-                                            class: "action-button",
-                                            href: file.download_path.clone(),
-                                            target: "_blank",
-                                            rel: "noreferrer",
-                                            "{download_action_label(file)}"
-                                        }
-                                        WorkbenchButton {
-                                            class: "action-button".to_string(),
-                                            disabled: *pending.read(),
-                                            onclick: {
-                                                let minio_files = minio_files.clone();
-                                                let mut feedback = feedback;
-                                                let mut pending = pending;
-                                                let share_result = share_result;
-                                                let object_key = file.object_key.clone();
-                                                let relative_path = file.relative_path.clone();
-                                                move |_| {
-                                                    if *pending.read() {
-                                                        return;
-                                                    }
-
-                                                    pending.set(true);
-                                                    feedback.set(Some(format!(
-                                                        "正在生成 `{relative_path}` 的分享链接…"
-                                                    )));
-
-                                                    let minio_files = minio_files.clone();
-                                                    let mut feedback = feedback;
-                                                    let mut pending = pending;
-                                                    let mut share_result = share_result;
-                                                    let object_key = object_key.clone();
-
-                                                    spawn(async move {
-                                                        match minio_files
-                                                            .share_file(StorageShareRequestDto {
-                                                                object_key,
-                                                                expiration_seconds: Some(share_expiration_seconds),
-                                                            })
-                                                            .await
-                                                        {
-                                                            Ok(result) => {
-                                                                share_result.set(Some(result));
-                                                                feedback.set(Some(
-                                                                    "分享链接已生成，已更新到右侧面板。"
-                                                                        .to_string(),
-                                                                ));
-                                                            }
-                                                            Err(err) => {
-                                                                feedback.set(Some(format!(
-                                                                    "生成分享链接失败：{err}"
-                                                                )));
-                                                            }
-                                                        }
-
-                                                        pending.set(false);
-                                                    });
-                                                }
-                                            },
-                                            "分享"
-                                        }
-                                        WorkbenchButton {
-                                            class: "action-button".to_string(),
-                                            disabled: *pending.read(),
-                                            onclick: {
-                                                let minio_files = minio_files.clone();
-                                                let mut feedback = feedback;
-                                                let mut pending = pending;
-                                                let explorer_resource = explorer_resource;
-                                                let object_key = file.object_key.clone();
-                                                move |_| {
-                                                    if *pending.read() {
-                                                        return;
-                                                    }
-
-                                                    pending.set(true);
-                                                    feedback.set(Some(format!(
-                                                        "正在删除文件 `{object_key}`…"
-                                                    )));
-
-                                                    let minio_files = minio_files.clone();
-                                                    let mut feedback = feedback;
-                                                    let mut pending = pending;
-                                                    let mut explorer_resource = explorer_resource;
-                                                    let object_key = object_key.clone();
-
-                                                    spawn(async move {
-                                                        match minio_files
-                                                            .delete_file(StorageDeleteObjectDto {
-                                                                object_key,
-                                                            })
-                                                            .await
-                                                        {
-                                                            Ok(result) => {
-                                                                feedback.set(Some(result.message));
-                                                                explorer_resource.restart();
-                                                            }
-                                                            Err(err) => {
-                                                                feedback.set(Some(format!(
-                                                                    "删除文件失败：{err}"
-                                                                )));
-                                                            }
-                                                        }
-
-                                                        pending.set(false);
-                                                    });
-                                                }
-                                            },
-                                            "删除"
-                                        }
+                                    DownloadFileActions {
+                                        file: file.clone(),
+                                        pending,
+                                        feedback,
+                                        share_result,
+                                        refresh_nonce,
+                                        share_expiration_seconds
                                     }
                                 }
                             }
@@ -1371,6 +959,155 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
             }
         }
     }
+}
+
+#[derive(Props, Clone, PartialEq)]
+struct DownloadFileActionsProps {
+    file: StorageFileDto,
+    pending: Signal<bool>,
+    feedback: Signal<Option<String>>,
+    share_result: Signal<Option<StorageShareResultDto>>,
+    refresh_nonce: Signal<u64>,
+    share_expiration_seconds: u64,
+}
+
+#[component]
+fn DownloadFileActions(props: DownloadFileActionsProps) -> Element {
+    let services = use_context::<AppServices>();
+    let minio_files = services.minio_files.clone();
+    let file = props.file.clone();
+    let download_label = download_action_label(&file);
+
+    rsx! {
+        div { class: "file-row-actions",
+            a {
+                class: "action-button",
+                href: file.download_path.clone(),
+                target: "_blank",
+                rel: "noreferrer",
+                "{download_label}"
+            }
+            WorkbenchButton {
+                class: "action-button".to_string(),
+                disabled: *props.pending.read(),
+                onclick: {
+                    let minio_files = minio_files.clone();
+                    let mut feedback = props.feedback;
+                    let mut pending = props.pending;
+                    let share_result = props.share_result;
+                    let object_key = file.object_key.clone();
+                    let relative_path = file.relative_path.clone();
+                    let share_expiration_seconds = props.share_expiration_seconds;
+                    move |_| {
+                        if *pending.read() {
+                            return;
+                        }
+
+                        pending.set(true);
+                        feedback.set(Some(format!(
+                            "正在生成 `{relative_path}` 的分享链接…"
+                        )));
+
+                        let minio_files = minio_files.clone();
+                        let mut feedback = feedback;
+                        let mut pending = pending;
+                        let mut share_result = share_result;
+                        let object_key = object_key.clone();
+
+                        spawn(async move {
+                            match minio_files
+                                .share_file(StorageShareRequestDto {
+                                    object_key,
+                                    expiration_seconds: Some(share_expiration_seconds),
+                                })
+                                .await
+                            {
+                                Ok(result) => {
+                                    share_result.set(Some(result));
+                                    feedback
+                                        .set(Some("分享链接已生成，已更新到右侧面板。".to_string()));
+                                }
+                                Err(err) => {
+                                    feedback.set(Some(format!("生成分享链接失败：{err}")));
+                                }
+                            }
+
+                            pending.set(false);
+                        });
+                    }
+                },
+                "分享"
+            }
+            WorkbenchButton {
+                class: "action-button".to_string(),
+                disabled: *props.pending.read(),
+                onclick: {
+                    let minio_files = minio_files.clone();
+                    let mut feedback = props.feedback;
+                    let mut pending = props.pending;
+                    let refresh_nonce = props.refresh_nonce;
+                    let object_key = file.object_key.clone();
+                    move |_| {
+                        if *pending.read() {
+                            return;
+                        }
+
+                        pending.set(true);
+                        feedback.set(Some(format!("正在删除文件 `{object_key}`…")));
+
+                        let minio_files = minio_files.clone();
+                        let mut feedback = feedback;
+                        let mut pending = pending;
+                        let refresh_nonce = refresh_nonce;
+                        let object_key = object_key.clone();
+
+                        spawn(async move {
+                            match minio_files
+                                .delete_file(StorageDeleteObjectDto { object_key })
+                                .await
+                            {
+                                Ok(result) => {
+                                    feedback.set(Some(result.message));
+                                    bump_refresh_nonce(refresh_nonce);
+                                }
+                                Err(err) => {
+                                    feedback.set(Some(format!("删除文件失败：{err}")));
+                                }
+                            }
+
+                            pending.set(false);
+                        });
+                    }
+                },
+                "删除"
+            }
+        }
+    }
+}
+
+fn bump_refresh_nonce(mut refresh_nonce: Signal<u64>) {
+    let next = (*refresh_nonce.read()).saturating_add(1);
+    refresh_nonce.set(next);
+}
+
+fn folder_object_count_label(folder: &StorageFolderDto) -> String {
+    if folder.object_count == 0 && folder.size_bytes == 0 {
+        "按需统计".to_string()
+    } else {
+        folder.object_count.to_string()
+    }
+}
+
+fn folder_size_label(folder: &StorageFolderDto) -> String {
+    if folder.object_count == 0 && folder.size_bytes == 0 {
+        "-".to_string()
+    } else {
+        format_bytes(folder.size_bytes)
+    }
+}
+
+fn source_badge_label(folder: &StorageFolderDto) -> Option<String> {
+    (folder.object_count > 0).then(|| folder.object_count.to_string())
 }
 
 fn display_prefix(prefix: &str) -> String {

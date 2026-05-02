@@ -1,4 +1,7 @@
-use std::{fs, future::Future, path::PathBuf, pin::Pin, rc::Rc};
+use std::{future::Future, pin::Pin, rc::Rc};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::{fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 

@@ -21,7 +21,6 @@ UPDATE sys_menu SET permission_code = 'system:menu'    WHERE name = '菜单'    
 UPDATE sys_menu SET permission_code = 'system:role'    WHERE name = '角色'     AND permission_code = '';
 UPDATE sys_menu SET permission_code = 'system:dept'    WHERE name = '部门'     AND permission_code = '';
 UPDATE sys_menu SET permission_code = 'system:dict'    WHERE name = '字典管理' AND permission_code = '';
-UPDATE sys_menu SET permission_code = 'system:agent'   WHERE name = 'Agent 节点' AND permission_code = '';
 UPDATE sys_menu SET permission_code = 'system:setting' WHERE name = '系统设置' AND permission_code = '';
 UPDATE sys_menu SET permission_code = 'knowledge'       WHERE name = '知识库'   AND permission_code = '';
 UPDATE sys_menu SET permission_code = 'knowledge:note'  WHERE name = '笔记'     AND permission_code = '';

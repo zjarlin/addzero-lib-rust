@@ -173,14 +173,14 @@ fn fallback_pages() -> Vec<StaticPage> {
     vec![
         StaticPage {
             domain_id: OVERVIEW_DOMAIN_ID,
-            label: "知识图谱概览",
+            label: "笔记工作台",
             href: "/",
             order: 10,
             active_patterns: &["/", "/dashboard"],
         },
         StaticPage {
             domain_id: AGENTS_DOMAIN_ID,
-            label: "技能资产",
+            label: "Skill 资产",
             href: "/agents",
             order: 10,
             active_patterns: &["/agents", "/agents/:name"],
@@ -201,7 +201,7 @@ fn fallback_pages() -> Vec<StaticPage> {
         },
         StaticPage {
             domain_id: KNOWLEDGE_DOMAIN_ID,
-            label: "Skills",
+            label: "Skill 资产",
             href: "/agents",
             order: 20,
             active_patterns: &["/agents", "/agents/:name"],
@@ -268,13 +268,6 @@ fn fallback_pages() -> Vec<StaticPage> {
         },
         StaticPage {
             domain_id: SYSTEM_DOMAIN_ID,
-            label: "Agent 节点",
-            href: "/system/agent-nodes",
-            order: 48,
-            active_patterns: &["/system/agent-nodes", "/system/agent-nodes/pairings/:id"],
-        },
-        StaticPage {
-            domain_id: SYSTEM_DOMAIN_ID,
             label: "系统设置",
             href: "/system/settings",
             order: 50,
@@ -321,7 +314,7 @@ mod tests {
         assert_eq!(section.label, "知识库");
         assert_eq!(
             labels,
-            vec!["笔记", "Skills", "下载与安装", "CLI 市场", "下载站"]
+            vec!["笔记", "Skill 资产", "下载与安装", "CLI 市场", "下载站"]
         );
         assert_eq!(files_section.label, "知识库");
         assert_eq!(

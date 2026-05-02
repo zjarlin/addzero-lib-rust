@@ -124,7 +124,6 @@ pub struct WorkspaceMigrator;
 impl MigratorTrait for WorkspaceMigrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
         vec![
-            Box::new(AgentRuntimeSchemaMigration),
             Box::new(CliMarketSchemaMigration),
             Box::new(AdminAssetGraphSchemaMigration),
             Box::new(AdminSoftwareCatalogSchemaMigration),
@@ -132,6 +131,7 @@ impl MigratorTrait for WorkspaceMigrator {
             Box::new(AssetSchemaMigration),
             Box::new(KnowledgeSchemaMigration),
             Box::new(SkillSchemaMigration),
+            Box::new(RemoveAgentRuntimeSchemaMigration),
         ]
     }
 }
@@ -145,24 +145,6 @@ async fn execute_sql(manager: &SchemaManager<'_>, sql: &str) -> Result<(), DbErr
         manager.get_connection().execute_unprepared(trimmed).await?;
     }
     Ok(())
-}
-
-#[derive(DeriveMigrationName)]
-struct AgentRuntimeSchemaMigration;
-
-#[async_trait::async_trait]
-impl MigrationTrait for AgentRuntimeSchemaMigration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        execute_sql(
-            manager,
-            include_str!("../../../../apps/msc-aio/src/server/migrations/0001_agent_runtime.sql"),
-        )
-        .await
-    }
-
-    async fn down(&self, _manager: &SchemaManager) -> Result<(), DbErr> {
-        Ok(())
-    }
 }
 
 #[derive(DeriveMigrationName)]
@@ -288,6 +270,26 @@ impl MigrationTrait for SkillSchemaMigration {
         execute_sql(
             manager,
             include_str!("../../addzero-skills/migrations/0001_init.sql"),
+        )
+        .await
+    }
+
+    async fn down(&self, _manager: &SchemaManager) -> Result<(), DbErr> {
+        Ok(())
+    }
+}
+
+#[derive(DeriveMigrationName)]
+struct RemoveAgentRuntimeSchemaMigration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for RemoveAgentRuntimeSchemaMigration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        execute_sql(
+            manager,
+            include_str!(
+                "../../../../apps/msc-aio/src/server/migrations/0009_remove_agent_runtime.sql"
+            ),
         )
         .await
     }

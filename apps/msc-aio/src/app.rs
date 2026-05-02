@@ -2,13 +2,13 @@ use dioxus::prelude::*;
 use dioxus_components::AdminShell;
 
 use crate::domains::{
-    agent_nodes::{SystemAgentNodes, SystemAgentPairingApproval},
     agents::{AgentEditor, Agents},
     auth::LoginPage,
     cli_market::{KnowledgeCliMarket, KnowledgeCliMarketDocs, KnowledgeCliMarketImports},
     dashboard::{Audit, Dashboard},
     download_station::DownloadStationScene,
-    knowledge_base::{KnowledgeNotes, KnowledgePackages},
+    knowledge_base::KnowledgePackages,
+    note_workspace::KnowledgeNotes,
     system_management::{
         SystemDepartments, SystemDictionaries, SystemMenus, SystemRoles, SystemUsers,
     },
@@ -83,10 +83,6 @@ pub enum Route {
     SystemDepartments,
     #[route("/system/dictionaries")]
     SystemDictionaries,
-    #[route("/system/agent-nodes")]
-    SystemAgentNodes,
-    #[route("/system/agent-nodes/pairings/:id")]
-    SystemAgentPairingApproval { id: String },
     #[route("/system/settings")]
     SystemSettings,
     #[route("/audit")]
@@ -210,7 +206,7 @@ fn Login() -> Element {
 
 #[component]
 fn Home() -> Element {
-    rsx! { Dashboard {} }
+    rsx! { KnowledgeNotes {} }
 }
 
 #[component]

@@ -566,7 +566,7 @@ fn BrandingSettingsTab(props: BrandingSettingsTabProps) -> Element {
                         label: "MinIO 相对路径".to_string(),
                         value: relative_path,
                         readonly: true,
-                        placeholder: "上传后返回 bucket/object 相对路径"
+                        placeholder: "上传后返回 msc-aio 内相对路径"
                     }
                     Field {
                         label: "预览地址".to_string(),

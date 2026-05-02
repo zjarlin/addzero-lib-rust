@@ -223,11 +223,11 @@ mod tests {
 
     #[test]
     fn path_matching_should_support_dynamic_segments() {
-        assert!(path_matches_patterns(
-            "/system/agent-nodes/pairings/42",
-            &["/system/agent-nodes/pairings/:id"]
-        ));
         assert!(path_matches_patterns("/agents/demo", &["/agents/:name"]));
+        assert!(path_matches_patterns(
+            "/api/admin/system/users/42",
+            &["/api/admin/system/users/:id"]
+        ));
         assert!(!path_matches_patterns(
             "/agents/demo/edit",
             &["/agents/:name"]

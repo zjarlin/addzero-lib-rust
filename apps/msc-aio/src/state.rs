@@ -6,14 +6,13 @@ use dioxus_components::SharedAdminProvider;
 use crate::admin::DefaultAdminProvider;
 use crate::app::Route;
 use crate::services::{
-    BrandingLogoSource, BrandingSettingsDto, BrandingSettingsUpdate, SharedAgentRuntimeApi,
-    SharedAssetGraphApi, SharedAuthApi, SharedBrandingSettingsApi, SharedCliMarketApi,
-    SharedKnowledgeGraphApi, SharedLogoStorageApi, SharedMinioFilesApi, SharedSkillsApi,
-    SharedSoftwareCatalogApi, SharedSystemManagementApi, StoredLogoDto, build_preview_url,
-    default_agent_runtime_api, default_asset_graph_api, default_auth_api,
-    default_branding_settings_api, default_cli_market_api, default_knowledge_graph_api,
-    default_logo_storage_api, default_minio_files_api, default_skills_api,
-    default_software_catalog_api, default_system_management_api,
+    BrandingLogoSource, BrandingSettingsDto, BrandingSettingsUpdate, SharedAssetGraphApi,
+    SharedAuthApi, SharedBrandingSettingsApi, SharedCliMarketApi, SharedKnowledgeGraphApi,
+    SharedLogoStorageApi, SharedMinioFilesApi, SharedSkillsApi, SharedSoftwareCatalogApi,
+    SharedSystemManagementApi, StoredLogoDto, build_preview_url, default_asset_graph_api,
+    default_auth_api, default_branding_settings_api, default_cli_market_api,
+    default_knowledge_graph_api, default_logo_storage_api, default_minio_files_api,
+    default_skills_api, default_software_catalog_api, default_system_management_api,
 };
 
 pub const DEFAULT_SITE_NAME: &str = "MSC_AIO";
@@ -167,7 +166,6 @@ impl PermissionState {
 pub struct AppServices {
     pub auth_api: SharedAuthApi,
     pub skills: SharedSkillsApi,
-    pub agent_runtime: SharedAgentRuntimeApi,
     pub asset_graph: SharedAssetGraphApi,
     pub knowledge_graph: SharedKnowledgeGraphApi,
     pub cli_market: SharedCliMarketApi,
@@ -190,11 +188,9 @@ impl AppServices {
     ) -> Self {
         let auth_api = default_auth_api();
         let skills = default_skills_api();
-        let agent_runtime = default_agent_runtime_api();
         Self {
             auth_api: auth_api.clone(),
             skills,
-            agent_runtime,
             asset_graph: default_asset_graph_api(),
             knowledge_graph: default_knowledge_graph_api(),
             cli_market: default_cli_market_api(),

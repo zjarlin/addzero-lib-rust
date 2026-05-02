@@ -5,6 +5,7 @@ use std::{collections::BTreeMap, path::Path, sync::Mutex};
 
 #[cfg(not(target_arch = "wasm32"))]
 use addzero_minio::{DEFAULT_PRESIGNED_EXPIRATION_SECONDS, MinioClient, MinioConfig};
+#[cfg(not(target_arch = "wasm32"))]
 use base64::Engine as _;
 #[cfg(not(target_arch = "wasm32"))]
 use once_cell::sync::Lazy;
@@ -13,6 +14,7 @@ use thiserror::Error;
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
+#[cfg(not(target_arch = "wasm32"))]
 const DOWNLOAD_ROUTE_PREFIX: &str = "/api/admin/storage/files/download/";
 pub const MSC_AIO_BUCKET_NAME: &str = "msc-aio";
 
@@ -976,6 +978,7 @@ fn read_u64_env_any(names: &[&str], default: u64) -> Result<u64, String> {
         .map_err(|err| format!("无法解析 `{}`：{err}", names.join(" / ")))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn validate_file_name(raw: &str) -> MinioFilesResult<String> {
     let name = raw.trim();
     if name.is_empty() {
@@ -988,6 +991,7 @@ fn validate_file_name(raw: &str) -> MinioFilesResult<String> {
     Ok(name.to_string())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn validate_segment(segment: &str) -> MinioFilesResult<()> {
     if segment.trim().is_empty() {
         return Err(MinioFilesError::new("路径段不能为空"));
@@ -1004,6 +1008,7 @@ fn validate_segment(segment: &str) -> MinioFilesResult<()> {
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn normalize_prefix(raw: &str) -> MinioFilesResult<String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed == "/" {
@@ -1026,6 +1031,7 @@ fn normalize_prefix(raw: &str) -> MinioFilesResult<String> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn normalize_non_root_folder_prefix(raw: &str) -> MinioFilesResult<String> {
     let prefix = normalize_prefix(raw)?;
     if prefix.is_empty() {
@@ -1035,6 +1041,7 @@ fn normalize_non_root_folder_prefix(raw: &str) -> MinioFilesResult<String> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn normalize_file_object_key(raw: &str) -> MinioFilesResult<String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -1048,6 +1055,7 @@ fn normalize_file_object_key(raw: &str) -> MinioFilesResult<String> {
     Ok(normalized)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn normalize_joined_path(raw: &str, force_trailing_slash: bool) -> MinioFilesResult<String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -1075,6 +1083,7 @@ fn normalize_joined_path(raw: &str, force_trailing_slash: bool) -> MinioFilesRes
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn join_prefix(parent_prefix: &str, relative_path: &str) -> MinioFilesResult<String> {
     let relative = relative_path.trim();
     if relative.is_empty() {
@@ -1091,6 +1100,7 @@ fn join_prefix(parent_prefix: &str, relative_path: &str) -> MinioFilesResult<Str
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn parent_prefix(prefix: &str) -> Option<String> {
     let normalized = normalize_prefix(prefix).ok()?;
     if normalized.is_empty() {
@@ -1106,6 +1116,7 @@ fn parent_prefix(prefix: &str) -> Option<String> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn build_breadcrumbs(prefix: &str) -> Vec<StorageBreadcrumbDto> {
     let normalized = normalize_prefix(prefix).unwrap_or_default();
     let mut breadcrumbs = vec![StorageBreadcrumbDto {
@@ -1133,6 +1144,7 @@ fn build_breadcrumbs(prefix: &str) -> Vec<StorageBreadcrumbDto> {
     breadcrumbs
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn display_prefix(prefix: &str) -> String {
     let normalized = normalize_prefix(prefix).unwrap_or_default();
     if normalized.is_empty() {
@@ -1142,10 +1154,12 @@ fn display_prefix(prefix: &str) -> String {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn build_download_token(object_key: &str) -> String {
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(object_key.as_bytes())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn build_download_path(object_key: &str) -> String {
     format!(
         "{DOWNLOAD_ROUTE_PREFIX}{}",
@@ -1153,6 +1167,7 @@ fn build_download_path(object_key: &str) -> String {
     )
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn decode_download_token(download_token: &str) -> MinioFilesResult<String> {
     let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .decode(download_token.as_bytes())

@@ -61,7 +61,6 @@ INSERT INTO sys_menu (id, parent_id, name, route, icon, sort_order) VALUES
     (9, 6, '菜单', '/system/menus', 'menu', 30),
     (10, 6, '部门', '/system/departments', 'building', 40),
     (11, 6, '字典', '/system/dictionaries', 'book-open', 50),
-    (12, 6, 'Agent 节点', '/system/agent-nodes', 'server', 60),
     (13, 6, '系统设置', '/system/settings', 'cog', 70),
     (14, NULL, '审计日志', '/audit', 'clipboard', 40)
 ON CONFLICT (id) DO NOTHING;

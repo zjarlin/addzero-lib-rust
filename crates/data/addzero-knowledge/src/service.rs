@@ -88,36 +88,24 @@ impl KnowledgeService {
             .await?;
         Ok(document)
     }
+
+    pub async fn delete_document_by_source_path(
+        &self,
+        source_path: &str,
+    ) -> Result<(), KnowledgeError> {
+        self.repository
+            .deactivate_document_by_source_path(source_path)
+            .await
+    }
 }
 
 fn build_manual_document(
     input: &ManualKnowledgeDocumentInput,
     source_root: String,
 ) -> KnowledgeDocument {
-    let body = input.body.trim().to_string();
-    let title = if input.title.trim().is_empty() {
-        "untitled".to_string()
-    } else {
-        input.title.trim().to_string()
-    };
-    let source_label = if input.source_label.trim().is_empty() {
-        "未注明来源".to_string()
-    } else {
-        input.source_label.trim().to_string()
-    };
-    let tags = input
-        .tags
-        .iter()
-        .map(|tag| tag.trim())
-        .filter(|tag| !tag.is_empty())
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
-    let headings = if tags.is_empty() {
-        Vec::new()
-    } else {
-        tags.into_iter().take(10).collect::<Vec<_>>()
-    };
-    let content = format!("# {title}\n\n## 来源\n{source_label}\n\n## 内容\n{body}\n");
+    let title = derive_title(&input.title, &input.body);
+    let content = normalize_manual_markdown(&title, &input.body);
+    let headings = extract_headings(&content);
     let content_hash = compute_hash(&content);
     let slug = format!(
         "{}-{}-{}",
@@ -143,6 +131,65 @@ fn build_manual_document(
         body: content,
         content_hash,
     }
+}
+
+fn derive_title(title: &str, body: &str) -> String {
+    let trimmed = title.trim();
+    if !trimmed.is_empty() {
+        return trimmed.to_string();
+    }
+
+    if let Some(heading) = body
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with('#') && line.trim_start_matches('#').trim().len() > 0)
+    {
+        return heading.trim_start_matches('#').trim().to_string();
+    }
+
+    if let Some(line) = body.lines().map(str::trim).find(|line| !line.is_empty()) {
+        return line
+            .trim_start_matches(['#', '-', '*', ' '])
+            .chars()
+            .take(48)
+            .collect::<String>();
+    }
+
+    "untitled".to_string()
+}
+
+fn normalize_manual_markdown(title: &str, body: &str) -> String {
+    let trimmed = body.trim();
+    let mut content = if trimmed.is_empty() {
+        format!("# {title}\n\n")
+    } else if trimmed
+        .lines()
+        .next()
+        .is_some_and(|line| line.trim_start().starts_with('#'))
+    {
+        trimmed.to_string()
+    } else {
+        format!("# {title}\n\n{trimmed}")
+    };
+
+    if !content.ends_with('\n') {
+        content.push('\n');
+    }
+
+    content
+}
+
+fn extract_headings(content: &str) -> Vec<String> {
+    content
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with('#'))
+        .filter_map(|line| {
+            let heading = line.trim_start_matches('#').trim();
+            (!heading.is_empty()).then(|| heading.to_string())
+        })
+        .take(12)
+        .collect()
 }
 
 fn filename_from_path(relative_path: &str) -> String {

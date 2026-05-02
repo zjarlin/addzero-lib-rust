@@ -164,8 +164,6 @@ fn domain_for_route(route: &Route) -> AdminDomain {
         | Route::SystemRoles
         | Route::SystemDepartments
         | Route::SystemDictionaries
-        | Route::SystemAgentNodes
-        | Route::SystemAgentPairingApproval { .. }
         | Route::SystemSettings => AdminDomain::System,
         Route::Audit => AdminDomain::Audit,
         Route::Login => AdminDomain::Overview,
@@ -176,7 +174,7 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
     match domain {
         AdminDomain::Overview => AdminSection {
             label: domain.label().to_string(),
-            menus: vec![AdminMenu::leaf("智能体工作台", Route::Home, |route| {
+            menus: vec![AdminMenu::leaf("笔记工作台", Route::Home, |route| {
                 matches!(route, Route::Home | Route::Dashboard)
             })],
         },
@@ -186,7 +184,7 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                 AdminMenu::leaf("笔记", Route::KnowledgeNotes, |route| {
                     matches!(route, Route::KnowledgeNotes)
                 }),
-                AdminMenu::leaf("Skills", Route::Agents, |route| {
+                AdminMenu::leaf("Skill 资产", Route::Agents, |route| {
                     matches!(route, Route::Agents | Route::AgentEditor { .. })
                 }),
                 AdminMenu::leaf("下载与安装", Route::KnowledgePackages, |route| {
@@ -238,12 +236,6 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                 AdminMenu::leaf("字典管理", Route::SystemDictionaries, |route| {
                     matches!(route, Route::SystemDictionaries)
                 }),
-                AdminMenu::leaf("Agent 节点", Route::SystemAgentNodes, |route| {
-                    matches!(
-                        route,
-                        Route::SystemAgentNodes | Route::SystemAgentPairingApproval { .. }
-                    )
-                }),
                 AdminMenu::leaf("系统设置", Route::SystemSettings, |route| {
                     matches!(route, Route::SystemSettings)
                 }),
@@ -261,9 +253,9 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
 /// 菜单项对应的权限标识。返回 None 表示始终可见（如仪表盘）。
 fn permission_for_menu(menu_label: &str) -> Option<&'static str> {
     match menu_label {
-        "智能体工作台" => Some("overview"),
+        "笔记工作台" => Some("overview"),
         "笔记" => Some("knowledge:note"),
-        "Skills" => Some("knowledge:skill"),
+        "Skill 资产" => Some("knowledge:skill"),
         "CLI 市场" => Some("knowledge:cli"),
         "导入任务" => Some("knowledge:cli"),
         "CLI 文档" => Some("knowledge:cli"),
@@ -272,7 +264,6 @@ fn permission_for_menu(menu_label: &str) -> Option<&'static str> {
         "角色" => Some("system:role"),
         "部门" => Some("system:dept"),
         "字典管理" => Some("system:dict"),
-        "Agent 节点" => Some("system:agent"),
         "系统设置" => Some("system:setting"),
         "审计日志" => Some("audit"),
         _ => None,
@@ -441,7 +432,7 @@ mod tests {
         assert_eq!(section.label, "知识库");
         assert_eq!(
             labels,
-            vec!["笔记", "Skills", "下载与安装", "CLI 市场", "下载站"]
+            vec!["笔记", "Skill 资产", "下载与安装", "CLI 市场", "下载站"]
         );
         assert_eq!(unique_labels.len(), labels.len());
         assert_eq!(
