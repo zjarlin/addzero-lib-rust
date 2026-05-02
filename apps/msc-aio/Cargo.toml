@@ -65,9 +65,11 @@ sha2.workspace = true
 shlex.workspace = true
 bcrypt = "0.16"
 once_cell = "1"
+portable-pty = "0.9.0"
 sqlx.workspace = true
 tokio.workspace = true
 tower-http = { version = "0.6.8", features = ["cors"] }
+vt100 = "0.16.2"
 zip.workspace = true
 
 [build-dependencies]

@@ -1,6 +1,7 @@
 pub mod agents;
 pub mod asset_chat;
 pub mod auth;
+pub mod chat;
 pub mod cli_market;
 pub mod dashboard;
 pub mod download_station;

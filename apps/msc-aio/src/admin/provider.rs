@@ -1,15 +1,15 @@
 use dioxus::prelude::*;
 use dioxus_components::{
-    AdminAction, AdminActionIcon, AdminCommand, AdminMenu, AdminProvider, AdminSection,
+    AdminAction, AdminActionIcon, AdminCommand, AdminShellProvider, AdminShellState,
     AdminTopbar, WorkbenchButton,
 };
 
+use crate::admin::navigation::{domain_for_route, registered_domains, section_for_route};
 use crate::app::Route;
-use crate::services::BrandingLogoSource;
-use crate::services::SharedAuthApi;
+use crate::services::{BrandingLogoSource, SharedAuthApi};
 use crate::state::{AuthSession, BrandingPrefs, BrandingState, PermissionState, ThemePrefs};
 
-pub struct DefaultAdminProvider {
+pub struct AdminProvider {
     auth: AuthSession,
     theme: ThemePrefs,
     branding: BrandingPrefs,
@@ -17,35 +17,7 @@ pub struct DefaultAdminProvider {
     permissions: PermissionState,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum AdminDomain {
-    Overview,
-    Knowledge,
-    System,
-    Audit,
-}
-
-impl AdminDomain {
-    fn label(self) -> &'static str {
-        match self {
-            Self::Overview => "工作台",
-            Self::Knowledge => "知识库",
-            Self::System => "系统管理",
-            Self::Audit => "审计日志",
-        }
-    }
-
-    fn route(self) -> Route {
-        match self {
-            Self::Overview => Route::Home,
-            Self::Knowledge => Route::KnowledgeNotes,
-            Self::System => Route::SystemUsers,
-            Self::Audit => Route::Audit,
-        }
-    }
-}
-
-impl DefaultAdminProvider {
+impl AdminProvider {
     pub fn new(
         auth: AuthSession,
         theme: ThemePrefs,
@@ -63,8 +35,8 @@ impl DefaultAdminProvider {
     }
 }
 
-impl AdminProvider<Route> for DefaultAdminProvider {
-    fn topbar(&self, current: &Route) -> AdminTopbar<Route> {
+impl AdminShellProvider<Route> for AdminProvider {
+    fn shell(&self, current: &Route) -> AdminShellState<Route> {
         let auth = self.auth;
         let theme = self.theme;
         let branding = self.branding;
@@ -77,244 +49,74 @@ impl AdminProvider<Route> for DefaultAdminProvider {
         let username = auth.username;
         let auth_api = self.auth_api.clone();
 
-        AdminTopbar {
-            brand: Some(render_brand(&brand_state, user.as_str(), current)),
-            eyebrow: None,
-            title: String::new(),
-            left: Vec::new(),
-            right: vec![
-                AdminAction {
-                    class: "icon-button".to_string(),
-                    title: if is_dark {
-                        "切换到白天模式".to_string()
-                    } else {
-                        "切换到黑夜模式".to_string()
+        AdminShellState {
+            topbar: AdminTopbar {
+                brand: Some(render_brand(&brand_state, user.as_str(), current)),
+                eyebrow: None,
+                title: String::new(),
+                left: Vec::new(),
+                right: vec![
+                    AdminAction {
+                        class: "icon-button".to_string(),
+                        title: if is_dark {
+                            "切换到白天模式".to_string()
+                        } else {
+                            "切换到黑夜模式".to_string()
+                        },
+                        tone: None,
+                        icon: if is_dark {
+                            AdminActionIcon::Sun
+                        } else {
+                            AdminActionIcon::Moon
+                        },
+                        cmd: AdminCommand::run(move || {
+                            let mut dark_mode = dark_mode;
+                            dark_mode.set(!is_dark);
+                        }),
                     },
-                    tone: None,
-                    icon: if is_dark {
-                        AdminActionIcon::Sun
-                    } else {
-                        AdminActionIcon::Moon
+                    AdminAction {
+                        class: "icon-button".to_string(),
+                        title: "搜索".to_string(),
+                        tone: None,
+                        icon: AdminActionIcon::Search,
+                        cmd: AdminCommand::run(|| {
+                            document::eval(
+                                "if (window.mscFocusCommandSearch) window.mscFocusCommandSearch();",
+                            );
+                        }),
                     },
-                    cmd: AdminCommand::run(move || {
-                        let mut dark_mode = dark_mode;
-                        dark_mode.set(!is_dark);
-                    }),
-                },
-                AdminAction {
-                    class: "icon-button".to_string(),
-                    title: "搜索".to_string(),
-                    tone: None,
-                    icon: AdminActionIcon::Search,
-                    cmd: AdminCommand::run(|| {
-                        document::eval(
-                            "if (window.mscFocusCommandSearch) window.mscFocusCommandSearch();",
-                        );
-                    }),
-                },
-                AdminAction {
-                    class: "icon-button".to_string(),
-                    title: "通知".to_string(),
-                    tone: None,
-                    icon: AdminActionIcon::Bell,
-                    cmd: AdminCommand::default(),
-                },
-                AdminAction {
-                    class: "icon-button".to_string(),
-                    title: "退出登录".to_string(),
-                    tone: None,
-                    icon: AdminActionIcon::LogOut,
-                    cmd: AdminCommand::run_to(Route::Login, move || {
-                        let auth_api = auth_api.clone();
-                        let mut logged_in = logged_in;
-                        let mut ready = ready;
-                        let mut username = username;
-                        spawn(async move {
-                            let _ = auth_api.logout().await;
-                        });
-                        logged_in.set(false);
-                        username.set(String::new());
-                        ready.set(true);
-                    }),
-                },
-            ],
+                    AdminAction {
+                        class: "icon-button".to_string(),
+                        title: "通知".to_string(),
+                        tone: None,
+                        icon: AdminActionIcon::Bell,
+                        cmd: AdminCommand::default(),
+                    },
+                    AdminAction {
+                        class: "icon-button".to_string(),
+                        title: "退出登录".to_string(),
+                        tone: None,
+                        icon: AdminActionIcon::LogOut,
+                        cmd: AdminCommand::run_to(Route::Login, move || {
+                            let auth_api = auth_api.clone();
+                            let mut logged_in = logged_in;
+                            let mut ready = ready;
+                            let mut username = username;
+                            spawn(async move {
+                                let _ = auth_api.logout().await;
+                            });
+                            logged_in.set(false);
+                            username.set(String::new());
+                            ready.set(true);
+                        }),
+                    },
+                ],
+            },
+            menu: section_for_route(current, self.permissions)
+                .map(|section| vec![section])
+                .unwrap_or_default(),
+            right_panel: None,
         }
-    }
-
-    fn menu(&self, current: &Route) -> Vec<AdminSection<Route>> {
-        let section = section_for_domain(domain_for_route(current));
-        let perms = self.permissions;
-        vec![filter_section_by_permissions(section, perms)]
-    }
-}
-
-fn domain_for_route(route: &Route) -> AdminDomain {
-    match route {
-        Route::Home | Route::Dashboard => AdminDomain::Overview,
-        Route::Agents | Route::AgentEditor { .. } => AdminDomain::Knowledge,
-        Route::KnowledgeNotes
-        | Route::KnowledgePackages
-        | Route::KnowledgeCliMarket
-        | Route::KnowledgeCliMarketImports
-        | Route::KnowledgeCliMarketDocs
-        | Route::DownloadStation
-        | Route::Files => AdminDomain::Knowledge,
-        Route::SystemUsers
-        | Route::SystemMenus
-        | Route::SystemRoles
-        | Route::SystemDepartments
-        | Route::SystemDictionaries
-        | Route::SystemSettings => AdminDomain::System,
-        Route::Audit => AdminDomain::Audit,
-        Route::Login => AdminDomain::Overview,
-    }
-}
-
-fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
-    match domain {
-        AdminDomain::Overview => AdminSection {
-            label: domain.label().to_string(),
-            menus: vec![AdminMenu::leaf("笔记工作台", Route::Home, |route| {
-                matches!(route, Route::Home | Route::Dashboard)
-            })],
-        },
-        AdminDomain::Knowledge => AdminSection {
-            label: domain.label().to_string(),
-            menus: vec![
-                AdminMenu::leaf("笔记", Route::KnowledgeNotes, |route| {
-                    matches!(route, Route::KnowledgeNotes)
-                }),
-                AdminMenu::leaf("Skill 资产", Route::Agents, |route| {
-                    matches!(route, Route::Agents | Route::AgentEditor { .. })
-                }),
-                AdminMenu::leaf("下载与安装", Route::KnowledgePackages, |route| {
-                    matches!(route, Route::KnowledgePackages)
-                }),
-                AdminMenu::branch(
-                    "CLI 市场",
-                    Some(Route::KnowledgeCliMarket),
-                    vec![
-                        AdminMenu::leaf("注册表", Route::KnowledgeCliMarket, |route| {
-                            matches!(route, Route::KnowledgeCliMarket)
-                        }),
-                        AdminMenu::leaf("导入任务", Route::KnowledgeCliMarketImports, |route| {
-                            matches!(route, Route::KnowledgeCliMarketImports)
-                        }),
-                        AdminMenu::leaf("CLI 文档", Route::KnowledgeCliMarketDocs, |route| {
-                            matches!(route, Route::KnowledgeCliMarketDocs)
-                        }),
-                    ],
-                    |route| {
-                        matches!(
-                            route,
-                            Route::KnowledgeCliMarket
-                                | Route::KnowledgeCliMarketImports
-                                | Route::KnowledgeCliMarketDocs
-                        )
-                    },
-                ),
-                AdminMenu::leaf("下载站", Route::DownloadStation, |route| {
-                    matches!(route, Route::DownloadStation | Route::Files)
-                }),
-            ],
-        },
-        AdminDomain::System => AdminSection {
-            label: domain.label().to_string(),
-            menus: vec![
-                AdminMenu::leaf("用户", Route::SystemUsers, |route| {
-                    matches!(route, Route::SystemUsers)
-                }),
-                AdminMenu::leaf("菜单", Route::SystemMenus, |route| {
-                    matches!(route, Route::SystemMenus)
-                }),
-                AdminMenu::leaf("角色", Route::SystemRoles, |route| {
-                    matches!(route, Route::SystemRoles)
-                }),
-                AdminMenu::leaf("部门", Route::SystemDepartments, |route| {
-                    matches!(route, Route::SystemDepartments)
-                }),
-                AdminMenu::leaf("字典管理", Route::SystemDictionaries, |route| {
-                    matches!(route, Route::SystemDictionaries)
-                }),
-                AdminMenu::leaf("系统设置", Route::SystemSettings, |route| {
-                    matches!(route, Route::SystemSettings)
-                }),
-            ],
-        },
-        AdminDomain::Audit => AdminSection {
-            label: domain.label().to_string(),
-            menus: vec![AdminMenu::leaf("审计日志", Route::Audit, |route| {
-                matches!(route, Route::Audit)
-            })],
-        },
-    }
-}
-
-/// 菜单项对应的权限标识。返回 None 表示始终可见（如仪表盘）。
-fn permission_for_menu(menu_label: &str) -> Option<&'static str> {
-    match menu_label {
-        "笔记工作台" => Some("overview"),
-        "笔记" => Some("knowledge:note"),
-        "Skill 资产" => Some("knowledge:skill"),
-        "CLI 市场" => Some("knowledge:cli"),
-        "导入任务" => Some("knowledge:cli"),
-        "CLI 文档" => Some("knowledge:cli"),
-        "用户" => Some("system:user"),
-        "菜单" => Some("system:menu"),
-        "角色" => Some("system:role"),
-        "部门" => Some("system:dept"),
-        "字典管理" => Some("system:dict"),
-        "系统设置" => Some("system:setting"),
-        "审计日志" => Some("audit"),
-        _ => None,
-    }
-}
-
-fn menu_visible(menu_label: &str, perms: PermissionState) -> bool {
-    match menu_label {
-        "下载与安装" => perms.has("knowledge:pkg") || perms.has("knowledge:dl"),
-        _ => match permission_for_menu(menu_label) {
-            None => true,
-            Some(code) => perms.has(code),
-        },
-    }
-}
-
-/// 递归过滤菜单树：只保留用户拥有权限的菜单项。
-fn filter_menu_by_permissions(
-    menu: AdminMenu<Route>,
-    perms: PermissionState,
-) -> Option<AdminMenu<Route>> {
-    if !menu_visible(&menu.label, perms) {
-        return None;
-    }
-    // 过滤子菜单
-    let filtered_children: Vec<AdminMenu<Route>> = menu
-        .children
-        .into_iter()
-        .filter_map(|child| filter_menu_by_permissions(child, perms))
-        .collect();
-    Some(AdminMenu {
-        label: menu.label,
-        to: menu.to,
-        on_select: menu.on_select,
-        is_active: menu.is_active,
-        children: filtered_children,
-    })
-}
-
-fn filter_section_by_permissions(
-    section: AdminSection<Route>,
-    perms: PermissionState,
-) -> AdminSection<Route> {
-    let filtered_menus = section
-        .menus
-        .into_iter()
-        .filter_map(|menu| filter_menu_by_permissions(menu, perms))
-        .collect();
-    AdminSection {
-        label: section.label,
-        menus: filtered_menus,
     }
 }
 
@@ -329,7 +131,7 @@ fn render_brand(
     } else {
         username.to_string()
     };
-    let active_domain = domain_for_route(current);
+    let active_domain_id = domain_for_route(current).map(|domain| domain.id);
     let logo_url = brand_state.active_logo_url();
 
     let brand_detail = match brand_state.logo_source {
@@ -359,91 +161,44 @@ fn render_brand(
     rsx! {
         div { class: "topbar-brand-shell",
             {brand_panel}
-            DomainSwitcher { active: active_domain }
+            DomainSwitcher { active_domain_id }
         }
     }
 }
 
 #[component]
-fn DomainSwitcher(active: AdminDomain) -> Element {
+fn DomainSwitcher(active_domain_id: Option<&'static str>) -> Element {
+    let domains = registered_domains();
+
     rsx! {
         div { class: "domain-switcher",
-            for domain in [
-                AdminDomain::Overview,
-                AdminDomain::Knowledge,
-                AdminDomain::System,
-                AdminDomain::Audit,
-            ] {
-                DomainLink { domain, active: active == domain }
+            for domain in domains {
+                DomainLink {
+                    domain,
+                    active: active_domain_id == Some(domain.id),
+                }
             }
         }
     }
 }
 
 #[component]
-fn DomainLink(domain: AdminDomain, active: bool) -> Element {
+fn DomainLink(
+    domain: addzero_admin_plugin_registry::AdminDomainRegistration,
+    active: bool,
+) -> Element {
     let class = if active {
         "domain-switcher__button domain-switcher__button--active"
     } else {
         "domain-switcher__button"
     };
-    let label = domain.label();
-    let to = domain.route();
+    let Some(to) = domain.default_href.parse::<Route>().ok() else {
+        return rsx! {};
+    };
 
     rsx! {
         Link { to,
-            WorkbenchButton { class: class.to_string(), "{label}" }
+            WorkbenchButton { class: class.to_string(), "{domain.label}" }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{AdminDomain, domain_for_route, section_for_domain};
-    use crate::app::Route;
-    use std::collections::BTreeSet;
-
-    #[test]
-    fn knowledge_aux_routes_stay_inside_knowledge_domain() {
-        assert_eq!(
-            domain_for_route(&Route::DownloadStation),
-            AdminDomain::Knowledge
-        );
-        assert_eq!(domain_for_route(&Route::Files), AdminDomain::Knowledge);
-        assert_eq!(domain_for_route(&Route::Agents), AdminDomain::Knowledge);
-        assert_eq!(AdminDomain::Knowledge.route(), Route::KnowledgeNotes);
-    }
-
-    #[test]
-    fn knowledge_section_exposes_single_unique_navigation_tree() {
-        let section = section_for_domain(AdminDomain::Knowledge);
-        let labels = section
-            .menus
-            .iter()
-            .map(|menu| menu.label.as_str())
-            .collect::<Vec<_>>();
-        let unique_labels = labels.iter().copied().collect::<BTreeSet<_>>();
-        let routes = section
-            .menus
-            .iter()
-            .map(|menu| menu.to.clone())
-            .collect::<Vec<_>>();
-
-        assert_eq!(section.label, "知识库");
-        assert_eq!(
-            labels,
-            vec!["笔记", "Skill 资产", "下载与安装", "CLI 市场", "下载站"]
-        );
-        assert_eq!(unique_labels.len(), labels.len());
-        assert_eq!(
-            routes,
-            vec![
-                Some(Route::KnowledgeNotes),
-                Some(Route::Agents),
-                Some(Route::KnowledgePackages),
-                Some(Route::KnowledgeCliMarket),
-                Some(Route::DownloadStation),
-            ]
-        );
     }
 }

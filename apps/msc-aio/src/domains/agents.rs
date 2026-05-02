@@ -1,22 +1,26 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use dioxus::prelude::*;
 use dioxus_components::{
-    Badge, ContentHeader, Field, MetricRow, MetricStrip, SidebarSection, Stack, Surface,
-    SurfaceHeader, Tone, WorkbenchButton,
+    ContentHeader, Field, MetricRow, MetricStrip, SidebarSection, Stack, Surface, SurfaceHeader,
+    Tone, WorkbenchButton,
 };
 
 use crate::{
+    admin::domains::AGENTS_DOMAIN_ID,
     app::Route,
     domains::asset_chat::{AssetChatFact, AssetChatKind, AssetChatPanel},
     services::{SkillDto, SkillSourceDto, SyncReportDto},
     state::AppServices,
 };
 
+const AGENTS_PAGE_ID: &str = "agent-assets";
+
 #[component]
 pub fn Agents() -> Element {
     let mut search = use_signal(String::new);
+    let mut source_filter = use_signal(|| SkillSourceFilter::All);
     let mut feedback = use_signal::<Option<String>>(|| None);
     let skills_api = use_context::<AppServices>().skills.clone();
 
@@ -27,6 +31,13 @@ pub fn Agents() -> Element {
             async move { skills_api.list_skills().await }
         })
     };
+    let mut status_resource = {
+        let skills_api = skills_api.clone();
+        use_resource(move || {
+            let skills_api = skills_api.clone();
+            async move { skills_api.server_status().await }
+        })
+    };
 
     let do_sync = move || {
         let skills_api = skills_api.clone();
@@ -35,6 +46,7 @@ pub fn Agents() -> Element {
                 Ok(report) => {
                     feedback.set(Some(format_sync_report(&report)));
                     skills_resource.restart();
+                    status_resource.restart();
                 }
                 Err(err) => feedback.set(Some(format!("同步失败：{err}"))),
             }
@@ -47,8 +59,8 @@ pub fn Agents() -> Element {
         Some(Err(err)) => {
             return rsx! {
                 ContentHeader {
-                    title: "Skill 资产".to_string(),
-                    subtitle: "这里管理单个 Skill 定义与同步状态，不是 Skills 市场或分发入口。".to_string()
+                    title: "Skills".to_string(),
+                    subtitle: "这里承载单个 Skill 定义与同步状态，不是市场分发页。".to_string()
                 }
                 Surface {
                     div { class: "callout",
@@ -60,97 +72,204 @@ pub fn Agents() -> Element {
         None => {
             return rsx! {
                 ContentHeader {
-                    title: "Skill 资产".to_string(),
-                    subtitle: "这里管理单个 Skill 定义与同步状态，不是 Skills 市场或分发入口。".to_string()
+                    title: "Skills".to_string(),
+                    subtitle: "这里承载单个 Skill 定义与同步状态，不是市场分发页。".to_string()
                 }
                 Surface { div { class: "empty-state", "正在加载…" } }
             };
         }
     };
 
-    let query = search.read().to_lowercase();
-    let filtered: Vec<SkillDto> = raw_skills
+    let query = search.read().trim().to_lowercase();
+    let active_filter = *source_filter.read();
+    let mut filtered: Vec<SkillDto> = raw_skills
         .iter()
         .filter(|skill| {
-            if query.is_empty() {
-                true
-            } else {
-                skill.name.to_lowercase().contains(&query)
+            active_filter.matches(&skill.source)
+                && (query.is_empty()
+                    || skill.name.to_lowercase().contains(&query)
                     || skill
                         .keywords
                         .iter()
                         .any(|keyword| keyword.to_lowercase().contains(&query))
-                    || skill.description.to_lowercase().contains(&query)
-            }
+                    || skill.description.to_lowercase().contains(&query))
         })
         .cloned()
         .collect();
-    let grouped_skills = build_skill_tree(&filtered);
+    filtered.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.name.cmp(&right.name))
+    });
+
+    let hero_preview = if filtered.is_empty() {
+        raw_skills.iter().take(8).cloned().collect::<Vec<_>>()
+    } else {
+        filtered.iter().take(8).cloned().collect::<Vec<_>>()
+    };
+    let namespace_stats = build_namespace_stats(&filtered);
+    let namespace_total = raw_skills
+        .iter()
+        .map(|skill| skill_group_label(&skill.name))
+        .collect::<BTreeSet<_>>()
+        .len();
+    let keyword_total = raw_skills
+        .iter()
+        .flat_map(|skill| skill.keywords.iter().cloned())
+        .collect::<BTreeSet<_>>()
+        .len();
+    let hybrid_total = raw_skills
+        .iter()
+        .filter(|skill| matches!(&skill.source, SkillSourceDto::Both))
+        .count();
+    let fresh_total = raw_skills
+        .iter()
+        .filter(|skill| skill.updated_at >= Utc::now() - Duration::days(7))
+        .count();
+    let status_view = status_resource.read();
+    let status_report = match status_view.as_ref() {
+        Some(Ok(report)) => Some(report.clone()),
+        _ => None,
+    };
+    let status_note = match status_view.as_ref() {
+        Some(Ok(report)) => format_status_note(report),
+        Some(Err(err)) => format!("状态读取失败：{err}"),
+        None => "正在探测 PG / FS 同步状态…".to_string(),
+    };
+    let status_fs_root = status_report
+        .as_ref()
+        .map(|report| report.fs_root.clone())
+        .filter(|path| !path.is_empty())
+        .unwrap_or_else(|| "—".to_string());
+    let pg_online = status_report
+        .as_ref()
+        .is_some_and(|report| report.pg_online);
 
     rsx! {
         ContentHeader {
-            title: "Skill 资产".to_string(),
-            subtitle: "这里查看和同步单个 Skill 定义；安装、分发和市场能力走独立入口。".to_string()
+            title: "Skills".to_string(),
+            subtitle: "复刻 skills.sh 的目录体验，但这里仍然是 Skill 资产定义与同步入口。".to_string()
         }
-        Surface {
-            SurfaceHeader {
-                title: "Skill 资产列表".to_string(),
-                subtitle: "按名称或关键词搜索；这里只做定义查看与定位，不承担市场分发语义。".to_string(),
-                actions: rsx!(
-                    WorkbenchButton {
-                        class: "toolbar-button".to_string(),
-                        onclick: move |_| do_sync(),
-                        "手动同步"
+        div { class: "skills-page",
+            section { class: "skills-hero",
+                div { class: "skills-hero__intro",
+                    div { class: "skills-eyebrow", "THE OPEN AGENT SKILLS MATRIX" }
+                    h1 { class: "skills-hero__title", "SKILLS" }
+                    p { class: "skills-hero__lede",
+                        "将单个 agent 的程序性知识沉淀为可检索、可同步、可审计的 Skill 资产。页面结构参考 skills.sh，但展示主体改为稳定生成的矩阵图标。"
                     }
-                )
-            }
-            div { class: "toolbar",
-                input {
-                    class: "toolbar__search",
-                    placeholder: "按名称 / 关键词搜索",
-                    value: search.read().clone(),
-                    oninput: move |evt| search.set(evt.value())
+                    div { class: "skills-command",
+                        div { class: "skills-command__label", "SYNC ROOT" }
+                        code { class: "skills-command__value", "{status_fs_root}" }
+                        div { class: "skills-command__meta",
+                            span {
+                                class: if pg_online { "skills-status skills-status--online" } else { "skills-status skills-status--offline" },
+                                if pg_online { "PG + FS" } else { "FS ONLY" }
+                            }
+                            span { class: "skills-command__hint", "{status_note}" }
+                        }
+                        button {
+                            class: "skills-cta",
+                            onclick: move |_| do_sync(),
+                            "立即同步"
+                        }
+                    }
+                    div { class: "skills-hero__stats",
+                        SkillHeroStat {
+                            label: "Catalog".to_string(),
+                            value: raw_skills.len().to_string(),
+                            note: "已索引 Skill".to_string(),
+                        }
+                        SkillHeroStat {
+                            label: "Namespaces".to_string(),
+                            value: namespace_total.to_string(),
+                            note: "命名空间".to_string(),
+                        }
+                        SkillHeroStat {
+                            label: "Keywords".to_string(),
+                            value: keyword_total.to_string(),
+                            note: "唯一关键词".to_string(),
+                        }
+                        SkillHeroStat {
+                            label: "Fresh".to_string(),
+                            value: fresh_total.to_string(),
+                            note: "7 天内更新".to_string(),
+                        }
+                    }
                 }
-                span { class: "toolbar__spacer" }
-                span { class: "cell-overflow", "共 {raw_skills.len()} 条" }
-            }
-            if let Some(msg) = feedback.read().as_ref() {
-                div { class: "callout callout--info", "{msg}" }
-            }
-            if filtered.is_empty() {
-                div { class: "empty-state", "没有匹配的 Skill。" }
-            } else {
-                div { class: "knowledge-board",
-                    Surface {
-                        SurfaceHeader {
-                            title: "Skill 分组树".to_string(),
-                            subtitle: "按命名空间 / 前缀分组；点击节点查看单个 Skill 详情。".to_string()
+                div { class: "skills-hero__showcase",
+                    div { class: "skills-eyebrow skills-eyebrow--muted", "VISIBLE IN THIS WORKSPACE" }
+                    div { class: "skills-showcase-grid",
+                        if hero_preview.is_empty() {
+                            div { class: "skills-showcase-empty", "没有可展示的 Skill。" }
+                        } else {
+                            for skill in hero_preview.iter() {
+                                HeroSkillPreviewCard { skill: skill.clone() }
+                            }
                         }
-                        div { class: "stack",
-                            for group in grouped_skills.iter() {
-                                div { class: "sidebar-section",
-                                    div { class: "context-line",
-                                        strong { "{group.label}" }
-                                        span { class: "cell-overflow", "{group.items.len()} 项" }
-                                    }
-                                    div { class: "stack", style: "padding-left: 12px;",
-                                        for skill in group.items.iter() {
-                                            SkillTreeItem { skill: skill.clone() }
-                                        }
-                                    }
+                    }
+                    div { class: "skills-showcase__footer",
+                        div { class: "skills-showcase__summary",
+                            span { "Visible {filtered.len()}" }
+                            span { "Hybrid {hybrid_total}" }
+                        }
+                        div { class: "skills-chip-row",
+                            for stat in namespace_stats.iter().take(6) {
+                                span { class: "skills-chip",
+                                    span { class: "skills-chip__label", "{stat.label}" }
+                                    span { class: "skills-chip__count", "{stat.count}" }
                                 }
                             }
                         }
                     }
-                    Surface {
-                        SurfaceHeader { title: "分组".to_string(), subtitle: "当前筛选结果。".to_string() }
-                        div { class: "stack",
-                            for group in grouped_skills.iter() {
-                                div { class: "context-line",
-                                    strong { "{group.label}" }
-                                    span { " · {group.items.len()} 项" }
-                                }
+                }
+            }
+            section { class: "skills-catalog",
+                div { class: "skills-catalog__header",
+                    div {
+                        div { class: "skills-eyebrow skills-eyebrow--muted", "SKILLS CATALOG" }
+                        h2 { class: "skills-catalog__title", "Skill Matrix" }
+                        p { class: "skills-catalog__subtitle",
+                            "按名称、关键词和来源筛选；点击卡片查看单个 Skill 的只读详情与正文。"
+                        }
+                    }
+                    div { class: "skills-catalog__summary",
+                        span { "{filtered.len()} visible" }
+                        span { "{raw_skills.len()} total" }
+                        if let Some(report) = status_report.as_ref() {
+                            span { "{report.conflicts.len()} conflicts" }
+                        }
+                    }
+                }
+                div { class: "skills-catalog__toolbar",
+                    input {
+                        class: "skills-search__input",
+                        placeholder: "Search skills, keywords, namespaces…",
+                        value: search.read().clone(),
+                        oninput: move |evt| search.set(evt.value())
+                    }
+                    div { class: "skills-filter-row",
+                        for filter in SkillSourceFilter::ALL.iter().copied() {
+                            button {
+                                class: if filter == active_filter { "skills-filter is-active" } else { "skills-filter" },
+                                onclick: move |_| source_filter.set(filter),
+                                "{filter.label()}"
                             }
+                        }
+                    }
+                }
+                if let Some(msg) = feedback.read().as_ref() {
+                    div { class: "callout callout--info", "{msg}" }
+                }
+                if filtered.is_empty() {
+                    div { class: "empty-state skills-empty-state",
+                        "没有匹配的 Skill。"
+                    }
+                } else {
+                    div { class: "skills-grid",
+                        for skill in filtered.iter() {
+                            SkillCard { skill: skill.clone() }
                         }
                     }
                 }
@@ -160,68 +279,163 @@ pub fn Agents() -> Element {
 }
 
 #[derive(Clone, PartialEq)]
-struct SkillTreeGroup {
+struct NamespaceStat {
     label: String,
-    items: Vec<SkillDto>,
+    count: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SkillSourceFilter {
+    All,
+    FileSystem,
+    Postgres,
+    Both,
+}
+
+impl SkillSourceFilter {
+    const ALL: [Self; 4] = [Self::All, Self::FileSystem, Self::Postgres, Self::Both];
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::FileSystem => "FS",
+            Self::Postgres => "PG",
+            Self::Both => "Hybrid",
+        }
+    }
+
+    fn matches(self, source: &SkillSourceDto) -> bool {
+        match self {
+            Self::All => true,
+            Self::FileSystem => matches!(source, SkillSourceDto::FileSystem),
+            Self::Postgres => matches!(source, SkillSourceDto::Postgres),
+            Self::Both => matches!(source, SkillSourceDto::Both),
+        }
+    }
 }
 
 #[component]
-fn SkillTreeItem(skill: SkillDto) -> Element {
+fn SkillHeroStat(label: String, value: String, note: String) -> Element {
+    rsx! {
+        div { class: "skills-stat",
+            div { class: "skills-stat__label", "{label}" }
+            div { class: "skills-stat__value", "{value}" }
+            div { class: "skills-stat__note", "{note}" }
+        }
+    }
+}
+
+#[component]
+fn HeroSkillPreviewCard(skill: SkillDto) -> Element {
     let nav = use_navigator();
     let route = Route::AgentEditor {
         name: skill.name.clone(),
     };
-    let preview = if skill.keywords.is_empty() {
-        Some(skill.description.clone())
-    } else {
-        Some(
-            skill
-                .keywords
-                .iter()
-                .take(3)
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(" · "),
-        )
-    };
-    let badge = source_badge_props(&skill.source);
-    let updated = skill.updated_at.format("%Y-%m-%d %H:%M").to_string();
+    let namespace = skill_group_label(&skill.name);
 
     rsx! {
-        div {
-            class: "row-link",
+        button {
+            class: "skills-preview-card",
             onclick: move |_| {
                 nav.push(route.clone());
             },
-            div { class: "context-line",
-                strong { "{skill.name}" }
-                span { class: "cell-overflow", "{updated}" }
+            SkillGlyph { name: skill.name.clone(), compact: true }
+            div { class: "skills-preview-card__meta",
+                div { class: "skills-preview-card__title", "{skill_leaf_label(&skill.name)}" }
+                div { class: "skills-preview-card__subtitle", "{namespace}" }
             }
-            div { class: "context-line",
-                Badge { label: badge.0, variant: badge.1 }
-                if let Some(text) = preview.as_ref() {
-                    span { "{text}" }
+        }
+    }
+}
+
+#[component]
+fn SkillCard(skill: SkillDto) -> Element {
+    let nav = use_navigator();
+    let route = Route::AgentEditor {
+        name: skill.name.clone(),
+    };
+    let namespace = skill_group_label(&skill.name);
+    let updated = skill.updated_at.format("%Y-%m-%d %H:%M").to_string();
+    let preview = skill_description_preview(&skill);
+
+    rsx! {
+        button {
+            class: "skill-card",
+            onclick: move |_| {
+                nav.push(route.clone());
+            },
+            div { class: "skill-card__header",
+                SkillGlyph { name: skill.name.clone() }
+                span {
+                    class: format!("skill-source-pill {}", source_pill_class(&skill.source)),
+                    "{source_short_label(&skill.source)}"
+                }
+            }
+            div { class: "skill-card__body",
+                div { class: "skill-card__namespace", "{namespace}" }
+                h3 { class: "skill-card__title", "{skill_leaf_label(&skill.name)}" }
+                div { class: "skill-card__slug", "{skill.name}" }
+                p { class: "skill-card__description", "{preview}" }
+            }
+            if !skill.keywords.is_empty() {
+                div { class: "skill-card__tags",
+                    for keyword in skill.keywords.iter().take(4) {
+                        span { class: "skill-tag", "{keyword}" }
+                    }
+                }
+            }
+            div { class: "skill-card__meta",
+                span { "{updated}" }
+                span { "{skill.body.lines().count()} lines" }
+            }
+        }
+    }
+}
+
+#[component]
+fn SkillGlyph(name: String, #[props(default = false)] compact: bool) -> Element {
+    let class = if compact {
+        "skill-glyph skill-glyph--compact"
+    } else {
+        "skill-glyph"
+    };
+    let hue = skill_hue(&name);
+    let accent = (hue + 46) % 360;
+    let cells = skill_matrix_cells(&name);
+
+    rsx! {
+        div {
+            class: class,
+            style: format!("--skill-hue: {hue}; --skill-accent: {accent};"),
+            for (idx, active) in cells.into_iter().enumerate() {
+                span {
+                    key: "{idx}",
+                    class: if active { "skill-glyph__cell is-on" } else { "skill-glyph__cell" }
                 }
             }
         }
     }
 }
 
-fn build_skill_tree(skills: &[SkillDto]) -> Vec<SkillTreeGroup> {
-    let mut groups: BTreeMap<String, Vec<SkillDto>> = BTreeMap::new();
+fn build_namespace_stats(skills: &[SkillDto]) -> Vec<NamespaceStat> {
+    let mut stats = BTreeMap::<String, usize>::new();
 
     for skill in skills {
-        let group = skill_group_label(&skill.name);
-        groups.entry(group).or_default().push(skill.clone());
+        let label = skill_group_label(&skill.name);
+        *stats.entry(label).or_default() += 1;
     }
 
-    groups
+    let mut stats = stats
         .into_iter()
-        .map(|(label, mut items)| {
-            items.sort_by(|a, b| a.name.cmp(&b.name));
-            SkillTreeGroup { label, items }
-        })
-        .collect()
+        .map(|(label, count)| NamespaceStat { label, count })
+        .collect::<Vec<_>>();
+    stats.sort_by(|left, right| {
+        right
+            .count
+            .cmp(&left.count)
+            .then_with(|| left.label.cmp(&right.label))
+    });
+    stats
 }
 
 fn skill_group_label(name: &str) -> String {
@@ -238,12 +452,81 @@ fn skill_group_label(name: &str) -> String {
         .to_string()
 }
 
-fn source_badge_props(source: &SkillSourceDto) -> (String, String) {
-    match source {
-        SkillSourceDto::Postgres => ("PG".into(), "pg".into()),
-        SkillSourceDto::FileSystem => ("FS".into(), "fs".into()),
-        SkillSourceDto::Both => ("Both".into(), "both".into()),
+fn skill_leaf_label(name: &str) -> String {
+    name.rsplit(|ch| ch == '/' || ch == ':')
+        .next()
+        .unwrap_or(name)
+        .to_string()
+}
+
+fn skill_description_preview(skill: &SkillDto) -> String {
+    if !skill.description.trim().is_empty() {
+        return skill.description.clone();
     }
+
+    skill
+        .body
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && !line.starts_with('#'))
+        .unwrap_or("No description.")
+        .to_string()
+}
+
+fn source_short_label(source: &SkillSourceDto) -> &'static str {
+    match source {
+        SkillSourceDto::Postgres => "PG",
+        SkillSourceDto::FileSystem => "FS",
+        SkillSourceDto::Both => "HY",
+    }
+}
+
+fn source_pill_class(source: &SkillSourceDto) -> &'static str {
+    match source {
+        SkillSourceDto::Postgres => "skill-source-pill--pg",
+        SkillSourceDto::FileSystem => "skill-source-pill--fs",
+        SkillSourceDto::Both => "skill-source-pill--both",
+    }
+}
+
+fn format_status_note(report: &SyncReportDto) -> String {
+    let last_sync = report
+        .finished_at
+        .map(|time| time.format("%Y-%m-%d %H:%M").to_string())
+        .unwrap_or_else(|| "尚未同步".to_string());
+    if report.pg_online {
+        format!("{last_sync} · {} conflicts", report.conflicts.len())
+    } else {
+        format!("{last_sync} · PG offline")
+    }
+}
+
+fn skill_hue(name: &str) -> u16 {
+    (stable_skill_hash(name) % 360) as u16
+}
+
+fn skill_matrix_cells(name: &str) -> [bool; 9] {
+    let hash = stable_skill_hash(name);
+    let mut cells = [false; 9];
+
+    for (idx, cell) in cells.iter_mut().enumerate() {
+        let bit = ((hash >> (idx * 3 % 48)) & 1) == 1;
+        *cell = bit;
+    }
+
+    cells[4] = true;
+    cells
+}
+
+fn stable_skill_hash(input: &str) -> u64 {
+    let mut acc: u64 = 1469598103934665603;
+
+    for byte in input.bytes() {
+        acc ^= u64::from(byte);
+        acc = acc.wrapping_mul(1099511628211);
+    }
+
+    acc
 }
 
 #[component]
@@ -510,4 +793,15 @@ fn ContextLine(label: String, value: String) -> Element {
             span { class: "context-line__value", "{value}" }
         }
     }
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: AGENTS_PAGE_ID,
+    domain: AGENTS_DOMAIN_ID,
+    parent: None,
+    label: "Skill 资产",
+    order: 10,
+    href: "/agents",
+    active_patterns: &["/agents", "/agents/:name"],
+    permissions_any_of: &["knowledge:skill"],
 }

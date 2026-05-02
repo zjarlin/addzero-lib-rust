@@ -3,13 +3,14 @@ use dioxus::prelude::*;
 mod admin;
 
 pub use admin::{
-    AdminAction, AdminActionIcon, AdminCommand, AdminMenu, AdminProvider, AdminSection, AdminShell,
-    AdminTopbar, SharedAdminProvider,
+    AdminAction, AdminActionIcon, AdminCommand, AdminMenu, AdminSection, AdminShell,
+    AdminShellProvider, AdminShellState, AdminTopbar, SharedAdminShellProvider,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SidebarSide {
     Left,
+    Right,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -36,16 +37,27 @@ pub struct AdminWorkbenchProps {
     pub topbar: Element,
     pub left: Element,
     pub center: Element,
+    #[props(optional)]
+    pub right: Option<Element>,
 }
 
 #[component]
 pub fn AdminWorkbench(props: AdminWorkbenchProps) -> Element {
+    let workspace_class = if props.right.is_some() {
+        "workspace workspace--with-right"
+    } else {
+        "workspace"
+    };
+
     rsx! {
         div { class: "admin-shell",
             {props.topbar}
-            div { class: "workspace",
+            div { class: workspace_class,
                 {props.left}
                 {props.center}
+                if let Some(right) = props.right {
+                    {right}
+                }
             }
         }
     }
@@ -98,6 +110,7 @@ pub struct SidebarProps {
 pub fn Sidebar(props: SidebarProps) -> Element {
     let side_class = match props.side {
         SidebarSide::Left => "sidebar sidebar--left",
+        SidebarSide::Right => "sidebar sidebar--right",
     };
 
     rsx! {

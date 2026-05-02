@@ -3,12 +3,19 @@ use dioxus_components::{
     DataTable, MetricStrip, SectionHeader, StatTile, Surface, SurfaceHeader, WorkbenchButton,
 };
 
+use crate::admin::domains::SYSTEM_DOMAIN_ID;
 use crate::services::{
     DepartmentDto, DepartmentUpsertDto, DictGroupDto, DictGroupUpsertDto, DictItemDto,
     DictItemUpsertDto, MenuDto, MenuUpsertDto, RoleDto, RoleUpsertDto, UserUpsertDto,
     UserWithRolesDto,
 };
 use crate::state::AppServices;
+
+const SYSTEM_USERS_PAGE_ID: &str = "system-users";
+const SYSTEM_MENUS_PAGE_ID: &str = "system-menus";
+const SYSTEM_ROLES_PAGE_ID: &str = "system-roles";
+const SYSTEM_DEPARTMENTS_PAGE_ID: &str = "system-departments";
+const SYSTEM_DICTIONARIES_PAGE_ID: &str = "system-dictionaries";
 
 // ─── Top-level page components ──────────────────────────────────────────────
 
@@ -1625,6 +1632,61 @@ fn DictionariesScene() -> Element {
             }
         }
     }
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: SYSTEM_USERS_PAGE_ID,
+    domain: SYSTEM_DOMAIN_ID,
+    parent: None,
+    label: "用户",
+    order: 10,
+    href: "/system/users",
+    active_patterns: &["/system/users"],
+    permissions_any_of: &["system:user"],
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: SYSTEM_MENUS_PAGE_ID,
+    domain: SYSTEM_DOMAIN_ID,
+    parent: None,
+    label: "菜单",
+    order: 20,
+    href: "/system/menus",
+    active_patterns: &["/system/menus"],
+    permissions_any_of: &["system:menu"],
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: SYSTEM_ROLES_PAGE_ID,
+    domain: SYSTEM_DOMAIN_ID,
+    parent: None,
+    label: "角色",
+    order: 30,
+    href: "/system/roles",
+    active_patterns: &["/system/roles"],
+    permissions_any_of: &["system:role"],
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: SYSTEM_DEPARTMENTS_PAGE_ID,
+    domain: SYSTEM_DOMAIN_ID,
+    parent: None,
+    label: "部门",
+    order: 40,
+    href: "/system/departments",
+    active_patterns: &["/system/departments"],
+    permissions_any_of: &["system:dept"],
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: SYSTEM_DICTIONARIES_PAGE_ID,
+    domain: SYSTEM_DOMAIN_ID,
+    parent: None,
+    label: "字典管理",
+    order: 45,
+    href: "/system/dictionaries",
+    active_patterns: &["/system/dictionaries"],
+    permissions_any_of: &["system:dict"],
 }
 
 #[component]

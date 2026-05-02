@@ -4,6 +4,7 @@ use dioxus_components::AdminShell;
 use crate::domains::{
     agents::{AgentEditor, Agents},
     auth::LoginPage,
+    chat::ChatWorkbench,
     cli_market::{KnowledgeCliMarket, KnowledgeCliMarketDocs, KnowledgeCliMarketImports},
     dashboard::{Audit, Dashboard},
     download_station::DownloadStationScene,
@@ -59,6 +60,8 @@ pub enum Route {
     Agents,
     #[route("/agents/:name")]
     AgentEditor { name: String },
+    #[route("/chat")]
+    Chat,
     #[route("/knowledge/notes")]
     KnowledgeNotes,
     #[route("/knowledge/packages")]
@@ -206,7 +209,12 @@ fn Login() -> Element {
 
 #[component]
 fn Home() -> Element {
-    rsx! { KnowledgeNotes {} }
+    rsx! { Dashboard {} }
+}
+
+#[component]
+fn Chat() -> Element {
+    rsx! { ChatWorkbench {} }
 }
 
 #[component]

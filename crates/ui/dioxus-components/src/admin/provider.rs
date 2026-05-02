@@ -1,11 +1,18 @@
 use std::rc::Rc;
 
+use dioxus::prelude::Element;
+
 use crate::admin::{AdminSection, AdminTopbar};
 
-pub type SharedAdminProvider<R> = Rc<dyn AdminProvider<R>>;
+pub type SharedAdminShellProvider<R> = Rc<dyn AdminShellProvider<R>>;
 
-pub trait AdminProvider<R>: 'static {
-    fn topbar(&self, current: &R) -> AdminTopbar<R>;
+#[derive(Clone)]
+pub struct AdminShellState<R> {
+    pub topbar: AdminTopbar<R>,
+    pub menu: Vec<AdminSection<R>>,
+    pub right_panel: Option<Element>,
+}
 
-    fn menu(&self, current: &R) -> Vec<AdminSection<R>>;
+pub trait AdminShellProvider<R>: 'static {
+    fn shell(&self, current: &R) -> AdminShellState<R>;
 }

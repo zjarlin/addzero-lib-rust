@@ -18,6 +18,7 @@ pub mod openai_chat;
 pub mod skills;
 pub mod software_catalog;
 pub mod system_management;
+pub mod terminal_sessions;
 
 pub use asset_graph::{
     AssetGraphDto, AssetGraphEdgeDto, AssetGraphItemDto, AssetGraphTagDto, AssetKindDto,
@@ -64,4 +65,10 @@ pub use system_management::{
     DictGroupUpsertDto, DictItemDto, DictItemUpsertDto, MenuDto, MenuUpsertDto, RoleDto,
     RoleUpsertDto, RoleWithMenusDto, SharedSystemManagementApi, UserDto, UserUpsertDto,
     UserWithRolesDto, default_system_management_api,
+};
+pub use terminal_sessions::{
+    SharedTerminalSessionsApi, TerminalProfileDto, TerminalSessionCreateDto,
+    TerminalSessionInputDto, TerminalSessionListDto, TerminalSessionResizeDto,
+    TerminalSessionSnapshotDto, TerminalSessionStateDto, TerminalSessionSummaryDto,
+    default_terminal_sessions_api,
 };

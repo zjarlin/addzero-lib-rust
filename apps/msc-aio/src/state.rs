@@ -1,18 +1,19 @@
 use std::rc::Rc;
 
 use dioxus::prelude::*;
-use dioxus_components::SharedAdminProvider;
+use dioxus_components::SharedAdminShellProvider;
 
-use crate::admin::DefaultAdminProvider;
+use crate::admin::AdminProvider;
 use crate::app::Route;
 use crate::services::{
     BrandingLogoSource, BrandingSettingsDto, BrandingSettingsUpdate, SharedAssetGraphApi,
     SharedAuthApi, SharedBrandingSettingsApi, SharedCliMarketApi, SharedKnowledgeGraphApi,
-    SharedLogoStorageApi, SharedMinioFilesApi, SharedSkillsApi, SharedSoftwareCatalogApi,
-    SharedSystemManagementApi, StoredLogoDto, build_preview_url, default_asset_graph_api,
-    default_auth_api, default_branding_settings_api, default_cli_market_api,
-    default_knowledge_graph_api, default_logo_storage_api, default_minio_files_api,
-    default_skills_api, default_software_catalog_api, default_system_management_api,
+    SharedLogoStorageApi, SharedMinioFilesApi, SharedOpenAiChatApi, SharedSkillsApi,
+    SharedSoftwareCatalogApi, SharedSystemManagementApi, StoredLogoDto, build_preview_url,
+    default_asset_graph_api, default_auth_api, default_branding_settings_api,
+    default_cli_market_api, default_knowledge_graph_api, default_logo_storage_api,
+    default_minio_files_api, default_openai_chat_api, default_skills_api,
+    default_software_catalog_api, default_system_management_api,
 };
 
 pub const DEFAULT_SITE_NAME: &str = "MSC_AIO";
@@ -169,12 +170,13 @@ pub struct AppServices {
     pub asset_graph: SharedAssetGraphApi,
     pub knowledge_graph: SharedKnowledgeGraphApi,
     pub cli_market: SharedCliMarketApi,
+    pub openai_chat: SharedOpenAiChatApi,
     pub software_catalog: SharedSoftwareCatalogApi,
     pub system: SharedSystemManagementApi,
     pub logo_storage: SharedLogoStorageApi,
     pub minio_files: SharedMinioFilesApi,
     pub branding_settings: SharedBrandingSettingsApi,
-    pub admin: SharedAdminProvider<Route>,
+    pub admin: SharedAdminShellProvider<Route>,
     pub branding: BrandingPrefs,
     pub permissions: PermissionState,
 }
@@ -194,12 +196,13 @@ impl AppServices {
             asset_graph: default_asset_graph_api(),
             knowledge_graph: default_knowledge_graph_api(),
             cli_market: default_cli_market_api(),
+            openai_chat: default_openai_chat_api(),
             software_catalog: default_software_catalog_api(),
             system: default_system_management_api(),
             logo_storage: default_logo_storage_api(),
             minio_files: default_minio_files_api(),
             branding_settings: default_branding_settings_api(),
-            admin: Rc::new(DefaultAdminProvider::new(
+            admin: Rc::new(AdminProvider::new(
                 auth,
                 theme,
                 branding,

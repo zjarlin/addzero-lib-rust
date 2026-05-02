@@ -7,12 +7,15 @@ use dioxus_components::{
     WorkbenchButton,
 };
 
+use crate::admin::domains::KNOWLEDGE_DOMAIN_ID;
 use crate::services::{
     StorageBrowseRequestDto, StorageCreateFolderDto, StorageDeleteFolderDto,
     StorageDeleteObjectDto, StorageFileDto, StorageFolderDto, StorageShareRequestDto,
     StorageShareResultDto, StorageUploadFileDto, StorageUploadRequestDto,
 };
 use crate::state::AppServices;
+
+const DOWNLOAD_STATION_PAGE_ID: &str = "download-station";
 
 #[component]
 pub fn DownloadStationScene() -> Element {
@@ -1557,4 +1560,15 @@ mod tests {
         assert_eq!(groups[1].category, FileCategory::Archive);
         assert_eq!(groups[2].category, FileCategory::Document);
     }
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: DOWNLOAD_STATION_PAGE_ID,
+    domain: KNOWLEDGE_DOMAIN_ID,
+    parent: None,
+    label: "下载站",
+    order: 40,
+    href: "/download-station",
+    active_patterns: &["/download-station", "/files"],
+    permissions_any_of: &[],
 }

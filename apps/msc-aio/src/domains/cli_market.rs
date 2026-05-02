@@ -11,7 +11,13 @@ use dioxus_components::{
     ContentHeader, ResponsiveGrid, StatTile, Surface, SurfaceHeader, WorkbenchButton,
 };
 
+use crate::admin::domains::KNOWLEDGE_DOMAIN_ID;
 use crate::state::{AppServices, AuthSession};
+
+const CLI_MARKET_BRANCH_ID: &str = "cli-market";
+const CLI_MARKET_REGISTRY_PAGE_ID: &str = "cli-market-registry";
+const CLI_MARKET_IMPORTS_PAGE_ID: &str = "cli-market-imports";
+const CLI_MARKET_DOCS_PAGE_ID: &str = "cli-market-docs";
 
 #[derive(Clone, PartialEq, Eq)]
 struct CliMarketEditorState {
@@ -1297,4 +1303,52 @@ fn parse_cli_installer_kind(value: &str) -> Option<CliInstallerKind> {
     CliInstallerKind::ALL
         .into_iter()
         .find(|kind| kind.code() == value)
+}
+
+addzero_admin_plugin_registry::register_admin_branch! {
+    id: CLI_MARKET_BRANCH_ID,
+    domain: KNOWLEDGE_DOMAIN_ID,
+    parent: None,
+    label: "CLI 市场",
+    order: 30,
+    href: "/knowledge/cli-market",
+    active_patterns: &[
+        "/knowledge/cli-market",
+        "/knowledge/cli-market/imports",
+        "/knowledge/cli-market/docs",
+    ],
+    permissions_any_of: &["knowledge:cli"],
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: CLI_MARKET_REGISTRY_PAGE_ID,
+    domain: KNOWLEDGE_DOMAIN_ID,
+    parent: Some(CLI_MARKET_BRANCH_ID),
+    label: "注册表",
+    order: 10,
+    href: "/knowledge/cli-market",
+    active_patterns: &["/knowledge/cli-market"],
+    permissions_any_of: &["knowledge:cli"],
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: CLI_MARKET_IMPORTS_PAGE_ID,
+    domain: KNOWLEDGE_DOMAIN_ID,
+    parent: Some(CLI_MARKET_BRANCH_ID),
+    label: "导入任务",
+    order: 20,
+    href: "/knowledge/cli-market/imports",
+    active_patterns: &["/knowledge/cli-market/imports"],
+    permissions_any_of: &["knowledge:cli"],
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: CLI_MARKET_DOCS_PAGE_ID,
+    domain: KNOWLEDGE_DOMAIN_ID,
+    parent: Some(CLI_MARKET_BRANCH_ID),
+    label: "CLI 文档",
+    order: 30,
+    href: "/knowledge/cli-market/docs",
+    active_patterns: &["/knowledge/cli-market/docs"],
+    permissions_any_of: &["knowledge:cli"],
 }

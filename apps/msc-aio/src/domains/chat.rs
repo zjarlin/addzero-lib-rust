@@ -7,6 +7,8 @@ use crate::{
     state::AppServices,
 };
 
+const CHAT_WORKBENCH_PAGE_ID: &str = "chat-workbench";
+
 #[component]
 pub fn ChatWorkbench() -> Element {
     let services = use_context::<AppServices>();
@@ -39,10 +41,10 @@ pub fn ChatWorkbench() -> Element {
                         {
                             let speaker = if item.role == "user" { "你" } else { "AI" };
                             rsx! {
-                        div { class: "callout",
-                            strong { "{speaker}: " }
-                            span { "{item.content}" }
-                        }
+                                div { class: "callout",
+                                    strong { "{speaker}: " }
+                                    span { "{item.content}" }
+                                }
                             }
                         }
                     }
@@ -166,10 +168,13 @@ async fn sleep_ms(ms: u32) {
     tokio::time::sleep(std::time::Duration::from_millis(u64::from(ms))).await;
 }
 
-crate::register_admin_page! {
+addzero_admin_plugin_registry::register_admin_page! {
+    id: CHAT_WORKBENCH_PAGE_ID,
     domain: CHAT_DOMAIN_ID,
+    parent: None,
     label: "聊天工作台",
     order: 10,
     href: "/chat",
     active_patterns: &["/chat"],
+    permissions_any_of: &[],
 }

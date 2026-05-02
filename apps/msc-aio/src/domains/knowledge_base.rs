@@ -6,6 +6,7 @@ use dioxus_components::{
 };
 
 use crate::{
+    admin::domains::KNOWLEDGE_DOMAIN_ID,
     domains::asset_chat::{AssetChatFact, AssetChatKind, AssetChatPanel},
     knowledge_catalog::{
         KNOWLEDGE_DATA_MODE, KNOWLEDGE_DOCS, KNOWLEDGE_SOURCE_AVAILABLE,
@@ -16,6 +17,8 @@ use crate::{
         package_asset_count, package_assets, package_channel,
     },
 };
+
+const KNOWLEDGE_PACKAGES_PAGE_ID: &str = "knowledge-packages";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct PackageAssetDraft {
@@ -828,4 +831,15 @@ fn format_bytes(bytes: usize) -> String {
     } else {
         format!("{bytes} B")
     }
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: KNOWLEDGE_PACKAGES_PAGE_ID,
+    domain: KNOWLEDGE_DOMAIN_ID,
+    parent: None,
+    label: "下载与安装",
+    order: 20,
+    href: "/knowledge/packages",
+    active_patterns: &["/knowledge/packages"],
+    permissions_any_of: &["knowledge:pkg", "knowledge:dl"],
 }

@@ -2,4 +2,4 @@ pub(crate) mod domains;
 pub(crate) mod navigation;
 mod provider;
 
-pub use provider::DefaultAdminProvider;
+pub use provider::AdminProvider;

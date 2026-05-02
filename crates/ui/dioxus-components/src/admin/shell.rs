@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use crate::{
     AdminAction, AdminActionIcon, AdminMenu, AdminSection, AdminWorkbench, MainContent,
-    SharedAdminProvider, Sidebar, SidebarSection, SidebarSide, ThinTopbar, WorkbenchButton,
+    SharedAdminShellProvider, Sidebar, SidebarSection, SidebarSide, ThinTopbar, WorkbenchButton,
 };
 
 #[derive(Props, Clone)]
@@ -15,7 +15,7 @@ pub struct AdminShellProps<R>
 where
     R: Routable + Clone + PartialEq + 'static,
 {
-    pub provider: SharedAdminProvider<R>,
+    pub provider: SharedAdminShellProvider<R>,
     pub content: Element,
 }
 
@@ -34,8 +34,9 @@ where
     R: Routable + Clone + PartialEq + 'static,
 {
     let route = use_route::<R>();
-    let topbar = props.provider.topbar(&route);
-    let sections = props.provider.menu(&route);
+    let shell = props.provider.shell(&route);
+    let topbar = shell.topbar;
+    let sections = shell.menu;
 
     rsx! {
         AdminWorkbench {
@@ -72,6 +73,13 @@ where
                 }
             ),
             center: rsx!(MainContent { {props.content} }),
+            right: shell.right_panel.map(|panel| {
+                rsx!(
+                    Sidebar { side: SidebarSide::Right,
+                        {panel}
+                    }
+                )
+            }),
         }
     }
 }

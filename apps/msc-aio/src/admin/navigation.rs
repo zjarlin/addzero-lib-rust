@@ -2,291 +2,89 @@ use addzero_admin_plugin_registry as registry;
 pub use addzero_admin_plugin_registry::AdminDomainRegistration;
 use dioxus_components::{AdminMenu, AdminSection};
 
-use crate::admin::domains::{
-    AGENTS_DOMAIN_ID, CHAT_DOMAIN_ID, KNOWLEDGE_DOMAIN_ID, OVERVIEW_DOMAIN_ID, SYSTEM_DOMAIN_ID,
-};
 use crate::app::Route;
-
-const AUDIT_DOMAIN_ID: &str = "audit";
-
-#[derive(Clone, Copy)]
-struct StaticPage {
-    domain_id: &'static str,
-    label: &'static str,
-    href: &'static str,
-    order: u16,
-    active_patterns: &'static [&'static str],
-}
+use crate::state::PermissionState;
 
 pub fn primary_domain() -> Option<AdminDomainRegistration> {
-    if registry_is_complete() {
-        registry::primary_domain()
-    } else {
-        fallback_domains().into_iter().next()
-    }
+    registry::primary_domain()
 }
 
 pub fn domain_for_route(route: &Route) -> Option<AdminDomainRegistration> {
-    if registry_is_complete() {
-        registry::domain_for_path(route.to_string().as_str())
-    } else {
-        let path = route.to_string();
-        let page = fallback_pages()
-            .into_iter()
-            .find(|page| registry::path_matches_patterns(path.as_str(), page.active_patterns))?;
-        fallback_domains()
-            .into_iter()
-            .find(|domain| domain.id == page.domain_id)
-    }
+    registry::domain_for_path(route.to_string().as_str())
 }
 
 pub fn registered_domains() -> Vec<AdminDomainRegistration> {
-    if registry_is_complete() {
-        registry::registered_domains()
+    registry::registered_domains()
+}
+
+pub fn section_for_route(
+    route: &Route,
+    permissions: PermissionState,
+) -> Option<AdminSection<Route>> {
+    let section = registry::section_for_path(route.to_string().as_str())?;
+    let menus = section
+        .menus
+        .into_iter()
+        .filter_map(|menu| build_menu(menu, permissions))
+        .collect();
+
+    Some(AdminSection {
+        label: section.label.to_string(),
+        menus,
+    })
+}
+
+fn build_menu(
+    node: addzero_admin_plugin_registry::RegisteredAdminNode,
+    permissions: PermissionState,
+) -> Option<AdminMenu<Route>> {
+    if !node_visible(node.permissions_any_of, permissions) {
+        return None;
+    }
+
+    let children = node
+        .children
+        .into_iter()
+        .filter_map(|child| build_menu(child, permissions))
+        .collect::<Vec<_>>();
+    let patterns = node.active_patterns;
+    let is_active = move |route: &Route| {
+        registry::path_matches_patterns(route.to_string().as_str(), patterns)
+    };
+
+    if children.is_empty() {
+        let to = node.href.parse::<Route>().ok()?;
+        Some(AdminMenu::leaf(node.label, to, is_active))
     } else {
-        fallback_domains()
+        let to = node.href.parse::<Route>().ok();
+        Some(AdminMenu::branch(node.label, to, children, is_active))
     }
 }
 
-pub fn section_for_route(route: &Route) -> Option<AdminSection<Route>> {
-    if registry_is_complete() {
-        let section = registry::section_for_path(route.to_string().as_str())?;
-        let menus = section
-            .menus
-            .into_iter()
-            .filter_map(|menu| {
-                let to = menu.href.parse::<Route>().ok()?;
-                let patterns = menu.active_patterns;
-                Some(AdminMenu::leaf(menu.label, to, move |route| {
-                    registry::path_matches_patterns(route.to_string().as_str(), patterns)
-                }))
-            })
-            .collect();
-
-        Some(AdminSection {
-            label: section.label.to_string(),
-            menus,
-        })
-    } else {
-        let path = route.to_string();
-        let page = fallback_pages()
-            .into_iter()
-            .find(|page| registry::path_matches_patterns(path.as_str(), page.active_patterns))?;
-        let domain = fallback_domains()
-            .into_iter()
-            .find(|domain| domain.id == page.domain_id)?;
-        let mut domain_pages: Vec<_> = fallback_pages()
-            .into_iter()
-            .filter(|item| item.domain_id == domain.id)
-            .collect();
-        domain_pages.sort_by(|left, right| {
-            left.order
-                .cmp(&right.order)
-                .then(left.label.cmp(right.label))
-                .then(left.href.cmp(right.href))
-        });
-        let menus = domain_pages
-            .into_iter()
-            .filter_map(|item| {
-                let to = item.href.parse::<Route>().ok()?;
-                let patterns = item.active_patterns;
-                Some(AdminMenu::leaf(item.label, to, move |route| {
-                    registry::path_matches_patterns(route.to_string().as_str(), patterns)
-                }))
-            })
-            .collect();
-
-        Some(AdminSection {
-            label: domain.label.to_string(),
-            menus,
-        })
-    }
-}
-
-fn registry_is_complete() -> bool {
-    let fallback_domains = fallback_domains();
-    let fallback_pages = fallback_pages();
-    let domains = registry::registered_domains();
-
-    if domains.len() < fallback_domains.len() {
-        return false;
-    }
-
-    if !fallback_domains
-        .iter()
-        .all(|expected| domains.iter().any(|domain| domain.id == expected.id))
-    {
-        return false;
-    }
-
-    let menu_count: usize = domains
-        .iter()
-        .filter_map(|domain| registry::section_for_path(domain.default_href))
-        .map(|section| section.menus.len())
-        .sum();
-
-    menu_count >= fallback_pages.len()
-}
-
-fn fallback_domains() -> Vec<AdminDomainRegistration> {
-    vec![
-        AdminDomainRegistration {
-            id: OVERVIEW_DOMAIN_ID,
-            label: "总览",
-            order: 10,
-            default_href: "/",
-        },
-        AdminDomainRegistration {
-            id: AGENTS_DOMAIN_ID,
-            label: "Agent资产",
-            order: 20,
-            default_href: "/agents",
-        },
-        AdminDomainRegistration {
-            id: CHAT_DOMAIN_ID,
-            label: "AI 聊天",
-            order: 30,
-            default_href: "/chat",
-        },
-        AdminDomainRegistration {
-            id: KNOWLEDGE_DOMAIN_ID,
-            label: "知识库",
-            order: 40,
-            default_href: "/knowledge/notes",
-        },
-        AdminDomainRegistration {
-            id: SYSTEM_DOMAIN_ID,
-            label: "系统管理",
-            order: 50,
-            default_href: "/system/users",
-        },
-        AdminDomainRegistration {
-            id: AUDIT_DOMAIN_ID,
-            label: "审计日志",
-            order: 60,
-            default_href: "/audit",
-        },
-    ]
-}
-
-fn fallback_pages() -> Vec<StaticPage> {
-    vec![
-        StaticPage {
-            domain_id: OVERVIEW_DOMAIN_ID,
-            label: "笔记工作台",
-            href: "/",
-            order: 10,
-            active_patterns: &["/", "/dashboard"],
-        },
-        StaticPage {
-            domain_id: AGENTS_DOMAIN_ID,
-            label: "Skill 资产",
-            href: "/agents",
-            order: 10,
-            active_patterns: &["/agents", "/agents/:name"],
-        },
-        StaticPage {
-            domain_id: CHAT_DOMAIN_ID,
-            label: "聊天工作台",
-            href: "/chat",
-            order: 10,
-            active_patterns: &["/chat"],
-        },
-        StaticPage {
-            domain_id: KNOWLEDGE_DOMAIN_ID,
-            label: "笔记",
-            href: "/knowledge/notes",
-            order: 10,
-            active_patterns: &["/knowledge/notes"],
-        },
-        StaticPage {
-            domain_id: KNOWLEDGE_DOMAIN_ID,
-            label: "Skill 资产",
-            href: "/agents",
-            order: 20,
-            active_patterns: &["/agents", "/agents/:name"],
-        },
-        StaticPage {
-            domain_id: KNOWLEDGE_DOMAIN_ID,
-            label: "下载与安装",
-            href: "/knowledge/packages",
-            order: 30,
-            active_patterns: &["/knowledge/packages"],
-        },
-        StaticPage {
-            domain_id: KNOWLEDGE_DOMAIN_ID,
-            label: "CLI 市场",
-            href: "/knowledge/cli-market",
-            order: 40,
-            active_patterns: &[
-                "/knowledge/cli-market",
-                "/knowledge/cli-market/imports",
-                "/knowledge/cli-market/docs",
-            ],
-        },
-        StaticPage {
-            domain_id: KNOWLEDGE_DOMAIN_ID,
-            label: "下载站",
-            href: "/download-station",
-            order: 50,
-            active_patterns: &["/download-station", "/files"],
-        },
-        StaticPage {
-            domain_id: SYSTEM_DOMAIN_ID,
-            label: "用户",
-            href: "/system/users",
-            order: 10,
-            active_patterns: &["/system/users"],
-        },
-        StaticPage {
-            domain_id: SYSTEM_DOMAIN_ID,
-            label: "菜单",
-            href: "/system/menus",
-            order: 20,
-            active_patterns: &["/system/menus"],
-        },
-        StaticPage {
-            domain_id: SYSTEM_DOMAIN_ID,
-            label: "角色",
-            href: "/system/roles",
-            order: 30,
-            active_patterns: &["/system/roles"],
-        },
-        StaticPage {
-            domain_id: SYSTEM_DOMAIN_ID,
-            label: "部门",
-            href: "/system/departments",
-            order: 40,
-            active_patterns: &["/system/departments"],
-        },
-        StaticPage {
-            domain_id: SYSTEM_DOMAIN_ID,
-            label: "字典管理",
-            href: "/system/dictionaries",
-            order: 45,
-            active_patterns: &["/system/dictionaries"],
-        },
-        StaticPage {
-            domain_id: SYSTEM_DOMAIN_ID,
-            label: "系统设置",
-            href: "/system/settings",
-            order: 50,
-            active_patterns: &["/system/settings"],
-        },
-        StaticPage {
-            domain_id: AUDIT_DOMAIN_ID,
-            label: "审计日志",
-            href: "/audit",
-            order: 10,
-            active_patterns: &["/audit"],
-        },
-    ]
+fn node_visible(permissions_any_of: &[&str], permissions: PermissionState) -> bool {
+    permissions_any_of.is_empty()
+        || permissions_any_of
+            .iter()
+            .copied()
+            .any(|code| permissions.has(code))
 }
 
 #[cfg(test)]
 mod tests {
+    use dioxus::prelude::Signal;
+
     use super::{domain_for_route, registered_domains, section_for_route};
     use crate::app::Route;
+    use crate::state::PermissionState;
+
+    fn permissions_with(codes: Option<Vec<&str>>) -> PermissionState {
+        let permissions = PermissionState {
+            codes: Signal::new(None),
+        };
+        let value = codes.map(|codes| Some(codes.into_iter().map(str::to_string).collect()));
+        permissions.codes.set(Some(value));
+        permissions
+    }
 
     #[test]
     fn registered_domains_should_follow_plugin_order() {
@@ -302,74 +100,94 @@ mod tests {
     }
 
     #[test]
-    fn section_for_route_should_resolve_registered_pages() {
-        let section = section_for_route(&Route::KnowledgeNotes).expect("knowledge section");
+    fn domain_for_route_should_resolve_primary_axes() {
+        assert_eq!(
+            domain_for_route(&Route::Home).expect("overview domain").id,
+            "overview"
+        );
+        assert_eq!(
+            domain_for_route(&Route::Dashboard)
+                .expect("overview domain")
+                .id,
+            "overview"
+        );
+        assert_eq!(
+            domain_for_route(&Route::Agents).expect("agents domain").id,
+            "agents"
+        );
+        assert_eq!(
+            domain_for_route(&Route::AgentEditor {
+                name: "demo".to_string(),
+            })
+            .expect("agents domain")
+            .id,
+            "agents"
+        );
+        assert_eq!(
+            domain_for_route(&Route::Chat).expect("chat domain").id,
+            "chat"
+        );
+        assert_eq!(
+            domain_for_route(&Route::DownloadStation)
+                .expect("knowledge domain")
+                .id,
+            "knowledge"
+        );
+        assert_eq!(
+            domain_for_route(&Route::Files).expect("knowledge domain").id,
+            "knowledge"
+        );
+        assert_eq!(
+            domain_for_route(&Route::SystemUsers).expect("system domain").id,
+            "system"
+        );
+        assert_eq!(
+            domain_for_route(&Route::Audit).expect("audit domain").id,
+            "audit"
+        );
+    }
+
+    #[test]
+    fn section_for_route_should_build_cli_market_tree() {
+        let permissions = permissions_with(None);
+        let section = section_for_route(&Route::KnowledgeCliMarketImports, permissions)
+            .expect("knowledge section");
         let labels: Vec<_> = section
             .menus
             .iter()
             .map(|menu| menu.label.as_str())
             .collect();
-        let files_section = section_for_route(&Route::Files).expect("files alias section");
+        let cli_market = section
+            .menus
+            .iter()
+            .find(|menu| menu.label == "CLI 市场")
+            .expect("cli market branch");
+        let child_labels: Vec<_> = cli_market
+            .children
+            .iter()
+            .map(|menu| menu.label.as_str())
+            .collect();
 
         assert_eq!(section.label, "知识库");
-        assert_eq!(
-            labels,
-            vec!["笔记", "Skill 资产", "下载与安装", "CLI 市场", "下载站"]
-        );
-        assert_eq!(files_section.label, "知识库");
-        assert_eq!(
-            domain_for_route(&Route::SystemUsers)
-                .expect("system domain")
-                .label,
-            "系统管理"
-        );
-        assert_eq!(
-            domain_for_route(&Route::Files)
-                .expect("files alias domain")
-                .label,
-            "知识库"
-        );
-        assert_eq!(
-            domain_for_route(&Route::DownloadStation)
-                .expect("download station alias domain")
-                .label,
-            "知识库"
-        );
+        assert_eq!(labels, vec!["笔记", "下载与安装", "CLI 市场", "下载站"]);
+        assert!((cli_market.is_active)(&Route::KnowledgeCliMarketDocs));
+        assert_eq!(child_labels, vec!["注册表", "导入任务", "CLI 文档"]);
+        assert!((cli_market.children[1].is_active)(
+            &Route::KnowledgeCliMarketImports
+        ));
     }
-}
 
-#[macro_export]
-macro_rules! register_admin_domain {
-    (
-        id: $id:expr,
-        label: $label:expr,
-        order: $order:expr,
-        default_href: $default_href:expr $(,)?
-    ) => {
-        ::addzero_admin_plugin_registry::register_admin_domain! {
-            id: $id,
-            label: $label,
-            order: $order,
-            default_href: $default_href,
-        }
-    };
-}
+    #[test]
+    fn section_for_route_should_filter_by_permission_metadata() {
+        let knowledge_download = permissions_with(Some(vec!["knowledge:dl"]));
+        let section = section_for_route(&Route::KnowledgePackages, knowledge_download)
+            .expect("knowledge section");
+        let labels: Vec<_> = section
+            .menus
+            .iter()
+            .map(|menu| menu.label.as_str())
+            .collect();
 
-#[macro_export]
-macro_rules! register_admin_page {
-    (
-        domain: $domain_id:expr,
-        label: $label:expr,
-        order: $order:expr,
-        href: $href:expr,
-        active_patterns: $active_patterns:expr $(,)?
-    ) => {
-        ::addzero_admin_plugin_registry::register_admin_page! {
-            domain: $domain_id,
-            label: $label,
-            order: $order,
-            href: $href,
-            active_patterns: $active_patterns,
-        }
-    };
+        assert_eq!(labels, vec!["下载与安装"]);
+    }
 }

@@ -13,6 +13,7 @@ use dioxus_nox_markdown::{
 };
 
 use crate::{
+    admin::domains::OVERVIEW_DOMAIN_ID,
     knowledge_catalog::{KNOWLEDGE_DOCS, KnowledgeDoc, total_bytes, total_sections},
     package_catalog::{PACKAGE_ASSETS, PackageAsset},
     services::{LogoUploadRequest, build_preview_url},
@@ -20,6 +21,7 @@ use crate::{
 };
 
 const DASHBOARD_SEARCH_ID: &str = "dashboard-note-search";
+const OVERVIEW_DASHBOARD_PAGE_ID: &str = "overview-dashboard";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum DashboardLens {
@@ -1550,4 +1552,15 @@ fn format_bytes(bytes: usize) -> String {
     } else {
         format!("{bytes} B")
     }
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: OVERVIEW_DASHBOARD_PAGE_ID,
+    domain: OVERVIEW_DOMAIN_ID,
+    parent: None,
+    label: "笔记工作台",
+    order: 10,
+    href: "/dashboard",
+    active_patterns: &["/", "/dashboard"],
+    permissions_any_of: &["overview"],
 }

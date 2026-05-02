@@ -5,10 +5,13 @@ use dioxus_nox_markdown::{
     prelude::{MarkdownHandle, Mode, use_markdown_handle},
 };
 
+use crate::admin::domains::KNOWLEDGE_DOMAIN_ID;
 use crate::services::{
     ChatMessageDto, ChatRequestDto, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto,
     KnowledgeNoteDto, default_knowledge_entries_api, default_openai_chat_api,
 };
+
+const KNOWLEDGE_NOTES_PAGE_ID: &str = "knowledge-notes";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct NoteDraft {
@@ -711,4 +714,15 @@ fn strip_markdown_fences(content: &str) -> String {
         .map(str::trim)
         .unwrap_or(rest)
         .to_string()
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: KNOWLEDGE_NOTES_PAGE_ID,
+    domain: KNOWLEDGE_DOMAIN_ID,
+    parent: None,
+    label: "笔记",
+    order: 10,
+    href: "/knowledge/notes",
+    active_patterns: &["/knowledge/notes"],
+    permissions_any_of: &["knowledge:note"],
 }

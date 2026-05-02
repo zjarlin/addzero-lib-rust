@@ -1,10 +1,13 @@
 use dioxus::prelude::*;
 use dioxus_components::{ContentHeader, Field, Surface, SurfaceHeader, WorkbenchButton};
 
+use crate::admin::domains::SYSTEM_DOMAIN_ID;
 use crate::services::{
     BrandingLogoSource, LOGO_PREVIEW_BASE_URL, LogoUploadRequest, SharedBrandingSettingsApi,
 };
 use crate::state::{APP_ICON_ASSET_PATH, AppServices, BrandingState};
+
+const SYSTEM_SETTINGS_PAGE_ID: &str = "system-settings";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SettingsTab {
@@ -928,4 +931,15 @@ fn persist_branding_state(
             }
         }
     });
+}
+
+addzero_admin_plugin_registry::register_admin_page! {
+    id: SYSTEM_SETTINGS_PAGE_ID,
+    domain: SYSTEM_DOMAIN_ID,
+    parent: None,
+    label: "系统设置",
+    order: 50,
+    href: "/system/settings",
+    active_patterns: &["/system/settings"],
+    permissions_any_of: &["system:setting"],
 }
