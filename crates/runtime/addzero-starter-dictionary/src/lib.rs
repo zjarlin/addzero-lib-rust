@@ -31,7 +31,8 @@ impl PluginStarter for DictionaryStarter {
             pages: vec![PluginPage {
                 id: "note-types".to_string(),
                 title: "字典管理".to_string(),
-                subtitle: "笔记体系通过 note_type 管理智能体工作台、笔记、知识库与 Skill。".to_string(),
+                subtitle: "笔记体系通过 note_type 管理智能体工作台、笔记、知识库与 Skill。"
+                    .to_string(),
                 schema: PageSchema::Table(TableSchema {
                     columns: vec![
                         "字典编码".to_string(),

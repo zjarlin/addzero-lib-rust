@@ -23,13 +23,14 @@ use addzero_agent_runtime_contract::{
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 
 use crate::services::{
-    BrandingSettingsDto, BrandingSettingsUpdate, KnowledgeExceptionCardDto, KnowledgeFeedDto,
-    KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto,
-    KnowledgeSourceRefDto, LogoUploadRequest, ResolveKnowledgeExceptionInput, SkillDto,
-    SkillSourceDto, SkillUpsertDto, StorageBrowseRequestDto, StorageBrowseResultDto,
-    StorageCreateFolderDto, StorageCreateFolderResultDto, StorageDeleteFolderDto,
-    StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto, StorageShareResultDto,
-    StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto, SyncReportDto,
+    AssetGraphDto, AssetSyncReportDto, BrandingSettingsDto, BrandingSettingsUpdate,
+    KnowledgeExceptionCardDto, KnowledgeFeedDto, KnowledgeMaintenanceReportDto,
+    KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto, KnowledgeSourceRefDto, LogoUploadRequest,
+    ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
+    StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
+    StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,
+    StorageDeleteResultDto, StorageShareRequestDto, StorageShareResultDto, StorageUploadRequestDto,
+    StorageUploadResultDto, StoredLogoDto, SyncReportDto,
 };
 
 use self::auth::AdminSessionService;
@@ -113,6 +114,8 @@ pub async fn run_api_server() -> Result<()> {
             "/api/admin/storage/files/download/{token}",
             get(download_file),
         )
+        .route("/api/admin/assets/sync", post(sync_assets))
+        .route("/api/admin/assets/graph", get(load_asset_graph))
         .route(
             "/api/admin/settings/branding",
             get(get_branding_settings).post(save_branding_settings),
@@ -325,6 +328,24 @@ async fn get_branding_settings(headers: HeaderMap) -> ApiResult<Json<BrandingSet
         .await
         .map_err(|err| ApiError::bad_request(err.to_string()))?;
     Ok(Json(settings))
+}
+
+async fn sync_assets(headers: HeaderMap) -> ApiResult<Json<AssetSyncReportDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let report = crate::services::asset_graph::sync_assets_on_server()
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(report))
+}
+
+async fn load_asset_graph(headers: HeaderMap) -> ApiResult<Json<AssetGraphDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let graph = crate::services::asset_graph::load_asset_graph_on_server()
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(graph))
 }
 
 async fn save_branding_settings(

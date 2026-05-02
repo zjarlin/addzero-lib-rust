@@ -692,28 +692,59 @@ impl S3StorageClient for BlockingS3StorageClient {
         recursive: bool,
         max_keys: usize,
     ) -> StorageResult<Vec<ObjectMetadata>> {
-        let mut query_pairs = vec![
-            ("list-type".to_owned(), "2".to_owned()),
-            ("max-keys".to_owned(), max_keys.to_string()),
-        ];
-        if let Some(prefix) = prefix.filter(|value| !value.is_empty()) {
-            query_pairs.push(("prefix".to_owned(), prefix.to_owned()));
-        }
-        if !recursive {
-            query_pairs.push(("delimiter".to_owned(), "/".to_owned()));
-        }
-        let response = self.execute_empty_body_request(
-            Method::GET,
-            Some(bucket_name),
-            None,
-            query_pairs,
-            BTreeMap::new(),
-        )?;
-        if response.status() == StatusCode::NOT_FOUND {
+        if max_keys == 0 {
             return Ok(Vec::new());
         }
-        let body = response_to_text(self.ensure_success(response, Some(bucket_name), None)?)?;
-        parse_list_objects_response(&body)
+
+        let mut remaining = max_keys;
+        let mut continuation_token = None::<String>;
+        let mut objects = Vec::new();
+
+        loop {
+            let mut query_pairs = vec![
+                ("list-type".to_owned(), "2".to_owned()),
+                ("max-keys".to_owned(), remaining.to_string()),
+            ];
+            if let Some(prefix) = prefix.filter(|value| !value.is_empty()) {
+                query_pairs.push(("prefix".to_owned(), prefix.to_owned()));
+            }
+            if !recursive {
+                query_pairs.push(("delimiter".to_owned(), "/".to_owned()));
+            }
+            if let Some(token) = continuation_token
+                .as_ref()
+                .filter(|value| !value.is_empty())
+            {
+                query_pairs.push(("continuation-token".to_owned(), token.clone()));
+            }
+
+            let response = self.execute_empty_body_request(
+                Method::GET,
+                Some(bucket_name),
+                None,
+                query_pairs,
+                BTreeMap::new(),
+            )?;
+            if response.status() == StatusCode::NOT_FOUND {
+                return Ok(Vec::new());
+            }
+            let body = response_to_text(self.ensure_success(response, Some(bucket_name), None)?)?;
+            let page = parse_list_objects_response(&body)?;
+            let page_len = page.objects.len();
+            objects.extend(page.objects);
+            remaining = remaining.saturating_sub(page_len);
+
+            if remaining == 0 || !page.is_truncated {
+                break;
+            }
+
+            let Some(token) = page.next_continuation_token else {
+                break;
+            };
+            continuation_token = Some(token);
+        }
+
+        Ok(objects)
     }
 
     fn init_multipart_upload(
@@ -1004,13 +1035,22 @@ fn build_complete_multipart_body(parts: &[PartInfo]) -> String {
     format!("<CompleteMultipartUpload>{serialized}</CompleteMultipartUpload>")
 }
 
-fn parse_list_objects_response(xml: &str) -> StorageResult<Vec<ObjectMetadata>> {
+struct ParsedListObjectsResponse {
+    objects: Vec<ObjectMetadata>,
+    is_truncated: bool,
+    next_continuation_token: Option<String>,
+}
+
+fn parse_list_objects_response(xml: &str) -> StorageResult<ParsedListObjectsResponse> {
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
     let mut buffer = Vec::new();
     let mut path = Vec::<String>::new();
     let mut current = None::<PendingObjectSummary>;
     let mut objects = Vec::new();
+    let mut common_prefixes = Vec::<String>::new();
+    let mut is_truncated = false;
+    let mut next_continuation_token = None::<String>;
 
     loop {
         match reader.read_event_into(&mut buffer) {
@@ -1040,11 +1080,11 @@ fn parse_list_objects_response(xml: &str) -> StorageResult<Vec<ObjectMetadata>> 
                 }
             }
             Ok(Event::Text(text)) => {
+                let value = text.xml_content().map_err(xml_parse_error)?.into_owned();
                 if let Some(current) = current.as_mut() {
-                    let value = text.xml_content().map_err(xml_parse_error)?.into_owned();
                     match path.as_slice() {
                         [.., contents, key_name] if contents == "Contents" && key_name == "Key" => {
-                            current.key = value;
+                            current.key = value.clone();
                         }
                         [.., contents, size_name]
                             if contents == "Contents" && size_name == "Size" =>
@@ -1059,10 +1099,25 @@ fn parse_list_objects_response(xml: &str) -> StorageResult<Vec<ObjectMetadata>> 
                         [.., contents, modified_name]
                             if contents == "Contents" && modified_name == "LastModified" =>
                         {
-                            current.last_modified = Some(value);
+                            current.last_modified = Some(value.clone());
                         }
                         _ => {}
                     }
+                }
+
+                match path.as_slice() {
+                    [.., prefixes, prefix_name]
+                        if prefixes == "CommonPrefixes" && prefix_name == "Prefix" =>
+                    {
+                        common_prefixes.push(value.clone());
+                    }
+                    [.., node] if node == "IsTruncated" => {
+                        is_truncated = value.eq_ignore_ascii_case("true");
+                    }
+                    [.., node] if node == "NextContinuationToken" => {
+                        next_continuation_token = Some(value);
+                    }
+                    _ => {}
                 }
             }
             Ok(Event::Eof) => break,
@@ -1072,7 +1127,74 @@ fn parse_list_objects_response(xml: &str) -> StorageResult<Vec<ObjectMetadata>> 
         buffer.clear();
     }
 
-    Ok(objects)
+    objects.extend(common_prefixes.into_iter().map(|prefix| ObjectMetadata {
+        key: prefix,
+        size: 0,
+        etag: None,
+        last_modified: None,
+        content_type: Some("application/x-directory".to_string()),
+        metadata: BTreeMap::new(),
+    }));
+
+    Ok(ParsedListObjectsResponse {
+        objects,
+        is_truncated,
+        next_continuation_token,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_list_objects_response;
+
+    #[test]
+    fn parse_list_objects_response_should_capture_pagination_fields() {
+        let xml = r#"
+            <ListBucketResult>
+              <IsTruncated>true</IsTruncated>
+              <NextContinuationToken>token-2</NextContinuationToken>
+              <Contents>
+                <Key>archive/foo.zip</Key>
+                <LastModified>2026-05-02T00:00:00.000Z</LastModified>
+                <ETag>"abc"</ETag>
+                <Size>123</Size>
+              </Contents>
+            </ListBucketResult>
+        "#;
+
+        let parsed = parse_list_objects_response(xml).expect("xml should parse");
+
+        assert!(parsed.is_truncated);
+        assert_eq!(parsed.next_continuation_token.as_deref(), Some("token-2"));
+        assert_eq!(parsed.objects.len(), 1);
+        assert_eq!(parsed.objects[0].key, "archive/foo.zip");
+        assert_eq!(parsed.objects[0].size, 123);
+        assert_eq!(parsed.objects[0].etag.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn parse_list_objects_response_should_capture_common_prefixes() {
+        let xml = r#"
+            <ListBucketResult>
+              <CommonPrefixes>
+                <Prefix>branding/</Prefix>
+              </CommonPrefixes>
+              <CommonPrefixes>
+                <Prefix>dotfiles/</Prefix>
+              </CommonPrefixes>
+            </ListBucketResult>
+        "#;
+
+        let parsed = parse_list_objects_response(xml).expect("xml should parse");
+
+        assert_eq!(parsed.objects.len(), 2);
+        assert_eq!(parsed.objects[0].key, "branding/");
+        assert_eq!(
+            parsed.objects[0].content_type.as_deref(),
+            Some("application/x-directory")
+        );
+        assert_eq!(parsed.objects[1].key, "dotfiles/");
+    }
 }
 
 fn collect_path_texts(xml: &str, target_path: &[&str]) -> StorageResult<Vec<String>> {

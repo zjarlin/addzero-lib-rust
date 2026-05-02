@@ -1214,10 +1214,15 @@ fn suggested_asset_command(
             Some(format!("curl -L {url} -o {file_name}"))
         }
         InstallerKind::DirectPackage => item
-            .local_path
+            .download_url
             .as_deref()
-            .or(item.relative_path.as_deref())
-            .map(|path| direct_package_command(platform, path)),
+            .map(|url| remote_package_command(platform, url, &preferred_package_id(item)))
+            .or_else(|| {
+                item.local_path
+                    .as_deref()
+                    .or(item.relative_path.as_deref())
+                    .map(|path| direct_package_command(platform, path))
+            }),
         _ => None,
     }
 }
@@ -1247,6 +1252,20 @@ fn direct_package_command(platform: SoftwarePlatform, path: &str) -> String {
         SoftwarePlatform::Macos => format!("open \"{path}\""),
         SoftwarePlatform::Windows => format!("Start-Process -FilePath \"{path}\""),
         SoftwarePlatform::Linux => format!("xdg-open \"{path}\""),
+    }
+}
+
+fn remote_package_command(platform: SoftwarePlatform, url: &str, file_name: &str) -> String {
+    match platform {
+        SoftwarePlatform::Macos => format!(
+            "curl -L \"{url}\" -o \"/tmp/{file_name}\" && open \"/tmp/{file_name}\""
+        ),
+        SoftwarePlatform::Windows => format!(
+            "powershell -Command \"Invoke-WebRequest -Uri '{url}' -OutFile \\\"$env:TEMP\\\\{file_name}\\\"; Start-Process -FilePath \\\"$env:TEMP\\\\{file_name}\\\"\""
+        ),
+        SoftwarePlatform::Linux => format!(
+            "curl -L \"{url}\" -o \"/tmp/{file_name}\" && xdg-open \"/tmp/{file_name}\""
+        ),
     }
 }
 

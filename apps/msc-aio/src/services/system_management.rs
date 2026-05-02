@@ -30,9 +30,7 @@ use once_cell::sync::Lazy;
 #[cfg(not(target_arch = "wasm32"))]
 static PG_POOL: Lazy<Option<PgPool>> = Lazy::new(|| {
     let url = std::env::var("DATABASE_URL").ok()?;
-    let rt = tokio::runtime::Handle::try_current().ok()?;
-    let pool = rt.block_on(async { PgPool::connect(&url).await.ok() });
-    pool
+    PgPool::connect_lazy(&url).ok()
 });
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -310,7 +308,7 @@ impl SystemManagementApi for BrowserSystemManagementApi {
         &self,
         input: MenuUpsertDto,
     ) -> LocalBoxFuture<'_, SystemManagementResult<MenuDto>> {
-        Box::pin(async {
+        Box::pin(async move {
             super::browser_http::post_json("/api/admin/system/menus", &input)
                 .await
                 .map_err(SystemManagementError::msg)
@@ -354,7 +352,7 @@ impl SystemManagementApi for BrowserSystemManagementApi {
         &self,
         input: RoleUpsertDto,
     ) -> LocalBoxFuture<'_, SystemManagementResult<RoleDto>> {
-        Box::pin(async {
+        Box::pin(async move {
             super::browser_http::post_json("/api/admin/system/roles", &input)
                 .await
                 .map_err(SystemManagementError::msg)
@@ -413,7 +411,7 @@ impl SystemManagementApi for BrowserSystemManagementApi {
         &self,
         input: UserUpsertDto,
     ) -> LocalBoxFuture<'_, SystemManagementResult<UserDto>> {
-        Box::pin(async {
+        Box::pin(async move {
             super::browser_http::post_json("/api/admin/system/users", &input)
                 .await
                 .map_err(SystemManagementError::msg)
@@ -475,7 +473,7 @@ impl SystemManagementApi for BrowserSystemManagementApi {
         &self,
         input: DepartmentUpsertDto,
     ) -> LocalBoxFuture<'_, SystemManagementResult<DepartmentDto>> {
-        Box::pin(async {
+        Box::pin(async move {
             super::browser_http::post_json("/api/admin/system/departments", &input)
                 .await
                 .map_err(SystemManagementError::msg)
@@ -512,7 +510,7 @@ impl SystemManagementApi for BrowserSystemManagementApi {
         &self,
         input: DictGroupUpsertDto,
     ) -> LocalBoxFuture<'_, SystemManagementResult<DictGroupDto>> {
-        Box::pin(async {
+        Box::pin(async move {
             super::browser_http::post_json("/api/admin/system/dict-groups", &input)
                 .await
                 .map_err(SystemManagementError::msg)
@@ -554,7 +552,7 @@ impl SystemManagementApi for BrowserSystemManagementApi {
         &self,
         input: DictItemUpsertDto,
     ) -> LocalBoxFuture<'_, SystemManagementResult<DictItemDto>> {
-        Box::pin(async {
+        Box::pin(async move {
             super::browser_http::post_json("/api/admin/system/dict-items", &input)
                 .await
                 .map_err(SystemManagementError::msg)
@@ -836,6 +834,7 @@ pub async fn update_menu_on_server(
 }
 
 /// 收集菜单及其所有后代 ID（服务端版本）
+#[cfg(not(target_arch = "wasm32"))]
 fn collect_menu_descendant_ids<'a>(
     pool: &'a sqlx::PgPool,
     menu_id: i32,

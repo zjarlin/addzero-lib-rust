@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
 #[cfg(not(target_arch = "wasm32"))]
+use addzero_minio::MinioClient;
+#[cfg(not(target_arch = "wasm32"))]
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -85,16 +87,16 @@ struct NativeLogoStorage {
 
 #[cfg(not(target_arch = "wasm32"))]
 enum NativeBackend {
-    Rustfs(RustfsBackend),
+    Minio(MinioBackend),
     MissingConfig(String),
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl NativeLogoStorage {
     fn from_env() -> Self {
-        match RustfsBackend::from_env() {
+        match MinioBackend::from_env() {
             Ok(backend) => Self {
-                backend: NativeBackend::Rustfs(backend),
+                backend: NativeBackend::Minio(backend),
             },
             Err(reason) => Self {
                 backend: NativeBackend::MissingConfig(reason),
@@ -104,7 +106,7 @@ impl NativeLogoStorage {
 
     fn upload_logo_blocking(&self, input: LogoUploadRequest) -> LogoStorageResult<StoredLogoDto> {
         match &self.backend {
-            NativeBackend::Rustfs(backend) => backend.upload_logo_blocking(input),
+            NativeBackend::Minio(backend) => backend.upload_logo_blocking(input),
             NativeBackend::MissingConfig(reason) => Err(LogoStorageError::new(format!(
                 "MinIO / S3 存储未配置：{reason}"
             ))),
@@ -124,74 +126,49 @@ impl LogoStorageApi for NativeLogoStorage {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-struct RustfsBackend {
-    config: addzero_rustfs::S3ClientConfig,
+struct MinioBackend {
+    client: MinioClient,
     bucket: String,
+    backend_label: String,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl RustfsBackend {
+impl MinioBackend {
     fn from_env() -> Result<Self, String> {
-        let endpoint = required_env("ADMIN_LOGO_S3_ENDPOINT")?;
-        let access_key = required_env("ADMIN_LOGO_S3_ACCESS_KEY")?;
-        let secret_key = required_env("ADMIN_LOGO_S3_SECRET_KEY")?;
-        let bucket = required_env("ADMIN_LOGO_S3_BUCKET")?;
-        let region = std::env::var("ADMIN_LOGO_S3_REGION").unwrap_or_else(|_| "us-east-1".into());
-        let config = addzero_rustfs::S3ClientConfig::new(endpoint.clone(), access_key, secret_key)
-            .with_region(region)
-            .with_path_style_access(true);
-
-        Ok(Self { config, bucket })
-    }
-
-    /// Lazy client creation — only called from blocking context (upload),
-    /// never during async Dioxus render.
-    fn client(&self) -> std::sync::Arc<dyn addzero_rustfs::S3StorageClient> {
-        addzero_rustfs::create_storage_client(self.config.clone())
+        let environment = super::minio_files::minio_environment_from_env()?;
+        Ok(Self {
+            client: environment.client,
+            bucket: environment.bucket,
+            backend_label: environment.backend_label,
+        })
     }
 
     fn upload_logo_blocking(&self, input: LogoUploadRequest) -> LogoStorageResult<StoredLogoDto> {
         validate_logo(&input)?;
-
-        let client = self.client();
-
-        addzero_rustfs::ensure_bucket(client.as_ref(), &self.bucket)
+        self.client
+            .ensure_bucket(&self.bucket)
             .map_err(|err| LogoStorageError::new(format!("创建 bucket 失败：{err}")))?;
 
         let content_type = normalized_content_type(input.content_type.as_deref());
         let object_key = build_object_key(&input.file_name);
 
-        addzero_rustfs::put_object_bytes(
-            client.as_ref(),
-            &self.bucket,
-            &object_key,
-            &input.bytes,
-            Some(content_type.as_str()),
-        )
-        .map_err(|err| LogoStorageError::new(format!("上传 logo 到 RustFS 失败：{err}")))?;
+        self.client
+            .put_object_bytes(
+                &self.bucket,
+                &object_key,
+                &input.bytes,
+                Some(content_type.as_str()),
+            )
+            .map_err(|err| LogoStorageError::new(format!("上传 logo 到 MinIO 失败：{err}")))?;
 
         Ok(StoredLogoDto {
             object_key: object_key.clone(),
             relative_path: build_relative_path(&self.bucket, &object_key),
             file_name: input.file_name,
             content_type,
-            backend_label: format!("MinIO / S3-compatible · bucket `{}`", self.bucket),
+            backend_label: self.backend_label.clone(),
         })
     }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn required_env(name: &str) -> Result<String, String> {
-    std::env::var(name)
-        .map(|value| value.trim().to_string())
-        .map_err(|_| format!("缺少环境变量 `{name}`"))
-        .and_then(|value| {
-            if value.is_empty() {
-                Err(format!("环境变量 `{name}` 不能为空"))
-            } else {
-                Ok(value)
-            }
-        })
 }
 
 #[cfg(not(target_arch = "wasm32"))]

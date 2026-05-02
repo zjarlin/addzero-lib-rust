@@ -1,17 +1,24 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, path::Path, sync::Mutex};
 
 #[cfg(not(target_arch = "wasm32"))]
 use addzero_minio::{DEFAULT_PRESIGNED_EXPIRATION_SECONDS, MinioClient, MinioConfig};
 use base64::Engine as _;
+#[cfg(not(target_arch = "wasm32"))]
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
 const DOWNLOAD_ROUTE_PREFIX: &str = "/api/admin/storage/files/download/";
+pub const MSC_AIO_BUCKET_NAME: &str = "msc-aio";
+
+#[cfg(not(target_arch = "wasm32"))]
+static BROWSE_CACHE: Lazy<Mutex<BTreeMap<String, StorageBrowseResultDto>>> =
+    Lazy::new(|| Mutex::new(BTreeMap::new()));
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StorageBrowseRequestDto {
@@ -428,32 +435,7 @@ struct MinioBackend {
 #[cfg(not(target_arch = "wasm32"))]
 impl MinioBackend {
     fn from_env() -> Result<Self, String> {
-        let endpoint = read_env_any(&[
-            "MSC_AIO_MINIO_ENDPOINT",
-            "ADMIN_PACKAGE_S3_ENDPOINT",
-            "ADMIN_LOGO_S3_ENDPOINT",
-        ])?;
-        let access_key = read_env_any(&[
-            "MSC_AIO_MINIO_ACCESS_KEY",
-            "ADMIN_PACKAGE_S3_ACCESS_KEY",
-            "ADMIN_LOGO_S3_ACCESS_KEY",
-        ])?;
-        let secret_key = read_env_any(&[
-            "MSC_AIO_MINIO_SECRET_KEY",
-            "ADMIN_PACKAGE_S3_SECRET_KEY",
-            "ADMIN_LOGO_S3_SECRET_KEY",
-        ])?;
-        let bucket = read_env_any(&[
-            "MSC_AIO_MINIO_BUCKET",
-            "ADMIN_PACKAGE_S3_BUCKET",
-            "ADMIN_LOGO_S3_BUCKET",
-        ])?;
-        let region = read_env_any_optional(&[
-            "MSC_AIO_MINIO_REGION",
-            "ADMIN_PACKAGE_S3_REGION",
-            "ADMIN_LOGO_S3_REGION",
-        ])
-        .unwrap_or_else(|| "us-east-1".to_string());
+        let environment = minio_environment_from_env()?;
         let share_secret =
             read_env_any_optional(&["MSC_AIO_MINIO_SHARE_SECRET", "MINIO_URL_ENCRYPTION_SECRET"]);
         let share_expiration_seconds = read_u64_env_any(
@@ -461,17 +443,10 @@ impl MinioBackend {
             DEFAULT_PRESIGNED_EXPIRATION_SECONDS,
         )?;
 
-        let config = MinioConfig::builder(endpoint.clone(), access_key, secret_key)
-            .region(region)
-            .build()
-            .map_err(|err| err.to_string())?;
-        let client = addzero_minio::create_client(config).map_err(|err| err.to_string())?;
-        let backend_label = format!("MinIO · bucket `{bucket}` · endpoint {endpoint}");
-
         Ok(Self {
-            client,
-            bucket,
-            backend_label,
+            client: environment.client,
+            bucket: environment.bucket,
+            backend_label: environment.backend_label,
             share_expiration_seconds,
             share_secret,
         })
@@ -489,6 +464,9 @@ impl MinioBackend {
         input: StorageBrowseRequestDto,
     ) -> MinioFilesResult<StorageBrowseResultDto> {
         let prefix = normalize_prefix(&input.prefix)?;
+        if let Some(cached) = cached_browse_result(prefix.as_str()) {
+            return Ok(cached);
+        }
         self.ensure_bucket()?;
 
         let objects = self
@@ -500,7 +478,7 @@ impl MinioBackend {
                 } else {
                     Some(prefix.as_str())
                 },
-                true,
+                false,
             )
             .map_err(|err| MinioFilesError::new(format!("读取对象列表失败：{err}")))?;
 
@@ -561,7 +539,7 @@ impl MinioBackend {
         folders.sort_by(folder_sort_key);
         files.sort_by(file_sort_key);
 
-        Ok(StorageBrowseResultDto {
+        let result = StorageBrowseResultDto {
             bucket: self.bucket.clone(),
             current_prefix: prefix.clone(),
             parent_prefix: parent_prefix(&prefix),
@@ -571,7 +549,9 @@ impl MinioBackend {
             file_count: files.len(),
             folders,
             files,
-        })
+        };
+        store_browse_result(prefix.as_str(), &result);
+        Ok(result)
     }
 
     fn upload_files_blocking(
@@ -629,6 +609,7 @@ impl MinioBackend {
         }
 
         let target_label = display_prefix(&prefix);
+        clear_browse_cache();
         Ok(StorageUploadResultDto {
             uploaded_count: uploaded.len(),
             prefix,
@@ -665,6 +646,7 @@ impl MinioBackend {
             )
             .map_err(|err| MinioFilesError::new(format!("创建目录失败：{err}")))?;
 
+        clear_browse_cache();
         Ok(StorageCreateFolderResultDto {
             prefix: folder_prefix.clone(),
             message: format!("已创建目录 {}", display_prefix(&folder_prefix)),
@@ -732,6 +714,7 @@ impl MinioBackend {
             .delete_object(&self.bucket, &object_key)
             .map_err(|err| MinioFilesError::new(format!("删除文件失败：{err}")))?;
 
+        clear_browse_cache();
         Ok(StorageDeleteResultDto {
             deleted_count: 1,
             message: format!("已删除文件 `{object_key}`"),
@@ -762,6 +745,7 @@ impl MinioBackend {
             .delete_objects(&self.bucket, &keys)
             .map_err(|err| MinioFilesError::new(format!("删除目录失败：{err}")))?;
 
+        clear_browse_cache();
         Ok(StorageDeleteResultDto {
             deleted_count: keys.len(),
             message: format!(
@@ -795,6 +779,52 @@ impl MinioBackend {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone)]
+pub(crate) struct MinioEnvironment {
+    pub client: MinioClient,
+    pub bucket: String,
+    pub backend_label: String,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn minio_environment_from_env() -> Result<MinioEnvironment, String> {
+    let endpoint = read_env_any(&[
+        "MSC_AIO_MINIO_ENDPOINT",
+        "ADMIN_PACKAGE_S3_ENDPOINT",
+        "ADMIN_LOGO_S3_ENDPOINT",
+    ])?;
+    let access_key = read_env_any(&[
+        "MSC_AIO_MINIO_ACCESS_KEY",
+        "ADMIN_PACKAGE_S3_ACCESS_KEY",
+        "ADMIN_LOGO_S3_ACCESS_KEY",
+    ])?;
+    let secret_key = read_env_any(&[
+        "MSC_AIO_MINIO_SECRET_KEY",
+        "ADMIN_PACKAGE_S3_SECRET_KEY",
+        "ADMIN_LOGO_S3_SECRET_KEY",
+    ])?;
+    let bucket = canonical_bucket_name()?;
+    let region = read_env_any_optional(&[
+        "MSC_AIO_MINIO_REGION",
+        "ADMIN_PACKAGE_S3_REGION",
+        "ADMIN_LOGO_S3_REGION",
+    ])
+    .unwrap_or_else(|| "us-east-1".to_string());
+
+    let config = MinioConfig::builder(endpoint.clone(), access_key, secret_key)
+        .region(region)
+        .build()
+        .map_err(|err| err.to_string())?;
+    let client = addzero_minio::create_client(config).map_err(|err| err.to_string())?;
+
+    Ok(MinioEnvironment {
+        client,
+        bucket: bucket.clone(),
+        backend_label: format!("MinIO · bucket `{bucket}` · endpoint {endpoint}"),
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone)]
 struct FolderAccumulator {
     name: String,
     prefix: String,
@@ -821,6 +851,28 @@ impl FolderAccumulator {
             object_count: self.object_count,
             size_bytes: self.size_bytes,
         }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn cached_browse_result(prefix: &str) -> Option<StorageBrowseResultDto> {
+    BROWSE_CACHE
+        .lock()
+        .ok()
+        .and_then(|cache| cache.get(prefix).cloned())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn store_browse_result(prefix: &str, result: &StorageBrowseResultDto) {
+    if let Ok(mut cache) = BROWSE_CACHE.lock() {
+        cache.insert(prefix.to_string(), result.clone());
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn clear_browse_cache() {
+    if let Ok(mut cache) = BROWSE_CACHE.lock() {
+        cache.clear();
     }
 }
 
@@ -891,6 +943,28 @@ fn read_env_any_optional(names: &[&str]) -> Option<String> {
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
     })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn canonical_bucket_name() -> Result<String, String> {
+    enforce_bucket_env("MSC_AIO_MINIO_BUCKET")?;
+    enforce_bucket_env("ADMIN_PACKAGE_S3_BUCKET")?;
+    enforce_bucket_env("ADMIN_LOGO_S3_BUCKET")?;
+    Ok(MSC_AIO_BUCKET_NAME.to_string())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn enforce_bucket_env(name: &str) -> Result<(), String> {
+    let Some(value) = read_env_any_optional(&[name]) else {
+        return Ok(());
+    };
+    if value == MSC_AIO_BUCKET_NAME {
+        Ok(())
+    } else {
+        Err(format!(
+            "MinIO bucket 已固定为 `{MSC_AIO_BUCKET_NAME}`；请移除或改正 `{name}={value}`"
+        ))
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

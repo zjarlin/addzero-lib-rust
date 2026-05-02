@@ -53,12 +53,18 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
         let minio_files = minio_files.clone();
         use_resource(move || {
             let minio_files = minio_files.clone();
+            let current_prefix_value = current_prefix.read().clone();
             async move {
-                minio_files
-                    .browse(StorageBrowseRequestDto {
-                        prefix: String::new(),
-                    })
-                    .await
+                if current_prefix_value.is_empty() {
+                    Ok(None)
+                } else {
+                    minio_files
+                        .browse(StorageBrowseRequestDto {
+                            prefix: String::new(),
+                        })
+                        .await
+                        .map(Some)
+                }
             }
         })
     };
@@ -111,14 +117,19 @@ fn DownloadStationWorkspaceShell(show_header: bool) -> Element {
     let breadcrumbs = explorer.breadcrumbs.clone();
     let folders = explorer.folders.clone();
     let files = explorer.files.clone();
-    let root_folders = root_resource
-        .read()
-        .as_ref()
-        .and_then(|result| result.as_ref().ok())
-        .map(|root| root.folders.clone())
-        .unwrap_or_default();
     let folder_count = explorer.folder_count;
     let file_count = explorer.file_count;
+    let root_folders = if current_prefix_value.is_empty() {
+        folders.clone()
+    } else {
+        root_resource
+            .read()
+            .as_ref()
+            .and_then(|result| result.as_ref().ok())
+            .and_then(|root| root.as_ref())
+            .map(|root| root.folders.clone())
+            .unwrap_or_default()
+    };
     let active_source_prefix = top_level_prefix(current_prefix_value.as_str());
     let active_source_label = active_source_prefix
         .as_deref()

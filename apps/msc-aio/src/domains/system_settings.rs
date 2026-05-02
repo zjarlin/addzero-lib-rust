@@ -59,7 +59,7 @@ pub fn SystemSettings() -> Element {
     let default_theme = use_signal(|| "浅色".to_string());
 
     let storage_endpoint = use_signal(|| "http://127.0.0.1:9091".to_string());
-    let storage_bucket = use_signal(|| "branding".to_string());
+    let storage_bucket = use_signal(|| "msc-aio".to_string());
     let public_base_url = use_signal(|| LOGO_PREVIEW_BASE_URL.to_string());
     let use_presigned_url = use_signal(|| true);
 
@@ -779,7 +779,7 @@ fn StorageSettingsTab(props: StorageSettingsTabProps) -> Element {
         Surface {
             SurfaceHeader {
                 title: "S3-Compatible 接入".to_string(),
-                subtitle: "这里不锁死某个厂商；当前目标是 MinIO 与 RustFS 复用同一协议边界。".to_string(),
+                subtitle: "当前统一收敛到 MinIO；bucket 固定为 `msc-aio`，通过对象 key 的相对路径管理所有资源。".to_string(),
                 actions: rsx!(
                     WorkbenchButton {
                         class: "action-button action-button--primary".to_string(),
@@ -801,12 +801,9 @@ fn StorageSettingsTab(props: StorageSettingsTabProps) -> Element {
                     }
                 }
                 Field {
-                    label: "Bucket".to_string(),
+                    label: "Bucket（固定）".to_string(),
                     value: props.storage_bucket.read().clone(),
-                    on_input: {
-                        let mut storage_bucket = props.storage_bucket;
-                        move |value| storage_bucket.set(value)
-                    }
+                    readonly: true
                 }
                 Field {
                     label: "Public Base URL".to_string(),
@@ -847,7 +844,7 @@ fn StorageSettingsTab(props: StorageSettingsTabProps) -> Element {
                 div { class: "settings-row settings-row--static",
                     div { class: "settings-row__copy",
                         div { class: "settings-row__title", "MinIO 兼容性" }
-                        div { class: "settings-row__detail", "MinIO 可以直接作为 S3-compatible 后端使用，RustFS 侧保持同一套 bucket / object key 语义。" }
+                        div { class: "settings-row__detail", "MinIO 仍走 S3-compatible 协议，但后台现在只保留一个 `msc-aio` bucket，目录语义全部映射为对象 key 前缀。" }
                     }
                 }
                 div { class: "settings-row settings-row--static",
@@ -909,7 +906,7 @@ fn storage_backend_hint() -> String {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        "MinIO / S3-compatible · 需要配置 ADMIN_LOGO_S3_* 环境变量".to_string()
+        "MinIO / S3-compatible · 使用 MSC_AIO_MINIO_* 环境变量，bucket 固定为 msc-aio".to_string()
     }
 }
 
