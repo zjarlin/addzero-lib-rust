@@ -409,9 +409,13 @@ fn UsersScene() -> Element {
                                 move |_| {
                                     let sys = sys.clone();
                                     spawn(async move {
-                                        let _ = sys.delete_user(uid).await;
-                                        confirm_delete_user.set(None);
-                                        users_resource.restart();
+                                        match sys.delete_user(uid).await {
+                                            Ok(_) => {
+                                                confirm_delete_user.set(None);
+                                                users_resource.restart();
+                                            }
+                                            Err(e) => { error_msg.set(Some(format!("删除失败: {e}"))); }
+                                        }
                                     });
                                 }
                             }
@@ -772,9 +776,13 @@ fn RolesScene() -> Element {
                                 move |_| {
                                     let sys = sys.clone();
                                     spawn(async move {
-                                        let _ = sys.delete_role(rid).await;
-                                        confirm_delete_role.set(None);
-                                        roles_resource.restart();
+                                        match sys.delete_role(rid).await {
+                                            Ok(_) => {
+                                                confirm_delete_role.set(None);
+                                                roles_resource.restart();
+                                            }
+                                            Err(e) => { error_msg.set(Some(format!("删除失败: {e}"))); }
+                                        }
                                     });
                                 }
                             }
@@ -1152,9 +1160,13 @@ fn MenusScene() -> Element {
                                 move |_| {
                                     let sys = sys.clone();
                                     spawn(async move {
-                                        let _ = sys.delete_menu(mid).await;
-                                        confirm_delete_menu.set(None);
-                                        menus_resource.restart();
+                                        match sys.delete_menu(mid).await {
+                                            Ok(_) => {
+                                                confirm_delete_menu.set(None);
+                                                menus_resource.restart();
+                                            }
+                                            Err(e) => { error_msg.set(Some(format!("删除失败: {e}"))); }
+                                        }
                                     });
                                 }
                             }
@@ -1375,9 +1387,13 @@ fn DepartmentsScene() -> Element {
                                 move |_| {
                                     let sys = sys.clone();
                                     spawn(async move {
-                                        let _ = sys.delete_department(did).await;
-                                        confirm_delete_dept.set(None);
-                                        dept_resource.restart();
+                                        match sys.delete_department(did).await {
+                                            Ok(_) => {
+                                                confirm_delete_dept.set(None);
+                                                dept_resource.restart();
+                                            }
+                                            Err(e) => { error_msg.set(Some(format!("删除失败: {e}"))); }
+                                        }
                                     });
                                 }
                             }
@@ -1572,10 +1588,14 @@ fn DictionariesScene() -> Element {
                                 move |_| {
                                     let sys = sys.clone();
                                     spawn(async move {
-                                        let _ = sys.delete_dict_group(gid).await;
-                                        confirm_delete_group.set(None);
-                                        groups_resource.restart();
-                                        selected_group.set(None);
+                                        match sys.delete_dict_group(gid).await {
+                                            Ok(_) => {
+                                                confirm_delete_group.set(None);
+                                                groups_resource.restart();
+                                                selected_group.set(None);
+                                            }
+                                            Err(e) => { error_msg.set(Some(format!("删除失败: {e}"))); }
+                                        }
                                     });
                                 }
                             }
@@ -1783,9 +1803,13 @@ fn DictItemsPanel(group: DictGroupDto, on_close: EventHandler<()>) -> Element {
                                 move |_| {
                                     let sys = sys.clone();
                                     spawn(async move {
-                                        let _ = sys.delete_dict_item(iid).await;
-                                        confirm_delete_item.set(None);
-                                        items_resource.restart();
+                                        match sys.delete_dict_item(iid).await {
+                                            Ok(_) => {
+                                                confirm_delete_item.set(None);
+                                                items_resource.restart();
+                                            }
+                                            Err(e) => { error_msg.set(Some(format!("删除失败: {e}"))); }
+                                        }
                                     });
                                 }
                             }

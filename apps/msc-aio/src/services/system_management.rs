@@ -657,7 +657,17 @@ pub async fn update_role_on_server(id: i32, input: RoleUpsertDto) -> SystemManag
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn delete_role_on_server(id: i32) -> SystemManagementResult<()> {
     let pool = pg_pool()?;
-    sqlx::query("DELETE FROM sys_role WHERE id = $1")
+    // 保护系统角色
+    let is_system: bool = sqlx::query_scalar("SELECT is_system FROM sys_role WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| SystemManagementError::msg(format!("check_role: {e}")))?
+        .unwrap_or(false);
+    if is_system {
+        return Err(SystemManagementError::msg("系统内置角色不允许删除"));
+    }
+    sqlx::query("DELETE FROM sys_role WHERE id = $1 AND is_system = FALSE")
         .bind(id)
         .execute(&pool)
         .await
@@ -800,7 +810,17 @@ pub async fn update_user_on_server(id: i32, input: UserUpsertDto) -> SystemManag
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn delete_user_on_server(id: i32) -> SystemManagementResult<()> {
     let pool = pg_pool()?;
-    sqlx::query("DELETE FROM sys_user WHERE id = $1")
+    // 保护管理员用户
+    let username: String = sqlx::query_scalar("SELECT username FROM sys_user WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| SystemManagementError::msg(format!("check_user: {e}")))?
+        .unwrap_or_default();
+    if username == "admin" {
+        return Err(SystemManagementError::msg("系统管理员账户不允许删除"));
+    }
+    sqlx::query("DELETE FROM sys_user WHERE id = $1 AND username != 'admin'")
         .bind(id)
         .execute(&pool)
         .await
