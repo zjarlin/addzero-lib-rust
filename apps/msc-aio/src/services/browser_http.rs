@@ -42,6 +42,24 @@ where
 }
 
 #[cfg(target_arch = "wasm32")]
+pub async fn put_json<B, T>(path: &str, body: &B) -> Result<T, String>
+where
+    B: Serialize,
+    T: DeserializeOwned,
+{
+    request_json("PUT", path, Some(body)).await
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn put_empty<B>(path: &str, body: &B) -> Result<(), String>
+where
+    B: Serialize,
+{
+    let _: serde_json::Value = request_json("PUT", path, Some(body)).await?;
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
 async fn request_json<B, T>(method: &str, path: &str, body: Option<&B>) -> Result<T, String>
 where
     B: Serialize,

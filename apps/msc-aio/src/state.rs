@@ -9,10 +9,11 @@ use crate::services::{
     BrandingLogoSource, BrandingSettingsDto, BrandingSettingsUpdate, SharedAgentRuntimeApi,
     SharedAssetGraphApi, SharedAuthApi, SharedBrandingSettingsApi, SharedCliMarketApi,
     SharedKnowledgeGraphApi, SharedLogoStorageApi, SharedSkillsApi, SharedSoftwareCatalogApi,
+    SharedSystemManagementApi,
     StoredLogoDto, build_preview_url, default_agent_runtime_api, default_asset_graph_api,
     default_auth_api, default_branding_settings_api, default_cli_market_api,
     default_knowledge_graph_api, default_logo_storage_api, default_skills_api,
-    default_software_catalog_api,
+    default_software_catalog_api, default_system_management_api,
 };
 
 pub const DEFAULT_SITE_NAME: &str = "MSC_AIO";
@@ -142,6 +143,7 @@ pub struct AppServices {
     pub knowledge_graph: SharedKnowledgeGraphApi,
     pub cli_market: SharedCliMarketApi,
     pub software_catalog: SharedSoftwareCatalogApi,
+    pub system: SharedSystemManagementApi,
     pub logo_storage: SharedLogoStorageApi,
     pub branding_settings: SharedBrandingSettingsApi,
     pub admin: SharedAdminProvider<Route>,
@@ -161,6 +163,7 @@ impl AppServices {
             knowledge_graph: default_knowledge_graph_api(),
             cli_market: default_cli_market_api(),
             software_catalog: default_software_catalog_api(),
+            system: default_system_management_api(),
             logo_storage: default_logo_storage_api(),
             branding_settings: default_branding_settings_api(),
             admin: Rc::new(DefaultAdminProvider::new(auth, theme, branding, auth_api)),
