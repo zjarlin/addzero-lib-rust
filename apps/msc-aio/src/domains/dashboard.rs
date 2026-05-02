@@ -413,9 +413,9 @@ impl WorkspaceAxis {
 
     fn label(self) -> &'static str {
         match self {
-            Self::Notes => "笔记树",
-            Self::Packages => "安装包树",
-            Self::Skills => "技能树",
+            Self::Notes => "笔记",
+            Self::Packages => "安装包",
+            Self::Skills => "技能",
             Self::Cli => "CLI 树",
         }
     }

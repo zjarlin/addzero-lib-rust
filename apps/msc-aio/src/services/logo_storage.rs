@@ -125,7 +125,7 @@ impl LogoStorageApi for NativeLogoStorage {
 
 #[cfg(not(target_arch = "wasm32"))]
 struct RustfsBackend {
-    client: std::sync::Arc<dyn addzero_rustfs::S3StorageClient>,
+    config: addzero_rustfs::S3ClientConfig,
     bucket: String,
 }
 
@@ -141,23 +141,28 @@ impl RustfsBackend {
             .with_region(region)
             .with_path_style_access(true);
 
-        Ok(Self {
-            client: addzero_rustfs::create_storage_client(config),
-            bucket,
-        })
+        Ok(Self { config, bucket })
+    }
+
+    /// Lazy client creation — only called from blocking context (upload),
+    /// never during async Dioxus render.
+    fn client(&self) -> std::sync::Arc<dyn addzero_rustfs::S3StorageClient> {
+        addzero_rustfs::create_storage_client(self.config.clone())
     }
 
     fn upload_logo_blocking(&self, input: LogoUploadRequest) -> LogoStorageResult<StoredLogoDto> {
         validate_logo(&input)?;
 
-        addzero_rustfs::ensure_bucket(self.client.as_ref(), &self.bucket)
+        let client = self.client();
+
+        addzero_rustfs::ensure_bucket(client.as_ref(), &self.bucket)
             .map_err(|err| LogoStorageError::new(format!("创建 bucket 失败：{err}")))?;
 
         let content_type = normalized_content_type(input.content_type.as_deref());
         let object_key = build_object_key(&input.file_name);
 
         addzero_rustfs::put_object_bytes(
-            self.client.as_ref(),
+            client.as_ref(),
             &self.bucket,
             &object_key,
             &input.bytes,
@@ -226,7 +231,7 @@ fn build_object_key(file_name: &str) -> String {
         .filter(|ext| !ext.is_empty())
         .unwrap_or_else(|| "png".to_string());
 
-    format!("logos/logo-{}.{}", Utc::now().timestamp_millis(), extension)
+    format!("branding/logos/logo-{}.{}", Utc::now().timestamp_millis(), extension)
 }
 
 pub fn build_preview_url(relative_path: &str) -> String {
