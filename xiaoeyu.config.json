@@ -43,7 +43,7 @@
     "index": {
       "title": "小鳄鱼",
       "heading": "小鳄鱼",
-      "description": "addzero-lib-rust 的自动化文档站点，当前重点包含 workspace 总览与 addzero-creates 用法。",
+      "description": "addzero-lib-rust 的自动化文档站点，当前重点包含 workspace 工作台与 addzero-creates 用法。",
       "featuresTitle": "说明",
       "features": [
         "自动收集仓库根 README 和 crate README。",

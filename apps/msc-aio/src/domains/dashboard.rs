@@ -1030,7 +1030,7 @@ fn NoteCardGrid(entries: Vec<KnowledgeEntryRecord>, docs: Vec<&'static Knowledge
                         }
                     }
                     div { class: "note-card__tags",
-                        span { class: "badge badge--fs", "闪念" }
+                        span { class: "badge badge--fs", "智能体工作台" }
                         span { class: "badge", "{doc.filename}" }
                         span { class: "badge", "{doc.section_count} 节" }
                         span { class: "badge", "{format_bytes(doc.bytes)}" }

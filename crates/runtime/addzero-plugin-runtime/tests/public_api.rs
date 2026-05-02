@@ -30,14 +30,14 @@ fn installs_packaged_plugin_and_creates_instances() {
             capabilities: vec![HostCapability::Dictionary, HostCapability::Audit],
             menus: vec![PluginMenuContribution {
                 section: "业务应用".to_string(),
-                label: "总览".to_string(),
+                label: "工作台".to_string(),
                 page_id: "overview".to_string(),
                 order: 10,
                 icon: None,
             }],
             pages: vec![PluginPage {
                 id: "overview".to_string(),
-                title: "总览".to_string(),
+                title: "工作台".to_string(),
                 subtitle: "插件首页".to_string(),
                 schema: PageSchema::Markdown(MarkdownSchema {
                     body: "hello".to_string(),

@@ -28,7 +28,7 @@ enum AdminDomain {
 impl AdminDomain {
     fn label(self) -> &'static str {
         match self {
-            Self::Overview => "总览",
+            Self::Overview => "工作台",
             Self::Knowledge => "知识库",
             Self::System => "系统管理",
             Self::Audit => "审计日志",
@@ -175,7 +175,7 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
     match domain {
         AdminDomain::Overview => AdminSection {
             label: domain.label().to_string(),
-            menus: vec![AdminMenu::leaf("闪念", Route::Home, |route| {
+            menus: vec![AdminMenu::leaf("智能体工作台", Route::Home, |route| {
                 matches!(route, Route::Home | Route::Dashboard)
             })],
         },
@@ -260,7 +260,7 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
 /// 菜单项对应的权限标识。返回 None 表示始终可见（如仪表盘）。
 fn permission_for_menu(menu_label: &str) -> Option<&'static str> {
     match menu_label {
-        "闪念" => Some("overview"),
+        "智能体工作台" => Some("overview"),
         "笔记" => Some("knowledge:note"),
         "Skills" => Some("knowledge:skill"),
         "安装包" => Some("knowledge:pkg"),

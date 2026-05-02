@@ -30,7 +30,7 @@ UPDATE sys_menu SET permission_code = 'knowledge:pkg'   WHERE name = '安装包'
 UPDATE sys_menu SET permission_code = 'knowledge:cli'   WHERE name = 'CLI 市场' AND permission_code = '';
 UPDATE sys_menu SET permission_code = 'knowledge:dl'    WHERE name = '下载站'   AND permission_code = '';
 UPDATE sys_menu SET permission_code = 'audit'           WHERE name = '审计日志' AND permission_code = '';
-UPDATE sys_menu SET permission_code = 'overview'        WHERE name = '闪念'     AND permission_code = '';
+UPDATE sys_menu SET permission_code = 'overview'        WHERE name = '智能体工作台'     AND permission_code = '';
 
 -- 4. 索引
 CREATE INDEX IF NOT EXISTS idx_sys_menu_permission_code ON sys_menu(permission_code) WHERE permission_code != '';

@@ -50,7 +50,7 @@ ON CONFLICT (name) DO NOTHING;
 
 -- Seed: menu tree
 INSERT INTO sys_menu (id, parent_id, name, route, icon, sort_order) VALUES
-    (1, NULL, '总览', '/', 'dashboard', 10),
+    (1, NULL, '工作台', '/', 'dashboard', 10),
     (2, NULL, '知识库', '', 'book', 20),
     (3, 2, '笔记', '/knowledge/notes', 'note', 10),
     (4, 2, '安装包', '/knowledge/packages', 'package', 20),

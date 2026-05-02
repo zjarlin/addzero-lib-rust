@@ -16,7 +16,7 @@ impl PluginStarter for DictionaryStarter {
             name: "字典中心".to_string(),
             version: "0.1.0".to_string(),
             kind: PluginKind::System,
-            summary: "统一维护系统枚举和值域，闪念只是 note_type 的一个值。".to_string(),
+            summary: "统一维护系统枚举和值域，智能体工作台只是 note_type 的一个值。".to_string(),
             tags: vec!["system".to_string(), "dictionary".to_string()],
             icon: Some("book-key".to_string()),
             compatibility: vec!["web".to_string(), "desktop".to_string()],
@@ -31,7 +31,7 @@ impl PluginStarter for DictionaryStarter {
             pages: vec![PluginPage {
                 id: "note-types".to_string(),
                 title: "字典管理".to_string(),
-                subtitle: "笔记体系通过 note_type 管理闪念、笔记、知识库与 Skill。".to_string(),
+                subtitle: "笔记体系通过 note_type 管理智能体工作台、笔记、知识库与 Skill。".to_string(),
                 schema: PageSchema::Table(TableSchema {
                     columns: vec![
                         "字典编码".to_string(),
@@ -44,7 +44,7 @@ impl PluginStarter for DictionaryStarter {
                             cells: vec![
                                 "note_type".to_string(),
                                 "flash".to_string(),
-                                "闪念".to_string(),
+                                "智能体工作台".to_string(),
                                 "统一新增入口默认值".to_string(),
                             ],
                         },

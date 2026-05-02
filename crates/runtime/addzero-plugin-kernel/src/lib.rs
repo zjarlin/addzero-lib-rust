@@ -79,7 +79,7 @@ impl DictionaryService for StaticDictionaryService {
         vec![
             DisplayField {
                 label: "flash".to_string(),
-                value: "闪念".to_string(),
+                value: "智能体工作台".to_string(),
                 readonly: true,
             },
             DisplayField {
@@ -204,7 +204,7 @@ impl PlatformKernel {
             label: "工作台".to_string(),
             items: vec![
                 NavigationItem {
-                    label: "总览".to_string(),
+                    label: "工作台".to_string(),
                     href: "/".to_string(),
                     plugin_id: None,
                     page_id: None,
