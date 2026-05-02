@@ -814,6 +814,10 @@ a {
   background: var(--bg);
 }
 
+.workspace--with-right {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--sidebar-width);
+}
+
 .sidebar {
   min-height: 0;
   padding: 8px 6px;
@@ -823,6 +827,11 @@ a {
 .sidebar--left {
   border-right: 1px solid var(--line);
   background: var(--sidebar);
+}
+
+.sidebar--right {
+  border-left: 1px solid var(--line);
+  background: var(--panel);
 }
 
 .sidebar__section + .sidebar__section {
@@ -3825,6 +3834,14 @@ a {
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   }
 
+  .workspace--with-right {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+
+  .sidebar--right {
+    display: none;
+  }
+
   .graph-workbench,
   .graph-stage,
   .entry-stage,
@@ -3872,6 +3889,10 @@ a {
   }
 
   .sidebar--left {
+    display: none;
+  }
+
+  .sidebar--right {
     display: none;
   }
 

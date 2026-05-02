@@ -198,7 +198,7 @@ mod tests {
     fn section_for_route_should_filter_by_permission_metadata() {
         let section = section_for_route_with_snapshot(
             &Route::KnowledgePackages,
-            &Some(Some(vec!["knowledge:dl".to_string()])),
+            &Some(Some(vec!["knowledge:pkg".to_string()])),
         )
         .expect("knowledge section");
         let labels: Vec<_> = section
