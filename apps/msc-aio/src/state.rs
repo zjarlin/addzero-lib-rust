@@ -8,11 +8,11 @@ use crate::app::Route;
 use crate::services::{
     BrandingLogoSource, BrandingSettingsDto, BrandingSettingsUpdate, SharedAgentRuntimeApi,
     SharedAssetGraphApi, SharedAuthApi, SharedBrandingSettingsApi, SharedCliMarketApi,
-    SharedKnowledgeGraphApi, SharedLogoStorageApi, SharedSkillsApi, SharedSoftwareCatalogApi,
-    SharedSystemManagementApi,
-    StoredLogoDto, build_preview_url, default_agent_runtime_api, default_asset_graph_api,
-    default_auth_api, default_branding_settings_api, default_cli_market_api,
-    default_knowledge_graph_api, default_logo_storage_api, default_skills_api,
+    SharedKnowledgeGraphApi, SharedLogoStorageApi, SharedMinioFilesApi, SharedSkillsApi,
+    SharedSoftwareCatalogApi, SharedSystemManagementApi, StoredLogoDto, build_preview_url,
+    default_agent_runtime_api, default_asset_graph_api, default_auth_api,
+    default_branding_settings_api, default_cli_market_api, default_knowledge_graph_api,
+    default_logo_storage_api, default_minio_files_api, default_skills_api,
     default_software_catalog_api, default_system_management_api,
 };
 
@@ -151,8 +151,8 @@ impl PermissionState {
     /// 检查是否拥有指定权限码。admin 用户始终返回 true。
     pub fn has(&self, code: &str) -> bool {
         match self.codes.read().as_ref() {
-            None => false,                             // 尚未加载，默认拒绝
-            Some(None) => true,                        // admin，全权
+            None => false,      // 尚未加载，默认拒绝
+            Some(None) => true, // admin，全权
             Some(Some(list)) => list.contains(&code.to_string()),
         }
     }
@@ -174,6 +174,7 @@ pub struct AppServices {
     pub software_catalog: SharedSoftwareCatalogApi,
     pub system: SharedSystemManagementApi,
     pub logo_storage: SharedLogoStorageApi,
+    pub minio_files: SharedMinioFilesApi,
     pub branding_settings: SharedBrandingSettingsApi,
     pub admin: SharedAdminProvider<Route>,
     pub branding: BrandingPrefs,
@@ -181,7 +182,12 @@ pub struct AppServices {
 }
 
 impl AppServices {
-    pub fn new(auth: AuthSession, theme: ThemePrefs, branding: BrandingPrefs, permissions: PermissionState) -> Self {
+    pub fn new(
+        auth: AuthSession,
+        theme: ThemePrefs,
+        branding: BrandingPrefs,
+        permissions: PermissionState,
+    ) -> Self {
         let auth_api = default_auth_api();
         let skills = default_skills_api();
         let agent_runtime = default_agent_runtime_api();
@@ -195,8 +201,15 @@ impl AppServices {
             software_catalog: default_software_catalog_api(),
             system: default_system_management_api(),
             logo_storage: default_logo_storage_api(),
+            minio_files: default_minio_files_api(),
             branding_settings: default_branding_settings_api(),
-            admin: Rc::new(DefaultAdminProvider::new(auth, theme, branding, auth_api, permissions)),
+            admin: Rc::new(DefaultAdminProvider::new(
+                auth,
+                theme,
+                branding,
+                auth_api,
+                permissions,
+            )),
             branding,
             permissions,
         }

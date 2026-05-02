@@ -12,6 +12,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=DIOXUS_ADMIN_KB_SOURCE_DIR");
     println!("cargo:rerun-if-env-changed=DATABASE_URL");
     println!("cargo:rerun-if-env-changed=MSC_AIO_DATABASE_URL");
+    println!("cargo:rerun-if-env-changed=MSC_AIO_WEB_API_BASE_URL");
     println!("cargo:rerun-if-env-changed=MSC_AIO_KNOWLEDGE_EXTRA_ROOTS");
     println!("cargo:rerun-if-changed=assets/app-icon.png");
 

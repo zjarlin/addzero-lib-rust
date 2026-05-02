@@ -201,17 +201,35 @@ fn fallback_pages() -> Vec<StaticPage> {
         },
         StaticPage {
             domain_id: KNOWLEDGE_DOMAIN_ID,
-            label: "软件",
-            href: "/knowledge/software",
+            label: "Skills",
+            href: "/agents",
             order: 20,
-            active_patterns: &["/knowledge/software"],
+            active_patterns: &["/agents", "/agents/:name"],
         },
         StaticPage {
             domain_id: KNOWLEDGE_DOMAIN_ID,
             label: "下载与安装",
             href: "/knowledge/packages",
             order: 30,
-            active_patterns: &["/knowledge/packages", "/files"],
+            active_patterns: &["/knowledge/packages"],
+        },
+        StaticPage {
+            domain_id: KNOWLEDGE_DOMAIN_ID,
+            label: "CLI 市场",
+            href: "/knowledge/cli-market",
+            order: 40,
+            active_patterns: &[
+                "/knowledge/cli-market",
+                "/knowledge/cli-market/imports",
+                "/knowledge/cli-market/docs",
+            ],
+        },
+        StaticPage {
+            domain_id: KNOWLEDGE_DOMAIN_ID,
+            label: "下载站",
+            href: "/download-station",
+            order: 50,
+            active_patterns: &["/download-station", "/files"],
         },
         StaticPage {
             domain_id: SYSTEM_DOMAIN_ID,
@@ -301,7 +319,10 @@ mod tests {
         let files_section = section_for_route(&Route::Files).expect("files alias section");
 
         assert_eq!(section.label, "知识库");
-        assert_eq!(labels, vec!["笔记", "软件", "下载与安装"]);
+        assert_eq!(
+            labels,
+            vec!["笔记", "Skills", "下载与安装", "CLI 市场", "下载站"]
+        );
         assert_eq!(files_section.label, "知识库");
         assert_eq!(
             domain_for_route(&Route::SystemUsers)
@@ -312,6 +333,12 @@ mod tests {
         assert_eq!(
             domain_for_route(&Route::Files)
                 .expect("files alias domain")
+                .label,
+            "知识库"
+        );
+        assert_eq!(
+            domain_for_route(&Route::DownloadStation)
+                .expect("download station alias domain")
                 .label,
             "知识库"
         );

@@ -8,7 +8,7 @@ use axum::{
     Json, Router,
     extract::{Path, Query},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header, header::SET_COOKIE},
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     routing::{get, post, put},
 };
 use tokio::sync::OnceCell;
@@ -26,7 +26,10 @@ use crate::services::{
     BrandingSettingsDto, BrandingSettingsUpdate, KnowledgeExceptionCardDto, KnowledgeFeedDto,
     KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto,
     KnowledgeSourceRefDto, LogoUploadRequest, ResolveKnowledgeExceptionInput, SkillDto,
-    SkillSourceDto, SkillUpsertDto, StoredLogoDto, SyncReportDto,
+    SkillSourceDto, SkillUpsertDto, StorageBrowseRequestDto, StorageBrowseResultDto,
+    StorageCreateFolderDto, StorageCreateFolderResultDto, StorageDeleteFolderDto,
+    StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto, StorageShareResultDto,
+    StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto, SyncReportDto,
 };
 
 use self::auth::AdminSessionService;
@@ -92,8 +95,24 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/admin/session", get(get_session))
         .route("/api/admin/session/login", post(login))
         .route("/api/admin/session/logout", post(logout))
-        .route("/api/admin/session/permissions", get(get_session_permissions))
+        .route(
+            "/api/admin/session/permissions",
+            get(get_session_permissions),
+        )
         .route("/api/admin/storage/logo", post(upload_logo))
+        .route("/api/admin/storage/files/browse", post(browse_files))
+        .route("/api/admin/storage/files/upload", post(upload_files))
+        .route("/api/admin/storage/files/folders", post(create_folder))
+        .route(
+            "/api/admin/storage/files/folders/delete",
+            post(delete_folder),
+        )
+        .route("/api/admin/storage/files/share", post(share_file))
+        .route("/api/admin/storage/files/delete", post(delete_file))
+        .route(
+            "/api/admin/storage/files/download/{token}",
+            get(download_file),
+        )
         .route(
             "/api/admin/settings/branding",
             get(get_branding_settings).post(save_branding_settings),
@@ -137,24 +156,37 @@ pub async fn run_api_server() -> Result<()> {
             post(knowledge_run_maintenance),
         )
         // ─── System Management ──────────────────────────────────────
-        .route("/api/admin/system/menus", get(sys_list_menus).post(sys_create_menu))
+        .route(
+            "/api/admin/system/menus",
+            get(sys_list_menus).post(sys_create_menu),
+        )
         .route(
             "/api/admin/system/menus/{id}",
             put(sys_update_menu).delete(sys_delete_menu),
         )
-        .route("/api/admin/system/roles", get(sys_list_roles).post(sys_create_role))
+        .route(
+            "/api/admin/system/roles",
+            get(sys_list_roles).post(sys_create_role),
+        )
         .route(
             "/api/admin/system/roles/{id}",
-            get(sys_get_role).put(sys_update_role).delete(sys_delete_role),
+            get(sys_get_role)
+                .put(sys_update_role)
+                .delete(sys_delete_role),
         )
         .route(
             "/api/admin/system/roles/{id}/menus",
             put(sys_authorize_role_menus),
         )
-        .route("/api/admin/system/users", get(sys_list_users).post(sys_create_user))
+        .route(
+            "/api/admin/system/users",
+            get(sys_list_users).post(sys_create_user),
+        )
         .route(
             "/api/admin/system/users/{id}",
-            get(sys_get_user).put(sys_update_user).delete(sys_delete_user),
+            get(sys_get_user)
+                .put(sys_update_user)
+                .delete(sys_delete_user),
         )
         .route(
             "/api/admin/system/users/{id}/roles",
@@ -165,19 +197,28 @@ pub async fn run_api_server() -> Result<()> {
             get(sys_get_user_effective_menus),
         )
         // ─── Departments ──────────────────────────────────────────
-        .route("/api/admin/system/departments", get(sys_list_departments).post(sys_create_department))
+        .route(
+            "/api/admin/system/departments",
+            get(sys_list_departments).post(sys_create_department),
+        )
         .route(
             "/api/admin/system/departments/{id}",
             put(sys_update_department).delete(sys_delete_department),
         )
         // ─── Dictionary Groups ────────────────────────────────────
-        .route("/api/admin/system/dict-groups", get(sys_list_dict_groups).post(sys_create_dict_group))
+        .route(
+            "/api/admin/system/dict-groups",
+            get(sys_list_dict_groups).post(sys_create_dict_group),
+        )
         .route(
             "/api/admin/system/dict-groups/{id}",
             put(sys_update_dict_group).delete(sys_delete_dict_group),
         )
         // ─── Dictionary Items ─────────────────────────────────────
-        .route("/api/admin/system/dict-items", get(sys_list_dict_items).post(sys_create_dict_item))
+        .route(
+            "/api/admin/system/dict-items",
+            get(sys_list_dict_items).post(sys_create_dict_item),
+        )
         .route(
             "/api/admin/system/dict-items/{id}",
             put(sys_update_dict_item).delete(sys_delete_dict_item),
@@ -193,7 +234,13 @@ fn cors_layer() -> CorsLayer {
         .allow_origin(AllowOrigin::predicate(|origin, _| {
             is_allowed_admin_origin(origin)
         }))
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers([header::CONTENT_TYPE])
         .allow_credentials(true)
 }
@@ -261,9 +308,10 @@ async fn get_session_permissions(headers: HeaderMap) -> ApiResult<Json<Vec<Strin
         .admin_auth
         .current_user(&headers)
         .ok_or_else(|| ApiError::unauthorized("未登录"))?;
-    let codes = crate::services::system_management::get_effective_permission_codes_on_server(&username)
-        .await
-        .map_err(|e| ApiError::internal(e.to_string()))?;
+    let codes =
+        crate::services::system_management::get_effective_permission_codes_on_server(&username)
+            .await
+            .map_err(|e| ApiError::internal(e.to_string()))?;
     match codes {
         None => Ok(Json(Vec::new())), // admin: empty vec = no restriction (frontend treats empty=all)
         Some(codes) => Ok(Json(codes)),
@@ -304,6 +352,108 @@ async fn upload_logo(
     .map_err(|err| ApiError::internal(format!("logo 上传任务失败：{err}")))?
     .map_err(|err| ApiError::bad_request(err.to_string()))?;
     Ok(Json(stored))
+}
+
+async fn browse_files(
+    headers: HeaderMap,
+    Json(input): Json<StorageBrowseRequestDto>,
+) -> ApiResult<Json<StorageBrowseResultDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let explorer = tokio::task::spawn_blocking(move || {
+        crate::services::minio_files::browse_files_on_server(input)
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("文件浏览任务失败：{err}")))?
+    .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(explorer))
+}
+
+async fn upload_files(
+    headers: HeaderMap,
+    Json(input): Json<StorageUploadRequestDto>,
+) -> ApiResult<Json<StorageUploadResultDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let report = tokio::task::spawn_blocking(move || {
+        crate::services::minio_files::upload_files_on_server(input)
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("文件上传任务失败：{err}")))?
+    .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(report))
+}
+
+async fn create_folder(
+    headers: HeaderMap,
+    Json(input): Json<StorageCreateFolderDto>,
+) -> ApiResult<Json<StorageCreateFolderResultDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let result = tokio::task::spawn_blocking(move || {
+        crate::services::minio_files::create_folder_on_server(input)
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("创建目录任务失败：{err}")))?
+    .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(result))
+}
+
+async fn share_file(
+    headers: HeaderMap,
+    Json(input): Json<StorageShareRequestDto>,
+) -> ApiResult<Json<StorageShareResultDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let result = tokio::task::spawn_blocking(move || {
+        crate::services::minio_files::share_file_on_server(input)
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("分享链接生成任务失败：{err}")))?
+    .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(result))
+}
+
+async fn delete_file(
+    headers: HeaderMap,
+    Json(input): Json<StorageDeleteObjectDto>,
+) -> ApiResult<Json<StorageDeleteResultDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let result = tokio::task::spawn_blocking(move || {
+        crate::services::minio_files::delete_file_on_server(input)
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("删除文件任务失败：{err}")))?
+    .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(result))
+}
+
+async fn delete_folder(
+    headers: HeaderMap,
+    Json(input): Json<StorageDeleteFolderDto>,
+) -> ApiResult<Json<StorageDeleteResultDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let result = tokio::task::spawn_blocking(move || {
+        crate::services::minio_files::delete_folder_on_server(input)
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("删除目录任务失败：{err}")))?
+    .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(result))
+}
+
+async fn download_file(headers: HeaderMap, Path(token): Path<String>) -> ApiResult<Redirect> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let url = tokio::task::spawn_blocking(move || {
+        crate::services::minio_files::presign_download_url_on_server(&token)
+    })
+    .await
+    .map_err(|err| ApiError::internal(format!("生成下载链接任务失败：{err}")))?
+    .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Redirect::temporary(&url))
 }
 
 async fn list_skills(headers: HeaderMap) -> ApiResult<Json<Vec<SkillDto>>> {
@@ -584,10 +734,9 @@ async fn knowledge_run_maintenance(
 // ─── System Management Handlers ─────────────────────────────────────────────
 
 use crate::services::system_management::{
-    AuthorizeRoleMenusDto, AuthorizeUserRolesDto, MenuDto, MenuUpsertDto, RoleDto,
+    AuthorizeRoleMenusDto, AuthorizeUserRolesDto, DepartmentDto, DepartmentUpsertDto, DictGroupDto,
+    DictGroupUpsertDto, DictItemDto, DictItemUpsertDto, MenuDto, MenuUpsertDto, RoleDto,
     RoleUpsertDto, RoleWithMenusDto, UserDto, UserUpsertDto, UserWithRolesDto,
-    DepartmentDto, DepartmentUpsertDto, DictGroupDto, DictGroupUpsertDto,
-    DictItemDto, DictItemUpsertDto,
 };
 
 async fn sys_list_menus(headers: HeaderMap) -> ApiResult<Json<Vec<MenuDto>>> {

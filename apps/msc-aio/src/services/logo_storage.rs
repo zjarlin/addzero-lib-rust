@@ -231,7 +231,11 @@ fn build_object_key(file_name: &str) -> String {
         .filter(|ext| !ext.is_empty())
         .unwrap_or_else(|| "png".to_string());
 
-    format!("branding/logos/logo-{}.{}", Utc::now().timestamp_millis(), extension)
+    format!(
+        "branding/logos/logo-{}.{}",
+        Utc::now().timestamp_millis(),
+        extension
+    )
 }
 
 pub fn build_preview_url(relative_path: &str) -> String {

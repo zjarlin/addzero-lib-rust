@@ -16,6 +16,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 use thiserror::Error;
 
 pub const DEFAULT_PRESIGNED_EXPIRATION_SECONDS: u64 = 3600;
+const MAX_LIST_OBJECTS_KEYS: usize = i32::MAX as usize;
 const URL_CIPHER_SALT_LEN: usize = 16;
 const URL_CIPHER_NONCE_LEN: usize = 12;
 const URL_CIPHER_KEY_LEN: usize = 32;
@@ -364,7 +365,7 @@ impl MinioClient {
         recursive: bool,
     ) -> MinioResult<Vec<ObjectInfo>> {
         self.storage
-            .list_objects(bucket_name, prefix, recursive, usize::MAX)
+            .list_objects(bucket_name, prefix, recursive, MAX_LIST_OBJECTS_KEYS)
             .map(|objects| objects.into_iter().map(ObjectInfo::from).collect())
             .map_err(MinioError::from)
     }

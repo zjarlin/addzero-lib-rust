@@ -1,6 +1,6 @@
 #[test]
 fn knowledge_scene_does_not_embed_a_second_section_tab_bar() {
-    let source = include_str!("../src/scenes/knowledge_base.rs");
+    let source = include_str!("../src/domains/knowledge_base.rs");
 
     for forbidden in ["WorkbenchTabs", "WorkbenchTabItem", "KnowledgeSectionTabs"] {
         assert!(
@@ -12,7 +12,7 @@ fn knowledge_scene_does_not_embed_a_second_section_tab_bar() {
 
 #[test]
 fn dashboard_home_uses_note_cards_instead_of_graph_canvas() {
-    let source = include_str!("../src/scenes/dashboard.rs");
+    let source = include_str!("../src/domains/dashboard.rs");
 
     assert!(
         source.contains("note-card-grid"),
@@ -35,8 +35,8 @@ fn dashboard_home_uses_note_cards_instead_of_graph_canvas() {
 #[test]
 fn command_search_entrypoints_are_declared() {
     let app_source = include_str!("../src/app.rs");
-    let dashboard_source = include_str!("../src/scenes/dashboard.rs");
-    let knowledge_source = include_str!("../src/scenes/knowledge_base.rs");
+    let dashboard_source = include_str!("../src/domains/dashboard.rs");
+    let knowledge_source = include_str!("../src/domains/knowledge_base.rs");
 
     assert!(app_source.contains("mscFocusCommandSearch"));
     assert!(app_source.contains("metaKey || event.ctrlKey"));

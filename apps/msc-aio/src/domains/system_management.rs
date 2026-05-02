@@ -1,11 +1,12 @@
 use dioxus::prelude::*;
-use dioxus_components::{DataTable, MetricStrip, SectionHeader, StatTile, Surface, SurfaceHeader, WorkbenchButton};
+use dioxus_components::{
+    DataTable, MetricStrip, SectionHeader, StatTile, Surface, SurfaceHeader, WorkbenchButton,
+};
 
 use crate::services::{
-    MenuDto, MenuUpsertDto, RoleDto, RoleUpsertDto, UserUpsertDto,
+    DepartmentDto, DepartmentUpsertDto, DictGroupDto, DictGroupUpsertDto, DictItemDto,
+    DictItemUpsertDto, MenuDto, MenuUpsertDto, RoleDto, RoleUpsertDto, UserUpsertDto,
     UserWithRolesDto,
-    DepartmentDto, DepartmentUpsertDto,
-    DictGroupDto, DictGroupUpsertDto, DictItemDto, DictItemUpsertDto,
 };
 use crate::state::AppServices;
 
@@ -828,10 +829,18 @@ fn MenuCheckbox(
     selected: Vec<i32>,
     on_toggle: EventHandler<(i32, bool)>,
 ) -> Element {
-    let children: Vec<MenuDto> = all_menus.iter().filter(|m| m.parent_id == Some(menu.id)).cloned().collect();
+    let children: Vec<MenuDto> = all_menus
+        .iter()
+        .filter(|m| m.parent_id == Some(menu.id))
+        .cloned()
+        .collect();
     let has_children = !children.is_empty();
     let is_leaf_checked = selected.contains(&menu.id);
-    let node_checked = if has_children { is_all_selected(menu.id, &all_menus, &selected) } else { is_leaf_checked };
+    let node_checked = if has_children {
+        is_all_selected(menu.id, &all_menus, &selected)
+    } else {
+        is_leaf_checked
+    };
     let _indeterminate = has_children && is_indeterminate(menu.id, &all_menus, &selected);
     let type_badge = match menu.menu_type.as_str() {
         "dir" => "📁",

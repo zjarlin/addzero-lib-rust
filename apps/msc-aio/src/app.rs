@@ -71,6 +71,8 @@ pub enum Route {
     KnowledgeCliMarketDocs,
     #[route("/download-station")]
     DownloadStation,
+    #[route("/files")]
+    Files,
     #[route("/system/users")]
     SystemUsers,
     #[route("/system/menus")]
@@ -162,7 +164,11 @@ pub fn App() -> Element {
             // For wasm/browser mode, we call the API.
             #[cfg(target_arch = "wasm32")]
             {
-                match super::services::browser_http::get_json::<Vec<String>>("/api/admin/session/permissions").await {
+                match super::services::browser_http::get_json::<Vec<String>>(
+                    "/api/admin/session/permissions",
+                )
+                .await
+                {
                     Ok(codes) if codes.is_empty() => {
                         perm_codes.set(Some(None));
                     }
@@ -209,6 +215,11 @@ fn Home() -> Element {
 
 #[component]
 fn DownloadStation() -> Element {
+    rsx! { DownloadStationScene {} }
+}
+
+#[component]
+fn Files() -> Element {
     rsx! { DownloadStationScene {} }
 }
 

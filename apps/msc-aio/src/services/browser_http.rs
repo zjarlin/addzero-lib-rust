@@ -11,6 +11,9 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestCredentials, RequestInit, RequestMode, Response};
 
 #[cfg(target_arch = "wasm32")]
+const WEB_API_BASE_URL: Option<&str> = option_env!("MSC_AIO_WEB_API_BASE_URL");
+
+#[cfg(target_arch = "wasm32")]
 pub async fn get_json<T>(path: &str) -> Result<T, String>
 where
     T: DeserializeOwned,
@@ -100,7 +103,9 @@ where
         init.set_body(&JsValue::from_str(&encoded));
     }
 
-    let request = Request::new_with_str_and_init(path, &init).map_err(js_error_to_string)?;
+    let request_url = resolve_request_url(path);
+    let request =
+        Request::new_with_str_and_init(request_url.as_str(), &init).map_err(js_error_to_string)?;
     request
         .headers()
         .set("Content-Type", "application/json")
@@ -128,6 +133,27 @@ where
                 summarize_response_body(body)
             ))
         }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn resolve_request_url(path: &str) -> String {
+    if path.starts_with("http://") || path.starts_with("https://") {
+        return path.to_string();
+    }
+
+    match WEB_API_BASE_URL
+        .map(str::trim)
+        .filter(|base| !base.is_empty())
+    {
+        Some(base) => {
+            if path.starts_with('/') {
+                format!("{}{}", base.trim_end_matches('/'), path)
+            } else {
+                format!("{}/{}", base.trim_end_matches('/'), path)
+            }
+        }
+        None => path.to_string(),
     }
 }
 

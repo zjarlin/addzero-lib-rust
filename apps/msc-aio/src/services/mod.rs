@@ -13,6 +13,7 @@ pub mod cli_market;
 pub mod in_memory_skills;
 pub mod knowledge_graph;
 pub mod logo_storage;
+pub mod minio_files;
 pub mod skills;
 pub mod software_catalog;
 pub mod system_management;
@@ -39,15 +40,20 @@ pub use logo_storage::{
     LOGO_PREVIEW_BASE_URL, LogoUploadRequest, SharedLogoStorageApi, StoredLogoDto,
     build_preview_url, default_logo_storage_api,
 };
+pub use minio_files::{
+    SharedMinioFilesApi, StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
+    StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,
+    StorageDeleteResultDto, StorageFileDto, StorageFolderDto, StorageShareRequestDto,
+    StorageShareResultDto, StorageUploadFileDto, StorageUploadRequestDto, StorageUploadResultDto,
+    default_minio_files_api,
+};
 pub use skills::{
     SharedSkillsApi, SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto, default_skills_api,
 };
 pub use software_catalog::{SharedSoftwareCatalogApi, default_software_catalog_api};
 pub use system_management::{
-    SharedSystemManagementApi, default_system_management_api,
-    MenuDto, MenuUpsertDto, RoleDto, RoleUpsertDto, RoleWithMenusDto,
-    UserDto, UserUpsertDto, UserWithRolesDto,
-    AuthorizeRoleMenusDto, AuthorizeUserRolesDto,
-    DepartmentDto, DepartmentUpsertDto,
-    DictGroupDto, DictGroupUpsertDto, DictItemDto, DictItemUpsertDto,
+    AuthorizeRoleMenusDto, AuthorizeUserRolesDto, DepartmentDto, DepartmentUpsertDto, DictGroupDto,
+    DictGroupUpsertDto, DictItemDto, DictItemUpsertDto, MenuDto, MenuUpsertDto, RoleDto,
+    RoleUpsertDto, RoleWithMenusDto, SharedSystemManagementApi, UserDto, UserUpsertDto,
+    UserWithRolesDto, default_system_management_api,
 };

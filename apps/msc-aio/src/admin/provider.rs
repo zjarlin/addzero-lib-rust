@@ -157,7 +157,8 @@ fn domain_for_route(route: &Route) -> AdminDomain {
         | Route::KnowledgeCliMarket
         | Route::KnowledgeCliMarketImports
         | Route::KnowledgeCliMarketDocs
-        | Route::DownloadStation => AdminDomain::Knowledge,
+        | Route::DownloadStation
+        | Route::Files => AdminDomain::Knowledge,
         Route::SystemUsers
         | Route::SystemMenus
         | Route::SystemRoles
@@ -188,7 +189,7 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                 AdminMenu::leaf("Skills", Route::Agents, |route| {
                     matches!(route, Route::Agents | Route::AgentEditor { .. })
                 }),
-                AdminMenu::leaf("安装包", Route::KnowledgePackages, |route| {
+                AdminMenu::leaf("下载与安装", Route::KnowledgePackages, |route| {
                     matches!(route, Route::KnowledgePackages)
                 }),
                 AdminMenu::branch(
@@ -215,7 +216,7 @@ fn section_for_domain(domain: AdminDomain) -> AdminSection<Route> {
                     },
                 ),
                 AdminMenu::leaf("下载站", Route::DownloadStation, |route| {
-                    matches!(route, Route::DownloadStation)
+                    matches!(route, Route::DownloadStation | Route::Files)
                 }),
             ],
         },
@@ -263,11 +264,9 @@ fn permission_for_menu(menu_label: &str) -> Option<&'static str> {
         "智能体工作台" => Some("overview"),
         "笔记" => Some("knowledge:note"),
         "Skills" => Some("knowledge:skill"),
-        "安装包" => Some("knowledge:pkg"),
         "CLI 市场" => Some("knowledge:cli"),
         "导入任务" => Some("knowledge:cli"),
         "CLI 文档" => Some("knowledge:cli"),
-        "下载站" => Some("knowledge:dl"),
         "用户" => Some("system:user"),
         "菜单" => Some("system:menu"),
         "角色" => Some("system:role"),
@@ -280,13 +279,22 @@ fn permission_for_menu(menu_label: &str) -> Option<&'static str> {
     }
 }
 
+fn menu_visible(menu_label: &str, perms: PermissionState) -> bool {
+    match menu_label {
+        "下载与安装" => perms.has("knowledge:pkg") || perms.has("knowledge:dl"),
+        _ => match permission_for_menu(menu_label) {
+            None => true,
+            Some(code) => perms.has(code),
+        },
+    }
+}
+
 /// 递归过滤菜单树：只保留用户拥有权限的菜单项。
-fn filter_menu_by_permissions(menu: AdminMenu<Route>, perms: PermissionState) -> Option<AdminMenu<Route>> {
-    let visible = match permission_for_menu(&menu.label) {
-        None => true, // 无权限码 = 始终可见
-        Some(code) => perms.has(code),
-    };
-    if !visible {
+fn filter_menu_by_permissions(
+    menu: AdminMenu<Route>,
+    perms: PermissionState,
+) -> Option<AdminMenu<Route>> {
+    if !menu_visible(&menu.label, perms) {
         return None;
     }
     // 过滤子菜单
@@ -304,7 +312,10 @@ fn filter_menu_by_permissions(menu: AdminMenu<Route>, perms: PermissionState) ->
     })
 }
 
-fn filter_section_by_permissions(section: AdminSection<Route>, perms: PermissionState) -> AdminSection<Route> {
+fn filter_section_by_permissions(
+    section: AdminSection<Route>,
+    perms: PermissionState,
+) -> AdminSection<Route> {
     let filtered_menus = section
         .menus
         .into_iter()
@@ -407,6 +418,7 @@ mod tests {
             domain_for_route(&Route::DownloadStation),
             AdminDomain::Knowledge
         );
+        assert_eq!(domain_for_route(&Route::Files), AdminDomain::Knowledge);
         assert_eq!(domain_for_route(&Route::Agents), AdminDomain::Knowledge);
         assert_eq!(AdminDomain::Knowledge.route(), Route::KnowledgeNotes);
     }
@@ -429,7 +441,7 @@ mod tests {
         assert_eq!(section.label, "知识库");
         assert_eq!(
             labels,
-            vec!["笔记", "Skills", "安装包", "CLI 市场", "下载站"]
+            vec!["笔记", "Skills", "下载与安装", "CLI 市场", "下载站"]
         );
         assert_eq!(unique_labels.len(), labels.len());
         assert_eq!(
