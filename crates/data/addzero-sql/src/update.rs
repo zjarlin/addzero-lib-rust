@@ -1,4 +1,4 @@
-use crate::{Query, QueryError};
+use crate::{Query, QueryError, require_table_name};
 
 /// An UPDATE query builder.
 #[derive(Debug, Clone, Default)]
@@ -45,20 +45,18 @@ impl UpdateQuery {
 
     /// Build and validate the query.
     pub fn try_build(&self) -> Result<(String, Vec<String>), QueryError> {
-        if self.table.is_none() {
-            return Err(QueryError::NoTable);
-        }
+        require_table_name(self.table.as_deref())?;
         if self.set_clauses.is_empty() {
             return Err(QueryError::NoSetClauses);
         }
-        Ok(self.build())
+        self.build()
     }
 }
 
 impl Query for UpdateQuery {
-    fn build(&self) -> (String, Vec<String>) {
+    fn build(&self) -> Result<(String, Vec<String>), QueryError> {
         let mut all_params: Vec<String> = Vec::new();
-        let table = self.table.as_deref().unwrap_or("unknown");
+        let table = require_table_name(self.table.as_deref())?;
 
         let set_parts: Vec<String> = self
             .set_clauses
@@ -89,7 +87,7 @@ impl Query for UpdateQuery {
         }
 
         sql.push(';');
-        (sql, all_params)
+        Ok((sql, all_params))
     }
 }
 
@@ -104,7 +102,7 @@ mod tests {
             .set("name", "Alice")
             .set("email", "alice@new.com")
             .r#where("id = ?", vec!["1"]);
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert!(sql.contains("UPDATE users SET name = ?, email = ?"));
         assert!(sql.contains("WHERE id = ?"));
         assert_eq!(params, vec!["Alice", "alice@new.com", "1"]);
@@ -116,7 +114,7 @@ mod tests {
             .table("posts")
             .set("active", "false")
             .limit(100);
-        let (sql, _) = q.build();
+        let (sql, _) = q.build().unwrap();
         assert!(sql.contains("LIMIT 100"));
     }
 
@@ -132,5 +130,11 @@ mod tests {
             .table("users")
             .r#where("id = ?", vec!["1"]);
         assert_eq!(q.try_build(), Err(QueryError::NoSetClauses));
+    }
+
+    #[test]
+    fn build_blank_table_errors() {
+        let q = UpdateQuery::new().table(" ").set("name", "Alice");
+        assert_eq!(q.build(), Err(QueryError::NoTable));
     }
 }
