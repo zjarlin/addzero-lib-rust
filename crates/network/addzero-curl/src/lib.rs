@@ -7,8 +7,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
 use std::time::Duration;
 use thiserror::Error;
+
+static LINE_CONTINUATION_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\\\s*\r?\n").expect("line continuation regex should compile"));
+static UUID_LIKE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)^[a-f0-9\-]{20,}$").expect("uuid regex should compile"));
+static NUMERIC_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\d+$").expect("numeric regex should compile"));
 
 #[derive(Debug, Error)]
 pub enum CurlError {
@@ -450,10 +458,7 @@ pub fn modify_existing_query_params(url: impl AsRef<str>) -> Result<String, Curl
 }
 
 fn normalize_command(command: &str) -> String {
-    Regex::new(r"\\\s*\r?\n")
-        .expect("line continuation regex should compile")
-        .replace_all(command, " ")
-        .into_owned()
+    LINE_CONTINUATION_RE.replace_all(command, " ").into_owned()
 }
 
 fn parse_method(value: &str) -> Result<Method, CurlError> {
@@ -492,16 +497,15 @@ fn extract_query_params(url: &Url) -> BTreeMap<String, String> {
 }
 
 fn extract_path_params(url: &Url) -> Vec<String> {
-    let uuid_like = Regex::new(r"(?i)^[a-f0-9\-]{20,}$").expect("uuid regex should compile");
-    let numeric = Regex::new(r"^\d+$").expect("numeric regex should compile");
-
     url.path_segments()
         .into_iter()
         .flatten()
         .filter(|segment| !segment.is_empty())
         .filter(|segment| !is_version_segment(segment))
         .filter(|segment| {
-            uuid_like.is_match(segment) || numeric.is_match(segment) || is_dynamic_segment(segment)
+            UUID_LIKE_RE.is_match(segment)
+                || NUMERIC_RE.is_match(segment)
+                || is_dynamic_segment(segment)
         })
         .map(ToOwned::to_owned)
         .collect()
