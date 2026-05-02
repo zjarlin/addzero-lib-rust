@@ -1570,5 +1570,5 @@ addzero_admin_plugin_registry::register_admin_page! {
     order: 40,
     href: "/download-station",
     active_patterns: &["/download-station", "/files"],
-    permissions_any_of: &[],
+    permissions_any_of: &["knowledge:dl"],
 }

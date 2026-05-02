@@ -1,19 +1,23 @@
 use addzero_admin_plugin_registry as registry;
 pub use addzero_admin_plugin_registry::AdminDomainRegistration;
+use dioxus::prelude::ReadableExt;
 use dioxus_components::{AdminMenu, AdminSection};
 
 use crate::app::Route;
 use crate::state::PermissionState;
 
 pub fn primary_domain() -> Option<AdminDomainRegistration> {
+    ensure_registry_linked();
     registry::primary_domain()
 }
 
 pub fn domain_for_route(route: &Route) -> Option<AdminDomainRegistration> {
+    ensure_registry_linked();
     registry::domain_for_path(route.to_string().as_str())
 }
 
 pub fn registered_domains() -> Vec<AdminDomainRegistration> {
+    ensure_registry_linked();
     registry::registered_domains()
 }
 
@@ -21,11 +25,20 @@ pub fn section_for_route(
     route: &Route,
     permissions: PermissionState,
 ) -> Option<AdminSection<Route>> {
+    ensure_registry_linked();
+    let permission_snapshot = permissions.codes.read().clone();
+    section_for_route_with_snapshot(route, &permission_snapshot)
+}
+
+fn section_for_route_with_snapshot(
+    route: &Route,
+    permission_snapshot: &Option<Option<Vec<String>>>,
+) -> Option<AdminSection<Route>> {
     let section = registry::section_for_path(route.to_string().as_str())?;
     let menus = section
         .menus
         .into_iter()
-        .filter_map(|menu| build_menu(menu, permissions))
+        .filter_map(|menu| build_menu(menu, permission_snapshot))
         .collect();
 
     Some(AdminSection {
@@ -36,16 +49,16 @@ pub fn section_for_route(
 
 fn build_menu(
     node: addzero_admin_plugin_registry::RegisteredAdminNode,
-    permissions: PermissionState,
+    permission_snapshot: &Option<Option<Vec<String>>>,
 ) -> Option<AdminMenu<Route>> {
-    if !node_visible(node.permissions_any_of, permissions) {
+    if !node_visible(node.permissions_any_of, permission_snapshot) {
         return None;
     }
 
     let children = node
         .children
         .into_iter()
-        .filter_map(|child| build_menu(child, permissions))
+        .filter_map(|child| build_menu(child, permission_snapshot))
         .collect::<Vec<_>>();
     let patterns = node.active_patterns;
     let is_active = move |route: &Route| {
@@ -61,30 +74,32 @@ fn build_menu(
     }
 }
 
-fn node_visible(permissions_any_of: &[&str], permissions: PermissionState) -> bool {
-    permissions_any_of.is_empty()
-        || permissions_any_of
+fn node_visible(
+    permissions_any_of: &[&str],
+    permission_snapshot: &Option<Option<Vec<String>>>,
+) -> bool {
+    if permissions_any_of.is_empty() {
+        return true;
+    }
+
+    match permission_snapshot {
+        None => false,
+        Some(None) => true,
+        Some(Some(codes)) => permissions_any_of
             .iter()
             .copied()
-            .any(|code| permissions.has(code))
+            .any(|code| codes.iter().any(|item| item == code)),
+    }
+}
+
+fn ensure_registry_linked() {
+    addzero_admin_domain_audit::ensure_linked();
 }
 
 #[cfg(test)]
 mod tests {
-    use dioxus::prelude::Signal;
-
-    use super::{domain_for_route, registered_domains, section_for_route};
+    use super::{domain_for_route, registered_domains, section_for_route_with_snapshot};
     use crate::app::Route;
-    use crate::state::PermissionState;
-
-    fn permissions_with(codes: Option<Vec<&str>>) -> PermissionState {
-        let permissions = PermissionState {
-            codes: Signal::new(None),
-        };
-        let value = codes.map(|codes| Some(codes.into_iter().map(str::to_string).collect()));
-        permissions.codes.set(Some(value));
-        permissions
-    }
 
     #[test]
     fn registered_domains_should_follow_plugin_order() {
@@ -149,8 +164,10 @@ mod tests {
 
     #[test]
     fn section_for_route_should_build_cli_market_tree() {
-        let permissions = permissions_with(None);
-        let section = section_for_route(&Route::KnowledgeCliMarketImports, permissions)
+        let section = section_for_route_with_snapshot(
+            &Route::KnowledgeCliMarketImports,
+            &Some(None),
+        )
             .expect("knowledge section");
         let labels: Vec<_> = section
             .menus
@@ -179,9 +196,11 @@ mod tests {
 
     #[test]
     fn section_for_route_should_filter_by_permission_metadata() {
-        let knowledge_download = permissions_with(Some(vec!["knowledge:dl"]));
-        let section = section_for_route(&Route::KnowledgePackages, knowledge_download)
-            .expect("knowledge section");
+        let section = section_for_route_with_snapshot(
+            &Route::KnowledgePackages,
+            &Some(Some(vec!["knowledge:dl".to_string()])),
+        )
+        .expect("knowledge section");
         let labels: Vec<_> = section
             .menus
             .iter()
