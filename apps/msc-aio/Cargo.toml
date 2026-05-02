@@ -7,6 +7,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+addzero-admin-domain-audit = { path = "../../crates/runtime/addzero-admin-domain-audit" }
+addzero-admin-plugin-registry = { path = "../../crates/runtime/addzero-admin-plugin-registry" }
 addzero-agent-runtime-contract = { path = "../../crates/data/addzero-agent-runtime-contract" }
 addzero-cli-market-contract = { path = "../../crates/api/addzero-cli-market-contract" }
 addzero-software-catalog = { path = "../../crates/data/addzero-software-catalog" }
@@ -26,6 +28,7 @@ uuid.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.3.4", features = ["wasm_js"] }
+gloo-timers = { version = "0.3.0", features = ["futures"] }
 js-sys = "0.3.77"
 wasm-bindgen = "0.2.100"
 wasm-bindgen-futures = "0.4.50"
@@ -45,6 +48,7 @@ web-sys = { version = "0.3.77", features = [
 addzero-ai-agent = { path = "../../crates/runtime/addzero-ai-agent" }
 addzero-assets = { path = "../../crates/data/addzero-assets" }
 addzero-knowledge = { path = "../../crates/data/addzero-knowledge" }
+addzero-minio = { path = "../../crates/storage/addzero-minio" }
 addzero-persistence = { path = "../../crates/data/addzero-persistence" }
 addzero-skills = { path = "../../crates/data/addzero-skills" }
 addzero-rustfs = { path = "../../crates/storage/addzero-rustfs" }

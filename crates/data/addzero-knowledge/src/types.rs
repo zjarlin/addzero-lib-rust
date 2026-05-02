@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use addzero_persistence::PersistenceError;
 use chrono::{DateTime, Utc};
 use sea_orm::DbErr;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -43,6 +44,19 @@ pub struct KnowledgeDocument {
     pub headings: Vec<String>,
     pub body: String,
     pub content_hash: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManualKnowledgeDocumentInput {
+    pub source_slug: String,
+    pub source_name: String,
+    pub source_root: String,
+    pub source_path: String,
+    pub relative_path: String,
+    pub title: String,
+    pub source_label: String,
+    pub body: String,
+    pub tags: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

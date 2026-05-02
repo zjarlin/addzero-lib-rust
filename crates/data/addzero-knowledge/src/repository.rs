@@ -165,6 +165,17 @@ impl KnowledgeRepository {
         Ok(())
     }
 
+    pub(crate) async fn source_by_slug(
+        &self,
+        slug: &str,
+    ) -> Result<Option<knowledge_source::Model>, KnowledgeError> {
+        knowledge_source::Entity::find()
+            .filter(knowledge_source::Column::Slug.eq(slug.to_string()))
+            .one(&self.db)
+            .await
+            .map_err(KnowledgeError::Query)
+    }
+
     pub(crate) async fn deactivate_missing_documents(
         &self,
         source_id: Uuid,

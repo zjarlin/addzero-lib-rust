@@ -12,4 +12,5 @@ pub use discovery::{discover_documents, discover_source_documents};
 pub use service::KnowledgeService;
 pub use types::{
     KnowledgeDocument, KnowledgeError, KnowledgeScan, KnowledgeSourceSpec, KnowledgeSyncReport,
+    ManualKnowledgeDocumentInput,
 };
