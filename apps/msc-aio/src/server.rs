@@ -9,7 +9,7 @@ use axum::{
     extract::{Path, Query},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header, header::SET_COOKIE},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use tokio::sync::OnceCell;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -134,6 +134,48 @@ pub async fn run_api_server() -> Result<()> {
         .route(
             "/api/admin/knowledge/maintenance/run",
             post(knowledge_run_maintenance),
+        )
+        // ─── System Management ──────────────────────────────────────
+        .route("/api/admin/system/menus", get(sys_list_menus).post(sys_create_menu))
+        .route(
+            "/api/admin/system/menus/{id}",
+            put(sys_update_menu).delete(sys_delete_menu),
+        )
+        .route("/api/admin/system/roles", get(sys_list_roles).post(sys_create_role))
+        .route(
+            "/api/admin/system/roles/{id}",
+            get(sys_get_role).put(sys_update_role).delete(sys_delete_role),
+        )
+        .route(
+            "/api/admin/system/roles/{id}/menus",
+            put(sys_authorize_role_menus),
+        )
+        .route("/api/admin/system/users", get(sys_list_users).post(sys_create_user))
+        .route(
+            "/api/admin/system/users/{id}",
+            get(sys_get_user).put(sys_update_user).delete(sys_delete_user),
+        )
+        .route(
+            "/api/admin/system/users/{id}/roles",
+            put(sys_authorize_user_roles),
+        )
+        // ─── Departments ──────────────────────────────────────────
+        .route("/api/admin/system/departments", get(sys_list_departments).post(sys_create_department))
+        .route(
+            "/api/admin/system/departments/{id}",
+            put(sys_update_department).delete(sys_delete_department),
+        )
+        // ─── Dictionary Groups ────────────────────────────────────
+        .route("/api/admin/system/dict-groups", get(sys_list_dict_groups).post(sys_create_dict_group))
+        .route(
+            "/api/admin/system/dict-groups/{id}",
+            put(sys_update_dict_group).delete(sys_delete_dict_group),
+        )
+        // ─── Dictionary Items ─────────────────────────────────────
+        .route("/api/admin/system/dict-items", get(sys_list_dict_items).post(sys_create_dict_item))
+        .route(
+            "/api/admin/system/dict-items/{id}",
+            put(sys_update_dict_item).delete(sys_delete_dict_item),
         )
         .layer(cors_layer());
 
@@ -517,6 +559,337 @@ async fn knowledge_run_maintenance(
         .await
         .map_err(|err| ApiError::bad_request(err.to_string()))?;
     Ok(Json(report))
+}
+
+// ─── System Management Handlers ─────────────────────────────────────────────
+
+use crate::services::system_management::{
+    AuthorizeRoleMenusDto, AuthorizeUserRolesDto, MenuDto, MenuUpsertDto, RoleDto,
+    RoleUpsertDto, RoleWithMenusDto, UserDto, UserUpsertDto, UserWithRolesDto,
+    DepartmentDto, DepartmentUpsertDto, DictGroupDto, DictGroupUpsertDto,
+    DictItemDto, DictItemUpsertDto,
+};
+
+async fn sys_list_menus(headers: HeaderMap) -> ApiResult<Json<Vec<MenuDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::list_menus_on_server()
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::internal(e.to_string()))
+}
+
+async fn sys_create_menu(
+    headers: HeaderMap,
+    Json(input): Json<MenuUpsertDto>,
+) -> ApiResult<Json<MenuDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::create_menu_on_server(input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_update_menu(
+    headers: HeaderMap,
+    Path(id): Path<i32>,
+    Json(input): Json<MenuUpsertDto>,
+) -> ApiResult<Json<MenuDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::update_menu_on_server(id, input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_delete_menu(headers: HeaderMap, Path(id): Path<i32>) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::delete_menu_on_server(id)
+        .await
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn sys_list_roles(headers: HeaderMap) -> ApiResult<Json<Vec<RoleDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::list_roles_on_server()
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::internal(e.to_string()))
+}
+
+async fn sys_get_role(
+    headers: HeaderMap,
+    Path(id): Path<i32>,
+) -> ApiResult<Json<RoleWithMenusDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::get_role_on_server(id)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_create_role(
+    headers: HeaderMap,
+    Json(input): Json<RoleUpsertDto>,
+) -> ApiResult<Json<RoleDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::create_role_on_server(input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_update_role(
+    headers: HeaderMap,
+    Path(id): Path<i32>,
+    Json(input): Json<RoleUpsertDto>,
+) -> ApiResult<Json<RoleDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::update_role_on_server(id, input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_delete_role(headers: HeaderMap, Path(id): Path<i32>) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::delete_role_on_server(id)
+        .await
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn sys_authorize_role_menus(
+    headers: HeaderMap,
+    Path(role_id): Path<i32>,
+    Json(input): Json<AuthorizeRoleMenusDto>,
+) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::authorize_role_menus_on_server(role_id, input.menu_ids)
+        .await
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn sys_list_users(headers: HeaderMap) -> ApiResult<Json<Vec<UserWithRolesDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::list_users_on_server()
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::internal(e.to_string()))
+}
+
+async fn sys_get_user(
+    headers: HeaderMap,
+    Path(id): Path<i32>,
+) -> ApiResult<Json<UserWithRolesDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::get_user_on_server(id)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_create_user(
+    headers: HeaderMap,
+    Json(input): Json<UserUpsertDto>,
+) -> ApiResult<Json<UserDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::create_user_on_server(input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_update_user(
+    headers: HeaderMap,
+    Path(id): Path<i32>,
+    Json(input): Json<UserUpsertDto>,
+) -> ApiResult<Json<UserDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::update_user_on_server(id, input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_delete_user(headers: HeaderMap, Path(id): Path<i32>) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::delete_user_on_server(id)
+        .await
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn sys_authorize_user_roles(
+    headers: HeaderMap,
+    Path(user_id): Path<i32>,
+    Json(input): Json<AuthorizeUserRolesDto>,
+) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::authorize_user_roles_on_server(user_id, input.role_ids)
+        .await
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// ─── Department Handlers ────────────────────────────────────────────────────
+
+async fn sys_list_departments(headers: HeaderMap) -> ApiResult<Json<Vec<DepartmentDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::list_departments_on_server()
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::internal(e.to_string()))
+}
+
+async fn sys_create_department(
+    headers: HeaderMap,
+    Json(input): Json<DepartmentUpsertDto>,
+) -> ApiResult<Json<DepartmentDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::create_department_on_server(input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_update_department(
+    headers: HeaderMap,
+    Path(id): Path<i32>,
+    Json(input): Json<DepartmentUpsertDto>,
+) -> ApiResult<Json<DepartmentDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::update_department_on_server(id, input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_delete_department(headers: HeaderMap, Path(id): Path<i32>) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::delete_department_on_server(id)
+        .await
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// ─── Dict Group Handlers ────────────────────────────────────────────────────
+
+async fn sys_list_dict_groups(headers: HeaderMap) -> ApiResult<Json<Vec<DictGroupDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::list_dict_groups_on_server()
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::internal(e.to_string()))
+}
+
+async fn sys_create_dict_group(
+    headers: HeaderMap,
+    Json(input): Json<DictGroupUpsertDto>,
+) -> ApiResult<Json<DictGroupDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::create_dict_group_on_server(input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_update_dict_group(
+    headers: HeaderMap,
+    Path(id): Path<i32>,
+    Json(input): Json<DictGroupUpsertDto>,
+) -> ApiResult<Json<DictGroupDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::update_dict_group_on_server(id, input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_delete_dict_group(headers: HeaderMap, Path(id): Path<i32>) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::delete_dict_group_on_server(id)
+        .await
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// ─── Dict Item Handlers ─────────────────────────────────────────────────────
+
+#[derive(serde::Deserialize)]
+struct GroupIdQuery {
+    group_id: i32,
+}
+
+async fn sys_list_dict_items(
+    headers: HeaderMap,
+    Query(q): Query<GroupIdQuery>,
+) -> ApiResult<Json<Vec<DictItemDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::list_dict_items_on_server(q.group_id)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::internal(e.to_string()))
+}
+
+async fn sys_create_dict_item(
+    headers: HeaderMap,
+    Json(input): Json<DictItemUpsertDto>,
+) -> ApiResult<Json<DictItemDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::create_dict_item_on_server(input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_update_dict_item(
+    headers: HeaderMap,
+    Path(id): Path<i32>,
+    Json(input): Json<DictItemUpsertDto>,
+) -> ApiResult<Json<DictItemDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::update_dict_item_on_server(id, input)
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::bad_request(e.to_string()))
+}
+
+async fn sys_delete_dict_item(headers: HeaderMap, Path(id): Path<i32>) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::system_management::delete_dict_item_on_server(id)
+        .await
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 fn ensure_auth(auth: &AdminSessionService, headers: &HeaderMap) -> ApiResult<()> {

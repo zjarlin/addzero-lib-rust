@@ -15,6 +15,7 @@ pub mod knowledge_graph;
 pub mod logo_storage;
 pub mod skills;
 pub mod software_catalog;
+pub mod system_management;
 
 pub use agent_runtime::{SharedAgentRuntimeApi, default_agent_runtime_api};
 pub use asset_graph::{
@@ -42,3 +43,11 @@ pub use skills::{
     SharedSkillsApi, SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto, default_skills_api,
 };
 pub use software_catalog::{SharedSoftwareCatalogApi, default_software_catalog_api};
+pub use system_management::{
+    SharedSystemManagementApi, default_system_management_api,
+    MenuDto, MenuUpsertDto, RoleDto, RoleUpsertDto, RoleWithMenusDto,
+    UserDto, UserUpsertDto, UserWithRolesDto,
+    AuthorizeRoleMenusDto, AuthorizeUserRolesDto,
+    DepartmentDto, DepartmentUpsertDto,
+    DictGroupDto, DictGroupUpsertDto, DictItemDto, DictItemUpsertDto,
+};
