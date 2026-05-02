@@ -87,6 +87,12 @@ fn UsersScene() -> Element {
         async move { sys.list_roles().await }
     });
 
+    let sys3 = use_context::<AppServices>().system.clone();
+    let mut menus_resource = use_resource(move || {
+        let sys = sys3.clone();
+        async move { sys.list_menus().await }
+    });
+
     let mut editing = use_signal::<Option<UserUpsertDto>>(|| None);
     let mut editing_id = use_signal::<Option<i32>>(|| None);
     let mut form_username = use_signal(String::new);
@@ -96,6 +102,10 @@ fn UsersScene() -> Element {
     let mut error_msg = use_signal::<Option<String>>(|| None);
     let mut show_role_dialog = use_signal::<Option<i32>>(|| None);
     let mut selected_role_ids = use_signal::<Vec<i32>>(Vec::new);
+    let mut confirm_delete_user = use_signal::<Option<i32>>(|| None);
+    let mut show_perms_dialog = use_signal::<Option<(i32, String, Vec<i32>)>>(|| None);
+    let mut perms_loading = use_signal(|| false);
+    let mut user_menu_names = use_signal::<Vec<String>>(Vec::new);
 
     let _reload = move || {
         users_resource.restart();
@@ -341,16 +351,36 @@ fn UsersScene() -> Element {
                                                 }
                                             }
                                             WorkbenchButton {
-                                                class: "workbench-button".to_string(), children: rsx! { "删除" },
+                                                class: "workbench-button".to_string(), children: rsx! { "权限" },
                                                 onclick: {
                                                     let sys = use_context::<AppServices>().system.clone();
                                                     let uid = item.user.id;
+                                                    let uname = item.user.username.clone();
                                                     move |_| {
                                                         let sys = sys.clone();
+                                                        let uname = uname.clone();
+                                                        perms_loading.set(true);
+                                                        show_perms_dialog.set(Some((uid, uname.clone(), Vec::new())));
                                                         spawn(async move {
-                                                            let _ = sys.delete_user(uid).await;
-                                                            users_resource.restart();
+                                                            match sys.get_user_effective_menu_ids(uid).await {
+                                                                Ok(ids) => {
+                                                                    show_perms_dialog.set(Some((uid, uname.clone(), ids)));
+                                                                }
+                                                                Err(_) => {
+                                                                    show_perms_dialog.set(Some((uid, uname.clone(), Vec::new())));
+                                                                }
+                                                            }
+                                                            perms_loading.set(false);
                                                         });
+                                                    }
+                                                }
+                                            }
+                                            WorkbenchButton {
+                                                class: "workbench-button".to_string(), children: rsx! { "删除" },
+                                                onclick: {
+                                                    let uid = item.user.id;
+                                                    move |_| {
+                                                        confirm_delete_user.set(Some(uid));
                                                     }
                                                 }
                                             }
@@ -362,6 +392,83 @@ fn UsersScene() -> Element {
                     }
                     Some(Err(e)) => rsx! { div { style: "color:red;padding:8px;", "加载失败: {e}" } },
                     None => rsx! { div { style: "padding:8px;", "加载中…" } },
+                }
+            }
+            // 删除确认
+            if let Some(uid) = *confirm_delete_user.read() {
+                Surface {
+                    SurfaceHeader {
+                        title: "确认删除".to_string(),
+                        subtitle: format!("确定要删除用户 #{uid} 吗？此操作不可撤销。")
+                    }
+                    div { style: "display:flex;gap:8px;padding:8px 0;",
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "确认删除" },
+                            onclick: {
+                                let sys = use_context::<AppServices>().system.clone();
+                                move |_| {
+                                    let sys = sys.clone();
+                                    spawn(async move {
+                                        let _ = sys.delete_user(uid).await;
+                                        confirm_delete_user.set(None);
+                                        users_resource.restart();
+                                    });
+                                }
+                            }
+                        }
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "取消" },
+                            onclick: move |_| confirm_delete_user.set(None)
+                        }
+                    }
+                }
+            }
+            // 用户有效权限查看
+            if let Some((uid, ref uname, ref menu_ids)) = show_perms_dialog.read().clone() {
+                Surface {
+                    SurfaceHeader {
+                        title: format!("有效权限 — {uname}"),
+                        subtitle: format!("用户 #{uid} 通过角色关联获得的菜单权限。")
+                    }
+                    if *perms_loading.read() {
+                        div { style: "padding:8px;", "加载中…" }
+                    } else if menu_ids.is_empty() {
+                        div { style: "padding:8px;color:var(--text-secondary,#888);", "该用户没有分配任何角色或角色未授权菜单。" }
+                    } else {
+                        {
+                            match menus_resource.read().as_ref() {
+                                Some(Ok(all_menus)) => {
+                                    let names: Vec<String> = menu_ids.iter().filter_map(|mid| {
+                                        all_menus.iter().find(|m| m.id == *mid).map(|m| {
+                                            let badge = match m.menu_type.as_str() {
+                                                "dir" => "📁",
+                                                "button" => "🔘",
+                                                _ => "📄",
+                                            };
+                                            format!("{badge} {} ({})", m.name, if m.permission_code.is_empty() { "—" } else { &m.permission_code })
+                                        })
+                                    }).collect();
+                                    rsx! {
+                                        div { style: "padding:8px 0;font-size:13px;color:var(--text-secondary,#888);",
+                                            "共 {names.len()} 项菜单权限"
+                                        }
+                                        div { style: "display:flex;flex-direction:column;gap:2px;padding:4px 0;max-height:320px;overflow-y:auto;",
+                                            for name in names {
+                                                div { style: "padding:2px 8px;font-size:13px;border-bottom:1px solid var(--border,#eee);", "{name}" }
+                                            }
+                                        }
+                                        div { style: "padding-top:8px;",
+                                            WorkbenchButton {
+                                                class: "workbench-button".to_string(), children: rsx! { "关闭" },
+                                                onclick: move |_| show_perms_dialog.set(None)
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => rsx! { div { style: "padding:8px;", "加载菜单数据中…" } }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -389,9 +496,10 @@ fn RolesScene() -> Element {
     let mut form_name = use_signal(String::new);
     let mut form_desc = use_signal(String::new);
     let mut error_msg = use_signal::<Option<String>>(|| None);
-    let mut show_auth_dialog = use_signal::<Option<i32>>(|| None);
+    let mut show_auth_dialog = use_signal::<Option<(i32, String)>>(|| None);
     let mut selected_menu_ids = use_signal::<Vec<i32>>(Vec::new);
     let mut auth_loading = use_signal(|| false);
+    let mut confirm_delete_role = use_signal::<Option<i32>>(|| None);
 
     rsx! {
         // 指标
@@ -492,11 +600,11 @@ fn RolesScene() -> Element {
                 }
             }
             // 角色-菜单授权对话框
-            if let Some(rid) = *show_auth_dialog.read() {
+            if let Some((rid, rname)) = show_auth_dialog.read().clone() {
                 Surface {
                     SurfaceHeader {
-                        title: format!("菜单授权 (角色 #{rid})"),
-                        subtitle: "勾选该角色可访问的菜单。".to_string()
+                        title: format!("菜单授权 — {rname}"),
+                        subtitle: format!("角色 #{rid} · 勾选该角色可访问的菜单。")
                     }
                     if *auth_loading.read() {
                         div { style: "padding:8px;", "加载中…" }
@@ -598,12 +706,13 @@ fn RolesScene() -> Element {
                                                 onclick: {
                                                     let sys = use_context::<AppServices>().system.clone();
                                                     let rid = role.id;
+                                                    let rname = role.name.clone();
                                                     let is_sys = role.is_system;
                                                     move |_| {
                                                         if is_sys { return; }
                                                         let sys = sys.clone();
                                                         auth_loading.set(true);
-                                                        show_auth_dialog.set(Some(rid));
+                                                        show_auth_dialog.set(Some((rid, rname.clone())));
                                                         spawn(async move {
                                                             match sys.get_role(rid).await {
                                                                 Ok(detail) => { selected_menu_ids.set(detail.menu_ids); }
@@ -631,14 +740,9 @@ fn RolesScene() -> Element {
                                                 WorkbenchButton {
                                                     class: "workbench-button".to_string(), children: rsx! { "删除" },
                                                     onclick: {
-                                                        let sys = use_context::<AppServices>().system.clone();
                                                         let rid = role.id;
                                                         move |_| {
-                                                            let sys = sys.clone();
-                                                            spawn(async move {
-                                                                let _ = sys.delete_role(rid).await;
-                                                                roles_resource.restart();
-                                                            });
+                                                            confirm_delete_role.set(Some(rid));
                                                         }
                                                     }
                                                 }
@@ -651,6 +755,35 @@ fn RolesScene() -> Element {
                     }
                     Some(Err(e)) => rsx! { div { style: "color:red;padding:8px;", "加载失败: {e}" } },
                     None => rsx! { div { style: "padding:8px;", "加载中…" } },
+                }
+            }
+            // 角色删除确认
+            if let Some(rid) = *confirm_delete_role.read() {
+                Surface {
+                    SurfaceHeader {
+                        title: "确认删除".to_string(),
+                        subtitle: format!("确定要删除角色 #{rid} 吗？此操作会同时清除该角色的菜单授权关系，不可撤销。")
+                    }
+                    div { style: "display:flex;gap:8px;padding:8px 0;",
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "确认删除" },
+                            onclick: {
+                                let sys = use_context::<AppServices>().system.clone();
+                                move |_| {
+                                    let sys = sys.clone();
+                                    spawn(async move {
+                                        let _ = sys.delete_role(rid).await;
+                                        confirm_delete_role.set(None);
+                                        roles_resource.restart();
+                                    });
+                                }
+                            }
+                        }
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "取消" },
+                            onclick: move |_| confirm_delete_role.set(None)
+                        }
+                    }
                 }
             }
         }
@@ -750,6 +883,7 @@ fn MenusScene() -> Element {
     let mut form_permission = use_signal(String::new);
     let mut form_menu_type = use_signal(|| "menu".to_string());
     let mut error_msg = use_signal::<Option<String>>(|| None);
+    let mut confirm_delete_menu = use_signal::<Option<i32>>(|| None);
 
     let _reload = move || {
         menus_resource.restart();
@@ -987,14 +1121,9 @@ fn MenusScene() -> Element {
                                             WorkbenchButton {
                                                 class: "workbench-button".to_string(), children: rsx! { "删除" },
                                                 onclick: {
-                                                    let sys = use_context::<AppServices>().system.clone();
                                                     let mid = menu.id;
                                                     move |_| {
-                                                        let sys = sys.clone();
-                                                        spawn(async move {
-                                                            let _ = sys.delete_menu(mid).await;
-                                                            menus_resource.restart();
-                                                        });
+                                                        confirm_delete_menu.set(Some(mid));
                                                     }
                                                 }
                                             }
@@ -1006,6 +1135,35 @@ fn MenusScene() -> Element {
                     }
                     Some(Err(e)) => rsx! { div { style: "color:red;padding:8px;", "加载失败: {e}" } },
                     None => rsx! { div { style: "padding:8px;", "加载中…" } },
+                }
+            }
+            // 菜单删除确认（级联）
+            if let Some(mid) = *confirm_delete_menu.read() {
+                Surface {
+                    SurfaceHeader {
+                        title: "确认删除".to_string(),
+                        subtitle: format!("确定要删除菜单 #{mid} 吗？若该菜单包含子项，将一并删除，同时清除所有角色对该菜单的授权关系，此操作不可撤销。")
+                    }
+                    div { style: "display:flex;gap:8px;padding:8px 0;",
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "确认删除" },
+                            onclick: {
+                                let sys = use_context::<AppServices>().system.clone();
+                                move |_| {
+                                    let sys = sys.clone();
+                                    spawn(async move {
+                                        let _ = sys.delete_menu(mid).await;
+                                        confirm_delete_menu.set(None);
+                                        menus_resource.restart();
+                                    });
+                                }
+                            }
+                        }
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "取消" },
+                            onclick: move |_| confirm_delete_menu.set(None)
+                        }
+                    }
                 }
             }
         }
@@ -1028,6 +1186,7 @@ fn DepartmentsScene() -> Element {
     let mut form_sort = use_signal(|| "0".to_string());
     let mut form_parent = use_signal(|| "0".to_string());
     let mut error_msg = use_signal::<Option<String>>(|| None);
+    let mut confirm_delete_dept = use_signal::<Option<i32>>(|| None);
 
     rsx! {
         Surface {
@@ -1185,14 +1344,9 @@ fn DepartmentsScene() -> Element {
                                             WorkbenchButton {
                                                 class: "workbench-button".to_string(), children: rsx! { "删除" },
                                                 onclick: {
-                                                    let sys = use_context::<AppServices>().system.clone();
                                                     let did = dept.id;
                                                     move |_| {
-                                                        let sys = sys.clone();
-                                                        spawn(async move {
-                                                            let _ = sys.delete_department(did).await;
-                                                            dept_resource.restart();
-                                                        });
+                                                        confirm_delete_dept.set(Some(did));
                                                     }
                                                 }
                                             }
@@ -1204,6 +1358,35 @@ fn DepartmentsScene() -> Element {
                     }
                     Some(Err(e)) => rsx! { div { style: "color:red;padding:8px;", "加载失败: {e}" } },
                     None => rsx! { div { style: "padding:8px;", "加载中…" } },
+                }
+            }
+            // 部门删除确认
+            if let Some(did) = *confirm_delete_dept.read() {
+                Surface {
+                    SurfaceHeader {
+                        title: "确认删除".to_string(),
+                        subtitle: format!("确定要删除部门 #{did} 吗？子部门将一并删除，此操作不可撤销。")
+                    }
+                    div { style: "display:flex;gap:8px;padding:8px 0;",
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "确认删除" },
+                            onclick: {
+                                let sys = use_context::<AppServices>().system.clone();
+                                move |_| {
+                                    let sys = sys.clone();
+                                    spawn(async move {
+                                        let _ = sys.delete_department(did).await;
+                                        confirm_delete_dept.set(None);
+                                        dept_resource.restart();
+                                    });
+                                }
+                            }
+                        }
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "取消" },
+                            onclick: move |_| confirm_delete_dept.set(None)
+                        }
+                    }
                 }
             }
         }
@@ -1228,6 +1411,7 @@ fn DictionariesScene() -> Element {
     let mut form_gname = use_signal(String::new);
     let mut form_gdesc = use_signal(String::new);
     let mut error_msg = use_signal::<Option<String>>(|| None);
+    let mut confirm_delete_group = use_signal::<Option<i32>>(|| None);
 
     rsx! {
         Surface {
@@ -1357,15 +1541,9 @@ fn DictionariesScene() -> Element {
                                             WorkbenchButton {
                                                 class: "workbench-button".to_string(), children: rsx! { "删除" },
                                                 onclick: {
-                                                    let sys = use_context::<AppServices>().system.clone();
                                                     let gid = g.id;
                                                     move |_| {
-                                                        let sys = sys.clone();
-                                                        spawn(async move {
-                                                            let _ = sys.delete_dict_group(gid).await;
-                                                            groups_resource.restart();
-                                                            selected_group.set(None);
-                                                        });
+                                                        confirm_delete_group.set(Some(gid));
                                                     }
                                                 }
                                             }
@@ -1377,6 +1555,36 @@ fn DictionariesScene() -> Element {
                     }
                     Some(Err(e)) => rsx! { div { style: "color:red;padding:8px;", "加载失败: {e}" } },
                     None => rsx! { div { style: "padding:8px;", "加载中…" } },
+                }
+            }
+            // 字典组删除确认
+            if let Some(gid) = *confirm_delete_group.read() {
+                Surface {
+                    SurfaceHeader {
+                        title: "确认删除".to_string(),
+                        subtitle: format!("确定要删除字典组 #{gid} 吗？该组下所有字典项将一并删除，此操作不可撤销。")
+                    }
+                    div { style: "display:flex;gap:8px;padding:8px 0;",
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "确认删除" },
+                            onclick: {
+                                let sys = use_context::<AppServices>().system.clone();
+                                move |_| {
+                                    let sys = sys.clone();
+                                    spawn(async move {
+                                        let _ = sys.delete_dict_group(gid).await;
+                                        confirm_delete_group.set(None);
+                                        groups_resource.restart();
+                                        selected_group.set(None);
+                                    });
+                                }
+                            }
+                        }
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "取消" },
+                            onclick: move |_| confirm_delete_group.set(None)
+                        }
+                    }
                 }
             }
         }
@@ -1405,6 +1613,7 @@ fn DictItemsPanel(group: DictGroupDto, on_close: EventHandler<()>) -> Element {
     let mut form_value = use_signal(String::new);
     let mut form_sort = use_signal(|| "0".to_string());
     let mut error_msg = use_signal::<Option<String>>(|| None);
+    let mut confirm_delete_item = use_signal::<Option<i32>>(|| None);
 
     rsx! {
         Surface {
@@ -1543,14 +1752,9 @@ fn DictItemsPanel(group: DictGroupDto, on_close: EventHandler<()>) -> Element {
                                             WorkbenchButton {
                                                 class: "workbench-button".to_string(), children: rsx! { "删除" },
                                                 onclick: {
-                                                    let sys = use_context::<AppServices>().system.clone();
                                                     let iid = item.id;
                                                     move |_| {
-                                                        let sys = sys.clone();
-                                                        spawn(async move {
-                                                            let _ = sys.delete_dict_item(iid).await;
-                                                            items_resource.restart();
-                                                        });
+                                                        confirm_delete_item.set(Some(iid));
                                                     }
                                                 }
                                             }
@@ -1562,6 +1766,35 @@ fn DictItemsPanel(group: DictGroupDto, on_close: EventHandler<()>) -> Element {
                     }
                     Some(Err(e)) => rsx! { div { style: "color:red;padding:8px;", "加载失败: {e}" } },
                     None => rsx! { div { style: "padding:8px;", "加载中…" } },
+                }
+            }
+            // 字典项删除确认
+            if let Some(iid) = *confirm_delete_item.read() {
+                Surface {
+                    SurfaceHeader {
+                        title: "确认删除".to_string(),
+                        subtitle: format!("确定要删除字典项 #{iid} 吗？此操作不可撤销。")
+                    }
+                    div { style: "display:flex;gap:8px;padding:8px 0;",
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "确认删除" },
+                            onclick: {
+                                let sys = use_context::<AppServices>().system.clone();
+                                move |_| {
+                                    let sys = sys.clone();
+                                    spawn(async move {
+                                        let _ = sys.delete_dict_item(iid).await;
+                                        confirm_delete_item.set(None);
+                                        items_resource.restart();
+                                    });
+                                }
+                            }
+                        }
+                        WorkbenchButton {
+                            class: "workbench-button".to_string(), children: rsx! { "取消" },
+                            onclick: move |_| confirm_delete_item.set(None)
+                        }
+                    }
                 }
             }
         }

@@ -537,14 +537,44 @@ pub async fn update_menu_on_server(id: i32, input: MenuUpsertDto) -> SystemManag
     Ok(MenuDto { id, parent_id: input.parent_id, name: input.name, route: input.route, icon: input.icon, sort_order: input.sort_order, visible: input.visible, permission_code: input.permission_code, menu_type: input.menu_type })
 }
 
+/// 收集菜单及其所有后代 ID（服务端版本）
+fn collect_menu_descendant_ids<'a>(pool: &'a sqlx::PgPool, menu_id: i32) -> std::pin::Pin<Box<dyn std::future::Future<Output = SystemManagementResult<Vec<i32>>> + Send + 'a>> {
+    Box::pin(async move {
+        let children: Vec<(i32,)> = sqlx::query_as("SELECT id FROM sys_menu WHERE parent_id = $1")
+            .bind(menu_id)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| SystemManagementError::msg(format!("collect descendants: {e}")))?;
+        let mut ids = vec![menu_id];
+        for (child_id,) in children {
+            ids.extend(collect_menu_descendant_ids(pool, child_id).await?);
+        }
+        Ok(ids)
+    })
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn delete_menu_on_server(id: i32) -> SystemManagementResult<()> {
     let pool = pg_pool()?;
-    sqlx::query("DELETE FROM sys_menu WHERE id = $1")
-        .bind(id)
-        .execute(&pool)
-        .await
-        .map_err(|e| SystemManagementError::msg(format!("delete_menu: {e}")))?;
+    let all_ids = collect_menu_descendant_ids(&pool, id).await?;
+    let mut tx = pool.begin().await.map_err(|e| SystemManagementError::msg(format!("tx begin: {e}")))?;
+    // 先删关联的角色-菜单关系
+    for mid in &all_ids {
+        sqlx::query("DELETE FROM sys_role_menu WHERE menu_id = $1")
+            .bind(mid)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| SystemManagementError::msg(format!("delete role_menu: {e}")))?;
+    }
+    // 再删菜单（从叶子到根）
+    for mid in all_ids.iter().rev() {
+        sqlx::query("DELETE FROM sys_menu WHERE id = $1")
+            .bind(mid)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| SystemManagementError::msg(format!("delete_menu: {e}")))?;
+    }
+    tx.commit().await.map_err(|e| SystemManagementError::msg(format!("tx commit: {e}")))?;
     Ok(())
 }
 
