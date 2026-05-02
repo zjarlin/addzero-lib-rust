@@ -1,3 +1,3 @@
 fn main() {
-    dioxus::launch(dioxus_admin::app::App);
+    dioxus::launch(msc_aio::app::App);
 }

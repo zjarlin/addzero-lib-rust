@@ -24,7 +24,7 @@ impl AssetKind {
         }
     }
 
-    pub fn from_str(value: &str) -> Self {
+    pub fn from_db_value(value: &str) -> Self {
         match value {
             "capture" => Self::Capture,
             "skill" => Self::Skill,
@@ -122,7 +122,7 @@ impl AiProviderKind {
         }
     }
 
-    pub fn from_str(value: &str) -> Self {
+    pub fn from_db_value(value: &str) -> Self {
         match value {
             "anthropic" => Self::Anthropic,
             "gemini" => Self::Gemini,

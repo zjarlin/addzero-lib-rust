@@ -278,6 +278,7 @@ fn resolve_include_path(path_text: &str) -> std::result::Result<PathBuf, String>
     Ok(normalize_path(base_dir.join(candidate)))
 }
 
+#[allow(clippy::incompatible_msrv)]
 fn resolve_call_site_file() -> std::result::Result<PathBuf, String> {
     let span = proc_macro::Span::call_site();
     if let Some(path) = span.local_file() {

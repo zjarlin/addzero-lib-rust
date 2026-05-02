@@ -132,7 +132,7 @@ fn Files() -> Element {
 pub fn AppLayout() -> Element {
     let auth = use_context::<AuthSession>();
     let nav = use_navigator();
-    let redirect_nav = nav.clone();
+    let redirect_nav = nav;
 
     use_effect(move || {
         if *auth.ready.read() && !*auth.logged_in.read() {
