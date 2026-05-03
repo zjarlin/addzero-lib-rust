@@ -28,6 +28,7 @@ authors = ["zjarlin"]
 base64 = "0.22.1"
 chrono = { version = "0.4.42", features = ["clock"] }
 deunicode = "1.6.2"
+dirs = "6"
 hmac = "0.12.1"
 inventory = "0.3.21"
 lettre = "0.11.19"

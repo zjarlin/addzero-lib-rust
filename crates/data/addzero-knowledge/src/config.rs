@@ -8,7 +8,6 @@ use deunicode::deunicode;
 
 use crate::types::KnowledgeSourceSpec;
 
-const DEFAULT_RUST_ROOT: &str = "/Users/zjarlin/Desktop/tech-content-automation/rust/sources";
 pub fn database_url() -> Option<String> {
     persistence::database_url()
 }
@@ -27,62 +26,37 @@ pub fn source_specs() -> Vec<KnowledgeSourceSpec> {
 
 fn default_source_specs() -> Vec<KnowledgeSourceSpec> {
     let mut specs = Vec::new();
-    let Some(home) = home_dir() else {
-        return specs;
-    };
 
-    let rust_root = env::var("DIOXUS_ADMIN_KB_SOURCE_DIR")
+    if let Some(rust_root) = env::var("DIOXUS_ADMIN_KB_SOURCE_DIR")
         .ok()
         .filter(|value| !value.trim().is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(DEFAULT_RUST_ROOT));
-    specs.push(KnowledgeSourceSpec::new("rust", "rust", rust_root));
+    {
+        specs.push(KnowledgeSourceSpec::new("rust", "rust", rust_root));
+    }
 
-    specs.push(KnowledgeSourceSpec::new(
-        "notes",
-        "笔记",
-        home.join("Nextcloud/一些未整理的资料/Documents"),
-    ));
-    specs.push(KnowledgeSourceSpec::new(
-        "software-docs",
-        "软件文档",
-        home.join("Nextcloud/软件文档"),
-    ));
-    specs.push(KnowledgeSourceSpec::new(
-        "memory",
-        "memory",
-        home.join("memory"),
-    ));
-    specs.push(KnowledgeSourceSpec::new(
-        "docker-compose",
-        "docker-compose",
-        home.join("Nextcloud/DockerCompose"),
-    ));
-    specs.push(KnowledgeSourceSpec::new(
-        "docker-compose-unused",
-        "docker-compose-unused",
-        home.join("Nextcloud/DockerCompose_Unuse"),
-    ));
-    specs.push(KnowledgeSourceSpec::new(
-        "shell-config",
-        "shell",
-        home.join(".config/shell"),
-    ));
-    specs.push(KnowledgeSourceSpec::new(
-        "mole-config",
-        "mole",
-        home.join(".config/mole"),
-    ));
-    specs.push(KnowledgeSourceSpec::new(
-        "requirements",
-        "要件",
-        home.join("Nextcloud/要件"),
-    ));
-    specs.push(KnowledgeSourceSpec::new(
-        "config-sys",
-        "config-sys",
-        home.join("Music/addzero/config-sys"),
-    ));
+    if let Some(home) = home_dir() {
+        specs.push(KnowledgeSourceSpec::new(
+            "memory",
+            "memory",
+            home.join("memory"),
+        ));
+        specs.push(KnowledgeSourceSpec::new(
+            "shell-config",
+            "shell",
+            home.join(".config/shell"),
+        ));
+        specs.push(KnowledgeSourceSpec::new(
+            "mole-config",
+            "mole",
+            home.join(".config/mole"),
+        ));
+        specs.push(KnowledgeSourceSpec::new(
+            "config-sys",
+            "config-sys",
+            home.join("Music/addzero/config-sys"),
+        ));
+    }
 
     specs
         .into_iter()
@@ -118,10 +92,7 @@ fn extra_source_specs_from_env() -> Vec<KnowledgeSourceSpec> {
 }
 
 fn home_dir() -> Option<PathBuf> {
-    env::var("HOME")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .map(PathBuf::from)
+    dirs::home_dir()
 }
 
 fn slugify(value: &str) -> String {
