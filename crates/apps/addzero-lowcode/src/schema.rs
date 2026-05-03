@@ -24,6 +24,22 @@ pub struct GridDefinition {
     pub rows: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gap: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_height: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub breakpoints: Vec<Breakpoint>,
+}
+
+/// Responsive CSS Grid override applied below a max viewport width.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Breakpoint {
+    pub name: String,
+    pub max_width: String,
+    pub columns: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_height: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gap: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -60,13 +76,17 @@ pub struct GridArea {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "config")]
 pub enum HandlerType {
-    RhaiScript { script: String },
+    RhaiScript {
+        script: String,
+    },
     HttpCall {
         url: String,
         method: String,
         body_template: String,
     },
-    EmitEvent { event_name: String },
+    EmitEvent {
+        event_name: String,
+    },
     Noop,
 }
 
@@ -176,6 +196,8 @@ mod tests {
                 columns: 12,
                 rows: 8,
                 gap: Some("10px".into()),
+                row_height: None,
+                breakpoints: vec![],
             },
             children: vec![ComponentNode {
                 id: "root".into(),
