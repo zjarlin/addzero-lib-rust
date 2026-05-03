@@ -8,14 +8,14 @@
 
 - 一套面向个人知识资产、同步任务和命令化能力的 AIO 平台
 - 一个以 PostgreSQL 为唯一正式持久化源的后台系统
-- 一个同时提供 Dioxus 管理界面、Axum REST API、以及同源 CLI 的工作台
+- 一个同时提供 Next.js 管理界面、Tauri 桌面壳、Axum REST API、以及同源 CLI 的工作台
 
 这套系统的目标不是只做一个“网页后台”，而是把自己日常要管理的知识库、同步任务、脚本能力、导入导出流程统一收进同一个平台里，让“万事万物都 CLI 化”成为默认交付形态，而不是补充能力。
 
 ### 核心原则
 
 - `all in pg`：正式业务数据全部进入 PostgreSQL，数据库名为 `msc_aio`
-- `axum + dioxus`：Axum 负责后端 API 与任务入口，Dioxus 负责管理界面
+- `axum + Next.js + Tauri`：Axum 负责后端 API 与任务入口，Next.js 负责管理界面，Tauri 负责桌面壳
 - `REST + CLI 同源`：后端写 REST API 的同时，CLI 从同一套操作定义生成，避免手写两套接口
 - `import != source of truth`：文件系统扫描、构建期嵌入、临时内存实现都只作为导入态或开发态，不作为最终数据落点
 - `大功能一模块`：按功能边界拆模块，文件粒度保持在人类可以轻松阅读的范围内
@@ -30,8 +30,10 @@
    暴露 REST API、认证、任务调度入口、OpenAPI 文档以及自动化调用面
 4. CLI 层
    从与 REST 同源的操作定义生成命令，保证后台能力天然可脚本化
-5. Dioxus Admin 层
+5. Next.js Admin 层
    作为管理工作台，用于查看知识资产、同步状态、任务历史、配置与系统上下文
+6. Tauri Desktop 壳
+   通过 localhost plugin 加载同一套 Next 静态前端资产，桌面能力通过 provider/config 暴露
 
 ### 当前状态
 

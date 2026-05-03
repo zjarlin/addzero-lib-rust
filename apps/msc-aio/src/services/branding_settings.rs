@@ -10,6 +10,10 @@ use crate::services::StoredLogoDto;
 
 pub use super::LocalBoxFuture;
 
+const DEFAULT_SITE_NAME: &str = "MSC_AIO";
+const DEFAULT_BRAND_COPY: &str = "顶部品牌区默认使用 App 图标，可切换为上传品牌资产。";
+const DEFAULT_HEADER_BADGE: &str = "Knowledge Workspace";
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BrandingLogoSource {
@@ -59,11 +63,11 @@ pub struct BrandingSettingsDto {
 impl Default for BrandingSettingsDto {
     fn default() -> Self {
         Self {
-            site_name: crate::state::DEFAULT_SITE_NAME.to_string(),
+            site_name: DEFAULT_SITE_NAME.to_string(),
             logo_source: BrandingLogoSource::AppIcon,
             logo: None,
-            brand_copy: crate::state::DEFAULT_BRAND_COPY.to_string(),
-            header_badge: crate::state::DEFAULT_HEADER_BADGE.to_string(),
+            brand_copy: DEFAULT_BRAND_COPY.to_string(),
+            header_badge: DEFAULT_HEADER_BADGE.to_string(),
         }
     }
 }

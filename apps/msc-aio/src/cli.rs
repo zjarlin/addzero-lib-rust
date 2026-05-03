@@ -10,8 +10,8 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// 启动桌面端（默认行为）
-    Desktop,
-    /// 打印当前 native 架构迁移状态
+    /// 启动 Axum API 服务，供 Next.js / Tauri 前端调用
+    ServeApi,
+    /// 打印当前前后端分层迁移状态
     Status,
 }

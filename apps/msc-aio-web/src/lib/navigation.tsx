@@ -216,7 +216,9 @@ function filterMenus(menus: MenuNode[], permissions: string[] | null): MenuNode[
     .filter((menu) => isAllowed(menu, permissions))
     .map((menu) => ({
       ...menu,
-      children: menu.children ? filterMenus(menu.children, permissions) : undefined,
+      children: menu.children
+        ? filterMenus(menu.children, permissions).filter((child) => isAllowed(child, permissions))
+        : undefined,
     }));
 }
 

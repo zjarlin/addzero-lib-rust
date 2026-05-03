@@ -12,7 +12,8 @@
 
 `msc-aio` 的目标是做成一套 “Memory / Sync / CLI All-in-One” 工作台：
 
-- Dioxus Admin 负责管理知识资产、同步任务、配置和系统状态
+- Next.js Admin 负责管理知识资产、同步任务、配置和系统状态
+- Tauri Desktop 壳负责加载同一套管理前端并开放桌面能力
 - Axum 负责暴露 REST API、执行任务入口、认证与服务编排
 - CLI 负责让所有核心能力天然可脚本化、可批处理、可自动化
 - PostgreSQL `msc_aio` 作为唯一正式持久化源，承接全部业务数据
@@ -29,8 +30,10 @@
   负责 REST API、任务触发、认证授权、OpenAPI 暴露、后台编排
 - `CLI`
   与 REST 使用同一套操作定义，默认面向脚本和自动化调用
-- `Dioxus admin`
+- `Next.js admin`
   作为管理界面，用于浏览资产、查看状态、触发任务和管理配置
+- `Tauri desktop`
+  加载同一套静态导出前端，通过 localhost plugin 保持 loopback HTTP / cookie 合同一致
 
 ### 3.2 Source-of-Truth Rule
 
@@ -50,13 +53,13 @@
 - Consequences:
   所有知识资产、同步任务与配置都必须设计表结构、迁移与仓储边界
 
-### ADR-002: Use `axum + dioxus` as the delivery pair
+### ADR-002: Use `axum + Next.js + Tauri` as the delivery pair
 
 - Status: Accepted
 - Context:
   后台需要同时具备浏览器管理面和稳定服务接口
 - Decision:
-  后端使用 Axum，前端管理台使用 Dioxus
+  后端使用 Axum，前端管理台使用 Next.js App Router，桌面端使用 Tauri 壳加载同一套前端
 - Consequences:
   领域逻辑不能写死在 UI 或路由层，必须下沉到 crate 级服务
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 import type { SkillDto } from "@addzero/api-client";
 
@@ -114,7 +114,7 @@ export function AgentsPage() {
   );
 }
 
-export function AgentEditorPage() {
+function AgentEditorPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const skillName = searchParams.get("name");
@@ -236,5 +236,13 @@ export function AgentEditorPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+export function AgentEditorPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-zinc-400">正在加载 Skill 编辑器…</div>}>
+      <AgentEditorPageContent />
+    </Suspense>
   );
 }

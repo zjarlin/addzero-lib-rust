@@ -7,7 +7,6 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-addzero-admin-domain-audit = { path = "../../crates/runtime/addzero-admin-domain-audit" }
 addzero-admin-plugin-registry = { path = "../../crates/runtime/addzero-admin-plugin-registry" }
 addzero-agent-runtime-contract = { path = "../../crates/data/addzero-agent-runtime-contract" }
 addzero-cli-market-contract = { path = "../../crates/api/addzero-cli-market-contract" }
@@ -16,32 +15,10 @@ base64.workspace = true
 blake3 = "1.5.5"
 chrono = { workspace = true, features = ["serde"] }
 clap = { version = "4.5.38", features = ["derive"] }
-dioxus = { workspace = true, features = ["router"] }
-dioxus-components = { path = "../../crates/ui/dioxus-components" }
-dioxus-free-icons.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-dioxus-nox-markdown = { path = "../../crates/ui/dioxus-nox-markdown", default-features = false, features = ["web"] }
-getrandom = { version = "0.3.4", features = ["wasm_js"] }
-gloo-timers = { version = "0.3.0", features = ["futures"] }
-js-sys = "0.3.77"
-wasm-bindgen = "0.2.100"
-wasm-bindgen-futures = "0.4.50"
-web-sys = { version = "0.3.77", features = [
-    "Headers",
-    "Location",
-    "Navigator",
-    "Request",
-    "RequestCredentials",
-    "RequestInit",
-    "RequestMode",
-    "Response",
-    "Window",
-] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 addzero-ai-agent = { path = "../../crates/runtime/addzero-ai-agent" }
@@ -53,8 +30,6 @@ addzero-skills = { path = "../../crates/data/addzero-skills" }
 addzero-rustfs = { path = "../../crates/storage/addzero-rustfs" }
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
-dioxus-desktop = "=0.7.5"
-dioxus-nox-markdown = { path = "../../crates/ui/dioxus-nox-markdown", default-features = false, features = ["desktop"] }
 futures-util = "0.3.31"
 hmac.workspace = true
 log.workspace = true
@@ -74,13 +49,7 @@ zip.workspace = true
 
 [build-dependencies]
 addzero-knowledge = { path = "../../crates/data/addzero-knowledge" }
-png = "0.17.16"
 tokio.workspace = true
-
-[features]
-default = ["desktop"]
-desktop = ["dioxus/desktop"]
-web = ["dioxus/web"]
 
 [lints]
 workspace = true

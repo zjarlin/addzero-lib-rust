@@ -2,8 +2,6 @@
 resolver = "2"
 members = [
     "apps/msc-aio",
-    "apps/remote-desktop/*",
-    "apps/remote-desktop/*",
     "crates/api/*",
     "crates/config/*",
     "crates/core/*",
@@ -13,9 +11,14 @@ members = [
     "crates/runtime/*",
     "crates/storage/*",
     "crates/text/*",
-    "crates/ui/*",
 ]
-exclude = ["apps/remote-desktop"]
+exclude = [
+    "apps/remote-desktop",
+    "crates/runtime/addzero-admin-domain-audit",
+    "crates/ui/addzero-remote-ui",
+    "crates/ui/dioxus-components",
+    "crates/ui/dioxus-nox-markdown",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -55,8 +58,6 @@ thiserror = "2.0.17"
 toml_edit = { version = "0.22.27", features = ["serde"] }
 trybuild = "1.0.112"
 zip = "4.6.1"
-dioxus = { version = "=0.7.5", features = ["router"] }
-dioxus-free-icons = { version = "0.10.0", features = ["lucide"] }
 anyhow = "1.0.99"
 async-trait = "0.1.89"
 urlencoding = "2.1"
