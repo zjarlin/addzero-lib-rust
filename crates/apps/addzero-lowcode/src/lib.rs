@@ -22,5 +22,8 @@ pub use repo::{LayoutRecord, LayoutRepository, PgLayoutRepo, RepoError};
 // Re-export registry types
 pub use registry::{ComponentEntry, ComponentInfo, ComponentRegistry, RegistryError};
 
+// Re-export editor types
+pub use editor::{EditorError, LayoutEditor};
+
 pub use router::lowcode_router;
 pub use state::LowcodeState;
