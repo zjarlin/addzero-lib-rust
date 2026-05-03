@@ -1133,3 +1133,167 @@ const STYLES_XML: &str = concat!(
     r#"<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>"#,
     r#"</styleSheet>"#
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ===== CellValue::is_empty =====
+
+    #[test]
+    fn cell_value_is_empty_only_matches_empty_variant() {
+        assert!(CellValue::Empty.is_empty());
+        assert!(!CellValue::String(String::new()).is_empty());
+        assert!(!CellValue::Number(0.0).is_empty());
+        assert!(!CellValue::Boolean(false).is_empty());
+    }
+
+    // ===== CellValue::as_display_string =====
+
+    #[test]
+    fn cell_value_display_string_integer() {
+        assert_eq!(CellValue::Number(3.0).as_display_string(), "3");
+        assert_eq!(CellValue::Number(0.0).as_display_string(), "0");
+        assert_eq!(CellValue::Number(-0.0).as_display_string(), "-0");
+    }
+
+    #[test]
+    fn cell_value_display_string_float() {
+        assert_eq!(CellValue::Number(3.14).as_display_string(), "3.14");
+        assert_eq!(CellValue::Number(-2.5).as_display_string(), "-2.5");
+    }
+
+    #[test]
+    fn cell_value_display_string_special_floats() {
+        assert_eq!(CellValue::Number(f64::NAN).as_display_string(), "NaN");
+        assert_eq!(CellValue::Number(f64::INFINITY).as_display_string(), "inf");
+    }
+
+    #[test]
+    fn cell_value_display_string_empty_and_boolean() {
+        assert_eq!(CellValue::Empty.as_display_string(), "");
+        assert_eq!(CellValue::Boolean(true).as_display_string(), "true");
+        assert_eq!(CellValue::Boolean(false).as_display_string(), "false");
+    }
+
+    // ===== Range::from_excel_ref =====
+
+    #[test]
+    fn from_excel_ref_rejects_empty_string() {
+        assert!(Range::from_excel_ref("").is_err());
+    }
+
+    #[test]
+    fn from_excel_ref_rejects_single_cell() {
+        assert!(Range::from_excel_ref("A1").is_err());
+    }
+
+    #[test]
+    fn from_excel_ref_rejects_triple_parts() {
+        assert!(Range::from_excel_ref("A1:B2:C3").is_err());
+    }
+
+    #[test]
+    fn from_excel_ref_accepts_valid_range() {
+        let range = Range::from_excel_ref("A1:C3").unwrap();
+        assert_eq!(range.start_row, 0);
+        assert_eq!(range.start_col, 0);
+        assert_eq!(range.end_row, 2);
+        assert_eq!(range.end_col, 2);
+    }
+
+    // ===== encode_cell_reference / parse_cell_reference =====
+
+    #[test]
+    fn encode_cell_reference_single_letter() {
+        assert_eq!(encode_cell_reference(0, 0), "A1");
+        assert_eq!(encode_cell_reference(0, 25), "Z1");
+        assert_eq!(encode_cell_reference(4, 0), "A5");
+    }
+
+    #[test]
+    fn encode_cell_reference_multi_letter() {
+        assert_eq!(encode_cell_reference(0, 26), "AA1");
+        assert_eq!(encode_cell_reference(0, 51), "AZ1");
+        assert_eq!(encode_cell_reference(0, 702), "AAA1");
+    }
+
+    #[test]
+    fn parse_cell_reference_roundtrip() {
+        let cases = [(0, 0), (0, 25), (0, 26), (0, 51), (4, 2), (0, 702)];
+        for (row, col) in cases {
+            let reference = encode_cell_reference(row, col);
+            let (parsed_row, parsed_col) = parse_cell_reference(&reference).unwrap();
+            assert_eq!(
+                (parsed_row, parsed_col),
+                (row, col),
+                "roundtrip failed for ({row}, {col}) -> {reference}"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_cell_reference_rejects_invalid_input() {
+        assert!(parse_cell_reference("").is_err());
+        assert!(parse_cell_reference("123").is_err());
+        assert!(parse_cell_reference("ABC").is_err());
+        assert!(parse_cell_reference("A0").is_err());
+    }
+
+    // ===== XML builders =====
+
+    #[test]
+    fn build_content_types_xml_contains_required_entries() {
+        let wb = ExcelWorkbook::new()
+            .with_sheets(vec![ExcelSheet::new("Sheet1"), ExcelSheet::new("Sheet2")]);
+        let xml = build_content_types_xml(&wb);
+        assert!(xml.contains("sheet1.xml"));
+        assert!(xml.contains("sheet2.xml"));
+        assert!(xml.contains("workbook.xml"));
+        assert!(xml.contains("styles.xml"));
+    }
+
+    #[test]
+    fn build_worksheet_xml_escapes_xml_special_chars() {
+        let sheet = ExcelSheet::new("test").with_rows(vec![vec![CellValue::String(
+            "<script>alert('xss')</script>".into(),
+        )]]);
+        let xml = build_worksheet_xml(&sheet);
+        assert!(xml.contains("&lt;script&gt;"));
+        assert!(!xml.contains("<script>"));
+    }
+
+    // ===== validate_workbook =====
+
+    #[test]
+    fn validate_workbook_rejects_empty_workbook() {
+        let wb = ExcelWorkbook::new();
+        assert!(validate_workbook(&wb).is_err());
+    }
+
+    #[test]
+    fn validate_workbook_rejects_blank_sheet_name() {
+        let wb = ExcelWorkbook::new().with_sheets(vec![ExcelSheet::new("   ")]);
+        assert!(validate_workbook(&wb).is_err());
+    }
+
+    // ===== ExcelWorkbook::sheet =====
+
+    #[test]
+    fn sheet_returns_error_for_out_of_bounds() {
+        let wb = ExcelWorkbook::new().with_sheets(vec![ExcelSheet::new("Sheet1")]);
+        assert!(wb.sheet(0).is_ok());
+        assert!(wb.sheet(1).is_err());
+    }
+
+    // ===== set_cell =====
+
+    #[test]
+    fn set_cell_extends_matrix_automatically() {
+        let mut cells = Vec::new();
+        set_cell(&mut cells, 1, 2, CellValue::Number(42.0));
+        assert_eq!(cells.len(), 2);
+        assert_eq!(cells[1].len(), 3);
+        assert_eq!(cells[1][2], CellValue::Number(42.0));
+    }
+}
