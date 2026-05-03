@@ -41,15 +41,19 @@ impl InsertQuery {
         if self.columns.is_empty() {
             return Err(QueryError::NoColumns);
         }
-        if !self.rows.is_empty() {
-            let first_len = self.rows[0].len();
-            for row in &self.rows {
-                if row.len() != first_len {
-                    return Err(QueryError::ColumnValueMismatch {
-                        columns: self.columns.len(),
-                        values: row.len(),
-                    });
-                }
+        if self.rows.is_empty() {
+            return Err(QueryError::ColumnValueMismatch {
+                columns: self.columns.len(),
+                values: 0,
+            });
+        }
+        let expected = self.columns.len();
+        for row in &self.rows {
+            if row.len() != expected {
+                return Err(QueryError::ColumnValueMismatch {
+                    columns: expected,
+                    values: row.len(),
+                });
             }
         }
         Ok(self.build())
@@ -127,5 +131,26 @@ mod tests {
     fn try_build_no_columns_errors() {
         let q = InsertQuery::new().into("users").values(vec!["Alice"]);
         assert_eq!(q.try_build(), Err(QueryError::NoColumns));
+    }
+
+    #[test]
+    fn try_build_column_value_count_mismatch() {
+        let q = InsertQuery::new()
+            .into("users")
+            .columns(&["name", "email", "age"])
+            .values(vec!["Alice", "alice@example.com"]);
+        assert_eq!(
+            q.try_build(),
+            Err(QueryError::ColumnValueMismatch {
+                columns: 3,
+                values: 2,
+            })
+        );
+    }
+
+    #[test]
+    fn try_build_no_values_errors() {
+        let q = InsertQuery::new().into("users").columns(&["name", "email"]);
+        assert!(q.try_build().is_err());
     }
 }
