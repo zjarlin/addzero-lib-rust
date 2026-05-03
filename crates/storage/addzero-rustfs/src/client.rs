@@ -17,6 +17,14 @@ use thiserror::Error;
 
 type HmacSha256 = Hmac<Sha256>;
 
+/// Recover from a poisoned mutex instead of panicking.
+fn recover_lock<T>(mutex: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|poisoned| {
+        eprintln!("WARN: in-memory storage mutex was poisoned, recovering");
+        poisoned.into_inner()
+    })
+}
+
 const AWS_SERVICE_NAME: &str = "s3";
 const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
 
@@ -1448,18 +1456,16 @@ impl InMemoryS3StorageClient {
 
 impl S3StorageClient for InMemoryS3StorageClient {
     fn bucket_exists(&self, bucket_name: &str) -> StorageResult<bool> {
-        Ok(self
+        Ok(recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+            )
             .buckets
             .contains_key(bucket_name))
     }
 
     fn create_bucket(&self, bucket_name: &str) -> StorageResult<()> {
-        self.state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+        recover_lock(&self.state
+            )
             .buckets
             .entry(bucket_name.to_owned())
             .or_default();
@@ -1467,10 +1473,9 @@ impl S3StorageClient for InMemoryS3StorageClient {
     }
 
     fn list_buckets(&self) -> StorageResult<Vec<String>> {
-        Ok(self
+        Ok(recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+            )
             .buckets
             .keys()
             .cloned()
@@ -1478,9 +1483,8 @@ impl S3StorageClient for InMemoryS3StorageClient {
     }
 
     fn delete_bucket(&self, bucket_name: &str) -> StorageResult<()> {
-        self.state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+        recover_lock(&self.state
+            )
             .buckets
             .remove(bucket_name)
             .ok_or_else(|| StorageError::BucketNotFound {
@@ -1490,10 +1494,9 @@ impl S3StorageClient for InMemoryS3StorageClient {
     }
 
     fn object_exists(&self, bucket_name: &str, key: &str) -> StorageResult<bool> {
-        Ok(self
+        Ok(recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+            )
             .buckets
             .get(bucket_name)
             .and_then(|bucket| bucket.get(key))
@@ -1505,10 +1508,9 @@ impl S3StorageClient for InMemoryS3StorageClient {
         bucket_name: &str,
         key: &str,
     ) -> StorageResult<Option<ObjectMetadata>> {
-        Ok(self
+        Ok(recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+            )
             .buckets
             .get(bucket_name)
             .and_then(|bucket| bucket.get(key))
@@ -1523,10 +1525,9 @@ impl S3StorageClient for InMemoryS3StorageClient {
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
     ) -> StorageResult<()> {
-        let mut state = self
+        let mut state = recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned");
+            );
         let etag = Self::next_id(&mut state, "etag");
         state
             .buckets
@@ -1558,9 +1559,8 @@ impl S3StorageClient for InMemoryS3StorageClient {
     }
 
     fn get_object(&self, bucket_name: &str, key: &str) -> StorageResult<Vec<u8>> {
-        self.state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+        recover_lock(&self.state
+            )
             .buckets
             .get(bucket_name)
             .and_then(|bucket| bucket.get(key))
@@ -1581,9 +1581,8 @@ impl S3StorageClient for InMemoryS3StorageClient {
     }
 
     fn delete_object(&self, bucket_name: &str, key: &str) -> StorageResult<()> {
-        self.state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+        recover_lock(&self.state
+            )
             .buckets
             .get_mut(bucket_name)
             .and_then(|bucket| bucket.remove(key))
@@ -1629,10 +1628,9 @@ impl S3StorageClient for InMemoryS3StorageClient {
         max_keys: usize,
     ) -> StorageResult<Vec<ObjectMetadata>> {
         let prefix = prefix.unwrap_or_default();
-        let bucket = self
+        let bucket = recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+            )
             .buckets
             .get(bucket_name)
             .cloned()
@@ -1656,10 +1654,9 @@ impl S3StorageClient for InMemoryS3StorageClient {
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
     ) -> StorageResult<String> {
-        let mut state = self
+        let mut state = recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned");
+            );
         let upload_id = Self::next_id(&mut state, "upload");
         state.uploads.insert(
             upload_id.clone(),
@@ -1683,10 +1680,9 @@ impl S3StorageClient for InMemoryS3StorageClient {
         data: &[u8],
         _content_type: Option<&str>,
     ) -> StorageResult<String> {
-        let mut state = self
+        let mut state = recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned");
+            );
         let upload = state
             .uploads
             .get_mut(upload_id)
@@ -1702,10 +1698,9 @@ impl S3StorageClient for InMemoryS3StorageClient {
         upload_id: &str,
         parts: &[PartInfo],
     ) -> StorageResult<()> {
-        let mut state = self
+        let mut state = recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned");
+            );
         let upload = state
             .uploads
             .remove(upload_id)
@@ -1743,19 +1738,17 @@ impl S3StorageClient for InMemoryS3StorageClient {
         _key: &str,
         upload_id: &str,
     ) -> StorageResult<()> {
-        self.state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+        recover_lock(&self.state
+            )
             .uploads
             .remove(upload_id);
         Ok(())
     }
 
     fn list_multipart_uploads(&self, bucket_name: &str) -> StorageResult<Vec<String>> {
-        Ok(self
+        Ok(recover_lock(&self
             .state
-            .lock()
-            .expect("in-memory storage mutex should not be poisoned")
+            )
             .uploads
             .iter()
             .filter(|(_, upload)| upload.bucket_name == bucket_name)
