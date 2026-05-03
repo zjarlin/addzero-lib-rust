@@ -1,13 +1,27 @@
 use std::collections::BTreeMap;
+use std::fmt;
 use std::time::SystemTime;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct S3ClientConfig {
     pub endpoint: String,
     pub access_key: String,
     pub secret_key: String,
     pub region: String,
     pub path_style_access: bool,
+}
+
+impl fmt::Debug for S3ClientConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("S3ClientConfig")
+            .field("endpoint", &self.endpoint)
+            .field("access_key", &"***")
+            .field("secret_key", &"***")
+            .field("region", &self.region)
+            .field("path_style_access", &self.path_style_access)
+            .finish()
+    }
 }
 
 impl S3ClientConfig {
@@ -52,12 +66,24 @@ pub struct PresignedUrl {
     pub expiration: SystemTime,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct RustfsConfig {
     pub endpoint: String,
     pub access_key: String,
     pub secret_key: String,
     pub region: String,
+}
+
+impl fmt::Debug for RustfsConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RustfsConfig")
+            .field("endpoint", &self.endpoint)
+            .field("access_key", &"***")
+            .field("secret_key", &"***")
+            .field("region", &self.region)
+            .finish()
+    }
 }
 
 impl RustfsConfig {
@@ -82,5 +108,32 @@ impl From<RustfsConfig> for S3ClientConfig {
         S3ClientConfig::new(value.endpoint, value.access_key, value.secret_key)
             .with_region(value.region)
             .with_path_style_access(true)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn s3_client_config_debug_masks_access_key_and_secret_key() {
+        let config = S3ClientConfig::new("http://localhost:9000", "rustfs-access", "rustfs-secret");
+
+        let debug = format!("{config:?}");
+
+        assert!(debug.contains("access_key: \"***\""));
+        assert!(debug.contains("secret_key: \"***\""));
+        assert!(!debug.contains("rustfs-access"));
+        assert!(!debug.contains("rustfs-secret"));
+    }
+
+    #[test]
+    fn rustfs_config_debug_masks_access_key_and_secret_key() {
+        let config = RustfsConfig::default_local();
+        let debug = format!("{config:?}");
+
+        assert!(debug.contains("access_key: \"***\""));
+        assert!(debug.contains("secret_key: \"***\""));
+        assert!(!debug.contains("rustfsadmin"));
     }
 }

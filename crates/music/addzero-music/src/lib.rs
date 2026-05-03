@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::fmt;
 use std::thread;
 use std::time::{Duration, SystemTime};
 use thiserror::Error;
@@ -614,10 +615,20 @@ pub struct SongWithLyric {
     pub lyric: LyricResponse,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SunoApi {
     api_token: String,
     http: HttpApiClient,
+}
+
+impl fmt::Debug for SunoApi {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SunoApi")
+            .field("api_token", &"***")
+            .field("http", &self.http)
+            .finish()
+    }
 }
 
 impl SunoApi {
@@ -1074,4 +1085,22 @@ fn default_suno_mv() -> String {
 
 fn default_suno_task() -> Option<String> {
     Some("extend".to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn suno_api_debug_masks_api_token() {
+        let config = ApiConfig::builder("https://example.com")
+            .build()
+            .expect("config should build");
+        let api = SunoApi::new("suno-token", config).expect("api should build");
+
+        let debug = format!("{api:?}");
+
+        assert!(debug.contains("api_token: \"***\""));
+        assert!(!debug.contains("suno-token"));
+    }
 }
