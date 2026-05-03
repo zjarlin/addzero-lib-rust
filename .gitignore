@@ -4,6 +4,14 @@
 /docs/.docusaurus/
 /docs/.xiaoeyu/
 /docs/node_modules/
+/node_modules/
+/apps/msc-aio-web/.next/
+/apps/msc-aio-web/out/
+/apps/remote-desktop-web/.next/
+/apps/remote-desktop-web/out/
+/apps/msc-aio-desktop/src-tauri/target/
+/apps/remote-desktop-desktop/src-tauri/target/
+/packages/*/dist/
 .idea/
 *.iml
 .DS_Store

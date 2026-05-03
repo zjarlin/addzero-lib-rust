@@ -1,0 +1,20 @@
+{
+  "name": "addzero-frontend-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.26.2",
+  "scripts": {
+    "build": "pnpm --filter @addzero/admin-shell build && pnpm --filter @addzero/api-client build && pnpm --filter @addzero/remote-ui build && pnpm --filter msc-aio-web build && pnpm --filter remote-desktop-web build",
+    "build:desktop": "pnpm --filter msc-aio-desktop build && pnpm --filter remote-desktop-desktop build",
+    "dev:msc-aio": "pnpm --filter msc-aio-web dev",
+    "dev:remote": "pnpm --filter remote-desktop-web dev",
+    "lint": "pnpm --filter @addzero/admin-shell lint && pnpm --filter @addzero/api-client lint && pnpm --filter @addzero/remote-ui lint && pnpm --filter msc-aio-web lint && pnpm --filter remote-desktop-web lint",
+    "test": "pnpm --filter @addzero/admin-shell test && pnpm --filter @addzero/api-client test && pnpm --filter @addzero/remote-ui test",
+    "typecheck": "pnpm --filter @addzero/admin-shell typecheck && pnpm --filter @addzero/api-client typecheck && pnpm --filter @addzero/remote-ui typecheck && pnpm --filter msc-aio-web typecheck && pnpm --filter remote-desktop-web typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.4",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}
