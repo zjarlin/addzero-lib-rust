@@ -76,7 +76,8 @@
 /apps/remote-desktop/target/debug/.fingerprint/async-trait-5883eed8ae2bb007/lib-async_trait
 /apps/remote-desktop/target/debug/.fingerprint/async-trait-5883eed8ae2bb007/lib-async_trait.json
 /apps/remote-desktop/target/debug/.fingerprint/autocfg-12f89cc5520a8a2d/dep-lib-autocfg
-/apps/remote-desktop/target/debug/.fingerprint/autocfg-12f89cc5520a8a2d/invoked.timestamp
+target
+node_modules
 /apps/remote-desktop/target/debug/.fingerprint/autocfg-12f89cc5520a8a2d/lib-autocfg
 /apps/remote-desktop/target/debug/.fingerprint/autocfg-12f89cc5520a8a2d/lib-autocfg.json
 /apps/remote-desktop/target/debug/.fingerprint/av1-grain-500d3e1fbf0dd13c/dep-lib-av1_grain
@@ -2919,3 +2920,4 @@
 /apps/remote-desktop/target/debug/.cargo-lock
 /apps/remote-desktop/target/.rustc_info.json
 /apps/remote-desktop/target/CACHEDIR.TAG
+/apps/remote-desktop-web/node_modules/.bin/eslint
