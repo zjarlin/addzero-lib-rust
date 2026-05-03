@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::thread;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 use thiserror::Error;
 
 pub type MusicResult<T> = Result<T, MusicError>;
@@ -718,7 +718,7 @@ impl SunoApi {
         F: FnMut(Option<&str>),
     {
         let task_id = task_id.as_ref().trim().to_owned();
-        let started = SystemTime::now();
+        let started = Instant::now();
 
         loop {
             let task = self.fetch_task(task_id.as_str())?;
@@ -737,7 +737,7 @@ impl SunoApi {
                     )));
                 }
                 _ => {
-                    if started.elapsed().unwrap_or_default() >= max_wait {
+                    if started.elapsed() >= max_wait {
                         return Err(MusicError::InvalidResponse(format!(
                             "suno task `{task_id}` timed out after {:?}",
                             max_wait
@@ -772,7 +772,7 @@ impl SunoApi {
         S: Into<String>,
     {
         let task_ids = task_ids.into_iter().map(Into::into).collect::<Vec<_>>();
-        let started = SystemTime::now();
+        let started = Instant::now();
 
         loop {
             let tasks = self.batch_fetch_tasks(task_ids.clone())?;
@@ -794,7 +794,7 @@ impl SunoApi {
                         .unwrap_or_else(|| "unknown error".to_owned())
                 )));
             }
-            if started.elapsed().unwrap_or_default() >= max_wait {
+            if started.elapsed() >= max_wait {
                 return Err(MusicError::InvalidResponse(format!(
                     "suno tasks timed out after {:?}",
                     max_wait
