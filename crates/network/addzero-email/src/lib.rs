@@ -3,6 +3,7 @@ use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::transport::smtp::client::{Tls, TlsParameters};
 use lettre::{Message, SmtpTransport, Transport};
+use std::fmt;
 use std::fs;
 use std::path::Path;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -36,7 +37,7 @@ pub enum EmailError {
     MissingDefaultSender,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct EmailConfig {
     pub host: String,
     pub port: u16,
@@ -45,6 +46,21 @@ pub struct EmailConfig {
     pub protocol: String,
     pub enable_ssl: bool,
     pub enable_tls: bool,
+}
+
+impl fmt::Debug for EmailConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("EmailConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("username", &self.username)
+            .field("password", &"***")
+            .field("protocol", &self.protocol)
+            .field("enable_ssl", &self.enable_ssl)
+            .field("enable_tls", &self.enable_tls)
+            .finish()
+    }
 }
 
 impl EmailConfig {
@@ -373,4 +389,21 @@ fn build_attachment(path: &str) -> Result<SinglePart, EmailError> {
         })?;
 
     Ok(Attachment::new(filename).body(bytes, content_type))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn email_config_debug_masks_password() {
+        let config = EmailConfig::builder("smtp.example.com", "mailer", "smtp-password")
+            .build()
+            .expect("config should build");
+
+        let debug = format!("{config:?}");
+
+        assert!(debug.contains("password: \"***\""));
+        assert!(!debug.contains("smtp-password"));
+    }
 }

@@ -9,6 +9,7 @@ use ring::aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey};
 use ring::pbkdf2::{self, PBKDF2_HMAC_SHA256};
 use ring::rand::{SecureRandom, SystemRandom};
 use std::collections::BTreeMap;
+use std::fmt;
 use std::io::Read;
 use std::num::NonZeroU32;
 use std::path::Path;
@@ -38,13 +39,26 @@ pub enum MinioError {
 
 pub type MinioResult<T> = Result<T, MinioError>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct MinioConfig {
     pub endpoint: String,
     pub access_key: String,
     pub secret_key: String,
     pub region: Option<String>,
     pub path_style_access: bool,
+}
+
+impl fmt::Debug for MinioConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MinioConfig")
+            .field("endpoint", &self.endpoint)
+            .field("access_key", &"***")
+            .field("secret_key", &"***")
+            .field("region", &self.region)
+            .field("path_style_access", &self.path_style_access)
+            .finish()
+    }
 }
 
 impl MinioConfig {
@@ -758,6 +772,20 @@ mod tests {
         assert_eq!(config.secret_key, "minioadmin");
         assert_eq!(config.region, None);
         assert!(config.path_style_access);
+    }
+
+    #[test]
+    fn minio_config_debug_masks_access_key_and_secret_key() {
+        let config = MinioConfig::builder("http://localhost:9000", "minioadmin", "minio-secret")
+            .build()
+            .expect("config should build");
+
+        let debug = format!("{config:?}");
+
+        assert!(debug.contains("access_key: \"***\""));
+        assert!(debug.contains("secret_key: \"***\""));
+        assert!(!debug.contains("minioadmin"));
+        assert!(!debug.contains("minio-secret"));
     }
 
     #[test]

@@ -7,6 +7,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, HashSet};
+use std::fmt;
 use std::ops::Deref;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -416,12 +417,24 @@ pub struct TempMailDomain {
     pub is_private: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct TempMailMailbox {
     pub address: String,
     pub password: String,
     pub account_id: String,
     pub token: String,
+}
+
+impl fmt::Debug for TempMailMailbox {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("TempMailMailbox")
+            .field("address", &self.address)
+            .field("password", &"***")
+            .field("account_id", &self.account_id)
+            .field("token", &"***")
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -802,4 +815,26 @@ fn xorshift64(mut state: u64) -> u64 {
     state ^= state >> 7;
     state ^= state << 17;
     state
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn temp_mail_mailbox_debug_masks_password_and_token() {
+        let mailbox = TempMailMailbox {
+            address: "demo@example.com".to_owned(),
+            password: "temp-password".to_owned(),
+            account_id: "account-1".to_owned(),
+            token: "temp-token".to_owned(),
+        };
+
+        let debug = format!("{mailbox:?}");
+
+        assert!(debug.contains("password: \"***\""));
+        assert!(debug.contains("token: \"***\""));
+        assert!(!debug.contains("temp-password"));
+        assert!(!debug.contains("temp-token"));
+    }
 }
