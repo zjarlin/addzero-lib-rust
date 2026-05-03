@@ -1,4 +1,4 @@
-import { SystemMenusPage } from "@/pages/system-pages";
+import { SystemMenusPage } from "@/screens/system-pages";
 
 export default function SystemMenusRoutePage() {
   return <SystemMenusPage />;

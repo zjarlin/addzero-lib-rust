@@ -1,4 +1,4 @@
-import { PackagesPage } from "@/pages/packages-page";
+import { PackagesPage } from "@/screens/packages-page";
 
 export default function PackagesRoutePage() {
   return <PackagesPage />;

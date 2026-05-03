@@ -1,4 +1,4 @@
-import { NotesPage } from "@/pages/notes-page";
+import { NotesPage } from "@/screens/notes-page";
 
 export default function NotesRoutePage() {
   return <NotesPage />;

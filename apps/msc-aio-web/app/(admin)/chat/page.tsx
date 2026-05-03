@@ -1,4 +1,4 @@
-import { ChatPage } from "@/pages/chat-page";
+import { ChatPage } from "@/screens/chat-page";
 
 export default function ChatRoutePage() {
   return <ChatPage />;

@@ -1,4 +1,4 @@
-import { DownloadStationPage } from "@/pages/download-station-page";
+import { DownloadStationPage } from "@/screens/download-station-page";
 
 export default function DownloadStationRoutePage() {
   return <DownloadStationPage />;

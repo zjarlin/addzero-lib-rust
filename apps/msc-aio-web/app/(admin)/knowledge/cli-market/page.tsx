@@ -1,4 +1,4 @@
-import { CliMarketRegistryPage } from "@/pages/cli-market-page";
+import { CliMarketRegistryPage } from "@/screens/cli-market-page";
 
 export default function CliMarketRoutePage() {
   return <CliMarketRegistryPage />;

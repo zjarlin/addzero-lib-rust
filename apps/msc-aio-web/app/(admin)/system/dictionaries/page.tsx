@@ -1,4 +1,4 @@
-import { SystemDictionariesPage } from "@/pages/system-pages";
+import { SystemDictionariesPage } from "@/screens/system-pages";
 
 export default function SystemDictionariesRoutePage() {
   return <SystemDictionariesPage />;

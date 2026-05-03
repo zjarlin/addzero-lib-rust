@@ -1,4 +1,4 @@
-import { AuditPage } from "@/pages/audit-page";
+import { AuditPage } from "@/screens/audit-page";
 
 export default function AuditRoutePage() {
   return <AuditPage />;

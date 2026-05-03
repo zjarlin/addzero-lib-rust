@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "msc-aio-desktop",
+  "version": "0.1.0",
+  "identifier": "com.addzero.msc-aio-desktop",
+  "build": {
+    "beforeDevCommand": "pnpm --filter msc-aio-web dev",
+    "beforeBuildCommand": "pnpm --filter msc-aio-web build",
+    "frontendDist": "../../msc-aio-web/out"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "MSC_AIO",
+        "width": 1480,
+        "height": 960,
+        "resizable": true,
+        "url": "about:blank"
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}

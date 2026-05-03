@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
     "apps/msc-aio",
+    "apps/remote-desktop/remote-desktop-host",
+    "apps/remote-desktop/remote-desktop-relay",
     "crates/api/*",
     "crates/config/*",
     "crates/core/*",
@@ -13,7 +15,6 @@ members = [
     "crates/text/*",
 ]
 exclude = [
-    "apps/remote-desktop",
     "crates/runtime/addzero-admin-domain-audit",
     "crates/ui/addzero-remote-ui",
     "crates/ui/dioxus-components",
