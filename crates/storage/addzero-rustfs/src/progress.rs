@@ -3,6 +3,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+/// Recover from a poisoned mutex instead of panicking.
+fn recover_lock<T>(mutex: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|poisoned| {
+        eprintln!("WARN: upload progress mutex was poisoned, recovering");
+        poisoned.into_inner()
+    })
+}
+
 pub trait UploadProgressListener: Send + Sync {
     fn on_progress(&self, progress: UploadProgressData);
 }
@@ -213,25 +221,22 @@ impl InMemoryUploadProgressStorage {
 
 impl UploadProgressStorage for InMemoryUploadProgressStorage {
     fn save_status(&self, key: &str, status: UploadStatus) -> bool {
-        self.state
-            .lock()
-            .expect("upload progress storage mutex should not be poisoned")
+        recover_lock(&self.state
+            )
             .insert(key.to_owned(), status);
         true
     }
 
     fn get_status(&self, key: &str) -> Option<UploadStatus> {
-        self.state
-            .lock()
-            .expect("upload progress storage mutex should not be poisoned")
+        recover_lock(&self.state
+            )
             .get(key)
             .cloned()
     }
 
     fn delete_status(&self, key: &str) -> bool {
-        self.state
-            .lock()
-            .expect("upload progress storage mutex should not be poisoned")
+        recover_lock(&self.state
+            )
             .remove(key)
             .is_some()
     }
@@ -243,10 +248,9 @@ impl UploadProgressStorage for InMemoryUploadProgressStorage {
         status: PartStatus,
         etag: Option<String>,
     ) -> bool {
-        let mut state = self
+        let mut state = recover_lock(&self
             .state
-            .lock()
-            .expect("upload progress storage mutex should not be poisoned");
+            );
         let Some(current) = state.get_mut(key) else {
             return false;
         };
@@ -279,10 +283,9 @@ impl UploadProgressStorage for InMemoryUploadProgressStorage {
     }
 
     fn update_uploaded_size(&self, key: &str, uploaded_size: u64) -> bool {
-        let mut state = self
+        let mut state = recover_lock(&self
             .state
-            .lock()
-            .expect("upload progress storage mutex should not be poisoned");
+            );
         let Some(current) = state.get_mut(key) else {
             return false;
         };
@@ -318,19 +321,17 @@ impl SpeedTrackingProgressListener {
     }
 
     pub fn reset(&self) {
-        *self
+        *recover_lock(&self
             .last_sample
-            .lock()
-            .expect("progress listener mutex should not be poisoned") = None;
+            ) = None;
     }
 }
 
 impl UploadProgressListener for SpeedTrackingProgressListener {
     fn on_progress(&self, progress: UploadProgressData) {
-        let mut last_sample = self
+        let mut last_sample = recover_lock(&self
             .last_sample
-            .lock()
-            .expect("progress listener mutex should not be poisoned");
+            );
         let now = Instant::now();
 
         let speed = last_sample.as_ref().and_then(|(instant, uploaded)| {

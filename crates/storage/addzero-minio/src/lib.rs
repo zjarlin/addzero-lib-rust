@@ -475,11 +475,25 @@ pub fn create_client_with_credentials(
     create_client(MinioConfig::new(endpoint, access_key, secret_key))
 }
 
+/// Recover from a poisoned RwLock read guard instead of panicking.
+fn recover_rwlock_read<T>(rwlock: &std::sync::RwLock<T>) -> std::sync::RwLockReadGuard<'_, T> {
+    rwlock.read().unwrap_or_else(|poisoned| {
+        eprintln!("WARN: minio client cache was poisoned, recovering");
+        poisoned.into_inner()
+    })
+}
+
+/// Recover from a poisoned RwLock write guard instead of panicking.
+fn recover_rwlock_write<T>(rwlock: &std::sync::RwLock<T>) -> std::sync::RwLockWriteGuard<'_, T> {
+    rwlock.write().unwrap_or_else(|poisoned| {
+        eprintln!("WARN: minio client cache was poisoned, recovering");
+        poisoned.into_inner()
+    })
+}
+
 pub fn get_or_create_client(key: &str, config: MinioConfig) -> MinioResult<MinioClient> {
     let lock = CLIENTS.get_or_init(|| RwLock::new(BTreeMap::new()));
-    if let Some(existing) = lock
-        .read()
-        .expect("minio client cache should not be poisoned")
+    if let Some(existing) = recover_rwlock_read(lock)
         .get(key)
         .cloned()
     {
@@ -487,8 +501,7 @@ pub fn get_or_create_client(key: &str, config: MinioConfig) -> MinioResult<Minio
     }
 
     let client = create_client(config)?;
-    lock.write()
-        .expect("minio client cache should not be poisoned")
+    recover_rwlock_write(lock)
         .insert(key.to_owned(), client.clone());
     Ok(client)
 }
