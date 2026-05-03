@@ -1,6 +1,6 @@
 /// Render pipeline — converts a layout tree into output (skeleton — to be implemented in #81).
 
-use crate::schema::Layout;
+use crate::schema::LayoutSchema;
 
 /// Errors that can occur during rendering.
 #[derive(Debug, thiserror::Error)]
@@ -22,7 +22,6 @@ pub struct RenderOutput {
 /// Renders a layout into a preview-ready output.
 ///
 /// The actual rendering logic will be fleshed out in #81.
-pub fn render(layout: &Layout) -> Result<RenderOutput, RenderError> {
-    let _ = layout;
+pub fn render(_layout: &LayoutSchema) -> Result<RenderOutput, RenderError> {
     todo!("render pipeline — will be implemented in #81")
 }
