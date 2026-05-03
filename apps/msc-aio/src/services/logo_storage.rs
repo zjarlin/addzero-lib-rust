@@ -59,7 +59,7 @@ pub fn default_logo_storage_api() -> SharedLogoStorageApi {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        Rc::new(NativeLogoStorage::from_env())
+        Rc::new(NativeLogoStorage)
     }
 }
 
@@ -81,36 +81,14 @@ impl LogoStorageApi for BrowserLogoStorageApi {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-struct NativeLogoStorage {
-    backend: NativeBackend,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-enum NativeBackend {
-    Minio(MinioBackend),
-    MissingConfig(String),
-}
+struct NativeLogoStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
 impl NativeLogoStorage {
-    fn from_env() -> Self {
-        match MinioBackend::from_env() {
-            Ok(backend) => Self {
-                backend: NativeBackend::Minio(backend),
-            },
-            Err(reason) => Self {
-                backend: NativeBackend::MissingConfig(reason),
-            },
-        }
-    }
-
-    fn upload_logo_blocking(&self, input: LogoUploadRequest) -> LogoStorageResult<StoredLogoDto> {
-        match &self.backend {
-            NativeBackend::Minio(backend) => backend.upload_logo_blocking(input),
-            NativeBackend::MissingConfig(reason) => Err(LogoStorageError::new(format!(
-                "MinIO / S3 存储未配置：{reason}"
-            ))),
-        }
+    fn upload_logo_blocking(input: LogoUploadRequest) -> LogoStorageResult<StoredLogoDto> {
+        let backend = MinioBackend::from_env()
+            .map_err(|reason| LogoStorageError::new(format!("MinIO / S3 存储未配置：{reason}")))?;
+        backend.upload_logo_blocking(input)
     }
 }
 
@@ -120,8 +98,11 @@ impl LogoStorageApi for NativeLogoStorage {
         &self,
         input: LogoUploadRequest,
     ) -> LocalBoxFuture<'_, LogoStorageResult<StoredLogoDto>> {
-        let result = self.upload_logo_blocking(input);
-        Box::pin(async move { result })
+        Box::pin(async move {
+            tokio::task::spawn_blocking(move || Self::upload_logo_blocking(input))
+                .await
+                .map_err(|err| LogoStorageError::new(format!("logo 上传任务失败：{err}")))?
+        })
     }
 }
 
@@ -242,7 +223,7 @@ fn sanitize_segment(raw: &str) -> String {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn upload_logo_on_server(input: LogoUploadRequest) -> LogoStorageResult<StoredLogoDto> {
-    NativeLogoStorage::from_env().upload_logo_blocking(input)
+    NativeLogoStorage::upload_logo_blocking(input)
 }
 
 mod base64_bytes {

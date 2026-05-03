@@ -131,7 +131,10 @@ fn navigation_tree_for_domain(domain_id: &str) -> Vec<RegisteredAdminNode> {
     let mut children_by_parent: BTreeMap<Option<&'static str>, Vec<AdminNavigationRegistration>> =
         BTreeMap::new();
     for node in nodes {
-        children_by_parent.entry(node.parent_id).or_default().push(node);
+        children_by_parent
+            .entry(node.parent_id)
+            .or_default()
+            .push(node);
     }
     build_children(None, &children_by_parent)
 }
@@ -167,7 +170,15 @@ fn has_nodes_for_domain(domain_id: &str) -> bool {
 
 fn navigation_sort_key(
     node: AdminNavigationRegistration,
-) -> (u16, &'static str, &'static str, Option<&'static str>, u16, &'static str, &'static str) {
+) -> (
+    u16,
+    &'static str,
+    &'static str,
+    Option<&'static str>,
+    u16,
+    &'static str,
+    &'static str,
+) {
     let (domain_order, domain_label, domain_key) = domain_sort_key(node.domain_id);
     (
         domain_order,
@@ -429,7 +440,10 @@ mod tests {
             .map(|domain| domain.id)
             .collect();
 
-        assert_eq!(ids, vec![OVERVIEW_DOMAIN_ID, KNOWLEDGE_DOMAIN_ID, SYSTEM_DOMAIN_ID]);
+        assert_eq!(
+            ids,
+            vec![OVERVIEW_DOMAIN_ID, KNOWLEDGE_DOMAIN_ID, SYSTEM_DOMAIN_ID]
+        );
     }
 
     #[test]

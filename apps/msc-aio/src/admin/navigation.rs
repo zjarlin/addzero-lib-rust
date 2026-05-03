@@ -61,9 +61,8 @@ fn build_menu(
         .filter_map(|child| build_menu(child, permission_snapshot))
         .collect::<Vec<_>>();
     let patterns = node.active_patterns;
-    let is_active = move |route: &Route| {
-        registry::path_matches_patterns(route.to_string().as_str(), patterns)
-    };
+    let is_active =
+        move |route: &Route| registry::path_matches_patterns(route.to_string().as_str(), patterns);
 
     if children.is_empty() {
         let to = node.href.parse::<Route>().ok()?;
@@ -149,11 +148,15 @@ mod tests {
             "knowledge"
         );
         assert_eq!(
-            domain_for_route(&Route::Files).expect("knowledge domain").id,
+            domain_for_route(&Route::Files)
+                .expect("knowledge domain")
+                .id,
             "knowledge"
         );
         assert_eq!(
-            domain_for_route(&Route::SystemUsers).expect("system domain").id,
+            domain_for_route(&Route::SystemUsers)
+                .expect("system domain")
+                .id,
             "system"
         );
         assert_eq!(
@@ -164,11 +167,9 @@ mod tests {
 
     #[test]
     fn section_for_route_should_build_cli_market_tree() {
-        let section = section_for_route_with_snapshot(
-            &Route::KnowledgeCliMarketImports,
-            &Some(None),
-        )
-            .expect("knowledge section");
+        let section =
+            section_for_route_with_snapshot(&Route::KnowledgeCliMarketImports, &Some(None))
+                .expect("knowledge section");
         let labels: Vec<_> = section
             .menus
             .iter()

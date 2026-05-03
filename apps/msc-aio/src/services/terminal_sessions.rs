@@ -191,8 +191,11 @@ impl TerminalSessionsApi for BrowserTerminalSessionsApi {
         input: TerminalSessionInputDto,
     ) -> LocalBoxFuture<'_, Result<TerminalSessionSnapshotDto, String>> {
         Box::pin(async move {
-            super::browser_http::post_json(&format!("/api/admin/terminal/sessions/{id}/input"), &input)
-                .await
+            super::browser_http::post_json(
+                &format!("/api/admin/terminal/sessions/{id}/input"),
+                &input,
+            )
+            .await
         })
     }
 
@@ -202,8 +205,11 @@ impl TerminalSessionsApi for BrowserTerminalSessionsApi {
         input: TerminalSessionResizeDto,
     ) -> LocalBoxFuture<'_, Result<TerminalSessionSnapshotDto, String>> {
         Box::pin(async move {
-            super::browser_http::post_json(&format!("/api/admin/terminal/sessions/{id}/resize"), &input)
-                .await
+            super::browser_http::post_json(
+                &format!("/api/admin/terminal/sessions/{id}/resize"),
+                &input,
+            )
+            .await
         })
     }
 
@@ -365,7 +371,11 @@ impl TerminalRuntime {
             .lock()
             .ok()
             .and_then(|value| value.as_ref().cloned());
-        let updated_at = self.updated_at.lock().map(|value| *value).unwrap_or(created_at);
+        let updated_at = self
+            .updated_at
+            .lock()
+            .map(|value| *value)
+            .unwrap_or(created_at);
         let (screen, cursor_row, cursor_col) = if let Ok(parser) = self.parser.lock() {
             let screen = parser.screen();
             let (cursor_row, cursor_col) = screen.cursor_position();
@@ -704,7 +714,10 @@ fn resolve_session_cwd(input: Option<&str>, default_cwd: &Path) -> Result<PathBu
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn build_launch_spec(profile: TerminalProfileDto, cwd: &Path) -> Result<TerminalLaunchSpec, String> {
+fn build_launch_spec(
+    profile: TerminalProfileDto,
+    cwd: &Path,
+) -> Result<TerminalLaunchSpec, String> {
     let shell = resolve_shell_path();
     match profile {
         TerminalProfileDto::Codex => build_login_shell_command(
@@ -783,7 +796,10 @@ fn spawn_reader_thread(mut reader: Box<dyn Read + Send>, runtime: Arc<TerminalRu
 fn spawn_wait_thread(mut child: Box<dyn Child + Send + Sync>, runtime: Arc<TerminalRuntime>) {
     thread::spawn(move || match child.wait() {
         Ok(status) => runtime.mark_exited(Some(i32::try_from(status.exit_code()).unwrap_or(1))),
-        Err(err) => runtime.record_error(format!("终端进程等待失败：{err}"), Some(TerminalSessionStateDto::Failed)),
+        Err(err) => runtime.record_error(
+            format!("终端进程等待失败：{err}"),
+            Some(TerminalSessionStateDto::Failed),
+        ),
     });
 }
 

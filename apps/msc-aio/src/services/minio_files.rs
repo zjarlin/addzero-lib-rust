@@ -191,7 +191,7 @@ pub fn default_minio_files_api() -> SharedMinioFilesApi {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        Rc::new(NativeMinioFilesApi::from_env())
+        Rc::new(NativeMinioFilesApi)
     }
 }
 
@@ -268,108 +268,54 @@ impl MinioFilesApi for BrowserMinioFilesApi {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-struct NativeMinioFilesApi {
-    backend: NativeBackend,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-enum NativeBackend {
-    Minio(MinioBackend),
-    MissingConfig(String),
-}
+struct NativeMinioFilesApi;
 
 #[cfg(not(target_arch = "wasm32"))]
 impl NativeMinioFilesApi {
-    fn from_env() -> Self {
-        match MinioBackend::from_env() {
-            Ok(backend) => Self {
-                backend: NativeBackend::Minio(backend),
-            },
-            Err(reason) => Self {
-                backend: NativeBackend::MissingConfig(reason),
-            },
-        }
+    fn with_backend<T>(
+        operation: impl FnOnce(MinioBackend) -> MinioFilesResult<T>,
+    ) -> MinioFilesResult<T> {
+        let backend = MinioBackend::from_env()
+            .map_err(|reason| MinioFilesError::new(format!("MinIO 未配置：{reason}")))?;
+        operation(backend)
     }
 
-    fn browse_blocking(
-        &self,
-        input: StorageBrowseRequestDto,
-    ) -> MinioFilesResult<StorageBrowseResultDto> {
-        match &self.backend {
-            NativeBackend::Minio(backend) => backend.browse_blocking(input),
-            NativeBackend::MissingConfig(reason) => {
-                Err(MinioFilesError::new(format!("MinIO 未配置：{reason}")))
-            }
-        }
+    fn browse_blocking(input: StorageBrowseRequestDto) -> MinioFilesResult<StorageBrowseResultDto> {
+        Self::with_backend(|backend| backend.browse_blocking(input))
     }
 
     fn upload_files_blocking(
-        &self,
         input: StorageUploadRequestDto,
     ) -> MinioFilesResult<StorageUploadResultDto> {
-        match &self.backend {
-            NativeBackend::Minio(backend) => backend.upload_files_blocking(input),
-            NativeBackend::MissingConfig(reason) => {
-                Err(MinioFilesError::new(format!("MinIO 未配置：{reason}")))
-            }
-        }
+        Self::with_backend(|backend| backend.upload_files_blocking(input))
     }
 
     fn create_folder_blocking(
-        &self,
         input: StorageCreateFolderDto,
     ) -> MinioFilesResult<StorageCreateFolderResultDto> {
-        match &self.backend {
-            NativeBackend::Minio(backend) => backend.create_folder_blocking(input),
-            NativeBackend::MissingConfig(reason) => {
-                Err(MinioFilesError::new(format!("MinIO 未配置：{reason}")))
-            }
-        }
+        Self::with_backend(|backend| backend.create_folder_blocking(input))
     }
 
     fn share_file_blocking(
-        &self,
         input: StorageShareRequestDto,
     ) -> MinioFilesResult<StorageShareResultDto> {
-        match &self.backend {
-            NativeBackend::Minio(backend) => backend.share_file_blocking(input),
-            NativeBackend::MissingConfig(reason) => {
-                Err(MinioFilesError::new(format!("MinIO 未配置：{reason}")))
-            }
-        }
+        Self::with_backend(|backend| backend.share_file_blocking(input))
     }
 
     fn delete_file_blocking(
-        &self,
         input: StorageDeleteObjectDto,
     ) -> MinioFilesResult<StorageDeleteResultDto> {
-        match &self.backend {
-            NativeBackend::Minio(backend) => backend.delete_file_blocking(input),
-            NativeBackend::MissingConfig(reason) => {
-                Err(MinioFilesError::new(format!("MinIO 未配置：{reason}")))
-            }
-        }
+        Self::with_backend(|backend| backend.delete_file_blocking(input))
     }
 
     fn delete_folder_blocking(
-        &self,
         input: StorageDeleteFolderDto,
     ) -> MinioFilesResult<StorageDeleteResultDto> {
-        match &self.backend {
-            NativeBackend::Minio(backend) => backend.delete_folder_blocking(input),
-            NativeBackend::MissingConfig(reason) => {
-                Err(MinioFilesError::new(format!("MinIO 未配置：{reason}")))
-            }
-        }
+        Self::with_backend(|backend| backend.delete_folder_blocking(input))
     }
 
-    fn download_url_blocking(&self, download_token: &str) -> MinioFilesResult<String> {
-        match &self.backend {
-            NativeBackend::Minio(backend) => backend.download_url_blocking(download_token),
-            NativeBackend::MissingConfig(reason) => {
-                Err(MinioFilesError::new(format!("MinIO 未配置：{reason}")))
-            }
-        }
+    fn download_url_blocking(download_token: String) -> MinioFilesResult<String> {
+        Self::with_backend(|backend| backend.download_url_blocking(&download_token))
     }
 }
 
@@ -379,48 +325,66 @@ impl MinioFilesApi for NativeMinioFilesApi {
         &self,
         input: StorageBrowseRequestDto,
     ) -> LocalBoxFuture<'_, MinioFilesResult<StorageBrowseResultDto>> {
-        let result = self.browse_blocking(input);
-        Box::pin(async move { result })
+        Box::pin(async move {
+            tokio::task::spawn_blocking(move || Self::browse_blocking(input))
+                .await
+                .map_err(|err| MinioFilesError::new(format!("文件浏览任务失败：{err}")))?
+        })
     }
 
     fn upload_files(
         &self,
         input: StorageUploadRequestDto,
     ) -> LocalBoxFuture<'_, MinioFilesResult<StorageUploadResultDto>> {
-        let result = self.upload_files_blocking(input);
-        Box::pin(async move { result })
+        Box::pin(async move {
+            tokio::task::spawn_blocking(move || Self::upload_files_blocking(input))
+                .await
+                .map_err(|err| MinioFilesError::new(format!("文件上传任务失败：{err}")))?
+        })
     }
 
     fn create_folder(
         &self,
         input: StorageCreateFolderDto,
     ) -> LocalBoxFuture<'_, MinioFilesResult<StorageCreateFolderResultDto>> {
-        let result = self.create_folder_blocking(input);
-        Box::pin(async move { result })
+        Box::pin(async move {
+            tokio::task::spawn_blocking(move || Self::create_folder_blocking(input))
+                .await
+                .map_err(|err| MinioFilesError::new(format!("创建目录任务失败：{err}")))?
+        })
     }
 
     fn share_file(
         &self,
         input: StorageShareRequestDto,
     ) -> LocalBoxFuture<'_, MinioFilesResult<StorageShareResultDto>> {
-        let result = self.share_file_blocking(input);
-        Box::pin(async move { result })
+        Box::pin(async move {
+            tokio::task::spawn_blocking(move || Self::share_file_blocking(input))
+                .await
+                .map_err(|err| MinioFilesError::new(format!("分享链接生成任务失败：{err}")))?
+        })
     }
 
     fn delete_file(
         &self,
         input: StorageDeleteObjectDto,
     ) -> LocalBoxFuture<'_, MinioFilesResult<StorageDeleteResultDto>> {
-        let result = self.delete_file_blocking(input);
-        Box::pin(async move { result })
+        Box::pin(async move {
+            tokio::task::spawn_blocking(move || Self::delete_file_blocking(input))
+                .await
+                .map_err(|err| MinioFilesError::new(format!("删除文件任务失败：{err}")))?
+        })
     }
 
     fn delete_folder(
         &self,
         input: StorageDeleteFolderDto,
     ) -> LocalBoxFuture<'_, MinioFilesResult<StorageDeleteResultDto>> {
-        let result = self.delete_folder_blocking(input);
-        Box::pin(async move { result })
+        Box::pin(async move {
+            tokio::task::spawn_blocking(move || Self::delete_folder_blocking(input))
+                .await
+                .map_err(|err| MinioFilesError::new(format!("删除目录任务失败：{err}")))?
+        })
     }
 }
 
@@ -1179,47 +1143,47 @@ fn decode_download_token(download_token: &str) -> MinioFilesResult<String> {
 pub fn browse_files_on_server(
     input: StorageBrowseRequestDto,
 ) -> MinioFilesResult<StorageBrowseResultDto> {
-    NativeMinioFilesApi::from_env().browse_blocking(input)
+    NativeMinioFilesApi::browse_blocking(input)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn upload_files_on_server(
     input: StorageUploadRequestDto,
 ) -> MinioFilesResult<StorageUploadResultDto> {
-    NativeMinioFilesApi::from_env().upload_files_blocking(input)
+    NativeMinioFilesApi::upload_files_blocking(input)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn create_folder_on_server(
     input: StorageCreateFolderDto,
 ) -> MinioFilesResult<StorageCreateFolderResultDto> {
-    NativeMinioFilesApi::from_env().create_folder_blocking(input)
+    NativeMinioFilesApi::create_folder_blocking(input)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn share_file_on_server(
     input: StorageShareRequestDto,
 ) -> MinioFilesResult<StorageShareResultDto> {
-    NativeMinioFilesApi::from_env().share_file_blocking(input)
+    NativeMinioFilesApi::share_file_blocking(input)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn delete_file_on_server(
     input: StorageDeleteObjectDto,
 ) -> MinioFilesResult<StorageDeleteResultDto> {
-    NativeMinioFilesApi::from_env().delete_file_blocking(input)
+    NativeMinioFilesApi::delete_file_blocking(input)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn delete_folder_on_server(
     input: StorageDeleteFolderDto,
 ) -> MinioFilesResult<StorageDeleteResultDto> {
-    NativeMinioFilesApi::from_env().delete_folder_blocking(input)
+    NativeMinioFilesApi::delete_folder_blocking(input)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn presign_download_url_on_server(download_token: &str) -> MinioFilesResult<String> {
-    NativeMinioFilesApi::from_env().download_url_blocking(download_token)
+    NativeMinioFilesApi::download_url_blocking(download_token.to_string())
 }
 
 mod base64_bytes {

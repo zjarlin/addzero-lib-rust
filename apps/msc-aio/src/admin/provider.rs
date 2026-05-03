@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_components::{
-    AdminAction, AdminActionIcon, AdminCommand, AdminShellProvider, AdminShellState,
-    AdminTopbar, WorkbenchButton,
+    AdminAction, AdminActionIcon, AdminCommand, AdminShellProvider, AdminShellState, AdminTopbar,
+    WorkbenchButton,
 };
 
 use crate::admin::navigation::{domain_for_route, registered_domains, section_for_route};

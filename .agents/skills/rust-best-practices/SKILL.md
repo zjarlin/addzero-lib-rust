@@ -52,6 +52,8 @@ Before reviewing, familiarize yourself with Apollo's Rust best practices. Read A
 ### Boilerplate Reduction
 - Prefer `thiserror` for library-facing error enums instead of hand-writing `Display`, `Error`, and `From` impls
 - Use `anyhow` only at binary/application boundaries; do not expose `anyhow::Error` in reusable library APIs
+- Prefer `strum = { version = "0.26", features = ["derive"] }` for enum string conversion, iteration, discriminants, and metadata instead of hand-written match tables
+- Treat `strum` derive macros as the default zero-cost enum abstraction here: they expand at compile time and usually keep runtime behavior equivalent to explicit impls
 - Use `derive_builder` or `typed-builder` when config/data structs have many optional fields or fluent construction improves readability
 - Skip builder crates for tiny structs where `new(...)` or struct literals are clearer
 - Prefer small local `macro_rules!` macros for repeated declarations such as register tables, enum mappings, or repetitive tests
@@ -108,6 +110,7 @@ impl Connection<Connected> {
 When code is purely mechanical, prefer generation over hand-writing it repeatedly. Good targets:
 
 - error enums and conversions via `thiserror`
+- enum parsing, display, iteration, and variant metadata via `strum` derives
 - verbose builders via `derive_builder` or `typed-builder`
 - repetitive declarations via small local `macro_rules!`
 - repeated crate/test skeletons via templates or scripts
