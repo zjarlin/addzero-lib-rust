@@ -51,11 +51,6 @@ fn default_source_specs() -> Vec<KnowledgeSourceSpec> {
             "mole",
             home.join(".config/mole"),
         ));
-        specs.push(KnowledgeSourceSpec::new(
-            "config-sys",
-            "config-sys",
-            home.join("Music/addzero/config-sys"),
-        ));
     }
 
     specs
