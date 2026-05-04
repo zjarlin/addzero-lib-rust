@@ -1,3 +1,4 @@
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use regex::Regex;
@@ -8,6 +9,45 @@ use crate::model::{
     SoftwareEntryInput, SoftwareInstallMethodDto, SoftwareMetadataDto, SoftwareMetadataFetchInput,
     SoftwarePlatform,
 };
+
+fn http_client() -> &'static Client {
+    static CLIENT: OnceLock<Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        Client::builder()
+            .timeout(Duration::from_secs(8))
+            .build()
+            .expect("failed to build reqwest::Client")
+    })
+}
+
+fn title_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?is)<title[^>]*>(.*?)</title>").unwrap())
+}
+
+fn description_meta_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"(?is)<meta[^>]+name=["']description["'][^>]+content=["'](.*?)["'][^>]*>"#)
+            .unwrap()
+    })
+}
+
+fn description_meta_reversed_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"(?is)<meta[^>]+content=["'](.*?)["'][^>]+name=["']description["'][^>]*>"#)
+            .unwrap()
+    })
+}
+
+fn icon_href_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"(?is)<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["'](.*?)["'][^>]*>"#)
+            .unwrap()
+    })
+}
 
 pub(crate) async fn fetch_metadata(
     input: SoftwareMetadataFetchInput,
@@ -21,10 +61,7 @@ pub(crate) async fn fetch_metadata(
 
     let url = Url::parse(&homepage_url)
         .map_err(|err| SoftwareCatalogError::fetch(format!("官网 URL 非法：{err}")))?;
-    let client = Client::builder()
-        .timeout(Duration::from_secs(8))
-        .build()
-        .map_err(|err| SoftwareCatalogError::fetch(format!("初始化抓取客户端失败：{err}")))?;
+    let client = http_client();
     let response = client
         .get(url.clone())
         .send()
@@ -36,18 +73,10 @@ pub(crate) async fn fetch_metadata(
         .await
         .map_err(|err| SoftwareCatalogError::fetch(format!("读取官网响应失败：{err}")))?;
 
-    let title = extract_first(&body, "(?is)<title[^>]*>(.*?)</title>").unwrap_or_default();
-    let summary = extract_first(
-        &body,
-        "(?is)<meta[^>]+name=[\"']description[\"'][^>]+content=[\"'](.*?)[\"'][^>]*>",
-    )
-    .or_else(|| {
-        extract_first(
-            &body,
-            "(?is)<meta[^>]+content=[\"'](.*?)[\"'][^>]+name=[\"']description[\"'][^>]*>",
-        )
-    })
-    .unwrap_or_default();
+    let title = extract_first(&body, title_re()).unwrap_or_default();
+    let summary = extract_first(&body, description_meta_re())
+        .or_else(|| extract_first(&body, description_meta_reversed_re()))
+        .unwrap_or_default();
     let icon_url =
         extract_icon_url(&body, &final_url).unwrap_or_else(|| default_favicon_url(&final_url));
 
@@ -500,22 +529,17 @@ fn same_insensitive(left: &str, right: &str) -> bool {
     left.eq_ignore_ascii_case(right)
 }
 
-fn extract_first(body: &str, pattern: &str) -> Option<String> {
-    Regex::new(pattern)
-        .ok()?
-        .captures(body)?
+fn extract_first(body: &str, re: &Regex) -> Option<String> {
+    re.captures(body)?
         .get(1)
         .map(|found| found.as_str().trim().to_string())
 }
 
 fn extract_icon_url(body: &str, base_url: &Url) -> Option<String> {
-    let href = Regex::new(
-        "(?is)<link[^>]+rel=[\"'][^\"']*icon[^\"']*[\"'][^>]+href=[\"'](.*?)[\"'][^>]*>",
-    )
-    .ok()?
-    .captures(body)?
-    .get(1)
-    .map(|found| found.as_str().trim().to_string())?;
+    let href = icon_href_re()
+        .captures(body)?
+        .get(1)
+        .map(|found| found.as_str().trim().to_string())?;
     base_url.join(&href).ok().map(|url| url.to_string())
 }
 
