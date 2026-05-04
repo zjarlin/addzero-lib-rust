@@ -1,18 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "apps/msc-aio",
-    "apps/remote-desktop/*",
-    "crates/api/*",
-    "crates/config/*",
-    "crates/core/*",
-    "crates/data/*",
-    "crates/music/*",
-    "crates/network/*",
-    "crates/runtime/*",
-    "crates/storage/*",
-    "crates/text/*",
-    "crates/apps/addzero-lowcode",
+    "apps/*",
+    "crates/*",
 ]
 exclude = [
     "apps/remote-desktop",

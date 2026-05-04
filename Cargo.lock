@@ -747,6 +747,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "aio"
+version = "0.1.0"
+dependencies = [
+ "addzero-admin-plugin-registry",
+ "addzero-agent-runtime-contract",
+ "addzero-ai-agent",
+ "addzero-assets",
+ "addzero-cli-market-contract",
+ "addzero-knowledge",
+ "addzero-minio",
+ "addzero-persistence",
+ "addzero-rustfs",
+ "addzero-skills",
+ "addzero-software-catalog",
+ "anyhow",
+ "axum",
+ "base64",
+ "bcrypt",
+ "blake3",
+ "chrono",
+ "clap",
+ "futures-util",
+ "getrandom 0.3.4",
+ "hmac",
+ "log",
+ "once_cell",
+ "png",
+ "portable-pty",
+ "quick-xml",
+ "regex",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2",
+ "shlex",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tower-http",
+ "uuid",
+ "vt100",
+ "zip",
+]
+
+[[package]]
 name = "aliasable"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2819,51 +2864,6 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "msc-aio"
-version = "0.1.0"
-dependencies = [
- "addzero-admin-plugin-registry",
- "addzero-agent-runtime-contract",
- "addzero-ai-agent",
- "addzero-assets",
- "addzero-cli-market-contract",
- "addzero-knowledge",
- "addzero-minio",
- "addzero-persistence",
- "addzero-rustfs",
- "addzero-skills",
- "addzero-software-catalog",
- "anyhow",
- "axum",
- "base64",
- "bcrypt",
- "blake3",
- "chrono",
- "clap",
- "futures-util",
- "getrandom 0.3.4",
- "hmac",
- "log",
- "once_cell",
- "png",
- "portable-pty",
- "quick-xml",
- "regex",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "shlex",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
- "tower-http",
- "uuid",
- "vt100",
- "zip",
 ]
 
 [[package]]

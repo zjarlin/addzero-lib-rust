@@ -4,7 +4,7 @@ use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbE
 use sea_orm_migration::prelude::*;
 use thiserror::Error;
 
-const LOCAL_ENV_FILE: &str = ".config/msc-aio/msc-aio.env";
+const LOCAL_ENV_FILE: &str = ".config/aio/aio.env";
 
 /// Shared database context for workspace services.
 #[derive(Clone)]
@@ -156,7 +156,7 @@ impl MigrationTrait for CliMarketSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/msc-aio/src/server/migrations/0002_clianything_market.sql"
+                "../../../../apps/aio/src/server/migrations/0002_clianything_market.sql"
             ),
         )
         .await
@@ -176,7 +176,7 @@ impl MigrationTrait for AdminAssetGraphSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/msc-aio/src/server/migrations/0003_admin_asset_graph.sql"
+                "../../../../apps/aio/src/server/migrations/0003_admin_asset_graph.sql"
             ),
         )
         .await
@@ -214,7 +214,7 @@ impl MigrationTrait for AdminBrandingSettingsSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/msc-aio/src/server/migrations/0006_admin_branding_settings.sql"
+                "../../../../apps/aio/src/server/migrations/0006_admin_branding_settings.sql"
             ),
         )
         .await
@@ -288,7 +288,7 @@ impl MigrationTrait for RemoveAgentRuntimeSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/msc-aio/src/server/migrations/0009_remove_agent_runtime.sql"
+                "../../../../apps/aio/src/server/migrations/0009_remove_agent_runtime.sql"
             ),
         )
         .await
