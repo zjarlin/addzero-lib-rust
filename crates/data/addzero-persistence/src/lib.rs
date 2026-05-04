@@ -156,7 +156,7 @@ impl MigrationTrait for CliMarketSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/aio/src/server/migrations/0002_clianything_market.sql"
+                "../../../../apps/aio/backend/src/server/migrations/0002_clianything_market.sql"
             ),
         )
         .await
@@ -176,7 +176,7 @@ impl MigrationTrait for AdminAssetGraphSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/aio/src/server/migrations/0003_admin_asset_graph.sql"
+                "../../../../apps/aio/backend/src/server/migrations/0003_admin_asset_graph.sql"
             ),
         )
         .await
@@ -214,7 +214,7 @@ impl MigrationTrait for AdminBrandingSettingsSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/aio/src/server/migrations/0006_admin_branding_settings.sql"
+                "../../../../apps/aio/backend/src/server/migrations/0006_admin_branding_settings.sql"
             ),
         )
         .await
@@ -288,7 +288,47 @@ impl MigrationTrait for RemoveAgentRuntimeSchemaMigration {
         execute_sql(
             manager,
             include_str!(
-                "../../../../apps/aio/src/server/migrations/0009_remove_agent_runtime.sql"
+                "../../../../apps/aio/backend/src/server/migrations/0009_remove_agent_runtime.sql"
+            ),
+        )
+        .await
+    }
+
+    async fn down(&self, _manager: &SchemaManager) -> Result<(), DbErr> {
+        Ok(())
+    }
+}
+
+#[derive(DeriveMigrationName)]
+struct AdminMenuSystemSchemaMigration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for AdminMenuSystemSchemaMigration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        execute_sql(
+            manager,
+            include_str!(
+                "../../../../apps/aio/backend/src/server/migrations/0011_admin_menu_system.sql"
+            ),
+        )
+        .await
+    }
+
+    async fn down(&self, _manager: &SchemaManager) -> Result<(), DbErr> {
+        Ok(())
+    }
+}
+
+#[derive(DeriveMigrationName)]
+struct UnifiedResourceSystemSchemaMigration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for UnifiedResourceSystemSchemaMigration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        execute_sql(
+            manager,
+            include_str!(
+                "../../../../apps/aio/backend/src/server/migrations/0012_unified_resource_system.sql"
             ),
         )
         .await

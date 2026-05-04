@@ -16,6 +16,7 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use addzero_agent_runtime_contract::{LoginRequest, SessionUser};
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
+use uuid::Uuid;
 
 use crate::services::{
     AssetGraphDto, AssetSyncReportDto, BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto,
@@ -24,6 +25,7 @@ use crate::services::{
     KnowledgeFeedDto, KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto,
     KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest,
     download_station::{FileIndex, ScanStats, ShareLink},
+    menu_system::{Menu, MenuTreeNode, CreateMenuRequest, UpdateMenuRequest, Permission},
     OpenAiChatConfigDto, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
     StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
     StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,
@@ -39,6 +41,7 @@ pub struct BackendServices {
     pub cli_market: crate::services::cli_market::CliMarketService,
     pub software_catalog: Option<addzero_software_catalog::SoftwareCatalogService>,
     pub download_station: Option<crate::services::download_station::DownloadStationService>,
+    pub menu_system: Option<crate::services::menu_system::MenuService>,
 }
 
 static SERVICES: OnceCell<BackendServices> = OnceCell::const_new();
@@ -80,12 +83,22 @@ pub async fn services() -> &'static BackendServices {
                 None
             };
 
+            let menu_system = if let Some(url) = database_url.as_deref() {
+                sqlx::PgPool::connect(url)
+                    .await
+                    .ok()
+                    .map(crate::services::menu_system::MenuService::new)
+            } else {
+                None
+            };
+
             BackendServices {
                 skills,
                 admin_auth,
                 cli_market,
                 software_catalog,
                 download_station,
+                menu_system,
             }
         })
         .await
@@ -141,6 +154,11 @@ pub async fn run_api_server() -> Result<()> {
             get(load_openai_chat_config).post(save_openai_chat_config),
         )
         .route("/api/openai-chat/chat", post(run_openai_chat))
+        .route("/api/admin/menus/tree", get(get_menu_tree))
+        .route("/api/admin/menus", post(create_menu).put(update_menu))
+        .route("/api/admin/menus/{id}", get(get_menu).delete(delete_menu))
+        .route("/api/admin/menus/sync", post(sync_file_routes))
+        .route("/api/admin/permissions", get(get_permissions))
         .route("/api/admin/knowledge/feed", get(knowledge_feed))
         .route(
             "/api/admin/knowledge/nodes/{id}",
@@ -1306,4 +1324,90 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         (self.status, self.message).into_response()
     }
+}
+
+// ─── Menu Management Handlers ─────────────────────────────────────────────────────
+
+async fn get_menu_tree(headers: HeaderMap) -> ApiResult<Json<Vec<MenuTreeNode>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ms = backend
+        .menu_system
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Menu system not available"))?;
+    let tree = ms.get_menu_tree().await
+        .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(tree))
+}
+
+async fn get_menu(Path(id): Path<Uuid>, headers: HeaderMap) -> ApiResult<Json<Menu>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ms = backend
+        .menu_system
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Menu system not available"))?;
+    let menu = ms.get_menu_by_id(id).await
+        .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(menu.ok_or_else(|| ApiError::not_found("Menu not found"))?))
+}
+
+async fn create_menu(headers: HeaderMap, Json(req): Json<CreateMenuRequest>) -> ApiResult<Json<Menu>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ms = backend
+        .menu_system
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Menu system not available"))?;
+    let menu = ms.create_menu(req).await
+        .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(menu))
+}
+
+async fn update_menu(Path(id): Path<Uuid>, headers: HeaderMap, Json(req): Json<UpdateMenuRequest>) -> ApiResult<Json<Menu>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ms = backend
+        .menu_system
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Menu system not available"))?;
+    let menu = ms.update_menu(id, req).await
+        .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(menu.ok_or_else(|| ApiError::not_found("Menu not found"))?))
+}
+
+async fn delete_menu(Path(id): Path<Uuid>, headers: HeaderMap) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ms = backend
+        .menu_system
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Menu system not available"))?;
+    ms.delete_menu(id).await
+        .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn sync_file_routes(headers: HeaderMap, Json(routes): Json<Vec<String>>) -> ApiResult<Json<u64>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ms = backend
+        .menu_system
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Menu system not available"))?;
+    let count = ms.sync_file_routes(routes).await
+        .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(count))
+}
+
+async fn get_permissions(headers: HeaderMap) -> ApiResult<Json<Vec<Permission>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ms = backend
+        .menu_system
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Menu system not available"))?;
+    let permissions = ms.get_all_permissions().await
+        .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(permissions))
 }

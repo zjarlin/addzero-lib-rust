@@ -14,6 +14,7 @@ pub mod in_memory_skills;
 pub mod knowledge_entries;
 pub mod knowledge_graph;
 pub mod logo_storage;
+pub mod menu_system;
 pub mod minio_files;
 pub mod openai_chat;
 pub mod skills;
@@ -50,6 +51,7 @@ pub use logo_storage::{
     LOGO_PREVIEW_BASE_URL, LogoUploadRequest, SharedLogoStorageApi, StoredLogoDto,
     build_preview_url, default_logo_storage_api,
 };
+pub use menu_system::{Menu, MenuTreeNode, CreateMenuRequest, UpdateMenuRequest, Permission, MenuService};
 pub use minio_files::{
     SharedMinioFilesApi, StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
     StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,

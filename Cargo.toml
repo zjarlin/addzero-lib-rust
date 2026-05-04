@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "apps/aio/backend",
+    "apps/aio/desktop/src-tauri",
     "crates/api/*",
     "crates/config/*",
     "crates/core/*",
