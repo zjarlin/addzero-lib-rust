@@ -287,11 +287,44 @@ pub fn validate_package(path: &Path) -> Result<(), RuntimeError> {
 }
 
 pub fn unpack_package(path: &Path, target_dir: &Path) -> Result<(), RuntimeError> {
+    let canonical_target = target_dir
+        .canonicalize()
+        .unwrap_or_else(|_| target_dir.to_path_buf());
+
     let file = fs::File::open(path)?;
     let mut archive = ZipArchive::new(file)?;
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index)?;
-        let out_path = target_dir.join(entry.name());
+        let entry_name = entry.name();
+
+        // Reject absolute paths and entries containing path traversal components
+        if entry_name.starts_with('/')
+            || entry_name.starts_with('\\')
+            || Path::new(entry_name)
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            return Err(RuntimeError::InvalidPackage(format!(
+                "package entry `{entry_name}` contains path traversal"
+            )));
+        }
+
+        let out_path = target_dir.join(entry.sanitized_name());
+
+        // Secondary guard: canonicalized path must stay within target_dir
+        let check_path = if out_path.exists() {
+            out_path.canonicalize().ok()
+        } else {
+            out_path.parent().and_then(|p| p.canonicalize().ok())
+        };
+        if let Some(canonical_out) = check_path {
+            if !canonical_out.starts_with(&canonical_target) {
+                return Err(RuntimeError::InvalidPackage(format!(
+                    "package entry `{entry_name}` escapes target directory"
+                )));
+            }
+        }
+
         if entry.is_dir() {
             fs::create_dir_all(&out_path)?;
             continue;
