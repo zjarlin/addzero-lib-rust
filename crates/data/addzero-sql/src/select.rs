@@ -1,4 +1,4 @@
-use crate::{JoinType, Query, SortOrder};
+use crate::{JoinType, Query, QueryError, SortOrder, require_table_name};
 
 /// A SELECT query builder.
 #[derive(Debug, Clone, Default)]
@@ -114,12 +114,18 @@ impl SelectQuery {
         self.offset = Some(n);
         self
     }
+
+    /// Build and validate the query.
+    pub fn try_build(&self) -> Result<(String, Vec<String>), QueryError> {
+        self.build()
+    }
 }
 
 impl Query for SelectQuery {
-    fn build(&self) -> (String, Vec<String>) {
+    fn build(&self) -> Result<(String, Vec<String>), QueryError> {
         let mut sql = String::new();
         let mut all_params: Vec<String> = Vec::new();
+        let table = require_table_name(self.table.as_deref())?;
 
         // SELECT clause
         sql.push_str("SELECT ");
@@ -133,9 +139,7 @@ impl Query for SelectQuery {
         }
 
         // FROM clause
-        if let Some(ref table) = self.table {
-            sql.push_str(&format!(" FROM {}", table));
-        }
+        sql.push_str(&format!(" FROM {}", table));
 
         // JOIN clauses
         for join in &self.joins {
@@ -200,7 +204,7 @@ impl Query for SelectQuery {
             sql.push_str(&format!(" OFFSET {}", offset));
         }
 
-        (sql, all_params)
+        Ok((sql, all_params))
     }
 }
 
@@ -211,7 +215,7 @@ mod tests {
     #[test]
     fn simple_select_all() {
         let q = SelectQuery::new().from("users");
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert_eq!(sql, "SELECT * FROM users");
         assert!(params.is_empty());
     }
@@ -221,7 +225,7 @@ mod tests {
         let q = SelectQuery::new()
             .select(&["id", "name", "email"])
             .from("users");
-        let (sql, _) = q.build();
+        let (sql, _) = q.build().unwrap();
         assert_eq!(sql, "SELECT id, name, email FROM users");
     }
 
@@ -232,7 +236,7 @@ mod tests {
             .from("users")
             .r#where("age > ?", vec!["18"])
             .r#where("active = ?", vec!["true"]);
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert!(sql.contains("WHERE age > ? AND active = ?"));
         assert_eq!(params, vec!["18", "true"]);
     }
@@ -243,7 +247,7 @@ mod tests {
             .select(&["country"])
             .from("users")
             .distinct();
-        let (sql, _) = q.build();
+        let (sql, _) = q.build().unwrap();
         assert!(sql.starts_with("SELECT DISTINCT country"));
     }
 
@@ -253,7 +257,7 @@ mod tests {
             .select(&["users.name", "orders.total"])
             .from("users")
             .inner_join("orders", "users.id = orders.user_id");
-        let (sql, _) = q.build();
+        let (sql, _) = q.build().unwrap();
         assert!(sql.contains("INNER JOIN orders ON users.id = orders.user_id"));
     }
 
@@ -263,7 +267,7 @@ mod tests {
             .select(&["users.name", "profiles.bio"])
             .from("users")
             .left_join("profiles", "users.id = profiles.user_id");
-        let (sql, _) = q.build();
+        let (sql, _) = q.build().unwrap();
         assert!(sql.contains("LEFT JOIN profiles ON users.id = profiles.user_id"));
     }
 
@@ -274,7 +278,7 @@ mod tests {
             .from("employees")
             .group_by(&["department"])
             .having("COUNT(*) > ?", vec!["5"]);
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert!(sql.contains("GROUP BY department"));
         assert!(sql.contains("HAVING COUNT(*) > ?"));
         assert_eq!(params, vec!["5"]);
@@ -289,7 +293,7 @@ mod tests {
             .order_by("id", false)
             .limit(10)
             .offset(20);
-        let (sql, _) = q.build();
+        let (sql, _) = q.build().unwrap();
         assert!(sql.contains("ORDER BY name ASC, id DESC"));
         assert!(sql.contains("LIMIT 10"));
         assert!(sql.contains("OFFSET 20"));
@@ -305,7 +309,7 @@ mod tests {
             .r#where("u.active = ?", vec!["true"])
             .order_by("o.total", false)
             .limit(5);
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert!(sql.contains("FROM users u"));
         assert!(sql.contains("INNER JOIN orders o"));
         assert!(sql.contains("ORDER BY o.total DESC"));
@@ -318,7 +322,19 @@ mod tests {
         let q = SelectQuery::new()
             .from("users")
             .r#where("id = ?", vec!["1"]);
-        let sql = q.to_sql();
+        let sql = q.to_sql().unwrap();
         assert!(sql.contains("SELECT * FROM users WHERE id = ?"));
+    }
+
+    #[test]
+    fn try_build_no_table_errors() {
+        let q = SelectQuery::new().select(&["id"]);
+        assert_eq!(q.try_build(), Err(QueryError::NoTable));
+    }
+
+    #[test]
+    fn build_blank_table_errors() {
+        let q = SelectQuery::new().from("   ");
+        assert_eq!(q.build(), Err(QueryError::NoTable));
     }
 }

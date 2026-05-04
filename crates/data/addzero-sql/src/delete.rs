@@ -1,4 +1,4 @@
-use crate::{Query, QueryError};
+use crate::{Query, QueryError, require_table_name};
 
 /// A DELETE query builder.
 #[derive(Debug, Clone, Default)]
@@ -37,17 +37,15 @@ impl DeleteQuery {
 
     /// Build and validate the query.
     pub fn try_build(&self) -> Result<(String, Vec<String>), QueryError> {
-        if self.table.is_none() {
-            return Err(QueryError::NoTable);
-        }
-        Ok(self.build())
+        require_table_name(self.table.as_deref())?;
+        self.build()
     }
 }
 
 impl Query for DeleteQuery {
-    fn build(&self) -> (String, Vec<String>) {
+    fn build(&self) -> Result<(String, Vec<String>), QueryError> {
         let mut all_params: Vec<String> = Vec::new();
-        let table = self.table.as_deref().unwrap_or("unknown");
+        let table = require_table_name(self.table.as_deref())?;
 
         let mut sql = format!("DELETE FROM {}", table);
 
@@ -69,7 +67,7 @@ impl Query for DeleteQuery {
         }
 
         sql.push(';');
-        (sql, all_params)
+        Ok((sql, all_params))
     }
 }
 
@@ -82,7 +80,7 @@ mod tests {
         let q = DeleteQuery::new()
             .from("users")
             .r#where("id = ?", vec!["42"]);
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert_eq!(sql, "DELETE FROM users WHERE id = ?;");
         assert_eq!(params, vec!["42"]);
     }
@@ -90,7 +88,7 @@ mod tests {
     #[test]
     fn delete_all() {
         let q = DeleteQuery::new().from("sessions");
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert_eq!(sql, "DELETE FROM sessions;");
         assert!(params.is_empty());
     }
@@ -102,7 +100,7 @@ mod tests {
             .r#where("created_at < ?", vec!["2024-01-01"])
             .r#where("level = ?", vec!["DEBUG"])
             .limit(1000);
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert!(sql.contains("WHERE created_at < ? AND level = ?"));
         assert!(sql.contains("LIMIT 1000"));
         assert_eq!(params, vec!["2024-01-01", "DEBUG"]);
@@ -112,5 +110,11 @@ mod tests {
     fn try_build_no_table_errors() {
         let q = DeleteQuery::new().r#where("id = ?", vec!["1"]);
         assert_eq!(q.try_build(), Err(QueryError::NoTable));
+    }
+
+    #[test]
+    fn build_blank_table_errors() {
+        let q = DeleteQuery::new().from("");
+        assert_eq!(q.build(), Err(QueryError::NoTable));
     }
 }

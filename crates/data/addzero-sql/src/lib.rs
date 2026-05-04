@@ -5,8 +5,10 @@
 //!
 //! # Quick Start
 //!
-//! ```no_run
-//! use addzero_sql::{Query, SelectQuery};
+//! ```
+//! use addzero_sql::{Query, QueryError, SelectQuery};
+//!
+//! fn main() -> Result<(), QueryError> {
 //!
 //! let query = SelectQuery::new()
 //!     .select(&["id", "name", "email"])
@@ -15,9 +17,12 @@
 //!     .order_by("name", true)
 //!     .limit(10);
 //!
-//! let (sql, params) = query.build();
+//! let (sql, params) = query.build()?;
 //! assert!(sql.contains("SELECT id, name, email"));
 //! assert!(sql.contains("FROM users"));
+//! # let _ = params;
+//! # Ok(())
+//! # }
 //! ```
 
 use thiserror::Error;
@@ -52,14 +57,21 @@ pub enum QueryError {
     ColumnValueMismatch { columns: usize, values: usize },
 }
 
+pub(crate) fn require_table_name(table: Option<&str>) -> Result<&str, QueryError> {
+    match table {
+        Some(table) if !table.trim().is_empty() => Ok(table),
+        _ => Err(QueryError::NoTable),
+    }
+}
+
 /// Trait for types that can build a parameterized SQL query string.
 pub trait Query {
     /// Build the SQL string and return `(sql_string, params)`.
-    fn build(&self) -> (String, Vec<String>);
+    fn build(&self) -> Result<(String, Vec<String>), QueryError>;
 
     /// Build just the SQL string, ignoring params.
-    fn to_sql(&self) -> String {
-        self.build().0
+    fn to_sql(&self) -> Result<String, QueryError> {
+        self.build().map(|(sql, _)| sql)
     }
 }
 

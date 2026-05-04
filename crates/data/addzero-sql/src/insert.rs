@@ -1,4 +1,4 @@
-use crate::{Query, QueryError};
+use crate::{Query, QueryError, require_table_name};
 
 /// An INSERT query builder.
 #[derive(Debug, Clone, Default)]
@@ -35,9 +35,7 @@ impl InsertQuery {
 
     /// Build and validate the query, returning an error if invalid.
     pub fn try_build(&self) -> Result<(String, Vec<String>), QueryError> {
-        if self.table.is_none() {
-            return Err(QueryError::NoTable);
-        }
+        require_table_name(self.table.as_deref())?;
         if self.columns.is_empty() {
             return Err(QueryError::NoColumns);
         }
@@ -52,15 +50,15 @@ impl InsertQuery {
                 }
             }
         }
-        Ok(self.build())
+        self.build()
     }
 }
 
 impl Query for InsertQuery {
-    fn build(&self) -> (String, Vec<String>) {
+    fn build(&self) -> Result<(String, Vec<String>), QueryError> {
         let mut all_params: Vec<String> = Vec::new();
 
-        let table = self.table.as_deref().unwrap_or("unknown");
+        let table = require_table_name(self.table.as_deref())?;
         let columns_str = self.columns.join(", ");
 
         let value_rows: Vec<String> = self
@@ -80,7 +78,7 @@ impl Query for InsertQuery {
             value_rows.join(", ")
         );
 
-        (sql, all_params)
+        Ok((sql, all_params))
     }
 }
 
@@ -94,7 +92,7 @@ mod tests {
             .into("users")
             .columns(&["name", "email"])
             .values(vec!["Alice", "alice@example.com"]);
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert_eq!(sql, "INSERT INTO users (name, email) VALUES (?, ?);");
         assert_eq!(params, vec!["Alice", "alice@example.com"]);
     }
@@ -106,7 +104,7 @@ mod tests {
             .columns(&["name", "email"])
             .values(vec!["Alice", "alice@example.com"])
             .values(vec!["Bob", "bob@example.com"]);
-        let (sql, params) = q.build();
+        let (sql, params) = q.build().unwrap();
         assert_eq!(
             sql,
             "INSERT INTO users (name, email) VALUES (?, ?), (?, ?);"
@@ -127,5 +125,14 @@ mod tests {
     fn try_build_no_columns_errors() {
         let q = InsertQuery::new().into("users").values(vec!["Alice"]);
         assert_eq!(q.try_build(), Err(QueryError::NoColumns));
+    }
+
+    #[test]
+    fn build_blank_table_errors() {
+        let q = InsertQuery::new()
+            .into("")
+            .columns(&["name"])
+            .values(vec!["Alice"]);
+        assert_eq!(q.build(), Err(QueryError::NoTable));
     }
 }
