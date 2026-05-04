@@ -11,6 +11,7 @@ addzero-persistence = { path = "../addzero-persistence" }
 anyhow.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 deunicode.workspace = true
+dirs.workspace = true
 sea-orm.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
