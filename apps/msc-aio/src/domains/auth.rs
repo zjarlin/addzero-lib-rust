@@ -37,7 +37,7 @@ pub fn LoginPage() -> Element {
     } else {
         "签名 Cookie 单管理员会话。".to_string()
     };
-    let redirect_nav = nav.clone();
+    let redirect_nav = nav;
 
     use_effect(move || {
         if *auth.ready.read() && *auth.logged_in.read() {
