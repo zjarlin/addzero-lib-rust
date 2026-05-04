@@ -1,4 +1,5 @@
-use crate::{Query, QueryError, require_table_name};
+use crate::quote_identifier;
+use crate::{Query, QueryError};
 
 /// An INSERT query builder.
 #[derive(Debug, Clone, Default)]
@@ -62,8 +63,13 @@ impl Query for InsertQuery {
     fn build(&self) -> Result<(String, Vec<String>), QueryError> {
         let mut all_params: Vec<String> = Vec::new();
 
-        let table = require_table_name(self.table.as_deref())?;
-        let columns_str = self.columns.join(", ");
+        let table = self
+            .table
+            .as_deref()
+            .map(|t| quote_identifier(t))
+            .unwrap_or_else(|| quote_identifier("unknown"));
+        let quoted_cols: Vec<String> = self.columns.iter().map(|c| quote_identifier(c)).collect();
+        let columns_str = quoted_cols.join(", ");
 
         let value_rows: Vec<String> = self
             .rows
@@ -96,8 +102,11 @@ mod tests {
             .into("users")
             .columns(&["name", "email"])
             .values(vec!["Alice", "alice@example.com"]);
-        let (sql, params) = q.build().unwrap();
-        assert_eq!(sql, "INSERT INTO users (name, email) VALUES (?, ?);");
+        let (sql, params) = q.build();
+        assert_eq!(
+            sql,
+            "INSERT INTO \"users\" (\"name\", \"email\") VALUES (?, ?);"
+        );
         assert_eq!(params, vec!["Alice", "alice@example.com"]);
     }
 
@@ -111,7 +120,7 @@ mod tests {
         let (sql, params) = q.build().unwrap();
         assert_eq!(
             sql,
-            "INSERT INTO users (name, email) VALUES (?, ?), (?, ?);"
+            "INSERT INTO \"users\" (\"name\", \"email\") VALUES (?, ?), (?, ?);"
         );
         assert_eq!(
             params,

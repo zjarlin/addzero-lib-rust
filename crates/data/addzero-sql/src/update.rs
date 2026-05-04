@@ -1,4 +1,5 @@
-use crate::{Query, QueryError, require_table_name};
+use crate::quote_identifier;
+use crate::{Query, QueryError};
 
 /// An UPDATE query builder.
 #[derive(Debug, Clone, Default)]
@@ -56,14 +57,18 @@ impl UpdateQuery {
 impl Query for UpdateQuery {
     fn build(&self) -> Result<(String, Vec<String>), QueryError> {
         let mut all_params: Vec<String> = Vec::new();
-        let table = require_table_name(self.table.as_deref())?;
+        let table = self
+            .table
+            .as_deref()
+            .map(|t| quote_identifier(t))
+            .unwrap_or_else(|| quote_identifier("unknown"));
 
         let set_parts: Vec<String> = self
             .set_clauses
             .iter()
             .map(|(col, val)| {
                 all_params.push(val.clone());
-                format!("{} = ?", col)
+                format!("{} = ?", quote_identifier(col))
             })
             .collect();
 
@@ -102,8 +107,8 @@ mod tests {
             .set("name", "Alice")
             .set("email", "alice@new.com")
             .r#where("id = ?", vec!["1"]);
-        let (sql, params) = q.build().unwrap();
-        assert!(sql.contains("UPDATE users SET name = ?, email = ?"));
+        let (sql, params) = q.build();
+        assert!(sql.contains("UPDATE \"users\" SET \"name\" = ?, \"email\" = ?"));
         assert!(sql.contains("WHERE id = ?"));
         assert_eq!(params, vec!["Alice", "alice@new.com", "1"]);
     }
