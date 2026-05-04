@@ -150,11 +150,7 @@ impl HandlerRegistry {
         // handler).  Since `EventHandler` is object-safe and behind `Box`, we
         // call `handle` while still holding the read guard and wrap the whole
         // future in timeout.
-        let effective_timeout = if timeout_ms == 0 {
-            5_000
-        } else {
-            timeout_ms
-        };
+        let effective_timeout = if timeout_ms == 0 { 5_000 } else { timeout_ms };
         let deadline = Duration::from_millis(effective_timeout);
 
         match tokio::time::timeout(deadline, handler.handle(ctx, config)).await {

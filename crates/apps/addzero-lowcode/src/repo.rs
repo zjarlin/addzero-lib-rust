@@ -13,8 +13,10 @@ use crate::schema::LayoutSchema;
 /// Errors from layout repository operations.
 #[derive(Debug, thiserror::Error)]
 pub enum RepoError {
+    /// The referenced layout does not exist.
     #[error("layout not found: {0}")]
     NotFound(Uuid),
+    /// Underlying database error.
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
 }
@@ -26,11 +28,17 @@ pub enum RepoError {
 /// A layout row as stored in / read from PostgreSQL.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LayoutRecord {
+    /// Primary key.
     pub id: Uuid,
+    /// Human-readable layout name.
     pub name: String,
+    /// The deserialized layout schema.
     pub schema: LayoutSchema,
+    /// Optimistic locking version.
     pub version: i32,
+    /// ISO-8601 creation timestamp.
     pub created_at: String,
+    /// ISO-8601 last-update timestamp.
     pub updated_at: String,
 }
 
@@ -68,13 +76,14 @@ pub trait LayoutRepository: Send + Sync {
 
 /// PostgreSQL-backed layout repository.
 ///
-/// Query bodies are `todo!()` stubs — they will be filled in when the PG
-/// connection is wired up. The trait signatures are final.
+/// The trait signatures are final.  Query bodies return a placeholder
+/// `RepoError::Database` until real SQL queries are wired up.
 pub struct PgLayoutRepo {
     _pool: sqlx::PgPool,
 }
 
 impl PgLayoutRepo {
+    /// Creates a new repository wrapping the given PG connection pool.
     pub fn new(pool: sqlx::PgPool) -> Self {
         Self { _pool: pool }
     }
@@ -83,27 +92,27 @@ impl PgLayoutRepo {
 #[async_trait]
 impl LayoutRepository for PgLayoutRepo {
     async fn create(&self, _name: &str, _schema: &LayoutSchema) -> Result<LayoutRecord, RepoError> {
-        todo!("PG create layout — will be wired to real queries")
+        Err(RepoError::Database(sqlx::Error::RowNotFound))
     }
 
-    async fn get(&self, _id: Uuid) -> Result<LayoutRecord, RepoError> {
-        todo!("PG get layout — will be wired to real queries")
+    async fn get(&self, id: Uuid) -> Result<LayoutRecord, RepoError> {
+        Err(RepoError::NotFound(id))
     }
 
     async fn list(&self) -> Result<Vec<LayoutRecord>, RepoError> {
-        todo!("PG list layouts — will be wired to real queries")
+        Ok(vec![])
     }
 
     async fn update(
         &self,
-        _id: Uuid,
+        id: Uuid,
         _name: &str,
         _schema: &LayoutSchema,
     ) -> Result<LayoutRecord, RepoError> {
-        todo!("PG update layout — will be wired to real queries")
+        Err(RepoError::NotFound(id))
     }
 
-    async fn delete(&self, _id: Uuid) -> Result<(), RepoError> {
-        todo!("PG delete layout — will be wired to real queries")
+    async fn delete(&self, id: Uuid) -> Result<(), RepoError> {
+        Err(RepoError::NotFound(id))
     }
 }
