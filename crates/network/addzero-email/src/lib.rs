@@ -232,23 +232,25 @@ static DEFAULT_SENDER: OnceLock<RwLock<Option<Arc<dyn EmailSender>>>> = OnceLock
 
 pub fn set_default_sender(sender: Arc<dyn EmailSender>) {
     let lock = DEFAULT_SENDER.get_or_init(|| RwLock::new(None));
-    *lock
-        .write()
-        .expect("email sender lock should not be poisoned") = Some(sender);
+    *match lock.write() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    } = Some(sender);
 }
 
 pub fn clear_default_sender() {
     let lock = DEFAULT_SENDER.get_or_init(|| RwLock::new(None));
-    *lock
-        .write()
-        .expect("email sender lock should not be poisoned") = None;
+    *match lock.write() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    } = None;
 }
 
 pub fn send(message: &EmailMessage) -> Result<(), EmailError> {
     let sender = DEFAULT_SENDER
         .get_or_init(|| RwLock::new(None))
         .read()
-        .expect("email sender lock should not be poisoned")
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
         .clone()
         .ok_or(EmailError::MissingDefaultSender)?;
     sender.send(message)

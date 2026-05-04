@@ -12,20 +12,20 @@ where
     T: 'static,
 {
     let type_id = TypeId::of::<T>();
-    if let Some(target) = logger_map()
-        .read()
-        .expect("logger cache should be readable")
-        .get(&type_id)
-        .copied()
-    {
+    let read_guard = match logger_map().read() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if let Some(target) = read_guard.get(&type_id).copied() {
         return target;
     }
 
     let target = type_name::<T>();
-    logger_map()
-        .write()
-        .expect("logger cache should be writable")
-        .insert(type_id, target);
+    let mut write_guard = match logger_map().write() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    write_guard.insert(type_id, target);
     target
 }
 

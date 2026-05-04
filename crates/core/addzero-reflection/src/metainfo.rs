@@ -1,4 +1,11 @@
 use regex::Regex;
+use std::sync::LazyLock;
+
+static TABLE_NAME_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| match Regex::new(r"(?i)\bfrom\s+([a-zA-Z0-9_]+)") {
+        Ok(regex) => regex,
+        Err(error) => panic!("table extraction regex should compile: {error}"),
+    });
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldInfoSimple {
@@ -106,9 +113,7 @@ pub fn get_simple_field_info_str<T: MetaInfo>() -> String {
 }
 
 pub fn extract_table_name(sql: impl AsRef<str>) -> Option<String> {
-    let regex =
-        Regex::new(r"(?i)\bfrom\s+([a-zA-Z0-9_]+)").expect("table extraction regex should compile");
-    regex
+    TABLE_NAME_REGEX
         .captures(sql.as_ref())
         .and_then(|captures| captures.get(1).map(|table| table.as_str().to_owned()))
 }
