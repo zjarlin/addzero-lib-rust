@@ -69,7 +69,9 @@ impl CellValue {
             Self::Empty => String::new(),
             Self::String(value) => value.clone(),
             Self::Number(value) => {
-                if value.fract() == 0.0 {
+                if !value.is_finite() {
+                    String::new()
+                } else if value.fract() == 0.0 {
                     format!("{value:.0}")
                 } else {
                     value.to_string()
@@ -85,7 +87,13 @@ impl Display for CellValue {
         match self {
             Self::Empty => Ok(()),
             Self::String(value) => f.write_str(value),
-            Self::Number(value) => Display::fmt(value, f),
+            Self::Number(value) => {
+                if value.is_finite() {
+                    Display::fmt(value, f)
+                } else {
+                    Ok(())
+                }
+            }
             Self::Boolean(value) => Display::fmt(value, f),
         }
     }
@@ -105,7 +113,11 @@ impl From<String> for CellValue {
 
 impl From<f64> for CellValue {
     fn from(value: f64) -> Self {
-        Self::Number(value)
+        if value.is_finite() {
+            Self::Number(value)
+        } else {
+            Self::Empty
+        }
     }
 }
 
@@ -816,7 +828,10 @@ fn parse_default_cell_value(raw_value: &str, inline_text: &str) -> CellValue {
         return CellValue::Empty;
     }
     if let Ok(number) = trimmed.parse::<f64>() {
-        return CellValue::Number(number);
+        if number.is_finite() {
+            return CellValue::Number(number);
+        }
+        return CellValue::String(trimmed.to_owned());
     }
 
     CellValue::String(trimmed.to_owned())
@@ -1001,7 +1016,13 @@ fn build_cell_xml(row_index: usize, col_index: usize, value: &CellValue) -> Stri
                 escape_xml_text(text)
             )
         }
-        CellValue::Number(number) => format!(r#"<c r="{reference}"><v>{number}</v></c>"#),
+        CellValue::Number(number) => {
+            if number.is_finite() {
+                format!(r#"<c r="{reference}"><v>{number}</v></c>"#)
+            } else {
+                String::new()
+            }
+        }
         CellValue::Boolean(value) => {
             let flag = usize::from(*value);
             format!(r#"<c r="{reference}" t="b"><v>{flag}</v></c>"#)
