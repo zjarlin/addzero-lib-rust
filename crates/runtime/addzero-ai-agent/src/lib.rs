@@ -38,12 +38,12 @@ impl AssetAgentService {
         rig_provider_markers()
     }
 
-    pub async fn capture_asset(&self, input: CaptureAssetRequest) -> Result<PromptRunOutput> {
+    pub fn capture_asset(&self, input: CaptureAssetRequest) -> Result<PromptRunOutput> {
         let prompt = input.prompt.as_ref();
         self.run_local_summary(&input.raw_content, input.target_kind, prompt)
     }
 
-    pub async fn summarize_asset(
+    pub fn summarize_asset(
         &self,
         raw_content: &str,
         target_kind: AssetKind,
@@ -51,12 +51,12 @@ impl AssetAgentService {
         self.run_local_summary(raw_content, target_kind, None)
     }
 
-    pub async fn extract_graph_edges(&self, raw_content: &str) -> Result<Vec<SuggestedEdge>> {
+    pub fn extract_graph_edges(&self, raw_content: &str) -> Result<Vec<SuggestedEdge>> {
         let output = self.run_local_summary(raw_content, AssetKind::Note, None)?;
         Ok(output.suggested_edges)
     }
 
-    pub async fn run_prompt_button(&self, input: PromptButtonRun) -> Result<PromptRunOutput> {
+    pub fn run_prompt_button(&self, input: PromptButtonRun) -> Result<PromptRunOutput> {
         self.run_local_summary(
             &input.raw_content,
             input.prompt.target_kind,
@@ -64,7 +64,7 @@ impl AssetAgentService {
         )
     }
 
-    pub async fn run_with_provider_secret(
+    pub fn run_with_provider_secret(
         &self,
         raw_content: &str,
         target_kind: AssetKind,
@@ -197,12 +197,11 @@ fn infer_edges(content: &str) -> Vec<SuggestedEdge> {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn capture_asset_should_generate_title_tags_and_edges() {
+    #[test]
+    fn capture_asset_should_generate_title_tags_and_edges() {
         let service = AssetAgentService::new();
         let output = service
             .summarize_asset("Rust skill 要同步到知识图谱", AssetKind::Note)
-            .await
             .unwrap();
         assert_eq!(output.title, "Rust skill 要同步到知识图谱");
         assert!(output.tags.contains(&"Rust".to_string()));
