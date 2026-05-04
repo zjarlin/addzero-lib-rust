@@ -278,6 +278,10 @@ fn resolve_include_path(path_text: &str) -> std::result::Result<PathBuf, String>
     Ok(normalize_path(base_dir.join(candidate)))
 }
 
+// Resolve the source file path at the macro call site.
+//
+// Uses `proc_macro::Span::local_file()` and `Span::file()`, both stabilized in
+// Rust 1.88.  Workspace MSRV is now 1.88 (see workspace Cargo.toml).
 fn resolve_call_site_file() -> std::result::Result<PathBuf, String> {
     let span = proc_macro::Span::call_site();
     if let Some(path) = span.local_file() {
