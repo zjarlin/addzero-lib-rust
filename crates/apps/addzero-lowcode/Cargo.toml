@@ -14,7 +14,7 @@ uuid = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 reqwest = { workspace = true }
-rhai = "1.20"
+rhai = { version = "1.20", features = ["sync"] }
 
 [lints]
 workspace = true

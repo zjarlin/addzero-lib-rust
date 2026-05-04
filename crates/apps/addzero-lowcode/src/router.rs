@@ -9,7 +9,9 @@ use axum::{
 use uuid::Uuid;
 
 use crate::editor::{EditorError, LayoutEditor};
+use crate::events::EventContext;
 use crate::schema::GridArea;
+use crate::scripting::{ScriptError, ValidateResponse};
 use crate::state::LowcodeState;
 
 // ---------------------------------------------------------------------------
@@ -57,9 +59,7 @@ async fn place_component(
         None => {
             return (
                 StatusCode::BAD_REQUEST,
-                axum::Json(
-                    serde_json::json!({"error": "missing required field: component_type"}),
-                ),
+                axum::Json(serde_json::json!({"error": "missing required field: component_type"})),
             );
         }
     };
@@ -80,10 +80,7 @@ async fn place_component(
             );
         }
     };
-    let props = body
-        .get("props")
-        .cloned()
-        .unwrap_or(serde_json::json!({}));
+    let props = body.get("props").cloned().unwrap_or(serde_json::json!({}));
 
     // TODO: wire to PG repository once layout CRUD is implemented
     let mut layouts = state.layouts.write().await;
@@ -114,10 +111,7 @@ async fn update_props(
     Path((layout_id, node_path)): Path<(Uuid, String)>,
     axum::extract::Json(body): axum::extract::Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    let props_patch = body
-        .get("props_patch")
-        .cloned()
-        .unwrap_or(body);
+    let props_patch = body.get("props_patch").cloned().unwrap_or(body);
 
     // TODO: wire to PG repository once layout CRUD is implemented
     let mut layouts = state.layouts.write().await;
@@ -180,9 +174,7 @@ async fn move_component(
             Err(e) => {
                 return (
                     StatusCode::BAD_REQUEST,
-                    axum::Json(
-                        serde_json::json!({"error": format!("invalid grid_area: {e}")}),
-                    ),
+                    axum::Json(serde_json::json!({"error": format!("invalid grid_area: {e}")})),
                 );
             }
         },
@@ -228,9 +220,7 @@ async fn reparent_component(
         None => {
             return (
                 StatusCode::BAD_REQUEST,
-                axum::Json(
-                    serde_json::json!({"error": "missing required field: new_parent_path"}),
-                ),
+                axum::Json(serde_json::json!({"error": "missing required field: new_parent_path"})),
             );
         }
     };
@@ -240,9 +230,7 @@ async fn reparent_component(
             Err(e) => {
                 return (
                     StatusCode::BAD_REQUEST,
-                    axum::Json(
-                        serde_json::json!({"error": format!("invalid grid_area: {e}")}),
-                    ),
+                    axum::Json(serde_json::json!({"error": format!("invalid grid_area: {e}")})),
                 );
             }
         },
@@ -291,16 +279,137 @@ async fn render_layout(_state: State<LowcodeState>, _id: Path<Uuid>) -> impl Int
 // Event handling (skeleton — #79)
 // ---------------------------------------------------------------------------
 
-async fn handle_event(_state: State<LowcodeState>) -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, "handle_event")
+/// POST /api/lowcode/event — dispatch a component event through the handler
+/// registry.
+///
+/// Body JSON:
+/// ```json
+/// {
+///   "handler_type": "navigate",
+///   "config": { "url": "/dashboard" },
+///   "context": {
+///     "component_path": "root/button1",
+///     "event_type": "click",
+///     "component_props": {}
+///   }
+/// }
+/// ```
+async fn handle_event(
+    state: State<LowcodeState>,
+    axum::extract::Json(body): axum::extract::Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let handler_type = match body.get("handler_type").and_then(|v| v.as_str()) {
+        Some(t) => t,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({"error": "missing required field: handler_type"})),
+            );
+        }
+    };
+    let config = body.get("config").cloned().unwrap_or(serde_json::json!({}));
+
+    let ctx: EventContext = match body.get("context") {
+        Some(v) => match serde_json::from_value(v.clone()) {
+            Ok(c) => c,
+            Err(e) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    axum::Json(serde_json::json!({"error": format!("invalid context: {e}")})),
+                );
+            }
+        },
+        None => EventContext {
+            component_path: String::new(),
+            event_type: String::new(),
+            component_props: serde_json::json!({}),
+            form_data: None,
+            trigger_value: None,
+        },
+    };
+
+    match state
+        .handler_registry
+        .dispatch(&ctx, handler_type, &config, 5_000)
+        .await
+    {
+        Ok(result) => (
+            StatusCode::OK,
+            axum::Json(serde_json::json!({ "side_effects": result.side_effects })),
+        ),
+        Err(e) => {
+            let status = match &e {
+                crate::events::EventError::HandlerNotFound(_) => StatusCode::NOT_FOUND,
+                crate::events::EventError::Timeout(_) => StatusCode::GATEWAY_TIMEOUT,
+                _ => StatusCode::BAD_REQUEST,
+            };
+            (
+                status,
+                axum::Json(serde_json::json!({ "error": e.to_string() })),
+            )
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Scripting (skeleton — #80)
 // ---------------------------------------------------------------------------
 
-async fn validate_script(_state: State<LowcodeState>) -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, "validate_script")
+/// POST /api/lowcode/script/validate — validate script syntax.
+///
+/// Body JSON: `{ "script": "..." }`
+/// Returns 200 + `{"valid": true}` or 422 + `{"valid": false, "error": "...", "line": N, "col": N}`.
+async fn validate_script(
+    state: State<LowcodeState>,
+    axum::extract::Json(body): axum::extract::Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let script = match body.get("script").and_then(|v| v.as_str()) {
+        Some(s) => s,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({"error": "missing required field: script"})),
+            );
+        }
+    };
+
+    match state.script_engine.validate(script) {
+        Ok(()) => (
+            StatusCode::OK,
+            axum::Json(
+                serde_json::to_value(ValidateResponse {
+                    valid: true,
+                    error: None,
+                    line: None,
+                    col: None,
+                })
+                .unwrap_or_default(),
+            ),
+        ),
+        Err(ScriptError::SyntaxError {
+            line,
+            column,
+            message,
+        }) => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            axum::Json(
+                serde_json::to_value(ValidateResponse {
+                    valid: false,
+                    error: Some(message),
+                    line: Some(line),
+                    col: Some(column),
+                })
+                .unwrap_or_default(),
+            ),
+        ),
+        Err(other) => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            axum::Json(serde_json::json!({
+                "valid": false,
+                "error": other.to_string()
+            })),
+        ),
+    }
 }
 
 // ---------------------------------------------------------------------------

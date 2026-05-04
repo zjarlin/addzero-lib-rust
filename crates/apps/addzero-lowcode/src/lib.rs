@@ -26,5 +26,7 @@ pub use registry::{ComponentEntry, ComponentInfo, ComponentRegistry, RegistryErr
 // Re-export editor types
 pub use editor::{EditorError, LayoutEditor};
 
+pub use scripting::{ScriptEngine, ScriptError, ValidateResponse};
+
 pub use router::lowcode_router;
 pub use state::LowcodeState;

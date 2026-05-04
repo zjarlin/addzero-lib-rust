@@ -67,11 +67,10 @@ pub fn check_grid_conflict(
     exclude_id: Option<&str>,
 ) -> Result<(), EditorError> {
     for child in &parent.children {
-        if let Some(eid) = exclude_id {
-            if child.id == eid {
+        if let Some(eid) = exclude_id
+            && child.id == eid {
                 continue;
             }
-        }
         if has_overlap(new_area, &child.grid_area) {
             return Err(EditorError::GridConflict(format!(
                 "new area ({},{})→({},{}) overlaps with node {} at ({},{})→({},{})",
@@ -97,11 +96,10 @@ pub fn check_grid_conflict_root(
     exclude_id: Option<&str>,
 ) -> Result<(), EditorError> {
     for child in children {
-        if let Some(eid) = exclude_id {
-            if child.id == eid {
+        if let Some(eid) = exclude_id
+            && child.id == eid {
                 continue;
             }
-        }
         if has_overlap(new_area, &child.grid_area) {
             return Err(EditorError::GridConflict(format!(
                 "new area ({},{})→({},{}) overlaps with node {} at ({},{})→({},{})",
@@ -212,7 +210,9 @@ impl LayoutEditor {
 
         let node = parent_children
             .get_mut(*indices.last().unwrap())
-            .ok_or_else(|| EditorError::NotFound(format!("index {} out of bounds", indices.last().unwrap())))?;
+            .ok_or_else(|| {
+                EditorError::NotFound(format!("index {} out of bounds", indices.last().unwrap()))
+            })?;
         node.grid_area = new_grid_area;
         Ok(())
     }
@@ -352,6 +352,8 @@ mod tests {
                 columns: 12,
                 rows: 8,
                 gap: None,
+                row_height: None,
+                breakpoints: vec![],
             },
             children: vec![],
         }
@@ -449,12 +451,8 @@ mod tests {
         )
         .unwrap();
 
-        LayoutEditor::update_props(
-            &mut layout,
-            "0",
-            serde_json::json!({ "label": "New" }),
-        )
-        .unwrap();
+        LayoutEditor::update_props(&mut layout, "0", serde_json::json!({ "label": "New" }))
+            .unwrap();
 
         let node = &layout.children[0];
         assert_eq!(node.props["label"], "New");
@@ -573,13 +571,7 @@ mod tests {
         assert_eq!(layout.children[1].children.len(), 0);
 
         // Move button from container 0 → container 1.
-        LayoutEditor::reparent_component(
-            &mut layout,
-            "0/0",
-            "1",
-            area(1, 1, 2, 2),
-        )
-        .unwrap();
+        LayoutEditor::reparent_component(&mut layout, "0/0", "1", area(1, 1, 2, 2)).unwrap();
 
         assert_eq!(layout.children[0].children.len(), 0);
         assert_eq!(layout.children[1].children.len(), 1);
@@ -645,11 +637,7 @@ mod tests {
     #[test]
     fn test_invalid_path() {
         let mut layout = empty_layout();
-        let result = LayoutEditor::update_props(
-            &mut layout,
-            "0/abc",
-            serde_json::json!({}),
-        );
+        let result = LayoutEditor::update_props(&mut layout, "0/abc", serde_json::json!({}));
         assert!(matches!(result, Err(EditorError::InvalidPath(_))));
     }
 
@@ -663,11 +651,8 @@ mod tests {
     #[test]
     fn test_update_props_not_found() {
         let mut layout = empty_layout();
-        let result = LayoutEditor::update_props(
-            &mut layout,
-            "0",
-            serde_json::json!({ "label": "X" }),
-        );
+        let result =
+            LayoutEditor::update_props(&mut layout, "0", serde_json::json!({ "label": "X" }));
         assert!(matches!(result, Err(EditorError::NotFound(_))));
     }
 
@@ -681,12 +666,7 @@ mod tests {
     #[test]
     fn test_reparent_not_found_source() {
         let mut layout = empty_layout();
-        let result = LayoutEditor::reparent_component(
-            &mut layout,
-            "0",
-            "root",
-            area(1, 1, 2, 2),
-        );
+        let result = LayoutEditor::reparent_component(&mut layout, "0", "root", area(1, 1, 2, 2));
         assert!(matches!(result, Err(EditorError::NotFound(_))));
     }
 
