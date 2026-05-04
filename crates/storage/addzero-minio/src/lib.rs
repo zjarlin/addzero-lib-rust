@@ -48,13 +48,14 @@ pub struct MinioConfig {
     pub path_style_access: bool,
 }
 
-impl fmt::Debug for MinioConfig {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("MinioConfig")
+impl std::fmt::Debug for MinioConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("MinioConfig")
             .field("endpoint", &self.endpoint)
-            .field("access_key", &"***")
-            .field("secret_key", &"***")
+            .field("access_key", &REDACTED)
+            .field("secret_key", &REDACTED)
             .field("region", &self.region)
             .field("path_style_access", &self.path_style_access)
             .finish()
@@ -788,17 +789,13 @@ mod tests {
     }
 
     #[test]
-    fn minio_config_debug_masks_access_key_and_secret_key() {
-        let config = MinioConfig::builder("http://localhost:9000", "minioadmin", "minio-secret")
-            .build()
-            .expect("config should build");
+    fn minio_config_debug_redacts_keys() {
+        let config = MinioConfig::new("http://localhost:9000", "minioadmin", "minio-secret");
 
-        let debug = format!("{config:?}");
-
-        assert!(debug.contains("access_key: \"***\""));
-        assert!(debug.contains("secret_key: \"***\""));
-        assert!(!debug.contains("minioadmin"));
-        assert!(!debug.contains("minio-secret"));
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("minioadmin"));
+        assert!(!output.contains("minio-secret"));
     }
 
     #[test]

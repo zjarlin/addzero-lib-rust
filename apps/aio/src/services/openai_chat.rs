@@ -7,11 +7,23 @@ use serde::{Deserialize, Serialize};
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OpenAiChatConfigDto {
     pub base_url: String,
     pub api_key: String,
     pub model: String,
+}
+
+impl std::fmt::Debug for OpenAiChatConfigDto {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("OpenAiChatConfigDto")
+            .field("base_url", &self.base_url)
+            .field("api_key", &REDACTED)
+            .field("model", &self.model)
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -229,4 +241,22 @@ fn summarize(body: &str) -> String {
         .chars()
         .take(200)
         .collect()
+}
+
+#[cfg(test)]
+mod debug_redaction_tests {
+    use super::OpenAiChatConfigDto;
+
+    #[test]
+    fn openai_chat_config_debug_redacts_api_key() {
+        let config = OpenAiChatConfigDto {
+            base_url: "https://api.openai.com/v1".to_owned(),
+            api_key: "sk-test-secret".to_owned(),
+            model: "gpt-4o-mini".to_owned(),
+        };
+
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("sk-test-secret"));
+    }
 }

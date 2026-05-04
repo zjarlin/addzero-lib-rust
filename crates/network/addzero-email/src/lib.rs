@@ -48,14 +48,15 @@ pub struct EmailConfig {
     pub enable_tls: bool,
 }
 
-impl fmt::Debug for EmailConfig {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("EmailConfig")
+impl std::fmt::Debug for EmailConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("EmailConfig")
             .field("host", &self.host)
             .field("port", &self.port)
             .field("username", &self.username)
-            .field("password", &"***")
+            .field("password", &REDACTED)
             .field("protocol", &self.protocol)
             .field("enable_ssl", &self.enable_ssl)
             .field("enable_tls", &self.enable_tls)
@@ -394,18 +395,17 @@ fn build_attachment(path: &str) -> Result<SinglePart, EmailError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod debug_redaction_tests {
+    use super::EmailConfig;
 
     #[test]
-    fn email_config_debug_masks_password() {
-        let config = EmailConfig::builder("smtp.example.com", "mailer", "smtp-password")
+    fn email_config_debug_redacts_password() {
+        let config = EmailConfig::builder("smtp.example.com", "mailer", "top-secret")
             .build()
-            .expect("config should build");
+            .expect("email config should build");
 
-        let debug = format!("{config:?}");
-
-        assert!(debug.contains("password: \"***\""));
-        assert!(!debug.contains("smtp-password"));
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("top-secret"));
     }
 }

@@ -11,13 +11,14 @@ pub struct S3ClientConfig {
     pub path_style_access: bool,
 }
 
-impl fmt::Debug for S3ClientConfig {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("S3ClientConfig")
+impl std::fmt::Debug for S3ClientConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("S3ClientConfig")
             .field("endpoint", &self.endpoint)
-            .field("access_key", &"***")
-            .field("secret_key", &"***")
+            .field("access_key", &REDACTED)
+            .field("secret_key", &REDACTED)
             .field("region", &self.region)
             .field("path_style_access", &self.path_style_access)
             .finish()
@@ -74,13 +75,14 @@ pub struct RustfsConfig {
     pub region: String,
 }
 
-impl fmt::Debug for RustfsConfig {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("RustfsConfig")
+impl std::fmt::Debug for RustfsConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const REDACTED: &str = "***REDACTED***";
+
+        f.debug_struct("RustfsConfig")
             .field("endpoint", &self.endpoint)
-            .field("access_key", &"***")
-            .field("secret_key", &"***")
+            .field("access_key", &REDACTED)
+            .field("secret_key", &REDACTED)
             .field("region", &self.region)
             .finish()
     }
@@ -112,28 +114,31 @@ impl From<RustfsConfig> for S3ClientConfig {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod debug_redaction_tests {
+    use super::{RustfsConfig, S3ClientConfig};
 
     #[test]
-    fn s3_client_config_debug_masks_access_key_and_secret_key() {
-        let config = S3ClientConfig::new("http://localhost:9000", "rustfs-access", "rustfs-secret");
+    fn s3_client_config_debug_redacts_keys() {
+        let config = S3ClientConfig::new("http://localhost:9000", "rustfsadmin", "rustfs-secret");
 
-        let debug = format!("{config:?}");
-
-        assert!(debug.contains("access_key: \"***\""));
-        assert!(debug.contains("secret_key: \"***\""));
-        assert!(!debug.contains("rustfs-access"));
-        assert!(!debug.contains("rustfs-secret"));
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("rustfsadmin"));
+        assert!(!output.contains("rustfs-secret"));
     }
 
     #[test]
-    fn rustfs_config_debug_masks_access_key_and_secret_key() {
-        let config = RustfsConfig::default_local();
-        let debug = format!("{config:?}");
+    fn rustfs_config_debug_redacts_keys() {
+        let config = RustfsConfig {
+            endpoint: "http://localhost:9000".to_owned(),
+            access_key: "rustfsadmin".to_owned(),
+            secret_key: "rustfs-secret".to_owned(),
+            region: "us-east-1".to_owned(),
+        };
 
-        assert!(debug.contains("access_key: \"***\""));
-        assert!(debug.contains("secret_key: \"***\""));
-        assert!(!debug.contains("rustfsadmin"));
+        let output = format!("{config:?}");
+        assert!(output.contains("***REDACTED***"));
+        assert!(!output.contains("rustfsadmin"));
+        assert!(!output.contains("rustfs-secret"));
     }
 }
