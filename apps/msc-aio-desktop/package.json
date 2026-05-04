@@ -1,0 +1,15 @@
+{
+  "name": "msc-aio-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm tauri build",
+    "dev": "pnpm tauri dev",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "2.11.0",
+    "@tauri-apps/cli": "2.11.0"
+  }
+}

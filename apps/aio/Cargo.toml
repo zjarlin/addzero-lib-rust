@@ -20,9 +20,6 @@ serde_json.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.3.4", features = ["wasm_js"] }
-
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 addzero-ai-agent = { path = "../../crates/runtime/addzero-ai-agent" }
 addzero-assets = { path = "../../crates/data/addzero-assets" }
@@ -52,11 +49,7 @@ zip.workspace = true
 
 [build-dependencies]
 addzero-knowledge = { path = "../../crates/data/addzero-knowledge" }
-png = "0.17.16"
 tokio.workspace = true
-
-[features]
-default = []
 
 [lints]
 workspace = true

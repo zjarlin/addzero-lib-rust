@@ -10,9 +10,9 @@ use crate::services::StoredLogoDto;
 
 pub use super::LocalBoxFuture;
 
-const DEFAULT_SITE_NAME: &str = "AIO";
-const DEFAULT_BRAND_COPY: &str = "Knowledge Management System";
-const DEFAULT_HEADER_BADGE: &str = "v0.1.0";
+const DEFAULT_SITE_NAME: &str = "MSC_AIO";
+const DEFAULT_BRAND_COPY: &str = "顶部品牌区默认使用 App 图标，可切换为上传品牌资产。";
+const DEFAULT_HEADER_BADGE: &str = "Knowledge Workspace";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

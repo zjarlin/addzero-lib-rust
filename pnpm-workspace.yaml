@@ -1,0 +1,6 @@
+packages:
+  - apps/msc-aio-web
+  - apps/remote-desktop-web
+  - apps/msc-aio-desktop
+  - apps/remote-desktop-desktop
+  - packages/*
