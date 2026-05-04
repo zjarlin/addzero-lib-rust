@@ -27,7 +27,7 @@ pub fn source_specs() -> Vec<KnowledgeSourceSpec> {
 fn default_source_specs() -> Vec<KnowledgeSourceSpec> {
     let mut specs = Vec::new();
 
-    if let Some(rust_root) = env::var("DIOXUS_ADMIN_KB_SOURCE_DIR")
+    if let Some(rust_root) = env::var("MSC_AIO_KB_SOURCE_DIR")
         .ok()
         .filter(|value| !value.trim().is_empty())
         .map(PathBuf::from)

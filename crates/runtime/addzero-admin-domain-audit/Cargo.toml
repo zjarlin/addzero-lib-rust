@@ -8,8 +8,6 @@ authors.workspace = true
 
 [dependencies]
 addzero-admin-plugin-registry = { path = "../addzero-admin-plugin-registry" }
-dioxus.workspace = true
-dioxus-components = { path = "../../ui/dioxus-components" }
 
 [lints]
 workspace = true

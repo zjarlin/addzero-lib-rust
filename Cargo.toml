@@ -12,10 +12,12 @@ members = [
     "crates/runtime/*",
     "crates/storage/*",
     "crates/text/*",
-    "crates/ui/*",
     "crates/apps/addzero-lowcode",
 ]
-exclude = ["apps/remote-desktop"]
+exclude = [
+    "apps/remote-desktop",
+    "crates/ui/addzero-remote-ui",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -56,8 +58,6 @@ thiserror = "2.0.17"
 toml_edit = { version = "0.22.27", features = ["serde"] }
 trybuild = "1.0.112"
 zip = "4.6.1"
-dioxus = { version = "=0.7.5", features = ["router"] }
-dioxus-free-icons = { version = "0.10.0", features = ["lucide"] }
 anyhow = "1.0.99"
 async-trait = "0.1.89"
 urlencoding = "2.1"
