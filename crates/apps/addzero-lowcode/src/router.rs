@@ -1,5 +1,4 @@
 /// Axum router for the lowcode service.
-
 use axum::{
     Router,
     extract::{Path, State},
@@ -110,15 +109,56 @@ async fn delete_template(_state: State<LowcodeState>, _id: Path<Uuid>) -> impl I
 }
 
 // ---------------------------------------------------------------------------
-// Component registry (skeleton — #77)
+// Component registry (#77 — implemented)
 // ---------------------------------------------------------------------------
 
-async fn list_components(_state: State<LowcodeState>) -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, "list_components")
+/// GET /api/lowcode/component → JSON array of registered component info.
+async fn list_components(state: State<LowcodeState>) -> impl IntoResponse {
+    let reg = state.registry.read().await;
+    let info = reg.list_info();
+    axum::Json(info)
 }
 
-async fn register_component(_state: State<LowcodeState>) -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, "register_component")
+/// POST /api/lowcode/component → register a new component type.
+///
+/// Accepts JSON body: `{ "type_key": "...", "category": "...", "props_schema": {...} }`
+async fn register_component(
+    state: State<LowcodeState>,
+    axum::extract::Json(body): axum::extract::Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let type_key = body.get("type_key").and_then(|v| v.as_str());
+    let category = body.get("category").and_then(|v| v.as_str());
+    let props_schema = body.get("props_schema").cloned();
+
+    let (Some(type_key), Some(category), Some(props_schema)) = (type_key, category, props_schema)
+    else {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(
+                serde_json::json!({"error": "missing required fields: type_key, category, props_schema"}),
+            ),
+        );
+    };
+
+    let entry = crate::registry::ComponentEntry {
+        type_key: type_key.to_string(),
+        category: category.to_string(),
+        props_schema,
+        renderer: Box::new(|node| {
+            // Default passthrough renderer for user-registered components
+            format!(
+                r#"<div class="lc-component lc-{}">{}</div>"#,
+                node.type_key, node.props
+            )
+        }),
+    };
+
+    let mut reg = state.registry.write().await;
+    reg.register(entry);
+    (
+        StatusCode::CREATED,
+        axum::Json(serde_json::json!({"type_key": type_key, "status": "registered"})),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -133,10 +173,7 @@ pub fn lowcode_router(state: LowcodeState) -> Router {
             "/api/lowcode/layout/{id}",
             get(get_layout).put(update_layout).delete(delete_layout),
         )
-        .route(
-            "/api/lowcode/layout/{id}/node",
-            post(place_component),
-        )
+        .route("/api/lowcode/layout/{id}/node", post(place_component))
         .route(
             "/api/lowcode/layout/{id}/node/{*path}",
             patch(update_props).delete(delete_component),
@@ -151,7 +188,9 @@ pub fn lowcode_router(state: LowcodeState) -> Router {
         )
         .route(
             "/api/lowcode/template/{id}",
-            get(get_template).put(update_template).delete(delete_template),
+            get(get_template)
+                .put(update_template)
+                .delete(delete_template),
         )
         .route(
             "/api/lowcode/component",

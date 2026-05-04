@@ -20,5 +20,8 @@ pub use schema::{
 // Re-export repository trait and record
 pub use repo::{LayoutRecord, LayoutRepository, PgLayoutRepo, RepoError};
 
+// Re-export registry types
+pub use registry::{ComponentEntry, ComponentInfo, ComponentRegistry, RegistryError};
+
 pub use router::lowcode_router;
 pub use state::LowcodeState;
