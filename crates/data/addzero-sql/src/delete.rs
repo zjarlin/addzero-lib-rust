@@ -1,3 +1,4 @@
+use crate::quote_identifier;
 use crate::{Query, QueryError};
 
 /// A DELETE query builder.
@@ -47,7 +48,11 @@ impl DeleteQuery {
 impl Query for DeleteQuery {
     fn build(&self) -> (String, Vec<String>) {
         let mut all_params: Vec<String> = Vec::new();
-        let table = self.table.as_deref().unwrap_or("unknown");
+        let table = self
+            .table
+            .as_deref()
+            .map(|t| quote_identifier(t))
+            .unwrap_or_else(|| quote_identifier("unknown"));
 
         let mut sql = format!("DELETE FROM {}", table);
 
@@ -83,7 +88,7 @@ mod tests {
             .from("users")
             .r#where("id = ?", vec!["42"]);
         let (sql, params) = q.build();
-        assert_eq!(sql, "DELETE FROM users WHERE id = ?;");
+        assert_eq!(sql, "DELETE FROM \"users\" WHERE id = ?;");
         assert_eq!(params, vec!["42"]);
     }
 
@@ -91,7 +96,7 @@ mod tests {
     fn delete_all() {
         let q = DeleteQuery::new().from("sessions");
         let (sql, params) = q.build();
-        assert_eq!(sql, "DELETE FROM sessions;");
+        assert_eq!(sql, "DELETE FROM \"sessions\";");
         assert!(params.is_empty());
     }
 

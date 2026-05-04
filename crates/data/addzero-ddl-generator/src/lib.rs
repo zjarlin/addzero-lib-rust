@@ -28,7 +28,7 @@ mod table;
 
 pub use column::{Column, ColumnType};
 pub use dialect::Dialect;
-pub use generator::DdlGenerator;
+pub use generator::{quote_identifier, DdlGenerator};
 pub use table::Table;
 
 /// Errors that can occur during DDL generation.

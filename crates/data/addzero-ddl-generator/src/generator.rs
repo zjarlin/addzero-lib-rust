@@ -1,7 +1,27 @@
-use crate::DdlError;
 use crate::column::{Column, ColumnType};
 use crate::dialect::Dialect;
 use crate::table::Table;
+use crate::DdlError;
+
+/// Quote a SQL identifier to prevent injection.
+///
+/// Uses backticks for MySQL, double quotes for PostgreSQL and SQLite.
+/// The closing quote character within the identifier is escaped by doubling it.
+pub fn quote_identifier(identifier: &str, dialect: Dialect) -> String {
+    let (open, close) = match dialect {
+        Dialect::MySQL => ("`", "`"),
+        Dialect::PostgreSQL | Dialect::SQLite => ("\"", "\""),
+    };
+    let escaped = identifier.replace(close, &format!("{}{}", close, close));
+    format!("{}{}{}", open, escaped, close)
+}
+
+/// Escape a string literal for use inside single-quoted SQL strings.
+///
+/// Replaces `'` with `''` (two single quotes).
+fn escape_sql_string_literal(value: &str) -> String {
+    value.replace('\'', "''")
+}
 
 /// DDL statement generator.
 ///
@@ -35,8 +55,9 @@ impl DdlGenerator {
             }
         }
 
+        let quoted_name = quote_identifier(&table.name, self.dialect);
         let mut sql = String::new();
-        sql.push_str(&format!("CREATE TABLE {} (\n", table.name));
+        sql.push_str(&format!("CREATE TABLE {} (\n", quoted_name));
 
         let column_defs: Vec<String> = table
             .columns
@@ -51,7 +72,8 @@ impl DdlGenerator {
         match self.dialect {
             Dialect::MySQL => {
                 if let Some(ref comment) = table.comment {
-                    sql.push_str(&format!(" COMMENT='{}'", comment));
+                    let escaped = escape_sql_string_literal(comment);
+                    sql.push_str(&format!(" COMMENT='{}'", escaped));
                 }
             }
             Dialect::PostgreSQL | Dialect::SQLite => {
@@ -74,9 +96,10 @@ impl DdlGenerator {
         }
 
         let col_def = self.format_column_def(column);
+        let quoted_table = quote_identifier(table_name, self.dialect);
         Ok(format!(
             "ALTER TABLE {} ADD COLUMN {};",
-            table_name, col_def
+            quoted_table, col_def
         ))
     }
 
@@ -100,9 +123,15 @@ impl DdlGenerator {
         }
 
         let unique_kw = if unique { "UNIQUE " } else { "" };
+        let quoted_index = quote_identifier(index_name, self.dialect);
+        let quoted_table = quote_identifier(table_name, self.dialect);
+        let quoted_cols: Vec<String> = columns
+            .iter()
+            .map(|c| quote_identifier(c, self.dialect))
+            .collect();
         Ok(format!(
-            "CREATE {unique_kw}INDEX {index_name} ON {table_name} ({});",
-            columns.join(", ")
+            "CREATE {unique_kw}INDEX {quoted_index} ON {quoted_table} ({});",
+            quoted_cols.join(", ")
         ))
     }
 
@@ -117,12 +146,14 @@ impl DdlGenerator {
         }
 
         let if_exists_kw = if if_exists { "IF EXISTS " } else { "" };
-        Ok(format!("DROP TABLE {if_exists_kw}{table_name};"))
+        let quoted_table = quote_identifier(table_name, self.dialect);
+        Ok(format!("DROP TABLE {if_exists_kw}{quoted_table};"))
     }
 
     fn format_column_def(&self, col: &Column) -> String {
         let type_str = self.map_column_type(&col.column_type);
-        let mut parts = vec![format!("  {} {}", col.name, type_str)];
+        let quoted_name = quote_identifier(&col.name, self.dialect);
+        let mut parts = vec![format!("  {} {}", quoted_name, type_str)];
 
         if col.primary_key {
             parts.push("PRIMARY KEY".to_string());
@@ -201,7 +232,7 @@ mod tests {
         let ddl = DdlGenerator::new(Dialect::PostgreSQL);
         let sql = ddl.generate_create_table(&sample_table()).unwrap();
 
-        assert!(sql.contains("CREATE TABLE users"));
+        assert!(sql.contains("CREATE TABLE \"users\""));
         assert!(sql.contains("BIGINT"));
         assert!(sql.contains("VARCHAR(255)"));
         assert!(sql.contains("BOOLEAN"));
@@ -258,7 +289,7 @@ mod tests {
             .default("0");
         let sql = ddl.generate_add_column("users", &col).unwrap();
 
-        assert!(sql.contains("ALTER TABLE users ADD COLUMN"));
+        assert!(sql.contains("ALTER TABLE \"users\" ADD COLUMN"));
         assert!(sql.contains("INTEGER"));
         assert!(sql.contains("NOT NULL"));
         assert!(sql.contains("DEFAULT 0"));
@@ -272,15 +303,16 @@ mod tests {
             .unwrap();
 
         assert!(sql.contains("CREATE UNIQUE INDEX"));
-        assert!(sql.contains("idx_users_email"));
-        assert!(sql.contains("ON users"));
+        assert!(sql.contains("\"idx_users_email\""));
+        assert!(sql.contains("ON \"users\""));
+        assert!(sql.contains("(\"email\")"));
     }
 
     #[test]
     fn drop_table_if_exists() {
         let ddl = DdlGenerator::new(Dialect::SQLite);
         let sql = ddl.generate_drop_table("old_table", true).unwrap();
-        assert_eq!(sql, "DROP TABLE IF EXISTS old_table;");
+        assert_eq!(sql, "DROP TABLE IF EXISTS \"old_table\";");
     }
 
     #[test]
@@ -344,5 +376,70 @@ mod tests {
 
         let ddl = DdlGenerator::new(Dialect::SQLite);
         assert!(ddl.generate_create_table(&t).unwrap().contains("TEXT"));
+    }
+
+    // ── Injection prevention tests ──────────────────────────────────
+
+    #[test]
+    fn identifiers_are_quoted_postgresql() {
+        let ddl = DdlGenerator::new(Dialect::PostgreSQL);
+        let table = Table::new("users").column(Column::new("name", ColumnType::Text));
+        let sql = ddl.generate_create_table(&table).unwrap();
+        assert!(sql.contains("CREATE TABLE \"users\""));
+        assert!(sql.contains("\"name\" TEXT"));
+    }
+
+    #[test]
+    fn identifiers_are_quoted_mysql() {
+        let ddl = DdlGenerator::new(Dialect::MySQL);
+        let table = Table::new("users").column(Column::new("name", ColumnType::Text));
+        let sql = ddl.generate_create_table(&table).unwrap();
+        assert!(sql.contains("CREATE TABLE `users`"));
+        assert!(sql.contains("`name` TEXT"));
+    }
+
+    #[test]
+    fn mysql_comment_escapes_single_quotes() {
+        let ddl = DdlGenerator::new(Dialect::MySQL);
+        let table = Table::new("t")
+            .column(Column::new("id", ColumnType::Integer))
+            .comment("it's a comment");
+        let sql = ddl.generate_create_table(&table).unwrap();
+        // Single quote is escaped to two single quotes
+        assert!(sql.contains("COMMENT='it''s a comment'"));
+    }
+
+    #[test]
+    fn drop_table_quotes_name() {
+        let ddl = DdlGenerator::new(Dialect::PostgreSQL);
+        let sql = ddl.generate_drop_table("my_table", false).unwrap();
+        assert_eq!(sql, "DROP TABLE \"my_table\";");
+    }
+
+    #[test]
+    fn drop_table_quotes_name_mysql() {
+        let ddl = DdlGenerator::new(Dialect::MySQL);
+        let sql = ddl.generate_drop_table("my_table", true).unwrap();
+        assert_eq!(sql, "DROP TABLE IF EXISTS `my_table`;");
+    }
+
+    #[test]
+    fn add_column_quotes_table_name() {
+        let ddl = DdlGenerator::new(Dialect::PostgreSQL);
+        let col = Column::new("status", ColumnType::Text);
+        let sql = ddl.generate_add_column("orders", &col).unwrap();
+        assert!(sql.contains("ALTER TABLE \"orders\""));
+        assert!(sql.contains("\"status\" TEXT"));
+    }
+
+    #[test]
+    fn create_index_quotes_all_identifiers() {
+        let ddl = DdlGenerator::new(Dialect::PostgreSQL);
+        let sql = ddl
+            .generate_create_index("idx_user_email", "users", &["email", "domain"], false)
+            .unwrap();
+        assert!(sql.contains("\"idx_user_email\""));
+        assert!(sql.contains("ON \"users\""));
+        assert!(sql.contains("\"email\", \"domain\""));
     }
 }

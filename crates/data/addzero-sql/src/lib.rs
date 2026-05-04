@@ -86,3 +86,13 @@ pub enum JoinType {
     /// CROSS JOIN.
     Cross,
 }
+
+/// Quote a SQL identifier using ANSI SQL double-quote convention.
+///
+/// Escapes embedded double quotes by doubling them (`"` → `""`).
+/// This prevents SQL injection through identifier positions (table names,
+/// column names, etc.).
+pub fn quote_identifier(identifier: &str) -> String {
+    let escaped = identifier.replace('"', "\"\"");
+    format!("\"{}\"", escaped)
+}

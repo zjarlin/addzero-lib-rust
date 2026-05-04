@@ -1,3 +1,4 @@
+use crate::quote_identifier;
 use crate::{JoinType, Query, SortOrder};
 
 /// A SELECT query builder.
@@ -129,12 +130,13 @@ impl Query for SelectQuery {
         if self.columns.is_empty() {
             sql.push('*');
         } else {
-            sql.push_str(&self.columns.join(", "));
+            let quoted: Vec<String> = self.columns.iter().map(|c| quote_identifier(c)).collect();
+            sql.push_str(&quoted.join(", "));
         }
 
         // FROM clause
         if let Some(ref table) = self.table {
-            sql.push_str(&format!(" FROM {}", table));
+            sql.push_str(&format!(" FROM {}", quote_identifier(table)));
         }
 
         // JOIN clauses
@@ -146,7 +148,12 @@ impl Query for SelectQuery {
                 JoinType::FullOuter => "FULL OUTER JOIN",
                 JoinType::Cross => "CROSS JOIN",
             };
-            sql.push_str(&format!(" {} {} ON {}", join_kw, join.table, join.on));
+            sql.push_str(&format!(
+                " {} {} ON {}",
+                join_kw,
+                quote_identifier(&join.table),
+                join.on
+            ));
         }
 
         // WHERE clause
@@ -165,7 +172,8 @@ impl Query for SelectQuery {
 
         // GROUP BY
         if !self.group_by.is_empty() {
-            sql.push_str(&format!(" GROUP BY {}", self.group_by.join(", ")));
+            let quoted: Vec<String> = self.group_by.iter().map(|c| quote_identifier(c)).collect();
+            sql.push_str(&format!(" GROUP BY {}", quoted.join(", ")));
         }
 
         // HAVING
@@ -184,7 +192,7 @@ impl Query for SelectQuery {
                         SortOrder::Asc => "ASC",
                         SortOrder::Desc => "DESC",
                     };
-                    format!("{} {}", col, dir)
+                    format!("{} {}", quote_identifier(col), dir)
                 })
                 .collect();
             sql.push_str(&format!(" ORDER BY {}", parts.join(", ")));
@@ -212,7 +220,7 @@ mod tests {
     fn simple_select_all() {
         let q = SelectQuery::new().from("users");
         let (sql, params) = q.build();
-        assert_eq!(sql, "SELECT * FROM users");
+        assert_eq!(sql, "SELECT * FROM \"users\"");
         assert!(params.is_empty());
     }
 
@@ -222,7 +230,7 @@ mod tests {
             .select(&["id", "name", "email"])
             .from("users");
         let (sql, _) = q.build();
-        assert_eq!(sql, "SELECT id, name, email FROM users");
+        assert_eq!(sql, "SELECT \"id\", \"name\", \"email\" FROM \"users\"");
     }
 
     #[test]
@@ -244,7 +252,7 @@ mod tests {
             .from("users")
             .distinct();
         let (sql, _) = q.build();
-        assert!(sql.starts_with("SELECT DISTINCT country"));
+        assert!(sql.starts_with("SELECT DISTINCT \"country\""));
     }
 
     #[test]
@@ -254,7 +262,7 @@ mod tests {
             .from("users")
             .inner_join("orders", "users.id = orders.user_id");
         let (sql, _) = q.build();
-        assert!(sql.contains("INNER JOIN orders ON users.id = orders.user_id"));
+        assert!(sql.contains("INNER JOIN \"orders\" ON users.id = orders.user_id"));
     }
 
     #[test]
@@ -264,7 +272,7 @@ mod tests {
             .from("users")
             .left_join("profiles", "users.id = profiles.user_id");
         let (sql, _) = q.build();
-        assert!(sql.contains("LEFT JOIN profiles ON users.id = profiles.user_id"));
+        assert!(sql.contains("LEFT JOIN \"profiles\" ON users.id = profiles.user_id"));
     }
 
     #[test]
@@ -275,7 +283,7 @@ mod tests {
             .group_by(&["department"])
             .having("COUNT(*) > ?", vec!["5"]);
         let (sql, params) = q.build();
-        assert!(sql.contains("GROUP BY department"));
+        assert!(sql.contains("GROUP BY \"department\""));
         assert!(sql.contains("HAVING COUNT(*) > ?"));
         assert_eq!(params, vec!["5"]);
     }
@@ -290,7 +298,7 @@ mod tests {
             .limit(10)
             .offset(20);
         let (sql, _) = q.build();
-        assert!(sql.contains("ORDER BY name ASC, id DESC"));
+        assert!(sql.contains("ORDER BY \"name\" ASC, \"id\" DESC"));
         assert!(sql.contains("LIMIT 10"));
         assert!(sql.contains("OFFSET 20"));
     }
@@ -306,9 +314,9 @@ mod tests {
             .order_by("o.total", false)
             .limit(5);
         let (sql, params) = q.build();
-        assert!(sql.contains("FROM users u"));
-        assert!(sql.contains("INNER JOIN orders o"));
-        assert!(sql.contains("ORDER BY o.total DESC"));
+        assert!(sql.contains("FROM \"users u\""));
+        assert!(sql.contains("INNER JOIN \"orders o\""));
+        assert!(sql.contains("ORDER BY \"o.total\" DESC"));
         assert!(sql.contains("LIMIT 5"));
         assert_eq!(params, vec!["100", "true"]);
     }
@@ -319,6 +327,22 @@ mod tests {
             .from("users")
             .r#where("id = ?", vec!["1"]);
         let sql = q.to_sql();
-        assert!(sql.contains("SELECT * FROM users WHERE id = ?"));
+        assert!(sql.contains("SELECT * FROM \"users\" WHERE id = ?"));
+    }
+
+    // ── Injection prevention tests ──────────────────────────────────
+
+    #[test]
+    fn select_quotes_table_name_with_injection_attempt() {
+        let q = SelectQuery::new().from("users; DROP TABLE users; --");
+        let (sql, _) = q.build();
+        assert!(sql.contains("FROM \"users; DROP TABLE users; --\""));
+    }
+
+    #[test]
+    fn select_escapes_double_quotes_in_identifier() {
+        let q = SelectQuery::new().from("my\"table");
+        let (sql, _) = q.build();
+        assert!(sql.contains("FROM \"my\"\"table\""));
     }
 }
