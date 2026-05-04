@@ -1,6 +1,7 @@
 mod auth;
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use anyhow::Result;
 use axum::{
@@ -18,9 +19,11 @@ use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 
 use crate::services::{
     AssetGraphDto, AssetSyncReportDto, BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto,
-    ChatResponseDto, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto,
+    ChatResponseDto, FileIndexDto, FilterOptions, ScanStatsDto,
+    ShareLinkDto, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto,
     KnowledgeFeedDto, KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto,
     KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest,
+    download_station::{FileIndex, ScanStats, ShareLink},
     OpenAiChatConfigDto, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
     StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
     StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,
@@ -35,6 +38,7 @@ pub struct BackendServices {
     pub admin_auth: AdminSessionService,
     pub cli_market: crate::services::cli_market::CliMarketService,
     pub software_catalog: Option<addzero_software_catalog::SoftwareCatalogService>,
+    pub download_station: Option<crate::services::download_station::DownloadStationService>,
 }
 
 static SERVICES: OnceCell<BackendServices> = OnceCell::const_new();
@@ -67,11 +71,21 @@ pub async fn services() -> &'static BackendServices {
                     None
                 };
 
+            let download_station = if let Some(url) = database_url.as_deref() {
+                sqlx::PgPool::connect(url)
+                    .await
+                    .ok()
+                    .map(|pool| crate::services::default_download_station_api(pool))
+            } else {
+                None
+            };
+
             BackendServices {
                 skills,
                 admin_auth,
                 cli_market,
                 software_catalog,
+                download_station,
             }
         })
         .await
@@ -213,6 +227,31 @@ pub async fn run_api_server() -> Result<()> {
         .route(
             "/api/admin/system/dict-items/{id}",
             put(sys_update_dict_item).delete(sys_delete_dict_item),
+        )
+        // ─── Download Station ───────────────────────────────────────
+        .route(
+            "/api/admin/download-station/scan",
+            post(ds_scan_directories),
+        )
+        .route(
+            "/api/admin/download-station/files",
+            post(ds_list_files),
+        )
+        .route(
+            "/api/admin/download-station/stats",
+            get(ds_get_stats),
+        )
+        .route(
+            "/api/admin/download-station/share",
+            post(ds_create_share),
+        )
+        .route(
+            "/api/admin/download-station/share/{token}",
+            get(ds_get_share),
+        )
+        .route(
+            "/api/admin/download-station/download/{source}/{path:path}",
+            get(ds_download_file),
         )
         .layer(cors_layer());
 
@@ -1034,6 +1073,150 @@ async fn sys_delete_dict_item(headers: HeaderMap, Path(id): Path<i32>) -> ApiRes
     Ok(StatusCode::NO_CONTENT)
 }
 
+// ─── Download Station Handlers ─────────────────────────────────────────────────────
+
+#[derive(serde::Deserialize)]
+struct ScanRequest {
+    directories: Vec<String>,
+}
+
+async fn ds_scan_directories(
+    headers: HeaderMap,
+    Json(req): Json<ScanRequest>,
+) -> ApiResult<Json<ScanStats>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ds = backend
+        .download_station
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
+    let result: ScanStats = ds.scan_directories(req.directories)
+        .await
+        .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(result))
+}
+
+async fn ds_list_files(
+    headers: HeaderMap,
+    Json(filter): Json<FilterOptions>,
+) -> ApiResult<Json<Vec<FileIndex>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ds = backend
+        .download_station
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
+    let result: Vec<FileIndex> = ds.list_files(filter)
+        .await
+        .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(result))
+}
+
+async fn ds_get_stats(headers: HeaderMap) -> ApiResult<Json<ScanStats>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ds = backend
+        .download_station
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
+    let result: ScanStats = ds.get_stats()
+        .await
+        .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(result))
+}
+
+#[derive(serde::Deserialize)]
+struct CreateShareRequest {
+    source: String,
+    path: String,
+    file_name: String,
+    hours: i64,
+}
+
+async fn ds_create_share(
+    headers: HeaderMap,
+    Json(req): Json<CreateShareRequest>,
+) -> ApiResult<Json<ShareLink>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ds = backend
+        .download_station
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
+    let user = backend.admin_auth.current_user(&headers);
+    let created_by = user.as_deref();
+    let share_link = ds.create_share(&req.source, &req.path, &req.file_name, req.hours, created_by)
+        .await
+        .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(share_link))
+}
+
+async fn ds_get_share(
+    headers: HeaderMap,
+    Path(token): Path<String>,
+) -> ApiResult<Json<Option<ShareLink>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let ds = backend
+        .download_station
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
+    let result: Option<ShareLink> = ds.get_share(&token).await
+        .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
+    Ok(Json(result))
+}
+
+async fn ds_download_file(
+    headers: HeaderMap,
+    Path((source, path)): Path<(String, String)>,
+) -> ApiResult<Response> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    
+    // 从数据库获取文件完整路径
+    let ds = backend
+        .download_station
+        .as_ref()
+        .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
+    
+    let files: Vec<FileIndex> = ds
+        .list_files(FilterOptions {
+            source: Some(source.clone()),
+            category: None,
+            query: Some(path.clone()),
+            offset: 0,
+            limit: 1,
+        })
+        .await
+        .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
+    
+    let file = files
+        .first()
+        .ok_or_else(|| ApiError::bad_request("File not found"))?;
+    
+    let file_path = PathBuf::from(&file.full_path);
+    if !file_path.exists() {
+        return Err(ApiError::bad_request("File not found on disk"));
+    }
+    
+    let mime_type = mime_guess::from_path(&file_path)
+        .first_or_octet_stream()
+        .to_string();
+    
+    let contents = tokio::fs::read(&file_path)
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to read file: {}", e)))?;
+    
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", mime_type)
+        .header("Content-Disposition", format!("attachment; filename=\"{}\"", file.name))
+        .body(axum::body::Body::from(contents))
+        .map_err(|e| ApiError::internal(format!("Failed to build response: {}", e)))?;
+    
+    Ok(response)
+}
+
 fn ensure_auth(auth: &AdminSessionService, headers: &HeaderMap) -> ApiResult<()> {
     if auth.current_user(headers).is_none() {
         return Err(ApiError::unauthorized("需要先登录后台"));
@@ -1099,6 +1282,13 @@ impl ApiError {
     fn internal(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
+            message: message.into(),
+        }
+    }
+
+    fn not_found(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::NOT_FOUND,
             message: message.into(),
         }
     }

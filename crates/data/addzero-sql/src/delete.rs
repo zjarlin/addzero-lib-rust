@@ -1,5 +1,5 @@
 use crate::quote_identifier;
-use crate::{Query, QueryError};
+use crate::{Query, QueryError, require_table_name};
 
 /// A DELETE query builder.
 #[derive(Debug, Clone, Default)]

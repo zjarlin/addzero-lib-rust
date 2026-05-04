@@ -1,5 +1,5 @@
 use crate::quote_identifier;
-use crate::{JoinType, Query, SortOrder};
+use crate::{JoinType, Query, QueryError, SortOrder, require_table_name};
 
 /// A SELECT query builder.
 #[derive(Debug, Clone, Default)]
