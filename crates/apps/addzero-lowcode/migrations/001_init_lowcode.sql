@@ -1,50 +1,44 @@
--- Lowcode service — initial schema
--- Tables follow the all-in-pg convention.
+-- Lowcode service — initial schema (issue #75)
+-- Tables follow the all-in-pg convention with lc_ prefix.
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ---------------------------------------------------------------------------
--- layouts: top-level container of component nodes
+-- lc_layout: top-level container with JSONB schema + optimistic versioning
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS lowcode_layouts (
+CREATE TABLE IF NOT EXISTS lc_layout (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        TEXT NOT NULL,
-    nodes       JSONB NOT NULL DEFAULT '[]'::jsonb,
+    schema      JSONB NOT NULL,
+    version     INT NOT NULL DEFAULT 1,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ---------------------------------------------------------------------------
--- component_defs: registered component type metadata
+-- lc_component: registered component type metadata
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS lowcode_component_defs (
-    type_name    TEXT PRIMARY KEY,
-    props_schema JSONB NOT NULL DEFAULT '{}'::jsonb,
-    category     TEXT NOT NULL DEFAULT 'general',
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE TABLE IF NOT EXISTS lc_component (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type_key      TEXT NOT NULL UNIQUE,
+    props_schema  JSONB NOT NULL DEFAULT '{}'::jsonb,
+    category      TEXT NOT NULL DEFAULT 'basic',
+    icon          TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ---------------------------------------------------------------------------
--- templates: reusable layout templates
+-- lc_event_binding: bindings that connect component events to handlers
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS lowcode_templates (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name       TEXT NOT NULL,
-    layout     JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE TABLE IF NOT EXISTS lc_event_binding (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    layout_id        UUID NOT NULL REFERENCES lc_layout(id) ON DELETE CASCADE,
+    component_path   TEXT NOT NULL,
+    event_type       TEXT NOT NULL,
+    handler_type     TEXT NOT NULL,
+    handler_config   JSONB NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ---------------------------------------------------------------------------
--- event_bindings: bindings that connect component events to handlers
--- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS lowcode_event_bindings (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    layout_id    UUID NOT NULL REFERENCES lowcode_layouts(id) ON DELETE CASCADE,
-    node_id      UUID NOT NULL,
-    event_name   TEXT NOT NULL,
-    handler      JSONB NOT NULL,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_event_bindings_layout
-    ON lowcode_event_bindings(layout_id);
+CREATE INDEX IF NOT EXISTS idx_event_binding_layout
+    ON lc_event_binding(layout_id);

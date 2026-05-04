@@ -1,8 +1,18 @@
 /// Template management — save/load reusable layout templates (skeleton — to be fleshed out in #81).
 
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::schema::Template;
+use crate::schema::LayoutSchema;
+
+/// A reusable layout template (skeleton — will be fleshed out in #81).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Template {
+    pub id: Uuid,
+    pub name: String,
+    pub layout: LayoutSchema,
+    pub created_at: String,
+}
 
 /// Errors from template operations.
 #[derive(Debug, thiserror::Error)]
