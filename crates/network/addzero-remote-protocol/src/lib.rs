@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+use std::fmt;
+
 use addzero_remote_model::{
     ClipboardPayload, DeviceDescriptor, FileTransferEnvelope, RemoteInputEvent, SessionGrant,
     SessionRequest, VideoFrameEnvelope,
@@ -24,10 +26,20 @@ pub enum StreamKind {
     File,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeviceHello {
     pub device: DeviceDescriptor,
     pub relay_token: String,
+}
+
+impl fmt::Debug for DeviceHello {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("DeviceHello")
+            .field("device", &self.device)
+            .field("relay_token", &"***")
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
