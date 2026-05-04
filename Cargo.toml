@@ -1,12 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "apps/*",
+    "apps/aio",
     "crates/*",
-]
-exclude = [
-    "apps/remote-desktop",
-    "crates/ui/addzero-remote-ui",
 ]
 
 [workspace.package]
