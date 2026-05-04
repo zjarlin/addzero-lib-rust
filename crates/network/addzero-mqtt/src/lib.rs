@@ -4,6 +4,7 @@ use rumqttc::{
     Client, ClientError, Connection, Event, LastWill, MqttOptions, Packet, QoS, RecvTimeoutError,
     SubscribeFilter, Transport,
 };
+use std::fmt;
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -165,7 +166,7 @@ impl MqttSubscription {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,
@@ -183,6 +184,30 @@ pub struct MqttConfig {
     pub client_cert_path: Option<String>,
     pub client_key_path: Option<String>,
     pub last_will: Option<MqttMessage>,
+}
+
+impl fmt::Debug for MqttConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MqttConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("client_id", &self.client_id)
+            .field("username", &self.username)
+            .field("password", &self.password.as_deref().map(|_| "***"))
+            .field("keep_alive_secs", &self.keep_alive_secs)
+            .field("clean_session", &self.clean_session)
+            .field("request_channel_capacity", &self.request_channel_capacity)
+            .field("inflight", &self.inflight)
+            .field("connect_timeout_secs", &self.connect_timeout_secs)
+            .field("poll_timeout_ms", &self.poll_timeout_ms)
+            .field("use_tls", &self.use_tls)
+            .field("ca_path", &self.ca_path)
+            .field("client_cert_path", &self.client_cert_path)
+            .field("client_key_path", &self.client_key_path)
+            .field("last_will", &self.last_will)
+            .finish()
+    }
 }
 
 impl MqttConfig {
@@ -631,5 +656,22 @@ impl From<rumqttc::Publish> for MqttReceivedMessage {
             duplicate: value.dup,
             packet_id: (value.pkid != 0).then_some(value.pkid),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mqtt_config_debug_masks_password_when_present() {
+        let config = MqttConfig::builder("broker.example.com", "client-id")
+            .username("alice")
+            .password("broker-password");
+
+        let debug = format!("{config:?}");
+
+        assert!(debug.contains("password: Some(\"***\")"));
+        assert!(!debug.contains("broker-password"));
     }
 }

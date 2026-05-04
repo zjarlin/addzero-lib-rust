@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 use ssh2::Session;
+use std::fmt;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
@@ -49,7 +50,7 @@ pub enum SshError {
 
 pub type SshResult<T> = Result<T, SshError>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct SshConfig {
     pub host: String,
     pub port: u16,
@@ -59,6 +60,25 @@ pub struct SshConfig {
     pub private_key_passphrase: Option<String>,
     pub connect_timeout_ms: u32,
     pub read_timeout_ms: u32,
+}
+
+impl fmt::Debug for SshConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SshConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("username", &self.username)
+            .field("password", &self.password.as_deref().map(|_| "***"))
+            .field("private_key_path", &self.private_key_path)
+            .field(
+                "private_key_passphrase",
+                &self.private_key_passphrase.as_deref().map(|_| "***"),
+            )
+            .field("connect_timeout_ms", &self.connect_timeout_ms)
+            .field("read_timeout_ms", &self.read_timeout_ms)
+            .finish()
+    }
 }
 
 impl SshConfig {
@@ -686,4 +706,23 @@ fn file_name_string(path: &Path) -> Option<String> {
 
 fn trim_line_ending(value: &str) -> &str {
     value.trim_end_matches(&['\r', '\n'][..])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ssh_config_debug_masks_credentials_when_present() {
+        let config = SshConfig::builder("example.com", "root")
+            .password("super-secret")
+            .private_key_passphrase("key-passphrase");
+
+        let debug = format!("{config:?}");
+
+        assert!(debug.contains("password: Some(\"***\")"));
+        assert!(debug.contains("private_key_passphrase: Some(\"***\")"));
+        assert!(!debug.contains("super-secret"));
+        assert!(!debug.contains("key-passphrase"));
+    }
 }
