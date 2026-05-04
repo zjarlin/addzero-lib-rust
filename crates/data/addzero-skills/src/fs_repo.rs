@@ -51,7 +51,7 @@ impl FsRepo {
     /// malformed file.
     pub async fn list(&self) -> Result<Vec<Skill>> {
         let mut out = Vec::new();
-        if !self.root.exists() {
+        if !tokio::fs::try_exists(&self.root).await.unwrap_or(false) {
             return Ok(out);
         }
         let mut dir = tokio::fs::read_dir(&self.root)
@@ -59,11 +59,15 @@ impl FsRepo {
             .with_context(|| format!("read_dir {}", self.root.display()))?;
         while let Some(entry) = dir.next_entry().await? {
             let path = entry.path();
-            if !path.is_dir() {
+            let meta = match tokio::fs::metadata(&path).await {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            if !meta.is_dir() {
                 continue;
             }
             let skill_md = path.join("SKILL.md");
-            if !skill_md.exists() {
+            if !tokio::fs::try_exists(&skill_md).await.unwrap_or(false) {
                 continue;
             }
             match self.read_skill(&skill_md).await {
@@ -77,7 +81,7 @@ impl FsRepo {
 
     pub async fn get(&self, name: &str) -> Result<Option<Skill>> {
         let path = self.root.join(name).join("SKILL.md");
-        if !path.exists() {
+        if !tokio::fs::try_exists(&path).await.unwrap_or(false) {
             return Ok(None);
         }
         Ok(Some(self.read_skill(&path).await?))
@@ -85,7 +89,7 @@ impl FsRepo {
 
     pub async fn delete(&self, name: &str) -> Result<()> {
         let dir = self.root.join(name);
-        if dir.exists() {
+        if tokio::fs::try_exists(&dir).await.unwrap_or(false) {
             tokio::fs::remove_dir_all(&dir)
                 .await
                 .with_context(|| format!("remove {}", dir.display()))?;
