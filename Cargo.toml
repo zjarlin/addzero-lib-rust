@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "apps/aio",
+    "apps/aio/backend",
     "crates/api/*",
     "crates/config/*",
     "crates/core/*",
