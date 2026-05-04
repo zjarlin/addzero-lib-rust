@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 use std::ops::Deref;
 use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 pub type EmailResult<T> = Result<T, EmailError>;
@@ -328,14 +328,14 @@ impl TempMailApi {
     ) -> EmailResult<TempMailMessageDetail> {
         let token = trim_required(token.as_ref(), "token")?;
         validate_poll_durations(max_wait, poll_interval)?;
-        let started = SystemTime::now();
+        let started = Instant::now();
 
         loop {
             if let Some(summary) = self.list_messages(token, 1)?.into_iter().next() {
                 return self.get_message(token, summary.id);
             }
 
-            if started.elapsed().unwrap_or_default() >= max_wait {
+            if started.elapsed() >= max_wait {
                 return Err(EmailError::InvalidResponse(format!(
                     "timed out waiting for message after {:?}",
                     max_wait
@@ -354,7 +354,7 @@ impl TempMailApi {
     ) -> EmailResult<TempMailVerificationCode> {
         let token = trim_required(token.as_ref(), "token")?;
         validate_poll_durations(max_wait, poll_interval)?;
-        let started = SystemTime::now();
+        let started = Instant::now();
         let mut inspected_ids = HashSet::new();
 
         loop {
@@ -375,7 +375,7 @@ impl TempMailApi {
                 }
             }
 
-            if started.elapsed().unwrap_or_default() >= max_wait {
+            if started.elapsed() >= max_wait {
                 return Err(EmailError::InvalidResponse(format!(
                     "timed out waiting for verification code after {:?}",
                     max_wait
