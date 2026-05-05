@@ -15,46 +15,9 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+aio = { path = "../../backend" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-# Backend dependencies
-addzero-admin-plugin-registry = { path = "../../../../crates/runtime/addzero-admin-plugin-registry" }
-addzero-agent-runtime-contract = { path = "../../../../crates/data/addzero-agent-runtime-contract" }
-addzero-cli-market-contract = { path = "../../../../crates/api/addzero-cli-market-contract" }
-addzero-software-catalog = { path = "../../../../crates/data/addzero-software-catalog" }
-base64.workspace = true
-blake3 = "1.5.5"
-chrono = { workspace = true, features = ["serde"] }
-clap = { version = "4.5.38", features = ["derive"] }
-mime_guess.workspace = true
-thiserror.workspace = true
-uuid.workspace = true
-
-addzero-ai-agent = { path = "../../../../crates/runtime/addzero-ai-agent" }
-addzero-assets = { path = "../../../../crates/data/addzero-assets" }
-addzero-knowledge = { path = "../../../../crates/data/addzero-knowledge" }
-addzero-minio = { path = "../../../../crates/storage/addzero-minio" }
-addzero-persistence = { path = "../../../../crates/data/addzero-persistence" }
-addzero-skills = { path = "../../../../crates/data/addzero-skills" }
-addzero-rustfs = { path = "../../../../crates/storage/addzero-rustfs" }
-anyhow.workspace = true
-axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
-futures-util = "0.3.31"
-hmac.workspace = true
+tokio = { workspace = true, features = ["full"] }
+reqwest = { workspace = true, features = ["json", "rustls-tls", "blocking"] }
 log.workspace = true
-quick-xml.workspace = true
-regex.workspace = true
-reqwest.workspace = true
-sha2.workspace = true
-shlex.workspace = true
-bcrypt = "0.16"
-once_cell = "1"
-portable-pty = "0.9.0"
-sqlx.workspace = true
-tokio.workspace = true
-tower-http = { version = "0.6.8", features = ["cors"] }
-vt100 = "0.16.2"
-walkdir = "2"
-zip.workspace = true
-
