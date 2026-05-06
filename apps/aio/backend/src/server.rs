@@ -256,6 +256,7 @@ fn split_sql_statements(sql: &str) -> Vec<String> {
         if ch == '$' {
             let mut tag = String::new();
             let mut probe = chars.clone();
+            let mut opened_dollar_tag = false;
             while let Some(next) = probe.next() {
                 if next == '$' {
                     current.push('$');
@@ -266,7 +267,8 @@ fn split_sql_statements(sql: &str) -> Vec<String> {
                     }
                     current.push('$');
                     chars.next();
-                    dollar_tag = Some(tag);
+                    dollar_tag = Some(tag.clone());
+                    opened_dollar_tag = true;
                     break;
                 }
                 if !(next == '_' || next.is_ascii_alphanumeric()) {
@@ -277,7 +279,7 @@ fn split_sql_statements(sql: &str) -> Vec<String> {
                 }
                 tag.push(next);
             }
-            if dollar_tag.is_some() || tag.is_empty() {
+            if opened_dollar_tag || tag.is_empty() {
                 continue;
             }
         }
