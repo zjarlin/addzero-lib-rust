@@ -78,6 +78,7 @@ export default function Dashboard() {
                         icon={<Brain className="h-5 w-5" />}
                         title="管理 Skills"
                         detail="查看和管理技能定义"
+                        onClick={() => navigate("/skills")}
                     />
                 </div>
             </div>

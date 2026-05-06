@@ -72,12 +72,12 @@ function renderMenu(
                     depth > 0 && "ml-4 w-[calc(100%-1rem)]",
                     active
                         ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
-                        : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/20 hover:bg-white/10 hover:text-white",
+                        : "border bg-white/5 text-foreground/80 hover:border-white/20 hover:bg-white/10 hover:text-white",
                 )}
             >
                 <span>{menu.label}</span>
                 {menu.children?.length ? (
-                    <span className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                    <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                         {menu.children.length}
                     </span>
                 ) : null}
@@ -99,7 +99,7 @@ function renderSection(
     return (
         <section key={section.id} className="space-y-3">
             <header className="flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                     {section.label}
                 </h2>
             </header>
@@ -128,8 +128,8 @@ function renderDomain(
             className={clsx(
                 "rounded-md px-3 py-2 text-sm transition",
                 active
-                    ? "bg-white text-zinc-950"
-                    : "bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white",
+                    ? "bg-foreground text-background"
+                    : "bg-muted/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground",
             )}
         >
             {domain.label}
@@ -152,7 +152,7 @@ function renderAction(action: TopbarAction, isDark: boolean) {
                 action.tone === "danger" &&
                     "border-red-400/40 bg-red-500/10 text-red-100",
                 !action.tone &&
-                    "border-white/10 bg-white/5 text-zinc-200 hover:border-white/20 hover:bg-white/10",
+                    "border bg-white/5 text-foreground/70 hover:border-white/20 hover:bg-white/10",
                 action.disabled && "cursor-not-allowed opacity-50",
             )}
         >
@@ -168,11 +168,11 @@ function renderRightPanel(rightPanel: RightPanelSlot | null | undefined) {
     }
 
     return (
-        <aside className="hidden min-w-[18rem] max-w-[20rem] flex-col rounded-xl border border-white/10 bg-zinc-950/80 p-4 xl:flex">
+        <aside className="hidden min-w-[18rem] max-w-[20rem] flex-col rounded-xl border border bg-zinc-950/80 p-4 xl:flex">
             <h2 className="text-sm font-semibold text-white">
                 {rightPanel.title}
             </h2>
-            <div className="mt-4 text-sm text-zinc-300">
+            <div className="mt-4 text-sm text-foreground/80">
                 {rightPanel.content}
             </div>
         </aside>
@@ -208,9 +208,9 @@ export function AdminWorkbench({
     const shell: AdminShellState = provider.getShellState(context);
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-zinc-100">
+        <div className="min-h-screen bg-background text-foreground">
             <div className="mx-auto flex min-h-screen max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6">
-                                <header className="rounded-xl border border-white/10 bg-zinc-900/90 px-4 py-4 shadow-2xl shadow-black/30">
+                                <header className="rounded-xl border border bg-card px-4 py-4 shadow-2xl shadow-black/10">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap gap-2">
                             {shell.domains.map((domain) =>
@@ -226,7 +226,7 @@ export function AdminWorkbench({
                 </header>
 
                 <div className="grid flex-1 gap-4 xl:grid-cols-[18rem_minmax(0,1fr)_20rem]">
-                    <aside className="space-y-4 rounded-xl border border-white/10 bg-zinc-900/80 p-4">
+                    <aside className="space-y-4 rounded-xl border border bg-card p-4">
                         {shell.sections.map((section) =>
                             renderSection(
                                 section,
@@ -235,7 +235,7 @@ export function AdminWorkbench({
                             ),
                         )}
                     </aside>
-                    <main className="min-w-0 rounded-xl border border-white/10 bg-zinc-900/80 p-4 md:p-6">
+                    <main className="min-w-0 rounded-xl border border bg-card p-4 md:p-6">
                         {children}
                     </main>
                     {renderRightPanel(shell.rightPanel)}

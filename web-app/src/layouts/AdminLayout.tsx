@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AdminWorkbench } from "@addzero/admin-shell";
 import type { AdminShellContext } from "@addzero/admin-shell";
 import { useAdminProvider } from "../hooks/useAdminProvider";
 import { useAuthStore } from "../stores/auth";
 import { useThemeStore } from "../stores/theme";
 
-export default function AdminLayout() {
+export default function AdminLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
     const location = useLocation();
     const navigate = useNavigate();
     const { provider, loading } = useAdminProvider();
@@ -16,7 +20,6 @@ export default function AdminLayout() {
     const isDark = theme === "dark";
     const [searchOpen, setSearchOpen] = useState(false);
 
-    // Ctrl+K global shortcut
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -47,7 +50,7 @@ export default function AdminLayout() {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-400">
+            <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
                 <p className="animate-pulse">Loading admin shell…</p>
             </div>
         );
@@ -56,25 +59,24 @@ export default function AdminLayout() {
     return (
         <>
             <AdminWorkbench provider={provider} context={context}>
-                <Outlet />
+                {children}
             </AdminWorkbench>
 
-            {/* Command Palette */}
             {searchOpen && (
                 <div
                     className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]"
                     onClick={() => setSearchOpen(false)}
                 >
                     <div
-                        className="w-full max-w-lg rounded-xl border border-white/10 bg-zinc-900/95 shadow-2xl shadow-black/50 backdrop-blur"
+                        className="w-full max-w-lg rounded-xl border bg-popover shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="border-b border-white/5 px-4 py-3">
+                        <div className="border-b px-4 py-3">
                             <input
                                 type="text"
                                 placeholder="输入命令搜索..."
                                 autoFocus
-                                className="w-full bg-transparent text-sm text-white placeholder-zinc-500 outline-none"
+                                className="w-full bg-transparent text-sm outline-none"
                                 onKeyDown={(e) => {
                                     if (e.key === "Escape")
                                         setSearchOpen(false);
@@ -84,12 +86,26 @@ export default function AdminLayout() {
                         <div className="p-2 text-sm">
                             {[
                                 { label: "Dashboard", href: "/" },
-                                { label: "脚本控制台", href: "/console" },
+                { label: "Skills", href: "/skills" },
+                                { label: "Dashboard", href: "/" },
+                { label: "Dashboard", href: "/" },
+                { label: "Skills", href: "/skills" },
+                { label: "脚本控制台", href: "/console" },
+                { label: "环境变量", href: "/env" },
+                { label: "知识库", href: "/knowledge" },
+                { label: "存储", href: "/storage" },
+                { label: "CLI Market", href: "/market" },
+                { label: "系统管理", href: "/system" },
+                { label: "环境变量", href: "/env" },
+                { label: "知识库", href: "/knowledge" },
+                { label: "存储", href: "/storage" },
+                { label: "CLI Market", href: "/market" },
+                { label: "系统管理", href: "/system" },
                             ].map((item) => (
                                 <button
                                     key={item.href}
                                     type="button"
-                                    className="flex w-full items-center rounded-lg px-3 py-2 text-left text-zinc-300 transition hover:bg-white/5"
+                                    className="flex w-full items-center rounded-lg px-3 py-2 text-left transition hover:bg-accent"
                                     onClick={() => {
                                         navigate(item.href);
                                         setSearchOpen(false);
@@ -99,8 +115,8 @@ export default function AdminLayout() {
                                 </button>
                             ))}
                         </div>
-                        <div className="border-t border-white/5 px-4 py-2 text-xs text-zinc-600">
-                            <kbd className="rounded bg-white/5 px-1.5 py-0.5">
+                        <div className="border-t px-4 py-2 text-xs text-muted-foreground">
+                            <kbd className="rounded bg-muted px-1.5 py-0.5">
                                 Esc
                             </kbd>{" "}
                             关闭
