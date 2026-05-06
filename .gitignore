@@ -19,3 +19,4 @@ node_modules
 .agents/skills/rust-best-practices/.DS_Store
 .playwright-mcp
 target
+.next

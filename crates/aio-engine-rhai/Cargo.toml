@@ -1,0 +1,19 @@
+[package]
+name = "aio-engine-rhai"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+aio-core = { path = "../aio-core" }
+aio-engine = { path = "../aio-engine" }
+rhai = { version = "1", features = ["sync", "serde"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+log.workspace = true
+
+[lints]
+workspace = true
