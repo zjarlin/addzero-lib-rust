@@ -181,7 +181,11 @@ impl MenuService {
         self.get_menu_by_id(id).await.map(|m| m.unwrap())
     }
 
-    pub async fn update_menu(&self, id: Uuid, req: UpdateMenuRequest) -> Result<Option<Menu>, sqlx::Error> {
+    pub async fn update_menu(
+        &self,
+        id: Uuid,
+        req: UpdateMenuRequest,
+    ) -> Result<Option<Menu>, sqlx::Error> {
         let now = Utc::now();
 
         sqlx::query(
@@ -196,7 +200,7 @@ impl MenuService {
                 metadata = COALESCE($7, metadata),
                 updated_at = $8
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(id)
         .bind(&req.title)
@@ -227,7 +231,7 @@ impl MenuService {
             SELECT id, name, description, category, created_at
             FROM admin_permissions
             ORDER BY category, name
-            "#
+            "#,
         )
         .fetch_all(&self.pool)
         .await?;
@@ -257,18 +261,14 @@ impl MenuService {
 
         for route in routes {
             let exists: bool = sqlx::query_scalar(
-                "SELECT EXISTS(SELECT 1 FROM admin_menus WHERE route_path = $1)"
+                "SELECT EXISTS(SELECT 1 FROM admin_menus WHERE route_path = $1)",
             )
             .bind(&route)
             .fetch_one(&self.pool)
             .await?;
 
             if !exists {
-                let title = route
-                    .split('/')
-                    .last()
-                    .unwrap_or(&route)
-                    .to_string();
+                let title = route.split('/').last().unwrap_or(&route).to_string();
                 let title = title.replace('_', " ");
 
                 sqlx::query(

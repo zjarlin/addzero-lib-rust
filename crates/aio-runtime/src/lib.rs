@@ -8,7 +8,7 @@
 
 use aio_plugin_api::{PluginError, PluginHandle, PluginManifest, PluginRegistry, PluginState};
 use std::collections::BTreeMap;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 use uuid::Uuid;
 
 /// In-memory plugin registry (Wasmtime implementation stub).
@@ -103,4 +103,3 @@ impl PluginRegistry for RuntimePluginRegistry {
             .unwrap_or_default()
     }
 }
-

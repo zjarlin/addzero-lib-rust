@@ -17,10 +17,12 @@ pub mod logo_storage;
 pub mod menu_system;
 pub mod minio_files;
 pub mod openai_chat;
+pub mod plugins;
 pub mod skills;
 pub mod software_catalog;
 pub mod system_management;
 pub mod terminal_sessions;
+pub mod vibe_coding;
 
 pub use asset_graph::{
     AssetGraphDto, AssetGraphEdgeDto, AssetGraphItemDto, AssetGraphTagDto, AssetKindDto,
@@ -51,7 +53,9 @@ pub use logo_storage::{
     LOGO_PREVIEW_BASE_URL, LogoUploadRequest, SharedLogoStorageApi, StoredLogoDto,
     build_preview_url, default_logo_storage_api,
 };
-pub use menu_system::{Menu, MenuTreeNode, CreateMenuRequest, UpdateMenuRequest, Permission, MenuService};
+pub use menu_system::{
+    CreateMenuRequest, Menu, MenuService, MenuTreeNode, Permission, UpdateMenuRequest,
+};
 pub use minio_files::{
     SharedMinioFilesApi, StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
     StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,
@@ -62,6 +66,10 @@ pub use minio_files::{
 pub use openai_chat::{
     ChatMessageDto, ChatRequestDto, ChatResponseDto, OpenAiChatConfigDto, SharedOpenAiChatApi,
     default_openai_chat_api,
+};
+pub use plugins::{
+    PluginDescriptorDto, PluginInstallRequestDto, PluginManifestDto, SharedPluginsApi,
+    default_plugins_api,
 };
 pub use skills::{
     SharedSkillsApi, SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto, default_skills_api,
@@ -79,3 +87,4 @@ pub use terminal_sessions::{
     TerminalSessionSnapshotDto, TerminalSessionStateDto, TerminalSessionSummaryDto,
     default_terminal_sessions_api,
 };
+pub use vibe_coding::{StartVibeCodingRequestDto, StartVibeCodingResponseDto};

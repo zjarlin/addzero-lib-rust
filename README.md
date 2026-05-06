@@ -8,14 +8,14 @@
 
 - 一套面向个人知识资产、同步任务和命令化能力的 AIO 平台
 - 一个以 PostgreSQL 为唯一正式持久化源的后台系统
-- 一个同时提供 Next.js 管理界面、Tauri 桌面壳、Axum REST API、以及同源 CLI 的工作台
+- 一个同时提供 Vite/React 管理界面、Tauri 桌面壳、Axum REST API、以及同源 CLI 的工作台
 
 这套系统的目标不是只做一个“网页后台”，而是把自己日常要管理的知识库、同步任务、脚本能力、导入导出流程统一收进同一个平台里，让“万事万物都 CLI 化”成为默认交付形态，而不是补充能力。
 
 ### 核心原则
 
 - `all in pg`：正式业务数据全部进入 PostgreSQL，数据库名为 `msc_aio`
-- `axum + Next.js + Tauri`：Axum 负责后端 API 与任务入口，Next.js 负责管理界面，Tauri 负责桌面壳
+- `axum + Vite/React + Tauri`：Axum 负责后端 API 与任务入口，Vite/React 负责管理界面，Tauri 负责桌面壳
 - `REST + CLI 同源`：后端写 REST API 的同时，CLI 从同一套操作定义生成，避免手写两套接口
 - `import != source of truth`：文件系统扫描、构建期嵌入、临时内存实现都只作为导入态或开发态，不作为最终数据落点
 - `大功能一模块`：按功能边界拆模块，文件粒度保持在人类可以轻松阅读的范围内
@@ -30,7 +30,7 @@
    暴露 REST API、认证、任务调度入口、OpenAPI 文档以及自动化调用面
 4. CLI 层
    从与 REST 同源的操作定义生成命令，保证后台能力天然可脚本化
-5. Next.js Admin 层
+5. Vite/React Admin 层
    作为管理工作台，用于查看知识资产、同步状态、任务历史、配置与系统上下文
 6. Tauri Desktop 壳
    通过 localhost plugin 加载同一套 Next 静态前端资产，桌面能力通过 provider/config 暴露
@@ -61,18 +61,27 @@
 
 明显的第三方噪音会在导入时跳过，例如 `target/`、`legal/`、`data/`、`LICENSE*`、`CHANGELOG*`、`SECURITY*` 一类文件。
 
-本地运行时，`msc-aio` 与同步 CLI 会按以下优先级读取数据库连接：
+本地运行时，`aio` / `msc-aio` 与同步 CLI 会按以下优先级读取数据库连接：
 
 1. `MSC_AIO_DATABASE_URL`
 2. `DATABASE_URL`
-3. `~/.config/msc-aio/msc-aio.env`
+3. `~/.config/aio/aio.env`
 
 示例：
 
 ```bash
-printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > ~/.config/msc-aio/msc-aio.env
+mkdir -p ~/.config/aio
+printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > ~/.config/aio/aio.env
 cargo run -p addzero-knowledge --bin knowledge-sync
 ```
+
+桌面壳开发入口：
+
+```bash
+pnpm run dev:aio
+```
+
+这个命令会先执行 `cargo run -p aio -- migrate`，再启动 Tauri dev，并由 Tauri 自动拉起 `apps/aio/front`。
 
 更完整的蓝图说明见：
 

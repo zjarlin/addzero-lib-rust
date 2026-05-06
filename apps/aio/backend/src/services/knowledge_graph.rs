@@ -4,7 +4,6 @@ use std::rc::Rc;
 use tokio::sync::OnceCell;
 
 #[cfg(not(target_arch = "wasm32"))]
-
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 

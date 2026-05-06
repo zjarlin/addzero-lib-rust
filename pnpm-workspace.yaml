@@ -1,4 +1,4 @@
 packages:
     - apps/aio/desktop
-    - web-app
+    - apps/aio/front
     - packages/*

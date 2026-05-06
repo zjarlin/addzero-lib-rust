@@ -12,6 +12,8 @@ pub struct Cli {
 pub enum Command {
     /// 启动 API 后端服务
     Serve,
+    /// 运行数据库迁移
+    Migrate,
     /// 打印当前架构状态
     Status,
 }

@@ -85,22 +85,14 @@ export default function AdminLayout({
                         </div>
                         <div className="p-2 text-sm">
                             {[
-                                { label: "Dashboard", href: "/" },
-                { label: "Skills", href: "/skills" },
-                                { label: "Dashboard", href: "/" },
-                { label: "Dashboard", href: "/" },
-                { label: "Skills", href: "/skills" },
-                { label: "脚本控制台", href: "/console" },
-                { label: "环境变量", href: "/env" },
-                { label: "知识库", href: "/knowledge" },
-                { label: "存储", href: "/storage" },
-                { label: "CLI Market", href: "/market" },
-                { label: "系统管理", href: "/system" },
-                { label: "环境变量", href: "/env" },
-                { label: "知识库", href: "/knowledge" },
-                { label: "存储", href: "/storage" },
-                { label: "CLI Market", href: "/market" },
-                { label: "系统管理", href: "/system" },
+                                { label: "平台总览", href: "/" },
+                                { label: "脚本控制台", href: "/console" },
+                                { label: "环境与配置", href: "/env" },
+                                { label: "插件与技能", href: "/skills" },
+                                { label: "知识与记忆", href: "/knowledge" },
+                                { label: "存储与资源", href: "/storage" },
+                                { label: "WASM 插件市场", href: "/market" },
+                                { label: "系统管理", href: "/system" },
                             ].map((item) => (
                                 <button
                                     key={item.href}

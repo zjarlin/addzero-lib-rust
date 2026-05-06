@@ -29,16 +29,17 @@ use once_cell::sync::Lazy;
 
 #[cfg(not(target_arch = "wasm32"))]
 static PG_POOL: Lazy<Option<PgPool>> = Lazy::new(|| {
-    let url = std::env::var("DATABASE_URL").ok()?;
+    let url = addzero_persistence::database_url()?;
     PgPool::connect_lazy(&url).ok()
 });
 
 #[cfg(not(target_arch = "wasm32"))]
 fn pg_pool() -> SystemManagementResult<PgPool> {
-    PG_POOL
-        .as_ref()
-        .cloned()
-        .ok_or_else(|| SystemManagementError::msg("DATABASE_URL not set or pool init failed"))
+    PG_POOL.as_ref().cloned().ok_or_else(|| {
+        SystemManagementError::msg(
+            "MSC_AIO_DATABASE_URL / DATABASE_URL not set or pool init failed",
+        )
+    })
 }
 
 // ─── Bcrypt helpers (native only) ──────────────────────────────────────────

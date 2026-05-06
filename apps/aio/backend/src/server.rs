@@ -3,6 +3,7 @@ mod rhai_handlers;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::{collections::BTreeMap, env, fs};
 
 use anyhow::Result;
 use axum::{
@@ -17,21 +18,23 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use addzero_agent_runtime_contract::{LoginRequest, SessionUser};
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
-use uuid::Uuid;
-use serde::Deserialize;
 use aio_engine::script::ScriptEngine;
+use serde::Deserialize;
+use uuid::Uuid;
 
 use crate::services::{
     AssetGraphDto, AssetSyncReportDto, BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto,
     ChatResponseDto, FileIndexDto, FilterOptions, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto,
     KnowledgeExceptionCardDto, KnowledgeFeedDto, KnowledgeMaintenanceReportDto,
     KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto,
-    LogoUploadRequest, OpenAiChatConfigDto, ResolveKnowledgeExceptionInput, ScanStatsDto,
-    ShareLinkDto, SkillDto, SkillSourceDto, SkillUpsertDto, StorageBrowseRequestDto,
+    LogoUploadRequest, OpenAiChatConfigDto, PluginDescriptorDto, PluginInstallRequestDto,
+    ResolveKnowledgeExceptionInput, ScanStatsDto, ShareLinkDto, SkillDto, SkillSourceDto,
+    SkillUpsertDto, StartVibeCodingRequestDto, StartVibeCodingResponseDto, StorageBrowseRequestDto,
     StorageBrowseResultDto, StorageCreateFolderDto, StorageCreateFolderResultDto,
     StorageDeleteFolderDto, StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto,
     StorageShareResultDto, StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto,
-    SyncReportDto,
+    SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
+    TerminalSessionSnapshotDto,
     download_station::{FileIndex, ScanStats, ShareLink},
     menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
 };
@@ -49,6 +52,38 @@ pub struct BackendServices {
 
 static SERVICES: OnceCell<BackendServices> = OnceCell::const_new();
 
+pub fn resolved_database_url() -> Option<String> {
+    addzero_persistence::database_url().or_else(|| {
+        let values = local_env_values();
+        values
+            .get("MSC_AIO_DATABASE_URL")
+            .cloned()
+            .or_else(|| values.get("DATABASE_URL").cloned())
+            .filter(|value| !value.trim().is_empty())
+    })
+}
+
+fn local_env_values() -> BTreeMap<String, String> {
+    let Some(path) = addzero_persistence::local_env_path() else {
+        return BTreeMap::new();
+    };
+    let Ok(content) = fs::read_to_string(path) else {
+        return BTreeMap::new();
+    };
+
+    content
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                return None;
+            }
+            let (key, value) = trimmed.split_once('=')?;
+            Some((key.trim().to_string(), value.trim().to_string()))
+        })
+        .collect()
+}
+
 pub async fn services() -> &'static BackendServices {
     SERVICES
         .get_or_init(|| async {
@@ -56,7 +91,7 @@ pub async fn services() -> &'static BackendServices {
                 log::warn!("could not resolve fs root, falling back to ./skills: {err:?}");
                 FsRepo::new(std::path::PathBuf::from("./skills"))
             });
-            let database_url = std::env::var("DATABASE_URL").ok();
+            let database_url = resolved_database_url();
             let skills = SkillService::try_attach(database_url.as_deref(), fs).await;
             if skills.is_pg_online() {
                 if let Err(err) = skills.sync_now().await {
@@ -107,6 +142,163 @@ pub async fn services() -> &'static BackendServices {
         .await
 }
 
+pub async fn run_migrations() -> Result<()> {
+    let database_url =
+        resolved_database_url().expect("MSC_AIO_DATABASE_URL or DATABASE_URL must be set");
+
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .connect(&database_url)
+        .await?;
+
+    let migration_dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/server/migrations");
+    let extra_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+
+    let mut files: Vec<_> = std::fs::read_dir(&migration_dir)
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "sql"))
+        .map(|e| e.path())
+        .collect();
+
+    if extra_dir.exists() {
+        files.extend(
+            std::fs::read_dir(&extra_dir)
+                .into_iter()
+                .flatten()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().map_or(false, |ext| ext == "sql"))
+                .map(|e| e.path()),
+        );
+    }
+
+    files.sort();
+
+    for file in &files {
+        let name = file.file_name().unwrap().to_string_lossy();
+        let sql = std::fs::read_to_string(file)?;
+        println!("Running: {name}");
+        for stmt in split_sql_statements(&sql) {
+            let trimmed = stmt.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if let Err(e) = sqlx::query(trimmed).execute(&pool).await {
+                eprintln!("  SKIP (may already exist): {e}");
+            }
+        }
+    }
+
+    println!("Migrations complete ({} files)", files.len());
+    Ok(())
+}
+
+fn split_sql_statements(sql: &str) -> Vec<String> {
+    let mut statements = Vec::new();
+    let mut current = String::new();
+    let mut chars = sql.chars().peekable();
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut dollar_tag: Option<String> = None;
+
+    while let Some(ch) = chars.next() {
+        if let Some(tag) = dollar_tag.as_ref() {
+            current.push(ch);
+            if ch == '$' {
+                let remaining: String = chars.clone().collect();
+                if remaining.starts_with(tag) {
+                    for expected in tag.chars() {
+                        current.push(expected);
+                        let next = chars.next();
+                        debug_assert_eq!(next, Some(expected));
+                    }
+                    dollar_tag = None;
+                }
+            }
+            continue;
+        }
+
+        if in_single_quote {
+            current.push(ch);
+            if ch == '\'' {
+                if matches!(chars.peek(), Some('\'')) {
+                    current.push('\'');
+                    chars.next();
+                } else {
+                    in_single_quote = false;
+                }
+            }
+            continue;
+        }
+
+        if in_double_quote {
+            current.push(ch);
+            if ch == '"' {
+                in_double_quote = false;
+            }
+            continue;
+        }
+
+        if ch == '\'' {
+            in_single_quote = true;
+            current.push(ch);
+            continue;
+        }
+
+        if ch == '"' {
+            in_double_quote = true;
+            current.push(ch);
+            continue;
+        }
+
+        if ch == '$' {
+            let mut tag = String::new();
+            let mut probe = chars.clone();
+            while let Some(next) = probe.next() {
+                if next == '$' {
+                    current.push('$');
+                    for expected in tag.chars() {
+                        current.push(expected);
+                        let next_live = chars.next();
+                        debug_assert_eq!(next_live, Some(expected));
+                    }
+                    current.push('$');
+                    chars.next();
+                    dollar_tag = Some(tag);
+                    break;
+                }
+                if !(next == '_' || next.is_ascii_alphanumeric()) {
+                    current.push('$');
+                    current.push_str(&tag);
+                    tag.clear();
+                    break;
+                }
+                tag.push(next);
+            }
+            if dollar_tag.is_some() || tag.is_empty() {
+                continue;
+            }
+        }
+
+        if ch == ';' {
+            if !current.trim().is_empty() {
+                statements.push(current.trim().to_string());
+            }
+            current.clear();
+            continue;
+        }
+
+        current.push(ch);
+    }
+
+    if !current.trim().is_empty() {
+        statements.push(current.trim().to_string());
+    }
+
+    statements
+}
 pub async fn run_api_server() -> Result<()> {
     let bind = std::env::var("AIO_API_BIND").unwrap_or_else(|_| "127.0.0.1:8787".into());
     let address: SocketAddr = bind.parse()?;
@@ -157,6 +349,25 @@ pub async fn run_api_server() -> Result<()> {
             get(load_openai_chat_config).post(save_openai_chat_config),
         )
         .route("/api/openai-chat/chat", post(run_openai_chat))
+        .route("/api/plugins/builtin", get(list_builtin_plugins))
+        .route("/api/plugins", get(list_loaded_plugins))
+        .route("/api/plugins/install", post(install_plugin))
+        .route("/api/plugins/{id}/enable", post(enable_plugin))
+        .route("/api/plugins/{id}/disable", post(disable_plugin))
+        .route("/api/plugins/{id}", axum::routing::delete(uninstall_plugin))
+        .route("/api/vibe-coding/start", post(start_vibe_coding))
+        .route(
+            "/api/admin/terminal/sessions",
+            get(list_terminal_sessions).post(create_terminal_session),
+        )
+        .route(
+            "/api/admin/terminal/sessions/{id}",
+            get(get_terminal_session_snapshot).delete(close_terminal_session),
+        )
+        .route(
+            "/api/admin/terminal/sessions/{id}/input",
+            post(send_terminal_session_input),
+        )
         .route("/api/admin/menus/tree", get(get_menu_tree))
         .route("/api/admin/menus", post(create_menu).put(update_menu))
         .route("/api/admin/menus/{id}", get(get_menu).delete(delete_menu))
@@ -266,9 +477,18 @@ pub async fn run_api_server() -> Result<()> {
             get(ds_download_file),
         )
         .route("/api/engine/rhai/run", post(run_rhai))
-        .route("/api/scripts", get(rhai_handlers::list_scripts).post(rhai_handlers::save_script))
-        .route("/api/scripts/{name}", get(rhai_handlers::get_script).delete(rhai_handlers::delete_script))
-        .route("/api/engine/rhai/eval-env", post(rhai_handlers::eval_rhai_env))
+        .route(
+            "/api/scripts",
+            get(rhai_handlers::list_scripts).post(rhai_handlers::save_script),
+        )
+        .route(
+            "/api/scripts/{name}",
+            get(rhai_handlers::get_script).delete(rhai_handlers::delete_script),
+        )
+        .route(
+            "/api/engine/rhai/eval-env",
+            post(rhai_handlers::eval_rhai_env),
+        )
         .layer(cors_layer());
 
     axum::serve(listener, router).await?;
@@ -665,6 +885,131 @@ async fn run_openai_chat(
         .await
         .map_err(ApiError::bad_request)?;
     Ok(Json(response))
+}
+
+async fn list_builtin_plugins(headers: HeaderMap) -> ApiResult<Json<Vec<PluginDescriptorDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    Ok(Json(
+        crate::services::plugins::list_builtin_plugins_on_server().await,
+    ))
+}
+
+async fn list_loaded_plugins(headers: HeaderMap) -> ApiResult<Json<Vec<PluginDescriptorDto>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    Ok(Json(
+        crate::services::plugins::list_loaded_plugins_on_server().await,
+    ))
+}
+
+async fn install_plugin(
+    headers: HeaderMap,
+    Json(input): Json<PluginInstallRequestDto>,
+) -> ApiResult<Json<PluginDescriptorDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let plugin = crate::services::plugins::install_plugin_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(plugin))
+}
+
+async fn enable_plugin(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult<Json<PluginDescriptorDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let plugin = crate::services::plugins::enable_plugin_on_server(id)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(plugin))
+}
+
+async fn disable_plugin(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult<Json<PluginDescriptorDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let plugin = crate::services::plugins::disable_plugin_on_server(id)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(plugin))
+}
+
+async fn uninstall_plugin(headers: HeaderMap, Path(id): Path<String>) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::plugins::uninstall_plugin_on_server(id)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn start_vibe_coding(
+    headers: HeaderMap,
+    Json(input): Json<StartVibeCodingRequestDto>,
+) -> ApiResult<Json<StartVibeCodingResponseDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let response = crate::services::vibe_coding::start_vibe_coding_on_server(input)
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(response))
+}
+
+async fn list_terminal_sessions(headers: HeaderMap) -> ApiResult<Json<TerminalSessionListDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let sessions = crate::services::terminal_sessions::list_terminal_sessions_on_server()
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(sessions))
+}
+
+async fn create_terminal_session(
+    headers: HeaderMap,
+    Json(input): Json<TerminalSessionCreateDto>,
+) -> ApiResult<Json<TerminalSessionSnapshotDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let session = crate::services::terminal_sessions::create_terminal_session_on_server(input)
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(session))
+}
+
+async fn get_terminal_session_snapshot(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult<Json<TerminalSessionSnapshotDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let session = crate::services::terminal_sessions::get_terminal_session_snapshot_on_server(&id)
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(session))
+}
+
+async fn send_terminal_session_input(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(input): Json<TerminalSessionInputDto>,
+) -> ApiResult<Json<TerminalSessionSnapshotDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let session = crate::services::terminal_sessions::send_terminal_input_on_server(&id, input)
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(session))
+}
+
+async fn close_terminal_session(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult<StatusCode> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    crate::services::terminal_sessions::close_terminal_session_on_server(&id)
+        .map_err(ApiError::bad_request)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn knowledge_feed(headers: HeaderMap) -> ApiResult<Json<KnowledgeFeedDto>> {

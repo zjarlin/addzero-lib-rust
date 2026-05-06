@@ -13,13 +13,13 @@ import {
 } from "@addzero/api-client/menu-tree";
 
 const DEFAULT_DOMAINS: DomainNode[] = [
-    { id: "dashboard", label: "Dashboard", href: "/", order: 0 },
-    { id: "skills", label: "Skills", href: "/skills", order: 1 },
-    { id: "console", label: "控制台", href: "/console", order: 2 },
-    { id: "env", label: "环境", href: "/env", order: 3 },
-    { id: "knowledge", label: "知识库", href: "/knowledge", order: 4 },
-    { id: "storage", label: "存储", href: "/storage", order: 5 },
-    { id: "market", label: "Market", href: "/market", order: 6 },
+    { id: "workbench", label: "工作台", href: "/", order: 0 },
+    { id: "scripts", label: "脚本引擎", href: "/console", order: 1 },
+    { id: "orchestration", label: "编排", href: "/env", order: 2 },
+    { id: "plugins", label: "插件", href: "/skills", order: 3 },
+    { id: "knowledge", label: "知识", href: "/knowledge", order: 4 },
+    { id: "assets", label: "资源", href: "/storage", order: 5 },
+    { id: "market", label: "插件市场", href: "/market", order: 6 },
     { id: "system", label: "系统", href: "/system", order: 7 },
 ];
 
@@ -39,14 +39,64 @@ function mapTreeToMenuNodes(nodes: MenuTreeNodeDto[]): MenuNode[] {
 function fallbackSections(): SectionNode[] {
     return [
         {
-            id: "main",
-            label: "导航",
-            menus: DEFAULT_DOMAINS.map((d) => ({
-                id: d.id,
-                label: d.label,
-                href: d.href,
-                activePatterns: [d.href],
-            })),
+            id: "platform",
+            label: "平台工作台",
+            menus: [
+                {
+                    id: "overview",
+                    label: "平台总览",
+                    href: "/",
+                    activePatterns: ["/"],
+                },
+                {
+                    id: "script-console",
+                    label: "脚本控制台",
+                    href: "/console",
+                    activePatterns: ["/console"],
+                },
+                {
+                    id: "env-lab",
+                    label: "环境与配置",
+                    href: "/env",
+                    activePatterns: ["/env"],
+                },
+            ],
+        },
+        {
+            id: "runtime",
+            label: "运行与扩展",
+            menus: [
+                {
+                    id: "skills",
+                    label: "插件与技能",
+                    href: "/skills",
+                    activePatterns: ["/skills"],
+                },
+                {
+                    id: "knowledge",
+                    label: "知识与记忆",
+                    href: "/knowledge",
+                    activePatterns: ["/knowledge"],
+                },
+                {
+                    id: "storage",
+                    label: "存储与资源",
+                    href: "/storage",
+                    activePatterns: ["/storage"],
+                },
+                {
+                    id: "market",
+                    label: "WASM 插件市场",
+                    href: "/market",
+                    activePatterns: ["/market"],
+                },
+                {
+                    id: "system",
+                    label: "系统管理",
+                    href: "/system",
+                    activePatterns: ["/system"],
+                },
+            ],
         },
     ];
 }
@@ -99,8 +149,8 @@ export function useAdminProvider(): {
 
     const getShellState = useCallback(
         (): AdminShellState => ({
-            brandTitle: "",
-            brandDetail: "",
+            brandTitle: "AIO Platform",
+            brandDetail: "Script Runtime + Vibe Coding + Plugin Workbench",
             topbarActions: [
                 { id: "theme-toggle", label: "主题" },
                 { id: "focus-search", label: "搜索" },

@@ -34,40 +34,14 @@ importers:
         specifier: ^2
         version: 2.11.0
 
-  packages/admin-shell:
-    dependencies:
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      lucide-react:
-        specifier: ^0.553.0
-        version: 0.553.0(react@19.2.5)
-      react:
-        specifier: ^19.2.5
-        version: 19.2.5
-
-  packages/api-client: {}
-
-  packages/remote-ui:
-    dependencies:
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      lucide-react:
-        specifier: ^0.553.0
-        version: 0.553.0(react@19.2.5)
-      react:
-        specifier: ^19.2.5
-        version: 19.2.5
-
-  web-app:
+  apps/aio/front:
     dependencies:
       '@addzero/admin-shell':
         specifier: workspace:*
-        version: link:../packages/admin-shell
+        version: link:../../../packages/admin-shell
       '@addzero/api-client':
         specifier: workspace:*
-        version: link:../packages/api-client
+        version: link:../../../packages/api-client
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -135,6 +109,32 @@ importers:
       vite:
         specifier: ^6.3.6
         version: 6.4.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.4)
+
+  packages/admin-shell:
+    dependencies:
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.553.0
+        version: 0.553.0(react@19.2.5)
+      react:
+        specifier: ^19.2.5
+        version: 19.2.5
+
+  packages/api-client: {}
+
+  packages/remote-ui:
+    dependencies:
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.553.0
+        version: 0.553.0(react@19.2.5)
+      react:
+        specifier: ^19.2.5
+        version: 19.2.5
 
 packages:
 

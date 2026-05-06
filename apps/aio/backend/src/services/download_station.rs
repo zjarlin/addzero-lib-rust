@@ -13,14 +13,57 @@ use crate::services::LocalBoxFuture;
 
 /// 文件分类映射
 const CATEGORIES: &[(&str, &[&str])] = &[
-    ("🎬 视频", &["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "ts", "rmvb", "3gp"]),
-    ("🎵 音频", &["mp3", "flac", "wav", "aac", "ogg", "wma", "m4a", "ape", "opus", "mid", "midi"]),
-    ("🖼️ 图片", &["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "ico", "tiff", "tif", "psd", "raw", "heic", "heif", "avif"]),
-    ("📄 文档", &["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "rtf", "odt", "ods", "odp", "epub", "mobi", "pages", "numbers", "key"]),
-    ("📦 压缩包", &["zip", "rar", "7z", "tar", "gz", "bz2", "xz", "tgz", "tbz2", "txz", "zst", "lz4", "iso", "dmg"]),
-    ("💻 安装包", &["exe", "msi", "apk", "appimage", "deb", "rpm", "pkg", "snap", "flatpak"]),
-    ("🔧 代码/数据", &["py", "js", "ts", "java", "c", "cpp", "go", "rs", "rb", "php", "swift", "kt", "sh", "bash", "zsh", "json", "yaml", "yml", "toml", "xml", "html", "css", "sql", "db", "sqlite"]),
-    ("🔑 密钥/证书", &["pem", "key", "crt", "cer", "p12", "pfx", "jks", "keystore"]),
+    (
+        "🎬 视频",
+        &[
+            "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "ts", "rmvb", "3gp",
+        ],
+    ),
+    (
+        "🎵 音频",
+        &[
+            "mp3", "flac", "wav", "aac", "ogg", "wma", "m4a", "ape", "opus", "mid", "midi",
+        ],
+    ),
+    (
+        "🖼️ 图片",
+        &[
+            "jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "ico", "tiff", "tif", "psd", "raw",
+            "heic", "heif", "avif",
+        ],
+    ),
+    (
+        "📄 文档",
+        &[
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "rtf", "odt",
+            "ods", "odp", "epub", "mobi", "pages", "numbers", "key",
+        ],
+    ),
+    (
+        "📦 压缩包",
+        &[
+            "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "tgz", "tbz2", "txz", "zst", "lz4",
+            "iso", "dmg",
+        ],
+    ),
+    (
+        "💻 安装包",
+        &[
+            "exe", "msi", "apk", "appimage", "deb", "rpm", "pkg", "snap", "flatpak",
+        ],
+    ),
+    (
+        "🔧 代码/数据",
+        &[
+            "py", "js", "ts", "java", "c", "cpp", "go", "rs", "rb", "php", "swift", "kt", "sh",
+            "bash", "zsh", "json", "yaml", "yml", "toml", "xml", "html", "css", "sql", "db",
+            "sqlite",
+        ],
+    ),
+    (
+        "🔑 密钥/证书",
+        &["pem", "key", "crt", "cer", "p12", "pfx", "jks", "keystore"],
+    ),
 ];
 
 /// 获取文件分类
@@ -121,9 +164,10 @@ impl DownloadStationService {
         let mut category_counts: HashMap<String, i64> = HashMap::new();
 
         for dir_str in directories {
-            let dir_path = PathBuf::from(dir_str.replace("~", &std::env::var("HOME").unwrap_or_default()))
-                .canonicalize()
-                .context(format!("Failed to resolve directory: {}", dir_str))?;
+            let dir_path =
+                PathBuf::from(dir_str.replace("~", &std::env::var("HOME").unwrap_or_default()))
+                    .canonicalize()
+                    .context(format!("Failed to resolve directory: {}", dir_str))?;
 
             if !dir_path.is_dir() {
                 log::warn!("Directory does not exist: {:?}", dir_path);
@@ -157,7 +201,8 @@ impl DownloadStationService {
 
         // 按来源分组缓存
         for file in &all_files {
-            cache.entry(file.source.clone())
+            cache
+                .entry(file.source.clone())
                 .or_insert_with(Vec::new)
                 .push(file.clone());
         }
@@ -182,7 +227,8 @@ impl DownloadStationService {
 
         for entry in entries {
             let path = entry.path();
-            if path.file_name()
+            if path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .map(|n| n.starts_with('.'))
                 .unwrap_or(false)
@@ -200,24 +246,28 @@ impl DownloadStationService {
                 Err(_) => continue,
             };
 
-            let name = path.file_name()
+            let name = path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("unknown")
                 .to_string();
 
-            let ext = path.extension()
+            let ext = path
+                .extension()
                 .and_then(|e| e.to_str())
                 .map(|e| e.to_lowercase());
 
             let category = ext.as_deref().map(get_category).unwrap_or("📋 其他");
 
-            let mtime = metadata.modified()
+            let mtime = metadata
+                .modified()
                 .ok()
                 .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
                 .map(|d| DateTime::<Utc>::from(UNIX_EPOCH + d))
                 .unwrap_or_else(Utc::now);
 
-            let dir = rel_path.parent()
+            let dir = rel_path
+                .parent()
                 .and_then(|p| p.to_str())
                 .filter(|s| !s.is_empty())
                 .map(|s| s.to_string());
@@ -275,9 +325,7 @@ impl DownloadStationService {
 
     /// 获取文件列表
     pub async fn list_files(&self, filter: FilterOptions) -> Result<Vec<FileIndex>> {
-        let mut query = String::from(
-            "SELECT * FROM download_station_files WHERE 1=1",
-        );
+        let mut query = String::from("SELECT * FROM download_station_files WHERE 1=1");
         let mut bind_count = 0;
 
         if let Some(source) = &filter.source {
@@ -310,7 +358,11 @@ impl DownloadStationService {
         bind_count += 1;
         query.push_str(&format!(" OFFSET ${}", bind_count));
 
-        let pattern = filter.query.as_ref().filter(|q| !q.is_empty()).map(|q| format!("%{}%", q));
+        let pattern = filter
+            .query
+            .as_ref()
+            .filter(|q| !q.is_empty())
+            .map(|q| format!("%{}%", q));
         let mut q = sqlx::query_as::<_, FileIndex>(&query);
 
         if let Some(source) = &filter.source {
@@ -341,9 +393,11 @@ impl DownloadStationService {
             .fetch_one(&self.pool)
             .await?;
 
-        let source_rows = sqlx::query("SELECT source, COUNT(*) as count FROM download_station_files GROUP BY source")
-            .fetch_all(&self.pool)
-            .await?;
+        let source_rows = sqlx::query(
+            "SELECT source, COUNT(*) as count FROM download_station_files GROUP BY source",
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
         let mut source_counts: HashMap<String, i64> = HashMap::new();
         for row in source_rows {
@@ -352,9 +406,11 @@ impl DownloadStationService {
             source_counts.insert(source, count);
         }
 
-        let category_rows = sqlx::query("SELECT category, COUNT(*) as count FROM download_station_files GROUP BY category")
-            .fetch_all(&self.pool)
-            .await?;
+        let category_rows = sqlx::query(
+            "SELECT category, COUNT(*) as count FROM download_station_files GROUP BY category",
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
         let mut category_counts: HashMap<String, i64> = HashMap::new();
         for row in category_rows {
@@ -413,7 +469,7 @@ impl DownloadStationService {
     /// 获取分享链接信息
     pub async fn get_share(&self, token: &str) -> Result<Option<ShareLink>> {
         let row = sqlx::query(
-            "SELECT * FROM download_station_shares WHERE token = $1 AND expires_at > NOW()"
+            "SELECT * FROM download_station_shares WHERE token = $1 AND expires_at > NOW()",
         )
         .bind(token)
         .fetch_optional(&self.pool)

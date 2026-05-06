@@ -69,6 +69,27 @@ export interface ChatResponseDto {
     message: ChatMessageDto;
 }
 
+export interface OpenAiChatConfigDto {
+    base_url: string;
+    api_key: string;
+    model: string;
+}
+
+export interface PluginDescriptorDto {
+    runtime_id: string | null;
+    manifest_id: string;
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    min_platform_version: string;
+    entry: string;
+    extension_points: string[];
+    permissions: string[];
+    state: string;
+    builtin: boolean;
+}
+
 export type BrandingLogoSource = "app_icon" | "custom_upload" | "text_only";
 
 export interface StoredLogoDto {
@@ -525,6 +546,16 @@ export function createApiClient(baseUrl: string) {
                 method: "POST",
                 ...jsonBody(input),
             }),
+        getOpenAiChatConfig: () =>
+            request<OpenAiChatConfigDto>(baseUrl, "/api/openai-chat/config"),
+        saveOpenAiChatConfig: (input: OpenAiChatConfigDto) =>
+            request<OpenAiChatConfigDto>(baseUrl, "/api/openai-chat/config", {
+                method: "POST",
+                ...jsonBody(input),
+            }),
+        listBuiltinPlugins: () =>
+            request<PluginDescriptorDto[]>(baseUrl, "/api/plugins/builtin"),
+        listPlugins: () => request<PluginDescriptorDto[]>(baseUrl, "/api/plugins"),
         getBrandingSettings: () =>
             request<BrandingSettingsDto>(
                 baseUrl,

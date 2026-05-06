@@ -741,6 +741,8 @@ dependencies = [
  "aio-core",
  "aio-engine",
  "aio-engine-rhai",
+ "aio-plugin-api",
+ "aio-runtime",
  "anyhow",
  "axum",
  "base64 0.22.1",
