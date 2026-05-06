@@ -17,6 +17,5 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 }));
 
-// Apply on load
 const saved = localStorage.getItem("aio-theme") as Theme | null;
 document.documentElement.classList.toggle("dark", saved !== "light");

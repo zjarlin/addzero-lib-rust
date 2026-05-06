@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
 import { Brain, Search, Loader2 } from "lucide-react";
 import { getApiBaseUrl } from "@addzero/api-client";
-import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Badge,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  ScrollArea,
+} from "@addzero/ui";
 
 interface Skill {
   name: string;
@@ -69,14 +76,14 @@ export default function SkillsPage() {
               className="cursor-pointer transition hover:border-primary/50"
               onClick={() => setSelected(skill === selected ? null : skill)}
             >
-              <CardHeader>
+                <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Brain className="h-4 w-4" />
                   {skill.name}
                 </CardTitle>
-                <p className="text-sm text-muted-foreground line-clamp-2">
+                <CardDescription className="line-clamp-2">
                   {skill.description}
-                </p>
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-1.5">
@@ -88,9 +95,9 @@ export default function SkillsPage() {
                   <Badge variant="outline">{skill.source}</Badge>
                 </div>
                 {selected?.name === skill.name && (
-                  <pre className="mt-4 max-h-60 overflow-auto rounded-lg bg-muted p-4 text-xs">
-                    {skill.body}
-                  </pre>
+                  <ScrollArea className="mt-4 h-60 rounded-lg border bg-muted/40 p-4">
+                    <pre className="text-xs whitespace-pre-wrap">{skill.body}</pre>
+                  </ScrollArea>
                 )}
               </CardContent>
             </Card>

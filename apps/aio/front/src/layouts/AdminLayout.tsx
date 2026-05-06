@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AdminWorkbench } from "@addzero/admin-shell";
 import type { AdminShellContext } from "@addzero/admin-shell";
+import {
+    CommandDialog,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+    CommandShortcut,
+} from "@addzero/ui";
 import { useAdminProvider } from "../hooks/useAdminProvider";
 import { useAuthStore } from "../stores/auth";
 import { useThemeStore } from "../stores/theme";
@@ -62,60 +71,36 @@ export default function AdminLayout({
                 {children}
             </AdminWorkbench>
 
-            {searchOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]"
-                    onClick={() => setSearchOpen(false)}
-                >
-                    <div
-                        className="w-full max-w-lg rounded-xl border bg-popover shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="border-b px-4 py-3">
-                            <input
-                                type="text"
-                                placeholder="输入命令搜索..."
-                                autoFocus
-                                className="w-full bg-transparent text-sm outline-none"
-                                onKeyDown={(e) => {
-                                    if (e.key === "Escape")
-                                        setSearchOpen(false);
+            <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
+                <CommandInput placeholder="输入命令或页面名称..." />
+                <CommandList>
+                    <CommandEmpty>没有匹配项</CommandEmpty>
+                    <CommandGroup heading="Workbench">
+                        {[
+                            { label: "平台总览", href: "/", shortcut: "G H" },
+                            { label: "脚本控制台", href: "/console", shortcut: "G C" },
+                            { label: "环境与配置", href: "/env", shortcut: "G E" },
+                            { label: "插件与技能", href: "/skills", shortcut: "G S" },
+                            { label: "知识与记忆", href: "/knowledge", shortcut: "G K" },
+                            { label: "存储与资源", href: "/storage", shortcut: "G R" },
+                            { label: "WASM 插件市场", href: "/market", shortcut: "G M" },
+                            { label: "系统管理", href: "/system", shortcut: "G Y" },
+                        ].map((item) => (
+                            <CommandItem
+                                key={item.href}
+                                value={`${item.label} ${item.href}`}
+                                onSelect={() => {
+                                    navigate(item.href);
+                                    setSearchOpen(false);
                                 }}
-                            />
-                        </div>
-                        <div className="p-2 text-sm">
-                            {[
-                                { label: "平台总览", href: "/" },
-                                { label: "脚本控制台", href: "/console" },
-                                { label: "环境与配置", href: "/env" },
-                                { label: "插件与技能", href: "/skills" },
-                                { label: "知识与记忆", href: "/knowledge" },
-                                { label: "存储与资源", href: "/storage" },
-                                { label: "WASM 插件市场", href: "/market" },
-                                { label: "系统管理", href: "/system" },
-                            ].map((item) => (
-                                <button
-                                    key={item.href}
-                                    type="button"
-                                    className="flex w-full items-center rounded-lg px-3 py-2 text-left transition hover:bg-accent"
-                                    onClick={() => {
-                                        navigate(item.href);
-                                        setSearchOpen(false);
-                                    }}
-                                >
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="border-t px-4 py-2 text-xs text-muted-foreground">
-                            <kbd className="rounded bg-muted px-1.5 py-0.5">
-                                Esc
-                            </kbd>{" "}
-                            关闭
-                        </div>
-                    </div>
-                </div>
-            )}
+                            >
+                                <span>{item.label}</span>
+                                <CommandShortcut>{item.shortcut}</CommandShortcut>
+                            </CommandItem>
+                        ))}
+                    </CommandGroup>
+                </CommandList>
+            </CommandDialog>
         </>
     );
 }

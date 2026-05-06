@@ -1,8 +1,23 @@
 "use client";
 
-import clsx from "clsx";
 import { Bell, LogOut, MoonStar, Search, SunMedium } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+    ScrollArea,
+    Separator,
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+    cn,
+} from "@addzero/ui";
 
 import type {
     AdminProvider,
@@ -64,24 +79,27 @@ function renderMenu(
 
     return (
         <div key={menu.id} className="flex flex-col gap-1">
-            <button
+            <Button
                 type="button"
+                variant={active ? "secondary" : "ghost"}
+                size="sm"
                 onClick={() => onNavigate(menu.href)}
-                className={clsx(
-                    "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition",
+                className={cn(
+                    "h-auto w-full justify-between whitespace-normal px-3 py-2 text-left",
                     depth > 0 && "ml-4 w-[calc(100%-1rem)]",
-                    active
-                        ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
-                        : "border bg-white/5 text-foreground/80 hover:border-white/20 hover:bg-white/10 hover:text-white",
+                    active && "shadow-sm",
                 )}
             >
                 <span>{menu.label}</span>
                 {menu.children?.length ? (
-                    <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                    <Badge
+                        variant="secondary"
+                        className="min-w-5 justify-center px-1.5 text-[10px]"
+                    >
                         {menu.children.length}
-                    </span>
+                    </Badge>
                 ) : null}
-            </button>
+            </Button>
             {menu.children?.length
                 ? menu.children.map((child) =>
                       renderMenu(child, currentPath, onNavigate, depth + 1),
@@ -98,7 +116,7 @@ function renderSection(
 ) {
     return (
         <section key={section.id} className="space-y-3">
-            <header className="flex items-center justify-between">
+            <header className="flex items-center justify-between px-1">
                 <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                     {section.label}
                 </h2>
@@ -121,44 +139,73 @@ function renderDomain(
         matchPattern(currentPath, domain.href) ||
         currentPath.startsWith(`${domain.href}/`);
     return (
-        <button
+        <Button
             key={domain.id}
             type="button"
             onClick={() => onNavigate(domain.href)}
-            className={clsx(
-                "rounded-md px-3 py-2 text-sm transition",
-                active
-                    ? "bg-foreground text-background"
-                    : "bg-muted/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            )}
+            size="sm"
+            variant={active ? "default" : "outline"}
+            className="rounded-full"
         >
             {domain.label}
-        </button>
+        </Button>
     );
 }
 
-function renderAction(action: TopbarAction, isDark: boolean) {
+function handlerForAction(
+    action: TopbarAction,
+    context: AdminShellContext,
+) {
+    if (action.onSelect) {
+        return () => action.onSelect?.();
+    }
+
+    switch (action.id) {
+        case "theme-toggle":
+            return () => context.onToggleTheme();
+        case "focus-search":
+            return () => context.onFocusSearch();
+        case "logout":
+            return () => {
+                void context.onLogout();
+            };
+        default:
+            return undefined;
+    }
+}
+
+function renderAction(
+    action: TopbarAction,
+    isDark: boolean,
+    context: AdminShellContext,
+) {
+    const variant =
+        action.tone === "danger"
+            ? "destructive"
+            : action.tone === "accent"
+              ? "default"
+              : "outline";
+    const label = action.title ?? action.label;
+    const onClick = handlerForAction(action, context);
+
     return (
-        <button
-            key={action.id}
-            type="button"
-            title={action.title ?? action.label}
-            disabled={action.disabled}
-            onClick={() => action.onSelect?.()}
-            className={clsx(
-                "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition",
-                action.tone === "accent" &&
-                    "border-emerald-400/60 bg-emerald-500/10 text-emerald-100",
-                action.tone === "danger" &&
-                    "border-red-400/40 bg-red-500/10 text-red-100",
-                !action.tone &&
-                    "border bg-white/5 text-foreground/70 hover:border-white/20 hover:bg-white/10",
-                action.disabled && "cursor-not-allowed opacity-50",
-            )}
-        >
-            {iconForAction(action, isDark)}
-            <span className="hidden lg:inline">{action.label}</span>
-        </button>
+        <Tooltip key={action.id}>
+            <TooltipTrigger asChild>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant={variant}
+                    aria-label={label}
+                    disabled={action.disabled}
+                    onClick={onClick}
+                    className="gap-2"
+                >
+                    {iconForAction(action, isDark)}
+                    <span className="hidden xl:inline">{action.label}</span>
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
     );
 }
 
@@ -168,14 +215,19 @@ function renderRightPanel(rightPanel: RightPanelSlot | null | undefined) {
     }
 
     return (
-        <aside className="hidden min-w-[18rem] max-w-[20rem] flex-col rounded-xl border border bg-zinc-950/80 p-4 xl:flex">
-            <h2 className="text-sm font-semibold text-white">
-                {rightPanel.title}
-            </h2>
-            <div className="mt-4 text-sm text-foreground/80">
-                {rightPanel.content}
-            </div>
-        </aside>
+        <Card className="hidden min-w-[18rem] max-w-[20rem] overflow-hidden xl:flex xl:flex-col">
+            <CardHeader>
+                <CardTitle className="text-sm">{rightPanel.title}</CardTitle>
+            </CardHeader>
+            <Separator />
+            <CardContent className="p-0">
+                <ScrollArea className="h-[calc(100vh-16rem)] px-4 py-4">
+                    <div className="text-sm text-muted-foreground">
+                        {rightPanel.content}
+                    </div>
+                </ScrollArea>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -210,34 +262,69 @@ export function AdminWorkbench({
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div className="mx-auto flex min-h-screen max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6">
-                                <header className="rounded-xl border border bg-card px-4 py-4 shadow-2xl shadow-black/10">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                <Card className="shadow-sm">
+                    <CardContent className="space-y-4 p-4">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="min-w-0">
+                                <div className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
+                                    {shell.brandTitle}
+                                </div>
+                                <CardDescription className="mt-1 max-w-3xl text-sm">
+                                    {shell.brandDetail}
+                                </CardDescription>
+                            </div>
+                            <TooltipProvider delayDuration={120}>
+                                <div className="flex flex-wrap gap-2">
+                                    {shell.topbarActions.map((action) =>
+                                        renderAction(action, context.isDark, context),
+                                    )}
+                                </div>
+                            </TooltipProvider>
+                        </div>
+                        <Separator />
                         <div className="flex flex-wrap gap-2">
                             {shell.domains.map((domain) =>
-                                renderDomain(domain, context.currentPath, context.onNavigate),
+                                renderDomain(
+                                    domain,
+                                    context.currentPath,
+                                    context.onNavigate,
+                                ),
                             )}
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            {shell.topbarActions.map((action) =>
-                                renderAction(action, context.isDark),
-                            )}
-                        </div>
-                    </div>
-                </header>
+                    </CardContent>
+                </Card>
 
                 <div className="grid flex-1 gap-4 xl:grid-cols-[18rem_minmax(0,1fr)_20rem]">
-                    <aside className="space-y-4 rounded-xl border border bg-card p-4">
-                        {shell.sections.map((section) =>
-                            renderSection(
-                                section,
-                                context.currentPath,
-                                context.onNavigate,
-                            ),
-                        )}
-                    </aside>
-                    <main className="min-w-0 rounded-xl border border bg-card p-4 md:p-6">
-                        {children}
-                    </main>
+                    <Card className="overflow-hidden">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm">Navigation</CardTitle>
+                            <CardDescription className="text-xs">
+                                双轴上下文树
+                            </CardDescription>
+                        </CardHeader>
+                        <Separator />
+                        <CardContent className="p-0">
+                            <ScrollArea className="h-[calc(100vh-16rem)] px-4 py-4">
+                                <div className="space-y-5">
+                                    {shell.sections.map((section, index) => (
+                                        <div key={section.id} className="space-y-5">
+                                            {index > 0 ? <Separator /> : null}
+                                            {renderSection(
+                                                section,
+                                                context.currentPath,
+                                                context.onNavigate,
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+                    <Card className="min-w-0">
+                        <CardContent className="p-4 md:p-6">
+                            {children}
+                        </CardContent>
+                    </Card>
                     {renderRightPanel(shell.rightPanel)}
                 </div>
             </div>

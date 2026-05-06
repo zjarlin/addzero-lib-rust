@@ -16,6 +16,7 @@ import {
 import {
     getApiBaseUrl,
 } from "@addzero/api-client";
+import { Badge, Button, Input, Textarea } from "@addzero/ui";
 
 interface PluginDescriptorDto {
     runtime_id: string | null;
@@ -370,18 +371,19 @@ export default function MarketPage() {
                                                 {plugin.manifest_id}
                                             </div>
                                         </div>
-                                        <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                                        <Badge variant="secondary" className="text-[11px]">
                                             {plugin.state}
-                                        </span>
+                                        </Badge>
                                     </div>
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         {plugin.extension_points.map((point: string) => (
-                                            <span
+                                            <Badge
                                                 key={point}
-                                                className="inline-flex rounded-md border bg-muted/30 px-2 py-1 text-[11px] font-medium"
+                                                variant="outline"
+                                                className="bg-muted/30 text-[11px]"
                                             >
                                                 {point}
-                                            </span>
+                                            </Badge>
                                         ))}
                                     </div>
                                     <p className="mt-2 text-sm text-muted-foreground">
@@ -462,13 +464,13 @@ export default function MarketPage() {
                                                 <div className="text-sm font-medium">
                                                     {plugin.name}
                                                 </div>
-                                                <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                                                <Badge variant="secondary" className="text-[11px]">
                                                     {plugin.state}
-                                                </span>
+                                                </Badge>
                                                 {plugin.builtin ? (
-                                                    <span className="rounded-md border px-2 py-1 text-[11px] font-medium">
+                                                    <Badge variant="outline" className="text-[11px]">
                                                         builtin
-                                                    </span>
+                                                    </Badge>
                                                 ) : null}
                                             </div>
                                             <div className="mt-1 font-mono text-xs text-muted-foreground">
@@ -482,18 +484,21 @@ export default function MarketPage() {
                                             </p>
                                             <div className="mt-2 flex flex-wrap gap-2">
                                                 {plugin.extension_points.map((point) => (
-                                                    <span
+                                                    <Badge
                                                         key={point}
-                                                        className="inline-flex rounded-md border bg-muted/30 px-2 py-1 text-[11px] font-medium"
+                                                        variant="outline"
+                                                        className="bg-muted/30 text-[11px]"
                                                     >
                                                         {point}
-                                                    </span>
+                                                    </Badge>
                                                 ))}
                                             </div>
                                         </div>
                                         <div className="flex shrink-0 flex-wrap gap-2">
-                                            <button
+                                            <Button
                                                 type="button"
+                                                size="sm"
+                                                variant="outline"
                                                 disabled={
                                                     pendingRuntimeId === plugin.runtime_id ||
                                                     plugin.state === "Active"
@@ -504,13 +509,14 @@ export default function MarketPage() {
                                                         "enable",
                                                     )
                                                 }
-                                                className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs transition hover:bg-muted disabled:opacity-50"
                                             >
                                                 <ToggleLeft className="h-3.5 w-3.5" />
                                                 启用
-                                            </button>
-                                            <button
+                                            </Button>
+                                            <Button
                                                 type="button"
+                                                size="sm"
+                                                variant="outline"
                                                 disabled={
                                                     pendingRuntimeId === plugin.runtime_id ||
                                                     plugin.state === "Disabled"
@@ -521,13 +527,14 @@ export default function MarketPage() {
                                                         "disable",
                                                     )
                                                 }
-                                                className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs transition hover:bg-muted disabled:opacity-50"
                                             >
                                                 <CircleOff className="h-3.5 w-3.5" />
                                                 禁用
-                                            </button>
-                                            <button
+                                            </Button>
+                                            <Button
                                                 type="button"
+                                                size="sm"
+                                                variant="destructive"
                                                 disabled={
                                                     pendingRuntimeId === plugin.runtime_id ||
                                                     plugin.builtin
@@ -538,11 +545,10 @@ export default function MarketPage() {
                                                         "uninstall",
                                                     )
                                                 }
-                                                className="inline-flex items-center gap-2 rounded-md border border-red-300 px-3 py-2 text-xs text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
                                                 卸载
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                 </div>
@@ -578,9 +584,9 @@ export default function MarketPage() {
                                             {plugin.type}
                                         </div>
                                     </div>
-                                    <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                                    <Badge variant="secondary" className="text-[11px]">
                                         {plugin.status}
-                                    </span>
+                                    </Badge>
                                 </div>
                                 <p className="mt-2 text-sm text-muted-foreground">
                                     {plugin.detail}
@@ -675,7 +681,7 @@ export default function MarketPage() {
                             <label className="mb-2 block text-sm font-medium">
                                 描述
                             </label>
-                            <textarea
+                            <Textarea
                                 value={installForm.description}
                                 onChange={(e) =>
                                     setInstallForm((prev) => ({
@@ -684,11 +690,11 @@ export default function MarketPage() {
                                     }))
                                 }
                                 placeholder="插件描述"
-                                className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                className="min-h-24"
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <button
+                            <Button
                                 type="button"
                                 onClick={() => void installPlugin()}
                                 disabled={
@@ -696,7 +702,6 @@ export default function MarketPage() {
                                     !installForm.id.trim() ||
                                     !installForm.name.trim()
                                 }
-                                className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition hover:bg-muted disabled:opacity-50"
                             >
                                 {installing ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -704,7 +709,7 @@ export default function MarketPage() {
                                     <PackageOpen className="h-4 w-4" />
                                 )}
                                 安装到运行时
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -727,11 +732,10 @@ function Field({
     return (
         <label className="block">
             <span className="mb-2 block text-sm font-medium">{label}</span>
-            <input
+            <Input
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             />
         </label>
     );

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Loader2, Lock, User } from "lucide-react";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@addzero/ui";
 import { useAuthStore } from "../stores/auth";
 
 export default function LoginPage() {
@@ -62,76 +63,69 @@ export default function LoginPage() {
             <section className="flex items-center justify-center p-6 sm:p-10">
                 <form
                     onSubmit={handleSubmit}
-                    className="w-full max-w-md rounded-lg border bg-card p-6 shadow-sm"
+                    className="w-full max-w-md"
                 >
-                    <div>
-                        <div className="text-sm font-medium text-muted-foreground">
-                            登录 AIO 工作台
-                        </div>
-                        <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-                            Admin session
-                        </h2>
-                    </div>
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <div className="text-sm font-medium text-muted-foreground">
+                                登录 AIO 工作台
+                            </div>
+                            <CardTitle className="text-2xl">Admin session</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <label className="block">
+                                <span className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                                    <User className="h-4 w-4" />
+                                    Username
+                                </span>
+                                <Input
+                                    value={form.username}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            username: event.target.value,
+                                        }))
+                                    }
+                                    autoComplete="username"
+                                />
+                            </label>
 
-                    <div className="mt-6 space-y-4">
-                        <label className="block">
-                            <span className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-                                <User className="h-4 w-4" />
-                                Username
-                            </span>
-                            <input
-                                className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                                value={form.username}
-                                onChange={(event) =>
-                                    setForm((current) => ({
-                                        ...current,
-                                        username: event.target.value,
-                                    }))
-                                }
-                                autoComplete="username"
-                            />
-                        </label>
+                            <label className="block">
+                                <span className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Lock className="h-4 w-4" />
+                                    Password
+                                </span>
+                                <Input
+                                    type="password"
+                                    value={form.password}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            password: event.target.value,
+                                        }))
+                                    }
+                                    autoComplete="current-password"
+                                />
+                            </label>
 
-                        <label className="block">
-                            <span className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-                                <Lock className="h-4 w-4" />
-                                Password
-                            </span>
-                            <input
-                                type="password"
-                                className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                                value={form.password}
-                                onChange={(event) =>
-                                    setForm((current) => ({
-                                        ...current,
-                                        password: event.target.value,
-                                    }))
-                                }
-                                autoComplete="current-password"
-                            />
-                        </label>
-                    </div>
+                            {error ? (
+                                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                    {error}
+                                </div>
+                            ) : null}
 
-                    {error ? (
-                        <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                            {error}
-                        </div>
-                    ) : null}
-
-                    <button
-                        type="submit"
-                        disabled={submitting}
-                        className="mt-6 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                        {submitting ? (
-                            <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Signing in
-                            </>
-                        ) : (
-                            "Sign in"
-                        )}
-                    </button>
+                            <Button type="submit" disabled={submitting} className="w-full">
+                                {submitting ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Signing in
+                                    </>
+                                ) : (
+                                    "Sign in"
+                                )}
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </form>
             </section>
         </div>

@@ -17,8 +17,11 @@
     "test": "node --test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "peerDependencies": {
+    "react": "^19.2.5"
+  },
   "dependencies": {
-    "clsx": "^2.1.1",
+    "@addzero/ui": "workspace:*",
     "lucide-react": "^0.553.0",
     "react": "^19.2.5"
   }

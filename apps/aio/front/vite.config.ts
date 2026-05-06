@@ -1,17 +1,19 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import pages from "vite-plugin-pages";
+import path from "node:path";
 
 export default defineConfig({
     plugins: [
         react(),
         tailwindcss(),
-        pages({
-            dirs: "src/pages",
-            routeStyle: "next",
-        }),
     ],
+    resolve: {
+        dedupe: ["react", "react-dom"],
+        alias: {
+            "@": path.resolve(__dirname, "./src"),
+        },
+    },
     server: {
         port: 1430,
         proxy: {

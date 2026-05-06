@@ -6,6 +6,7 @@ import {
     Shield,
     Users,
 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@addzero/ui";
 
 const modules = [
     { icon: Users, title: "用户管理", desc: "管理员、操作者、服务身份与会话边界" },
@@ -19,32 +20,34 @@ const modules = [
 export default function SystemPage() {
     return (
         <div className="space-y-8">
-            <section className="rounded-lg border bg-card">
-                <div className="border-b px-5 py-4">
+            <Card>
+                <CardHeader className="border-b">
                     <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                         <Shield className="h-3.5 w-3.5" />
                         System Workbench
                     </div>
-                    <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+                    <CardTitle className="mt-3 text-3xl tracking-tight">
                         系统工作台
-                    </h1>
-                    <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                    </CardTitle>
+                    <CardDescription className="mt-2 max-w-3xl text-sm">
                         系统层不是普通后台尾页。对于脚本平台，它要定义身份、权限、导航、元数据和运行边界。
-                    </p>
-                </div>
+                    </CardDescription>
+                </CardHeader>
 
-                <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-3">
+                <CardContent className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-3">
                     {modules.map((module) => (
-                        <div key={module.title} className="rounded-lg border px-4 py-3">
+                        <Card key={module.title} className="shadow-none">
+                            <CardContent className="px-4 py-3">
                             <div className="flex items-center gap-2 text-sm font-medium">
                                 <module.icon className="h-4 w-4 text-muted-foreground" />
                                 {module.title}
                             </div>
                             <p className="mt-2 text-sm text-muted-foreground">{module.desc}</p>
-                        </div>
+                            </CardContent>
+                        </Card>
                     ))}
-                </div>
-            </section>
+                </CardContent>
+            </Card>
         </div>
     );
 }

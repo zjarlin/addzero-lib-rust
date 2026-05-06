@@ -12,6 +12,21 @@ import {
     type BrandingLogoSource,
     type BrandingSettingsDto,
 } from "@addzero/api-client";
+import {
+    Button,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+    Input,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+    Textarea,
+} from "@addzero/ui";
 
 interface OpenAiChatConfigDto {
     base_url: string;
@@ -138,22 +153,22 @@ export default function EnvPage() {
 
     return (
         <div className="space-y-8">
-            <section className="rounded-lg border bg-card">
-                <div className="border-b px-5 py-4">
+            <Card>
+                <CardHeader className="border-b">
                     <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                         <Settings2 className="h-3.5 w-3.5" />
                         Configuration Workbench
                     </div>
-                    <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+                    <CardTitle className="mt-3 text-3xl tracking-tight">
                         配置工作台
-                    </h1>
-                    <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                    </CardTitle>
+                    <CardDescription className="mt-2 max-w-3xl text-sm">
                         软件配置不能只靠环境变量和手改文件。前台必须能设置正式配置项。
                         这一页先接通已经有后端能力的品牌配置和 OpenAI 配置，并给其余配置文件留出统一入口。
-                    </p>
-                </div>
+                    </CardDescription>
+                </CardHeader>
 
-                <div className="grid gap-0 md:grid-cols-3">
+                <CardContent className="grid gap-0 p-0 md:grid-cols-3">
                     <TopSignal
                         title="品牌配置"
                         detail="站点名、品牌文案、顶部徽标来源"
@@ -169,8 +184,8 @@ export default function EnvPage() {
                         detail="逐步把 env / json / toml / yaml 收进统一配置面板"
                         icon={<ShieldCheck className="h-4 w-4" />}
                     />
-                </div>
-            </section>
+                </CardContent>
+            </Card>
 
             {loading ? (
                 <div className="flex items-center justify-center py-20">
@@ -183,11 +198,11 @@ export default function EnvPage() {
                             title="品牌配置"
                             description="这部分已经有正式 API，可直接在前台维护。"
                             action={
-                                <button
+                                <Button
                                     type="button"
                                     onClick={saveBranding}
                                     disabled={!branding || savingBranding}
-                                    className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                                    size="sm"
                                 >
                                     {savingBranding ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -195,14 +210,13 @@ export default function EnvPage() {
                                         <Save className="h-4 w-4" />
                                     )}
                                     保存
-                                </button>
+                                </Button>
                             }
                         >
                             {branding ? (
                                 <div className="grid gap-4">
                                     <Field label="站点名称">
-                                        <input
-                                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                                        <Input
                                             value={branding.site_name}
                                             onChange={(event) =>
                                                 setBranding({
@@ -214,26 +228,29 @@ export default function EnvPage() {
                                     </Field>
 
                                     <Field label="Logo 来源">
-                                        <select
-                                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                                        <Select
                                             value={branding.logo_source}
-                                            onChange={(event) =>
+                                            onValueChange={(value) =>
                                                 setBranding({
                                                     ...branding,
-                                                    logo_source: event.target
-                                                        .value as BrandingLogoSource,
+                                                    logo_source: value as BrandingLogoSource,
                                                 })
                                             }
                                         >
-                                            <option value="app_icon">App 图标</option>
-                                            <option value="custom_upload">自定义上传</option>
-                                            <option value="text_only">仅文字</option>
-                                        </select>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="选择 Logo 来源" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="app_icon">App 图标</SelectItem>
+                                                <SelectItem value="custom_upload">自定义上传</SelectItem>
+                                                <SelectItem value="text_only">仅文字</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </Field>
 
                                     <Field label="品牌文案">
-                                        <textarea
-                                            className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                        <Textarea
+                                            className="min-h-24"
                                             value={branding.brand_copy}
                                             onChange={(event) =>
                                                 setBranding({
@@ -245,8 +262,7 @@ export default function EnvPage() {
                                     </Field>
 
                                     <Field label="顶部徽标文案">
-                                        <input
-                                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                                        <Input
                                             value={branding.header_badge}
                                             onChange={(event) =>
                                                 setBranding({
@@ -264,11 +280,11 @@ export default function EnvPage() {
                             title="模型配置"
                             description="OpenAI 兼容接口配置已经支持读写，不需要再靠手动编辑 json 文件。"
                             action={
-                                <button
+                                <Button
                                     type="button"
                                     onClick={saveOpenAi}
                                     disabled={!openAi || savingOpenAi}
-                                    className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                                    size="sm"
                                 >
                                     {savingOpenAi ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -276,14 +292,13 @@ export default function EnvPage() {
                                         <Save className="h-4 w-4" />
                                     )}
                                     保存
-                                </button>
+                                </Button>
                             }
                         >
                             {openAi ? (
                                 <div className="grid gap-4">
                                     <Field label="Base URL">
-                                        <input
-                                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                                        <Input
                                             value={openAi.base_url}
                                             onChange={(event) =>
                                                 setOpenAi({
@@ -294,9 +309,8 @@ export default function EnvPage() {
                                         />
                                     </Field>
                                     <Field label="API Key">
-                                        <input
+                                        <Input
                                             type="password"
-                                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                                             value={openAi.api_key}
                                             onChange={(event) =>
                                                 setOpenAi({
@@ -307,8 +321,7 @@ export default function EnvPage() {
                                         />
                                     </Field>
                                     <Field label="Model">
-                                        <input
-                                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                                        <Input
                                             value={openAi.model}
                                             onChange={(event) =>
                                                 setOpenAi({
@@ -380,18 +393,18 @@ function ConfigPanel({
     children: React.ReactNode;
 }) {
     return (
-        <div className="rounded-lg border bg-card">
-            <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
+        <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-4 border-b space-y-0">
                 <div>
-                    <h2 className="text-base font-semibold">{title}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <CardTitle className="text-base">{title}</CardTitle>
+                    <CardDescription className="mt-1 text-sm">
                         {description}
-                    </p>
+                    </CardDescription>
                 </div>
                 {action}
-            </div>
-            <div className="p-5">{children}</div>
-        </div>
+            </CardHeader>
+            <CardContent className="p-5">{children}</CardContent>
+        </Card>
     );
 }
 
