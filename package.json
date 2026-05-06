@@ -3,13 +3,13 @@
     "private": true,
     "packageManager": "pnpm@10.26.2",
     "scripts": {
-        "build": "pnpm --filter @addzero/admin-shell build && pnpm --filter @addzero/api-client build && pnpm --filter @addzero/remote-ui build && pnpm --filter @addzero/aio-front build",
+        "build": "pnpm --filter @addzero/admin-shell build && pnpm --filter @addzero/api-client build && pnpm --filter @addzero/remote-ui build && pnpm --filter @addzero/web-app build",
         "build:desktop": "pnpm --filter @addzero/aio-desktop tauri build",
-        "dev:aio": "pnpm --filter @addzero/aio-front dev",
+        "dev:web": "pnpm --filter @addzero/web-app dev",
         "dev:desktop": "pnpm --filter @addzero/aio-desktop tauri dev",
-        "lint": "pnpm --filter @addzero/admin-shell lint && pnpm --filter @addzero/api-client lint && pnpm --filter @addzero/remote-ui lint && pnpm --filter @addzero/aio-front lint",
+        "lint": "pnpm --filter @addzero/admin-shell lint && pnpm --filter @addzero/api-client lint && pnpm --filter @addzero/remote-ui lint && pnpm --filter @addzero/web-app lint",
         "test": "pnpm --filter @addzero/admin-shell test && pnpm --filter @addzero/api-client test && pnpm --filter @addzero/remote-ui test",
-        "typecheck": "pnpm --filter @addzero/admin-shell typecheck && pnpm --filter @addzero/api-client typecheck && pnpm --filter @addzero/remote-ui typecheck && pnpm --filter @addzero/aio-front typecheck"
+        "typecheck": "pnpm --filter @addzero/admin-shell typecheck && pnpm --filter @addzero/api-client typecheck && pnpm --filter @addzero/remote-ui typecheck"
     },
     "devDependencies": {
         "@types/node": "^24.10.1",

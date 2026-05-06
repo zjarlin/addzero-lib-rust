@@ -838,3 +838,5 @@ export function getApiBaseUrl(): string {
 export function createDefaultApiClient() {
     return createApiClient(getApiBaseUrl());
 }
+export { createMenuTreeApi } from "./menu-tree";
+export type { MenuTreeNodeDto, MenuTreeApi } from "./menu-tree";

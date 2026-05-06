@@ -7,6 +7,9 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+aio-core = { path = "../../../crates/aio-core" }
+aio-engine = { path = "../../../crates/aio-engine" }
+aio-engine-rhai = { path = "../../../crates/aio-engine-rhai" }
 addzero-admin-plugin-registry = { path = "../../../crates/runtime/addzero-admin-plugin-registry" }
 addzero-agent-runtime-contract = { path = "../../../crates/data/addzero-agent-runtime-contract" }
 addzero-cli-market-contract = { path = "../../../crates/api/addzero-cli-market-contract" }

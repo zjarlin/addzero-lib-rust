@@ -1,37 +1,37 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "aio",
-  "version": "0.1.0",
-  "identifier": "com.addzero.aio",
-  "build": {
-    "beforeDevCommand": "cd ../front && pnpm dev",
-    "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "cd ../front && pnpm build",
-    "frontendDist": "../../front/out"
-  },
-  "app": {
-    "withGlobalTauri": true,
-    "windows": [
-      {
-        "title": "MSC_AIO",
-        "width": 1480,
-        "height": 960,
-        "resizable": true
-      }
-    ],
-    "security": {
-      "csp": null
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "AIO Platform",
+    "version": "0.1.0",
+    "identifier": "com.addzero.aio",
+    "build": {
+        "beforeDevCommand": "cd ../../../../web-app && pnpm dev",
+        "devUrl": "http://localhost:1430",
+        "beforeBuildCommand": "cd ../../../../web-app && pnpm build",
+        "frontendDist": "../../../../web-app/dist"
+    },
+    "app": {
+        "withGlobalTauri": true,
+        "windows": [
+            {
+                "title": "AIO Platform",
+                "width": 1480,
+                "height": 960,
+                "resizable": true
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ]
     }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
-  }
 }

@@ -3,6 +3,12 @@ resolver = "2"
 members = [
     "apps/aio/backend",
     "apps/aio/desktop/src-tauri",
+    "crates/aio-core",
+    "crates/aio-engine",
+    "crates/aio-runtime",
+    "crates/aio-adapter",
+    "crates/aio-plugin-api",
+    "crates/aio-engine-rhai",
     "crates/api/*",
     "crates/config/*",
     "crates/core/*",

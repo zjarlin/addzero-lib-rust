@@ -1,6 +1,11 @@
 use std::rc::Rc;
 
 #[cfg(not(target_arch = "wasm32"))]
+use tokio::sync::OnceCell;
+
+#[cfg(not(target_arch = "wasm32"))]
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -450,7 +455,7 @@ const KNOWLEDGE_SCHEMA_SQL: &str =
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn load_knowledge_feed_on_server() -> KnowledgeGraphResult<KnowledgeFeedDto> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_knowledge_schema(&pool).await?;
     read_knowledge_feed(&pool).await
 }
@@ -459,7 +464,7 @@ pub async fn load_knowledge_feed_on_server() -> KnowledgeGraphResult<KnowledgeFe
 pub async fn load_knowledge_node_detail_on_server(
     node_id: &str,
 ) -> KnowledgeGraphResult<KnowledgeNodeDetailDto> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_knowledge_schema(&pool).await?;
     read_knowledge_node_detail(&pool, node_id).await
 }
@@ -468,7 +473,7 @@ pub async fn load_knowledge_node_detail_on_server(
 pub async fn load_knowledge_node_sources_on_server(
     node_id: &str,
 ) -> KnowledgeGraphResult<Vec<KnowledgeSourceRefDto>> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_knowledge_schema(&pool).await?;
     read_knowledge_node_sources(&pool, node_id).await
 }
@@ -476,7 +481,7 @@ pub async fn load_knowledge_node_sources_on_server(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn load_knowledge_exceptions_on_server()
 -> KnowledgeGraphResult<Vec<KnowledgeExceptionCardDto>> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_knowledge_schema(&pool).await?;
     read_knowledge_exceptions(&pool).await
 }
@@ -485,7 +490,7 @@ pub async fn load_knowledge_exceptions_on_server()
 pub async fn ingest_knowledge_raw_on_server(
     input: IngestKnowledgeRawInput,
 ) -> KnowledgeGraphResult<KnowledgeNodeSummaryDto> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_knowledge_schema(&pool).await?;
 
     let raw_id = format!("raw:{}", uuid::Uuid::new_v4());
@@ -597,7 +602,7 @@ pub async fn resolve_knowledge_exception_on_server(
     exception_id: &str,
     input: ResolveKnowledgeExceptionInput,
 ) -> KnowledgeGraphResult<KnowledgeExceptionCardDto> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_knowledge_schema(&pool).await?;
 
     let row = sqlx::query(
@@ -646,7 +651,7 @@ pub async fn resolve_knowledge_exception_on_server(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn run_knowledge_maintenance_on_server()
 -> KnowledgeGraphResult<KnowledgeMaintenanceReportDto> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_knowledge_schema(&pool).await?;
 
     let raw_items_ingested = scalar_count(
@@ -673,19 +678,26 @@ pub async fn run_knowledge_maintenance_on_server()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn connect_pool() -> KnowledgeGraphResult<sqlx::postgres::PgPool> {
-    let database_url = addzero_knowledge::database_url().ok_or_else(|| {
-        KnowledgeGraphError::new(
-            "缺少 PostgreSQL 连接：请设置 AIO_DATABASE_URL 或 DATABASE_URL",
-        )
-    })?;
+static KNOWLEDGE_GRAPH_POOL: OnceCell<sqlx::postgres::PgPool> = OnceCell::const_new();
 
-    sqlx::postgres::PgPoolOptions::new()
-        .max_connections(4)
-        .acquire_timeout(Duration::from_secs(5))
-        .connect(&database_url)
-        .await
-        .map_err(|err| KnowledgeGraphError::new(format!("连接 PostgreSQL 失败：{err}")))
+#[cfg(not(target_arch = "wasm32"))]
+async fn pool() -> KnowledgeGraphResult<sqlx::postgres::PgPool> {
+    Ok(KNOWLEDGE_GRAPH_POOL
+        .get_or_try_init(|| async {
+            let database_url = addzero_knowledge::database_url().ok_or_else(|| {
+                KnowledgeGraphError::new(
+                    "缺少 PostgreSQL 连接：请设置 AIO_DATABASE_URL 或 DATABASE_URL",
+                )
+            })?;
+            sqlx::postgres::PgPoolOptions::new()
+                .max_connections(4)
+                .acquire_timeout(Duration::from_secs(5))
+                .connect(&database_url)
+                .await
+                .map_err(|err| KnowledgeGraphError::new(format!("连接 PostgreSQL 失败：{err}")))
+        })
+        .await?
+        .clone())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

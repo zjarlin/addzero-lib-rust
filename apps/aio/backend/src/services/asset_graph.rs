@@ -1,6 +1,9 @@
 use std::rc::Rc;
 
 #[cfg(not(target_arch = "wasm32"))]
+use tokio::sync::OnceCell;
+
+#[cfg(not(target_arch = "wasm32"))]
 use addzero_minio::ObjectInfo;
 #[cfg(not(target_arch = "wasm32"))]
 use std::{
@@ -187,7 +190,7 @@ pub struct AssetRecordInput {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn sync_assets_on_server() -> AssetGraphResult<AssetSyncReportDto> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_asset_schema(&pool).await?;
 
     let mut report = AssetSyncReportDto::default();
@@ -200,14 +203,14 @@ pub async fn sync_assets_on_server() -> AssetGraphResult<AssetSyncReportDto> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn load_asset_graph_on_server() -> AssetGraphResult<AssetGraphDto> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_asset_schema(&pool).await?;
     read_asset_graph(&pool).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn upsert_asset_record_on_server(input: AssetRecordInput) -> AssetGraphResult<()> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_asset_schema(&pool).await?;
     upsert_asset_record(&pool, input).await
 }
@@ -217,7 +220,7 @@ pub async fn existing_package_by_hash(
     hash_algorithm: &str,
     content_hash: &str,
 ) -> AssetGraphResult<Option<AssetGraphItemDto>> {
-    let pool = connect_pool().await?;
+    let pool = pool().await?;
     ensure_asset_schema(&pool).await?;
     let row = sqlx::query(
         r#"
@@ -257,17 +260,24 @@ pub async fn existing_package_by_hash(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn connect_pool() -> AssetGraphResult<sqlx::postgres::PgPool> {
-    let database_url = addzero_knowledge::database_url().ok_or_else(|| {
-        AssetGraphError::new("缺少 PostgreSQL 连接：请设置 AIO_DATABASE_URL 或 DATABASE_URL")
-    })?;
+static ASSET_GRAPH_POOL: OnceCell<sqlx::postgres::PgPool> = OnceCell::const_new();
 
-    sqlx::postgres::PgPoolOptions::new()
-        .max_connections(4)
-        .acquire_timeout(Duration::from_secs(5))
-        .connect(&database_url)
-        .await
-        .map_err(|err| AssetGraphError::new(format!("连接 PostgreSQL 失败：{err}")))
+#[cfg(not(target_arch = "wasm32"))]
+async fn pool() -> AssetGraphResult<sqlx::postgres::PgPool> {
+    Ok(ASSET_GRAPH_POOL
+        .get_or_try_init(|| async {
+            let database_url = addzero_knowledge::database_url().ok_or_else(|| {
+                AssetGraphError::new("缺少 PostgreSQL 连接：请设置 AIO_DATABASE_URL 或 DATABASE_URL")
+            })?;
+            sqlx::postgres::PgPoolOptions::new()
+                .max_connections(4)
+                .acquire_timeout(Duration::from_secs(5))
+                .connect(&database_url)
+                .await
+                .map_err(|err| AssetGraphError::new(format!("连接 PostgreSQL 失败：{err}")))
+        })
+        .await?
+        .clone())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

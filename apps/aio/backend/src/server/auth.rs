@@ -24,13 +24,15 @@ pub struct AdminSessionService {
 pub enum AdminAuthFailure {
     UsernameNotFound,
     PasswordIncorrect,
+    Internal(String),
 }
 
 impl AdminAuthFailure {
-    pub fn message(&self) -> &'static str {
+    pub fn message(&self) -> String {
         match self {
-            Self::UsernameNotFound => "用户名不存在",
-            Self::PasswordIncorrect => "密码错误",
+            Self::UsernameNotFound => "用户名不存在".to_string(),
+            Self::PasswordIncorrect => "密码错误".to_string(),
+            Self::Internal(msg) => format!("认证服务内部错误: {msg}"),
         }
     }
 }
@@ -42,9 +44,7 @@ impl AdminSessionService {
         let secret = std::env::var("AIO_ADMIN_SESSION_SECRET")
             .unwrap_or_else(|_| "dev-session-secret-change-me".into());
         if secret == "dev-session-secret-change-me" {
-            log::warn!(
-                "⚠️  AIO_ADMIN_SESSION_SECRET 未设置，使用默认密钥。生产环境请务必配置！"
-            );
+            log::warn!("⚠️  AIO_ADMIN_SESSION_SECRET 未设置，使用默认密钥。生产环境请务必配置！");
         }
         if username == "admin" && password == "admin" {
             log::warn!(
@@ -67,7 +67,7 @@ impl AdminSessionService {
     pub fn authenticate(&self, input: &LoginRequest) -> Result<String, AdminAuthFailure> {
         self.validate_credentials(input)?;
         self.issue_cookie(input.username.trim())
-            .map_err(|_| AdminAuthFailure::PasswordIncorrect)
+            .map_err(|e| AdminAuthFailure::Internal(format!("签发会话签名失败: {e}")))
     }
 
     pub fn current_user(&self, headers: &HeaderMap) -> Option<String> {

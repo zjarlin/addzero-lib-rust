@@ -1,4 +1,5 @@
 mod auth;
+mod rhai_handlers;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -17,20 +18,22 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use addzero_agent_runtime_contract::{LoginRequest, SessionUser};
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 use uuid::Uuid;
+use serde::Deserialize;
+use aio_engine::script::ScriptEngine;
 
 use crate::services::{
     AssetGraphDto, AssetSyncReportDto, BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto,
-    ChatResponseDto, FileIndexDto, FilterOptions, ScanStatsDto,
-    ShareLinkDto, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto,
-    KnowledgeFeedDto, KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto,
-    KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest,
+    ChatResponseDto, FileIndexDto, FilterOptions, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto,
+    KnowledgeExceptionCardDto, KnowledgeFeedDto, KnowledgeMaintenanceReportDto,
+    KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto,
+    LogoUploadRequest, OpenAiChatConfigDto, ResolveKnowledgeExceptionInput, ScanStatsDto,
+    ShareLinkDto, SkillDto, SkillSourceDto, SkillUpsertDto, StorageBrowseRequestDto,
+    StorageBrowseResultDto, StorageCreateFolderDto, StorageCreateFolderResultDto,
+    StorageDeleteFolderDto, StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto,
+    StorageShareResultDto, StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto,
+    SyncReportDto,
     download_station::{FileIndex, ScanStats, ShareLink},
-    menu_system::{Menu, MenuTreeNode, CreateMenuRequest, UpdateMenuRequest, Permission},
-    OpenAiChatConfigDto, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
-    StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
-    StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,
-    StorageDeleteResultDto, StorageShareRequestDto, StorageShareResultDto, StorageUploadRequestDto,
-    StorageUploadResultDto, StoredLogoDto, SyncReportDto,
+    menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
 };
 
 use self::auth::AdminSessionService;
@@ -251,18 +254,9 @@ pub async fn run_api_server() -> Result<()> {
             "/api/admin/download-station/scan",
             post(ds_scan_directories),
         )
-        .route(
-            "/api/admin/download-station/files",
-            post(ds_list_files),
-        )
-        .route(
-            "/api/admin/download-station/stats",
-            get(ds_get_stats),
-        )
-        .route(
-            "/api/admin/download-station/share",
-            post(ds_create_share),
-        )
+        .route("/api/admin/download-station/files", post(ds_list_files))
+        .route("/api/admin/download-station/stats", get(ds_get_stats))
+        .route("/api/admin/download-station/share", post(ds_create_share))
         .route(
             "/api/admin/download-station/share/{token}",
             get(ds_get_share),
@@ -271,6 +265,10 @@ pub async fn run_api_server() -> Result<()> {
             "/api/admin/download-station/download/{source}/{path:path}",
             get(ds_download_file),
         )
+        .route("/api/engine/rhai/run", post(run_rhai))
+        .route("/api/scripts", get(rhai_handlers::list_scripts).post(rhai_handlers::save_script))
+        .route("/api/scripts/{name}", get(rhai_handlers::get_script).delete(rhai_handlers::delete_script))
+        .route("/api/engine/rhai/eval-env", post(rhai_handlers::eval_rhai_env))
         .layer(cors_layer());
 
     axum::serve(listener, router).await?;
@@ -1108,7 +1106,8 @@ async fn ds_scan_directories(
         .download_station
         .as_ref()
         .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
-    let result: ScanStats = ds.scan_directories(req.directories)
+    let result: ScanStats = ds
+        .scan_directories(req.directories)
         .await
         .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
     Ok(Json(result))
@@ -1124,7 +1123,8 @@ async fn ds_list_files(
         .download_station
         .as_ref()
         .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
-    let result: Vec<FileIndex> = ds.list_files(filter)
+    let result: Vec<FileIndex> = ds
+        .list_files(filter)
         .await
         .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
     Ok(Json(result))
@@ -1137,7 +1137,8 @@ async fn ds_get_stats(headers: HeaderMap) -> ApiResult<Json<ScanStats>> {
         .download_station
         .as_ref()
         .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
-    let result: ScanStats = ds.get_stats()
+    let result: ScanStats = ds
+        .get_stats()
         .await
         .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
     Ok(Json(result))
@@ -1163,7 +1164,14 @@ async fn ds_create_share(
         .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
     let user = backend.admin_auth.current_user(&headers);
     let created_by = user.as_deref();
-    let share_link = ds.create_share(&req.source, &req.path, &req.file_name, req.hours, created_by)
+    let share_link = ds
+        .create_share(
+            &req.source,
+            &req.path,
+            &req.file_name,
+            req.hours,
+            created_by,
+        )
         .await
         .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
     Ok(Json(share_link))
@@ -1179,7 +1187,9 @@ async fn ds_get_share(
         .download_station
         .as_ref()
         .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
-    let result: Option<ShareLink> = ds.get_share(&token).await
+    let result: Option<ShareLink> = ds
+        .get_share(&token)
+        .await
         .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
     Ok(Json(result))
 }
@@ -1190,13 +1200,13 @@ async fn ds_download_file(
 ) -> ApiResult<Response> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
-    
+
     // 从数据库获取文件完整路径
     let ds = backend
         .download_station
         .as_ref()
         .ok_or_else(|| ApiError::internal("Download Station service not available"))?;
-    
+
     let files: Vec<FileIndex> = ds
         .list_files(FilterOptions {
             source: Some(source.clone()),
@@ -1207,31 +1217,34 @@ async fn ds_download_file(
         })
         .await
         .map_err(|e: anyhow::Error| ApiError::internal(e.to_string()))?;
-    
+
     let file = files
         .first()
         .ok_or_else(|| ApiError::bad_request("File not found"))?;
-    
+
     let file_path = PathBuf::from(&file.full_path);
     if !file_path.exists() {
         return Err(ApiError::bad_request("File not found on disk"));
     }
-    
+
     let mime_type = mime_guess::from_path(&file_path)
         .first_or_octet_stream()
         .to_string();
-    
+
     let contents = tokio::fs::read(&file_path)
         .await
         .map_err(|e| ApiError::internal(format!("Failed to read file: {}", e)))?;
-    
+
     let response = Response::builder()
         .status(StatusCode::OK)
         .header("Content-Type", mime_type)
-        .header("Content-Disposition", format!("attachment; filename=\"{}\"", file.name))
+        .header(
+            "Content-Disposition",
+            format!("attachment; filename=\"{}\"", file.name),
+        )
         .body(axum::body::Body::from(contents))
         .map_err(|e| ApiError::internal(format!("Failed to build response: {}", e)))?;
-    
+
     Ok(response)
 }
 
@@ -1326,6 +1339,44 @@ impl IntoResponse for ApiError {
     }
 }
 
+// ─── Script Engine Handlers ─────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct RunRhaiRequest {
+    source: String,
+    #[serde(default)]
+    vars: std::collections::BTreeMap<String, serde_json::Value>,
+}
+
+async fn run_rhai(
+    headers: HeaderMap,
+    Json(body): Json<RunRhaiRequest>,
+) -> ApiResult<Json<serde_json::Value>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+
+    let engine = aio_engine_rhai::RhaiEngine::new();
+    let input = aio_engine::script::ScriptInput {
+        source: body.source,
+        lang: aio_engine::script::ScriptLang::Rhai,
+        vars: body.vars,
+        policy: aio_core::sandbox::SandboxPolicy::permissive(),
+        timeout_secs: 30,
+    };
+
+    let output = tokio::task::spawn_blocking(move || engine.run(input))
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
+
+    Ok(Json(serde_json::json!({
+        "exit_code": output.exit_code,
+        "stdout": output.stdout,
+        "stderr": output.stderr,
+        "vars": output.vars,
+        "duration_ms": output.duration_ms,
+    })))
+}
+
 // ─── Menu Management Handlers ─────────────────────────────────────────────────────
 
 async fn get_menu_tree(headers: HeaderMap) -> ApiResult<Json<Vec<MenuTreeNode>>> {
@@ -1335,7 +1386,9 @@ async fn get_menu_tree(headers: HeaderMap) -> ApiResult<Json<Vec<MenuTreeNode>>>
         .menu_system
         .as_ref()
         .ok_or_else(|| ApiError::internal("Menu system not available"))?;
-    let tree = ms.get_menu_tree().await
+    let tree = ms
+        .get_menu_tree()
+        .await
         .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
     Ok(Json(tree))
 }
@@ -1347,33 +1400,50 @@ async fn get_menu(Path(id): Path<Uuid>, headers: HeaderMap) -> ApiResult<Json<Me
         .menu_system
         .as_ref()
         .ok_or_else(|| ApiError::internal("Menu system not available"))?;
-    let menu = ms.get_menu_by_id(id).await
+    let menu = ms
+        .get_menu_by_id(id)
+        .await
         .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
-    Ok(Json(menu.ok_or_else(|| ApiError::not_found("Menu not found"))?))
+    Ok(Json(
+        menu.ok_or_else(|| ApiError::not_found("Menu not found"))?,
+    ))
 }
 
-async fn create_menu(headers: HeaderMap, Json(req): Json<CreateMenuRequest>) -> ApiResult<Json<Menu>> {
+async fn create_menu(
+    headers: HeaderMap,
+    Json(req): Json<CreateMenuRequest>,
+) -> ApiResult<Json<Menu>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
     let ms = backend
         .menu_system
         .as_ref()
         .ok_or_else(|| ApiError::internal("Menu system not available"))?;
-    let menu = ms.create_menu(req).await
+    let menu = ms
+        .create_menu(req)
+        .await
         .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
     Ok(Json(menu))
 }
 
-async fn update_menu(Path(id): Path<Uuid>, headers: HeaderMap, Json(req): Json<UpdateMenuRequest>) -> ApiResult<Json<Menu>> {
+async fn update_menu(
+    Path(id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(req): Json<UpdateMenuRequest>,
+) -> ApiResult<Json<Menu>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
     let ms = backend
         .menu_system
         .as_ref()
         .ok_or_else(|| ApiError::internal("Menu system not available"))?;
-    let menu = ms.update_menu(id, req).await
+    let menu = ms
+        .update_menu(id, req)
+        .await
         .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
-    Ok(Json(menu.ok_or_else(|| ApiError::not_found("Menu not found"))?))
+    Ok(Json(
+        menu.ok_or_else(|| ApiError::not_found("Menu not found"))?,
+    ))
 }
 
 async fn delete_menu(Path(id): Path<Uuid>, headers: HeaderMap) -> ApiResult<StatusCode> {
@@ -1383,19 +1453,25 @@ async fn delete_menu(Path(id): Path<Uuid>, headers: HeaderMap) -> ApiResult<Stat
         .menu_system
         .as_ref()
         .ok_or_else(|| ApiError::internal("Menu system not available"))?;
-    ms.delete_menu(id).await
+    ms.delete_menu(id)
+        .await
         .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn sync_file_routes(headers: HeaderMap, Json(routes): Json<Vec<String>>) -> ApiResult<Json<u64>> {
+async fn sync_file_routes(
+    headers: HeaderMap,
+    Json(routes): Json<Vec<String>>,
+) -> ApiResult<Json<u64>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
     let ms = backend
         .menu_system
         .as_ref()
         .ok_or_else(|| ApiError::internal("Menu system not available"))?;
-    let count = ms.sync_file_routes(routes).await
+    let count = ms
+        .sync_file_routes(routes)
+        .await
         .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
     Ok(Json(count))
 }
@@ -1407,7 +1483,9 @@ async fn get_permissions(headers: HeaderMap) -> ApiResult<Json<Vec<Permission>>>
         .menu_system
         .as_ref()
         .ok_or_else(|| ApiError::internal("Menu system not available"))?;
-    let permissions = ms.get_all_permissions().await
+    let permissions = ms
+        .get_all_permissions()
+        .await
         .map_err(|e: sqlx::Error| ApiError::internal(e.to_string()))?;
     Ok(Json(permissions))
 }
