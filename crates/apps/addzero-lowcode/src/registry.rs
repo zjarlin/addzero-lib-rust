@@ -217,6 +217,9 @@ impl ComponentRegistry {
     /// Render a component node to HTML by looking up its type and invoking the
     /// registered renderer.
     pub fn render(&self, node: &ComponentNode) -> Result<String, String> {
+        // Validate props before rendering to enforce schema constraints.
+        self.validate_props(&node.type_key, &node.props)
+            .map_err(|errs| errs.join("; "))?;
         let entry = self
             .entries
             .get(&node.type_key)
@@ -267,6 +270,21 @@ fn bool_prop(props: &serde_json::Value, key: &str, default: bool) -> bool {
     props.get(key).and_then(|v| v.as_bool()).unwrap_or(default)
 }
 
+/// Escape HTML special characters to prevent XSS.
+fn escape_html(input: &str) -> String {
+    input
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
+}
+
+/// Escape a value for use inside an HTML attribute.
+fn escape_attr(input: &str) -> String {
+    escape_html(input)
+}
+
 /// Register the 8 built-in component types.
 fn register_builtins(reg: &mut ComponentRegistry) {
     // ---- button ----
@@ -284,8 +302,14 @@ fn register_builtins(reg: &mut ComponentRegistry) {
         }),
         renderer: Box::new(|node| {
             let p = &node.props;
-            let label = str_prop(p, "label", "");
-            let variant = str_prop(p, "variant", "primary");
+            let label = escape_html(&str_prop(p, "label", ""));
+            let variant = {
+                let raw = str_prop(p, "variant", "primary");
+                match raw.as_str() {
+                    "primary" | "secondary" | "danger" => raw,
+                    _ => "primary".to_string(),
+                }
+            };
             let disabled = bool_prop(p, "disabled", false);
             let dis_attr = if disabled { " disabled" } else { "" };
             format!(
@@ -309,8 +333,14 @@ fn register_builtins(reg: &mut ComponentRegistry) {
         }),
         renderer: Box::new(|node| {
             let p = &node.props;
-            let placeholder = str_prop(p, "placeholder", "");
-            let input_type = str_prop(p, "input_type", "text");
+            let placeholder = escape_attr(&str_prop(p, "placeholder", ""));
+            let input_type = {
+                let raw = str_prop(p, "input_type", "text");
+                match raw.as_str() {
+                    "text" | "email" | "password" | "number" => raw,
+                    _ => "text".to_string(),
+                }
+            };
             let required = bool_prop(p, "required", false);
             let req_attr = if required { " required" } else { "" };
             format!(
@@ -334,9 +364,15 @@ fn register_builtins(reg: &mut ComponentRegistry) {
         }),
         renderer: Box::new(|node| {
             let p = &node.props;
-            let content = str_prop(p, "content", "");
-            let tag = str_prop(p, "tag", "p");
-            let align = str_prop(p, "align", "left");
+            let content = escape_html(&str_prop(p, "content", ""));
+            let tag = {
+                let raw = str_prop(p, "tag", "p");
+                match raw.as_str() {
+                    "p" | "h1" | "h2" | "h3" | "h4" | "span" => raw,
+                    _ => "p".to_string(),
+                }
+            };
+            let align = escape_attr(&str_prop(p, "align", "left"));
             format!(
                 r#"<{tag} style="text-align:{align}">{content}</{tag}>"#
             )
@@ -357,8 +393,14 @@ fn register_builtins(reg: &mut ComponentRegistry) {
         }),
         renderer: Box::new(|node| {
             let p = &node.props;
-            let direction = str_prop(p, "direction", "column");
-            let padding = str_prop(p, "padding", "0");
+            let direction = {
+                let raw = str_prop(p, "direction", "column");
+                match raw.as_str() {
+                    "row" | "column" => raw,
+                    _ => "column".to_string(),
+                }
+            };
+            let padding = escape_attr(&str_prop(p, "padding", "0"));
             let children_html = node
                 .children
                 .iter()
@@ -367,7 +409,8 @@ fn register_builtins(reg: &mut ComponentRegistry) {
                     // that aren't rendered through the full registry path.
                     format!(
                         r#"<div class="lc-child" data-id="{}">{}</div>"#,
-                        child.id, child.props
+                        escape_attr(&child.id),
+                        escape_html(&child.props.to_string())
                     )
                 })
                 .collect::<Vec<_>>()
@@ -405,7 +448,7 @@ fn register_builtins(reg: &mut ComponentRegistry) {
                         .get("label")
                         .and_then(|v| v.as_str())
                         .unwrap_or("");
-                    format!("<th>{label}</th>")
+                    format!("<th>{}</th>", escape_html(label))
                 })
                 .collect::<Vec<_>>()
                 .join("");
