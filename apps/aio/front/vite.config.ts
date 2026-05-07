@@ -12,7 +12,22 @@ export default defineConfig({
         dedupe: ["react", "react-dom"],
         alias: {
             "@": path.resolve(__dirname, "./src"),
+            "@addzero/admin-shell": path.resolve(
+                __dirname,
+                "../../../packages/admin-shell/src/index.ts",
+            ),
+            "@addzero/api-client": path.resolve(
+                __dirname,
+                "../../../packages/api-client/src/index.ts",
+            ),
         },
+    },
+    optimizeDeps: {
+        exclude: [
+            "@addzero/admin-shell",
+            "@addzero/api-client",
+            "@addzero/ui",
+        ],
     },
     server: {
         port: 1430,

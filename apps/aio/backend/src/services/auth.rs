@@ -130,9 +130,7 @@ impl AuthApi for EmbeddedAuthApi {
 
     fn login(&self, input: LoginRequest) -> LocalBoxFuture<'_, AuthServiceResult<SessionUser>> {
         Box::pin(async move {
-            let backend = crate::server::services().await;
-            let cookie = backend
-                .admin_auth
+            let cookie = crate::server::admin_auth()
                 .authenticate(&input)
                 .map_err(|err| AuthServiceError::new(err.message()))?;
             let _ = cookie;

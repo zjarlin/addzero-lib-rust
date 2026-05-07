@@ -3,14 +3,14 @@ import type {
     AdminProvider,
     AdminShellState,
     DomainNode,
-    MenuNode,
+    MenuNode as AdminMenuNode,
     SectionNode,
 } from "@addzero/admin-shell";
 import { getApiBaseUrl } from "@addzero/api-client";
 import {
-    createMenuTreeApi,
-    type MenuTreeNodeDto,
-} from "@addzero/api-client/menu-tree";
+    fetchWasmPluginOverview,
+    type WasmPluginNavigationSection,
+} from "../lib/wasm-plugin-runtime";
 
 const DEFAULT_DOMAINS: DomainNode[] = [
     { id: "workbench", label: "工作台", href: "/", order: 0 },
@@ -22,19 +22,6 @@ const DEFAULT_DOMAINS: DomainNode[] = [
     { id: "market", label: "插件市场", href: "/market", order: 6 },
     { id: "system", label: "系统", href: "/system", order: 7 },
 ];
-
-function mapTreeToMenuNodes(nodes: MenuTreeNodeDto[]): MenuNode[] {
-    return nodes.map((node) => ({
-        id: node.id,
-        label: node.title,
-        href: node.route_path,
-        activePatterns: [node.route_path],
-        children:
-            node.children.length > 0
-                ? mapTreeToMenuNodes(node.children)
-                : undefined,
-    }));
-}
 
 function fallbackSections(): SectionNode[] {
     return [
@@ -101,49 +88,61 @@ function fallbackSections(): SectionNode[] {
     ];
 }
 
+function mapPluginNavigationSections(
+    sections: WasmPluginNavigationSection[],
+): SectionNode[] {
+    return sections
+        .filter((section) =>
+            section.items.some((item) => item.plugin_id || item.kind !== "Fixed"),
+        )
+        .map((section) => ({
+            id: `plugin:${section.label}`,
+            label: section.label,
+            menus: section.items.map(mapPluginNavigationItem),
+        }));
+}
+
+function mapPluginNavigationItem(item: WasmPluginNavigationSection["items"][number]): AdminMenuNode {
+    return {
+        id: `${item.plugin_id ?? "fixed"}:${item.page_id ?? item.href}`,
+        label: item.badge ? `${item.label}` : item.label,
+        href: item.href,
+        activePatterns: [item.href],
+    };
+}
+
 export function useAdminProvider(): {
     provider: AdminProvider;
-    loading: boolean;
-    username: string;
 } {
     const [sections, setSections] = useState<SectionNode[]>(fallbackSections);
-    const [loading, setLoading] = useState(true);
-    const [username, setUsername] = useState("");
 
     useEffect(() => {
         const baseUrl = getApiBaseUrl();
-        const menuApi = createMenuTreeApi(baseUrl);
         let cancelled = false;
 
         async function load() {
             try {
-                const [tree, session] = await Promise.all([
-                    menuApi.getMenuTree(),
-                    fetch(`${baseUrl}/api/admin/session`, {
-                        credentials: "include",
-                    }).then((r) => r.json()),
-                ]);
+                const overview = await fetchWasmPluginOverview(baseUrl);
                 if (cancelled) return;
-                setUsername(session.username ?? "");
-                if (tree && tree.length > 0) {
-                    setSections([
-                        {
-                            id: "navigation",
-                            label: "导航",
-                            menus: mapTreeToMenuNodes(tree),
-                        },
-                    ]);
+                const dynamicSections = mapPluginNavigationSections(
+                    overview.shell.nav_sections,
+                );
+                if (dynamicSections.length > 0) {
+                    setSections([...fallbackSections(), ...dynamicSections]);
                 }
             } catch {
                 // keep fallback
-            } finally {
-                if (!cancelled) setLoading(false);
             }
         }
 
-        load();
+        void load();
+        const refresh = () => {
+            void load();
+        };
+        window.addEventListener("aio:plugin-runtime-updated", refresh);
         return () => {
             cancelled = true;
+            window.removeEventListener("aio:plugin-runtime-updated", refresh);
         };
     }, []);
 
@@ -163,5 +162,5 @@ export function useAdminProvider(): {
         [sections],
     );
 
-    return { provider: { getShellState }, loading, username };
+    return { provider: { getShellState } };
 }

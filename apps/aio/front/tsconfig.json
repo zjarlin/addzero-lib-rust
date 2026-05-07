@@ -14,7 +14,9 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "#components/*": ["../../packages/ui/src/components/*"],
+      "#lib/*": ["../../packages/ui/src/lib/*"]
     }
   },
   "include": ["src"]

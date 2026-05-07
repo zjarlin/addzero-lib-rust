@@ -32,10 +32,15 @@ addzero-assets = { path = "../../../crates/data/addzero-assets" }
 addzero-knowledge = { path = "../../../crates/data/addzero-knowledge" }
 addzero-minio = { path = "../../../crates/storage/addzero-minio" }
 addzero-persistence = { path = "../../../crates/data/addzero-persistence" }
+addzero-plugin-contract = { path = "../../../crates/runtime/addzero-plugin-contract" }
+addzero-plugin-kernel = { path = "../../../crates/runtime/addzero-plugin-kernel" }
+addzero-plugin-runtime = { path = "../../../crates/runtime/addzero-plugin-runtime" }
 addzero-skills = { path = "../../../crates/data/addzero-skills" }
 addzero-rustfs = { path = "../../../crates/storage/addzero-rustfs" }
+addzero-system-starters = { path = "../../../crates/runtime/addzero-system-starters" }
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
+dirs.workspace = true
 futures-util = "0.3.31"
 hmac.workspace = true
 log.workspace = true

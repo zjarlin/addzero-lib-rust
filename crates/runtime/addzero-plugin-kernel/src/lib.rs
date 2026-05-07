@@ -1,4 +1,5 @@
 use std::{
+    env,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -56,7 +57,11 @@ impl AuthProvider for DevAuthProvider {
     }
 
     fn dev_auth_mode(&self) -> String {
-        "dev: admin / 123456".to_string()
+        if env::var("AIO_ADMIN_USERNAME").is_ok() || env::var("AIO_ADMIN_PASSWORD").is_ok() {
+            "env-configured credentials".to_string()
+        } else {
+            "dev: admin / admin".to_string()
+        }
     }
 }
 
@@ -173,8 +178,10 @@ impl PlatformKernel {
         source_dir: &Path,
         package_name: &str,
     ) -> Result<PathBuf, KernelError> {
-        let runtime = self.runtime.lock().map_err(|_| KernelError::Poisoned)?;
-        Ok(runtime.ensure_dev_package(source_dir, package_name)?)
+        let mut runtime = self.runtime.lock().map_err(|_| KernelError::Poisoned)?;
+        let package_path = runtime.ensure_dev_package(source_dir, package_name)?;
+        runtime.refresh_catalog()?;
+        Ok(package_path)
     }
 
     pub fn install_catalog_plugin(&self, plugin_id: &str) -> Result<PluginDescriptor, KernelError> {

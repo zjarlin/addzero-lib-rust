@@ -17,6 +17,7 @@ import {
     getApiBaseUrl,
 } from "@addzero/api-client";
 import { Badge, Button, Input, Textarea } from "@addzero/ui";
+import WasmPluginRuntimePanel from "../components/WasmPluginRuntimePanel";
 
 interface PluginDescriptorDto {
     runtime_id: string | null;
@@ -338,6 +339,8 @@ export default function MarketPage() {
                     </div>
                 </div>
             </section>
+
+            <WasmPluginRuntimePanel />
 
             <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
                 <div className="rounded-lg border bg-card">

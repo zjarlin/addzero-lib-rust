@@ -23,6 +23,8 @@ pub mod software_catalog;
 pub mod system_management;
 pub mod terminal_sessions;
 pub mod vibe_coding;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod wasm_plugins;
 
 pub use asset_graph::{
     AssetGraphDto, AssetGraphEdgeDto, AssetGraphItemDto, AssetGraphTagDto, AssetKindDto,
@@ -88,3 +90,8 @@ pub use terminal_sessions::{
     default_terminal_sessions_api,
 };
 pub use vibe_coding::{StartVibeCodingRequestDto, StartVibeCodingResponseDto};
+#[cfg(not(target_arch = "wasm32"))]
+pub use wasm_plugins::{
+    WasmPluginInstallRequestDto, WasmPluginInstallResultDto, WasmPluginRegisterDevRequestDto,
+    WasmPluginRegisterDevResultDto, WasmPluginRuntimeSnapshotDto,
+};

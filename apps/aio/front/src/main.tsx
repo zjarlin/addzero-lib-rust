@@ -9,6 +9,7 @@ import EnvPage from "./pages/env";
 import KnowledgePage from "./pages/knowledge";
 import LoginPage from "./pages/login";
 import MarketPage from "./pages/market";
+import { InstancePluginPage, SystemPluginPage } from "./pages/plugin-page";
 import SkillsPage from "./pages/skills";
 import StoragePage from "./pages/storage";
 import SystemPage from "./pages/system";
@@ -26,6 +27,8 @@ const routes = [
             { path: "/skills", element: <SkillsPage /> },
             { path: "/storage", element: <StoragePage /> },
             { path: "/system", element: <SystemPage /> },
+            { path: "/system/:pluginId/:pageId", element: <SystemPluginPage /> },
+            { path: "/apps/:instanceSlug/:pageId", element: <InstancePluginPage /> },
         ],
     },
 ];

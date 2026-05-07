@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "sideEffects": [
     "./src/styles/*.css"
@@ -11,15 +11,15 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./src/index.ts"
+      "default": "./dist/index.js"
     },
     "./components/*": {
       "types": "./dist/components/ui/*.d.ts",
-      "default": "./src/components/ui/*.tsx"
+      "default": "./dist/components/ui/*.js"
     },
     "./lib/*": {
       "types": "./dist/lib/*.d.ts",
-      "default": "./src/lib/*.ts"
+      "default": "./dist/lib/*.js"
     },
     "./styles/*": {
       "default": "./src/styles/*"

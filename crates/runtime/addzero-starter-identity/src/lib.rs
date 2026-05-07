@@ -31,7 +31,8 @@ impl PluginStarter for IdentityStarter {
             pages: vec![PluginPage {
                 id: "users".to_string(),
                 title: "用户管理".to_string(),
-                subtitle: "开发环境固定 admin / 123456，生产环境换真实登录。".to_string(),
+                subtitle: "开发环境默认 admin / admin；生产环境请改用环境变量配置的真实登录。"
+                    .to_string(),
                 schema: PageSchema::Table(TableSchema {
                     columns: vec![
                         "用户名".to_string(),

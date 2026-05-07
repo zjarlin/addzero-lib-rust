@@ -5,7 +5,11 @@
     "outDir": "./dist",
     "declaration": true,
     "declarationMap": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "#components/*": ["../ui/src/components/*"],
+      "#lib/*": ["../ui/src/lib/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

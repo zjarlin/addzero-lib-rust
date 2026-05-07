@@ -13,10 +13,12 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::{get, post, put},
 };
+use once_cell::sync::Lazy;
 use tokio::sync::OnceCell;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use addzero_agent_runtime_contract::{LoginRequest, SessionUser};
+use addzero_plugin_contract::ResolvedPage;
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 use aio_engine::script::ScriptEngine;
 use serde::Deserialize;
@@ -34,7 +36,8 @@ use crate::services::{
     StorageDeleteFolderDto, StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto,
     StorageShareResultDto, StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto,
     SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
-    TerminalSessionSnapshotDto,
+    TerminalSessionSnapshotDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
+    WasmPluginRegisterDevRequestDto, WasmPluginRegisterDevResultDto, WasmPluginRuntimeSnapshotDto,
     download_station::{FileIndex, ScanStats, ShareLink},
     menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
 };
@@ -51,6 +54,11 @@ pub struct BackendServices {
 }
 
 static SERVICES: OnceCell<BackendServices> = OnceCell::const_new();
+static ADMIN_AUTH: Lazy<AdminSessionService> = Lazy::new(AdminSessionService::from_env);
+
+pub(crate) fn admin_auth() -> &'static AdminSessionService {
+    &ADMIN_AUTH
+}
 
 pub fn resolved_database_url() -> Option<String> {
     addzero_persistence::database_url().or_else(|| {
@@ -99,7 +107,7 @@ pub async fn services() -> &'static BackendServices {
                 }
             }
 
-            let admin_auth = AdminSessionService::from_env();
+            let admin_auth = admin_auth().clone();
             let cli_market =
                 crate::services::cli_market::CliMarketService::try_attach(database_url.as_deref())
                     .await;
@@ -151,30 +159,7 @@ pub async fn run_migrations() -> Result<()> {
         .connect(&database_url)
         .await?;
 
-    let migration_dir =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/server/migrations");
-    let extra_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
-
-    let mut files: Vec<_> = std::fs::read_dir(&migration_dir)
-        .into_iter()
-        .flatten()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "sql"))
-        .map(|e| e.path())
-        .collect();
-
-    if extra_dir.exists() {
-        files.extend(
-            std::fs::read_dir(&extra_dir)
-                .into_iter()
-                .flatten()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().map_or(false, |ext| ext == "sql"))
-                .map(|e| e.path()),
-        );
-    }
-
-    files.sort();
+    let files = migration_files()?;
 
     for file in &files {
         let name = file.file_name().unwrap().to_string_lossy();
@@ -193,6 +178,58 @@ pub async fn run_migrations() -> Result<()> {
 
     println!("Migrations complete ({} files)", files.len());
     Ok(())
+}
+
+pub async fn print_migration_status() -> Result<()> {
+    let files = migration_files()?;
+    println!("Migration files: {}", files.len());
+    for file in &files {
+        println!(" - {}", file.file_name().unwrap().to_string_lossy());
+    }
+
+    let Some(database_url) = resolved_database_url() else {
+        println!("Database: not configured");
+        return Ok(());
+    };
+
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .connect(&database_url)
+        .await?;
+
+    let table_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*)::BIGINT FROM information_schema.tables WHERE table_schema = 'public'",
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    println!("Database: configured");
+    println!("Public tables: {table_count}");
+    Ok(())
+}
+
+fn migration_files() -> Result<Vec<PathBuf>> {
+    let migration_dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/server/migrations");
+    let extra_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+
+    let mut files: Vec<_> = std::fs::read_dir(&migration_dir)?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().extension().map_or(false, |ext| ext == "sql"))
+        .map(|entry| entry.path())
+        .collect();
+
+    if extra_dir.exists() {
+        files.extend(
+            std::fs::read_dir(&extra_dir)?
+                .filter_map(|entry| entry.ok())
+                .filter(|entry| entry.path().extension().map_or(false, |ext| ext == "sql"))
+                .map(|entry| entry.path()),
+        );
+    }
+
+    files.sort();
+    Ok(files)
 }
 
 fn split_sql_statements(sql: &str) -> Vec<String> {
@@ -357,6 +394,23 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/plugins/{id}/enable", post(enable_plugin))
         .route("/api/plugins/{id}/disable", post(disable_plugin))
         .route("/api/plugins/{id}", axum::routing::delete(uninstall_plugin))
+        .route("/api/wasm/plugins/overview", get(wasm_plugin_overview))
+        .route(
+            "/api/wasm/plugins/register-dev",
+            post(register_dev_wasm_plugin),
+        )
+        .route(
+            "/api/wasm/plugins/install-catalog",
+            post(install_catalog_wasm_plugin),
+        )
+        .route(
+            "/api/wasm/plugins/system/{plugin_id}/{page_id}",
+            get(resolve_system_wasm_plugin_page),
+        )
+        .route(
+            "/api/wasm/plugins/apps/{instance_slug}/{page_id}",
+            get(resolve_instance_wasm_plugin_page),
+        )
         .route("/api/vibe-coding/start", post(start_vibe_coding))
         .route(
             "/api/admin/terminal/sessions",
@@ -532,14 +586,12 @@ fn is_valid_local_dev_port(port: &str) -> bool {
 }
 
 async fn get_session(headers: HeaderMap) -> ApiResult<Json<SessionUser>> {
-    let backend = services().await;
-    Ok(Json(backend.admin_auth.session_user(&headers)))
+    Ok(Json(admin_auth().session_user(&headers)))
 }
 
 async fn login(Json(input): Json<LoginRequest>) -> ApiResult<Response> {
-    let backend = services().await;
-    let cookie = backend
-        .admin_auth
+    let auth = admin_auth();
+    let cookie = auth
         .authenticate(&input)
         .map_err(|err| ApiError::unauthorized(err.message()))?;
     let mut response = Json(SessionUser {
@@ -549,14 +601,14 @@ async fn login(Json(input): Json<LoginRequest>) -> ApiResult<Response> {
     .into_response();
     response.headers_mut().insert(
         SET_COOKIE,
-        HeaderValue::from_str(&backend.admin_auth.set_cookie_header(&cookie))
+        HeaderValue::from_str(&auth.set_cookie_header(&cookie))
             .map_err(|_| ApiError::internal("failed to encode session cookie"))?,
     );
     Ok(response)
 }
 
 async fn logout() -> ApiResult<Response> {
-    let backend = services().await;
+    let auth = admin_auth();
     let mut response = Json(SessionUser {
         authenticated: false,
         username: None,
@@ -564,16 +616,14 @@ async fn logout() -> ApiResult<Response> {
     .into_response();
     response.headers_mut().insert(
         SET_COOKIE,
-        HeaderValue::from_str(&backend.admin_auth.clear_cookie_header())
+        HeaderValue::from_str(&auth.clear_cookie_header())
             .map_err(|_| ApiError::internal("failed to encode logout cookie"))?,
     );
     Ok(response)
 }
 
 async fn get_session_permissions(headers: HeaderMap) -> ApiResult<Json<Vec<String>>> {
-    let backend = services().await;
-    let username = backend
-        .admin_auth
+    let username = admin_auth()
         .current_user(&headers)
         .ok_or_else(|| ApiError::unauthorized("未登录"))?;
     let codes =
@@ -948,6 +998,63 @@ async fn uninstall_plugin(headers: HeaderMap, Path(id): Path<String>) -> ApiResu
         .await
         .map_err(ApiError::bad_request)?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn wasm_plugin_overview(headers: HeaderMap) -> ApiResult<Json<WasmPluginRuntimeSnapshotDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let snapshot = crate::services::wasm_plugins::wasm_plugin_runtime_snapshot_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(snapshot))
+}
+
+async fn register_dev_wasm_plugin(
+    headers: HeaderMap,
+    Json(input): Json<WasmPluginRegisterDevRequestDto>,
+) -> ApiResult<Json<WasmPluginRegisterDevResultDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let result = crate::services::wasm_plugins::register_dev_wasm_plugin_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn install_catalog_wasm_plugin(
+    headers: HeaderMap,
+    Json(input): Json<WasmPluginInstallRequestDto>,
+) -> ApiResult<Json<WasmPluginInstallResultDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let result = crate::services::wasm_plugins::install_catalog_wasm_plugin_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn resolve_system_wasm_plugin_page(
+    headers: HeaderMap,
+    Path((plugin_id, page_id)): Path<(String, String)>,
+) -> ApiResult<Json<ResolvedPage>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let page = crate::services::wasm_plugins::resolve_system_wasm_plugin_page_on_server(
+        plugin_id, page_id,
+    )
+    .await
+    .map_err(ApiError::bad_request)?;
+    Ok(Json(page))
+}
+
+async fn resolve_instance_wasm_plugin_page(
+    headers: HeaderMap,
+    Path((instance_slug, page_id)): Path<(String, String)>,
+) -> ApiResult<Json<ResolvedPage>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let page = crate::services::wasm_plugins::resolve_instance_wasm_plugin_page_on_server(
+        instance_slug,
+        page_id,
+    )
+    .await
+    .map_err(ApiError::bad_request)?;
+    Ok(Json(page))
 }
 
 async fn start_vibe_coding(

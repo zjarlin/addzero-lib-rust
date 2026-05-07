@@ -22,7 +22,7 @@ export default function AdminLayout({
 }) {
     const location = useLocation();
     const navigate = useNavigate();
-    const { provider, loading } = useAdminProvider();
+    const { provider } = useAdminProvider();
     const username = useAuthStore((s) => s.username) ?? "";
     const logout = useAuthStore((s) => s.logout);
     const { theme, toggle: toggleTheme } = useThemeStore();
@@ -56,14 +56,6 @@ export default function AdminLayout({
         onToggleTheme: toggleTheme,
         onFocusSearch: () => setSearchOpen(true),
     };
-
-    if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-                <p className="animate-pulse">Loading admin shell…</p>
-            </div>
-        );
-    }
 
     return (
         <>
