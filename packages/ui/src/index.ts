@@ -12,6 +12,7 @@ export * from "./components/ui/select";
 export * from "./components/ui/separator";
 export * from "./components/ui/sheet";
 export * from "./components/ui/skeleton";
+export * from "./components/ui/table";
 export * from "./components/ui/tabs";
 export * from "./components/ui/textarea";
 export * from "./components/ui/tooltip";

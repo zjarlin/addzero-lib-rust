@@ -1,8 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-    "apps/*",
-    "crates/*",
+    "apps/aio/backend",
+    "apps/aio/desktop/src-tauri",
+    "crates/aio-*",
+    "crates/api/*",
+    "crates/apps/*",
+    "crates/config/*",
+    "crates/core/*",
+    "crates/data/*",
     "crates/music/*",
     "crates/network/*",
     "crates/runtime/*",

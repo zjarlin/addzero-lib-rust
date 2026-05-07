@@ -75,15 +75,20 @@ export default function AdminLayout({
                 <CommandInput placeholder="输入命令或页面名称..." />
                 <CommandList>
                     <CommandEmpty>没有匹配项</CommandEmpty>
-                    <CommandGroup heading="Workbench">
+                    <CommandGroup heading="场景">
                         {[
                             { label: "平台总览", href: "/", shortcut: "G H" },
+                            { label: "资产文件", href: "/assets/files", shortcut: "G F" },
+                            { label: "笔记", href: "/assets/notes", shortcut: "G N" },
+                            { label: "安装包", href: "/assets/packages", shortcut: "G P" },
+                            { label: "dotfiles", href: "/assets/dotfiles", shortcut: "G D" },
+                            { label: "Agent 资产", href: "/assets/agents", shortcut: "G A" },
+                            { label: "Agent Skills", href: "/assets/agents/skills", shortcut: "G S" },
+                            { label: "Agent CLI", href: "/assets/agents/cli", shortcut: "G L" },
+                            { label: "Agent MCP", href: "/assets/agents/mcp", shortcut: "G M" },
                             { label: "脚本控制台", href: "/console", shortcut: "G C" },
                             { label: "环境与配置", href: "/env", shortcut: "G E" },
-                            { label: "插件与技能", href: "/skills", shortcut: "G S" },
-                            { label: "知识与记忆", href: "/knowledge", shortcut: "G K" },
-                            { label: "存储与资源", href: "/storage", shortcut: "G R" },
-                            { label: "WASM 插件市场", href: "/market", shortcut: "G M" },
+                            { label: "WASM 插件市场", href: "/market", shortcut: "G W" },
                             { label: "系统管理", href: "/system", shortcut: "G Y" },
                         ].map((item) => (
                             <CommandItem

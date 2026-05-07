@@ -1,0 +1,282 @@
+{
+  "name": "AIO Admin Prototype Board",
+  "version": "0.1.0",
+  "canvas": {
+    "frameWidth": 1160,
+    "frameHeight": 700,
+    "layout": "topbar + left route tree + content workspace",
+    "density": "edge-to-edge admin workbench",
+    "componentStyle": "shadcn/ui primitives",
+    "tableModel": "TanStack Table column defs + toolbar + rows + pagination"
+  },
+  "tokens": {
+    "canvas": "#e8e2d6",
+    "paper": "#fbfaf6",
+    "panel": "#fffefb",
+    "ink": "#171a17",
+    "muted": "#6e706b",
+    "line": "#d7d0c3",
+    "rail": "#f2ede4",
+    "active": "#101312",
+    "mint": "#1f766f",
+    "amber": "#b25e26",
+    "blue": "#315f91",
+    "rose": "#9a3f51"
+  },
+  "domains": [
+    {
+      "id": "workbench",
+      "label": "工作台",
+      "defaultRoute": "/"
+    },
+    {
+      "id": "assets",
+      "label": "资产",
+      "defaultRoute": "/assets/files"
+    },
+    {
+      "id": "runtime",
+      "label": "运行",
+      "defaultRoute": "/console"
+    },
+    {
+      "id": "plugins",
+      "label": "插件",
+      "defaultRoute": "/market"
+    },
+    {
+      "id": "system",
+      "label": "系统",
+      "defaultRoute": "/system"
+    }
+  ],
+  "routeTrees": {
+    "workbench": [
+      {
+        "section": "平台工作台",
+        "items": [
+          {
+            "label": "平台总览",
+            "route": "/"
+          }
+        ]
+      }
+    ],
+    "assets": [
+      {
+        "section": "个人资产",
+        "items": [
+          {
+            "label": "资产文件",
+            "route": "/assets/files"
+          },
+          {
+            "label": "笔记",
+            "route": "/assets/notes"
+          },
+          {
+            "label": "安装包",
+            "route": "/assets/packages"
+          },
+          {
+            "label": "dotfiles",
+            "route": "/assets/dotfiles"
+          }
+        ]
+      },
+      {
+        "section": "Agent 资产",
+        "items": [
+          {
+            "label": "Agent 资产总览",
+            "route": "/assets/agents",
+            "children": [
+              {
+                "label": "Skills",
+                "route": "/assets/agents/skills"
+              },
+              {
+                "label": "CLI",
+                "route": "/assets/agents/cli"
+              },
+              {
+                "label": "MCP",
+                "route": "/assets/agents/mcp"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "runtime": [
+      {
+        "section": "运行时",
+        "items": [
+          {
+            "label": "脚本控制台",
+            "route": "/console"
+          },
+          {
+            "label": "环境与配置",
+            "route": "/env"
+          }
+        ]
+      }
+    ],
+    "plugins": [
+      {
+        "section": "插件系统",
+        "items": [
+          {
+            "label": "WASM 插件市场",
+            "route": "/market"
+          }
+        ]
+      }
+    ],
+    "system": [
+      {
+        "section": "系统",
+        "items": [
+          {
+            "label": "系统管理",
+            "route": "/system"
+          },
+          {
+            "label": "权限菜单树",
+            "route": "/system/menus"
+          },
+          {
+            "label": "用户与角色",
+            "route": "/system/access"
+          }
+        ]
+      }
+    ]
+  },
+  "frames": [
+    {
+      "id": "workbench-overview",
+      "title": "平台总览",
+      "domain": "workbench",
+      "route": "/",
+      "activeNav": "平台总览",
+      "layout": "two-column",
+      "regions": ["platform status metrics", "domain health list"]
+    },
+    {
+      "id": "asset-files",
+      "title": "资产文件",
+      "domain": "assets",
+      "route": "/assets/files",
+      "activeNav": "资产文件",
+      "layout": "three-column",
+      "regions": ["directory tree", "TanStack Table file table", "object detail"]
+    },
+    {
+      "id": "asset-notes",
+      "title": "笔记",
+      "domain": "assets",
+      "route": "/assets/notes",
+      "activeNav": "笔记",
+      "layout": "Blinko reference",
+      "regions": ["quick capture editor", "toolbar actions", "two-column note masonry", "search and filters"],
+      "reference": "Blinko notes UI: top quick editor, dense card stream, tags, attachments, fast send"
+    },
+    {
+      "id": "asset-packages",
+      "title": "安装包",
+      "domain": "assets",
+      "route": "/assets/packages",
+      "activeNav": "安装包",
+      "layout": "two-column",
+      "regions": ["TanStack Table package table", "release kanban"]
+    },
+    {
+      "id": "asset-dotfiles",
+      "title": "dotfiles",
+      "domain": "assets",
+      "route": "/assets/dotfiles",
+      "activeNav": "dotfiles",
+      "layout": "two-column",
+      "regions": ["machine metrics", "TanStack Table config drift table"]
+    },
+    {
+      "id": "agent-assets",
+      "title": "Agent 资产总览",
+      "domain": "assets",
+      "route": "/assets/agents",
+      "activeNav": "Agent 资产总览",
+      "layout": "two-column",
+      "regions": ["capability metrics", "asset distribution"]
+    },
+    {
+      "id": "agent-skills",
+      "title": "Agent Skills",
+      "domain": "assets",
+      "route": "/assets/agents/skills",
+      "activeNav": "Skills",
+      "layout": "three-column",
+      "regions": ["skill list", "SKILL.md preview", "reference assets"]
+    },
+    {
+      "id": "agent-cli",
+      "title": "Agent CLI",
+      "domain": "assets",
+      "route": "/assets/agents/cli",
+      "activeNav": "CLI",
+      "layout": "two-column",
+      "regions": ["TanStack Table command catalog", "argument contract"]
+    },
+    {
+      "id": "agent-mcp",
+      "title": "Agent MCP",
+      "domain": "assets",
+      "route": "/assets/agents/mcp",
+      "activeNav": "MCP",
+      "layout": "two-column",
+      "regions": ["TanStack Table server table", "tool exposure list"]
+    },
+    {
+      "id": "runtime-console",
+      "title": "脚本控制台",
+      "domain": "runtime",
+      "route": "/console",
+      "activeNav": "脚本控制台",
+      "layout": "three-column",
+      "regions": ["script library", "editor", "output"]
+    },
+    {
+      "id": "runtime-config",
+      "title": "环境与配置",
+      "domain": "runtime",
+      "route": "/env",
+      "activeNav": "环境与配置",
+      "layout": "two-column",
+      "regions": ["model config", "config file list"]
+    },
+    {
+      "id": "plugin-market",
+      "title": "WASM 插件市场",
+      "domain": "plugins",
+      "route": "/market",
+      "activeNav": "WASM 插件市场",
+      "layout": "two-column",
+      "regions": ["host topology", "TanStack Table runtime instances"]
+    },
+    {
+      "id": "system-admin",
+      "title": "系统管理",
+      "domain": "system",
+      "route": "/system",
+      "activeNav": "系统管理",
+      "layout": "two-column",
+      "regions": ["TanStack Table permission matrix", "metadata list"]
+    }
+  ],
+  "figmaMcpStatus": {
+    "availableInCurrentSession": false,
+    "observedMcpServers": ["chrome-devtools", "playwright"],
+    "nextStepWhenAvailable": "Use this JSON as the source of frames, routes, and region names; create one Figma frame per item under frames."
+  }
+}

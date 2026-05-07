@@ -42,12 +42,30 @@ const foundationPillars = [
     {
         icon: <Blocks className="h-4 w-4" />,
         title: "WASM Runtime",
-        detail: "通过 Wasmtime / WASI 装载、启停和隔离插件实例。",
+        detail: "通过进程内 Wasmtime / WASI 装载、启停和隔离插件实例，不为每个插件单独启动监听端口。",
     },
     {
         icon: <Cable className="h-4 w-4" />,
         title: "WIT 契约",
         detail: "统一宿主与插件之间的扩展点和生命周期调用。",
+    },
+];
+
+const hostTopology = [
+    {
+        title: "前端入口",
+        value: "1",
+        detail: "开发态由 Vite 提供一个页面入口；桌面态可以继续收敛到内嵌前端资源。",
+    },
+    {
+        title: "后端宿主",
+        value: "1",
+        detail: "Axum 宿主统一承载 API、插件注册、生命周期调度和扩展点装配。",
+    },
+    {
+        title: "WASM 插件",
+        value: "0 额外端口",
+        detail: "插件作为宿主进程内实例运行，默认不派生独立服务，也不额外监听端口。",
     },
 ];
 
@@ -274,7 +292,8 @@ export default function MarketPage() {
                     </h1>
                     <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
                         这个应用的基础骨架不是一组内建页面，而是一层能装配 WASM 插件的宿主。
-                        市场页要围绕插件包、运行时、契约和生命周期来设计，而不是沿用 CLI 市场语义。
+                        市场页要围绕插件包、运行时、契约和生命周期来设计。当前目标拓扑也明确固定为
+                        “一个前端入口 + 一个后端宿主”，WASM 插件在宿主进程内运行，不因为多装一个插件就多出新的监听端口。
                     </p>
                 </div>
 
@@ -298,12 +317,41 @@ export default function MarketPage() {
                 </div>
             </section>
 
+            <section className="rounded-lg border bg-card">
+                <div className="border-b px-5 py-4">
+                    <h2 className="text-base font-semibold">宿主拓扑</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        插件系统是进程内扩展模型，不是“每个插件再起一个服务”的微服务拼装模型。
+                    </p>
+                </div>
+                <div className="grid gap-0 md:grid-cols-3">
+                    {hostTopology.map((item, index) => (
+                        <div
+                            key={item.title}
+                            className={`px-5 py-4 ${
+                                index > 0 ? "border-t md:border-l md:border-t-0" : ""
+                            }`}
+                        >
+                            <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                {item.title}
+                            </div>
+                            <div className="mt-3 text-2xl font-semibold tracking-tight">
+                                {item.value}
+                            </div>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                {item.detail}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
             <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
                 <div className="rounded-lg border bg-card">
                     <div className="border-b px-5 py-4">
                         <h2 className="text-base font-semibold">插件生命周期</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            先把宿主平台的标准流程固定下来，后续再接真实注册表和安装动作。
+                            先把宿主平台的标准流程固定下来，确保安装、启停、卸载都围绕同一个宿主完成。
                         </p>
                     </div>
                     <div className="space-y-0">
@@ -600,7 +648,7 @@ export default function MarketPage() {
                     <div className="border-b px-5 py-4">
                         <h2 className="text-base font-semibold">安装清单</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            先接最小 manifest 安装流，后续再替换成真实 `.aio-plugin` 包解析。
+                            这里先保留最小清单录入面，真实外部插件仍应以包含 wasm 二进制的 `.aio-plugin` 包导入。
                         </p>
                     </div>
                     <div className="grid gap-4 px-5 py-4 md:grid-cols-2">

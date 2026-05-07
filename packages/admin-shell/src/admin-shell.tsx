@@ -5,11 +5,6 @@ import { useEffect, type ReactNode } from "react";
 import {
     Badge,
     Button,
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
     ScrollArea,
     Separator,
     Tooltip,
@@ -135,9 +130,18 @@ function renderDomain(
     currentPath: string,
     onNavigate: (href: string) => void,
 ) {
-    const active =
-        matchPattern(currentPath, domain.href) ||
-        currentPath.startsWith(`${domain.href}/`);
+    const activePatterns = domain.activePatterns ?? [domain.href];
+    const active = activePatterns.some((pattern) => {
+        if (pattern === "/" || pattern.includes(":")) {
+            return matchPattern(currentPath, pattern);
+        }
+        const cleanPath = currentPath.split("?")[0].replace(/\/+$/, "") || "/";
+        const cleanPattern = pattern.replace(/\/+$/, "") || "/";
+        return (
+            matchPattern(cleanPath, cleanPattern) ||
+            cleanPath.startsWith(`${cleanPattern}/`)
+        );
+    });
     return (
         <Button
             key={domain.id}
@@ -215,19 +219,16 @@ function renderRightPanel(rightPanel: RightPanelSlot | null | undefined) {
     }
 
     return (
-        <Card className="hidden min-w-[18rem] max-w-[20rem] overflow-hidden xl:flex xl:flex-col">
-            <CardHeader>
-                <CardTitle className="text-sm">{rightPanel.title}</CardTitle>
-            </CardHeader>
-            <Separator />
-            <CardContent className="p-0">
-                <ScrollArea className="h-[calc(100vh-16rem)] px-4 py-4">
-                    <div className="text-sm text-muted-foreground">
-                        {rightPanel.content}
-                    </div>
-                </ScrollArea>
-            </CardContent>
-        </Card>
+        <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l bg-card xl:flex">
+            <div className="border-b px-4 py-3">
+                <h2 className="text-sm font-semibold">{rightPanel.title}</h2>
+            </div>
+            <ScrollArea className="min-h-0 flex-1 px-4 py-4">
+                <div className="text-sm text-muted-foreground">
+                    {rightPanel.content}
+                </div>
+            </ScrollArea>
+        </aside>
     );
 }
 
@@ -261,69 +262,63 @@ export function AdminWorkbench({
     const hasRightPanel = Boolean(shell.rightPanel);
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
-            <div className="mx-auto flex min-h-screen max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6">
-                <Card className="shadow-sm">
-                    <CardContent className="flex flex-col gap-3 p-3 md:p-4 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
-                            {shell.domains.map((domain) =>
-                                renderDomain(
-                                    domain,
-                                    context.currentPath,
-                                    context.onNavigate,
-                                ),
-                            )}
-                        </div>
-                        <TooltipProvider delayDuration={120}>
-                            <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                                {shell.topbarActions.map((action) =>
-                                    renderAction(action, context.isDark, context),
-                                )}
-                            </div>
-                        </TooltipProvider>
-                    </CardContent>
-                </Card>
-
-                <div
-                    className={cn(
-                        "grid flex-1 gap-4",
-                        hasRightPanel
-                            ? "xl:grid-cols-[18rem_minmax(0,1fr)_20rem]"
-                            : "xl:grid-cols-[18rem_minmax(0,1fr)]",
+        <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
+            <header className="flex min-h-14 shrink-0 flex-col gap-2 border-b bg-card px-4 py-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+                    {shell.domains.map((domain) =>
+                        renderDomain(
+                            domain,
+                            context.currentPath,
+                            context.onNavigate,
+                        ),
                     )}
-                >
-                    <Card className="overflow-hidden">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm">Navigation</CardTitle>
-                            <CardDescription className="text-xs">
-                                双轴上下文树
-                            </CardDescription>
-                        </CardHeader>
-                        <Separator />
-                        <CardContent className="p-0">
-                            <ScrollArea className="h-[calc(100vh-16rem)] px-4 py-4">
-                                <div className="space-y-5">
-                                    {shell.sections.map((section, index) => (
-                                        <div key={section.id} className="space-y-5">
-                                            {index > 0 ? <Separator /> : null}
-                                            {renderSection(
-                                                section,
-                                                context.currentPath,
-                                                context.onNavigate,
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
-                    <Card className="min-w-0">
-                        <CardContent className="p-4 md:p-6">
-                            {children}
-                        </CardContent>
-                    </Card>
-                    {renderRightPanel(shell.rightPanel)}
                 </div>
+                <TooltipProvider delayDuration={120}>
+                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                        {shell.topbarActions.map((action) =>
+                            renderAction(action, context.isDark, context),
+                        )}
+                    </div>
+                </TooltipProvider>
+            </header>
+
+            <div
+                className={cn(
+                    "grid min-h-0 flex-1",
+                    hasRightPanel
+                        ? "lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)_20rem]"
+                        : "lg:grid-cols-[18rem_minmax(0,1fr)]",
+                )}
+            >
+                <aside className="flex min-h-0 flex-col border-r bg-card">
+                    <div className="border-b px-4 py-3">
+                        <h2 className="text-sm font-semibold">
+                            {shell.navigationTitle ?? "Navigation"}
+                        </h2>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {shell.navigationDetail ?? "双轴上下文树"}
+                        </p>
+                    </div>
+                    <ScrollArea className="min-h-0 flex-1 px-4 py-4">
+                        <div className="space-y-5">
+                            {shell.sections.map((section, index) => (
+                                <div key={section.id} className="space-y-5">
+                                    {index > 0 ? <Separator /> : null}
+                                    {renderSection(
+                                        section,
+                                        context.currentPath,
+                                        context.onNavigate,
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </aside>
+
+                <main className="min-h-0 min-w-0 overflow-y-auto">
+                    {children}
+                </main>
+                {renderRightPanel(shell.rightPanel)}
             </div>
         </div>
     );

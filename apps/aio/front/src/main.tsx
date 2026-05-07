@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, useRoutes } from "react-router-dom";
 import "./index.css";
 import RootLayout from "./pages/_layout";
+import AssetsPage from "./pages/assets";
 import DashboardPage from "./pages";
 import ConsolePage from "./pages/console";
 import EnvPage from "./pages/env";
@@ -19,6 +20,15 @@ const routes = [
         children: [
             { path: "/login", element: <LoginPage /> },
             { index: true, element: <DashboardPage /> },
+            { path: "/assets", element: <AssetsPage /> },
+            { path: "/assets/files", element: <AssetsPage /> },
+            { path: "/assets/notes", element: <AssetsPage /> },
+            { path: "/assets/packages", element: <AssetsPage /> },
+            { path: "/assets/dotfiles", element: <AssetsPage /> },
+            { path: "/assets/agents", element: <AssetsPage /> },
+            { path: "/assets/agents/skills", element: <AssetsPage /> },
+            { path: "/assets/agents/cli", element: <AssetsPage /> },
+            { path: "/assets/agents/mcp", element: <AssetsPage /> },
             { path: "/console", element: <ConsolePage /> },
             { path: "/env", element: <EnvPage /> },
             { path: "/knowledge", element: <KnowledgePage /> },
