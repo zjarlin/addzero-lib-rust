@@ -258,31 +258,14 @@ export function AdminWorkbench({
     }, [context]);
 
     const shell: AdminShellState = provider.getShellState(context);
+    const hasRightPanel = Boolean(shell.rightPanel);
 
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div className="mx-auto flex min-h-screen max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6">
                 <Card className="shadow-sm">
-                    <CardContent className="space-y-4 p-4">
-                        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                            <div className="min-w-0">
-                                <div className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-                                    {shell.brandTitle}
-                                </div>
-                                <CardDescription className="mt-1 max-w-3xl text-sm">
-                                    {shell.brandDetail}
-                                </CardDescription>
-                            </div>
-                            <TooltipProvider delayDuration={120}>
-                                <div className="flex flex-wrap gap-2">
-                                    {shell.topbarActions.map((action) =>
-                                        renderAction(action, context.isDark, context),
-                                    )}
-                                </div>
-                            </TooltipProvider>
-                        </div>
-                        <Separator />
-                        <div className="flex flex-wrap gap-2">
+                    <CardContent className="flex flex-col gap-3 p-3 md:p-4 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
                             {shell.domains.map((domain) =>
                                 renderDomain(
                                     domain,
@@ -291,10 +274,24 @@ export function AdminWorkbench({
                                 ),
                             )}
                         </div>
+                        <TooltipProvider delayDuration={120}>
+                            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                                {shell.topbarActions.map((action) =>
+                                    renderAction(action, context.isDark, context),
+                                )}
+                            </div>
+                        </TooltipProvider>
                     </CardContent>
                 </Card>
 
-                <div className="grid flex-1 gap-4 xl:grid-cols-[18rem_minmax(0,1fr)_20rem]">
+                <div
+                    className={cn(
+                        "grid flex-1 gap-4",
+                        hasRightPanel
+                            ? "xl:grid-cols-[18rem_minmax(0,1fr)_20rem]"
+                            : "xl:grid-cols-[18rem_minmax(0,1fr)]",
+                    )}
+                >
                     <Card className="overflow-hidden">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm">Navigation</CardTitle>

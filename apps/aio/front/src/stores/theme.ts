@@ -8,7 +8,7 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  theme: (localStorage.getItem("aio-theme") as Theme) || "dark",
+  theme: (localStorage.getItem("aio-theme") as Theme) || "light",
   toggle: () => {
     const next = get().theme === "dark" ? "light" : "dark";
     localStorage.setItem("aio-theme", next);
@@ -18,4 +18,4 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 }));
 
 const saved = localStorage.getItem("aio-theme") as Theme | null;
-document.documentElement.classList.toggle("dark", saved !== "light");
+document.documentElement.classList.toggle("dark", saved === "dark");
