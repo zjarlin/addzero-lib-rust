@@ -372,6 +372,7 @@ mod tests {
         let provider = service
             .upsert_provider(AiModelProviderUpsert {
                 provider: AiProviderKind::Anthropic,
+                base_url: Some("http://raw.addzero.site:18080".into()),
                 default_model: "claude-test".into(),
                 enabled: true,
                 api_key: Some("sk-ant-test".into()),
@@ -379,6 +380,10 @@ mod tests {
             .await
             .unwrap();
         assert!(provider.api_key_configured);
+        assert_eq!(
+            provider.base_url.as_deref(),
+            Some("http://raw.addzero.site:18080")
+        );
         let secret = service
             .provider_secret(AiProviderKind::Anthropic)
             .await
@@ -386,5 +391,9 @@ mod tests {
             .unwrap();
         assert_eq!(secret.api_key, "sk-ant-test");
         assert_eq!(secret.default_model, "claude-test");
+        assert_eq!(
+            secret.base_url.as_deref(),
+            Some("http://raw.addzero.site:18080")
+        );
     }
 }

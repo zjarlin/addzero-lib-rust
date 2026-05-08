@@ -77,7 +77,7 @@ const CONFIG_FILE_ITEMS = [
     },
 ];
 
-export default function EnvPage() {
+export function ConfigurationWorkbench() {
     const baseUrl = useMemo(() => getApiBaseUrl(), []);
     const [branding, setBranding] = useState<BrandingSettingsDto | null>(null);
     const [providers, setProviders] = useState<AiProviderDraft[]>([]);
@@ -489,6 +489,10 @@ export default function EnvPage() {
             )}
         </div>
     );
+}
+
+export default function EnvPage() {
+    return <ConfigurationWorkbench />;
 }
 
 function ConfigPanel({

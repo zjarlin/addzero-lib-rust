@@ -59,6 +59,10 @@ import {
     TableHead,
     TableHeader,
     TableRow,
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
     Textarea,
     cn,
 } from "@addzero/ui";
@@ -67,6 +71,12 @@ type AssetModuleId =
     | "notes"
     | "packages"
     | "dotfiles";
+
+type NoteWorkspaceView =
+    | "inbox"
+    | "tags"
+    | "graph"
+    | "organize";
 
 interface AssetMetric {
     label: string;
@@ -98,12 +108,33 @@ interface AssetRecord {
 }
 
 interface NoteCardData {
+    id: string;
     time: string;
+    title: string;
     body: string;
     tags: string[];
     kind: string;
     source: string;
     accent: string;
+    status: "captured" | "reviewing" | "resolved";
+    cluster: string;
+    structuredKind: string;
+    promptContexts: string[];
+    unmapped: string[];
+    relations: Array<{
+        target: string;
+        relation: string;
+        confidence: number;
+    }>;
+    draft: {
+        title: string;
+        summary: string;
+        fields: Array<{
+            label: string;
+            value: string;
+            tone?: "default" | "warning" | "success";
+        }>;
+    };
 }
 
 const MODULES: AssetModule[] = [
@@ -253,54 +284,187 @@ const ASSET_RECORDS: Record<AssetModuleId, AssetRecord[]> = {
 
 const NOTE_CARDS: NoteCardData[] = [
     {
+        id: "dock-hot-corners",
         time: "2026-05-07 20:14:00",
+        title: "关闭 macOS 四角热区命令",
         body: 'for c in tl tr bl br; do defaults write com.apple.dock "wvous-$c-corner" -int 0; defaults write com.apple.dock "wvous-$c-modifier" -int 0; done; killall Dock',
         tags: ["闪念", "macOS", "dock"],
         kind: "Command",
         source: "剪贴板",
         accent: "bg-amber-400",
+        status: "reviewing",
+        cluster: "macOS 运维",
+        structuredKind: "snippet",
+        promptContexts: ["设备: Mac mini", "主题: 系统初始化", "偏好: 可复制命令"],
+        unmapped: ['“tl tr bl br” 需要转成字段还是保留命令原样', "是否挂到 dotfiles 还是教程集合"],
+        relations: [
+            { target: "macOS 初始化手册", relation: "可并入", confidence: 88 },
+            { target: "~/.zshrc", relation: "相关环境", confidence: 54 },
+        ],
+        draft: {
+            title: "macOS 关闭四角热区",
+            summary: "一条可直接执行的系统偏好修正命令，适合归入 macOS 初始化片段库。",
+            fields: [
+                { label: "标准类型", value: "snippet.command" },
+                { label: "适用范围", value: "macOS / Dock" },
+                { label: "执行方式", value: "终端一次性执行" },
+                { label: "建议归档", value: "reference/macOS-setup", tone: "success" },
+            ],
+        },
     },
     {
+        id: "responses-tool-error",
         time: "2026-05-07 19:45:54",
+        title: "Responses API 自定义工具报错",
         body: '{"error":{"code":"invalid_request","message":"unsupported responses tool type custom","type":"invalid_request_error"}}',
         tags: ["debug", "api", "tool"],
         kind: "Error",
         source: "运行日志",
         accent: "bg-rose-400",
+        status: "captured",
+        cluster: "AI 调试",
+        structuredKind: "log",
+        promptContexts: ["当前页面 prompt: API 工具兼容性", "提供商: OpenAI"],
+        unmapped: ["是 SDK 约束还是模型约束", "是否需要附上当时请求体"],
+        relations: [
+            { target: "OpenAI tool 兼容性笔记", relation: "应引用", confidence: 73 },
+            { target: "AI Provider 配置", relation: "排障对象", confidence: 64 },
+        ],
+        draft: {
+            title: "unsupported responses tool type custom",
+            summary: "一条错误日志，适合进入调试记录而不是正式教程；需要补充上下文后再定类。",
+            fields: [
+                { label: "标准类型", value: "log.error" },
+                { label: "来源", value: "runtime / API response" },
+                { label: "建议状态", value: "保留待补证据", tone: "warning" },
+                { label: "建议归档", value: "debug/openai-tools" },
+            ],
+        },
     },
     {
+        id: "mac-mini-vnc",
         time: "2026-05-07 12:59:28",
+        title: "Mac mini 屏幕共享连接方式",
         body: "如果远端是 Mac mini，macOS 自带的屏幕共享可以直接连接。先在远端开启服务，本地 Finder 里按 Command + K，输入 vnc://远端IP。",
         tags: ["remote", "macOS", "操作"],
         kind: "Howto",
         source: "人工输入",
         accent: "bg-emerald-400",
+        status: "reviewing",
+        cluster: "远程接入",
+        structuredKind: "reference",
+        promptContexts: ["远程机器: Mac mini", "主题: 远程接管", "关联页面: assets/dotfiles"],
+        unmapped: ["是否补充权限开启路径", "需要账号密码信息还是只留方法"],
+        relations: [
+            { target: "Mac mini 运维清单", relation: "并入章节", confidence: 91 },
+            { target: "家庭网络拓扑", relation: "依赖环境", confidence: 42 },
+        ],
+        draft: {
+            title: "Mac mini 屏幕共享连接",
+            summary: "远程接入教程，适合沉淀为 reference，并挂到设备实体和网络环境。",
+            fields: [
+                { label: "标准类型", value: "reference.howto" },
+                { label: "主体对象", value: "device: Mac mini" },
+                { label: "操作入口", value: "Finder -> Command + K -> vnc://IP" },
+                { label: "建议归档", value: "reference/remote-access", tone: "success" },
+            ],
+        },
     },
     {
+        id: "all-in-one-idea",
         time: "2026-05-04 23:28:38",
+        title: "all in one 资产工作台想法",
         body: "头脑风暴：我希望有个 all in one 的东西，能把笔记、安装包、密码本、skill、配置文件之类的管理起来。",
         tags: ["资产", "idea", "aio"],
         kind: "Idea",
         source: "闪念",
         accent: "bg-blue-400",
+        status: "resolved",
+        cluster: "产品方向",
+        structuredKind: "decision",
+        promptContexts: ["产品愿景", "资产域边界", "跨模块治理"],
+        unmapped: [],
+        relations: [
+            { target: "Asset Workbench 路线", relation: "已并入", confidence: 97 },
+            { target: "Knowledge Workbench", relation: "相邻域", confidence: 68 },
+        ],
+        draft: {
+            title: "统一资产治理工作台",
+            summary: "已沉淀为产品方向，不再参加整理，只保留来源和关系以便追溯。",
+            fields: [
+                { label: "标准类型", value: "decision.product" },
+                { label: "正式状态", value: "已入库", tone: "success" },
+                { label: "来源追踪", value: "capture/all-in-one-idea" },
+                { label: "当前归档", value: "library/asset-workbench-vision" },
+            ],
+        },
     },
     {
+        id: "strum-snippet",
         time: "2026-05-02 23:36:18",
+        title: "strum derive 速记",
         body: 'strum = { version = "0.26", features = ["derive"] } 以后写 rust 记得这个库可以零成本抽象 rust 简化。',
         tags: ["rust", "crate", "闪念"],
         kind: "Snippet",
         source: "手记",
         accent: "bg-lime-400",
+        status: "captured",
+        cluster: "Rust 生态",
+        structuredKind: "reference",
+        promptContexts: ["语言: Rust", "目标: 枚举/derive 简化"],
+        unmapped: ["‘零成本抽象’ 是经验判断还是要附具体用法", "要不要挂到 crate 索引"],
+        relations: [
+            { target: "Rust crate 清单", relation: "候选归档", confidence: 78 },
+            { target: "枚举模式笔记", relation: "潜在引用", confidence: 61 },
+        ],
+        draft: {
+            title: "strum derive 依赖提示",
+            summary: "目前更像零碎提醒，不够成文；需要补适用场景和示例后再入教程库。",
+            fields: [
+                { label: "标准类型", value: "reference.snippet" },
+                { label: "当前风险", value: "缺少用例与版本上下文", tone: "warning" },
+                { label: "建议动作", value: "补充示例后再入库" },
+                { label: "候选归档", value: "reference/rust-crates" },
+            ],
+        },
     },
     {
+        id: "bi-axial-rule",
         time: "2026-05-01 10:08:11",
+        title: "二维上下文导航规则",
         body: "UI 规则：顶部主轴和左侧路由树是二维上下文，不要把工作台、资产、运行混成一个平铺菜单。",
         tags: ["admin", "导航", "规则"],
         kind: "Decision",
         source: "AGENTS.md",
         accent: "bg-stone-900",
+        status: "resolved",
+        cluster: "Admin 规则",
+        structuredKind: "decision",
+        promptContexts: ["admin shell", "导航规范", "provider 分层"],
+        unmapped: [],
+        relations: [
+            { target: "Admin Navigation Convention", relation: "正式来源", confidence: 100 },
+            { target: "assets/notes 页面", relation: "直接约束", confidence: 88 },
+        ],
+        draft: {
+            title: "Admin 二维上下文导航",
+            summary: "已是正式规则来源，前端整理台应该把这条视作 library 节点，而非再次整理的碎片。",
+            fields: [
+                { label: "标准类型", value: "decision.ui" },
+                { label: "正式状态", value: "规则已生效", tone: "success" },
+                { label: "来源", value: "AGENTS.md / Admin Navigation Convention" },
+                { label: "当前归档", value: "library/admin-navigation" },
+            ],
+        },
     },
 ];
+
+const NOTE_WORKSPACE_TABS = [
+    { value: "inbox", label: "原始碎片 Inbox" },
+    { value: "tags", label: "标签节点 Tags" },
+    { value: "graph", label: "知识连线 Graph" },
+    { value: "organize", label: "标签整理 Organize" },
+] as const;
 
 const assetColumns: ColumnDef<AssetRecord>[] = [
     {
@@ -460,6 +624,90 @@ export default function AssetsPage() {
 }
 
 function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
+    const [activeView, setActiveView] = useState<NoteWorkspaceView>("tags");
+    const [search, setSearch] = useState("");
+    const [notes, setNotes] = useState(NOTE_CARDS);
+    const [selectedNoteId, setSelectedNoteId] = useState(NOTE_CARDS[0]?.id ?? "");
+    const [activeTag, setActiveTag] = useState("");
+    const [captureDraft, setCaptureDraft] = useState(
+        'for c in tl tr bl br; do defaults write com.apple.dock "wvous-$c-corner" -int 0; defaults write com.apple.dock "wvous-$c-modifier" -int 0; done; killall Dock',
+    );
+    const [seedTags, setSeedTags] = useState<string[]>(["闪念", "代码", "macOS"]);
+
+    const filteredNotes = useMemo(() => {
+        const query = search.trim().toLowerCase();
+        if (!query) {
+            return notes;
+        }
+        return notes.filter((note) =>
+            [note.title, note.body, note.source, ...note.tags].some((value) =>
+                value.toLowerCase().includes(query),
+            ),
+        );
+    }, [notes, search]);
+
+    const selectedNote = useMemo(
+        () => notes.find((note) => note.id === selectedNoteId) ?? notes[0],
+        [notes, selectedNoteId],
+    );
+    const tagNodes = useMemo(() => deriveTagNodes(notes), [notes]);
+    const tagGraph = useMemo(() => buildTagGraph(notes), [notes]);
+    const resolvedActiveTag =
+        activeTag || tagNodes[0]?.label || selectedNote?.tags[0] || "闪念";
+    const tagFocusedNotes = useMemo(
+        () => filteredNotes.filter((note) => note.tags.includes(resolvedActiveTag)),
+        [filteredNotes, resolvedActiveTag],
+    );
+    const connectedTags = useMemo(
+        () => dfsTags(resolvedActiveTag, tagGraph),
+        [resolvedActiveTag, tagGraph],
+    );
+    const graphLines = useMemo(() => deriveGraphLines(notes), [notes]);
+    const noteMetrics: AssetMetric[] = useMemo(
+        () => [
+            { label: "碎片", value: String(notes.length), detail: "raw notes" },
+            { label: "标签", value: String(tagNodes.length), detail: "tag nodes" },
+            { label: "连线", value: String(graphLines.length), detail: "tag lines" },
+            {
+                label: "待归并",
+                value: String(tagNodes.filter((tag) => tag.noteIds.length > 1).length),
+                detail: "cluster actions",
+            },
+        ],
+        [graphLines.length, notes.length, tagNodes],
+    );
+    const tabCounts = useMemo(
+        () => ({
+            inbox: filteredNotes.length,
+            tags: tagNodes.length,
+            graph: graphLines.length,
+            organize: connectedTags.length,
+        }),
+        [connectedTags.length, filteredNotes.length, graphLines.length, tagNodes.length],
+    );
+
+    function toggleSeedTag(tag: string) {
+        setSeedTags((current) =>
+            current.includes(tag)
+                ? current.filter((item) => item !== tag)
+                : [...current, tag],
+        );
+    }
+
+    function handleCapture() {
+        const body = captureDraft.trim();
+        if (!body) {
+            return;
+        }
+        const note = buildCapturedNote(body, seedTags);
+        setNotes((current) => [note, ...current]);
+        setSelectedNoteId(note.id);
+        setActiveTag(note.tags[0] ?? "");
+        setActiveView("inbox");
+        setCaptureDraft("");
+        setSeedTags(["闪念"]);
+    }
+
     return (
         <div className="min-h-full bg-[#f6f5ef] text-[#181915]">
             <section className="sticky top-0 z-10 border-b bg-[#fbfaf4]/95 px-3 py-3 backdrop-blur lg:px-5">
@@ -483,111 +731,378 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                     <div className="relative min-w-0">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
                             className="h-10 rounded-2xl border-stone-300 bg-white/80 pl-9 shadow-sm"
                             placeholder="搜索笔记、标签、来源..."
                         />
                     </div>
-                    <div className="flex flex-wrap justify-start gap-2 xl:justify-end">
-                        <Button type="button" variant="outline" size="sm" className="rounded-full bg-white/80">
-                            <Filter className="h-4 w-4" />
-                            筛选
-                        </Button>
-                        <Button type="button" size="sm" className="rounded-full">
-                            <Plus className="h-4 w-4" />
-                            新笔记
-                        </Button>
-                    </div>
                 </div>
             </section>
 
-            <section className="grid min-h-[calc(100vh-4.25rem)] xl:grid-cols-[minmax(0,1fr)_20rem]">
-                <main className="min-w-0 border-r">
-                    <div className="grid grid-cols-2 border-b bg-[#efeadf] lg:grid-cols-4">
-                        {activeModule.metrics.map((metric) => (
-                            <MetricTile key={metric.label} metric={metric} flush />
-                        ))}
-                    </div>
-                    <QuickCapture />
-                    <div className="border-b bg-[#fbfaf4] px-4 py-3 lg:px-5">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex flex-wrap gap-2">
-                                {["全部", "闪念", "代码", "远程", "决策", "未整理"].map(
-                                    (tag, index) => (
-                                        <Badge
-                                            key={tag}
-                                            variant={index === 0 ? "default" : "outline"}
-                                            className="rounded-full"
-                                        >
-                                            {tag}
-                                        </Badge>
-                                    ),
-                                )}
+            <section className="min-h-[calc(100vh-4.25rem)]">
+                <div className="grid grid-cols-2 border-b bg-[#efeadf] lg:grid-cols-4">
+                    {noteMetrics.map((metric) => (
+                        <MetricTile key={metric.label} metric={metric} flush />
+                    ))}
+                </div>
+                <QuickCapture
+                    value={captureDraft}
+                    seedTags={seedTags}
+                    onChange={setCaptureDraft}
+                    onToggleTag={toggleSeedTag}
+                    onSubmit={handleCapture}
+                />
+
+                <div className="border-b bg-[#fbfaf4] px-4 py-3 lg:px-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                Tag Flow
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <h2 className="mt-1 text-lg font-semibold">先记录，再打标签，再基于标签聚合整理</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                笔记先保持非结构化原样，只做标签和连线；后续整理从标签簇一键发起，不强行先建模。
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {tagNodes.slice(0, 6).map((tag, index) => (
+                                    <Badge
+                                        key={tag.label}
+                                        variant={
+                                            index === 0 || tag.label === resolvedActiveTag
+                                                ? "default"
+                                                : "outline"
+                                        }
+                                        className="rounded-full"
+                                        onClick={() => setActiveTag(tag.label)}
+                                    >
+                                        #{tag.label}
+                                    </Badge>
+                                ))}
+                            <span className="flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1 text-xs text-muted-foreground">
                                 <Clock3 className="h-3.5 w-3.5" />
-                                最近 7 天 42 条，11 条待整理
-                            </div>
+                                当前标签簇 {connectedTags.length} 个节点，{graphLines.length} 条连线
+                            </span>
                         </div>
                     </div>
-                    <div className="p-4 lg:p-5">
-                        <section className="columns-1 gap-4 lg:columns-2 2xl:columns-3">
-                            {NOTE_CARDS.map((note) => (
-                                <NoteCard key={`${note.time}-${note.body}`} note={note} />
+                </div>
+
+                <div className="p-4 lg:p-5">
+                    <Tabs
+                        value={activeView}
+                        onValueChange={(value) => setActiveView(value as NoteWorkspaceView)}
+                        className="space-y-4"
+                    >
+                        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-3xl bg-[#ece6d8] p-2 lg:grid-cols-4">
+                            {NOTE_WORKSPACE_TABS.map((tab) => (
+                                <TabsTrigger
+                                    key={tab.value}
+                                    value={tab.value}
+                                    className="rounded-2xl px-3 py-3 text-left data-[state=active]:bg-white"
+                                >
+                                    <span className="flex w-full items-center justify-between gap-3">
+                                        <span className="text-xs font-semibold uppercase tracking-[0.12em]">
+                                            {tab.label}
+                                        </span>
+                                        <Badge variant="outline" className="rounded-full bg-white/80">
+                                            {tabCounts[tab.value]}
+                                        </Badge>
+                                    </span>
+                                </TabsTrigger>
                             ))}
-                        </section>
-                    </div>
-                </main>
-                <aside className="bg-[#fbfaf4]">
-                    <Card className="m-4 rounded-2xl border-stone-300 bg-white/80 shadow-sm">
-                        <CardHeader className="p-4 pb-2">
-                            <CardTitle className="flex items-center gap-2 text-sm">
-                                <Inbox className="h-4 w-4 text-amber-600" />
-                                捕获队列
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 p-4 pt-1">
-                            <SpecLine label="入口" value="剪贴板 / 手输 / 日志" />
-                            <SpecLine label="默认状态" value="待整理" />
-                            <SpecLine label="索引" value="Postgres + FTS" />
-                            <SpecLine label="下一步" value="标签归并与引用资产" />
-                        </CardContent>
-                    </Card>
-                    <Card className="m-4 rounded-2xl border-stone-300 bg-white/80 shadow-sm">
-                        <CardHeader className="p-4 pb-2">
-                            <CardTitle className="flex items-center gap-2 text-sm">
-                                <Tags className="h-4 w-4 text-stone-700" />
-                                高频标签
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex flex-wrap gap-2 p-4 pt-1">
-                            {["闪念", "debug", "macOS", "rust", "aio", "admin", "skill", "remote"].map(
-                                (tag) => (
-                                    <Badge key={tag} variant="secondary" className="rounded-full">
-                                        #{tag}
-                                    </Badge>
-                                ),
-                            )}
-                        </CardContent>
-                    </Card>
-                    <Card className="m-4 rounded-2xl border-stone-300 bg-[#171a17] text-stone-50 shadow-sm">
-                        <CardHeader className="p-4 pb-2">
-                            <CardTitle className="flex items-center gap-2 text-sm">
-                                <Sparkles className="h-4 w-4 text-amber-300" />
-                                设计边界
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 p-4 pt-1 text-sm text-stone-300">
-                            <p>笔记不是“知识库子页”，而是资产域下的快速捕获和整理入口。</p>
-                            <p>顶部主轴保持资产域；左侧路由树只保留笔记、安装包和 dotfiles 三个节点。</p>
-                        </CardContent>
-                    </Card>
-                </aside>
+                        </TabsList>
+
+                        <TabsContent value="inbox" className="mt-0">
+                            <section className="columns-1 gap-4 lg:columns-2 2xl:columns-3">
+                                {filteredNotes.map((note) => (
+                                    <NoteCard
+                                        key={note.id}
+                                        note={note}
+                                        selected={note.id === selectedNote?.id}
+                                        onSelect={() => {
+                                            setSelectedNoteId(note.id);
+                                            setActiveTag(note.tags[0] ?? "");
+                                        }}
+                                    />
+                                ))}
+                            </section>
+                        </TabsContent>
+
+                        <TabsContent value="tags" className="mt-0">
+                            <div className="grid gap-4 xl:grid-cols-[20rem_minmax(0,1fr)]">
+                                <Card className="rounded-3xl border-stone-300 bg-[#fffdf8] shadow-sm">
+                                    <CardHeader className="p-4 pb-3">
+                                        <CardTitle className="flex items-center gap-2 text-sm">
+                                            <Tags className="h-4 w-4 text-stone-700" />
+                                            标签节点
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3 p-4 pt-0">
+                                        {tagNodes.map((tag) => (
+                                            <button
+                                                key={tag.label}
+                                                type="button"
+                                                onClick={() => setActiveTag(tag.label)}
+                                                className={cn(
+                                                    "w-full rounded-2xl border px-3 py-3 text-left transition",
+                                                    resolvedActiveTag === tag.label
+                                                        ? "border-stone-900 bg-stone-900 text-stone-50"
+                                                        : "border-stone-200 bg-white hover:bg-stone-50",
+                                                )}
+                                            >
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <span className="font-medium">#{tag.label}</span>
+                                                    <Badge variant="outline" className="rounded-full">
+                                                        {tag.noteIds.length}
+                                                    </Badge>
+                                                </div>
+                                                <div
+                                                    className={cn(
+                                                        "mt-2 text-xs",
+                                                        resolvedActiveTag === tag.label
+                                                            ? "text-stone-300"
+                                                            : "text-muted-foreground",
+                                                    )}
+                                                >
+                                                    直连 {tag.neighbors.length} 个标签
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+
+                                <div className="space-y-4">
+                                    <Card className="rounded-3xl border-stone-300 bg-white shadow-sm">
+                                        <CardHeader className="p-4 pb-3">
+                                            <CardTitle className="flex items-center gap-2 text-sm">
+                                                <Hash className="h-4 w-4 text-amber-600" />
+                                                #{resolvedActiveTag}
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4 p-4 pt-0">
+                                            <div className="flex flex-wrap gap-2">
+                                                {connectedTags.map((tag) => (
+                                                    <Badge
+                                                        key={tag}
+                                                        variant={tag === resolvedActiveTag ? "default" : "outline"}
+                                                        className="rounded-full"
+                                                    >
+                                                        #{tag}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                            <div className="grid gap-3 lg:grid-cols-2">
+                                                {tagFocusedNotes.map((note) => (
+                                                    <NoteCard
+                                                        key={note.id}
+                                                        note={note}
+                                                        compact
+                                                        selected={note.id === selectedNote?.id}
+                                                        onSelect={() => setSelectedNoteId(note.id)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="graph" className="mt-0">
+                            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_20rem]">
+                                <Card className="rounded-3xl border-stone-300 bg-white shadow-sm">
+                                    <CardHeader className="p-4 pb-3">
+                                        <CardTitle className="flex items-center gap-2 text-sm">
+                                            <Layers3 className="h-4 w-4 text-blue-600" />
+                                            标签线图
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3 p-4 pt-0">
+                                        {graphLines.map((line) => (
+                                            <div
+                                                key={`${line.source}-${line.target}`}
+                                                className="rounded-2xl border bg-[#fcfbf7] p-3"
+                                            >
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="text-sm font-medium">
+                                                        #{line.source} <span className="text-muted-foreground">↔</span> #{line.target}
+                                                    </div>
+                                                    <Badge variant="outline" className="rounded-full">
+                                                        {line.weight}
+                                                    </Badge>
+                                                </div>
+                                                <div className="mt-2 h-2 rounded-full bg-stone-200">
+                                                    <div
+                                                        className="h-2 rounded-full bg-stone-900"
+                                                        style={{ width: `${Math.min(100, line.weight * 22)}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="rounded-3xl border-stone-300 bg-[#fffdf8] shadow-sm">
+                                    <CardHeader className="p-4 pb-3">
+                                        <CardTitle className="flex items-center gap-2 text-sm">
+                                            <Link2 className="h-4 w-4 text-emerald-600" />
+                                            DFS 聚合
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3 p-4 pt-0">
+                                        <SpecLine label="起点标签" value={`#${resolvedActiveTag}`} />
+                                        <SpecLine label="可达节点" value={`${connectedTags.length} 个`} />
+                                        <SpecLine label="片段数" value={`${tagFocusedNotes.length} 条`} />
+                                        <div className="flex flex-wrap gap-2">
+                                            {connectedTags.map((tag) => (
+                                                <Badge key={tag} variant="secondary" className="rounded-full">
+                                                    #{tag}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="organize" className="mt-0">
+                            <div className="grid gap-4 xl:grid-cols-[18rem_minmax(0,1fr)_18rem]">
+                                <Card className="rounded-3xl border-stone-300 bg-[#fffdf8] shadow-sm">
+                                    <CardHeader className="p-4 pb-3">
+                                        <CardTitle className="flex items-center gap-2 text-sm">
+                                            <Inbox className="h-4 w-4 text-amber-600" />
+                                            标签入口
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3 p-4 pt-0">
+                                        {tagNodes.map((tag) => (
+                                            <button
+                                                key={`${tag.label}-organize`}
+                                                type="button"
+                                                onClick={() => setActiveTag(tag.label)}
+                                                className={cn(
+                                                    "w-full rounded-2xl border px-3 py-3 text-left transition",
+                                                    resolvedActiveTag === tag.label
+                                                        ? "border-stone-900 bg-stone-900 text-stone-50"
+                                                        : "border-stone-200 bg-white hover:bg-stone-50",
+                                                )}
+                                            >
+                                                <div className="font-medium">#{tag.label}</div>
+                                                <div
+                                                    className={cn(
+                                                        "mt-1 text-xs",
+                                                        resolvedActiveTag === tag.label
+                                                            ? "text-stone-300"
+                                                            : "text-muted-foreground",
+                                                    )}
+                                                >
+                                                    {tag.noteIds.length} 条碎片 / {tag.neighbors.length} 个邻居
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+
+                                <div className="space-y-4">
+                                    <Card className="rounded-3xl border-stone-300 bg-white shadow-sm">
+                                        <CardHeader className="p-4 pb-3">
+                                            <CardTitle className="flex items-center gap-2 text-sm">
+                                                <FileText className="h-4 w-4 text-blue-600" />
+                                                标签驱动整理
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4 p-4 pt-0">
+                                            <div className="rounded-2xl border border-dashed border-stone-300 bg-[#fbfaf5] p-4">
+                                                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                                    Organize By Tag
+                                                </div>
+                                                <p className="mt-3 text-sm leading-7 text-stone-900">
+                                                    以 <strong>#{resolvedActiveTag}</strong> 为起点，把可达标签簇内的碎片一起归并成一个主题视图。
+                                                    这里不先做字段建模，只做去重、摘要、标签收敛和知识线串联。
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {connectedTags.map((tag) => (
+                                                    <Badge key={tag} variant="secondary" className="rounded-full">
+                                                        #{tag}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                            <div className="grid gap-3">
+                                                {tagFocusedNotes.map((note) => (
+                                                    <NoteCard
+                                                        key={`${note.id}-organize`}
+                                                        note={note}
+                                                        compact
+                                                        selected={note.id === selectedNote?.id}
+                                                        onSelect={() => setSelectedNoteId(note.id)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <Card className="rounded-3xl border-stone-300 bg-white shadow-sm">
+                                        <CardHeader className="p-4 pb-3">
+                                            <CardTitle className="flex items-center gap-2 text-sm">
+                                                <CheckSquare className="h-4 w-4 text-emerald-600" />
+                                                一键动作
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2 p-4 pt-0">
+                                            <Button type="button" className="w-full rounded-2xl justify-start">
+                                                合并重复碎片并提炼结论
+                                            </Button>
+                                            <Button type="button" variant="outline" className="w-full rounded-2xl justify-start">
+                                                输出标签簇摘要
+                                            </Button>
+                                            <Button type="button" variant="outline" className="w-full rounded-2xl justify-start">
+                                                生成主题页草稿
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card className="rounded-3xl border-stone-800 bg-[#171a17] text-stone-50 shadow-sm">
+                                        <CardHeader className="p-4 pb-3">
+                                            <CardTitle className="flex items-center gap-2 text-sm">
+                                                <ShieldCheck className="h-4 w-4 text-amber-300" />
+                                                你的思路
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3 p-4 pt-0 text-sm text-stone-300">
+                                            <p>先把碎片留在原样文本里，只打标签。</p>
+                                            <p>node 是标签，line 是标签共现或引用，DFS 负责把关联碎片自动聚到标签簇。</p>
+                                            <p>整理动作发生在标签簇上，而不是每条碎片单独填表。</p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                </div>
             </section>
         </div>
     );
 }
 
-function QuickCapture() {
+function QuickCapture({
+    value,
+    seedTags,
+    onChange,
+    onToggleTag,
+    onSubmit,
+}: {
+    value: string;
+    seedTags: string[];
+    onChange: (value: string) => void;
+    onToggleTag: (tag: string) => void;
+    onSubmit: () => void;
+}) {
+    const presetTags = ["闪念", "代码", "教程", "账号", "密钥", "网站", "游戏", "决策"];
+
     return (
         <section className="border-b bg-[#f6f5ef] p-3 lg:p-5">
             <Card className="overflow-hidden rounded-3xl border-stone-300 bg-white shadow-[0_16px_44px_rgba(42,37,29,0.10)]">
@@ -615,28 +1130,32 @@ function QuickCapture() {
                 </div>
                 <Textarea
                     className="min-h-28 resize-none border-0 bg-white px-4 py-3 text-base leading-7 shadow-none focus-visible:ring-0 lg:min-h-32 lg:py-4"
-                    defaultValue={'for c in tl tr bl br; do defaults write com.apple.dock "wvous-$c-corner" -int 0; defaults write com.apple.dock "wvous-$c-modifier" -int 0; done; killall Dock'}
+                    value={value}
+                    onChange={(event) => onChange(event.target.value)}
                 />
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-[#fffdf7] px-3 py-2 lg:gap-3 lg:px-4 lg:py-3">
                     <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                        <Button type="button" variant="ghost" size="sm" className="rounded-full">
-                            <Zap className="h-4 w-4 fill-amber-400 text-amber-400" />
-                            闪念
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" className="rounded-full">
-                            <Hash className="h-4 w-4" />
-                            标签
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" className="rounded-full">
-                            <Link2 className="h-4 w-4" />
-                            引用
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" className="rounded-full">
-                            <Paperclip className="h-4 w-4" />
-                            附件
-                        </Button>
+                        {presetTags.map((tag) => (
+                            <Button
+                                key={tag}
+                                type="button"
+                                variant={seedTags.includes(tag) ? "default" : "ghost"}
+                                size="sm"
+                                className="rounded-full"
+                                onClick={() => onToggleTag(tag)}
+                            >
+                                {tag === "闪念" ? (
+                                    <Zap className="h-4 w-4 fill-amber-400 text-amber-400" />
+                                ) : tag === "代码" ? (
+                                    <Code2 className="h-4 w-4" />
+                                ) : (
+                                    <Hash className="h-4 w-4" />
+                                )}
+                                {tag}
+                            </Button>
+                        ))}
                     </div>
-                    <Button type="button" className="rounded-2xl px-5">
+                    <Button type="button" className="rounded-2xl px-5" onClick={onSubmit} disabled={!value.trim()}>
                         <Send className="h-4 w-4" />
                         记录
                     </Button>
@@ -925,11 +1444,183 @@ function ModuleCell({ item, active }: { item: AssetModule; active: boolean }) {
     );
 }
 
-function NoteCard({ note }: { note: NoteCardData }) {
+function buildCapturedNote(body: string, seedTags: string[]): NoteCardData {
+    const tags = deriveTagsFromCapture(body, seedTags);
+    const mainTag = tags.find((tag) => tag !== "闪念") ?? tags[0] ?? "未整理";
+    return {
+        id: `capture-${Date.now()}`,
+        time: formatNoteTimestamp(new Date()),
+        title: inferNoteTitle(body),
+        body,
+        tags,
+        kind: "Fragment",
+        source: "人工记录",
+        accent: accentFromTag(mainTag),
+        status: "captured",
+        cluster: `${mainTag} 标签簇`,
+        structuredKind: "tagged-note",
+        promptContexts: tags.map((tag) => `tag:${tag}`),
+        unmapped: [],
+        relations: [],
+        draft: {
+            title: inferNoteTitle(body),
+            summary: "非结构化碎片，等待标签聚合后再整理。",
+            fields: [],
+        },
+    };
+}
+
+function deriveTagsFromCapture(body: string, seedTags: string[]) {
+    const inlineTags = Array.from(
+        body.matchAll(/#([\p{L}\p{N}_-]+)/gu),
+        (match) => match[1],
+    );
+    return Array.from(
+        new Set(
+            [...seedTags, ...inlineTags]
+                .map((tag) => tag.trim())
+                .filter(Boolean),
+        ),
+    );
+}
+
+function inferNoteTitle(body: string) {
+    const firstLine = body
+        .split("\n")
+        .map((line) => line.trim())
+        .find(Boolean) ?? "未命名碎片";
+    return firstLine.length > 28 ? `${firstLine.slice(0, 28)}…` : firstLine;
+}
+
+function formatNoteTimestamp(date: Date) {
+    return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function accentFromTag(tag: string) {
+    if (["密钥", "账号"].includes(tag)) {
+        return "bg-rose-400";
+    }
+    if (["代码", "rust", "macOS"].includes(tag)) {
+        return "bg-amber-400";
+    }
+    if (["教程", "网站", "remote"].includes(tag)) {
+        return "bg-emerald-400";
+    }
+    if (["决策", "规则"].includes(tag)) {
+        return "bg-stone-900";
+    }
+    return "bg-blue-400";
+}
+
+function deriveTagNodes(notes: NoteCardData[]) {
+    const index = new Map<string, { noteIds: Set<string>; neighbors: Set<string> }>();
+
+    for (const note of notes) {
+        for (const tag of note.tags) {
+            const current = index.get(tag) ?? {
+                noteIds: new Set<string>(),
+                neighbors: new Set<string>(),
+            };
+            current.noteIds.add(note.id);
+            for (const neighbor of note.tags) {
+                if (neighbor !== tag) {
+                    current.neighbors.add(neighbor);
+                }
+            }
+            index.set(tag, current);
+        }
+    }
+
+    return Array.from(index.entries())
+        .map(([label, value]) => ({
+            label,
+            noteIds: Array.from(value.noteIds),
+            neighbors: Array.from(value.neighbors).sort(),
+        }))
+        .sort((a, b) => b.noteIds.length - a.noteIds.length || a.label.localeCompare(b.label));
+}
+
+function buildTagGraph(notes: NoteCardData[]) {
+    const graph = new Map<string, Set<string>>();
+    for (const note of notes) {
+        for (const tag of note.tags) {
+            const neighbors = graph.get(tag) ?? new Set<string>();
+            for (const other of note.tags) {
+                if (other !== tag) {
+                    neighbors.add(other);
+                }
+            }
+            graph.set(tag, neighbors);
+        }
+    }
+    return graph;
+}
+
+function dfsTags(start: string, graph: Map<string, Set<string>>) {
+    if (!start) {
+        return [];
+    }
+    const visited = new Set<string>();
+    const stack = [start];
+    while (stack.length) {
+        const current = stack.pop()!;
+        if (visited.has(current)) {
+            continue;
+        }
+        visited.add(current);
+        for (const next of graph.get(current) ?? []) {
+            if (!visited.has(next)) {
+                stack.push(next);
+            }
+        }
+    }
+    return Array.from(visited).sort();
+}
+
+function deriveGraphLines(notes: NoteCardData[]) {
+    const weights = new Map<string, number>();
+    for (const note of notes) {
+        const tags = Array.from(new Set(note.tags)).sort();
+        for (let index = 0; index < tags.length; index += 1) {
+            for (let inner = index + 1; inner < tags.length; inner += 1) {
+                const source = tags[index];
+                const target = tags[inner];
+                const key = `${source}::${target}`;
+                weights.set(key, (weights.get(key) ?? 0) + 1);
+            }
+        }
+    }
+
+    return Array.from(weights.entries())
+        .map(([key, weight]) => {
+            const [source, target] = key.split("::");
+            return { source, target, weight };
+        })
+        .sort((a, b) => b.weight - a.weight || a.source.localeCompare(b.source));
+}
+
+function NoteCard({
+    note,
+    selected = false,
+    compact = false,
+    onSelect,
+}: {
+    note: NoteCardData;
+    selected?: boolean;
+    compact?: boolean;
+    onSelect?: () => void;
+}) {
     return (
-        <article className="mb-4 break-inside-avoid overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_12px_28px_rgba(42,37,29,0.07)]">
+        <article
+            className={cn(
+                "mb-4 break-inside-avoid overflow-hidden rounded-3xl border bg-white shadow-[0_12px_28px_rgba(42,37,29,0.07)]",
+                selected ? "border-stone-900 ring-1 ring-stone-900/10" : "border-stone-200",
+                onSelect && "cursor-pointer",
+            )}
+            onClick={onSelect}
+        >
             <div className={cn("h-1.5", note.accent)} />
-            <div className="p-4">
+            <div className={cn("p-4", compact && "p-3")}>
                 <div className="flex items-start justify-between gap-3">
                     <div>
                         <time className="text-xs font-medium text-muted-foreground">
@@ -939,6 +1630,9 @@ function NoteCard({ note }: { note: NoteCardData }) {
                             <Badge variant="outline" className="rounded-full">
                                 {note.kind}
                             </Badge>
+                            <StatusBadge
+                                status={note.status === "captured" ? "Draft" : "Review"}
+                            />
                             <span className="text-xs text-muted-foreground">
                                 {note.source}
                             </span>
@@ -948,13 +1642,24 @@ function NoteCard({ note }: { note: NoteCardData }) {
                         <MoreHorizontal className="h-4 w-4" />
                     </Button>
                 </div>
-                <p className="mt-4 text-[15px] leading-7 text-stone-900">{note.body}</p>
+                <div className="mt-4">
+                    <h3 className={cn("text-base font-semibold text-stone-950", compact && "text-sm")}>
+                        {note.title}
+                    </h3>
+                    <p className={cn("mt-2 text-[15px] leading-7 text-stone-900", compact && "line-clamp-4 text-sm leading-6")}>
+                        {note.body}
+                    </p>
+                </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                     {note.tags.map((tag) => (
                         <Badge key={tag} variant="secondary" className="rounded-full">
                             #{tag}
                         </Badge>
                     ))}
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border bg-[#fbfaf5] px-3 py-2 text-xs text-muted-foreground">
+                    <span>{note.cluster}</span>
+                    <span>{note.tags.length} tags</span>
                 </div>
             </div>
         </article>

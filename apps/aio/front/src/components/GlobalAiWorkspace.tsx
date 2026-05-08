@@ -58,6 +58,10 @@ interface AiProviderConfigDto {
     updated_at?: string | null;
 }
 
+function isProviderReady(provider: AiProviderConfigDto | null | undefined) {
+    return Boolean(provider?.enabled && provider?.api_key_configured);
+}
+
 interface PageProfile {
     title: string;
     focus: string;
@@ -402,7 +406,9 @@ export default function GlobalAiWorkspace() {
                 }
                 setProviders(data);
                 setProvider((current) => {
-                    if (data.some((item) => item.provider === current)) {
+                    const currentProvider =
+                        data.find((item) => item.provider === current) ?? null;
+                    if (isProviderReady(currentProvider)) {
                         return current;
                     }
                     return (
@@ -484,11 +490,17 @@ export default function GlobalAiWorkspace() {
         if (!content || sending) {
             return;
         }
-        const activeProvider =
+        const selectedProvider =
             providers.find((item) => item.provider === provider) ?? null;
-        if (!activeProvider || !activeProvider.enabled || !activeProvider.api_key_configured) {
+        const activeProvider = isProviderReady(selectedProvider)
+            ? selectedProvider
+            : (providers.find((item) => isProviderReady(item)) ?? null);
+        if (!activeProvider) {
             setError("请先在环境与配置页启用并配置一个可用的 AI provider。");
             return;
+        }
+        if (activeProvider.provider !== provider) {
+            setProvider(activeProvider.provider);
         }
 
         const requestKey = threadKey;
@@ -653,7 +665,7 @@ export default function GlobalAiWorkspace() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => navigate("/env")}
+                                onClick={() => navigate("/system")}
                             >
                                 模型配置
                             </Button>
