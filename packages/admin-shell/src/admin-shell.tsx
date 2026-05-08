@@ -80,8 +80,8 @@ function renderMenu(
                 size="sm"
                 onClick={() => onNavigate(menu.href)}
                 className={cn(
-                    "h-auto w-full justify-between whitespace-normal px-3 py-2 text-left",
-                    depth > 0 && "ml-4 w-[calc(100%-1rem)]",
+                    "h-auto w-full justify-between whitespace-normal px-2 py-2 text-left text-xs sm:px-3 sm:text-sm",
+                    depth > 0 && "ml-3 w-[calc(100%-0.75rem)] sm:ml-4 sm:w-[calc(100%-1rem)]",
                     active && "shadow-sm",
                 )}
             >
@@ -263,7 +263,7 @@ export function AdminWorkbench({
 
     return (
         <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
-            <header className="flex min-h-14 shrink-0 flex-col gap-2 border-b bg-card px-4 py-2 lg:flex-row lg:items-center lg:justify-between">
+            <header className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b bg-card px-3 py-2 sm:px-4">
                 <div className="flex min-w-0 flex-1 flex-wrap gap-2">
                     {shell.domains.map((domain) =>
                         renderDomain(
@@ -284,14 +284,14 @@ export function AdminWorkbench({
 
             <div
                 className={cn(
-                    "grid min-h-0 flex-1",
+                    "grid min-h-0 flex-1 grid-cols-[11rem_minmax(0,1fr)] sm:grid-cols-[12.5rem_minmax(0,1fr)] md:grid-cols-[15rem_minmax(0,1fr)]",
                     hasRightPanel
                         ? "lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)_20rem]"
                         : "lg:grid-cols-[18rem_minmax(0,1fr)]",
                 )}
             >
                 <aside className="flex min-h-0 flex-col border-r bg-card">
-                    <div className="border-b px-4 py-3">
+                    <div className="border-b px-3 py-3 sm:px-4">
                         <h2 className="text-sm font-semibold">
                             {shell.navigationTitle ?? "Navigation"}
                         </h2>
@@ -299,8 +299,8 @@ export function AdminWorkbench({
                             {shell.navigationDetail ?? "双轴上下文树"}
                         </p>
                     </div>
-                    <ScrollArea className="min-h-0 flex-1 px-4 py-4">
-                        <div className="space-y-5">
+                    <ScrollArea className="min-h-0 flex-1 px-3 py-3 sm:px-4 sm:py-4">
+                        <div className="space-y-4 sm:space-y-5">
                             {shell.sections.map((section, index) => (
                                 <div key={section.id} className="space-y-5">
                                     {index > 0 ? <Separator /> : null}

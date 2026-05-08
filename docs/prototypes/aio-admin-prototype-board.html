@@ -6,58 +6,59 @@
   <title>AIO Admin Prototype Board</title>
   <style>
     :root {
-      --canvas: #e8e2d6;
-      --paper: #fbfaf6;
-      --panel: #fffefb;
-      --ink: #171a17;
-      --muted: #6e706b;
-      --line: #d7d0c3;
-      --rail: #f2ede4;
-      --active: #101312;
-      --mint: #1f766f;
-      --amber: #b25e26;
-      --blue: #315f91;
-      --rose: #9a3f51;
-      --shadow: 0 18px 46px rgba(35, 31, 24, 0.13);
+      --canvas: #e6dfd2;
+      --paper: #f8f5ee;
+      --panel: #fffef9;
+      --ink: #171915;
+      --muted: #727064;
+      --line: #d4ccbd;
+      --rail: #eee8dc;
+      --active: #171915;
+      --mint: #1f7a65;
+      --amber: #c06a22;
+      --blue: #2f638f;
+      --rose: #a54255;
+      --shadow: 0 24px 60px rgba(35, 31, 24, 0.16);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      background: var(--canvas);
+      background:
+        radial-gradient(circle at top left, rgba(192, 106, 34, 0.16), transparent 28rem),
+        linear-gradient(135deg, #e8e0d1 0%, #d8d0c2 100%);
       color: var(--ink);
       font-family: "Avenir Next", "Gill Sans", "Segoe UI", sans-serif;
     }
 
     .board {
       display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
+      grid-template-columns: 284px minmax(0, 1fr);
       height: 100vh;
       overflow: hidden;
     }
 
     .index {
       border-right: 1px solid var(--line);
-      background: #f4efe6;
+      background: rgba(244, 239, 230, 0.92);
       padding: 20px;
       overflow: auto;
+      backdrop-filter: blur(18px);
     }
 
     .index h1 {
       margin: 0;
-      font-size: 20px;
-      line-height: 1.1;
-      letter-spacing: 0;
+      font-size: 22px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
     }
 
     .index p {
       margin: 10px 0 18px;
       color: var(--muted);
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.55;
     }
 
     .token-strip {
@@ -70,6 +71,7 @@
     .token {
       height: 28px;
       border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 10px;
     }
 
     .toc {
@@ -79,9 +81,10 @@
 
     .toc a {
       border: 1px solid transparent;
+      border-radius: 14px;
       color: var(--ink);
       display: block;
-      padding: 9px 10px;
+      padding: 10px 11px;
       text-decoration: none;
       font-size: 13px;
     }
@@ -89,24 +92,26 @@
     .toc a:hover {
       background: #fffaf0;
       border-color: var(--line);
+      box-shadow: 0 10px 24px rgba(31, 25, 16, 0.06);
     }
 
     .toc span {
       color: var(--muted);
       display: block;
+      font-family: "SFMono-Regular", "Cascadia Code", monospace;
       font-size: 11px;
-      margin-top: 2px;
+      margin-top: 3px;
     }
 
     .canvas {
       overflow: auto;
-      padding: 28px;
+      padding: 30px;
     }
 
     .frames {
       display: grid;
-      gap: 28px;
-      min-width: 1160px;
+      gap: 32px;
+      min-width: 1220px;
     }
 
     .frame-wrap {
@@ -119,7 +124,7 @@
       display: flex;
       gap: 10px;
       justify-content: space-between;
-      width: 1160px;
+      width: 1220px;
     }
 
     .frame-label h2 {
@@ -139,8 +144,8 @@
       box-shadow: var(--shadow);
       display: grid;
       grid-template-rows: 54px minmax(0, 1fr);
-      height: 700px;
-      width: 1160px;
+      height: 720px;
+      width: 1220px;
     }
 
     .topbar {
@@ -152,11 +157,13 @@
       padding: 0 16px;
     }
 
-    .axis {
+    .axis,
+    .actions {
       display: flex;
       gap: 8px;
     }
 
+    .pill,
     .axis span,
     .actions span,
     .badge {
@@ -165,7 +172,7 @@
       color: var(--ink);
       display: inline-flex;
       font-size: 12px;
-      font-weight: 650;
+      font-weight: 700;
       line-height: 1;
       padding: 8px 12px;
       white-space: nowrap;
@@ -178,14 +185,9 @@
       color: #fff;
     }
 
-    .actions {
-      display: flex;
-      gap: 8px;
-    }
-
     .app {
       display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
+      grid-template-columns: 224px minmax(0, 1fr);
       min-height: 0;
     }
 
@@ -219,33 +221,33 @@
       gap: 8px;
       overflow: hidden;
       padding: 14px;
+      align-content: start;
     }
 
     .nav-section {
       color: var(--muted);
       font-size: 10px;
-      font-weight: 750;
+      font-weight: 800;
       letter-spacing: 0.16em;
-      margin: 8px 0 2px;
+      margin: 10px 0 2px;
       text-transform: uppercase;
     }
 
     .nav-item {
       border: 1px solid transparent;
+      border-radius: 12px;
       font-size: 12px;
-      font-weight: 650;
+      font-weight: 700;
       padding: 8px 10px;
     }
 
     .nav-item.active {
       background: #fff;
       border-color: var(--line);
-      box-shadow: 0 8px 20px rgba(31, 25, 16, 0.05);
+      box-shadow: 0 8px 20px rgba(31, 25, 16, 0.06);
     }
 
-    .nav-child {
-      margin-left: 16px;
-    }
+    .nav-child { margin-left: 16px; }
 
     .content {
       display: grid;
@@ -256,10 +258,11 @@
     }
 
     .hero {
+      background: linear-gradient(135deg, rgba(31, 122, 101, 0.12), rgba(255, 254, 249, 0.96) 45%, rgba(192, 106, 34, 0.10));
       border-bottom: 1px solid var(--line);
       display: grid;
-      gap: 10px;
-      padding: 18px 22px 16px;
+      gap: 12px;
+      padding: 16px 18px;
     }
 
     .kicker {
@@ -267,14 +270,14 @@
       color: var(--muted);
       display: flex;
       font-size: 11px;
-      font-weight: 750;
+      font-weight: 800;
       gap: 8px;
       letter-spacing: 0.16em;
       text-transform: uppercase;
     }
 
     .hero-row {
-      align-items: start;
+      align-items: end;
       display: flex;
       justify-content: space-between;
       gap: 18px;
@@ -282,7 +285,8 @@
 
     .hero h3 {
       font-size: 28px;
-      line-height: 1.08;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
       margin: 0;
     }
 
@@ -290,8 +294,34 @@
       color: var(--muted);
       font-size: 13px;
       line-height: 1.55;
-      margin: 8px 0 0;
-      max-width: 680px;
+      margin: 7px 0 0;
+      max-width: 720px;
+    }
+
+    .metric-row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .metric {
+      background: rgba(255, 254, 249, 0.78);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 10px 12px;
+    }
+
+    .metric b {
+      display: block;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .metric span {
+      color: var(--muted);
+      display: block;
+      font-size: 11px;
+      margin-top: 6px;
     }
 
     .body {
@@ -301,74 +331,118 @@
       overflow: hidden;
     }
 
-    .body.two {
-      grid-template-columns: 1.05fr 0.95fr;
+    .body.asset {
+      grid-template-columns: minmax(0, 1fr) 316px;
     }
 
-    .body.three {
-      grid-template-columns: 0.9fr 1.2fr 0.9fr;
-    }
-
-    .body.blinko {
-      background: #f7f7f6;
-      display: grid;
-      gap: 14px;
-      grid-template-rows: auto minmax(0, 1fr);
-      padding: 14px;
-    }
-
-    .panel {
+    .module-strip {
       border-bottom: 1px solid var(--line);
-      border-right: 1px solid var(--line);
-      min-height: 0;
-      padding: 16px;
-    }
-
-    .panel:last-child {
-      border-right: 0;
-    }
-
-    .panel h4 {
-      font-size: 15px;
-      margin: 0 0 8px;
-    }
-
-    .panel p {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-      margin: 0 0 12px;
-    }
-
-    .list {
       display: grid;
-      gap: 8px;
+      grid-template-columns: repeat(4, 1fr);
     }
 
-    .row {
-      align-items: center;
-      border: 1px solid var(--line);
-      display: flex;
-      gap: 10px;
-      justify-content: space-between;
-      min-height: 38px;
-      padding: 9px 10px;
+    .module-cell {
+      background: #fffef9;
+      border-right: 1px solid var(--line);
+      min-height: 70px;
+      padding: 11px;
     }
 
-    .row strong {
+    .module-cell.active {
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .module-cell strong {
+      display: block;
       font-size: 12px;
     }
 
-    .row small {
+    .module-cell span {
       color: var(--muted);
       display: block;
       font-size: 11px;
-      margin-top: 2px;
+      line-height: 1.45;
+      margin-top: 4px;
     }
+
+    .module-cell.active span { color: #cbc6bd; }
+
+    .workspace-main {
+      background: #fffef9;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      align-items: center;
+      background: #fffef9;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      padding: 12px 14px;
+    }
+
+    .toolbar-title strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .toolbar-title span {
+      color: var(--muted);
+      display: block;
+      font-size: 11px;
+      margin-top: 3px;
+    }
+
+    .input {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      min-width: 220px;
+      padding: 9px 12px;
+    }
+
+    .table {
+      display: grid;
+      font-size: 12px;
+      min-width: 0;
+    }
+
+    .tr {
+      display: grid;
+      grid-template-columns: 1.4fr 0.8fr 0.8fr 0.55fr 0.75fr;
+    }
+
+    .th {
+      background: #f2eee6;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .tr + .tr { border-top: 1px solid var(--line); }
+
+    .tr span {
+      border-right: 1px solid var(--line);
+      min-width: 0;
+      overflow: hidden;
+      padding: 10px 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tr span:last-child { border-right: 0; }
 
     .status {
       border-radius: 999px;
       color: #fff;
+      display: inline-flex;
       font-size: 10px;
       font-weight: 800;
       padding: 5px 8px;
@@ -380,127 +454,127 @@
     .status.blue { background: var(--blue); }
     .status.rose { background: var(--rose); }
 
-    .metrics {
+    .context {
+      background: #fbfaf6;
+      border-left: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .context-card {
+      background: #fffef9;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      margin: 14px;
+      padding: 14px;
+    }
+
+    .context-card.dark {
+      background: #171915;
+      border-color: #171915;
+      color: #f7f1e7;
+    }
+
+    .context-card h4 {
+      font-size: 13px;
+      margin: 0 0 10px;
+    }
+
+    .spec {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .spec div {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 72px minmax(0, 1fr);
+    }
+
+    .spec b {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .context-card.dark .spec b { color: #b7afa3; }
+
+    .note-body {
+      background: #f6f5ef;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 286px;
+      min-height: 0;
+    }
+
+    .note-main {
+      border-right: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .note-head {
+      align-items: center;
+      background: #fbfaf4;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+      grid-template-columns: minmax(0, 1fr) 320px auto;
+      padding: 13px 16px;
+    }
+
+    .brand {
+      align-items: center;
+      display: flex;
       gap: 10px;
     }
 
-    .metric {
-      border: 1px solid var(--line);
-      padding: 12px;
+    .brand-mark {
+      align-items: center;
+      background: #171915;
+      border-radius: 16px;
+      color: #f7c75e;
+      display: grid;
+      font-weight: 900;
+      height: 38px;
+      justify-items: center;
+      width: 38px;
     }
 
-    .metric b {
+    .brand strong {
       display: block;
-      font-size: 24px;
-      line-height: 1;
+      font-size: 18px;
+      letter-spacing: -0.03em;
     }
 
-    .metric span {
+    .brand span {
       color: var(--muted);
       display: block;
       font-size: 11px;
-      margin-top: 8px;
-    }
-
-    .table {
-      border: 1px solid var(--line);
-      display: grid;
-      font-size: 12px;
-    }
-
-    .table::before {
-      background: #f3f1ec;
-      border-bottom: 1px solid var(--line);
-      color: var(--muted);
-      content: "TanStack Table: toolbar / columns / rows / pagination";
-      display: block;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      padding: 8px 10px;
+      margin-top: 2px;
       text-transform: uppercase;
+      letter-spacing: 0.16em;
     }
 
-    .table .tr {
+    .note-metrics {
+      border-bottom: 1px solid var(--line);
       display: grid;
-      grid-template-columns: 1.1fr 0.8fr 0.7fr;
+      grid-template-columns: repeat(4, 1fr);
     }
 
-    .table .tr + .tr {
-      border-top: 1px solid var(--line);
-    }
-
-    .table span {
+    .note-metrics .metric {
+      border: 0;
       border-right: 1px solid var(--line);
-      padding: 9px 10px;
-    }
-
-    .table span:last-child {
-      border-right: 0;
-    }
-
-    .editor {
-      background: #161917;
-      color: #e6f0dc;
-      font-family: "SFMono-Regular", "Cascadia Code", monospace;
-      font-size: 12px;
-      min-height: 230px;
-      padding: 14px;
-      white-space: pre-wrap;
-    }
-
-    .graph {
-      align-items: center;
-      background:
-        linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px),
-        linear-gradient(0deg, rgba(0,0,0,0.04) 1px, transparent 1px);
-      background-size: 28px 28px;
-      border: 1px solid var(--line);
-      display: grid;
-      height: 210px;
-      justify-items: center;
-      position: relative;
-    }
-
-    .node {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      font-size: 12px;
-      font-weight: 700;
-      padding: 8px 10px;
-      position: absolute;
-    }
-
-    .node.a { left: 38px; top: 40px; }
-    .node.b { right: 54px; top: 58px; }
-    .node.c { left: 42%; bottom: 38px; }
-
-    .kanban {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-
-    .lane {
-      border: 1px solid var(--line);
-      min-height: 250px;
-      padding: 10px;
-    }
-
-    .lane h5 {
-      font-size: 12px;
-      margin: 0 0 10px;
+      border-radius: 0;
+      background: #efeadd;
     }
 
     .quick-note {
       background: #fff;
       border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: 0 10px 24px rgba(20, 20, 18, 0.06);
+      border-radius: 26px;
+      box-shadow: 0 16px 40px rgba(42, 37, 29, 0.10);
       display: grid;
-      min-height: 148px;
+      margin: 16px;
+      min-height: 170px;
+      overflow: hidden;
     }
 
     .quick-tools,
@@ -508,55 +582,135 @@
       align-items: center;
       color: var(--muted);
       display: flex;
-      gap: 14px;
+      gap: 13px;
       padding: 12px 14px;
     }
+
+    .quick-tools { border-bottom: 1px solid var(--line); }
+    .quick-footer { border-top: 1px solid var(--line); }
 
     .quick-text {
       color: #161b2b;
       font-size: 16px;
-      line-height: 1.55;
-      padding: 0 14px 18px;
+      line-height: 1.6;
+      padding: 16px 14px 20px;
+    }
+
+    .filters {
+      align-items: center;
+      background: #fbfaf4;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      padding: 12px 16px;
     }
 
     .note-wall {
       columns: 2;
       column-gap: 14px;
+      height: 268px;
       overflow: hidden;
+      padding: 16px;
     }
 
     .note-card {
       background: #fff;
-      border: 1px solid transparent;
-      border-radius: 16px;
+      border: 1px solid #ddd6c9;
+      border-radius: 22px;
       break-inside: avoid;
-      box-shadow: 0 8px 18px rgba(20, 20, 18, 0.045);
+      box-shadow: 0 10px 26px rgba(42, 37, 29, 0.07);
       margin: 0 0 14px;
-      padding: 14px;
+      overflow: hidden;
     }
+
+    .note-card::before {
+      content: "";
+      display: block;
+      height: 5px;
+    }
+
+    .note-card.amber::before { background: #f0b429; }
+    .note-card.rose::before { background: #d95c72; }
+    .note-card.mint::before { background: #42a87f; }
+    .note-card.blue::before { background: #4f89b8; }
+
+    .note-card-inner { padding: 13px; }
 
     .note-card time {
       color: var(--muted);
       display: block;
-      font-size: 12px;
+      font-size: 11px;
       margin-bottom: 8px;
     }
 
     .note-card p {
       color: #111827;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.65;
       margin: 0 0 12px;
     }
 
-    @media (max-width: 900px) {
-      .board {
-        grid-template-columns: 1fr;
-      }
+    .note-side {
+      background: #fbfaf4;
+      overflow: hidden;
+      padding-top: 2px;
+    }
 
-      .index {
-        display: none;
-      }
+    .generic-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 0;
+    }
+
+    .panel {
+      border-right: 1px solid var(--line);
+      padding: 16px;
+    }
+
+    .panel h4 {
+      font-size: 14px;
+      margin: 0 0 10px;
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .row {
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      min-height: 38px;
+      padding: 9px 10px;
+    }
+
+    .row strong { font-size: 12px; }
+    .row small {
+      color: var(--muted);
+      display: block;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .editor {
+      background: #171915;
+      border-radius: 18px;
+      color: #e6f0dc;
+      font-family: "SFMono-Regular", "Cascadia Code", monospace;
+      font-size: 12px;
+      min-height: 260px;
+      padding: 14px;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 900px) {
+      .board { grid-template-columns: 1fr; }
+      .index { display: none; }
     }
   </style>
 </head>
@@ -564,13 +718,13 @@
   <div class="board">
     <aside class="index">
       <h1>AIO Admin Prototype Board</h1>
-      <p>主轴场景、左侧路由树、内容区组件的 Figma-ready 原型基准。</p>
+      <p>按 shadcn/admin 工作台密度重画：主轴上下文、左侧路由树、内容区表格/笔记/详情必须铺满首屏。</p>
       <div class="token-strip">
         <div class="token" style="background:#fbfaf6"></div>
-        <div class="token" style="background:#171a17"></div>
-        <div class="token" style="background:#1f766f"></div>
-        <div class="token" style="background:#b25e26"></div>
-        <div class="token" style="background:#315f91"></div>
+        <div class="token" style="background:#171915"></div>
+        <div class="token" style="background:#1f7a65"></div>
+        <div class="token" style="background:#c06a22"></div>
+        <div class="token" style="background:#2f638f"></div>
       </div>
       <nav class="toc" id="toc"></nav>
     </aside>
@@ -592,35 +746,32 @@
       "系统": [["系统", ["系统管理", "权限菜单树", "用户与角色"]]]
     };
 
+    const modules = ["资产文件", "笔记", "安装包", "dotfiles", "Agent 资产", "Skills", "CLI", "MCP"];
+    const metrics = [
+      ["已索引", "128", "workspace files"],
+      ["引用", "37", "linked objects"],
+      ["待校验", "6", "checksum queue"],
+      ["导入源", "4", "local roots"]
+    ];
+
+    const assetRows = [
+      ["aio-plugin-runtime-notes.md", "Markdown", "workspace", "5", "Indexed"],
+      ["dotfiles-snapshot.zip", "Archive", "local-machine", "3", "Ready"],
+      ["demo-plugin.aio-plugin", "Plugin Package", "plugins", "2", "Draft"],
+      ["aio-admin-prototype-board.html", "Prototype", "design", "8", "Indexed"],
+      ["skill-handoff.json", "JSON", "agent-assets", "4", "Review"]
+    ];
+
     const frames = [
-      {
-        id: "workbench-overview",
-        scene: "工作台",
-        route: "/",
-        activeNav: "平台总览",
-        kicker: "Platform Context",
-        title: "平台总览",
-        summary: "工作台只承载全局状态、能力域健康度、近期任务和下一步落点，不直接混入资产或运行子路由。",
-        layout: "two",
-        panels: [
-          { title: "平台状态", kind: "metrics", rows: [["API", "Ready"], ["插件", "4"], ["阶段", "Shell"]] },
-          { title: "能力域", kind: "list", rows: ["资产", "运行", "插件", "系统"] }
-        ]
-      },
       {
         id: "asset-files",
         scene: "资产",
         route: "/assets/files",
         activeNav: "资产文件",
-        kicker: "Asset Context",
+        kicker: "Asset Workbench",
         title: "资产文件",
-        summary: "文件界面以目录树、对象列表、引用详情三栏为主，面向反复浏览和批量操作。",
-        layout: "three",
-        panels: [
-          { title: "目录树", kind: "list", rows: ["workspace", "packages", "exports", "plugins"] },
-          { title: "文件列表", kind: "table", rows: [["aio-plugin.wasm", "Plugin", "Ready"], ["dotfiles.zip", "Archive", "Draft"], ["notes.md", "Note", "Indexed"]] },
-          { title: "对象详情", kind: "list", rows: ["引用: 3", "校验和: sha256", "来源: local import"] }
-        ]
+        summary: "表格是主工作区，顶部是紧凑状态带，右侧是当前对象上下文；不是介绍页。",
+        kind: "asset"
       },
       {
         id: "asset-notes",
@@ -628,52 +779,9 @@
         route: "/assets/notes",
         activeNav: "笔记",
         kicker: "Blinko Reference",
-        title: "闪念笔记",
-        summary: "参考 Blinko：顶部快速记录区，下面双列卡片流；保留搜索、筛选、标签、附件和快速发送。",
-        layout: "blinko",
-        panels: []
-      },
-      {
-        id: "asset-packages",
-        scene: "资产",
-        route: "/assets/packages",
-        activeNav: "安装包",
-        kicker: "Package Asset",
-        title: "安装包",
-        summary: "安装包界面管理 CLI 包、桌面包、插件包、版本、校验和与安装记录。",
-        layout: "two",
-        panels: [
-          { title: "包目录", kind: "table", rows: [["aio-desktop.dmg", "Desktop", "Published"], ["codex-skill.tgz", "Skill", "Draft"], ["plugin.aio-plugin", "Plugin", "Ready"]] },
-          { title: "发布流水", kind: "kanban", rows: ["Collected", "Verified", "Released"] }
-        ]
-      },
-      {
-        id: "asset-dotfiles",
-        scene: "资产",
-        route: "/assets/dotfiles",
-        activeNav: "dotfiles",
-        kicker: "Machine Asset",
-        title: "dotfiles",
-        summary: "dotfiles 界面以机器画像、配置差异、同步动作和恢复点为主。",
-        layout: "two",
-        panels: [
-          { title: "机器画像", kind: "metrics", rows: [["Hosts", "3"], ["Drift", "7"], ["Backups", "12"]] },
-          { title: "配置差异", kind: "table", rows: [["zshrc", "Changed", "Review"], ["gitconfig", "Synced", "OK"], ["nvim", "Missing", "Apply"]] }
-        ]
-      },
-      {
-        id: "agent-assets",
-        scene: "资产",
-        route: "/assets/agents",
-        activeNav: "Agent 资产总览",
-        kicker: "Agent Asset",
-        title: "Agent 资产总览",
-        summary: "Agent 资产总览负责聚合 skill、CLI、MCP 和插件元数据，展示可装载能力与发布状态。",
-        layout: "two",
-        panels: [
-          { title: "能力盘点", kind: "metrics", rows: [["Skills", "9"], ["CLI", "4"], ["MCP", "2"]] },
-          { title: "资产分布", kind: "list", rows: ["Skills: workflow knowledge", "CLI: repeatable commands", "MCP: tool servers"] }
-        ]
+        title: "闪念笔记资产流",
+        summary: "参考 Blinko 的快速记录入口和笔记流，但保留 AIO 资产域的标签、来源、引用和整理队列。",
+        kind: "notes"
       },
       {
         id: "agent-skills",
@@ -682,70 +790,10 @@
         activeNav: "Skills",
         kicker: "Skill Library",
         title: "Agent Skills",
-        summary: "Skills 界面展示技能包、触发说明、引用资料、脚本和资产文件，支持版本化维护。",
-        layout: "three",
-        panels: [
-          { title: "技能列表", kind: "list", rows: ["frontend-design", "rust-best-practices", "zjarlin-engineering"] },
-          { title: "Skill.md 预览", kind: "editor", rows: ["---\nname: frontend-design\n---\nUse when building production UI screens."] },
-          { title: "引用资产", kind: "list", rows: ["references", "scripts", "assets"] }
-        ]
-      },
-      {
-        id: "agent-cli",
-        scene: "资产",
-        route: "/assets/agents/cli",
-        activeNav: "CLI",
-        kicker: "Command Asset",
-        title: "Agent CLI",
-        summary: "CLI 界面记录命令契约、参数 schema、安装方式和运行结果，后续与 API contract 对齐。",
-        layout: "two",
-        panels: [
-          { title: "命令目录", kind: "table", rows: [["aio assets scan", "read", "JSON"], ["aio dotfiles sync", "write", "Plan"], ["aio skill pack", "build", "Artifact"]] },
-          { title: "参数契约", kind: "editor", rows: ["{\n  \"cwd\": \"string\",\n  \"format\": \"json\",\n  \"dry_run\": true\n}"] }
-        ]
-      },
-      {
-        id: "agent-mcp",
-        scene: "资产",
-        route: "/assets/agents/mcp",
-        activeNav: "MCP",
-        kicker: "Tool Server Asset",
-        title: "Agent MCP",
-        summary: "MCP 界面管理 server、tools、权限边界、连接健康和本地配置来源。",
-        layout: "two",
-        panels: [
-          { title: "Server 列表", kind: "table", rows: [["chrome-devtools", "Connected", "tools"], ["playwright", "Connected", "tools"], ["figma", "Missing", "setup"]] },
-          { title: "工具暴露", kind: "list", rows: ["read resources", "inspect tools", "health check", "permission boundary"] }
-        ]
-      },
-      {
-        id: "runtime-console",
-        scene: "运行",
-        route: "/console",
-        activeNav: "脚本控制台",
-        kicker: "Runtime",
-        title: "脚本控制台",
-        summary: "运行界面以编辑器、运行输出、环境变量、Codex 会话为主要工作区。",
-        layout: "three",
-        panels: [
-          { title: "脚本库", kind: "list", rows: ["saved/rhai-demo", "saved/env-check", "draft/new-script"] },
-          { title: "编辑器", kind: "editor", rows: ["print(\"Hello from AIO\");\nlet name = \"World\";\n`Hello, ${name}!`;"] },
-          { title: "输出", kind: "list", rows: ["exit_code: 0", "duration: 12ms", "stdout: Hello"] }
-        ]
-      },
-      {
-        id: "runtime-config",
-        scene: "运行",
-        route: "/env",
-        activeNav: "环境与配置",
-        kicker: "Configuration",
-        title: "环境与配置",
-        summary: "配置界面维护品牌、模型、对象存储和本地配置文件入口。",
-        layout: "two",
-        panels: [
-          { title: "模型配置", kind: "editor", rows: ["base_url=https://api.openai.com/v1\nmodel=gpt-5.4\napi_key=********"] },
-          { title: "配置文件", kind: "list", rows: ["aio.env", "branding.json", "storage.toml"] }
-        ]
+        summary: "Skill 是 Agent 资产，不是普通文件夹；需要技能包列表、SKILL.md 预览和引用资产三者同屏。",
+        kind: "generic",
+        leftTitle: "技能包目录",
+        rightTitle: "SKILL.md 预览"
       },
       {
         id: "plugin-market",
@@ -754,12 +802,22 @@
         activeNav: "WASM 插件市场",
         kicker: "Plugin Runtime",
         title: "WASM 插件市场",
-        summary: "插件界面突出单宿主拓扑、WASM 生命周期、扩展点契约和已装载实例。",
-        layout: "two",
-        panels: [
-          { title: "宿主拓扑", kind: "metrics", rows: [["前端", "1"], ["后端", "1"], ["插件端口", "0"]] },
-          { title: "运行时实例", kind: "table", rows: [["builtin.script", "Active", "builtin"], ["com.demo.wasm", "Disabled", "wasm"], ["market.index", "Planned", "registry"]] }
-        ]
+        summary: "插件运行时必须是单宿主拓扑：整个主程序只暴露一个前端端口和一个后端端口。",
+        kind: "generic",
+        leftTitle: "宿主拓扑",
+        rightTitle: "运行时实例"
+      },
+      {
+        id: "runtime-console",
+        scene: "运行",
+        route: "/console",
+        activeNav: "脚本控制台",
+        kicker: "Runtime",
+        title: "脚本控制台",
+        summary: "运行界面以脚本库、编辑器、输出和环境为主，不能和资产路由树混在一起。",
+        kind: "generic",
+        leftTitle: "脚本库",
+        rightTitle: "编辑器 / 输出"
       },
       {
         id: "system-admin",
@@ -768,43 +826,19 @@
         activeNav: "系统管理",
         kicker: "System Boundary",
         title: "系统管理",
-        summary: "系统界面集中身份、权限、菜单、组织上下文和安全边界。",
-        layout: "two",
-        panels: [
-          { title: "权限矩阵", kind: "table", rows: [["admin", "all", "enabled"], ["operator", "runtime", "enabled"], ["viewer", "read", "draft"]] },
-          { title: "元数据", kind: "list", rows: ["菜单树", "字典", "组织", "安全策略"] }
-        ]
+        summary: "系统域集中身份、权限、菜单、组织上下文和安全边界。",
+        kind: "generic",
+        leftTitle: "权限矩阵",
+        rightTitle: "元数据"
       }
     ];
 
     function statusClass(value) {
       const lower = String(value).toLowerCase();
-      if (lower.includes("ready") || lower.includes("ok") || lower.includes("active") || lower.includes("published") || lower.includes("connected")) return "mint";
+      if (lower.includes("ready") || lower.includes("indexed") || lower.includes("active") || lower.includes("connected") || lower.includes("ok")) return "mint";
       if (lower.includes("draft") || lower.includes("review") || lower.includes("planned")) return "amber";
       if (lower.includes("missing") || lower.includes("disabled")) return "rose";
       return "blue";
-    }
-
-    function renderPanel(panel) {
-      if (panel.kind === "metrics") {
-        return `<div class="metrics">${panel.rows.map(([label, value]) => `<div class="metric"><b>${value}</b><span>${label}</span></div>`).join("")}</div>`;
-      }
-      if (panel.kind === "table") {
-        return `<div class="table">${panel.rows.map(row => `<div class="tr">${row.map((cell, index) => index === row.length - 1 ? `<span><em class="status ${statusClass(cell)}">${cell}</em></span>` : `<span>${cell}</span>`).join("")}</div>`).join("")}</div>`;
-      }
-      if (panel.kind === "quick-note") {
-        return "";
-      }
-      if (panel.kind === "editor") {
-        return `<div class="editor">${panel.rows[0].replace(/[&<>]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char]))}</div>`;
-      }
-      if (panel.kind === "graph") {
-        return `<div class="graph"><div class="node a">${panel.rows[0]}</div><div class="node b">${panel.rows[1]}</div><div class="node c">${panel.rows[2]}</div></div>`;
-      }
-      if (panel.kind === "kanban") {
-        return `<div class="kanban">${panel.rows.map((lane, index) => `<div class="lane"><h5>${lane}</h5><div class="row"><strong>${index === 0 ? "collect" : index === 1 ? "verify" : "publish"}</strong><span class="status ${index === 2 ? "mint" : "amber"}">${index === 2 ? "Ready" : "Queue"}</span></div></div>`).join("")}</div>`;
-      }
-      return `<div class="list">${panel.rows.map(row => `<div class="row"><div><strong>${row}</strong><small>${panel.title}</small></div><span class="status blue">Item</span></div>`).join("")}</div>`;
     }
 
     function renderNav(scene, activeNav) {
@@ -814,33 +848,129 @@
       `).join("");
     }
 
-    function renderFrame(frame) {
-      const bodyHtml = frame.layout === "blinko"
-        ? `<div class="body blinko">
+    function renderHero(frame) {
+      return `
+        <header class="hero">
+          <div class="kicker">${frame.kicker}</div>
+          <div class="hero-row">
+            <div><h3>${frame.title}</h3><p>${frame.summary}</p></div>
+            <span class="badge active">${frame.activeNav}</span>
+          </div>
+          <div class="metric-row">
+            ${metrics.map(([label, value, detail]) => `<div class="metric"><b>${value}</b><span>${label} / ${detail}</span></div>`).join("")}
+          </div>
+        </header>
+      `;
+    }
+
+    function renderAssetBody(frame) {
+      return `
+        <div class="body asset">
+          <main class="workspace-main">
+            <div class="module-strip">
+              ${modules.map(item => `<div class="module-cell ${item === frame.activeNav ? "active" : ""}"><strong>${item}</strong><span>${item === "资产文件" ? "目录树 / 元数据 / 引用" : item === "笔记" ? "闪念 / 标签 / 来源" : item}</span></div>`).join("")}
+            </div>
+            <div class="toolbar">
+              <div class="toolbar-title"><strong>${frame.title}目录</strong><span>TanStack Table: filter / sort / pagination / row actions</span></div>
+              <div style="display:flex;gap:8px;align-items:center"><div class="input">搜索名称、类型、路径...</div><span class="pill">条件</span><span class="pill">批量</span></div>
+            </div>
+            <div class="table">
+              <div class="tr th"><span>资产</span><span>类型</span><span>归属</span><span>引用</span><span>状态</span></div>
+              ${assetRows.map(row => `<div class="tr">${row.map((cell, index) => index === row.length - 1 ? `<span><em class="status ${statusClass(cell)}">${cell}</em></span>` : `<span>${cell}</span>`).join("")}</div>`).join("")}
+            </div>
+            <div class="toolbar"><span class="toolbar-title"><strong>已显示 5 / 5 条</strong><span>第 1 / 1 页</span></span><span class="pill">上一页</span><span class="pill">下一页</span></div>
+          </main>
+          <aside class="context">
+            <div class="context-card">
+              <h4>模块边界</h4>
+              <div class="spec">
+                <div><b>主轴</b><span>资产</span></div>
+                <div><b>侧轴</b><span>${frame.activeNav}</span></div>
+                <div><b>布局</b><span>表格主区 + 右侧上下文</span></div>
+                <div><b>持久化</b><span>PostgreSQL</span></div>
+              </div>
+            </div>
+            <div class="context-card">
+              <h4>当前对象</h4>
+              <div class="spec">
+                <div><b>名称</b><span>aio-plugin-runtime-notes.md</span></div>
+                <div><b>路径</b><span>docs/runtime</span></div>
+                <div><b>引用</b><span>5 个</span></div>
+                <div><b>状态</b><span>Indexed</span></div>
+              </div>
+            </div>
+            <div class="context-card dark">
+              <h4>第一阶段顺序</h4>
+              <div class="spec">
+                <div><b>01</b><span>资产文件 + 笔记</span></div>
+                <div><b>02</b><span>安装包 + dotfiles</span></div>
+                <div><b>03</b><span>Agent Skill / CLI / MCP</span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      `;
+    }
+
+    function renderNotesBody() {
+      const notes = [
+        ["amber", "2026-05-07 20:14:00", "for c in tl tr bl br; do defaults write com.apple.dock ... 关闭 macOS 触发角", ["闪念", "macOS"]],
+        ["rose", "2026-05-07 19:45:54", "{\"error\":{\"code\":\"invalid_request\",\"message\":\"unsupported responses tool type custom\"}}", ["debug", "api"]],
+        ["mint", "2026-05-07 12:59:28", "如果远端是 Mac mini，macOS 自带屏幕共享可以直接连接，Finder 里按 Command + K。", ["remote", "howto"]],
+        ["blue", "2026-05-04 23:28:38", "头脑风暴：需要一个 all in one 的资产工具，把笔记、安装包、skill、配置文件管理起来。", ["资产", "idea"]]
+      ];
+      return `
+        <div class="note-body">
+          <main class="note-main">
+            <div class="note-head">
+              <div class="brand"><div class="brand-mark">⚡</div><div><span>Blinko Reference</span><strong>闪念笔记资产流</strong></div></div>
+              <div class="input">搜索笔记、标签、来源...</div>
+              <div style="display:flex;gap:8px"><span class="pill">筛选</span><span class="badge active">新笔记</span></div>
+            </div>
+            <div class="note-metrics">
+              ${[["闪念", "286", "quick notes"], ["标签", "42", "semantic tags"], ["附件", "19", "linked assets"], ["待整理", "11", "triage inbox"]].map(([label, value, detail]) => `<div class="metric"><b>${value}</b><span>${label} / ${detail}</span></div>`).join("")}
+            </div>
             <section class="quick-note">
-              <div class="quick-tools">☺ H B I S 🔗 • 1. ☑ ▦ {"{ }"} ...</div>
+              <div class="quick-tools">☺ H B I 🔗 • 1. ☑ ▦ {"{ }"} # @ 附件 <span class="pill" style="margin-left:auto">Markdown</span><span class="pill">待整理</span></div>
               <div class="quick-text">for c in tl tr bl br; do defaults write com.apple.dock "wvous-$c-corner" -int 0; defaults write com.apple.dock "wvous-$c-modifier" -int 0; done; killall Dock</div>
-              <div class="quick-footer">⚡ # 🔗 🏷︎ ✎ ⤴ ⛶ {"</>"} <span class="badge active">发送</span></div>
+              <div class="quick-footer">⚡ 闪念 # 标签 🔗 引用 📎 附件 <span class="badge active" style="margin-left:auto">记录</span></div>
             </section>
+            <div class="filters"><div style="display:flex;gap:8px"><span class="badge active">全部</span><span class="pill">闪念</span><span class="pill">代码</span><span class="pill">远程</span><span class="pill">决策</span></div><span style="font-size:12px;color:var(--muted)">最近 7 天 42 条，11 条待整理</span></div>
             <section class="note-wall">
-              ${[
-                ["2026-05-07 20:14:00", "for c in tl tr bl br; do defaults write com.apple.dock ... 关闭 macOS 触发角"],
-                ["2026-05-07 19:45:54", "{\"error\":{\"code\":\"invalid_request\",\"message\":\"unsupported responses tool type custom\"}}"],
-                ["2026-05-07 12:59:28", "如果远端是 Mac mini，macOS 自带屏幕共享可以直接连接，Finder 里按 Command + K。"],
-                ["2026-05-04 23:28:38", "头脑风暴：需要一个 all in one 的资产工具，把笔记、安装包、skill、配置文件管理起来。"],
-                ["2026-05-02 23:36:18", "strum = { version = \"0.26\", features = [\"derive\"] } 以后写 rust 记得这个库。"]
-              ].map(([time, body]) => `<article class="note-card"><time>${time}</time><p>${body}</p><span class="badge">⚡ 闪念</span></article>`).join("")}
+              ${notes.map(([tone, time, body, tags]) => `<article class="note-card ${tone}"><div class="note-card-inner"><time>${time}</time><p>${body}</p>${tags.map(tag => `<span class="pill">#${tag}</span>`).join(" ")}</div></article>`).join("")}
             </section>
-          </div>`
-        : `<div class="body ${frame.layout}">
-            ${frame.panels.map(panel => `<section class="panel"><h4>${panel.title}</h4><p>${frame.title} / ${panel.title}</p>${renderPanel(panel)}</section>`).join("")}
-          </div>`;
+          </main>
+          <aside class="note-side">
+            <div class="context-card"><h4>捕获队列</h4><div class="spec"><div><b>入口</b><span>剪贴板 / 手输 / 日志</span></div><div><b>状态</b><span>待整理</span></div><div><b>索引</b><span>Postgres + FTS</span></div></div></div>
+            <div class="context-card"><h4>高频标签</h4><span class="pill">#闪念</span> <span class="pill">#debug</span> <span class="pill">#macOS</span> <span class="pill">#rust</span></div>
+            <div class="context-card dark"><h4>设计边界</h4><div class="spec"><div><b>域</b><span>资产</span></div><div><b>流</b><span>捕获 -> 整理 -> 引用</span></div></div></div>
+          </aside>
+        </div>
+      `;
+    }
+
+    function renderGenericBody(frame) {
+      return `
+        <div class="generic-body">
+          <section class="panel">
+            <h4>${frame.leftTitle}</h4>
+            <div class="list">
+              ${["Ready", "Draft", "Review", "Connected"].map((status, index) => `<div class="row"><div><strong>${index === 0 ? frame.activeNav : frame.leftTitle + " " + index}</strong><small>${frame.route}</small></div><em class="status ${statusClass(status)}">${status}</em></div>`).join("")}
+            </div>
+          </section>
+          <section class="panel">
+            <h4>${frame.rightTitle}</h4>
+            <div class="editor">${frame.title}\n\n主轴上下文：${frame.scene}\n侧轴节点：${frame.activeNav}\n\n这里承载实际工作对象，不把路由树和顶部主轴混用。</div>
+          </section>
+        </div>
+      `;
+    }
+
+    function renderFrame(frame) {
+      const bodyHtml = frame.kind === "notes" ? renderNotesBody() : frame.kind === "asset" ? renderAssetBody(frame) : renderGenericBody(frame);
       return `
         <section class="frame-wrap" id="${frame.id}">
-          <div class="frame-label">
-            <h2>${frame.title}</h2>
-            <div class="route">${frame.route}</div>
-          </div>
+          <div class="frame-label"><h2>${frame.title}</h2><div class="route">${frame.route}</div></div>
           <div class="screen">
             <div class="topbar">
               <div class="axis">${scenes.map(scene => `<span class="${scene === frame.scene ? "active" : ""}">${scene}</span>`).join("")}</div>
@@ -852,13 +982,7 @@
                 <div class="nav-tree">${renderNav(frame.scene, frame.activeNav)}</div>
               </aside>
               <main class="content">
-                <header class="hero">
-                  <div class="kicker">${frame.kicker}</div>
-                  <div class="hero-row">
-                    <div><h3>${frame.title}</h3><p>${frame.summary}</p></div>
-                    <span class="badge active">${frame.activeNav}</span>
-                  </div>
-                </header>
+                ${frame.kind === "notes" ? "" : renderHero(frame)}
                 ${bodyHtml}
               </main>
             </div>

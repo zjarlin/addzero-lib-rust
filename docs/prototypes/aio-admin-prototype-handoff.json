@@ -1,27 +1,39 @@
 {
   "name": "AIO Admin Prototype Board",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "updated": "2026-05-07",
+  "designDirection": {
+    "style": "dense shadcn admin workbench",
+    "tone": "warm utilitarian, asset-management console, not marketing dashboard",
+    "densityRule": "first screen must show object, status metrics, primary operation area, and contextual detail",
+    "notesReference": "Blinko-inspired quick capture editor plus masonry note stream",
+    "antiPatterns": [
+      "large empty panels",
+      "documentation-style explanation pages",
+      "single-column key/value detail pages",
+      "top domain axis mixed with left route tree"
+    ]
+  },
   "canvas": {
-    "frameWidth": 1160,
-    "frameHeight": 700,
-    "layout": "topbar + left route tree + content workspace",
-    "density": "edge-to-edge admin workbench",
-    "componentStyle": "shadcn/ui primitives",
-    "tableModel": "TanStack Table column defs + toolbar + rows + pagination"
+    "frameWidth": 1220,
+    "frameHeight": 720,
+    "layout": "topbar main context axis + left side context tree + edge-to-edge content workspace",
+    "componentStyle": "React + source-owned shadcn/ui primitives in @addzero/ui",
+    "tableModel": "TanStack Table column defs + global filter + sorting + pagination + row actions"
   },
   "tokens": {
-    "canvas": "#e8e2d6",
-    "paper": "#fbfaf6",
-    "panel": "#fffefb",
-    "ink": "#171a17",
-    "muted": "#6e706b",
-    "line": "#d7d0c3",
-    "rail": "#f2ede4",
-    "active": "#101312",
-    "mint": "#1f766f",
-    "amber": "#b25e26",
-    "blue": "#315f91",
-    "rose": "#9a3f51"
+    "canvas": "#e6dfd2",
+    "paper": "#f8f5ee",
+    "panel": "#fffef9",
+    "ink": "#171915",
+    "muted": "#727064",
+    "line": "#d4ccbd",
+    "rail": "#eee8dc",
+    "active": "#171915",
+    "mint": "#1f7a65",
+    "amber": "#c06a22",
+    "blue": "#2f638f",
+    "rose": "#a54255"
   },
   "domains": [
     {
@@ -156,59 +168,38 @@
   },
   "frames": [
     {
-      "id": "workbench-overview",
-      "title": "平台总览",
-      "domain": "workbench",
-      "route": "/",
-      "activeNav": "平台总览",
-      "layout": "two-column",
-      "regions": ["platform status metrics", "domain health list"]
-    },
-    {
       "id": "asset-files",
       "title": "资产文件",
       "domain": "assets",
       "route": "/assets/files",
       "activeNav": "资产文件",
-      "layout": "three-column",
-      "regions": ["directory tree", "TanStack Table file table", "object detail"]
+      "layout": "asset-table-workbench",
+      "regions": [
+        "compact metrics hero",
+        "module strip",
+        "TanStack Table toolbar",
+        "asset rows",
+        "pagination",
+        "right context detail"
+      ]
     },
     {
       "id": "asset-notes",
-      "title": "笔记",
+      "title": "闪念笔记资产流",
       "domain": "assets",
       "route": "/assets/notes",
       "activeNav": "笔记",
-      "layout": "Blinko reference",
-      "regions": ["quick capture editor", "toolbar actions", "two-column note masonry", "search and filters"],
+      "layout": "Blinko-inspired notes workbench",
+      "regions": [
+        "sticky notes header",
+        "quick capture editor",
+        "editor toolbar",
+        "tag filters",
+        "masonry note stream",
+        "capture queue side panel",
+        "frequent tags side panel"
+      ],
       "reference": "Blinko notes UI: top quick editor, dense card stream, tags, attachments, fast send"
-    },
-    {
-      "id": "asset-packages",
-      "title": "安装包",
-      "domain": "assets",
-      "route": "/assets/packages",
-      "activeNav": "安装包",
-      "layout": "two-column",
-      "regions": ["TanStack Table package table", "release kanban"]
-    },
-    {
-      "id": "asset-dotfiles",
-      "title": "dotfiles",
-      "domain": "assets",
-      "route": "/assets/dotfiles",
-      "activeNav": "dotfiles",
-      "layout": "two-column",
-      "regions": ["machine metrics", "TanStack Table config drift table"]
-    },
-    {
-      "id": "agent-assets",
-      "title": "Agent 资产总览",
-      "domain": "assets",
-      "route": "/assets/agents",
-      "activeNav": "Agent 资产总览",
-      "layout": "two-column",
-      "regions": ["capability metrics", "asset distribution"]
     },
     {
       "id": "agent-skills",
@@ -216,44 +207,12 @@
       "domain": "assets",
       "route": "/assets/agents/skills",
       "activeNav": "Skills",
-      "layout": "three-column",
-      "regions": ["skill list", "SKILL.md preview", "reference assets"]
-    },
-    {
-      "id": "agent-cli",
-      "title": "Agent CLI",
-      "domain": "assets",
-      "route": "/assets/agents/cli",
-      "activeNav": "CLI",
-      "layout": "two-column",
-      "regions": ["TanStack Table command catalog", "argument contract"]
-    },
-    {
-      "id": "agent-mcp",
-      "title": "Agent MCP",
-      "domain": "assets",
-      "route": "/assets/agents/mcp",
-      "activeNav": "MCP",
-      "layout": "two-column",
-      "regions": ["TanStack Table server table", "tool exposure list"]
-    },
-    {
-      "id": "runtime-console",
-      "title": "脚本控制台",
-      "domain": "runtime",
-      "route": "/console",
-      "activeNav": "脚本控制台",
-      "layout": "three-column",
-      "regions": ["script library", "editor", "output"]
-    },
-    {
-      "id": "runtime-config",
-      "title": "环境与配置",
-      "domain": "runtime",
-      "route": "/env",
-      "activeNav": "环境与配置",
-      "layout": "two-column",
-      "regions": ["model config", "config file list"]
+      "layout": "skill catalog + preview",
+      "regions": [
+        "skill package list",
+        "SKILL.md preview",
+        "reference assets"
+      ]
     },
     {
       "id": "plugin-market",
@@ -261,8 +220,25 @@
       "domain": "plugins",
       "route": "/market",
       "activeNav": "WASM 插件市场",
-      "layout": "two-column",
-      "regions": ["host topology", "TanStack Table runtime instances"]
+      "layout": "runtime topology",
+      "regions": [
+        "single-host topology",
+        "runtime instances",
+        "port policy: one frontend and one backend only"
+      ]
+    },
+    {
+      "id": "runtime-console",
+      "title": "脚本控制台",
+      "domain": "runtime",
+      "route": "/console",
+      "activeNav": "脚本控制台",
+      "layout": "script workbench",
+      "regions": [
+        "script library",
+        "editor",
+        "output"
+      ]
     },
     {
       "id": "system-admin",
@@ -270,13 +246,30 @@
       "domain": "system",
       "route": "/system",
       "activeNav": "系统管理",
-      "layout": "two-column",
-      "regions": ["TanStack Table permission matrix", "metadata list"]
+      "layout": "system admin workbench",
+      "regions": [
+        "permission matrix",
+        "metadata",
+        "security boundary"
+      ]
     }
   ],
+  "implementationStatus": {
+    "updatedFiles": [
+      "apps/aio/front/src/pages/assets.tsx",
+      "docs/prototypes/aio-admin-prototype-board.html",
+      "docs/prototypes/aio-admin-prototype-handoff.json"
+    ],
+    "validatedCommands": [
+      "pnpm --filter @addzero/aio-front lint"
+    ]
+  },
   "figmaMcpStatus": {
     "availableInCurrentSession": false,
-    "observedMcpServers": ["chrome-devtools", "playwright"],
-    "nextStepWhenAvailable": "Use this JSON as the source of frames, routes, and region names; create one Figma frame per item under frames."
+    "observedMcpServers": [
+      "chrome-devtools",
+      "playwright"
+    ],
+    "nextStepWhenAvailable": "Use this JSON as the source of tokens, frame list, route tree, and region names; create one Figma frame per item under frames."
   }
 }
