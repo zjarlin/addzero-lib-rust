@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
     Blocks,
     Box,
@@ -119,7 +120,61 @@ const pluginExamples = [
     },
 ];
 
+const sceneCards = {
+    cli: {
+        eyebrow: "CLI Marketplace",
+        title: "CLI 插件市场",
+        detail:
+            "面向 cli-hub 类对象，先关注 provider、安装命令、分类、文档链接和本地脚手架导出。",
+        items: [
+            {
+                title: "Provider 清单",
+                detail: "从 cli-hub 抽取 provider、分类和示例命令。",
+                tag: "cli-hub",
+            },
+            {
+                title: "安装命令",
+                detail: "保留 brew、npm、cargo、pipx、curl 等安装入口。",
+                tag: "installer",
+            },
+            {
+                title: "本机部署",
+                detail: "勾选后导出为本地 `.azplugin` 子目录，后续交给 WASM 宿主装载。",
+                tag: "deploy",
+            },
+        ],
+    },
+    skill: {
+        eyebrow: "Skill Marketplace",
+        title: "Skill 技能市场",
+        detail:
+            "面向 skills.sh 类对象，管理 repo、skill 名称、安装命令、正文快照和本地 Skill 同步状态。",
+        items: [
+            {
+                title: "skills.sh 快照",
+                detail: "抓取官方 owner/repo/skill 页面，保留描述和安装命令。",
+                tag: "skills.sh",
+            },
+            {
+                title: "Skill Bundle",
+                detail: "把远端技能导出成插件目录，同时可转入本地 Skill 管理台。",
+                tag: "skill",
+            },
+            {
+                title: "已安装对比",
+                detail: "对照当前 `/api/skills`，避免重复安装同名 Skill。",
+                tag: "sync",
+            },
+        ],
+    },
+} as const;
+
+type MarketScene = "cli" | "skill" | "wasm";
+
 export default function MarketPage() {
+    const params = useParams<{ scene?: string }>();
+    const scene: MarketScene =
+        params.scene === "cli" || params.scene === "skill" ? params.scene : "wasm";
     const baseUrl = useMemo(() => getApiBaseUrl(), []);
     const [builtinPlugins, setBuiltinPlugins] = useState<PluginDescriptorDto[]>([]);
     const [loadedPlugins, setLoadedPlugins] = useState<PluginDescriptorDto[]>([]);
@@ -278,6 +333,10 @@ export default function MarketPage() {
         } finally {
             setInstalling(false);
         }
+    }
+
+    if (scene !== "wasm") {
+        return <SceneMarketPage scene={scene} />;
     }
 
     return (
@@ -763,6 +822,84 @@ export default function MarketPage() {
                             </Button>
                         </div>
                     </div>
+                </div>
+            </section>
+        </div>
+    );
+}
+
+function SceneMarketPage({ scene }: { scene: Exclude<MarketScene, "wasm"> }) {
+    const content = sceneCards[scene];
+
+    return (
+        <div className="space-y-6">
+            <section className="rounded-lg border bg-card">
+                <div className="border-b px-5 py-4">
+                    <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        <Puzzle className="h-3.5 w-3.5" />
+                        {content.eyebrow}
+                    </div>
+                    <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+                        {content.title}
+                    </h1>
+                    <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                        {content.detail}
+                    </p>
+                </div>
+                <div className="grid gap-0 md:grid-cols-3">
+                    {content.items.map((item, index) => (
+                        <div
+                            key={item.title}
+                            className={`px-5 py-4 ${
+                                index > 0 ? "border-t md:border-l md:border-t-0" : ""
+                            }`}
+                        >
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="text-sm font-medium">{item.title}</div>
+                                <Badge variant="outline" className="text-[11px]">
+                                    {item.tag}
+                                </Badge>
+                            </div>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                {item.detail}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            <section className="rounded-lg border bg-card">
+                <div className="border-b px-5 py-4">
+                    <h2 className="text-base font-semibold">市场目录</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        这里下一步接 `market_hub` 的真实抓取结果，并支持勾选部署到本机目录。
+                    </p>
+                </div>
+                <div className="grid gap-0 md:grid-cols-2">
+                    <MarketCell
+                        icon={<Box className="h-4 w-4" />}
+                        title="对象采集"
+                        detail={
+                            scene === "cli"
+                                ? "来源优先对齐 cli-hub provider/schema。"
+                                : "来源优先对齐 skills.sh official/detail 页面。"
+                        }
+                    />
+                    <MarketCell
+                        icon={<PackageOpen className="h-4 w-4" />}
+                        title="部署目录"
+                        detail="每个市场对象导出到独立子文件夹，并生成 `.azplugin` 包。"
+                    />
+                    <MarketCell
+                        icon={<ShieldCheck className="h-4 w-4" />}
+                        title="安装边界"
+                        detail="先写入本机目录，安装动作再交给 WASM 插件运行时统一处理。"
+                    />
+                    <MarketCell
+                        icon={<CheckCircle2 className="h-4 w-4" />}
+                        title="状态回填"
+                        detail="记录已部署、已安装、冲突和源不可用状态。"
+                    />
                 </div>
             </section>
         </div>

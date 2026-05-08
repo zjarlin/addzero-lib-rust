@@ -168,6 +168,7 @@ impl PgRepo {
         };
         let active = ai_model_provider::ActiveModel {
             provider: Set(input.provider.as_str().to_string()),
+            base_url: Set(input.base_url.clone()),
             default_model: Set(input.default_model.clone()),
             enabled: Set(input.enabled),
             key_id: Set(key_id),
@@ -181,6 +182,7 @@ impl PgRepo {
             .on_conflict(
                 OnConflict::column(ai_model_provider::Column::Provider)
                     .update_columns([
+                        ai_model_provider::Column::BaseUrl,
                         ai_model_provider::Column::DefaultModel,
                         ai_model_provider::Column::Enabled,
                         ai_model_provider::Column::KeyId,
@@ -330,6 +332,7 @@ fn model_to_edge(row: asset_edge::Model) -> AssetEdge {
 fn model_to_provider(row: ai_model_provider::Model) -> AiModelProvider {
     AiModelProvider {
         provider: AiProviderKind::from_db_value(&row.provider),
+        base_url: row.base_url,
         default_model: row.default_model,
         enabled: row.enabled,
         key_id: row.key_id,

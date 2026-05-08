@@ -5,6 +5,7 @@ import {
     Palette,
     Save,
     Settings2,
+    Sparkles,
     ShieldCheck,
 } from "lucide-react";
 import {
@@ -27,11 +28,30 @@ import {
     SelectValue,
     Textarea,
 } from "@addzero/ui";
+import { WasmStudioWorkbench } from "./wasm-studio";
 
-interface OpenAiChatConfigDto {
-    base_url: string;
+interface AiProviderDraft extends AiProviderConfigDto {
     api_key: string;
-    model: string;
+}
+
+type AiProviderKind = "open_ai" | "anthropic" | "gemini";
+
+interface AiProviderConfigDto {
+    provider: AiProviderKind;
+    label: string;
+    base_url?: string | null;
+    default_model: string;
+    enabled: boolean;
+    api_key_configured: boolean;
+    updated_at?: string | null;
+}
+
+interface AiProviderConfigUpsertDto {
+    provider: AiProviderKind;
+    base_url?: string | null;
+    default_model: string;
+    enabled: boolean;
+    api_key?: string | null;
 }
 
 const CONFIG_FILE_ITEMS = [
@@ -46,6 +66,11 @@ const CONFIG_FILE_ITEMS = [
         status: "待前台化",
     },
     {
+        title: "AI Provider 密钥",
+        detail: "保存 API key 依赖服务端 ADDZERO_SECRET_MASTER_KEY 做加密托管",
+        status: "已接通",
+    },
+    {
         title: "任意软件配置文件",
         detail: "json / toml / yaml 通用文件编辑器后续接入资源层",
         status: "待实现",
@@ -55,10 +80,10 @@ const CONFIG_FILE_ITEMS = [
 export default function EnvPage() {
     const baseUrl = useMemo(() => getApiBaseUrl(), []);
     const [branding, setBranding] = useState<BrandingSettingsDto | null>(null);
-    const [openAi, setOpenAi] = useState<OpenAiChatConfigDto | null>(null);
+    const [providers, setProviders] = useState<AiProviderDraft[]>([]);
     const [loading, setLoading] = useState(true);
     const [savingBranding, setSavingBranding] = useState(false);
-    const [savingOpenAi, setSavingOpenAi] = useState(false);
+    const [savingProvider, setSavingProvider] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
 
@@ -69,23 +94,28 @@ export default function EnvPage() {
             setLoading(true);
             setError(null);
             try {
-                const [brandingData, openAiData] = await Promise.all([
+                const [brandingData, providerData] = await Promise.all([
                     fetch(`${baseUrl}/api/admin/settings/branding`, {
                         credentials: "include",
                     }).then((res) => {
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         return res.json() as Promise<BrandingSettingsDto>;
                     }),
-                    fetch(`${baseUrl}/api/openai-chat/config`, {
+                    fetch(`${baseUrl}/api/ai/providers`, {
                         credentials: "include",
                     }).then((res) => {
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                        return res.json() as Promise<OpenAiChatConfigDto>;
+                        return res.json() as Promise<AiProviderConfigDto[]>;
                     }),
                 ]);
                 if (cancelled) return;
                 setBranding(brandingData);
-                setOpenAi(openAiData);
+                setProviders(
+                    providerData.map((provider) => ({
+                        ...provider,
+                        api_key: "",
+                    })),
+                );
             } catch (err) {
                 if (!cancelled) {
                     setError(err instanceof Error ? err.message : "加载配置失败");
@@ -127,28 +157,56 @@ export default function EnvPage() {
         }
     }
 
-    async function saveOpenAi() {
-        if (!openAi) return;
-        setSavingOpenAi(true);
+    async function saveProvider(providerKey: AiProviderDraft["provider"]) {
+        const provider = providers.find((item) => item.provider === providerKey);
+        if (!provider) return;
+        setSavingProvider(providerKey);
         setError(null);
         setMessage(null);
         try {
-            const saved = await fetch(`${baseUrl}/api/openai-chat/config`, {
+            const payload: AiProviderConfigUpsertDto = {
+                provider: provider.provider,
+                base_url: provider.base_url?.trim() ? provider.base_url.trim() : null,
+                default_model: provider.default_model,
+                enabled: provider.enabled,
+                api_key: provider.api_key.trim() ? provider.api_key.trim() : null,
+            };
+            const saved = await fetch(`${baseUrl}/api/ai/providers`, {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(openAi),
+                body: JSON.stringify(payload),
             }).then((res) => {
                 if (!res.ok) throw new Error("保存模型配置失败");
-                return res.json() as Promise<OpenAiChatConfigDto>;
+                return res.json() as Promise<AiProviderConfigDto>;
             });
-            setOpenAi(saved);
-            setMessage("模型配置已保存");
+            setProviders((current) =>
+                current.map((item) =>
+                    item.provider === saved.provider
+                        ? {
+                              ...saved,
+                              api_key: "",
+                          }
+                        : item,
+                ),
+            );
+            setMessage(`${saved.label} 配置已保存`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "保存模型配置失败");
         } finally {
-            setSavingOpenAi(false);
+            setSavingProvider(null);
         }
+    }
+
+    function updateProvider(
+        providerKey: AiProviderDraft["provider"],
+        patch: Partial<AiProviderDraft>,
+    ) {
+        setProviders((current) =>
+            current.map((item) =>
+                item.provider === providerKey ? { ...item, ...patch } : item,
+            ),
+        );
     }
 
     return (
@@ -176,13 +234,18 @@ export default function EnvPage() {
                     />
                     <TopSignal
                         title="模型配置"
-                        detail="base_url、api_key、model 直接前台维护"
+                        detail="OpenAI、Anthropic、Gemini 三家 provider 统一前台维护"
                         icon={<Bot className="h-4 w-4" />}
                     />
                     <TopSignal
                         title="文件配置"
                         detail="逐步把 env / json / toml / yaml 收进统一配置面板"
                         icon={<ShieldCheck className="h-4 w-4" />}
+                    />
+                    <TopSignal
+                        title="WASM Studio"
+                        detail="低代码画布、插件组件和在线 vibe 编辑入口统一收口在系统设置"
+                        icon={<Sparkles className="h-4 w-4" />}
                     />
                 </CardContent>
             </Card>
@@ -192,6 +255,7 @@ export default function EnvPage() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
             ) : (
+                <>
                 <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
                     <div className="space-y-6">
                         <ConfigPanel
@@ -278,61 +342,99 @@ export default function EnvPage() {
 
                         <ConfigPanel
                             title="模型配置"
-                            description="OpenAI 兼容接口配置已经支持读写，不需要再靠手动编辑 json 文件。"
-                            action={
-                                <Button
-                                    type="button"
-                                    onClick={saveOpenAi}
-                                    disabled={!openAi || savingOpenAi}
-                                    size="sm"
-                                >
-                                    {savingOpenAi ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Save className="h-4 w-4" />
-                                    )}
-                                    保存
-                                </Button>
-                            }
+                            description="旧的 OpenAI 单独配置已经去掉；这里统一维护三家官方 provider。"
                         >
-                            {openAi ? (
-                                <div className="grid gap-4">
-                                    <Field label="Base URL">
-                                        <Input
-                                            value={openAi.base_url}
-                                            onChange={(event) =>
-                                                setOpenAi({
-                                                    ...openAi,
-                                                    base_url: event.target.value,
-                                                })
-                                            }
-                                        />
-                                    </Field>
-                                    <Field label="API Key">
-                                        <Input
-                                            type="password"
-                                            value={openAi.api_key}
-                                            onChange={(event) =>
-                                                setOpenAi({
-                                                    ...openAi,
-                                                    api_key: event.target.value,
-                                                })
-                                            }
-                                        />
-                                    </Field>
-                                    <Field label="Model">
-                                        <Input
-                                            value={openAi.model}
-                                            onChange={(event) =>
-                                                setOpenAi({
-                                                    ...openAi,
-                                                    model: event.target.value,
-                                                })
-                                            }
-                                        />
-                                    </Field>
-                                </div>
-                            ) : null}
+                            <div className="grid gap-4">
+                                {providers.map((provider) => (
+                                    <div
+                                        key={provider.provider}
+                                        className="rounded-lg border p-4"
+                                    >
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <div className="text-sm font-medium">
+                                                    {provider.label}
+                                                </div>
+                                                <div className="mt-1 text-xs text-muted-foreground">
+                                                    {provider.api_key_configured
+                                                        ? "API key 已配置"
+                                                        : "API key 未配置"}
+                                                </div>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                onClick={() => saveProvider(provider.provider)}
+                                                disabled={savingProvider === provider.provider}
+                                                size="sm"
+                                            >
+                                                {savingProvider === provider.provider ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Save className="h-4 w-4" />
+                                                )}
+                                                保存
+                                            </Button>
+                                        </div>
+
+                                        <div className="mt-4 grid gap-4">
+                                            <label className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                                                <span className="text-sm font-medium">
+                                                    启用当前 Provider
+                                                </span>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={provider.enabled}
+                                                    onChange={(event) =>
+                                                        updateProvider(provider.provider, {
+                                                            enabled: event.target.checked,
+                                                        })
+                                                    }
+                                                />
+                                            </label>
+
+                                            <Field label="默认模型">
+                                                <Input
+                                                    value={provider.default_model}
+                                                    onChange={(event) =>
+                                                        updateProvider(provider.provider, {
+                                                            default_model: event.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </Field>
+
+                                            <Field label="Base URL">
+                                                <Input
+                                                    value={provider.base_url ?? ""}
+                                                    placeholder="留空表示使用官方默认地址"
+                                                    onChange={(event) =>
+                                                        updateProvider(provider.provider, {
+                                                            base_url: event.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </Field>
+
+                                            <Field label="新的 API Key">
+                                                <Input
+                                                    type="password"
+                                                    value={provider.api_key}
+                                                    placeholder={
+                                                        provider.api_key_configured
+                                                            ? "留空表示保留现有 key"
+                                                            : "输入后保存"
+                                                    }
+                                                    onChange={(event) =>
+                                                        updateProvider(provider.provider, {
+                                                            api_key: event.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </Field>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </ConfigPanel>
                     </div>
 
@@ -376,6 +478,14 @@ export default function EnvPage() {
                         )}
                     </div>
                 </section>
+
+                <ConfigPanel
+                    title="WASM 低代码与在线 Vibe Studio"
+                    description="这里不是插件市场，而是系统层编排面。统一承载 host built-in 组件、插件生成组件、画布结构和节点级 vibe 任务。"
+                >
+                    <WasmStudioWorkbench embedded />
+                </ConfigPanel>
+                </>
             )}
         </div>
     );

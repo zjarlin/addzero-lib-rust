@@ -134,6 +134,7 @@ impl AiProviderKind {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AiModelProvider {
     pub provider: AiProviderKind,
+    pub base_url: Option<String>,
     pub default_model: String,
     pub enabled: bool,
     pub key_id: String,
@@ -144,6 +145,7 @@ pub struct AiModelProvider {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AiModelProviderUpsert {
     pub provider: AiProviderKind,
+    pub base_url: Option<String>,
     pub default_model: String,
     pub enabled: bool,
     pub api_key: Option<String>,
@@ -152,6 +154,7 @@ pub struct AiModelProviderUpsert {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AssetProviderSecret {
     pub provider: AiProviderKind,
+    pub base_url: Option<String>,
     pub default_model: String,
     pub api_key: String,
 }

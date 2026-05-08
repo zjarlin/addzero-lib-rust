@@ -7,11 +7,11 @@ import type {
     MenuNode,
     SectionNode,
 } from "@addzero/admin-shell";
-import { getApiBaseUrl } from "@addzero/api-client";
 import {
+    getApiBaseUrl,
     createMenuTreeApi,
     type MenuTreeNodeDto,
-} from "@addzero/api-client/menu-tree";
+} from "@addzero/api-client";
 import {
     fetchWasmPluginOverview,
     type WasmPluginNavigationSection,
@@ -19,31 +19,17 @@ import {
 
 const DEFAULT_DOMAINS: DomainNode[] = [
     {
-        id: "workbench",
-        label: "工作台",
-        href: "/",
-        activePatterns: ["/"],
-        order: 0,
-    },
-    {
         id: "assets",
         label: "资产",
-        href: "/assets/files",
+        href: "/assets/notes",
         activePatterns: [
             "/assets",
-            "/assets/files",
             "/assets/notes",
             "/assets/packages",
             "/assets/dotfiles",
-            "/assets/agents",
-            "/assets/agents/skills",
-            "/assets/agents/cli",
-            "/assets/agents/mcp",
-            "/storage",
-            "/knowledge",
-            "/skills",
+            "/",
         ],
-        order: 1,
+        order: 0,
     },
     {
         id: "runtime",
@@ -56,7 +42,7 @@ const DEFAULT_DOMAINS: DomainNode[] = [
         id: "plugins",
         label: "插件",
         href: "/market",
-        activePatterns: ["/market"],
+        activePatterns: ["/market", "/apps"],
         order: 3,
     },
     {
@@ -69,36 +55,16 @@ const DEFAULT_DOMAINS: DomainNode[] = [
 ];
 
 const FALLBACK_SCENES: Record<string, SectionNode[]> = {
-    workbench: [
-        {
-            id: "overview",
-            label: "平台工作台",
-            menus: [
-                {
-                    id: "platform-overview",
-                    label: "平台总览",
-                    href: "/",
-                    activePatterns: ["/"],
-                },
-            ],
-        },
-    ],
     assets: [
         {
             id: "personal-assets",
             label: "个人资产",
             menus: [
                 {
-                    id: "asset-files",
-                    label: "资产文件",
-                    href: "/assets/files",
-                    activePatterns: ["/assets/files", "/storage"],
-                },
-                {
                     id: "asset-notes",
                     label: "笔记",
                     href: "/assets/notes",
-                    activePatterns: ["/assets/notes", "/knowledge"],
+                    activePatterns: ["/assets/notes"],
                 },
                 {
                     id: "asset-packages",
@@ -111,38 +77,6 @@ const FALLBACK_SCENES: Record<string, SectionNode[]> = {
                     label: "dotfiles",
                     href: "/assets/dotfiles",
                     activePatterns: ["/assets/dotfiles"],
-                },
-            ],
-        },
-        {
-            id: "agent-assets",
-            label: "Agent 资产",
-            menus: [
-                {
-                    id: "agent-assets-root",
-                    label: "Agent 资产总览",
-                    href: "/assets/agents",
-                    activePatterns: ["/assets/agents"],
-                    children: [
-                        {
-                            id: "agent-skills",
-                            label: "Skills",
-                            href: "/assets/agents/skills",
-                            activePatterns: ["/assets/agents/skills", "/skills"],
-                        },
-                        {
-                            id: "agent-cli",
-                            label: "CLI",
-                            href: "/assets/agents/cli",
-                            activePatterns: ["/assets/agents/cli"],
-                        },
-                        {
-                            id: "agent-mcp",
-                            label: "MCP",
-                            href: "/assets/agents/mcp",
-                            activePatterns: ["/assets/agents/mcp"],
-                        },
-                    ],
                 },
             ],
         },
@@ -178,6 +112,12 @@ const FALLBACK_SCENES: Record<string, SectionNode[]> = {
                     href: "/market",
                     activePatterns: ["/market"],
                 },
+                {
+                    id: "plugin-instance-entry",
+                    label: "业务实例页",
+                    href: "/market/wasm",
+                    activePatterns: ["/apps/:instanceSlug/:pageId"],
+                },
             ],
         },
     ],
@@ -198,13 +138,9 @@ const FALLBACK_SCENES: Record<string, SectionNode[]> = {
 };
 
 const SCENE_META: Record<string, { title: string; detail: string }> = {
-    workbench: {
-        title: "工作台路由树",
-        detail: "平台总览与全局状态",
-    },
     assets: {
         title: "资产路由树",
-        detail: "文件、笔记、安装包、dotfiles、Agent 资产",
+        detail: "笔记、安装包、dotfiles",
     },
     runtime: {
         title: "运行路由树",
@@ -212,7 +148,7 @@ const SCENE_META: Record<string, { title: string; detail: string }> = {
     },
     plugins: {
         title: "插件路由树",
-        detail: "WASM 插件与扩展点",
+        detail: "WASM 插件、实例页与扩展点",
     },
     system: {
         title: "系统路由树",
@@ -237,20 +173,32 @@ function activeSceneId(currentPath: string) {
                 pathMatchesPattern(currentPath, pattern),
             ),
         );
-    return domain?.id ?? "workbench";
+    return domain?.id ?? "assets";
+}
+
+function isAuditLabel(label: string) {
+    const normalized = label.trim().toLowerCase();
+    return (
+        normalized.includes("审计日志") ||
+        normalized.includes("audit log") ||
+        normalized === "审计" ||
+        normalized === "audit"
+    );
 }
 
 function mapTreeToMenuNodes(nodes: MenuTreeNodeDto[]): MenuNode[] {
-    return nodes.map((node) => ({
-        id: node.id,
-        label: node.title,
-        href: node.route_path,
-        activePatterns: [node.route_path],
-        children:
-            node.children.length > 0
-                ? mapTreeToMenuNodes(node.children)
-                : undefined,
-    }));
+    return nodes
+        .filter((node) => !isAuditLabel(node.title))
+        .map((node) => ({
+            id: node.id,
+            label: node.title,
+            href: node.route_path,
+            activePatterns: [node.route_path],
+            children:
+                node.children.length > 0
+                    ? mapTreeToMenuNodes(node.children)
+                    : undefined,
+        }));
 }
 
 function mergeRemoteMenuTree(
@@ -278,14 +226,18 @@ function mapPluginNavigationSections(
     sections: WasmPluginNavigationSection[],
 ): SectionNode[] {
     return sections
-        .filter((section) =>
-            section.items.some((item) => item.plugin_id || item.kind !== "Fixed"),
-        )
         .map((section) => ({
             id: `plugin:${section.label}`,
             label: section.label,
-            menus: section.items.map(mapPluginNavigationItem),
-        }));
+            menus: section.items
+                .filter(
+                    (item) =>
+                        (item.plugin_id || item.kind !== "Fixed") &&
+                        !isAuditLabel(item.label),
+                )
+                .map(mapPluginNavigationItem),
+        }))
+        .filter((section) => section.menus.length > 0);
 }
 
 function mergePluginNavigationSections(
@@ -298,8 +250,35 @@ function mergePluginNavigationSections(
 
     return {
         ...sceneSections,
-        plugins: [...sceneSections.plugins, ...sections],
+        plugins: [
+            ...sceneSections.plugins,
+            ...filterPluginSections(sections, "/market"),
+            ...mergeAppSections(sections),
+        ],
+        system: [
+            ...sceneSections.system,
+            ...filterPluginSections(sections, "/system/"),
+        ],
     };
+}
+
+function mergeAppSections(pluginSections: SectionNode[]) {
+    const appPluginSections = filterPluginSections(pluginSections, "/apps/");
+    return appPluginSections;
+}
+
+function filterPluginSections(
+    sections: SectionNode[],
+    hrefPrefix: string,
+): SectionNode[] {
+    return sections
+        .map((section) => ({
+            ...section,
+            menus: section.menus.filter((menu) =>
+                menu.href.startsWith(hrefPrefix),
+            ),
+        }))
+        .filter((section) => section.menus.length > 0);
 }
 
 function mapPluginNavigationItem(item: WasmPluginNavigationSection["items"][number]): MenuNode {
@@ -346,7 +325,7 @@ export function useAdminProvider(): {
                     ),
                 );
             } catch {
-                // keep fallback
+                // keep static navigation available while backend or plugin runtime is offline
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -366,7 +345,7 @@ export function useAdminProvider(): {
     const getShellState = useCallback(
         (context: AdminShellContext): AdminShellState => {
             const sceneId = activeSceneId(context.currentPath);
-            const meta = SCENE_META[sceneId] ?? SCENE_META.workbench;
+            const meta = SCENE_META[sceneId] ?? SCENE_META.assets;
 
             return {
                 brandTitle: "AIO Platform",
@@ -377,7 +356,7 @@ export function useAdminProvider(): {
                     { id: "logout", label: "登出" },
                 ],
                 domains: DEFAULT_DOMAINS,
-                sections: sceneSections[sceneId] ?? FALLBACK_SCENES.workbench,
+                sections: sceneSections[sceneId] ?? FALLBACK_SCENES.assets,
                 navigationTitle: meta.title,
                 navigationDetail: meta.detail,
                 rightPanel: null,

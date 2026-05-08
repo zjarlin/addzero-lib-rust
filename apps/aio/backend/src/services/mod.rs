@@ -4,6 +4,7 @@ use std::pin::Pin;
 /// Canonical boxed future alias for service trait methods.
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
+pub mod ai_chat;
 pub mod asset_graph;
 pub mod auth;
 pub mod branding_settings;
@@ -16,7 +17,6 @@ pub mod knowledge_graph;
 pub mod logo_storage;
 pub mod menu_system;
 pub mod minio_files;
-pub mod openai_chat;
 pub mod plugins;
 pub mod skills;
 pub mod software_catalog;
@@ -26,6 +26,10 @@ pub mod vibe_coding;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod wasm_plugins;
 
+pub use ai_chat::{
+    AiProviderConfigDto, AiProviderConfigUpsertDto, AiProviderKindDto, ChatMessageDto,
+    ChatRequestDto, ChatResponseDto,
+};
 pub use asset_graph::{
     AssetGraphDto, AssetGraphEdgeDto, AssetGraphItemDto, AssetGraphTagDto, AssetKindDto,
     AssetSyncReportDto, SharedAssetGraphApi, default_asset_graph_api,
@@ -64,10 +68,6 @@ pub use minio_files::{
     StorageDeleteResultDto, StorageFileDto, StorageFolderDto, StorageShareRequestDto,
     StorageShareResultDto, StorageUploadFileDto, StorageUploadRequestDto, StorageUploadResultDto,
     default_minio_files_api,
-};
-pub use openai_chat::{
-    ChatMessageDto, ChatRequestDto, ChatResponseDto, OpenAiChatConfigDto, SharedOpenAiChatApi,
-    default_openai_chat_api,
 };
 pub use plugins::{
     PluginDescriptorDto, PluginInstallRequestDto, PluginManifestDto, SharedPluginsApi,

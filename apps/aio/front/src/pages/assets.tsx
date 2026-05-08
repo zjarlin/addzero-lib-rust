@@ -15,7 +15,6 @@ import {
     ArrowUpDown,
     AtSign,
     Boxes,
-    Brain,
     CheckCircle2,
     CheckSquare,
     Clock3,
@@ -31,7 +30,6 @@ import {
     Link2,
     List,
     MoreHorizontal,
-    Network,
     PackageOpen,
     Paperclip,
     Plus,
@@ -45,7 +43,6 @@ import {
     TableProperties,
     Tags,
     UploadCloud,
-    Wrench,
     Zap,
 } from "lucide-react";
 import {
@@ -67,14 +64,9 @@ import {
 } from "@addzero/ui";
 
 type AssetModuleId =
-    | "files"
     | "notes"
     | "packages"
-    | "dotfiles"
-    | "agents"
-    | "agent-skills"
-    | "agent-cli"
-    | "agent-mcp";
+    | "dotfiles";
 
 interface AssetMetric {
     label: string;
@@ -115,22 +107,6 @@ interface NoteCardData {
 }
 
 const MODULES: AssetModule[] = [
-    {
-        id: "files",
-        title: "资产文件",
-        eyebrow: "Files",
-        detail: "统一管理脚本输入输出、模板附件、导出物、插件包和可复用文件素材。",
-        status: "优先",
-        icon: <FolderTree className="h-4 w-4" />,
-        accent: "from-emerald-500/15 via-stone-50 to-stone-50",
-        responsibilities: ["目录树", "文件元数据", "引用关系", "导入导出"],
-        metrics: [
-            { label: "已索引", value: "128", detail: "workspace files" },
-            { label: "引用", value: "37", detail: "linked objects" },
-            { label: "待校验", value: "6", detail: "checksum queue" },
-            { label: "导入源", value: "4", detail: "local roots" },
-        ],
-    },
     {
         id: "notes",
         title: "笔记",
@@ -179,149 +155,15 @@ const MODULES: AssetModule[] = [
             { label: "机器", value: "3", detail: "host profiles" },
         ],
     },
-    {
-        id: "agents",
-        title: "Agent 资产",
-        eyebrow: "Agent Assets",
-        detail: "统一放置能被 Agent 装载、调用或发布的能力资产。",
-        status: "优先",
-        icon: <Brain className="h-4 w-4" />,
-        accent: "from-cyan-500/15 via-stone-50 to-stone-50",
-        responsibilities: ["Skill", "CLI", "MCP", "插件元数据"],
-        metrics: [
-            { label: "Skill", value: "31", detail: "loaded skills" },
-            { label: "CLI", value: "8", detail: "commands" },
-            { label: "MCP", value: "2", detail: "connected" },
-            { label: "缺口", value: "1", detail: "figma missing" },
-        ],
-    },
-    {
-        id: "agent-skills",
-        title: "Agent Skills",
-        eyebrow: "Skills",
-        detail: "管理 Codex / Agent 可读取的技能包、触发条件、说明和版本。",
-        status: "优先",
-        icon: <Wrench className="h-4 w-4" />,
-        accent: "from-lime-500/15 via-stone-50 to-stone-50",
-        responsibilities: ["SKILL.md", "引用资料", "脚本", "资产"],
-        metrics: [
-            { label: "技能包", value: "31", detail: "available" },
-            { label: "项目级", value: "9", detail: "workspace skills" },
-            { label: "引用", value: "76", detail: "reference docs" },
-            { label: "脚本", value: "14", detail: "helpers" },
-        ],
-    },
-    {
-        id: "agent-cli",
-        title: "Agent CLI",
-        eyebrow: "CLI",
-        detail: "沉淀 Agent 可调用或可生成的命令行能力、参数契约和安装方式。",
-        status: "规划",
-        icon: <Code2 className="h-4 w-4" />,
-        accent: "from-slate-500/15 via-stone-50 to-stone-50",
-        responsibilities: ["命令契约", "参数", "安装方法", "运行记录"],
-        metrics: [
-            { label: "命令", value: "8", detail: "catalog" },
-            { label: "契约", value: "3", detail: "typed schemas" },
-            { label: "草稿", value: "4", detail: "planned" },
-            { label: "运行", value: "22", detail: "history" },
-        ],
-    },
-    {
-        id: "agent-mcp",
-        title: "Agent MCP",
-        eyebrow: "MCP",
-        detail: "管理 MCP server、工具暴露、权限边界和连接配置。",
-        status: "规划",
-        icon: <Network className="h-4 w-4" />,
-        accent: "from-rose-500/15 via-stone-50 to-stone-50",
-        responsibilities: ["Server", "Tools", "权限", "连接健康"],
-        metrics: [
-            { label: "服务", value: "3", detail: "declared" },
-            { label: "在线", value: "2", detail: "connected" },
-            { label: "工具", value: "29", detail: "exposed tools" },
-            { label: "缺失", value: "1", detail: "figma" },
-        ],
-    },
 ];
 
 const PATH_TO_MODULE: Array<[string, AssetModuleId]> = [
-    ["/assets/agents/skills", "agent-skills"],
-    ["/assets/agents/cli", "agent-cli"],
-    ["/assets/agents/mcp", "agent-mcp"],
-    ["/assets/agents", "agents"],
     ["/assets/notes", "notes"],
     ["/assets/packages", "packages"],
     ["/assets/dotfiles", "dotfiles"],
-    ["/assets/files", "files"],
-    ["/storage", "files"],
-    ["/knowledge", "notes"],
-    ["/skills", "agent-skills"],
 ];
 
 const ASSET_RECORDS: Record<AssetModuleId, AssetRecord[]> = {
-    files: [
-        {
-            name: "aio-plugin-runtime-notes.md",
-            type: "Markdown",
-            owner: "workspace",
-            status: "Indexed",
-            updated: "2026-05-07",
-            size: "18 KB",
-            refs: 5,
-            location: "docs/runtime",
-        },
-        {
-            name: "dotfiles-snapshot.zip",
-            type: "Archive",
-            owner: "local-machine",
-            status: "Ready",
-            updated: "2026-05-06",
-            size: "2.4 MB",
-            refs: 3,
-            location: "assets/backups",
-        },
-        {
-            name: "demo-plugin.aio-plugin",
-            type: "Plugin Package",
-            owner: "plugins",
-            status: "Draft",
-            updated: "2026-05-05",
-            size: "812 KB",
-            refs: 2,
-            location: "plugins/demo",
-        },
-        {
-            name: "aio-admin-prototype-board.html",
-            type: "Prototype",
-            owner: "design",
-            status: "Indexed",
-            updated: "2026-05-07",
-            size: "46 KB",
-            refs: 8,
-            location: "docs/prototypes",
-        },
-        {
-            name: "skill-handoff.json",
-            type: "JSON",
-            owner: "agent-assets",
-            status: "Review",
-            updated: "2026-05-07",
-            size: "9 KB",
-            refs: 4,
-            location: "docs/prototypes",
-        },
-        {
-            name: "release-manifest.toml",
-            type: "Manifest",
-            owner: "release",
-            status: "Ready",
-            updated: "2026-05-04",
-            size: "6 KB",
-            refs: 6,
-            location: "dist",
-        },
-    ],
     notes: [],
     packages: [
         {
@@ -405,154 +247,6 @@ const ASSET_RECORDS: Record<AssetModuleId, AssetRecord[]> = {
             size: "7 KB",
             refs: 16,
             location: "~/.codex",
-        },
-    ],
-    agents: [
-        {
-            name: "frontend-design",
-            type: "Skill",
-            owner: "codex",
-            status: "Active",
-            updated: "2026-05-07",
-            size: "12 KB",
-            refs: 10,
-            location: ".agents/skills",
-        },
-        {
-            name: "aio assets scan",
-            type: "CLI",
-            owner: "aio",
-            status: "Planned",
-            updated: "2026-05-07",
-            size: "contract",
-            refs: 2,
-            location: "crates/aio",
-        },
-        {
-            name: "chrome-devtools",
-            type: "MCP Server",
-            owner: "codex",
-            status: "Connected",
-            updated: "2026-05-07",
-            size: "tools",
-            refs: 18,
-            location: "~/.codex/config.toml",
-        },
-        {
-            name: "figma",
-            type: "MCP Server",
-            owner: "design",
-            status: "Missing",
-            updated: "2026-05-07",
-            size: "setup",
-            refs: 1,
-            location: "~/.codex/config.toml",
-        },
-    ],
-    "agent-skills": [
-        {
-            name: "zjarlin-engineering",
-            type: "Skill",
-            owner: "codex",
-            status: "Active",
-            updated: "2026-05-07",
-            size: "21 KB",
-            refs: 14,
-            location: "~/.codex/skills",
-        },
-        {
-            name: "frontend-design",
-            type: "Skill",
-            owner: "workspace",
-            status: "Active",
-            updated: "2026-05-07",
-            size: "10 KB",
-            refs: 7,
-            location: ".agents/skills",
-        },
-        {
-            name: "compact-workbench-page-rules",
-            type: "Skill",
-            owner: "codex",
-            status: "Active",
-            updated: "2026-05-07",
-            size: "8 KB",
-            refs: 5,
-            location: "~/.codex/skills",
-        },
-        {
-            name: "rust-best-practices",
-            type: "Skill",
-            owner: "workspace",
-            status: "Active",
-            updated: "2026-05-01",
-            size: "33 KB",
-            refs: 9,
-            location: ".agents/skills",
-        },
-    ],
-    "agent-cli": [
-        {
-            name: "aio dotfiles sync",
-            type: "CLI",
-            owner: "dotfiles",
-            status: "Planned",
-            updated: "2026-05-07",
-            size: "contract",
-            refs: 3,
-            location: "crates/aio-cli",
-        },
-        {
-            name: "aio skill pack",
-            type: "CLI",
-            owner: "agent-assets",
-            status: "Draft",
-            updated: "2026-05-07",
-            size: "contract",
-            refs: 8,
-            location: "crates/aio-cli",
-        },
-        {
-            name: "aio assets import",
-            type: "CLI",
-            owner: "assets",
-            status: "Review",
-            updated: "2026-05-07",
-            size: "contract",
-            refs: 4,
-            location: "crates/aio-cli",
-        },
-    ],
-    "agent-mcp": [
-        {
-            name: "chrome-devtools",
-            type: "MCP Server",
-            owner: "codex",
-            status: "Connected",
-            updated: "2026-05-07",
-            size: "23 tools",
-            refs: 11,
-            location: "~/.codex/config.toml",
-        },
-        {
-            name: "playwright",
-            type: "MCP Server",
-            owner: "codex",
-            status: "Connected",
-            updated: "2026-05-07",
-            size: "18 tools",
-            refs: 9,
-            location: "~/.codex/config.toml",
-        },
-        {
-            name: "figma",
-            type: "MCP Server",
-            owner: "design",
-            status: "Missing",
-            updated: "2026-05-07",
-            size: "setup",
-            refs: 2,
-            location: "~/.codex/config.toml",
         },
     ],
 };
@@ -678,7 +372,7 @@ const assetColumns: ColumnDef<AssetRecord>[] = [
 function moduleIdFromPath(pathname: string): AssetModuleId {
     return (
         PATH_TO_MODULE.find(([prefix]) => pathname.startsWith(prefix))?.[1] ??
-        "files"
+        "notes"
     );
 }
 
@@ -745,7 +439,7 @@ export default function AssetsPage() {
 
             <section className="grid min-h-[calc(100vh-14rem)] xl:grid-cols-[minmax(0,1fr)_21rem]">
                 <main className="min-w-0 border-r bg-background">
-                    <div className="flex overflow-x-auto border-b bg-card/80 xl:grid xl:grid-cols-8 xl:overflow-visible">
+                    <div className="flex overflow-x-auto border-b bg-card/80 xl:grid xl:grid-cols-3 xl:overflow-visible">
                         {MODULES.map((item) => (
                             <ModuleCell
                                 key={item.id}
@@ -884,7 +578,7 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                         </CardHeader>
                         <CardContent className="space-y-3 p-4 pt-1 text-sm text-stone-300">
                             <p>笔记不是“知识库子页”，而是资产域下的快速捕获和整理入口。</p>
-                            <p>顶部主轴保持资产域；左侧路由树负责切换文件、笔记、安装包和 Agent 资产。</p>
+                            <p>顶部主轴保持资产域；左侧路由树只保留笔记、安装包和 dotfiles 三个节点。</p>
                         </CardContent>
                     </Card>
                 </aside>
@@ -1183,13 +877,13 @@ function AssetContextPanel({
                     <CardHeader className="p-4 pb-2">
                         <CardTitle className="flex items-center gap-2 text-sm">
                             <Layers3 className="h-4 w-4 text-amber-300" />
-                            第一阶段落地顺序
+                            当前收敛范围
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 p-4 pt-1 text-sm text-stone-300">
-                        <StepLine index="01" title="资产文件 + 笔记" />
-                        <StepLine index="02" title="安装包 + dotfiles" />
-                        <StepLine index="03" title="Agent Skill / CLI / MCP" />
+                        <StepLine index="01" title="笔记" />
+                        <StepLine index="02" title="安装包" />
+                        <StepLine index="03" title="dotfiles" />
                     </CardContent>
                 </Card>
             </div>

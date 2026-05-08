@@ -101,14 +101,14 @@ fn builtin_manifests() -> Vec<PluginManifest> {
             metadata: Default::default(),
         },
         PluginManifest {
-            id: "com.addzero.ai.openai-chat".to_string(),
-            name: "OpenAI Chat Provider".to_string(),
+            id: "com.addzero.ai.chat-gateway".to_string(),
+            name: "Unified AI Chat Gateway".to_string(),
             version: "0.1.0".to_string(),
-            description: "Built-in OpenAI compatible provider used by the platform chat layer."
+            description: "Built-in chat gateway for OpenAI, Anthropic, and Gemini provider access."
                 .to_string(),
             author: "addzero".to_string(),
             min_platform_version: "0.1.0".to_string(),
-            entry: "builtin:openai-chat".to_string(),
+            entry: "builtin:ai-chat-gateway".to_string(),
             extension_points: vec![ExtensionPoint::AiProvider],
             permissions: vec!["network.outbound".to_string()],
             metadata: Default::default(),

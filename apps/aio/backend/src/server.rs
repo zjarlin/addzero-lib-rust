@@ -25,17 +25,18 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::services::{
-    AssetGraphDto, AssetSyncReportDto, BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto,
-    ChatResponseDto, FileIndexDto, FilterOptions, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto,
-    KnowledgeExceptionCardDto, KnowledgeFeedDto, KnowledgeMaintenanceReportDto,
-    KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto,
-    LogoUploadRequest, OpenAiChatConfigDto, PluginDescriptorDto, PluginInstallRequestDto,
-    ResolveKnowledgeExceptionInput, ScanStatsDto, ShareLinkDto, SkillDto, SkillSourceDto,
-    SkillUpsertDto, StartVibeCodingRequestDto, StartVibeCodingResponseDto, StorageBrowseRequestDto,
-    StorageBrowseResultDto, StorageCreateFolderDto, StorageCreateFolderResultDto,
-    StorageDeleteFolderDto, StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto,
-    StorageShareResultDto, StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto,
-    SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
+    AiProviderConfigDto, AiProviderConfigUpsertDto, AssetGraphDto, AssetSyncReportDto,
+    BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto, ChatResponseDto, FileIndexDto,
+    FilterOptions, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto,
+    KnowledgeFeedDto, KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto,
+    KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest,
+    PluginDescriptorDto, PluginInstallRequestDto, ResolveKnowledgeExceptionInput, ScanStatsDto,
+    ShareLinkDto, SkillDto, SkillSourceDto, SkillUpsertDto, StartVibeCodingRequestDto,
+    StartVibeCodingResponseDto, StorageBrowseRequestDto, StorageBrowseResultDto,
+    StorageCreateFolderDto, StorageCreateFolderResultDto, StorageDeleteFolderDto,
+    StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto, StorageShareResultDto,
+    StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto, SyncReportDto,
+    TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
     TerminalSessionSnapshotDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
     WasmPluginRegisterDevRequestDto, WasmPluginRegisterDevResultDto, WasmPluginRuntimeSnapshotDto,
     download_station::{FileIndex, ScanStats, ShareLink},
@@ -47,6 +48,7 @@ use self::auth::AdminSessionService;
 pub struct BackendServices {
     pub skills: SkillService,
     pub admin_auth: AdminSessionService,
+    pub assets: addzero_assets::AssetService,
     pub cli_market: crate::services::cli_market::CliMarketService,
     pub software_catalog: Option<addzero_software_catalog::SoftwareCatalogService>,
     pub download_station: Option<crate::services::download_station::DownloadStationService>,
@@ -108,6 +110,17 @@ pub async fn services() -> &'static BackendServices {
             }
 
             let admin_auth = admin_auth().clone();
+            let secret_master_key = env::var("ADDZERO_SECRET_MASTER_KEY").ok();
+            if let Some(url) = database_url.as_deref() {
+                if let Err(err) = ensure_ai_provider_schema(url).await {
+                    log::warn!("ensure ai provider schema failed: {err:?}");
+                }
+            }
+            let assets = addzero_assets::AssetService::try_attach(
+                database_url.as_deref(),
+                secret_master_key.as_deref(),
+            )
+            .await;
             let cli_market =
                 crate::services::cli_market::CliMarketService::try_attach(database_url.as_deref())
                     .await;
@@ -141,6 +154,7 @@ pub async fn services() -> &'static BackendServices {
             BackendServices {
                 skills,
                 admin_auth,
+                assets,
                 cli_market,
                 software_catalog,
                 download_station,
@@ -148,6 +162,34 @@ pub async fn services() -> &'static BackendServices {
             }
         })
         .await
+}
+
+async fn ensure_ai_provider_schema(database_url: &str) -> Result<()> {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .connect(database_url)
+        .await?;
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS ai_model_providers (
+            provider TEXT PRIMARY KEY,
+            base_url TEXT,
+            default_model TEXT NOT NULL,
+            enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            key_id TEXT NOT NULL DEFAULT 'default',
+            encrypted_api_key TEXT,
+            api_key_configured BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+    sqlx::query("ALTER TABLE ai_model_providers ADD COLUMN IF NOT EXISTS base_url TEXT")
+        .execute(&pool)
+        .await?;
+    Ok(())
 }
 
 pub async fn run_migrations() -> Result<()> {
@@ -384,10 +426,10 @@ pub async fn run_api_server() -> Result<()> {
             post(delete_knowledge_entry),
         )
         .route(
-            "/api/openai-chat/config",
-            get(load_openai_chat_config).post(save_openai_chat_config),
+            "/api/ai/providers",
+            get(list_ai_providers).post(save_ai_provider),
         )
-        .route("/api/openai-chat/chat", post(run_openai_chat))
+        .route("/api/ai/chat", post(run_ai_chat))
         .route("/api/plugins/builtin", get(list_builtin_plugins))
         .route("/api/plugins", get(list_loaded_plugins))
         .route("/api/plugins/install", post(install_plugin))
@@ -906,34 +948,34 @@ async fn delete_knowledge_entry(
     Ok(Json(serde_json::json!({ "ok": true })))
 }
 
-async fn load_openai_chat_config(headers: HeaderMap) -> ApiResult<Json<OpenAiChatConfigDto>> {
+async fn list_ai_providers(headers: HeaderMap) -> ApiResult<Json<Vec<AiProviderConfigDto>>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
-    let config = crate::services::openai_chat::load_config_on_server()
+    let providers = crate::services::ai_chat::list_provider_configs_on_server()
         .await
         .map_err(ApiError::bad_request)?;
-    Ok(Json(config))
+    Ok(Json(providers))
 }
 
-async fn save_openai_chat_config(
+async fn save_ai_provider(
     headers: HeaderMap,
-    Json(input): Json<OpenAiChatConfigDto>,
-) -> ApiResult<Json<OpenAiChatConfigDto>> {
+    Json(input): Json<AiProviderConfigUpsertDto>,
+) -> ApiResult<Json<AiProviderConfigDto>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
-    let config = crate::services::openai_chat::save_config_on_server(input)
+    let provider = crate::services::ai_chat::upsert_provider_config_on_server(input)
         .await
         .map_err(ApiError::bad_request)?;
-    Ok(Json(config))
+    Ok(Json(provider))
 }
 
-async fn run_openai_chat(
+async fn run_ai_chat(
     headers: HeaderMap,
     Json(input): Json<ChatRequestDto>,
 ) -> ApiResult<Json<ChatResponseDto>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
-    let response = crate::services::openai_chat::chat_on_server(input)
+    let response = crate::services::ai_chat::chat_on_server(input)
         .await
         .map_err(ApiError::bad_request)?;
     Ok(Json(response))

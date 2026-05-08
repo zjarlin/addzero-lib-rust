@@ -212,6 +212,7 @@ impl AssetService {
         let secret = encrypted.map(|value| value.ciphertext).or(previous_secret);
         let provider = AiModelProvider {
             provider: input.provider,
+            base_url: input.base_url,
             default_model: input.default_model,
             enabled: input.enabled,
             key_id: self
@@ -242,6 +243,7 @@ impl AssetService {
             })?;
             return Ok(Some(AssetProviderSecret {
                 provider: record.provider,
+                base_url: record.base_url,
                 default_model: record.default_model,
                 api_key: cipher.decrypt(&encrypted)?,
             }));
@@ -256,6 +258,7 @@ impl AssetService {
             .ok_or_else(|| anyhow!("ADDZERO_SECRET_MASTER_KEY is required to decrypt API keys"))?;
         Ok(Some(AssetProviderSecret {
             provider: record.provider,
+            base_url: record.base_url.clone(),
             default_model: record.default_model.clone(),
             api_key: cipher.decrypt(&crate::EncryptedSecret {
                 key_id: record.key_id.clone(),

@@ -42,6 +42,7 @@ CREATE INDEX IF NOT EXISTS asset_edges_target_idx
 
 CREATE TABLE IF NOT EXISTS ai_model_providers (
     provider TEXT PRIMARY KEY,
+    base_url TEXT,
     default_model TEXT NOT NULL,
     enabled BOOLEAN NOT NULL DEFAULT FALSE,
     key_id TEXT NOT NULL DEFAULT 'default',

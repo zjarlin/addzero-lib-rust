@@ -221,24 +221,16 @@ impl InMemoryUploadProgressStorage {
 
 impl UploadProgressStorage for InMemoryUploadProgressStorage {
     fn save_status(&self, key: &str, status: UploadStatus) -> bool {
-        recover_lock(&self.state
-            )
-            .insert(key.to_owned(), status);
+        recover_lock(&self.state).insert(key.to_owned(), status);
         true
     }
 
     fn get_status(&self, key: &str) -> Option<UploadStatus> {
-        recover_lock(&self.state
-            )
-            .get(key)
-            .cloned()
+        recover_lock(&self.state).get(key).cloned()
     }
 
     fn delete_status(&self, key: &str) -> bool {
-        recover_lock(&self.state
-            )
-            .remove(key)
-            .is_some()
+        recover_lock(&self.state).remove(key).is_some()
     }
 
     fn update_part_status(
@@ -248,9 +240,7 @@ impl UploadProgressStorage for InMemoryUploadProgressStorage {
         status: PartStatus,
         etag: Option<String>,
     ) -> bool {
-        let mut state = recover_lock(&self
-            .state
-            );
+        let mut state = recover_lock(&self.state);
         let Some(current) = state.get_mut(key) else {
             return false;
         };
@@ -283,9 +273,7 @@ impl UploadProgressStorage for InMemoryUploadProgressStorage {
     }
 
     fn update_uploaded_size(&self, key: &str, uploaded_size: u64) -> bool {
-        let mut state = recover_lock(&self
-            .state
-            );
+        let mut state = recover_lock(&self.state);
         let Some(current) = state.get_mut(key) else {
             return false;
         };
@@ -321,17 +309,13 @@ impl SpeedTrackingProgressListener {
     }
 
     pub fn reset(&self) {
-        *recover_lock(&self
-            .last_sample
-            ) = None;
+        *recover_lock(&self.last_sample) = None;
     }
 }
 
 impl UploadProgressListener for SpeedTrackingProgressListener {
     fn on_progress(&self, progress: UploadProgressData) {
-        let mut last_sample = recover_lock(&self
-            .last_sample
-            );
+        let mut last_sample = recover_lock(&self.last_sample);
         let now = Instant::now();
 
         let speed = last_sample.as_ref().and_then(|(instant, uploaded)| {

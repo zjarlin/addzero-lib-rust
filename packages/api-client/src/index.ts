@@ -62,17 +62,34 @@ export interface ChatMessageDto {
 }
 
 export interface ChatRequestDto {
+    provider?: AiProviderKind | null;
     messages: ChatMessageDto[];
 }
 
 export interface ChatResponseDto {
+    provider: AiProviderKind;
+    model: string;
     message: ChatMessageDto;
 }
 
-export interface OpenAiChatConfigDto {
-    base_url: string;
-    api_key: string;
-    model: string;
+export type AiProviderKind = "open_ai" | "anthropic" | "gemini";
+
+export interface AiProviderConfigDto {
+    provider: AiProviderKind;
+    label: string;
+    base_url?: string | null;
+    default_model: string;
+    enabled: boolean;
+    api_key_configured: boolean;
+    updated_at?: string | null;
+}
+
+export interface AiProviderConfigUpsertDto {
+    provider: AiProviderKind;
+    base_url?: string | null;
+    default_model: string;
+    enabled: boolean;
+    api_key?: string | null;
 }
 
 export interface PluginDescriptorDto {
@@ -542,14 +559,14 @@ export function createApiClient(baseUrl: string) {
                 ...jsonBody(input),
             }),
         runChat: (input: ChatRequestDto) =>
-            request<ChatResponseDto>(baseUrl, "/api/openai-chat/chat", {
+            request<ChatResponseDto>(baseUrl, "/api/ai/chat", {
                 method: "POST",
                 ...jsonBody(input),
             }),
-        getOpenAiChatConfig: () =>
-            request<OpenAiChatConfigDto>(baseUrl, "/api/openai-chat/config"),
-        saveOpenAiChatConfig: (input: OpenAiChatConfigDto) =>
-            request<OpenAiChatConfigDto>(baseUrl, "/api/openai-chat/config", {
+        listAiProviders: () =>
+            request<AiProviderConfigDto[]>(baseUrl, "/api/ai/providers"),
+        saveAiProvider: (input: AiProviderConfigUpsertDto) =>
+            request<AiProviderConfigDto>(baseUrl, "/api/ai/providers", {
                 method: "POST",
                 ...jsonBody(input),
             }),

@@ -164,9 +164,10 @@ impl ComponentRegistry {
         if let Some(required) = schema.get("required").and_then(|v| v.as_array()) {
             for field in required {
                 if let Some(name) = field.as_str()
-                    && (props.get(name).is_none() || props.get(name).unwrap().is_null()) {
-                        errors.push(format!("missing required field: {name}"));
-                    }
+                    && (props.get(name).is_none() || props.get(name).unwrap().is_null())
+                {
+                    errors.push(format!("missing required field: {name}"));
+                }
             }
         }
 
@@ -197,12 +198,13 @@ impl ComponentRegistry {
 
                     // Enum validation
                     if let Some(enum_vals) = field_schema.get("enum").and_then(|v| v.as_array())
-                        && !enum_vals.contains(value) {
-                            errors.push(format!(
-                                "field '{field_name}': value {value} not in enum {:?}",
-                                enum_vals,
-                            ));
-                        }
+                        && !enum_vals.contains(value)
+                    {
+                        errors.push(format!(
+                            "field '{field_name}': value {value} not in enum {:?}",
+                            enum_vals,
+                        ));
+                    }
                 }
             }
         }

@@ -68,9 +68,10 @@ pub fn check_grid_conflict(
 ) -> Result<(), EditorError> {
     for child in &parent.children {
         if let Some(eid) = exclude_id
-            && child.id == eid {
-                continue;
-            }
+            && child.id == eid
+        {
+            continue;
+        }
         if has_overlap(new_area, &child.grid_area) {
             return Err(EditorError::GridConflict(format!(
                 "new area ({},{})→({},{}) overlaps with node {} at ({},{})→({},{})",
@@ -97,9 +98,10 @@ pub fn check_grid_conflict_root(
 ) -> Result<(), EditorError> {
     for child in children {
         if let Some(eid) = exclude_id
-            && child.id == eid {
-                continue;
-            }
+            && child.id == eid
+        {
+            continue;
+        }
         if has_overlap(new_area, &child.grid_area) {
             return Err(EditorError::GridConflict(format!(
                 "new area ({},{})→({},{}) overlaps with node {} at ({},{})→({},{})",

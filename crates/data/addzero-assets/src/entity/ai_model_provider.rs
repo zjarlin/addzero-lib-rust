@@ -6,6 +6,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub provider: String,
+    pub base_url: Option<String>,
     pub default_model: String,
     pub enabled: bool,
     pub key_id: String,

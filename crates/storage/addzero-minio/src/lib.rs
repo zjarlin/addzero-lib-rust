@@ -508,16 +508,12 @@ fn recover_rwlock_write<T>(rwlock: &std::sync::RwLock<T>) -> std::sync::RwLockWr
 
 pub fn get_or_create_client(key: &str, config: MinioConfig) -> MinioResult<MinioClient> {
     let lock = CLIENTS.get_or_init(|| RwLock::new(BTreeMap::new()));
-    if let Some(existing) = recover_rwlock_read(lock)
-        .get(key)
-        .cloned()
-    {
+    if let Some(existing) = recover_rwlock_read(lock).get(key).cloned() {
         return Ok(existing);
     }
 
     let client = create_client(config)?;
-    recover_rwlock_write(lock)
-        .insert(key.to_owned(), client.clone());
+    recover_rwlock_write(lock).insert(key.to_owned(), client.clone());
     Ok(client)
 }
 
