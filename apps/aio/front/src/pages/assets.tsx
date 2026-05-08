@@ -729,6 +729,8 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
+                    source_path: "",
+                    relative_path: "",
                     title,
                     body,
                     tags,
