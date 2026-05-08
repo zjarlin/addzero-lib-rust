@@ -17,6 +17,12 @@ fn main() {
                 .block_on(aio::server::print_migration_status())
                 .expect("print migration status");
         }
+        Command::System(system_cli) => {
+            let runtime = tokio::runtime::Runtime::new().expect("tokio runtime");
+            runtime
+                .block_on(aio::system_cli::run_system_cli(system_cli))
+                .expect("run system cli");
+        }
         Command::Serve => {
             println!("aio backend API server starting...");
             let runtime = tokio::runtime::Runtime::new().expect("tokio runtime");

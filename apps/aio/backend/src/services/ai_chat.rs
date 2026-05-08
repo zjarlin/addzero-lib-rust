@@ -141,9 +141,7 @@ pub async fn chat_on_server(input: ChatRequestDto) -> Result<ChatResponseDto, St
         .ok_or_else(|| format!("{} 尚未启用，或还没有保存 API key。", provider.label()))?;
 
     match provider {
-        AiProviderKindDto::OpenAi => {
-            send_openai_compatible_chat(provider, secret, messages).await
-        }
+        AiProviderKindDto::OpenAi => send_openai_compatible_chat(provider, secret, messages).await,
         AiProviderKindDto::Anthropic => {
             let model_name = secret.default_model.clone();
             let client = build_anthropic_client(secret.base_url.as_deref(), &secret.api_key)

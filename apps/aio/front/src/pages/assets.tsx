@@ -718,6 +718,16 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         }
         const tags = dedupeTags(seedTags);
         const title = deriveNoteTitle(body);
+        const resetComposer = () => {
+            setCaptureDraft("");
+            setSeedTags(["闪念"]);
+        };
+        const pushCapturedNote = (note: NoteCardData) => {
+            setNotes((current) => [note, ...current]);
+            setSelectedNoteId(note.id);
+            setActiveTag(note.tags[0] ?? "");
+            setActiveView("inbox");
+        };
         setCaptureSaving(true);
         setCaptureMessage(null);
         setCaptureError(null);
@@ -750,15 +760,21 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                 source: "笔记工作台",
                 relatedTarget: saved.relative_path,
             });
-            setNotes((current) => [note, ...current]);
-            setSelectedNoteId(note.id);
-            setActiveTag(note.tags[0] ?? "");
-            setActiveView("inbox");
-            setCaptureDraft("");
-            setSeedTags(["闪念"]);
+            pushCapturedNote(note);
+            resetComposer();
             setCaptureMessage(`已记录到 ${saved.relative_path}`);
         } catch (error) {
-            setCaptureError(error instanceof Error ? error.message : "记录失败");
+            const fallbackNote = buildCapturedNote(body, tags, {
+                title,
+                source: "本地会话",
+            });
+            pushCapturedNote(fallbackNote);
+            resetComposer();
+            setCaptureError(
+                error instanceof Error
+                    ? `知识库同步失败，已先保存在当前页面：${error.message}`
+                    : "知识库同步失败，已先保存在当前页面。",
+            );
         } finally {
             setCaptureSaving(false);
         }
