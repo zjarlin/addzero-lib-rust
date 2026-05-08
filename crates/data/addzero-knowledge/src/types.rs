@@ -4,6 +4,7 @@ use addzero_persistence::PersistenceError;
 use chrono::{DateTime, Utc};
 use sea_orm::DbErr;
 use serde::{Deserialize, Serialize};
+use sqlx::Error as SqlxError;
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -83,6 +84,8 @@ pub enum KnowledgeError {
     Persistence(#[from] PersistenceError),
     #[error("query knowledge rows: {0}")]
     Query(#[source] DbErr),
+    #[error("query sqlite knowledge rows: {0}")]
+    Sqlite(#[source] SqlxError),
     #[error("{0}")]
     Message(String),
 }

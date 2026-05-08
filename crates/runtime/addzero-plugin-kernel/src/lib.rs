@@ -184,6 +184,17 @@ impl PlatformKernel {
         Ok(package_path)
     }
 
+    pub fn catalog_dir(&self) -> Result<PathBuf, KernelError> {
+        let runtime = self.runtime.lock().map_err(|_| KernelError::Poisoned)?;
+        Ok(runtime.catalog_dir().to_path_buf())
+    }
+
+    pub fn refresh_catalog(&self) -> Result<(), KernelError> {
+        let mut runtime = self.runtime.lock().map_err(|_| KernelError::Poisoned)?;
+        runtime.refresh_catalog()?;
+        Ok(())
+    }
+
     pub fn install_catalog_plugin(&self, plugin_id: &str) -> Result<PluginDescriptor, KernelError> {
         let mut runtime = self.runtime.lock().map_err(|_| KernelError::Poisoned)?;
         let descriptor = runtime.install_from_catalog(plugin_id)?;

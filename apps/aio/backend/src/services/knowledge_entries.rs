@@ -188,7 +188,7 @@ pub async fn delete_knowledge_entry_on_server(
 #[cfg(not(target_arch = "wasm32"))]
 async fn connect_knowledge_service() -> Result<KnowledgeService, String> {
     let database_url = addzero_knowledge::database_url().ok_or_else(|| {
-        "缺少 PostgreSQL 连接：请设置 MSC_AIO_DATABASE_URL，或在仓库 .env / ~/.config/aio/aio.env 中配置 MSC_AIO_DATABASE_URL / DATABASE_URL".to_string()
+        "缺少数据库连接：请设置 PostgreSQL 地址，或在桌面首启时直接切换到本机 SQLite。".to_string()
     })?;
     let service = KNOWLEDGE_SERVICE
         .get_or_try_init({

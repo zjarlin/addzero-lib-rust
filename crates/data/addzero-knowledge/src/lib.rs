@@ -4,6 +4,7 @@ pub mod discovery;
 mod entity;
 mod repository;
 pub mod service;
+mod sqlite_repository;
 pub mod types;
 
 pub use catalog::render_catalog;

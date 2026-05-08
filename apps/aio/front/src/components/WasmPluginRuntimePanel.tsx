@@ -5,10 +5,10 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from "
 import {
     fetchWasmPluginOverview,
     installCatalogWasmPlugin,
-    registerDevWasmPlugin,
     type WasmPluginInstallResult,
     type WasmPluginMarketplaceEntry,
     type WasmPluginRuntimeSnapshot,
+    uploadWasmPlugin,
 } from "../lib/wasm-plugin-runtime";
 
 export default function WasmPluginRuntimePanel() {
@@ -18,13 +18,10 @@ export default function WasmPluginRuntimePanel() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
-    const [registering, setRegistering] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [pendingPluginId, setPendingPluginId] = useState<string | null>(null);
     const [lastInstall, setLastInstall] = useState<WasmPluginInstallResult | null>(null);
-    const [form, setForm] = useState({
-        source_dir: "",
-        package_name: "",
-    });
+    const [uploadFile, setUploadFile] = useState<File | null>(null);
 
     async function load() {
         setLoading(true);
@@ -42,19 +39,31 @@ export default function WasmPluginRuntimePanel() {
         void load();
     }, [baseUrl]);
 
-    async function registerPlugin() {
-        setRegistering(true);
+    async function uploadPluginPackage() {
+        if (!uploadFile) {
+            setError("请先选择一个 `.azplugin` 插件包");
+            return;
+        }
+        setUploading(true);
         setError(null);
         setMessage(null);
         try {
-            const result = await registerDevWasmPlugin(form, baseUrl);
-            setMessage(`已打包到 catalog: ${result.plugin_name} (${result.plugin_id})`);
+            const bytes = Array.from(new Uint8Array(await uploadFile.arrayBuffer()));
+            const result = await uploadWasmPlugin(
+                {
+                    file_name: uploadFile.name,
+                    bytes,
+                },
+                baseUrl,
+            );
+            setMessage(`已校验并导入: ${result.plugin_name} ${result.version} (${result.plugin_id})`);
+            setUploadFile(null);
             window.dispatchEvent(new Event("aio:plugin-runtime-updated"));
             await load();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "注册本地插件失败");
+            setError(err instanceof Error ? err.message : "上传插件包失败");
         } finally {
-            setRegistering(false);
+            setUploading(false);
         }
     }
 
@@ -127,44 +136,31 @@ export default function WasmPluginRuntimePanel() {
                     ) : null}
                     <div className="space-y-3 rounded-lg border p-4">
                         <div>
-                            <div className="text-sm font-medium">导入本地插件源码目录</div>
+                            <div className="text-sm font-medium">上传用户插件包</div>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                目录内至少应包含 `plugin.toml`、`backend/plugin.wasm`、`checksums.sha256`。
+                                只允许用户上传 `.azplugin` 包，服务端会先做完整校验，再放入 catalog。
                             </p>
                         </div>
                         <label className="block">
-                            <span className="mb-2 block text-sm font-medium">源码目录</span>
+                            <span className="mb-2 block text-sm font-medium">插件包</span>
                             <Input
-                                value={form.source_dir}
+                                type="file"
+                                accept=".azplugin,application/zip"
                                 onChange={(event) =>
-                                    setForm((current) => ({
-                                        ...current,
-                                        source_dir: event.target.value,
-                                    }))
+                                    setUploadFile(event.target.files?.[0] ?? null)
                                 }
-                                placeholder="/absolute/path/to/plugin-source"
                             />
                         </label>
-                        <label className="block">
-                            <span className="mb-2 block text-sm font-medium">包名</span>
-                            <Input
-                                value={form.package_name}
-                                onChange={(event) =>
-                                    setForm((current) => ({
-                                        ...current,
-                                        package_name: event.target.value,
-                                    }))
-                                }
-                                placeholder="memory-manager"
-                            />
-                        </label>
+                        <div className="rounded-md border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+                            当前选择：{uploadFile ? uploadFile.name : "未选择文件"}
+                        </div>
                         <div className="flex flex-wrap gap-2">
                             <Button
                                 type="button"
-                                onClick={() => void registerPlugin()}
-                                disabled={registering || !form.source_dir.trim()}
+                                onClick={() => void uploadPluginPackage()}
+                                disabled={uploading || !uploadFile}
                             >
-                                导入到 catalog
+                                上传并校验
                             </Button>
                             <Button type="button" variant="outline" onClick={() => void load()}>
                                 刷新运行时

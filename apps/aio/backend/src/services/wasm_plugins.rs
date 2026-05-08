@@ -1,11 +1,14 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use addzero_plugin_contract::{MarketplaceSnapshot, ResolvedPage, RuntimeOverview, ShellSnapshot};
+use addzero_plugin_contract::{
+    MarketplaceSnapshot, PluginKind, ResolvedPage, RuntimeOverview, ShellSnapshot,
+};
 use addzero_plugin_kernel::PlatformKernel;
-use addzero_plugin_runtime::read_manifest_from_package;
+use addzero_plugin_runtime::{read_manifest_from_package, validate_package};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -17,16 +20,18 @@ pub struct WasmPluginRuntimeSnapshotDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WasmPluginRegisterDevRequestDto {
-    pub source_dir: String,
-    pub package_name: String,
+pub struct WasmPluginUploadRequestDto {
+    pub file_name: String,
+    pub bytes: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WasmPluginRegisterDevResultDto {
+pub struct WasmPluginUploadResultDto {
     pub package_path: String,
     pub plugin_id: String,
     pub plugin_name: String,
+    pub version: String,
+    pub validated: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -68,24 +73,6 @@ pub async fn wasm_plugin_runtime_snapshot_on_server() -> Result<WasmPluginRuntim
         shell,
         marketplace,
         runtime,
-    })
-}
-
-pub async fn register_dev_wasm_plugin_on_server(
-    input: WasmPluginRegisterDevRequestDto,
-) -> Result<WasmPluginRegisterDevResultDto, String> {
-    let kernel = platform_kernel()?;
-    let source_dir = normalize_existing_dir(&input.source_dir)?;
-    let package_name = normalized_package_name(&input.package_name, &source_dir)?;
-    let package_path = kernel
-        .ensure_dev_package(&source_dir, &package_name)
-        .map_err(|err| format!("package dev plugin `{package_name}`: {err}"))?;
-    let manifest = read_manifest_from_package(&package_path)
-        .map_err(|err| format!("read packaged manifest {}: {err}", package_path.display()))?;
-    Ok(WasmPluginRegisterDevResultDto {
-        package_path: package_path.display().to_string(),
-        plugin_id: manifest.descriptor.id,
-        plugin_name: manifest.descriptor.name,
     })
 }
 
@@ -132,6 +119,46 @@ pub async fn install_catalog_wasm_plugin_on_server(
     })
 }
 
+pub async fn upload_wasm_plugin_on_server(
+    input: WasmPluginUploadRequestDto,
+) -> Result<WasmPluginUploadResultDto, String> {
+    let kernel = platform_kernel()?;
+    let file_name = normalized_upload_file_name(&input.file_name)?;
+    if input.bytes.is_empty() {
+        return Err("plugin upload bytes cannot be empty".to_string());
+    }
+
+    let temp_dir = default_plugins_root().join(".tmp");
+    fs::create_dir_all(&temp_dir)
+        .map_err(|err| format!("create temp plugin dir {}: {err}", temp_dir.display()))?;
+    let temp_path = temp_dir.join(format!("upload-{file_name}"));
+    fs::write(&temp_path, &input.bytes)
+        .map_err(|err| format!("write uploaded plugin {}: {err}", temp_path.display()))?;
+
+    let result = (|| {
+        validate_package(&temp_path)
+            .map_err(|err| format!("validate uploaded package {}: {err}", temp_path.display()))?;
+        let manifest = read_manifest_from_package(&temp_path)
+            .map_err(|err| format!("read uploaded manifest {}: {err}", temp_path.display()))?;
+        if manifest.descriptor.kind != PluginKind::Business {
+            return Err(
+                "only external Business wasm plugins can be uploaded to marketplace".to_string(),
+            );
+        }
+        let package_path = store_uploaded_package(kernel, &manifest.descriptor.id, &temp_path)?;
+        Ok(WasmPluginUploadResultDto {
+            package_path: package_path.display().to_string(),
+            plugin_id: manifest.descriptor.id,
+            plugin_name: manifest.descriptor.name,
+            version: manifest.descriptor.version,
+            validated: true,
+        })
+    })();
+
+    let _ = fs::remove_file(&temp_path);
+    result
+}
+
 pub async fn resolve_system_wasm_plugin_page_on_server(
     plugin_id: String,
     page_id: String,
@@ -171,51 +198,44 @@ fn default_plugins_root() -> PathBuf {
     root.canonicalize().unwrap_or(root)
 }
 
-fn normalize_existing_dir(raw: &str) -> Result<PathBuf, String> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Err("source_dir is required".to_string());
-    }
-    let path = PathBuf::from(trimmed);
-    if !path.exists() {
-        return Err(format!("source dir does not exist: {}", path.display()));
-    }
-    if !path.is_dir() {
-        return Err(format!("source dir is not a directory: {}", path.display()));
-    }
-    path.canonicalize()
-        .map_err(|err| format!("canonicalize source dir {}: {err}", path.display()))
+fn store_uploaded_package(
+    kernel: &Arc<PlatformKernel>,
+    plugin_id: &str,
+    source_path: &Path,
+) -> Result<PathBuf, String> {
+    let catalog_dir = kernel
+        .catalog_dir()
+        .map_err(|err| format!("resolve wasm plugin catalog dir: {err}"))?;
+    fs::create_dir_all(&catalog_dir)
+        .map_err(|err| format!("create catalog dir {}: {err}", catalog_dir.display()))?;
+    let target_path = catalog_dir.join(format!("{plugin_id}.azplugin"));
+    fs::copy(source_path, &target_path).map_err(|err| {
+        format!(
+            "copy uploaded package {} -> {}: {err}",
+            source_path.display(),
+            target_path.display()
+        )
+    })?;
+    kernel
+        .refresh_catalog()
+        .map_err(|err| format!("refresh wasm plugin catalog after upload: {err}"))?;
+    Ok(target_path)
 }
 
-fn normalized_package_name(raw: &str, source_dir: &Path) -> Result<String, String> {
-    let candidate = raw
-        .trim()
-        .strip_suffix(".azplugin")
-        .unwrap_or(raw.trim())
-        .trim();
-    let fallback = source_dir
+fn normalized_upload_file_name(raw: &str) -> Result<String, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err("upload file name is required".to_string());
+    }
+    if !trimmed.ends_with(".azplugin") {
+        return Err("only `.azplugin` plugin packages can be uploaded".to_string());
+    }
+    let file_name = Path::new(trimmed)
         .file_name()
         .and_then(|value| value.to_str())
-        .unwrap_or("plugin");
-    let chosen = if candidate.is_empty() {
-        fallback
-    } else {
-        candidate
-    };
-    let normalized = chosen
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
-                ch
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>()
-        .trim_matches('-')
-        .to_string();
-    if normalized.is_empty() {
-        return Err("package_name resolves to an empty identifier".to_string());
+        .ok_or_else(|| "upload file name is invalid".to_string())?;
+    if file_name != trimmed {
+        return Err("upload file name must not contain parent directories".to_string());
     }
-    Ok(normalized)
+    Ok(file_name.to_string())
 }

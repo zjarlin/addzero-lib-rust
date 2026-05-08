@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::{
     discovery::discover_source_documents,
     repository::KnowledgeRepository,
+    sqlite_repository::SqliteKnowledgeRepository,
     types::{
         KnowledgeDocument, KnowledgeError, KnowledgeSourceSpec, KnowledgeSyncReport,
         ManualKnowledgeDocumentInput,
@@ -15,11 +16,25 @@ use crate::{
 
 #[derive(Clone)]
 pub struct KnowledgeService {
-    repository: KnowledgeRepository,
+    backend: KnowledgeBackend,
+}
+
+#[derive(Clone)]
+enum KnowledgeBackend {
+    Postgres(KnowledgeRepository),
+    Sqlite(SqliteKnowledgeRepository),
 }
 
 impl KnowledgeService {
     pub async fn connect(database_url: &str) -> Result<Self, KnowledgeError> {
+        if database_url.starts_with("sqlite:") {
+            return Ok(Self {
+                backend: KnowledgeBackend::Sqlite(
+                    SqliteKnowledgeRepository::connect(database_url).await?,
+                ),
+            });
+        }
+
         let mut options = ConnectOptions::new(database_url.to_owned());
         options
             .max_connections(4)
@@ -32,18 +47,21 @@ impl KnowledgeService {
             .await
             .map_err(|err| KnowledgeError::Message(format!("connect knowledge db: {err}")))?;
         Ok(Self {
-            repository: KnowledgeRepository::new(connection),
+            backend: KnowledgeBackend::Postgres(KnowledgeRepository::new(connection)),
         })
     }
 
     pub fn from_persistence(persistence: &PersistenceContext) -> Self {
         Self {
-            repository: KnowledgeRepository::new(persistence.db().clone()),
+            backend: KnowledgeBackend::Postgres(KnowledgeRepository::new(persistence.db().clone())),
         }
     }
 
     pub async fn list_documents(&self) -> Result<Vec<KnowledgeDocument>, KnowledgeError> {
-        self.repository.list_documents().await
+        match &self.backend {
+            KnowledgeBackend::Postgres(repository) => repository.list_documents().await,
+            KnowledgeBackend::Sqlite(repository) => repository.list_documents().await,
+        }
     }
 
     pub async fn sync_sources(
@@ -52,27 +70,55 @@ impl KnowledgeService {
     ) -> Result<KnowledgeSyncReport, KnowledgeError> {
         let mut report = KnowledgeSyncReport::default();
 
-        for source in sources {
-            if !source.root_path.exists() {
-                continue;
+        match &self.backend {
+            KnowledgeBackend::Postgres(repository) => {
+                for source in sources {
+                    if !source.root_path.exists() {
+                        continue;
+                    }
+
+                    let scan = discover_source_documents(source);
+                    let source_id = repository.upsert_source(source).await?;
+                    let mut active_paths = Vec::with_capacity(scan.documents.len());
+
+                    for doc in &scan.documents {
+                        repository.upsert_document(source_id, doc).await?;
+                        active_paths.push(doc.source_path.clone());
+                    }
+
+                    repository
+                        .deactivate_missing_documents(source_id, &active_paths)
+                        .await?;
+
+                    report.synced_sources.push(source.name.clone());
+                    report.upserted_documents += active_paths.len();
+                    report.skipped_paths.extend(scan.skipped_paths);
+                }
             }
+            KnowledgeBackend::Sqlite(repository) => {
+                for source in sources {
+                    if !source.root_path.exists() {
+                        continue;
+                    }
 
-            let scan = discover_source_documents(source);
-            let source_id = self.repository.upsert_source(source).await?;
-            let mut active_paths = Vec::with_capacity(scan.documents.len());
+                    let scan = discover_source_documents(source);
+                    let source_id = repository.upsert_source(source).await?;
+                    let mut active_paths = Vec::with_capacity(scan.documents.len());
 
-            for doc in &scan.documents {
-                self.repository.upsert_document(source_id, doc).await?;
-                active_paths.push(doc.source_path.clone());
+                    for doc in &scan.documents {
+                        repository.upsert_document(&source_id, doc).await?;
+                        active_paths.push(doc.source_path.clone());
+                    }
+
+                    repository
+                        .deactivate_missing_documents(&source_id, &active_paths)
+                        .await?;
+
+                    report.synced_sources.push(source.name.clone());
+                    report.upserted_documents += active_paths.len();
+                    report.skipped_paths.extend(scan.skipped_paths);
+                }
             }
-
-            self.repository
-                .deactivate_missing_documents(source_id, &active_paths)
-                .await?;
-
-            report.synced_sources.push(source.name.clone());
-            report.upserted_documents += active_paths.len();
-            report.skipped_paths.extend(scan.skipped_paths);
         }
 
         report.finished_at = Some(Utc::now());
@@ -88,26 +134,47 @@ impl KnowledgeService {
             input.source_name.clone(),
             input.source_root.clone(),
         );
-        let source_id = self.repository.upsert_source(&source).await?;
-        let existing = self.repository.source_by_slug(&input.source_slug).await?;
-        let source_root = existing
-            .map(|item| item.root_path)
-            .unwrap_or_else(|| input.source_root.clone());
 
-        let document = build_manual_document(&input, source_root);
-        self.repository
-            .upsert_document(source_id, &document)
-            .await?;
-        Ok(document)
+        match &self.backend {
+            KnowledgeBackend::Postgres(repository) => {
+                let source_id = repository.upsert_source(&source).await?;
+                let existing = repository.source_by_slug(&input.source_slug).await?;
+                let source_root = existing
+                    .map(|item| item.root_path)
+                    .unwrap_or_else(|| input.source_root.clone());
+                let document = build_manual_document(&input, source_root);
+                repository.upsert_document(source_id, &document).await?;
+                Ok(document)
+            }
+            KnowledgeBackend::Sqlite(repository) => {
+                let source_id = repository.upsert_source(&source).await?;
+                let source_root = repository
+                    .source_root_by_slug(&input.source_slug)
+                    .await?
+                    .unwrap_or_else(|| input.source_root.clone());
+                let document = build_manual_document(&input, source_root);
+                repository.upsert_document(&source_id, &document).await?;
+                Ok(document)
+            }
+        }
     }
 
     pub async fn delete_document_by_source_path(
         &self,
         source_path: &str,
     ) -> Result<(), KnowledgeError> {
-        self.repository
-            .deactivate_document_by_source_path(source_path)
-            .await
+        match &self.backend {
+            KnowledgeBackend::Postgres(repository) => {
+                repository
+                    .deactivate_document_by_source_path(source_path)
+                    .await
+            }
+            KnowledgeBackend::Sqlite(repository) => {
+                repository
+                    .deactivate_document_by_source_path(source_path)
+                    .await
+            }
+        }
     }
 }
 

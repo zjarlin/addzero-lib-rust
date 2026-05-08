@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Database, Loader2, Save, ShieldCheck } from "lucide-react";
+import { Database, HardDrive, Loader2, Save, ShieldCheck } from "lucide-react";
 import {
     getApiBaseUrl,
     isDesktopRuntime,
@@ -22,9 +22,10 @@ export default function SetupPage() {
     const [status, setStatus] = useState<BootstrapStatusDto | null>(null);
     const [databaseUrl, setDatabaseUrl] = useState("");
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [savingMode, setSavingMode] = useState<"postgres" | "sqlite" | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+    const saving = savingMode !== null;
 
     useEffect(() => {
         if (!desktopMode) {
@@ -75,7 +76,7 @@ export default function SetupPage() {
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setSaving(true);
+        setSavingMode("postgres");
         setError(null);
         setMessage(null);
         try {
@@ -102,7 +103,33 @@ export default function SetupPage() {
                     : "保存 PostgreSQL 地址失败。",
             );
         } finally {
-            setSaving(false);
+            setSavingMode(null);
+        }
+    }
+
+    async function handleUseLocalSqlite() {
+        setSavingMode("sqlite");
+        setError(null);
+        setMessage(null);
+        try {
+            const response = await fetch(`${baseUrl}/api/bootstrap/database/sqlite-local`, {
+                method: "POST",
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || `HTTP ${response.status}`);
+            }
+            const payload = (await response.json()) as BootstrapDatabaseSaveResultDto;
+            setMessage(payload.message);
+            window.location.replace("/login");
+        } catch (submitError) {
+            setError(
+                submitError instanceof Error
+                    ? submitError.message
+                    : "切换本机 SQLite 失败。",
+            );
+        } finally {
+            setSavingMode(null);
         }
     }
 
@@ -114,11 +141,12 @@ export default function SetupPage() {
                         AIO Desktop
                     </div>
                     <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-tight">
-                        纯桌面本地工作台，首次启动先接上 PostgreSQL
+                        纯桌面本地工作台，首次启动先接 PostgreSQL，或者直接落本机 SQLite
                     </h1>
                     <p className="mt-4 max-w-lg text-sm leading-7 text-stone-300">
                         桌面壳子、前端资源和本地 API 都在本机运行。
-                        这里先把正式持久化地址配置好，后面所有笔记、资产、插件元数据都直接走 PostgreSQL。
+                        如果你已经有正式库，就先接 PostgreSQL；如果现在只想先跑起来，
+                        可以直接跳过，系统会把数据落到本机内嵌 SQLite，后续再切回 PostgreSQL。
                     </p>
                 </div>
 
@@ -133,7 +161,7 @@ export default function SetupPage() {
                     />
                     <DesktopSignal
                         label="持久化策略"
-                        value="all in PostgreSQL"
+                        value="PostgreSQL 优先 / SQLite 首启兜底"
                     />
                 </div>
             </section>
@@ -150,11 +178,11 @@ export default function SetupPage() {
                                 Desktop Bootstrap
                             </div>
                             <CardTitle className="text-2xl tracking-tight">
-                                配置 PostgreSQL 地址
+                                配置数据库
                             </CardTitle>
                             <CardDescription className="text-sm leading-6">
-                                首次启动先做一次连接测试，成功后把地址写入本机配置文件。
-                                后续桌面端直接复用，不需要每次再填。
+                                你可以先接 PostgreSQL；如果这一步跳过，系统会直接启用本机内嵌 SQLite。
+                                两种方式都会把地址写进本机配置文件，后续桌面端直接复用。
                             </CardDescription>
                         </CardHeader>
 
@@ -184,6 +212,9 @@ export default function SetupPage() {
                                         <div className="mt-1 break-all">
                                             {status?.config_path || "~/.config/aio/aio.env"}
                                         </div>
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            跳过 PostgreSQL 时会自动创建 `~/.config/aio/aio.sqlite3`
+                                        </div>
                                         <div className="mt-3 flex items-start gap-2">
                                             <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-600" />
                                             <span>
@@ -204,23 +235,45 @@ export default function SetupPage() {
                                         </div>
                                     ) : null}
 
-                                    <Button
-                                        type="submit"
-                                        className="w-full rounded-2xl"
-                                        disabled={saving || !databaseUrl.trim()}
-                                    >
-                                        {saving ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                测试连接并保存
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Save className="h-4 w-4" />
-                                                测试连接并保存
-                                            </>
-                                        )}
-                                    </Button>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <Button
+                                            type="submit"
+                                            className="w-full rounded-2xl"
+                                            disabled={saving || !databaseUrl.trim()}
+                                        >
+                                            {savingMode === "postgres" ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    测试连接并保存
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Save className="h-4 w-4" />
+                                                    测试连接并保存
+                                                </>
+                                            )}
+                                        </Button>
+
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="w-full rounded-2xl border-stone-300 bg-[#fcfaf4]"
+                                            disabled={saving}
+                                            onClick={() => void handleUseLocalSqlite()}
+                                        >
+                                            {savingMode === "sqlite" ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    正在启用本机 SQLite
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <HardDrive className="h-4 w-4" />
+                                                    跳过并使用本机 SQLite
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
                                 </>
                             )}
                         </CardContent>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tokio Toasty"
+  short_description: "Starter-style Tokio toast system"
+  default_prompt: "Use $tokio-toasty to design or implement a starter-style toast notification system for a Rust/Tokio app."

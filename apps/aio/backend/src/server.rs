@@ -39,7 +39,7 @@ use crate::services::{
     StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto, SyncReportDto,
     TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
     TerminalSessionSnapshotDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
-    WasmPluginRegisterDevRequestDto, WasmPluginRegisterDevResultDto, WasmPluginRuntimeSnapshotDto,
+    WasmPluginRuntimeSnapshotDto, WasmPluginUploadRequestDto, WasmPluginUploadResultDto,
     download_station::{FileIndex, ScanStats, ShareLink},
     menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
 };
@@ -194,10 +194,9 @@ async fn ensure_ai_provider_schema(database_url: &str) -> Result<()> {
 }
 
 pub async fn run_migrations() -> Result<()> {
-    let database_url =
-        resolved_database_url().expect(
-            "MSC_AIO_DATABASE_URL / repo .env / DATABASE_URL / ~/.config/aio/aio.env must be set",
-        );
+    let database_url = resolved_database_url().expect(
+        "MSC_AIO_DATABASE_URL / repo .env / DATABASE_URL / ~/.config/aio/aio.env must be set",
+    );
 
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(1)
@@ -390,6 +389,10 @@ pub async fn run_api_server() -> Result<()> {
     let router = Router::new()
         .route("/api/bootstrap/status", get(get_bootstrap_status))
         .route("/api/bootstrap/database", post(save_bootstrap_database))
+        .route(
+            "/api/bootstrap/database/sqlite-local",
+            post(save_bootstrap_local_sqlite),
+        )
         .route("/api/admin/session", get(get_session))
         .route("/api/admin/session/login", post(login))
         .route("/api/admin/session/logout", post(logout))
@@ -442,10 +445,7 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/plugins/{id}/disable", post(disable_plugin))
         .route("/api/plugins/{id}", axum::routing::delete(uninstall_plugin))
         .route("/api/wasm/plugins/overview", get(wasm_plugin_overview))
-        .route(
-            "/api/wasm/plugins/register-dev",
-            post(register_dev_wasm_plugin),
-        )
+        .route("/api/wasm/plugins/upload", post(upload_wasm_plugin))
         .route(
             "/api/wasm/plugins/install-catalog",
             post(install_catalog_wasm_plugin),
@@ -647,6 +647,13 @@ async fn save_bootstrap_database(
     Json(input): Json<BootstrapDatabaseSetupDto>,
 ) -> ApiResult<Json<BootstrapDatabaseSaveResultDto>> {
     let result = crate::services::desktop_bootstrap::save_database_url_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn save_bootstrap_local_sqlite() -> ApiResult<Json<BootstrapDatabaseSaveResultDto>> {
+    let result = crate::services::desktop_bootstrap::save_local_sqlite_on_server()
         .await
         .map_err(ApiError::bad_request)?;
     Ok(Json(result))
@@ -1071,23 +1078,23 @@ async fn wasm_plugin_overview(headers: HeaderMap) -> ApiResult<Json<WasmPluginRu
     Ok(Json(snapshot))
 }
 
-async fn register_dev_wasm_plugin(
-    headers: HeaderMap,
-    Json(input): Json<WasmPluginRegisterDevRequestDto>,
-) -> ApiResult<Json<WasmPluginRegisterDevResultDto>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let result = crate::services::wasm_plugins::register_dev_wasm_plugin_on_server(input)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(result))
-}
-
 async fn install_catalog_wasm_plugin(
     headers: HeaderMap,
     Json(input): Json<WasmPluginInstallRequestDto>,
 ) -> ApiResult<Json<WasmPluginInstallResultDto>> {
     ensure_auth(admin_auth(), &headers)?;
     let result = crate::services::wasm_plugins::install_catalog_wasm_plugin_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn upload_wasm_plugin(
+    headers: HeaderMap,
+    Json(input): Json<WasmPluginUploadRequestDto>,
+) -> ApiResult<Json<WasmPluginUploadResultDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let result = crate::services::wasm_plugins::upload_wasm_plugin_on_server(input)
         .await
         .map_err(ApiError::bad_request)?;
     Ok(Json(result))

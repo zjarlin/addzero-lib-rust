@@ -96,6 +96,6 @@ pub use terminal_sessions::{
 pub use vibe_coding::{StartVibeCodingRequestDto, StartVibeCodingResponseDto};
 #[cfg(not(target_arch = "wasm32"))]
 pub use wasm_plugins::{
-    WasmPluginInstallRequestDto, WasmPluginInstallResultDto, WasmPluginRegisterDevRequestDto,
-    WasmPluginRegisterDevResultDto, WasmPluginRuntimeSnapshotDto,
+    WasmPluginInstallRequestDto, WasmPluginInstallResultDto, WasmPluginRuntimeSnapshotDto,
+    WasmPluginUploadRequestDto, WasmPluginUploadResultDto,
 };

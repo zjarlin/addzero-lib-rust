@@ -600,7 +600,7 @@ mod debug_redaction_tests {
     #[test]
     fn database_config_debug_redacts_password() {
         let x = "demo";
-         
+
         let string = x.to_owned();
         let config = DatabaseConfig {
             jdbc_url: "jdbc:postgresql://localhost/app".to_owned(),

@@ -62,15 +62,17 @@ export interface WasmPluginRuntimeSnapshot {
     runtime: WasmPluginRuntimeOverview;
 }
 
-export interface WasmPluginRegisterDevRequest {
-    source_dir: string;
-    package_name: string;
+export interface WasmPluginUploadRequest {
+    file_name: string;
+    bytes: number[];
 }
 
-export interface WasmPluginRegisterDevResult {
+export interface WasmPluginUploadResult {
     package_path: string;
     plugin_id: string;
     plugin_name: string;
+    version: string;
+    validated: boolean;
 }
 
 export interface WasmPluginInstallRequest {
@@ -172,12 +174,12 @@ export function fetchWasmPluginOverview(baseUrl = getApiBaseUrl()) {
     );
 }
 
-export function registerDevWasmPlugin(
-    input: WasmPluginRegisterDevRequest,
+export function uploadWasmPlugin(
+    input: WasmPluginUploadRequest,
     baseUrl = getApiBaseUrl(),
 ) {
-    return requestJson<WasmPluginRegisterDevResult>(
-        "/api/wasm/plugins/register-dev",
+    return requestJson<WasmPluginUploadResult>(
+        "/api/wasm/plugins/upload",
         {
             method: "POST",
             body: JSON.stringify(input),

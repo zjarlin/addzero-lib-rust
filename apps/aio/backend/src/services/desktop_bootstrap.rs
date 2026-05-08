@@ -1,11 +1,11 @@
 use std::{
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::Duration,
 };
 
 use serde::{Deserialize, Serialize};
-use sqlx::{Connection, Executor, postgres::PgConnection};
+use sqlx::{Connection, Executor, postgres::PgConnection, sqlite::SqliteConnection};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BootstrapStatusDto {
@@ -40,7 +40,8 @@ pub async fn bootstrap_status_on_server() -> Result<BootstrapStatusDto, String> 
             database_configured: false,
             database_reachable: false,
             config_path: config_path_display,
-            message: "首次启动需要先配置 PostgreSQL 地址。".to_string(),
+            message: "首次启动先配置 PostgreSQL；如果现在跳过，也可以直接使用本机内嵌 SQLite。"
+                .to_string(),
         });
     };
 
@@ -51,7 +52,7 @@ pub async fn bootstrap_status_on_server() -> Result<BootstrapStatusDto, String> 
             database_configured: true,
             database_reachable: true,
             config_path: config_path_display,
-            message: "PostgreSQL 已就绪，桌面端可直接进入工作台。".to_string(),
+            message: ready_message(&database_url),
         }),
         Err(err) => Ok(BootstrapStatusDto {
             desktop_mode: true,
@@ -59,7 +60,10 @@ pub async fn bootstrap_status_on_server() -> Result<BootstrapStatusDto, String> 
             database_configured: true,
             database_reachable: false,
             config_path: config_path_display,
-            message: format!("当前 PostgreSQL 配置不可用：{err}"),
+            message: format!(
+                "当前{}配置不可用：{err}",
+                database_kind_label(&database_url)
+            ),
         }),
     }
 }
@@ -88,22 +92,63 @@ pub async fn save_database_url_on_server(
     })
 }
 
-async fn ping_database(database_url: &str) -> Result<(), String> {
-    let connect_future = PgConnection::connect(database_url);
-    let mut connection = tokio::time::timeout(Duration::from_secs(5), connect_future)
+pub async fn save_local_sqlite_on_server() -> Result<BootstrapDatabaseSaveResultDto, String> {
+    let sqlite_path = local_sqlite_database_path()?;
+    if let Some(parent) = sqlite_path.parent() {
+        fs::create_dir_all(parent).map_err(|err| format!("创建 SQLite 目录失败：{err}"))?;
+    }
+
+    let database_url = sqlite_database_url(&sqlite_path);
+    ping_database(&database_url)
         .await
-        .map_err(|_| "连接超时".to_string())?
-        .map_err(|err| err.to_string())?;
+        .map_err(|err| format!("初始化本机 SQLite 失败：{err}"))?;
 
-    tokio::time::timeout(
-        Duration::from_secs(5),
-        connection.execute("SELECT 1"),
-    )
-    .await
-    .map_err(|_| "健康检查超时".to_string())?
-    .map_err(|err| err.to_string())?;
+    let path = write_local_database_url(&database_url)?;
+    Ok(BootstrapDatabaseSaveResultDto {
+        database_configured: true,
+        database_reachable: true,
+        config_path: path.display().to_string(),
+        message: format!(
+            "已切换到本机内嵌 SQLite，数据文件位于 {}。",
+            sqlite_path.display()
+        ),
+    })
+}
 
-    connection.close().await.map_err(|err| err.to_string())
+async fn ping_database(database_url: &str) -> Result<(), String> {
+    if is_postgres_url(database_url) {
+        let connect_future = PgConnection::connect(database_url);
+        let mut connection = tokio::time::timeout(Duration::from_secs(5), connect_future)
+            .await
+            .map_err(|_| "连接超时".to_string())?
+            .map_err(|err| err.to_string())?;
+
+        tokio::time::timeout(Duration::from_secs(5), connection.execute("SELECT 1"))
+            .await
+            .map_err(|_| "健康检查超时".to_string())?
+            .map_err(|err| err.to_string())?;
+
+        return connection.close().await.map_err(|err| err.to_string());
+    }
+
+    if is_sqlite_url(database_url) {
+        ensure_sqlite_parent_dir(database_url)?;
+
+        let connect_future = SqliteConnection::connect(database_url);
+        let mut connection = tokio::time::timeout(Duration::from_secs(5), connect_future)
+            .await
+            .map_err(|_| "连接超时".to_string())?
+            .map_err(|err| err.to_string())?;
+
+        tokio::time::timeout(Duration::from_secs(5), connection.execute("SELECT 1"))
+            .await
+            .map_err(|_| "健康检查超时".to_string())?
+            .map_err(|err| err.to_string())?;
+
+        return connection.close().await.map_err(|err| err.to_string());
+    }
+
+    Err("仅支持 postgres://、postgresql:// 或 sqlite: 数据库地址。".to_string())
 }
 
 fn write_local_database_url(database_url: &str) -> Result<PathBuf, String> {
@@ -121,6 +166,64 @@ fn write_local_database_url(database_url: &str) -> Result<PathBuf, String> {
 fn local_config_path() -> Result<PathBuf, String> {
     addzero_persistence::local_env_path()
         .ok_or_else(|| "无法定位 ~/.config/aio/aio.env".to_string())
+}
+
+fn local_sqlite_database_path() -> Result<PathBuf, String> {
+    let config_path = local_config_path()?;
+    let Some(parent) = config_path.parent() else {
+        return Err("无法定位 ~/.config/aio 目录".to_string());
+    };
+    Ok(parent.join("aio.sqlite3"))
+}
+
+fn ready_message(database_url: &str) -> String {
+    if is_sqlite_url(database_url) {
+        "本机内嵌 SQLite 已就绪，桌面端可直接进入工作台。".to_string()
+    } else {
+        "PostgreSQL 已就绪，桌面端可直接进入工作台。".to_string()
+    }
+}
+
+fn database_kind_label(database_url: &str) -> &'static str {
+    if is_sqlite_url(database_url) {
+        "本机 SQLite"
+    } else {
+        "PostgreSQL"
+    }
+}
+
+fn sqlite_database_url(path: &Path) -> String {
+    format!("sqlite://{}", path.display())
+}
+
+fn ensure_sqlite_parent_dir(database_url: &str) -> Result<(), String> {
+    let Some(path) = sqlite_file_path(database_url) else {
+        return Ok(());
+    };
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+    fs::create_dir_all(parent).map_err(|err| format!("创建 SQLite 目录失败：{err}"))
+}
+
+fn sqlite_file_path(database_url: &str) -> Option<PathBuf> {
+    if database_url == "sqlite::memory:" {
+        return None;
+    }
+
+    database_url
+        .strip_prefix("sqlite://")
+        .or_else(|| database_url.strip_prefix("sqlite:"))
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
+fn is_postgres_url(database_url: &str) -> bool {
+    database_url.starts_with("postgres://") || database_url.starts_with("postgresql://")
+}
+
+fn is_sqlite_url(database_url: &str) -> bool {
+    database_url.starts_with("sqlite:")
 }
 
 fn upsert_env_key(content: &str, key: &str, value: &str) -> String {
