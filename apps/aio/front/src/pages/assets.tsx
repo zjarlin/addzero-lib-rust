@@ -66,6 +66,7 @@ import {
     Textarea,
     cn,
 } from "@addzero/ui";
+import { getApiBaseUrl } from "@addzero/api-client";
 
 type AssetModuleId =
     | "notes"
@@ -135,6 +136,18 @@ interface NoteCardData {
             tone?: "default" | "warning" | "success";
         }>;
     };
+}
+
+interface TagNode {
+    label: string;
+    noteIds: string[];
+    neighbors: string[];
+}
+
+interface GraphLine {
+    source: string;
+    target: string;
+    weight: number;
 }
 
 const MODULES: AssetModule[] = [
@@ -624,6 +637,7 @@ export default function AssetsPage() {
 }
 
 function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
+    const baseUrl = useMemo(() => getApiBaseUrl(), []);
     const [activeView, setActiveView] = useState<NoteWorkspaceView>("tags");
     const [search, setSearch] = useState("");
     const [notes, setNotes] = useState(NOTE_CARDS);
@@ -633,6 +647,9 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         'for c in tl tr bl br; do defaults write com.apple.dock "wvous-$c-corner" -int 0; defaults write com.apple.dock "wvous-$c-modifier" -int 0; done; killall Dock',
     );
     const [seedTags, setSeedTags] = useState<string[]>(["闪念", "代码", "macOS"]);
+    const [captureSaving, setCaptureSaving] = useState(false);
+    const [captureMessage, setCaptureMessage] = useState<string | null>(null);
+    const [captureError, setCaptureError] = useState<string | null>(null);
 
     const filteredNotes = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -694,18 +711,55 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         );
     }
 
-    function handleCapture() {
+    async function handleCapture() {
         const body = captureDraft.trim();
         if (!body) {
             return;
         }
-        const note = buildCapturedNote(body, seedTags);
-        setNotes((current) => [note, ...current]);
-        setSelectedNoteId(note.id);
-        setActiveTag(note.tags[0] ?? "");
-        setActiveView("inbox");
-        setCaptureDraft("");
-        setSeedTags(["闪念"]);
+        const tags = dedupeTags(seedTags);
+        const title = deriveNoteTitle(body);
+        setCaptureSaving(true);
+        setCaptureMessage(null);
+        setCaptureError(null);
+        try {
+            const response = await fetch(`${baseUrl}/api/knowledge/entries`, {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    title,
+                    body,
+                    tags,
+                }),
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || `HTTP ${response.status}`);
+            }
+            const saved = (await response.json()) as {
+                source_path: string;
+                relative_path: string;
+                title: string;
+            };
+            const note = buildCapturedNote(body, tags, {
+                title: saved.title,
+                source: "笔记工作台",
+                relatedTarget: saved.relative_path,
+            });
+            setNotes((current) => [note, ...current]);
+            setSelectedNoteId(note.id);
+            setActiveTag(note.tags[0] ?? "");
+            setActiveView("inbox");
+            setCaptureDraft("");
+            setSeedTags(["闪念"]);
+            setCaptureMessage(`已记录到 ${saved.relative_path}`);
+        } catch (error) {
+            setCaptureError(error instanceof Error ? error.message : "记录失败");
+        } finally {
+            setCaptureSaving(false);
+        }
     }
 
     return (
@@ -749,6 +803,9 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                 <QuickCapture
                     value={captureDraft}
                     seedTags={seedTags}
+                    saving={captureSaving}
+                    message={captureMessage}
+                    error={captureError}
                     onChange={setCaptureDraft}
                     onToggleTag={toggleSeedTag}
                     onSubmit={handleCapture}
@@ -1091,15 +1148,21 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
 function QuickCapture({
     value,
     seedTags,
+    saving,
+    message,
+    error,
     onChange,
     onToggleTag,
     onSubmit,
 }: {
     value: string;
     seedTags: string[];
+    saving: boolean;
+    message: string | null;
+    error: string | null;
     onChange: (value: string) => void;
     onToggleTag: (tag: string) => void;
-    onSubmit: () => void;
+    onSubmit: () => Promise<void>;
 }) {
     const presetTags = ["闪念", "代码", "教程", "账号", "密钥", "网站", "游戏", "决策"];
 
@@ -1132,6 +1195,12 @@ function QuickCapture({
                     className="min-h-28 resize-none border-0 bg-white px-4 py-3 text-base leading-7 shadow-none focus-visible:ring-0 lg:min-h-32 lg:py-4"
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
+                    onKeyDown={(event) => {
+                        if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !saving) {
+                            event.preventDefault();
+                            void onSubmit();
+                        }
+                    }}
                 />
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-[#fffdf7] px-3 py-2 lg:gap-3 lg:px-4 lg:py-3">
                     <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
@@ -1155,11 +1224,25 @@ function QuickCapture({
                             </Button>
                         ))}
                     </div>
-                    <Button type="button" className="rounded-2xl px-5" onClick={onSubmit} disabled={!value.trim()}>
+                    <Button
+                        type="button"
+                        className="rounded-2xl px-5"
+                        onClick={() => void onSubmit()}
+                        disabled={!value.trim() || saving}
+                    >
                         <Send className="h-4 w-4" />
-                        记录
+                        {saving ? "记录中" : "记录"}
                     </Button>
                 </div>
+                {(message || error) && (
+                    <div className="border-t bg-[#fffdf7] px-4 py-3 text-sm">
+                        {message ? (
+                            <p className="text-emerald-700">{message}</p>
+                        ) : (
+                            <p className="text-rose-700">{error}</p>
+                        )}
+                    </div>
+                )}
             </Card>
         </section>
     );
@@ -1444,28 +1527,52 @@ function ModuleCell({ item, active }: { item: AssetModule; active: boolean }) {
     );
 }
 
-function buildCapturedNote(body: string, seedTags: string[]): NoteCardData {
+function buildCapturedNote(
+    body: string,
+    seedTags: string[],
+    options?: {
+        title?: string;
+        source?: string;
+        relatedTarget?: string;
+    },
+): NoteCardData {
     const tags = deriveTagsFromCapture(body, seedTags);
+    const title = options?.title?.trim() || inferNoteTitle(body);
     const mainTag = tags.find((tag) => tag !== "闪念") ?? tags[0] ?? "未整理";
     return {
         id: `capture-${Date.now()}`,
         time: formatNoteTimestamp(new Date()),
-        title: inferNoteTitle(body),
+        title,
         body,
         tags,
         kind: "Fragment",
-        source: "人工记录",
+        source: options?.source || "人工记录",
         accent: accentFromTag(mainTag),
         status: "captured",
         cluster: `${mainTag} 标签簇`,
         structuredKind: "tagged-note",
         promptContexts: tags.map((tag) => `tag:${tag}`),
-        unmapped: [],
-        relations: [],
+        unmapped: [
+            "等待后续按标签簇聚合整理",
+            "当前仅完成原文记录，尚未生成主题页",
+        ],
+        relations: [
+            {
+                target: options?.relatedTarget || `capture/${slugifyTitle(title)}`,
+                relation: "新建记录",
+                confidence: 100,
+            },
+            { target: `#${mainTag}`, relation: "标签入口", confidence: 96 },
+        ],
         draft: {
-            title: inferNoteTitle(body),
-            summary: "非结构化碎片，等待标签聚合后再整理。",
-            fields: [],
+            title,
+            summary: summarizeBody(body),
+            fields: [
+                { label: "标准类型", value: "capture.raw" },
+                { label: "当前状态", value: "已记录待整理", tone: "warning" },
+                { label: "标签数", value: String(tags.length) },
+                { label: "后续入口", value: `tag/${mainTag}`, tone: "success" },
+            ],
         },
     };
 }
@@ -1774,4 +1881,91 @@ function StepLine({ index, title }: { index: string; title: string }) {
             <span>{title}</span>
         </div>
     );
+}
+
+function dedupeTags(tags: string[]): string[] {
+    return Array.from(
+        new Set(
+            tags
+                .map((tag) => tag.trim())
+                .filter((tag) => tag.length > 0),
+        ),
+    );
+}
+
+function deriveNoteTitle(body: string): string {
+    const firstLine = body
+        .split("\n")
+        .map((line) => line.trim())
+        .find((line) => line.length > 0);
+    if (!firstLine) {
+        return "未命名笔记";
+    }
+    return firstLine.replace(/^#+\s*/, "").slice(0, 48);
+}
+
+function summarizeBody(body: string): string {
+    const flat = body.replace(/\s+/g, " ").trim();
+    if (!flat) {
+        return "空白记录，待补充正文。";
+    }
+    return flat.slice(0, 84);
+}
+
+function detectNoteKind(body: string): string {
+    if (body.includes("```") || body.includes("cargo ") || body.includes("defaults write")) {
+        return "Command";
+    }
+    if (body.trim().startsWith("{") || body.trim().startsWith("[")) {
+        return "Log";
+    }
+    if (body.includes("http://") || body.includes("https://")) {
+        return "Reference";
+    }
+    return "Note";
+}
+
+function accentForTag(tag: string): string {
+    if (tag.includes("代码") || tag.toLowerCase().includes("rust")) {
+        return "bg-lime-400";
+    }
+    if (tag.includes("决策")) {
+        return "bg-stone-900";
+    }
+    if (tag.includes("网站") || tag.includes("教程")) {
+        return "bg-blue-400";
+    }
+    if (tag.includes("账号") || tag.includes("密钥")) {
+        return "bg-rose-400";
+    }
+    if (tag.includes("闪念")) {
+        return "bg-amber-400";
+    }
+    return "bg-emerald-400";
+}
+
+function formatLocalTimestamp(date: Date): string {
+    const parts = [
+        date.getFullYear(),
+        padNumber(date.getMonth() + 1),
+        padNumber(date.getDate()),
+    ];
+    const clock = [
+        padNumber(date.getHours()),
+        padNumber(date.getMinutes()),
+        padNumber(date.getSeconds()),
+    ];
+    return `${parts.join("-")} ${clock.join(":")}`;
+}
+
+function padNumber(value: number): string {
+    return value.toString().padStart(2, "0");
+}
+
+function slugifyTitle(value: string): string {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 48) || "note";
 }
