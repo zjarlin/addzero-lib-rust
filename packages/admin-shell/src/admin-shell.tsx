@@ -275,6 +275,11 @@ export function AdminWorkbench({
                 </div>
                 <TooltipProvider delayDuration={120}>
                     <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                        {shell.topbarContentEnd ? (
+                            <div className="flex shrink-0 items-center">
+                                {shell.topbarContentEnd}
+                            </div>
+                        ) : null}
                         {shell.topbarActions.map((action) =>
                             renderAction(action, context.isDark, context),
                         )}

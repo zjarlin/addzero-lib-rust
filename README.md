@@ -64,16 +64,18 @@
 本地运行时，`aio` / `msc-aio` 与同步 CLI 会按以下优先级读取数据库连接：
 
 1. `MSC_AIO_DATABASE_URL`
-2. `DATABASE_URL`
-3. `~/.config/aio/aio.env`
+2. `仓库根 .env`
+3. `DATABASE_URL`
+4. `~/.config/aio/aio.env`
 
 示例：
 
 ```bash
-mkdir -p ~/.config/aio
-printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > ~/.config/aio/aio.env
+printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > .env
 cargo run -p addzero-knowledge --bin knowledge-sync
 ```
+
+如果想保留用户级回退文件，仍可写到 `~/.config/aio/aio.env`。
 
 桌面壳开发入口：
 

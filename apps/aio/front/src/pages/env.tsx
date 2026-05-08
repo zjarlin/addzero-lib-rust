@@ -57,7 +57,7 @@ interface AiProviderConfigUpsertDto {
 const CONFIG_FILE_ITEMS = [
     {
         title: "数据库连接",
-        detail: "~/.config/aio/aio.env 中的 MSC_AIO_DATABASE_URL / DATABASE_URL",
+        detail: "仓库根 .env（优先）或 ~/.config/aio/aio.env 中的 MSC_AIO_DATABASE_URL / DATABASE_URL",
         status: "文件入口",
     },
     {

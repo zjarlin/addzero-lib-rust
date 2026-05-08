@@ -599,9 +599,12 @@ mod debug_redaction_tests {
 
     #[test]
     fn database_config_debug_redacts_password() {
+        let x = "demo";
+         
+        let string = x.to_owned();
         let config = DatabaseConfig {
             jdbc_url: "jdbc:postgresql://localhost/app".to_owned(),
-            jdbc_username: Some("demo".to_owned()),
+            jdbc_username: Some(string),
             jdbc_password: Some("super-secret".to_owned()),
         };
 

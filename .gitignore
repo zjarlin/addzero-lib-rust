@@ -20,6 +20,8 @@ node_modules
 .playwright-mcp
 target
 .next
+.env
+.env.local
 
 dist
 out

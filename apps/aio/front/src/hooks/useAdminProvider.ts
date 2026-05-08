@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { createElement, useCallback, useEffect, useState } from "react";
+import { Bot } from "lucide-react";
 import type {
     AdminProvider,
     AdminShellContext,
@@ -7,6 +8,7 @@ import type {
     MenuNode,
     SectionNode,
 } from "@addzero/admin-shell";
+import { Button } from "@addzero/ui";
 import {
     getApiBaseUrl,
     createMenuTreeApi,
@@ -16,6 +18,7 @@ import {
     fetchWasmPluginOverview,
     type WasmPluginNavigationSection,
 } from "../lib/wasm-plugin-runtime";
+import { emitAiWorkspacePanel } from "../lib/ai-workspace";
 
 const DEFAULT_DOMAINS: DomainNode[] = [
     {
@@ -355,6 +358,20 @@ export function useAdminProvider(): {
                     { id: "focus-search", label: "搜索" },
                     { id: "logout", label: "登出" },
                 ],
+                topbarContentEnd: createElement(
+                    Button,
+                    {
+                        type: "button",
+                        variant: "ghost",
+                        size: "icon",
+                        title: "AI 整理",
+                        "aria-label": "AI 整理",
+                        className:
+                            "h-10 w-10 rounded-full border border-stone-900/10 bg-[#171915] text-stone-50 shadow-[0_10px_24px_rgba(23,25,21,0.16)] hover:bg-[#11130f] hover:text-stone-50",
+                        onClick: () => emitAiWorkspacePanel({ toggle: true }),
+                    },
+                    createElement(Bot, { className: "h-4 w-4" }),
+                ),
                 domains: DEFAULT_DOMAINS,
                 sections: sceneSections[sceneId] ?? FALLBACK_SCENES.assets,
                 navigationTitle: meta.title,

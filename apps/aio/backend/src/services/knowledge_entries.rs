@@ -1,6 +1,8 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
 use serde::{Deserialize, Serialize};
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::sync::OnceCell;
 
 #[cfg(not(target_arch = "wasm32"))]
 use addzero_knowledge::{KnowledgeDocument, KnowledgeService, ManualKnowledgeDocumentInput};
@@ -23,7 +25,9 @@ pub struct KnowledgeNoteDto {
     pub preview: String,
     pub excerpt: String,
     pub headings: Vec<String>,
+    pub tags: Vec<String>,
     pub body: String,
+    pub updated_at: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,6 +59,9 @@ pub trait KnowledgeEntriesApi: 'static {
 }
 
 pub type SharedKnowledgeEntriesApi = Rc<dyn KnowledgeEntriesApi>;
+
+#[cfg(not(target_arch = "wasm32"))]
+static KNOWLEDGE_SERVICE: OnceCell<KnowledgeService> = OnceCell::const_new();
 
 pub fn default_knowledge_entries_api() -> SharedKnowledgeEntriesApi {
     #[cfg(target_arch = "wasm32")]
@@ -181,11 +188,16 @@ pub async fn delete_knowledge_entry_on_server(
 #[cfg(not(target_arch = "wasm32"))]
 async fn connect_knowledge_service() -> Result<KnowledgeService, String> {
     let database_url = addzero_knowledge::database_url().ok_or_else(|| {
-        "缺少 PostgreSQL 连接：请设置 AIO_DATABASE_URL 或 DATABASE_URL".to_string()
+        "缺少 PostgreSQL 连接：请设置 MSC_AIO_DATABASE_URL，或在仓库 .env / ~/.config/aio/aio.env 中配置 MSC_AIO_DATABASE_URL / DATABASE_URL".to_string()
     })?;
-    KnowledgeService::connect(&database_url)
+    let service = KNOWLEDGE_SERVICE
+        .get_or_try_init({
+            let database_url = database_url.clone();
+            move || async move { KnowledgeService::connect(&database_url).await }
+        })
         .await
-        .map_err(|err| format!("连接知识库失败：{err}"))
+        .map_err(|err| format!("连接知识库失败：{err}"))?;
+    Ok(service.clone())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -199,7 +211,9 @@ fn document_to_dto(saved: KnowledgeDocument) -> KnowledgeNoteDto {
         preview: saved.preview,
         excerpt: saved.excerpt,
         headings: saved.headings,
+        tags: saved.tags,
         body: saved.body,
+        updated_at: saved.updated_at.to_rfc3339(),
     }
 }
 

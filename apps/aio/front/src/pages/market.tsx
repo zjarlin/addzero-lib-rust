@@ -1,124 +1,43 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import {
+    useCallback,
+    useDeferredValue,
+    useEffect,
+    useMemo,
+    useState,
+    type ReactNode,
+} from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
     Blocks,
     Box,
     Cable,
     CheckCircle2,
-    CircleOff,
     Loader2,
     PackageOpen,
     Puzzle,
+    Search,
     ShieldCheck,
-    ToggleLeft,
-    Trash2,
     WandSparkles,
 } from "lucide-react";
 import {
-    getApiBaseUrl,
-} from "@addzero/api-client";
-import { Badge, Button, Input, Textarea } from "@addzero/ui";
-import WasmPluginRuntimePanel from "../components/WasmPluginRuntimePanel";
-
-interface PluginDescriptorDto {
-    runtime_id: string | null;
-    manifest_id: string;
-    name: string;
-    version: string;
-    description: string;
-    author: string;
-    min_platform_version: string;
-    entry: string;
-    extension_points: string[];
-    permissions: string[];
-    state: string;
-    builtin: boolean;
-}
-
-const foundationPillars = [
-    {
-        icon: <PackageOpen className="h-4 w-4" />,
-        title: ".aio-plugin 包",
-        detail: "统一承载 manifest、wasm 二进制和安装元数据。",
-    },
-    {
-        icon: <Blocks className="h-4 w-4" />,
-        title: "WASM Runtime",
-        detail: "通过进程内 Wasmtime / WASI 装载、启停和隔离插件实例，不为每个插件单独启动监听端口。",
-    },
-    {
-        icon: <Cable className="h-4 w-4" />,
-        title: "WIT 契约",
-        detail: "统一宿主与插件之间的扩展点和生命周期调用。",
-    },
-];
-
-const hostTopology = [
-    {
-        title: "前端入口",
-        value: "1",
-        detail: "开发态由 Vite 提供一个页面入口；桌面态可以继续收敛到内嵌前端资源。",
-    },
-    {
-        title: "后端宿主",
-        value: "1",
-        detail: "Axum 宿主统一承载 API、插件注册、生命周期调度和扩展点装配。",
-    },
-    {
-        title: "WASM 插件",
-        value: "0 额外端口",
-        detail: "插件作为宿主进程内实例运行，默认不派生独立服务，也不额外监听端口。",
-    },
-];
-
-const extensionPoints = [
-    "ScriptEngine",
-    "AiProvider",
-    "UiContribution",
-    "TaskNode",
-    "CliCommand",
-    "TemplateGenerator",
-];
-
-const lifecycle = [
-    {
-        title: "发现与导入",
-        detail: "从本地包、内置目录或远端注册表读入 `.aio-plugin`。",
-    },
-    {
-        title: "校验与安装",
-        detail: "检查 manifest、权限、平台版本和 wasm 入口。",
-    },
-    {
-        title: "启用与挂载",
-        detail: "把扩展点装配到脚本引擎、AI、UI、任务流和 CLI。",
-    },
-    {
-        title: "禁用与卸载",
-        detail: "单个插件可独立停用，不影响宿主和其他插件。",
-    },
-];
-
-const pluginExamples = [
-    {
-        title: "Rhai Engine",
-        type: "ScriptEngine",
-        status: "Host builtin",
-        detail: "现阶段虽未作为独立 wasm 插件交付，但应该朝插件化引擎靠拢。",
-    },
-    {
-        title: "OpenAI Provider",
-        type: "AiProvider",
-        status: "Planned",
-        detail: "把模型提供方从宿主中抽出，作为可切换能力插件。",
-    },
-    {
-        title: "CLI Generator",
-        type: "TemplateGenerator",
-        status: "Planned",
-        detail: "负责把工作台里的脚本和模板产出为 CLI 工程。",
-    },
-];
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    Input,
+    ScrollArea,
+    cn,
+} from "@addzero/ui";
+import {
+    fetchWasmPluginOverview,
+    installCatalogWasmPlugin,
+    registerDevWasmPlugin,
+    type WasmPluginInstallResult,
+    type WasmPluginMarketplaceEntry,
+    type WasmPluginRuntimeSnapshot,
+} from "../lib/wasm-plugin-runtime";
 
 const sceneCards = {
     cli: {
@@ -169,662 +88,817 @@ const sceneCards = {
     },
 } as const;
 
+const builtinMarketEntries = [
+    {
+        id: "plugin",
+        name: "插件",
+        summary: "内置的插件工作台入口，负责浏览、导入、安装并实例化外部 WASM 插件。",
+        description:
+            "这是宿主自带的市场壳层，不是外部业务插件。它承担目录浏览、catalog 导入、实例化入口和状态呈现，右侧详情区应该像 VS Code 扩展市场一样解释插件能做什么，而不是堆宿主实现细节。",
+        routeHref: "/market",
+        routeLabel: "当前入口",
+        badges: ["Builtin", "Marketplace shell"],
+        capabilities: ["市场目录", "Catalog 导入", "安装实例", "状态追踪"],
+        compatibility: ["web", "desktop"],
+        featureBlocks: [
+            {
+                title: "外部插件目录",
+                detail: "左侧列出外部 WASM 插件，筛选、查看状态并进入详情。",
+            },
+            {
+                title: "安装与实例化",
+                detail: "从 catalog 安装后立即创建业务实例，实例页再挂到 `/apps/*`。",
+            },
+            {
+                title: "宿主边界",
+                detail: "它只负责装配和呈现，不把业务页面继续硬编码回宿主骨架。",
+            },
+        ],
+    },
+    {
+        id: "system",
+        name: "系统",
+        summary: "内置的系统治理入口，承载用户、组织、字典、审计等宿主能力。",
+        description:
+            "系统是另一个内置入口，用来承接宿主治理能力与系统级页面。它不是外部 WASM 业务插件市场的一部分，所以在市场语义里需要和外部插件明确分层。",
+        routeHref: "/system",
+        routeLabel: "打开系统",
+        badges: ["Builtin", "Host governance"],
+        capabilities: ["用户与组织", "字典与权限", "审计与仓库", "系统页挂载"],
+        compatibility: ["web", "desktop"],
+        featureBlocks: [
+            {
+                title: "治理能力",
+                detail: "系统域管理用户、组织、字典、审计与包仓库等宿主资源。",
+            },
+            {
+                title: "固定入口",
+                detail: "它跟“插件”一样属于内置入口，不应该被伪装成外部 WASM 包。",
+            },
+            {
+                title: "系统页承载",
+                detail: "系统 starter 负责输出系统页，但不改变市场里外部插件的定义。",
+            },
+        ],
+    },
+] as const;
+
 type MarketScene = "cli" | "skill" | "wasm";
+
+type BuiltinMarketEntry = (typeof builtinMarketEntries)[number];
+
+type MarketListItem =
+    | {
+          id: string;
+          kind: "builtin";
+          title: string;
+          summary: string;
+          badges: string[];
+          searchableText: string;
+          entry: BuiltinMarketEntry;
+      }
+    | {
+          id: string;
+          kind: "external";
+          title: string;
+          summary: string;
+          badges: string[];
+          searchableText: string;
+          entry: WasmPluginMarketplaceEntry;
+      };
 
 export default function MarketPage() {
     const params = useParams<{ scene?: string }>();
     const scene: MarketScene =
         params.scene === "cli" || params.scene === "skill" ? params.scene : "wasm";
-    const baseUrl = useMemo(() => getApiBaseUrl(), []);
-    const [builtinPlugins, setBuiltinPlugins] = useState<PluginDescriptorDto[]>([]);
-    const [loadedPlugins, setLoadedPlugins] = useState<PluginDescriptorDto[]>([]);
-    const [loadingBuiltin, setLoadingBuiltin] = useState(true);
-    const [loadingLoaded, setLoadingLoaded] = useState(true);
-    const [builtinError, setBuiltinError] = useState<string | null>(null);
-    const [loadedError, setLoadedError] = useState<string | null>(null);
-    const [actionError, setActionError] = useState<string | null>(null);
-    const [actionMessage, setActionMessage] = useState<string | null>(null);
-    const [pendingRuntimeId, setPendingRuntimeId] = useState<string | null>(null);
-    const [installing, setInstalling] = useState(false);
-    const [installForm, setInstallForm] = useState({
-        id: "",
-        name: "",
-        version: "0.1.0",
-        description: "",
-        author: "addzero",
-        min_platform_version: "0.1.0",
-        entry: "plugin.wasm",
-        extension_points: "UiContribution",
-        permissions: "",
-    });
-
-    const loadBuiltinPlugins = useMemo(
-        () => async () => {
-            setLoadingBuiltin(true);
-            setBuiltinError(null);
-            try {
-                const res = await fetch(`${baseUrl}/api/plugins/builtin`, {
-                    credentials: "include",
-                });
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}`);
-                }
-                setBuiltinPlugins(await res.json());
-            } catch (err) {
-                setBuiltinError(
-                    err instanceof Error ? err.message : "加载内置插件失败",
-                );
-            } finally {
-                setLoadingBuiltin(false);
-            }
-        },
-        [baseUrl],
-    );
-
-    const loadLoadedPlugins = useMemo(
-        () => async () => {
-            setLoadingLoaded(true);
-            setLoadedError(null);
-            try {
-                const res = await fetch(`${baseUrl}/api/plugins`, {
-                    credentials: "include",
-                });
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}`);
-                }
-                setLoadedPlugins(await res.json());
-            } catch (err) {
-                setLoadedError(
-                    err instanceof Error ? err.message : "加载插件实例失败",
-                );
-            } finally {
-                setLoadingLoaded(false);
-            }
-        },
-        [baseUrl],
-    );
-
-    useEffect(() => {
-        void loadBuiltinPlugins();
-        void loadLoadedPlugins();
-    }, [loadBuiltinPlugins, loadLoadedPlugins]);
-
-    async function runPluginAction(
-        runtimeId: string | null,
-        action: "enable" | "disable" | "uninstall",
-    ) {
-        if (!runtimeId) {
-            setActionError("缺少 runtime id，当前插件无法执行该操作");
-            return;
-        }
-        setPendingRuntimeId(runtimeId);
-        setActionError(null);
-        setActionMessage(null);
-        try {
-            const endpoint =
-                action === "enable"
-                    ? `${baseUrl}/api/plugins/${runtimeId}/enable`
-                    : action === "disable"
-                      ? `${baseUrl}/api/plugins/${runtimeId}/disable`
-                      : `${baseUrl}/api/plugins/${runtimeId}`;
-            const res = await fetch(endpoint, {
-                method: action === "uninstall" ? "DELETE" : "POST",
-                credentials: "include",
-                headers:
-                    action === "uninstall"
-                        ? undefined
-                        : { "Content-Type": "application/json" },
-                body: action === "uninstall" ? undefined : JSON.stringify({}),
-            });
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-            }
-            setActionMessage(
-                action === "enable"
-                    ? "插件已启用"
-                    : action === "disable"
-                      ? "插件已禁用"
-                      : "插件已卸载",
-            );
-            await loadBuiltinPlugins();
-            await loadLoadedPlugins();
-        } catch (err) {
-            setActionError(
-                err instanceof Error ? err.message : "插件操作失败",
-            );
-        } finally {
-            setPendingRuntimeId(null);
-        }
-    }
-
-    async function installPlugin() {
-        setInstalling(true);
-        setActionError(null);
-        setActionMessage(null);
-        try {
-            const res = await fetch(`${baseUrl}/api/plugins/install`, {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    manifest: {
-                        ...installForm,
-                        extension_points: installForm.extension_points
-                            .split(",")
-                            .map((item) => item.trim())
-                            .filter(Boolean),
-                        permissions: installForm.permissions
-                            .split(",")
-                            .map((item) => item.trim())
-                            .filter(Boolean),
-                    },
-                    wasm_bytes: [],
-                }),
-            });
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-            }
-            setActionMessage("插件清单已安装到运行时注册表");
-            await loadLoadedPlugins();
-        } catch (err) {
-            setActionError(
-                err instanceof Error ? err.message : "安装插件失败",
-            );
-        } finally {
-            setInstalling(false);
-        }
-    }
 
     if (scene !== "wasm") {
         return <SceneMarketPage scene={scene} />;
     }
 
+    return <WasmMarketplacePage />;
+}
+
+function WasmMarketplacePage() {
+    const navigate = useNavigate();
+    const [snapshot, setSnapshot] = useState<WasmPluginRuntimeSnapshot | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [actionMessage, setActionMessage] = useState<string | null>(null);
+    const [search, setSearch] = useState("");
+    const deferredSearch = useDeferredValue(search.trim().toLowerCase());
+    const [selectedId, setSelectedId] = useState<string>("builtin:plugin");
+    const [pendingPluginId, setPendingPluginId] = useState<string | null>(null);
+    const [lastInstall, setLastInstall] = useState<WasmPluginInstallResult | null>(null);
+    const [registering, setRegistering] = useState(false);
+    const [registerForm, setRegisterForm] = useState({
+        source_dir: "",
+        package_name: "",
+    });
+
+    const loadSnapshot = useCallback(async () => {
+        setLoading(true);
+        setLoadError(null);
+        try {
+            setSnapshot(await fetchWasmPluginOverview());
+        } catch (err) {
+            setLoadError(err instanceof Error ? err.message : "加载 WASM 插件市场失败");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadSnapshot();
+        const refresh = () => {
+            void loadSnapshot();
+        };
+        window.addEventListener("aio:plugin-runtime-updated", refresh);
+        return () => {
+            window.removeEventListener("aio:plugin-runtime-updated", refresh);
+        };
+    }, [loadSnapshot]);
+
+    const builtinItems = useMemo<MarketListItem[]>(
+        () =>
+            builtinMarketEntries.map((entry) => ({
+                id: `builtin:${entry.id}`,
+                kind: "builtin",
+                title: entry.name,
+                summary: entry.summary,
+                badges: entry.badges.slice(),
+                searchableText: [
+                    entry.name,
+                    entry.summary,
+                    entry.description,
+                    ...entry.capabilities,
+                    ...entry.featureBlocks.map((item) => `${item.title} ${item.detail}`),
+                ]
+                    .join(" ")
+                    .toLowerCase(),
+                entry,
+            })),
+        [],
+    );
+
+    const externalItems = useMemo<MarketListItem[]>(() => {
+        const entries = [...(snapshot?.marketplace.entries ?? [])]
+            .filter((entry) => entry.kind === "Business")
+            .sort((left, right) => {
+                const leftScore =
+                    left.status === "Installed" ? 0 : left.status === "Available" ? 1 : 2;
+                const rightScore =
+                    right.status === "Installed" ? 0 : right.status === "Available" ? 1 : 2;
+                return (
+                    leftScore - rightScore ||
+                    right.instances - left.instances ||
+                    left.name.localeCompare(right.name, "zh-Hans-CN")
+                );
+            });
+        return entries.map((entry) => ({
+            id: `external:${entry.plugin_id}`,
+            kind: "external",
+            title: entry.name,
+            summary: entry.summary,
+            badges: [entry.status, `v${entry.version}`],
+            searchableText: [
+                entry.name,
+                entry.plugin_id,
+                entry.summary,
+                ...entry.tags,
+                ...entry.compatibility,
+                ...entry.capabilities.map((item) => String(item)),
+            ]
+                .join(" ")
+                .toLowerCase(),
+            entry,
+        }));
+    }, [snapshot]);
+
+    const filteredBuiltinItems = useMemo(
+        () =>
+            builtinItems.filter(
+                (item) =>
+                    !deferredSearch ||
+                    item.searchableText.includes(deferredSearch) ||
+                    item.title.toLowerCase().includes(deferredSearch),
+            ),
+        [builtinItems, deferredSearch],
+    );
+
+    const filteredExternalItems = useMemo(
+        () =>
+            externalItems.filter(
+                (item) =>
+                    !deferredSearch ||
+                    item.searchableText.includes(deferredSearch) ||
+                    item.title.toLowerCase().includes(deferredSearch),
+            ),
+        [externalItems, deferredSearch],
+    );
+
+    const visibleItems = useMemo(
+        () => [...filteredBuiltinItems, ...filteredExternalItems],
+        [filteredBuiltinItems, filteredExternalItems],
+    );
+
+    useEffect(() => {
+        if (visibleItems.length === 0) {
+            return;
+        }
+        if (!visibleItems.some((item) => item.id === selectedId)) {
+            setSelectedId(visibleItems[0].id);
+        }
+    }, [selectedId, visibleItems]);
+
+    const selectedItem = useMemo(() => {
+        return (
+            visibleItems.find((item) => item.id === selectedId) ??
+            builtinItems.find((item) => item.id === selectedId) ??
+            externalItems.find((item) => item.id === selectedId) ??
+            builtinItems[0] ??
+            null
+        );
+    }, [builtinItems, externalItems, selectedId, visibleItems]);
+
+    const externalPluginCount = externalItems.length;
+    const runtimeCounts = snapshot?.runtime.counts;
+
+    async function installExternalPlugin(entry: WasmPluginMarketplaceEntry) {
+        setPendingPluginId(entry.plugin_id);
+        setActionError(null);
+        setActionMessage(null);
+        try {
+            const result = await installCatalogWasmPlugin({
+                plugin_id: entry.plugin_id,
+                instance_label: entry.name,
+            });
+            setLastInstall(result);
+            setActionMessage(`已创建实例：${result.instance_label} (${result.instance_slug})`);
+            window.dispatchEvent(new Event("aio:plugin-runtime-updated"));
+            await loadSnapshot();
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : "安装外部插件失败");
+        } finally {
+            setPendingPluginId(null);
+        }
+    }
+
+    async function registerExternalPlugin() {
+        setRegistering(true);
+        setActionError(null);
+        setActionMessage(null);
+        try {
+            const result = await registerDevWasmPlugin(registerForm);
+            setActionMessage(`已导入 catalog：${result.plugin_name} (${result.plugin_id})`);
+            window.dispatchEvent(new Event("aio:plugin-runtime-updated"));
+            await loadSnapshot();
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : "导入本地插件失败");
+        } finally {
+            setRegistering(false);
+        }
+    }
+
     return (
-        <div className="space-y-8">
-            <section className="rounded-lg border bg-card">
-                <div className="border-b px-5 py-4">
-                    <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        <div className="space-y-6">
+            <Card className="overflow-hidden">
+                <CardHeader className="border-b bg-[#faf8f2]">
+                    <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
                         <Puzzle className="h-3.5 w-3.5" />
                         Plugin Marketplace
                     </div>
-                    <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-                        WASM 插件市场工作台
-                    </h1>
-                    <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                        这个应用的基础骨架不是一组内建页面，而是一层能装配 WASM 插件的宿主。
-                        市场页要围绕插件包、运行时、契约和生命周期来设计。当前目标拓扑也明确固定为
-                        “一个前端入口 + 一个后端宿主”，WASM 插件在宿主进程内运行，不因为多装一个插件就多出新的监听端口。
+                    <CardTitle className="mt-3 text-3xl tracking-tight">
+                        WASM 插件市场
+                    </CardTitle>
+                    <p className="mt-2 max-w-4xl text-sm text-muted-foreground">
+                        参考 VS Code 扩展市场做法：左侧负责选择插件，右侧负责解释功能、状态与安装动作。
+                        这里固定只有两个内置入口“插件”“系统”，除此之外全部按外部 WASM 插件处理。
                     </p>
-                </div>
+                </CardHeader>
+                <CardContent className="grid gap-0 p-0 md:grid-cols-3">
+                    <RuntimeMetric
+                        label="内置入口"
+                        value="2"
+                        detail="固定只有“插件”“系统”两个内置项。"
+                    />
+                    <RuntimeMetric
+                        label="外部 WASM"
+                        value={String(externalPluginCount)}
+                        detail="catalog 中可浏览与安装的业务插件。"
+                    />
+                    <RuntimeMetric
+                        label="业务实例"
+                        value={String(runtimeCounts?.plugin_instances ?? 0)}
+                        detail="安装后创建实例，实例页挂到 `/apps/*`。"
+                    />
+                </CardContent>
+            </Card>
 
-                <div className="grid gap-0 md:grid-cols-3">
-                    {foundationPillars.map((item, index) => (
-                        <div
-                            key={item.title}
-                            className={`px-5 py-4 ${
-                                index > 0 ? "border-t md:border-l md:border-t-0" : ""
-                            }`}
-                        >
-                            <div className="flex items-center gap-2 text-sm font-medium">
-                                <span className="text-muted-foreground">{item.icon}</span>
-                                {item.title}
-                            </div>
-                            <p className="mt-2 text-sm text-muted-foreground">
-                                {item.detail}
-                            </p>
-                        </div>
-                    ))}
+            {actionError ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {actionError}
                 </div>
-            </section>
+            ) : null}
+            {actionMessage ? (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
+                    {actionMessage}
+                </div>
+            ) : null}
 
-            <section className="rounded-lg border bg-card">
-                <div className="border-b px-5 py-4">
-                    <h2 className="text-base font-semibold">宿主拓扑</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        插件系统是进程内扩展模型，不是“每个插件再起一个服务”的微服务拼装模型。
-                    </p>
-                </div>
-                <div className="grid gap-0 md:grid-cols-3">
-                    {hostTopology.map((item, index) => (
-                        <div
-                            key={item.title}
-                            className={`px-5 py-4 ${
-                                index > 0 ? "border-t md:border-l md:border-t-0" : ""
-                            }`}
-                        >
-                            <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                                {item.title}
-                            </div>
-                            <div className="mt-3 text-2xl font-semibold tracking-tight">
-                                {item.value}
-                            </div>
-                            <p className="mt-2 text-sm text-muted-foreground">
-                                {item.detail}
-                            </p>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-                <div className="rounded-lg border bg-card">
-                    <div className="border-b px-5 py-4">
-                        <h2 className="text-base font-semibold">插件生命周期</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            先把宿主平台的标准流程固定下来，确保安装、启停、卸载都围绕同一个宿主完成。
-                        </p>
-                    </div>
-                    <div className="space-y-0">
-                        {lifecycle.map((item, index) => (
-                            <div
-                                key={item.title}
-                                className={`px-5 py-4 ${index > 0 ? "border-t" : ""}`}
-                            >
-                                <div className="text-sm font-medium">{item.title}</div>
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    {item.detail}
+            <section className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+                <Card className="overflow-hidden">
+                    <CardHeader className="border-b">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <CardTitle className="text-base">插件列表</CardTitle>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    左侧只做选择；右侧再解释能力、边界和动作。
                                 </p>
                             </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="rounded-lg border bg-card p-5">
-                    <h2 className="text-base font-semibold">扩展点契约</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        这些项已经在 `aio-plugin-api` 里定义，前台语义要和宿主契约保持一致。
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {extensionPoints.map((point) => (
-                            <span
-                                key={point}
-                                className="rounded-md border bg-muted/40 px-2.5 py-1 text-xs font-medium"
-                            >
-                                {point}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            <WasmPluginRuntimePanel />
-
-            <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-                <div className="rounded-lg border bg-card">
-                    <div className="border-b px-5 py-4">
-                        <h2 className="text-base font-semibold">内置插件</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            壳子跑起来后，首先应该能看到宿主自带的基础能力，而不是一片空白。
-                        </p>
-                    </div>
-                    {loadingBuiltin ? (
-                        <div className="flex items-center justify-center px-5 py-10">
-                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                        </div>
-                    ) : builtinError ? (
-                        <div className="px-5 py-4 text-sm text-destructive">
-                            {builtinError}
-                        </div>
-                    ) : (
-                        <div className="space-y-0">
-                            {builtinPlugins.map((plugin, index) => (
-                                <div
-                                    key={plugin.manifest_id}
-                                    className={`px-5 py-4 ${index > 0 ? "border-t" : ""}`}
-                                >
-                                    <div className="flex items-center justify-between gap-4">
-                                        <div>
-                                            <div className="text-sm font-medium">
-                                                {plugin.name}
-                                            </div>
-                                            <div className="mt-1 font-mono text-xs text-muted-foreground">
-                                                {plugin.manifest_id}
-                                            </div>
-                                        </div>
-                                        <Badge variant="secondary" className="text-[11px]">
-                                            {plugin.state}
-                                        </Badge>
-                                    </div>
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                        {plugin.extension_points.map((point: string) => (
-                                            <Badge
-                                                key={point}
-                                                variant="outline"
-                                                className="bg-muted/30 text-[11px]"
-                                            >
-                                                {point}
-                                            </Badge>
-                                        ))}
-                                    </div>
-                                    <p className="mt-2 text-sm text-muted-foreground">
-                                        {plugin.description}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <div className="rounded-lg border bg-card">
-                    <div className="border-b px-5 py-4">
-                        <h2 className="text-base font-semibold">市场对象</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            插件市场不只是“下载”，而是整个宿主装配面。
-                        </p>
-                    </div>
-                    <div className="grid gap-0 sm:grid-cols-2">
-                        <MarketCell
-                            icon={<Box className="h-4 w-4" />}
-                            title="插件包"
-                            detail="导入、校验、安装、升级、回滚"
-                        />
-                        <MarketCell
-                            icon={<ShieldCheck className="h-4 w-4" />}
-                            title="权限"
-                            detail="展示 manifest 申请的 capability 和风险边界"
-                        />
-                        <MarketCell
-                            icon={<WandSparkles className="h-4 w-4" />}
-                            title="能力"
-                            detail="展示插件贡献了哪些引擎、节点、命令和页面"
-                        />
-                        <MarketCell
-                            icon={<CheckCircle2 className="h-4 w-4" />}
-                            title="状态"
-                            detail="Installed / Active / Disabled / Error"
-                        />
-                    </div>
-                </div>
-
-                <div className="rounded-lg border bg-card xl:col-span-2">
-                    <div className="border-b px-5 py-4">
-                        <h2 className="text-base font-semibold">运行时插件实例</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            这里是宿主当前真正装载的插件实例，可以直接启用、禁用和卸载。
-                        </p>
-                    </div>
-                    {actionError ? (
-                        <div className="border-b px-5 py-3 text-sm text-destructive">
-                            {actionError}
-                        </div>
-                    ) : null}
-                    {actionMessage ? (
-                        <div className="border-b px-5 py-3 text-sm text-emerald-600 dark:text-emerald-400">
-                            {actionMessage}
-                        </div>
-                    ) : null}
-                    {loadingLoaded ? (
-                        <div className="flex items-center justify-center px-5 py-10">
-                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                        </div>
-                    ) : loadedError ? (
-                        <div className="px-5 py-4 text-sm text-destructive">
-                            {loadedError}
-                        </div>
-                    ) : (
-                        <div className="space-y-0">
-                            {loadedPlugins.map((plugin, index) => (
-                                <div
-                                    key={`${plugin.runtime_id ?? plugin.manifest_id}-${index}`}
-                                    className={`px-5 py-4 ${index > 0 ? "border-t" : ""}`}
-                                >
-                                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                        <div className="min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <div className="text-sm font-medium">
-                                                    {plugin.name}
-                                                </div>
-                                                <Badge variant="secondary" className="text-[11px]">
-                                                    {plugin.state}
-                                                </Badge>
-                                                {plugin.builtin ? (
-                                                    <Badge variant="outline" className="text-[11px]">
-                                                        builtin
-                                                    </Badge>
-                                                ) : null}
-                                            </div>
-                                            <div className="mt-1 font-mono text-xs text-muted-foreground">
-                                                {plugin.manifest_id}
-                                                {plugin.runtime_id
-                                                    ? ` · ${plugin.runtime_id}`
-                                                    : ""}
-                                            </div>
-                                            <p className="mt-2 text-sm text-muted-foreground">
-                                                {plugin.description}
-                                            </p>
-                                            <div className="mt-2 flex flex-wrap gap-2">
-                                                {plugin.extension_points.map((point) => (
-                                                    <Badge
-                                                        key={point}
-                                                        variant="outline"
-                                                        className="bg-muted/30 text-[11px]"
-                                                    >
-                                                        {point}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className="flex shrink-0 flex-wrap gap-2">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                disabled={
-                                                    pendingRuntimeId === plugin.runtime_id ||
-                                                    plugin.state === "Active"
-                                                }
-                                                onClick={() =>
-                                                    void runPluginAction(
-                                                        plugin.runtime_id,
-                                                        "enable",
-                                                    )
-                                                }
-                                            >
-                                                <ToggleLeft className="h-3.5 w-3.5" />
-                                                启用
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                disabled={
-                                                    pendingRuntimeId === plugin.runtime_id ||
-                                                    plugin.state === "Disabled"
-                                                }
-                                                onClick={() =>
-                                                    void runPluginAction(
-                                                        plugin.runtime_id,
-                                                        "disable",
-                                                    )
-                                                }
-                                            >
-                                                <CircleOff className="h-3.5 w-3.5" />
-                                                禁用
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="destructive"
-                                                disabled={
-                                                    pendingRuntimeId === plugin.runtime_id ||
-                                                    plugin.builtin
-                                                }
-                                                onClick={() =>
-                                                    void runPluginAction(
-                                                        plugin.runtime_id,
-                                                        "uninstall",
-                                                    )
-                                                }
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                                卸载
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            {loadedPlugins.length === 0 ? (
-                                <div className="px-5 py-8 text-sm text-muted-foreground">
-                                    当前没有已装载插件。
-                                </div>
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                             ) : null}
                         </div>
-                    )}
-                </div>
-
-                <div className="rounded-lg border bg-card xl:col-span-2">
-                    <div className="border-b px-5 py-4">
-                        <h2 className="text-base font-semibold">目标插件画像</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            先用宿主契约定义插件画像，后续接真实 registry 和实例管理。
-                        </p>
-                    </div>
-                    <div className="space-y-0">
-                        {pluginExamples.map((plugin, index) => (
-                            <div
-                                key={plugin.title}
-                                className={`px-5 py-4 ${index > 0 ? "border-t" : ""}`}
-                            >
-                                <div className="flex items-center justify-between gap-4">
-                                    <div>
-                                        <div className="text-sm font-medium">
-                                            {plugin.title}
-                                        </div>
-                                        <div className="mt-1 text-xs text-muted-foreground">
-                                            {plugin.type}
-                                        </div>
-                                    </div>
-                                    <Badge variant="secondary" className="text-[11px]">
-                                        {plugin.status}
-                                    </Badge>
-                                </div>
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    {plugin.detail}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="rounded-lg border bg-card xl:col-span-2">
-                    <div className="border-b px-5 py-4">
-                        <h2 className="text-base font-semibold">安装清单</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            这里先保留最小清单录入面，真实外部插件仍应以包含 wasm 二进制的 `.aio-plugin` 包导入。
-                        </p>
-                    </div>
-                    <div className="grid gap-4 px-5 py-4 md:grid-cols-2">
-                        <Field
-                            label="插件 ID"
-                            value={installForm.id}
-                            onChange={(value) =>
-                                setInstallForm((prev) => ({ ...prev, id: value }))
-                            }
-                            placeholder="com.example.demo"
-                        />
-                        <Field
-                            label="名称"
-                            value={installForm.name}
-                            onChange={(value) =>
-                                setInstallForm((prev) => ({ ...prev, name: value }))
-                            }
-                            placeholder="Demo Plugin"
-                        />
-                        <Field
-                            label="版本"
-                            value={installForm.version}
-                            onChange={(value) =>
-                                setInstallForm((prev) => ({ ...prev, version: value }))
-                            }
-                            placeholder="0.1.0"
-                        />
-                        <Field
-                            label="作者"
-                            value={installForm.author}
-                            onChange={(value) =>
-                                setInstallForm((prev) => ({ ...prev, author: value }))
-                            }
-                            placeholder="addzero"
-                        />
-                        <Field
-                            label="最低平台版本"
-                            value={installForm.min_platform_version}
-                            onChange={(value) =>
-                                setInstallForm((prev) => ({
-                                    ...prev,
-                                    min_platform_version: value,
-                                }))
-                            }
-                            placeholder="0.1.0"
-                        />
-                        <Field
-                            label="入口"
-                            value={installForm.entry}
-                            onChange={(value) =>
-                                setInstallForm((prev) => ({ ...prev, entry: value }))
-                            }
-                            placeholder="plugin.wasm"
-                        />
-                        <Field
-                            label="扩展点"
-                            value={installForm.extension_points}
-                            onChange={(value) =>
-                                setInstallForm((prev) => ({
-                                    ...prev,
-                                    extension_points: value,
-                                }))
-                            }
-                            placeholder="UiContribution,TemplateGenerator"
-                        />
-                        <Field
-                            label="权限"
-                            value={installForm.permissions}
-                            onChange={(value) =>
-                                setInstallForm((prev) => ({
-                                    ...prev,
-                                    permissions: value,
-                                }))
-                            }
-                            placeholder="filesystem.write,network.outbound"
-                        />
-                        <div className="md:col-span-2">
-                            <label className="mb-2 block text-sm font-medium">
-                                描述
-                            </label>
-                            <Textarea
-                                value={installForm.description}
-                                onChange={(e) =>
-                                    setInstallForm((prev) => ({
-                                        ...prev,
-                                        description: e.target.value,
-                                    }))
-                                }
-                                placeholder="插件描述"
-                                className="min-h-24"
+                        <div className="relative mt-4">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder="搜索插件、能力或标签"
+                                className="pl-9"
                             />
                         </div>
-                        <div className="md:col-span-2">
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <ScrollArea className="h-[72vh] min-h-[520px] max-h-[760px]">
+                            <MarketListSection
+                                title="内置"
+                                subtitle="只有两个固定入口"
+                                items={filteredBuiltinItems}
+                                selectedId={selectedId}
+                                onSelect={setSelectedId}
+                            />
+                            <MarketListSection
+                                title="外部 WASM 插件"
+                                subtitle={
+                                    loadError
+                                        ? "运行时离线时只保留内置入口"
+                                        : "其余条目都按外部业务插件展示"
+                                }
+                                items={filteredExternalItems}
+                                selectedId={selectedId}
+                                onSelect={setSelectedId}
+                                emptyState={
+                                    loadError
+                                        ? `未能加载外部插件：${loadError}`
+                                        : loading
+                                          ? "正在读取 catalog..."
+                                          : "当前还没有外部 WASM 插件。"
+                                }
+                            />
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+
+                <Card className="min-h-[520px] overflow-hidden">
+                    {selectedItem ? (
+                        selectedItem.kind === "builtin" ? (
+                            <BuiltinMarketDetail
+                                entry={selectedItem.entry}
+                                onOpen={() => navigate(selectedItem.entry.routeHref)}
+                            />
+                        ) : (
+                            <ExternalMarketDetail
+                                entry={selectedItem.entry}
+                                loading={pendingPluginId === selectedItem.entry.plugin_id}
+                                latestInstall={
+                                    lastInstall?.plugin_id === selectedItem.entry.plugin_id
+                                        ? lastInstall
+                                        : null
+                                }
+                                onInstall={() => void installExternalPlugin(selectedItem.entry)}
+                                onOpenLatestInstance={(install) =>
+                                    navigate(
+                                        `/apps/${install.instance_slug}/${install.page_ids[0]}`,
+                                    )
+                                }
+                            />
+                        )
+                    ) : (
+                        <CardContent className="flex min-h-[520px] items-center justify-center p-8 text-sm text-muted-foreground">
+                            没有匹配到可展示的插件条目。
+                        </CardContent>
+                    )}
+                </Card>
+            </section>
+
+            <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+                <Card>
+                    <CardHeader className="border-b">
+                        <CardTitle className="text-base">运行时概览</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            市场本身只是壳层，正式数据与安装行为来自 WASM runtime snapshot。
+                        </p>
+                    </CardHeader>
+                    <CardContent className="space-y-4 p-5">
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <CompactMetric
+                                label="系统插件"
+                                value={String(runtimeCounts?.system_plugins ?? 0)}
+                            />
+                            <CompactMetric
+                                label="业务插件"
+                                value={String(runtimeCounts?.installed_business_plugins ?? 0)}
+                            />
+                            <CompactMetric
+                                label="实例数"
+                                value={String(runtimeCounts?.plugin_instances ?? 0)}
+                            />
+                        </div>
+                        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                            <div>package_root: {snapshot?.runtime.package_root ?? "--"}</div>
+                            <div className="mt-1">
+                                auth mode: {snapshot?.runtime.dev_auth_mode ?? "--"}
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="button" variant="outline" onClick={() => void loadSnapshot()}>
+                                刷新运行时
+                            </Button>
+                            {lastInstall?.page_ids[0] ? (
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() =>
+                                        navigate(
+                                            `/apps/${lastInstall.instance_slug}/${lastInstall.page_ids[0]}`,
+                                        )
+                                    }
+                                >
+                                    打开最新实例
+                                </Button>
+                            ) : null}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="border-b">
+                        <CardTitle className="text-base">导入外部插件</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            把本地插件源码目录打进 catalog，市场左栏随后就会把它当外部 WASM 插件显示出来。
+                        </p>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 p-5 md:grid-cols-2">
+                        <Field
+                            label="源码目录"
+                            value={registerForm.source_dir}
+                            onChange={(value) =>
+                                setRegisterForm((current) => ({
+                                    ...current,
+                                    source_dir: value,
+                                }))
+                            }
+                            placeholder="/absolute/path/to/plugin-source"
+                        />
+                        <Field
+                            label="包名（可选）"
+                            value={registerForm.package_name}
+                            onChange={(value) =>
+                                setRegisterForm((current) => ({
+                                    ...current,
+                                    package_name: value,
+                                }))
+                            }
+                            placeholder="memory-manager"
+                        />
+                        <div className="md:col-span-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                            目录内至少包含 `plugin.toml`、`backend/plugin.wasm`、`checksums.sha256`。
+                        </div>
+                        <div className="md:col-span-2 flex flex-wrap gap-2">
                             <Button
                                 type="button"
-                                onClick={() => void installPlugin()}
-                                disabled={
-                                    installing ||
-                                    !installForm.id.trim() ||
-                                    !installForm.name.trim()
-                                }
+                                onClick={() => void registerExternalPlugin()}
+                                disabled={registering || !registerForm.source_dir.trim()}
                             >
-                                {installing ? (
+                                {registering ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
                                     <PackageOpen className="h-4 w-4" />
                                 )}
-                                安装到运行时
+                                导入到 catalog
                             </Button>
                         </div>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
             </section>
         </div>
+    );
+}
+
+function BuiltinMarketDetail({
+    entry,
+    onOpen,
+}: {
+    entry: BuiltinMarketEntry;
+    onOpen: () => void;
+}) {
+    return (
+        <>
+            <CardHeader className="border-b bg-[#fbfaf5]">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                    <Puzzle className="h-3.5 w-3.5" />
+                    Built-in Entry
+                </div>
+                <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                        <CardTitle className="text-3xl tracking-tight">{entry.name}</CardTitle>
+                        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                            {entry.summary}
+                        </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                        <Button type="button" onClick={onOpen}>
+                            {entry.routeLabel}
+                        </Button>
+                    </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                    {entry.badges.map((badge) => (
+                        <Badge key={badge} variant="secondary" className="text-[11px]">
+                            {badge}
+                        </Badge>
+                    ))}
+                    {entry.compatibility.map((item) => (
+                        <Badge key={item} variant="outline" className="text-[11px]">
+                            {item}
+                        </Badge>
+                    ))}
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-6 p-6">
+                <section className="rounded-2xl border bg-muted/20 p-5">
+                    <div className="text-sm font-medium">定位说明</div>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {entry.description}
+                    </p>
+                </section>
+
+                <section className="grid gap-4 lg:grid-cols-3">
+                    {entry.featureBlocks.map((item) => (
+                        <div key={item.title} className="rounded-2xl border p-5">
+                            <div className="text-sm font-medium">{item.title}</div>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                {item.detail}
+                            </p>
+                        </div>
+                    ))}
+                </section>
+
+                <section className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
+                    <InfoPanel
+                        title="能力边界"
+                        items={entry.capabilities.map((item) => ({
+                            label: item,
+                            detail: "内置壳层负责市场行为与宿主管理，不把业务页回写到主应用。",
+                        }))}
+                    />
+                    <InfoPanel
+                        title="市场语义"
+                        items={[
+                            {
+                                label: "只有两个内置项",
+                                detail: "插件 / 系统 是固定入口，不随 catalog 内容变化。",
+                            },
+                            {
+                                label: "其余全是外部 WASM",
+                                detail: "外部条目来自 catalog snapshot，并按业务插件语义处理。",
+                            },
+                            {
+                                label: "列表与详情分离",
+                                detail: "左侧做选择，右侧解释功能与动作，避免再把宿主实现堆成说明墙。",
+                            },
+                        ]}
+                    />
+                </section>
+            </CardContent>
+        </>
+    );
+}
+
+function ExternalMarketDetail({
+    entry,
+    loading,
+    latestInstall,
+    onInstall,
+    onOpenLatestInstance,
+}: {
+    entry: WasmPluginMarketplaceEntry;
+    loading: boolean;
+    latestInstall: WasmPluginInstallResult | null;
+    onInstall: () => void;
+    onOpenLatestInstance: (install: WasmPluginInstallResult) => void;
+}) {
+    const primaryActionLabel =
+        entry.status === "Available" ? "安装并创建实例" : "创建新实例";
+
+    return (
+        <>
+            <CardHeader className="border-b bg-[#fcfbf8]">
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                    <Blocks className="h-3.5 w-3.5" />
+                    External WASM Plugin
+                </div>
+                <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                        <CardTitle className="text-3xl tracking-tight">{entry.name}</CardTitle>
+                        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                            {entry.summary}
+                        </p>
+                        <div className="mt-3 font-mono text-xs text-muted-foreground">
+                            {entry.plugin_id} · v{entry.version}
+                        </div>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                        <Button type="button" onClick={onInstall} disabled={loading}>
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <PackageOpen className="h-4 w-4" />
+                            )}
+                            {primaryActionLabel}
+                        </Button>
+                        {latestInstall?.page_ids[0] ? (
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => onOpenLatestInstance(latestInstall)}
+                            >
+                                打开最新实例
+                            </Button>
+                        ) : null}
+                    </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                    <Badge variant="secondary" className="text-[11px]">
+                        {entry.status}
+                    </Badge>
+                    <Badge variant="outline" className="text-[11px]">
+                        {entry.instances} 个实例
+                    </Badge>
+                    {entry.tags.map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-[11px]">
+                            {tag}
+                        </Badge>
+                    ))}
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-6 p-6">
+                <section className="grid gap-4 lg:grid-cols-3">
+                    <FeatureCard
+                        icon={<WandSparkles className="h-4 w-4" />}
+                        title="功能定位"
+                        detail="这是外部业务 WASM 插件，不属于宿主内置入口。安装后由宿主创建实例页。"
+                    />
+                    <FeatureCard
+                        icon={<Cable className="h-4 w-4" />}
+                        title="接入方式"
+                        detail="通过 catalog 包接入宿主，在同一宿主进程内运行，不额外长出新端口。"
+                    />
+                    <FeatureCard
+                        icon={<CheckCircle2 className="h-4 w-4" />}
+                        title="当前状态"
+                        detail={`状态 ${entry.status}，当前已有 ${entry.instances} 个业务实例。`}
+                    />
+                </section>
+
+                <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+                    <InfoPanel
+                        title="能力贡献"
+                        items={
+                            entry.capabilities.length > 0
+                                ? entry.capabilities.map((item) => ({
+                                      label: String(item),
+                                      detail: "由插件 descriptor 声明，宿主按能力边界装配。",
+                                  }))
+                                : [
+                                      {
+                                          label: "未声明 capability",
+                                          detail: "当前 descriptor 还没有暴露额外宿主能力。",
+                                      },
+                                  ]
+                        }
+                    />
+                    <InfoPanel
+                        title="兼容性与标签"
+                        items={[
+                            ...(entry.compatibility.length > 0
+                                ? entry.compatibility.map((item) => ({
+                                      label: item,
+                                      detail: "声明的宿主兼容面。",
+                                  }))
+                                : [
+                                      {
+                                          label: "未声明兼容性",
+                                          detail: "当前插件没有附带 compatibility 元数据。",
+                                      },
+                                  ]),
+                            ...(entry.tags.length > 0
+                                ? entry.tags.map((item) => ({
+                                      label: `#${item}`,
+                                      detail: "用于列表分类与检索。",
+                                  }))
+                                : []),
+                        ]}
+                    />
+                </section>
+
+                <section className="rounded-2xl border bg-muted/20 p-5">
+                    <div className="text-sm font-medium">实例化说明</div>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        外部插件安装后不是直接把页面硬编码进主应用，而是先进入宿主 registry，
+                        再由宿主生成实例并把实例页挂到 `/apps/*`。这跟 VS Code 扩展先安装、再激活、再贡献页面的语义更接近。
+                    </p>
+                </section>
+            </CardContent>
+        </>
+    );
+}
+
+function MarketListSection({
+    title,
+    subtitle,
+    items,
+    selectedId,
+    onSelect,
+    emptyState,
+}: {
+    title: string;
+    subtitle: string;
+    items: MarketListItem[];
+    selectedId: string;
+    onSelect: (id: string) => void;
+    emptyState?: string;
+}) {
+    return (
+        <section className="border-b last:border-b-0">
+            <div className="border-b px-4 py-3">
+                <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    {title}
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div>
+            </div>
+            {items.length === 0 ? (
+                <div className="px-4 py-5 text-sm text-muted-foreground">
+                    {emptyState ?? "暂无条目。"}
+                </div>
+            ) : (
+                <div className="space-y-0">
+                    {items.map((item) => (
+                        <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => onSelect(item.id)}
+                            className={cn(
+                                "w-full border-b px-4 py-4 text-left transition last:border-b-0 hover:bg-muted/40",
+                                selectedId === item.id &&
+                                    "bg-[#f5f1e8] shadow-[inset_2px_0_0_0_rgba(24,24,27,0.92)]",
+                            )}
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium">
+                                        {item.title}
+                                    </div>
+                                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                                        {item.summary}
+                                    </p>
+                                </div>
+                                <Badge
+                                    variant={item.kind === "builtin" ? "secondary" : "outline"}
+                                    className="shrink-0 text-[11px]"
+                                >
+                                    {item.kind === "builtin" ? "内置" : "外部"}
+                                </Badge>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {item.badges.slice(0, 3).map((badge) => (
+                                    <Badge
+                                        key={`${item.id}:${badge}`}
+                                        variant="outline"
+                                        className="text-[11px]"
+                                    >
+                                        {badge}
+                                    </Badge>
+                                ))}
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -906,6 +980,55 @@ function SceneMarketPage({ scene }: { scene: Exclude<MarketScene, "wasm"> }) {
     );
 }
 
+function FeatureCard({
+    icon,
+    title,
+    detail,
+}: {
+    icon: ReactNode;
+    title: string;
+    detail: string;
+}) {
+    return (
+        <div className="rounded-2xl border p-5">
+            <div className="flex items-center gap-2 text-sm font-medium">
+                <span className="text-muted-foreground">{icon}</span>
+                {title}
+            </div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{detail}</p>
+        </div>
+    );
+}
+
+function InfoPanel({
+    title,
+    items,
+}: {
+    title: string;
+    items: { label: string; detail: string }[];
+}) {
+    return (
+        <div className="rounded-2xl border">
+            <div className="border-b px-5 py-4">
+                <div className="text-sm font-medium">{title}</div>
+            </div>
+            <div className="space-y-0">
+                {items.map((item, index) => (
+                    <div
+                        key={`${item.label}:${index}`}
+                        className={cn("px-5 py-4", index > 0 && "border-t")}
+                    >
+                        <div className="text-sm font-medium">{item.label}</div>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                            {item.detail}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function Field({
     label,
     value,
@@ -922,10 +1045,41 @@ function Field({
             <span className="mb-2 block text-sm font-medium">{label}</span>
             <Input
                 value={value}
-                onChange={(e) => onChange(e.target.value)}
+                onChange={(event) => onChange(event.target.value)}
                 placeholder={placeholder}
             />
         </label>
+    );
+}
+
+function RuntimeMetric({
+    label,
+    value,
+    detail,
+}: {
+    label: string;
+    value: string;
+    detail: string;
+}) {
+    return (
+        <div className="px-5 py-4 md:border-l first:md:border-l-0">
+            <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                {label}
+            </div>
+            <div className="mt-3 text-2xl font-semibold tracking-tight">{value}</div>
+            <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
+        </div>
+    );
+}
+
+function CompactMetric({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-lg border bg-muted/30 px-4 py-3">
+            <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                {label}
+            </div>
+            <div className="mt-2 text-2xl font-semibold">{value}</div>
+        </div>
     );
 }
 
@@ -934,7 +1088,7 @@ function MarketCell({
     title,
     detail,
 }: {
-    icon: React.ReactNode;
+    icon: ReactNode;
     title: string;
     detail: string;
 }) {

@@ -1,10 +1,20 @@
-use std::{collections::BTreeMap, env, fs, path::PathBuf, time::Duration};
+use std::{
+    collections::BTreeMap,
+    env,
+    fs,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbErr};
 use sea_orm_migration::prelude::*;
 use thiserror::Error;
 
+const WORKSPACE_ENV_FILE: &str = ".env";
 const LOCAL_ENV_FILE: &str = ".config/aio/aio.env";
+static WORKSPACE_MIGRATIONS_DONE: AtomicBool = AtomicBool::new(false);
+static WORKSPACE_MIGRATION_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Shared database context for workspace services.
 #[derive(Clone)]
@@ -32,9 +42,17 @@ impl PersistenceContext {
             .await
             .map_err(PersistenceError::Connect)?;
 
-        WorkspaceMigrator::up(&db, None)
-            .await
-            .map_err(PersistenceError::Migrate)?;
+        if !WORKSPACE_MIGRATIONS_DONE.load(Ordering::Acquire) {
+            let _guard = WORKSPACE_MIGRATION_LOCK.lock().await;
+            if !WORKSPACE_MIGRATIONS_DONE.load(Ordering::Acquire) {
+                match WorkspaceMigrator::up(&db, None).await {
+                    Ok(()) => {}
+                    Err(err) if is_concurrent_migration_conflict(&err) => {}
+                    Err(err) => return Err(PersistenceError::Migrate(err)),
+                }
+                WORKSPACE_MIGRATIONS_DONE.store(true, Ordering::Release);
+            }
+        }
 
         db.execute_unprepared("SELECT 1")
             .await
@@ -61,7 +79,7 @@ impl PersistenceContext {
 
 #[derive(Debug, Error)]
 pub enum PersistenceError {
-    #[error("missing MSC_AIO_DATABASE_URL / DATABASE_URL / local env file")]
+    #[error("missing MSC_AIO_DATABASE_URL / repo .env / DATABASE_URL / ~/.config/aio/aio.env")]
     MissingDatabaseUrl,
     #[error("connect to postgres: {0}")]
     Connect(#[source] DbErr),
@@ -75,26 +93,48 @@ pub fn database_url() -> Option<String> {
     env::var("MSC_AIO_DATABASE_URL")
         .ok()
         .filter(|value| !value.trim().is_empty())
+        .or_else(read_database_url_from_workspace_env)
         .or_else(|| {
             env::var("DATABASE_URL")
                 .ok()
                 .filter(|value| !value.trim().is_empty())
         })
-        .or_else(read_database_url_from_file)
+        .or_else(read_database_url_from_local_env)
+}
+
+pub fn workspace_env_path() -> Option<PathBuf> {
+    let cwd = env::current_dir().ok()?;
+    workspace_env_path_from(&cwd)
 }
 
 pub fn local_env_path() -> Option<PathBuf> {
     home_dir().map(|home| home.join(LOCAL_ENV_FILE))
 }
 
-fn read_database_url_from_file() -> Option<String> {
+fn read_database_url_from_workspace_env() -> Option<String> {
+    let path = workspace_env_path()?;
+    read_database_url_from_path(&path)
+}
+
+fn read_database_url_from_local_env() -> Option<String> {
     let path = local_env_path()?;
+    read_database_url_from_path(&path)
+}
+
+fn read_database_url_from_path(path: &Path) -> Option<String> {
     let content = fs::read_to_string(path).ok()?;
     let vars = parse_env_pairs(&content);
     vars.get("MSC_AIO_DATABASE_URL")
         .or_else(|| vars.get("DATABASE_URL"))
         .cloned()
         .filter(|value| !value.trim().is_empty())
+}
+
+fn workspace_env_path_from(start_dir: &Path) -> Option<PathBuf> {
+    start_dir
+        .ancestors()
+        .map(|dir| dir.join(WORKSPACE_ENV_FILE))
+        .find(|path| path.is_file())
 }
 
 fn parse_env_pairs(content: &str) -> BTreeMap<String, String> {
@@ -116,6 +156,61 @@ fn home_dir() -> Option<PathBuf> {
         .ok()
         .filter(|value| !value.trim().is_empty())
         .map(PathBuf::from)
+}
+
+fn is_concurrent_migration_conflict(err: &DbErr) -> bool {
+    let message = err.to_string();
+    message.contains("seaql_migrations_pkey")
+        || message.contains("duplicate key value violates unique constraint")
+            && message.contains("seaql_migrations")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{read_database_url_from_path, workspace_env_path_from};
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    #[test]
+    fn workspace_env_path_finds_ancestor_env() {
+        let root = unique_temp_dir("workspace-env-path");
+        let nested = root.join("apps/aio/backend");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(root.join(".env"), "DATABASE_URL=postgresql://root\n").unwrap();
+
+        let found = workspace_env_path_from(&nested).unwrap();
+        assert_eq!(found, root.join(".env"));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn read_database_url_prefers_msc_key_from_env_file() {
+        let dir = unique_temp_dir("workspace-env-read");
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(".env");
+        fs::write(
+            &path,
+            "# comment\nDATABASE_URL=postgresql://fallback\nMSC_AIO_DATABASE_URL=postgresql://preferred\n",
+        )
+        .unwrap();
+
+        let value = read_database_url_from_path(&path).unwrap();
+        assert_eq!(value, "postgresql://preferred");
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    fn unique_temp_dir(prefix: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("addzero-persistence-{prefix}-{unique}"))
+    }
 }
 
 pub struct WorkspaceMigrator;

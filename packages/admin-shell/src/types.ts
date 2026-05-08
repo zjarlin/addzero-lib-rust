@@ -49,6 +49,7 @@ export interface AdminShellState {
   brandTitle: string;
   brandDetail: string;
   topbarActions: TopbarAction[];
+  topbarContentEnd?: ReactNode;
   domains: DomainNode[];
   sections: SectionNode[];
   navigationTitle?: string;

@@ -1,5 +1,6 @@
 use std::{fs, path::Path};
 
+use chrono::Utc;
 use deunicode::deunicode;
 use sha2::{Digest, Sha256};
 
@@ -107,6 +108,11 @@ pub fn discover_source_documents(source: &KnowledgeSourceSpec) -> KnowledgeScan 
 
 fn build_document(source: &KnowledgeSourceSpec, path: &Path) -> Option<KnowledgeDocument> {
     let content = fs::read_to_string(path).ok()?;
+    let updated_at = fs::metadata(path)
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
+        .map(chrono::DateTime::<Utc>::from)
+        .unwrap_or_else(Utc::now);
     let filename = path.file_name()?.to_string_lossy().to_string();
     let relative_path = path
         .strip_prefix(&source.root_path)
@@ -140,8 +146,10 @@ fn build_document(source: &KnowledgeSourceSpec, path: &Path) -> Option<Knowledge
         preview,
         excerpt,
         headings,
+        tags: Vec::new(),
         body: content,
         content_hash,
+        updated_at,
     })
 }
 

@@ -133,7 +133,7 @@ struct LocalStorageService;
 
 impl StorageService for LocalStorageService {
     fn package_root_hint(&self) -> String {
-        "target/addzero-plugin-host".to_string()
+        "apps/aio/plugins/host".to_string()
     }
 }
 

@@ -18,6 +18,7 @@ pub struct Model {
     pub preview: String,
     pub excerpt: String,
     pub headings: Vec<String>,
+    pub tags: Vec<String>,
     pub body: String,
     pub content_hash: String,
     pub is_active: bool,

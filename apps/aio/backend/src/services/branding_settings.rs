@@ -241,7 +241,7 @@ pub async fn save_branding_settings_on_server(
 #[cfg(not(target_arch = "wasm32"))]
 async fn connect_pool() -> BrandingSettingsResult<sqlx::postgres::PgPool> {
     let database_url = addzero_persistence::database_url().ok_or_else(|| {
-        BrandingSettingsError::new("缺少 PostgreSQL 连接：请设置 AIO_DATABASE_URL 或 DATABASE_URL")
+        BrandingSettingsError::new("缺少 PostgreSQL 连接：请设置 MSC_AIO_DATABASE_URL，或在仓库 .env / ~/.config/aio/aio.env 中配置 MSC_AIO_DATABASE_URL / DATABASE_URL")
     })?;
 
     sqlx::postgres::PgPoolOptions::new()

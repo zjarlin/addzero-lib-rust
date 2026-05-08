@@ -42,8 +42,10 @@ pub struct KnowledgeDocument {
     pub preview: String,
     pub excerpt: String,
     pub headings: Vec<String>,
+    pub tags: Vec<String>,
     pub body: String,
     pub content_hash: String,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

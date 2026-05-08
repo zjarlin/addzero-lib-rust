@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import {
     type ColumnDef,
@@ -15,9 +15,9 @@ import {
     ArrowUpDown,
     AtSign,
     Boxes,
+    Check,
     CheckCircle2,
     CheckSquare,
-    Clock3,
     Code2,
     Database,
     FileArchive,
@@ -27,6 +27,7 @@ import {
     Hash,
     Inbox,
     Layers3,
+    Loader2,
     Link2,
     List,
     MoreHorizontal,
@@ -42,7 +43,9 @@ import {
     Sparkles,
     TableProperties,
     Tags,
+    Trash2,
     UploadCloud,
+    X,
     Zap,
 } from "lucide-react";
 import {
@@ -66,7 +69,7 @@ import {
     Textarea,
     cn,
 } from "@addzero/ui";
-import { getApiBaseUrl } from "@addzero/api-client";
+import { getApiBaseUrl, type KnowledgeNoteDto } from "@addzero/api-client";
 
 type AssetModuleId =
     | "notes"
@@ -113,6 +116,8 @@ interface NoteCardData {
     time: string;
     title: string;
     body: string;
+    sourcePath?: string;
+    relativePath?: string;
     tags: string[];
     kind: string;
     source: string;
@@ -295,183 +300,6 @@ const ASSET_RECORDS: Record<AssetModuleId, AssetRecord[]> = {
     ],
 };
 
-const NOTE_CARDS: NoteCardData[] = [
-    {
-        id: "dock-hot-corners",
-        time: "2026-05-07 20:14:00",
-        title: "关闭 macOS 四角热区命令",
-        body: 'for c in tl tr bl br; do defaults write com.apple.dock "wvous-$c-corner" -int 0; defaults write com.apple.dock "wvous-$c-modifier" -int 0; done; killall Dock',
-        tags: ["闪念", "macOS", "dock"],
-        kind: "Command",
-        source: "剪贴板",
-        accent: "bg-amber-400",
-        status: "reviewing",
-        cluster: "macOS 运维",
-        structuredKind: "snippet",
-        promptContexts: ["设备: Mac mini", "主题: 系统初始化", "偏好: 可复制命令"],
-        unmapped: ['“tl tr bl br” 需要转成字段还是保留命令原样', "是否挂到 dotfiles 还是教程集合"],
-        relations: [
-            { target: "macOS 初始化手册", relation: "可并入", confidence: 88 },
-            { target: "~/.zshrc", relation: "相关环境", confidence: 54 },
-        ],
-        draft: {
-            title: "macOS 关闭四角热区",
-            summary: "一条可直接执行的系统偏好修正命令，适合归入 macOS 初始化片段库。",
-            fields: [
-                { label: "标准类型", value: "snippet.command" },
-                { label: "适用范围", value: "macOS / Dock" },
-                { label: "执行方式", value: "终端一次性执行" },
-                { label: "建议归档", value: "reference/macOS-setup", tone: "success" },
-            ],
-        },
-    },
-    {
-        id: "responses-tool-error",
-        time: "2026-05-07 19:45:54",
-        title: "Responses API 自定义工具报错",
-        body: '{"error":{"code":"invalid_request","message":"unsupported responses tool type custom","type":"invalid_request_error"}}',
-        tags: ["debug", "api", "tool"],
-        kind: "Error",
-        source: "运行日志",
-        accent: "bg-rose-400",
-        status: "captured",
-        cluster: "AI 调试",
-        structuredKind: "log",
-        promptContexts: ["当前页面 prompt: API 工具兼容性", "提供商: OpenAI"],
-        unmapped: ["是 SDK 约束还是模型约束", "是否需要附上当时请求体"],
-        relations: [
-            { target: "OpenAI tool 兼容性笔记", relation: "应引用", confidence: 73 },
-            { target: "AI Provider 配置", relation: "排障对象", confidence: 64 },
-        ],
-        draft: {
-            title: "unsupported responses tool type custom",
-            summary: "一条错误日志，适合进入调试记录而不是正式教程；需要补充上下文后再定类。",
-            fields: [
-                { label: "标准类型", value: "log.error" },
-                { label: "来源", value: "runtime / API response" },
-                { label: "建议状态", value: "保留待补证据", tone: "warning" },
-                { label: "建议归档", value: "debug/openai-tools" },
-            ],
-        },
-    },
-    {
-        id: "mac-mini-vnc",
-        time: "2026-05-07 12:59:28",
-        title: "Mac mini 屏幕共享连接方式",
-        body: "如果远端是 Mac mini，macOS 自带的屏幕共享可以直接连接。先在远端开启服务，本地 Finder 里按 Command + K，输入 vnc://远端IP。",
-        tags: ["remote", "macOS", "操作"],
-        kind: "Howto",
-        source: "人工输入",
-        accent: "bg-emerald-400",
-        status: "reviewing",
-        cluster: "远程接入",
-        structuredKind: "reference",
-        promptContexts: ["远程机器: Mac mini", "主题: 远程接管", "关联页面: assets/dotfiles"],
-        unmapped: ["是否补充权限开启路径", "需要账号密码信息还是只留方法"],
-        relations: [
-            { target: "Mac mini 运维清单", relation: "并入章节", confidence: 91 },
-            { target: "家庭网络拓扑", relation: "依赖环境", confidence: 42 },
-        ],
-        draft: {
-            title: "Mac mini 屏幕共享连接",
-            summary: "远程接入教程，适合沉淀为 reference，并挂到设备实体和网络环境。",
-            fields: [
-                { label: "标准类型", value: "reference.howto" },
-                { label: "主体对象", value: "device: Mac mini" },
-                { label: "操作入口", value: "Finder -> Command + K -> vnc://IP" },
-                { label: "建议归档", value: "reference/remote-access", tone: "success" },
-            ],
-        },
-    },
-    {
-        id: "all-in-one-idea",
-        time: "2026-05-04 23:28:38",
-        title: "all in one 资产工作台想法",
-        body: "头脑风暴：我希望有个 all in one 的东西，能把笔记、安装包、密码本、skill、配置文件之类的管理起来。",
-        tags: ["资产", "idea", "aio"],
-        kind: "Idea",
-        source: "闪念",
-        accent: "bg-blue-400",
-        status: "resolved",
-        cluster: "产品方向",
-        structuredKind: "decision",
-        promptContexts: ["产品愿景", "资产域边界", "跨模块治理"],
-        unmapped: [],
-        relations: [
-            { target: "Asset Workbench 路线", relation: "已并入", confidence: 97 },
-            { target: "Knowledge Workbench", relation: "相邻域", confidence: 68 },
-        ],
-        draft: {
-            title: "统一资产治理工作台",
-            summary: "已沉淀为产品方向，不再参加整理，只保留来源和关系以便追溯。",
-            fields: [
-                { label: "标准类型", value: "decision.product" },
-                { label: "正式状态", value: "已入库", tone: "success" },
-                { label: "来源追踪", value: "capture/all-in-one-idea" },
-                { label: "当前归档", value: "library/asset-workbench-vision" },
-            ],
-        },
-    },
-    {
-        id: "strum-snippet",
-        time: "2026-05-02 23:36:18",
-        title: "strum derive 速记",
-        body: 'strum = { version = "0.26", features = ["derive"] } 以后写 rust 记得这个库可以零成本抽象 rust 简化。',
-        tags: ["rust", "crate", "闪念"],
-        kind: "Snippet",
-        source: "手记",
-        accent: "bg-lime-400",
-        status: "captured",
-        cluster: "Rust 生态",
-        structuredKind: "reference",
-        promptContexts: ["语言: Rust", "目标: 枚举/derive 简化"],
-        unmapped: ["‘零成本抽象’ 是经验判断还是要附具体用法", "要不要挂到 crate 索引"],
-        relations: [
-            { target: "Rust crate 清单", relation: "候选归档", confidence: 78 },
-            { target: "枚举模式笔记", relation: "潜在引用", confidence: 61 },
-        ],
-        draft: {
-            title: "strum derive 依赖提示",
-            summary: "目前更像零碎提醒，不够成文；需要补适用场景和示例后再入教程库。",
-            fields: [
-                { label: "标准类型", value: "reference.snippet" },
-                { label: "当前风险", value: "缺少用例与版本上下文", tone: "warning" },
-                { label: "建议动作", value: "补充示例后再入库" },
-                { label: "候选归档", value: "reference/rust-crates" },
-            ],
-        },
-    },
-    {
-        id: "bi-axial-rule",
-        time: "2026-05-01 10:08:11",
-        title: "二维上下文导航规则",
-        body: "UI 规则：顶部主轴和左侧路由树是二维上下文，不要把工作台、资产、运行混成一个平铺菜单。",
-        tags: ["admin", "导航", "规则"],
-        kind: "Decision",
-        source: "AGENTS.md",
-        accent: "bg-stone-900",
-        status: "resolved",
-        cluster: "Admin 规则",
-        structuredKind: "decision",
-        promptContexts: ["admin shell", "导航规范", "provider 分层"],
-        unmapped: [],
-        relations: [
-            { target: "Admin Navigation Convention", relation: "正式来源", confidence: 100 },
-            { target: "assets/notes 页面", relation: "直接约束", confidence: 88 },
-        ],
-        draft: {
-            title: "Admin 二维上下文导航",
-            summary: "已是正式规则来源，前端整理台应该把这条视作 library 节点，而非再次整理的碎片。",
-            fields: [
-                { label: "标准类型", value: "decision.ui" },
-                { label: "正式状态", value: "规则已生效", tone: "success" },
-                { label: "来源", value: "AGENTS.md / Admin Navigation Convention" },
-                { label: "当前归档", value: "library/admin-navigation" },
-            ],
-        },
-    },
-];
-
 const NOTE_WORKSPACE_TABS = [
     { value: "inbox", label: "原始碎片 Inbox" },
     { value: "tags", label: "标签节点 Tags" },
@@ -640,13 +468,20 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
     const baseUrl = useMemo(() => getApiBaseUrl(), []);
     const [activeView, setActiveView] = useState<NoteWorkspaceView>("tags");
     const [search, setSearch] = useState("");
-    const [notes, setNotes] = useState(NOTE_CARDS);
-    const [selectedNoteId, setSelectedNoteId] = useState(NOTE_CARDS[0]?.id ?? "");
+    const [notes, setNotes] = useState<NoteCardData[]>([]);
+    const [notesLoading, setNotesLoading] = useState(true);
+    const [notesLoadError, setNotesLoadError] = useState<string | null>(null);
+    const [selectedNoteId, setSelectedNoteId] = useState("");
     const [activeTag, setActiveTag] = useState("");
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+    const [editDrafts, setEditDrafts] = useState<Record<string, { title: string; body: string }>>({});
+    const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
+    const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+    const [autoTaggingNoteIds, setAutoTaggingNoteIds] = useState<string[]>([]);
     const [captureDraft, setCaptureDraft] = useState(
         'for c in tl tr bl br; do defaults write com.apple.dock "wvous-$c-corner" -int 0; defaults write com.apple.dock "wvous-$c-modifier" -int 0; done; killall Dock',
     );
-    const [seedTags, setSeedTags] = useState<string[]>(["闪念", "代码", "macOS"]);
+    const [seedTags, setSeedTags] = useState<string[]>([]);
     const [captureSaving, setCaptureSaving] = useState(false);
     const [captureMessage, setCaptureMessage] = useState<string | null>(null);
     const [captureError, setCaptureError] = useState<string | null>(null);
@@ -669,10 +504,12 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
     );
     const tagNodes = useMemo(() => deriveTagNodes(notes), [notes]);
     const tagGraph = useMemo(() => buildTagGraph(notes), [notes]);
-    const resolvedActiveTag =
-        activeTag || tagNodes[0]?.label || selectedNote?.tags[0] || "闪念";
+    const resolvedActiveTag = activeTag.trim();
     const tagFocusedNotes = useMemo(
-        () => filteredNotes.filter((note) => note.tags.includes(resolvedActiveTag)),
+        () =>
+            resolvedActiveTag
+                ? filteredNotes.filter((note) => note.tags.includes(resolvedActiveTag))
+                : filteredNotes,
         [filteredNotes, resolvedActiveTag],
     );
     const connectedTags = useMemo(
@@ -680,19 +517,6 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         [resolvedActiveTag, tagGraph],
     );
     const graphLines = useMemo(() => deriveGraphLines(notes), [notes]);
-    const noteMetrics: AssetMetric[] = useMemo(
-        () => [
-            { label: "碎片", value: String(notes.length), detail: "raw notes" },
-            { label: "标签", value: String(tagNodes.length), detail: "tag nodes" },
-            { label: "连线", value: String(graphLines.length), detail: "tag lines" },
-            {
-                label: "待归并",
-                value: String(tagNodes.filter((tag) => tag.noteIds.length > 1).length),
-                detail: "cluster actions",
-            },
-        ],
-        [graphLines.length, notes.length, tagNodes],
-    );
     const tabCounts = useMemo(
         () => ({
             inbox: filteredNotes.length,
@@ -702,13 +526,322 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         }),
         [connectedTags.length, filteredNotes.length, graphLines.length, tagNodes.length],
     );
+    const activeTagHeading = resolvedActiveTag ? `#${resolvedActiveTag}` : "全部标签";
+    const activeTagSpecValue = resolvedActiveTag ? `#${resolvedActiveTag}` : "未选择";
 
-    function toggleSeedTag(tag: string) {
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadNotes() {
+            setNotesLoading(true);
+            setNotesLoadError(null);
+            try {
+                const response = await fetch(`${baseUrl}/api/knowledge/entries`, {
+                    credentials: "include",
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || `HTTP ${response.status}`);
+                }
+                const data = (await response.json()) as KnowledgeNoteDto[];
+                if (cancelled) {
+                    return;
+                }
+                const loadedNotes = data.map(mapPersistedNote).sort(
+                    (left, right) => right.time.localeCompare(left.time),
+                );
+                setNotes(loadedNotes);
+                setSelectedNoteId((current) =>
+                    loadedNotes.some((note) => note.id === current)
+                        ? current
+                        : loadedNotes[0]?.id ?? "",
+                );
+                setActiveTag((current) =>
+                    current && loadedNotes.some((note) => note.tags.includes(current))
+                        ? current
+                        : "",
+                );
+            } catch (error) {
+                if (!cancelled) {
+                    setNotes([]);
+                    setNotesLoadError(
+                        error instanceof Error
+                            ? `加载笔记失败：${error.message}`
+                            : "加载笔记失败。",
+                    );
+                }
+            } finally {
+                if (!cancelled) {
+                    setNotesLoading(false);
+                }
+            }
+        }
+
+        void loadNotes();
+        return () => {
+            cancelled = true;
+        };
+    }, [baseUrl]);
+
+    function beginEditingNote(note: NoteCardData) {
+        setEditingNoteId(note.id);
+        setEditDrafts((current) => ({
+            ...current,
+            [note.id]: current[note.id] ?? {
+                title: note.title,
+                body: note.body,
+            },
+        }));
+    }
+
+    function updateEditDraft(noteId: string, patch: Partial<{ title: string; body: string }>) {
+        setEditDrafts((current) => ({
+            ...current,
+            [noteId]: {
+                title: patch.title ?? current[noteId]?.title ?? "",
+                body: patch.body ?? current[noteId]?.body ?? "",
+            },
+        }));
+    }
+
+    function stopEditingNote(noteId: string) {
+        setEditingNoteId((current) => (current === noteId ? null : current));
+        setEditDrafts((current) => {
+            const next = { ...current };
+            delete next[noteId];
+            return next;
+        });
+    }
+
+    async function persistKnowledgeEntry(input: {
+        source_path: string;
+        relative_path: string;
+        title: string;
+        body: string;
+        tags: string[];
+    }) {
+        const response = await fetch(`${baseUrl}/api/knowledge/entries`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(input),
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `HTTP ${response.status}`);
+        }
+        return (await response.json()) as KnowledgeNoteDto;
+    }
+
+    function mergePersistedNote(saved: KnowledgeNoteDto, previousId?: string) {
+        const mapped = mapPersistedNote(saved);
+        setNotes((current) => {
+            const targetIndex = current.findIndex(
+                (item) =>
+                    item.id === previousId ||
+                    item.id === mapped.id ||
+                    (mapped.sourcePath && item.sourcePath === mapped.sourcePath),
+            );
+            const nextNotes =
+                targetIndex >= 0
+                    ? current.map((item, index) => (index === targetIndex ? mapped : item))
+                    : [mapped, ...current];
+            return nextNotes.sort((left, right) => right.time.localeCompare(left.time));
+        });
+        return mapped;
+    }
+
+    function updateAutoTagging(noteId: string, pending: boolean) {
+        setAutoTaggingNoteIds((current) => {
+            if (pending) {
+                return current.includes(noteId) ? current : [...current, noteId];
+            }
+            return current.filter((item) => item !== noteId);
+        });
+    }
+
+    async function requestAiTags(title: string, body: string) {
+        const response = await fetch(`${baseUrl}/api/ai/chat`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                messages: [
+                    {
+                        role: "system",
+                        content: [
+                            "你是笔记标签整理器。",
+                            "请只返回 JSON，不要返回 Markdown、解释或额外文字。",
+                            '输出格式必须是 {"tags":["标签1","标签2"]}。',
+                            "标签要求：2 到 5 个，短词，中文优先，可混合必要英文技术词。",
+                            "优先复用已有标签池；只有在明显不合适时才补充新标签。",
+                            `当前已有标签池：${tagNodes.map((tag) => tag.label).join("、") || "暂无"}`,
+                        ].join("\n"),
+                    },
+                    {
+                        role: "user",
+                        content: [`标题：${title}`, "", "正文：", body.slice(0, 4000)].join("\n"),
+                    },
+                ],
+            }),
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `HTTP ${response.status}`);
+        }
+        const payload = (await response.json()) as {
+            message?: {
+                content?: string;
+            };
+        };
+        return parseAiTagList(payload.message?.content ?? "");
+    }
+
+    async function autoTagPersistedNote(note: KnowledgeNoteDto) {
+        const noteId = note.source_path || note.slug;
+        updateAutoTagging(noteId, true);
+        try {
+            const tags = await requestAiTags(note.title, note.body);
+            if (tags.length === 0) {
+                return;
+            }
+            const saved = await persistKnowledgeEntry({
+                source_path: note.source_path,
+                relative_path: note.relative_path,
+                title: note.title,
+                body: note.body,
+                tags,
+            });
+            const mapped = mergePersistedNote(saved, noteId);
+            setSelectedNoteId((current) => (current === noteId ? mapped.id : current));
+            setActiveTag((current) => current || mapped.tags[0] || "");
+        } catch (error) {
+            setCaptureMessage(null);
+            setCaptureError(
+                error instanceof Error
+                    ? `笔记已入库，但 AI 打标失败：${error.message}`
+                    : "笔记已入库，但 AI 打标失败。",
+            );
+        } finally {
+            updateAutoTagging(noteId, false);
+        }
+    }
+
+    function removeNoteFromState(noteId: string) {
+        const noteIndex = notes.findIndex((note) => note.id === noteId);
+        if (noteIndex < 0) {
+            return;
+        }
+        const nextNotes = notes.filter((note) => note.id !== noteId);
+        const fallbackNote =
+            nextNotes[Math.min(noteIndex, Math.max(nextNotes.length - 1, 0))] ??
+            nextNotes[0];
+        setNotes(nextNotes);
+        if (selectedNoteId === noteId) {
+            setSelectedNoteId(fallbackNote?.id ?? "");
+        }
+        setActiveTag((current) =>
+            current && !nextNotes.some((note) => note.tags.includes(current)) ? "" : current,
+        );
+        updateAutoTagging(noteId, false);
+        stopEditingNote(noteId);
+    }
+
+    async function handleDeleteNote(note: NoteCardData) {
+        if (deletingNoteId || savingNoteId) {
+            return;
+        }
+        setDeletingNoteId(note.id);
+        setCaptureMessage(null);
+        setCaptureError(null);
+        try {
+            const sourcePath = note.sourcePath?.trim();
+            if (sourcePath) {
+                const response = await fetch(`${baseUrl}/api/knowledge/entries/delete`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        source_path: sourcePath,
+                    }),
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || `HTTP ${response.status}`);
+                }
+            }
+            removeNoteFromState(note.id);
+            setCaptureMessage(
+                note.relativePath?.trim()
+                    ? `已删除 ${note.relativePath}`
+                    : `已删除 ${note.title}`,
+            );
+        } catch (error) {
+            setCaptureError(
+                error instanceof Error
+                    ? `删除笔记失败：${error.message}`
+                    : "删除笔记失败。",
+            );
+        } finally {
+            setDeletingNoteId((current) => (current === note.id ? null : current));
+        }
+    }
+
+    async function handleSaveNote(note: NoteCardData) {
+        if (savingNoteId || deletingNoteId) {
+            return;
+        }
+        const draft = editDrafts[note.id];
+        const body = draft?.body?.trim();
+        if (!body) {
+            setCaptureMessage(null);
+            setCaptureError("笔记内容不能为空。");
+            return;
+        }
+        const title = draft?.title?.trim() || deriveNoteTitle(body);
+        setSavingNoteId(note.id);
+        setCaptureMessage(null);
+        setCaptureError(null);
+        try {
+            const saved = await persistKnowledgeEntry({
+                source_path: note.sourcePath ?? "",
+                relative_path: note.relativePath ?? "",
+                title,
+                body,
+                tags: note.tags,
+            });
+            const mapped = mergePersistedNote(saved, note.id);
+            setSelectedNoteId(mapped.id);
+            stopEditingNote(note.id);
+            setCaptureMessage(
+                saved.relative_path?.trim()
+                    ? `已保存 ${saved.relative_path}`
+                    : `已保存 ${saved.title}`,
+            );
+        } catch (error) {
+            setCaptureError(
+                error instanceof Error
+                    ? `保存笔记失败：${error.message}`
+                    : "保存笔记失败。",
+            );
+        } finally {
+            setSavingNoteId((current) => (current === note.id ? null : current));
+        }
+    }
+
+    function toggleSharedTag(tag: string) {
         setSeedTags((current) =>
             current.includes(tag)
                 ? current.filter((item) => item !== tag)
                 : [...current, tag],
         );
+        setActiveTag((current) => (current === tag ? "" : tag));
     }
 
     async function handleCapture() {
@@ -716,64 +849,44 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         if (!body) {
             return;
         }
-        const tags = dedupeTags(seedTags);
+        const tags = deriveTagsFromCapture(body, seedTags);
         const title = deriveNoteTitle(body);
         const resetComposer = () => {
             setCaptureDraft("");
-            setSeedTags(["闪念"]);
+            setSeedTags([]);
         };
         const pushCapturedNote = (note: NoteCardData) => {
-            setNotes((current) => [note, ...current]);
             setSelectedNoteId(note.id);
-            setActiveTag(note.tags[0] ?? "");
+            setActiveTag((current) => current || note.tags[0] || "");
             setActiveView("inbox");
         };
         setCaptureSaving(true);
         setCaptureMessage(null);
         setCaptureError(null);
         try {
-            const response = await fetch(`${baseUrl}/api/knowledge/entries`, {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    source_path: "",
-                    relative_path: "",
-                    title,
-                    body,
-                    tags,
-                }),
+            const saved = await persistKnowledgeEntry({
+                source_path: "",
+                relative_path: "",
+                title,
+                body,
+                tags,
             });
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(text || `HTTP ${response.status}`);
-            }
-            const saved = (await response.json()) as {
-                source_path: string;
-                relative_path: string;
-                title: string;
-            };
-            const note = buildCapturedNote(body, tags, {
-                title: saved.title,
-                source: "笔记工作台",
-                relatedTarget: saved.relative_path,
-            });
+            const note = mergePersistedNote(saved);
             pushCapturedNote(note);
             resetComposer();
-            setCaptureMessage(`已记录到 ${saved.relative_path}`);
+            setCaptureMessage(
+                tags.length > 0
+                    ? `已记录到 ${saved.relative_path}`
+                    : `已记录到 ${saved.relative_path}，AI 正在补标签`,
+            );
+            if (tags.length === 0) {
+                void autoTagPersistedNote(saved);
+            }
         } catch (error) {
-            const fallbackNote = buildCapturedNote(body, tags, {
-                title,
-                source: "本地会话",
-            });
-            pushCapturedNote(fallbackNote);
-            resetComposer();
             setCaptureError(
                 error instanceof Error
-                    ? `知识库同步失败，已先保存在当前页面：${error.message}`
-                    : "知识库同步失败，已先保存在当前页面。",
+                    ? `记录笔记失败：${error.message}`
+                    : "记录笔记失败。",
             );
         } finally {
             setCaptureSaving(false);
@@ -813,57 +926,25 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
             </section>
 
             <section className="min-h-[calc(100vh-4.25rem)]">
-                <div className="grid grid-cols-2 border-b bg-[#efeadf] lg:grid-cols-4">
-                    {noteMetrics.map((metric) => (
-                        <MetricTile key={metric.label} metric={metric} flush />
-                    ))}
-                </div>
                 <QuickCapture
                     value={captureDraft}
+                    tagNodes={tagNodes}
                     seedTags={seedTags}
+                    activeTag={resolvedActiveTag}
                     saving={captureSaving}
                     message={captureMessage}
                     error={captureError}
                     onChange={setCaptureDraft}
-                    onToggleTag={toggleSeedTag}
+                    onToggleTag={toggleSharedTag}
                     onSubmit={handleCapture}
                 />
 
-                <div className="border-b bg-[#fbfaf4] px-4 py-3 lg:px-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                                Tag Flow
-                            </div>
-                            <h2 className="mt-1 text-lg font-semibold">先记录，再打标签，再基于标签聚合整理</h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                笔记先保持非结构化原样，只做标签和连线；后续整理从标签簇一键发起，不强行先建模。
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {tagNodes.slice(0, 6).map((tag, index) => (
-                                    <Badge
-                                        key={tag.label}
-                                        variant={
-                                            index === 0 || tag.label === resolvedActiveTag
-                                                ? "default"
-                                                : "outline"
-                                        }
-                                        className="rounded-full"
-                                        onClick={() => setActiveTag(tag.label)}
-                                    >
-                                        #{tag.label}
-                                    </Badge>
-                                ))}
-                            <span className="flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1 text-xs text-muted-foreground">
-                                <Clock3 className="h-3.5 w-3.5" />
-                                当前标签簇 {connectedTags.length} 个节点，{graphLines.length} 条连线
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
                 <div className="p-4 lg:p-5">
+                    {notesLoadError ? (
+                        <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                            {notesLoadError}
+                        </div>
+                    ) : null}
                     <Tabs
                         value={activeView}
                         onValueChange={(value) => setActiveView(value as NoteWorkspaceView)}
@@ -890,17 +971,44 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
 
                         <TabsContent value="inbox" className="mt-0">
                             <section className="columns-1 gap-4 lg:columns-2 2xl:columns-3">
+                                {notesLoading ? (
+                                    <Card className="mb-4 rounded-3xl border-stone-300 bg-white shadow-sm">
+                                        <CardContent className="flex min-h-40 items-center justify-center p-6 text-sm text-muted-foreground">
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            正在加载笔记…
+                                        </CardContent>
+                                    </Card>
+                                ) : null}
                                 {filteredNotes.map((note) => (
                                     <NoteCard
                                         key={note.id}
                                         note={note}
+                                        autoTagging={autoTaggingNoteIds.includes(note.id)}
+                                        editing={editingNoteId === note.id}
+                                        draftTitle={editDrafts[note.id]?.title ?? note.title}
+                                        draftBody={editDrafts[note.id]?.body ?? note.body}
+                                        savePending={savingNoteId === note.id}
                                         selected={note.id === selectedNote?.id}
+                                        deletePending={deletingNoteId === note.id}
                                         onSelect={() => {
                                             setSelectedNoteId(note.id);
                                             setActiveTag(note.tags[0] ?? "");
+                                            beginEditingNote(note);
                                         }}
+                                        onDraftTitleChange={(value) => updateEditDraft(note.id, { title: value })}
+                                        onDraftBodyChange={(value) => updateEditDraft(note.id, { body: value })}
+                                        onCancelEdit={() => stopEditingNote(note.id)}
+                                        onSaveEdit={() => handleSaveNote(note)}
+                                        onDelete={() => handleDeleteNote(note)}
                                     />
                                 ))}
+                                {!notesLoading && filteredNotes.length === 0 ? (
+                                    <Card className="rounded-3xl border-dashed border-stone-300 bg-[#fffdf8] shadow-none">
+                                        <CardContent className="flex min-h-40 items-center justify-center p-6 text-sm text-muted-foreground">
+                                            还没有笔记。直接在上面记录，标签会从已入库笔记里自动汇聚。
+                                        </CardContent>
+                                    </Card>
+                                ) : null}
                             </section>
                         </TabsContent>
 
@@ -910,40 +1018,30 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                                     <CardHeader className="p-4 pb-3">
                                         <CardTitle className="flex items-center gap-2 text-sm">
                                             <Tags className="h-4 w-4 text-stone-700" />
-                                            标签节点
+                                            标签池
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3 p-4 pt-0">
-                                        {tagNodes.map((tag) => (
-                                            <button
-                                                key={tag.label}
-                                                type="button"
-                                                onClick={() => setActiveTag(tag.label)}
-                                                className={cn(
-                                                    "w-full rounded-2xl border px-3 py-3 text-left transition",
-                                                    resolvedActiveTag === tag.label
-                                                        ? "border-stone-900 bg-stone-900 text-stone-50"
-                                                        : "border-stone-200 bg-white hover:bg-stone-50",
-                                                )}
-                                            >
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <span className="font-medium">#{tag.label}</span>
-                                                    <Badge variant="outline" className="rounded-full">
-                                                        {tag.noteIds.length}
-                                                    </Badge>
-                                                </div>
-                                                <div
+                                        <div className="rounded-2xl border border-dashed border-stone-300 bg-white/90 p-3 text-sm text-muted-foreground">
+                                            顶部这一排共享标签就是唯一入口。录入时点它会顺手打标，下面几个视图也共用同一个筛选状态。
+                                        </div>
+                                        <SpecLine label="标签总数" value={`${tagNodes.length} 个`} />
+                                        <SpecLine label="当前筛选" value={activeTagSpecValue} />
+                                        <div className="flex flex-wrap gap-2">
+                                            {tagNodes.map((tag) => (
+                                                <Badge
+                                                    key={tag.label}
+                                                    variant="outline"
                                                     className={cn(
-                                                        "mt-2 text-xs",
-                                                        resolvedActiveTag === tag.label
-                                                            ? "text-stone-300"
-                                                            : "text-muted-foreground",
+                                                        "rounded-full bg-white/80",
+                                                        resolvedActiveTag === tag.label &&
+                                                            "border-stone-900 text-stone-900",
                                                     )}
                                                 >
-                                                    直连 {tag.neighbors.length} 个标签
-                                                </div>
-                                            </button>
-                                        ))}
+                                                    #{tag.label} · {tag.noteIds.length}
+                                                </Badge>
+                                            ))}
+                                        </div>
                                     </CardContent>
                                 </Card>
 
@@ -952,29 +1050,49 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                                         <CardHeader className="p-4 pb-3">
                                             <CardTitle className="flex items-center gap-2 text-sm">
                                                 <Hash className="h-4 w-4 text-amber-600" />
-                                                #{resolvedActiveTag}
+                                                {activeTagHeading}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4 p-4 pt-0">
-                                            <div className="flex flex-wrap gap-2">
-                                                {connectedTags.map((tag) => (
-                                                    <Badge
-                                                        key={tag}
-                                                        variant={tag === resolvedActiveTag ? "default" : "outline"}
-                                                        className="rounded-full"
-                                                    >
-                                                        #{tag}
-                                                    </Badge>
-                                                ))}
-                                            </div>
+                                            {resolvedActiveTag ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {connectedTags.map((tag) => (
+                                                        <Badge
+                                                            key={tag}
+                                                            variant={tag === resolvedActiveTag ? "default" : "outline"}
+                                                            className="rounded-full"
+                                                        >
+                                                            #{tag}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="rounded-2xl border border-dashed border-stone-300 bg-[#fbfaf5] p-4 text-sm text-muted-foreground">
+                                                    先点顶部共享标签条里的任意标签，这里就会切到对应标签簇；不点时先展示全部碎片。
+                                                </div>
+                                            )}
                                             <div className="grid gap-3 lg:grid-cols-2">
                                                 {tagFocusedNotes.map((note) => (
                                                     <NoteCard
                                                         key={note.id}
                                                         note={note}
+                                                        autoTagging={autoTaggingNoteIds.includes(note.id)}
                                                         compact
+                                                        editing={editingNoteId === note.id}
+                                                        draftTitle={editDrafts[note.id]?.title ?? note.title}
+                                                        draftBody={editDrafts[note.id]?.body ?? note.body}
+                                                        savePending={savingNoteId === note.id}
                                                         selected={note.id === selectedNote?.id}
-                                                        onSelect={() => setSelectedNoteId(note.id)}
+                                                        deletePending={deletingNoteId === note.id}
+                                                        onSelect={() => {
+                                                            setSelectedNoteId(note.id);
+                                                            beginEditingNote(note);
+                                                        }}
+                                                        onDraftTitleChange={(value) => updateEditDraft(note.id, { title: value })}
+                                                        onDraftBodyChange={(value) => updateEditDraft(note.id, { body: value })}
+                                                        onCancelEdit={() => stopEditingNote(note.id)}
+                                                        onSaveEdit={() => handleSaveNote(note)}
+                                                        onDelete={() => handleDeleteNote(note)}
                                                     />
                                                 ))}
                                             </div>
@@ -1026,7 +1144,7 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3 p-4 pt-0">
-                                        <SpecLine label="起点标签" value={`#${resolvedActiveTag}`} />
+                                        <SpecLine label="起点标签" value={activeTagSpecValue} />
                                         <SpecLine label="可达节点" value={`${connectedTags.length} 个`} />
                                         <SpecLine label="片段数" value={`${tagFocusedNotes.length} 条`} />
                                         <div className="flex flex-wrap gap-2">
@@ -1047,35 +1165,30 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                                     <CardHeader className="p-4 pb-3">
                                         <CardTitle className="flex items-center gap-2 text-sm">
                                             <Inbox className="h-4 w-4 text-amber-600" />
-                                            标签入口
+                                            标签池快照
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3 p-4 pt-0">
-                                        {tagNodes.map((tag) => (
-                                            <button
-                                                key={`${tag.label}-organize`}
-                                                type="button"
-                                                onClick={() => setActiveTag(tag.label)}
-                                                className={cn(
-                                                    "w-full rounded-2xl border px-3 py-3 text-left transition",
-                                                    resolvedActiveTag === tag.label
-                                                        ? "border-stone-900 bg-stone-900 text-stone-50"
-                                                        : "border-stone-200 bg-white hover:bg-stone-50",
-                                                )}
-                                            >
-                                                <div className="font-medium">#{tag.label}</div>
-                                                <div
+                                        <div className="rounded-2xl border border-dashed border-stone-300 bg-white/90 p-3 text-sm text-muted-foreground">
+                                            不再在这里放第二套标签按钮，整理页直接吃顶部共享标签条的当前选择。
+                                        </div>
+                                        <SpecLine label="当前标签" value={activeTagSpecValue} />
+                                        <SpecLine label="标签节点" value={`${tagNodes.length} 个`} />
+                                        <div className="flex flex-wrap gap-2">
+                                            {tagNodes.map((tag) => (
+                                                <Badge
+                                                    key={`${tag.label}-organize`}
+                                                    variant="outline"
                                                     className={cn(
-                                                        "mt-1 text-xs",
-                                                        resolvedActiveTag === tag.label
-                                                            ? "text-stone-300"
-                                                            : "text-muted-foreground",
+                                                        "rounded-full bg-white/80",
+                                                        resolvedActiveTag === tag.label &&
+                                                            "border-stone-900 text-stone-900",
                                                     )}
                                                 >
-                                                    {tag.noteIds.length} 条碎片 / {tag.neighbors.length} 个邻居
-                                                </div>
-                                            </button>
-                                        ))}
+                                                    #{tag.label}
+                                                </Badge>
+                                            ))}
+                                        </div>
                                     </CardContent>
                                 </Card>
 
@@ -1093,25 +1206,49 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                                                     Organize By Tag
                                                 </div>
                                                 <p className="mt-3 text-sm leading-7 text-stone-900">
-                                                    以 <strong>#{resolvedActiveTag}</strong> 为起点，把可达标签簇内的碎片一起归并成一个主题视图。
-                                                    这里不先做字段建模，只做去重、摘要、标签收敛和知识线串联。
+                                                    {resolvedActiveTag ? (
+                                                        <>
+                                                            以 <strong>{activeTagHeading}</strong> 为起点，把可达标签簇内的碎片一起归并成一个主题视图。
+                                                            这里不先做字段建模，只做去重、摘要、标签收敛和知识线串联。
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            先从顶部共享标签条点一个标签，再把对应标签簇里的碎片做去重、摘要和主题归并。
+                                                        </>
+                                                    )}
                                                 </p>
                                             </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {connectedTags.map((tag) => (
-                                                    <Badge key={tag} variant="secondary" className="rounded-full">
-                                                        #{tag}
-                                                    </Badge>
-                                                ))}
-                                            </div>
+                                            {connectedTags.length > 0 ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {connectedTags.map((tag) => (
+                                                        <Badge key={tag} variant="secondary" className="rounded-full">
+                                                            #{tag}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            ) : null}
                                             <div className="grid gap-3">
                                                 {tagFocusedNotes.map((note) => (
                                                     <NoteCard
                                                         key={`${note.id}-organize`}
                                                         note={note}
+                                                        autoTagging={autoTaggingNoteIds.includes(note.id)}
                                                         compact
+                                                        editing={editingNoteId === note.id}
+                                                        draftTitle={editDrafts[note.id]?.title ?? note.title}
+                                                        draftBody={editDrafts[note.id]?.body ?? note.body}
+                                                        savePending={savingNoteId === note.id}
                                                         selected={note.id === selectedNote?.id}
-                                                        onSelect={() => setSelectedNoteId(note.id)}
+                                                        deletePending={deletingNoteId === note.id}
+                                                        onSelect={() => {
+                                                            setSelectedNoteId(note.id);
+                                                            beginEditingNote(note);
+                                                        }}
+                                                        onDraftTitleChange={(value) => updateEditDraft(note.id, { title: value })}
+                                                        onDraftBodyChange={(value) => updateEditDraft(note.id, { body: value })}
+                                                        onCancelEdit={() => stopEditingNote(note.id)}
+                                                        onSaveEdit={() => handleSaveNote(note)}
+                                                        onDelete={() => handleDeleteNote(note)}
                                                     />
                                                 ))}
                                             </div>
@@ -1165,7 +1302,9 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
 
 function QuickCapture({
     value,
+    tagNodes,
     seedTags,
+    activeTag,
     saving,
     message,
     error,
@@ -1174,7 +1313,9 @@ function QuickCapture({
     onSubmit,
 }: {
     value: string;
+    tagNodes: TagNode[];
     seedTags: string[];
+    activeTag: string;
     saving: boolean;
     message: string | null;
     error: string | null;
@@ -1182,8 +1323,6 @@ function QuickCapture({
     onToggleTag: (tag: string) => void;
     onSubmit: () => Promise<void>;
 }) {
-    const presetTags = ["闪念", "代码", "教程", "账号", "密钥", "网站", "游戏", "决策"];
-
     return (
         <section className="border-b bg-[#f6f5ef] p-3 lg:p-5">
             <Card className="overflow-hidden rounded-3xl border-stone-300 bg-white shadow-[0_16px_44px_rgba(42,37,29,0.10)]">
@@ -1220,31 +1359,50 @@ function QuickCapture({
                         }
                     }}
                 />
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-[#fffdf7] px-3 py-2 lg:gap-3 lg:px-4 lg:py-3">
-                    <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                        {presetTags.map((tag) => (
-                            <Button
-                                key={tag}
-                                type="button"
-                                variant={seedTags.includes(tag) ? "default" : "ghost"}
-                                size="sm"
-                                className="rounded-full"
-                                onClick={() => onToggleTag(tag)}
-                            >
-                                {tag === "闪念" ? (
-                                    <Zap className="h-4 w-4 fill-amber-400 text-amber-400" />
-                                ) : tag === "代码" ? (
-                                    <Code2 className="h-4 w-4" />
-                                ) : (
-                                    <Hash className="h-4 w-4" />
-                                )}
-                                {tag}
-                            </Button>
-                        ))}
+                <div className="flex items-center justify-between gap-3 border-t bg-[#fffdf7] px-3 py-2 lg:px-4 lg:py-3">
+                    <div className="min-w-0 flex-1 overflow-x-auto">
+                        <div className="flex min-w-max items-center gap-2 pr-2 text-muted-foreground">
+                            {tagNodes.map((tag) => {
+                                const selected = seedTags.includes(tag.label);
+                                const filtering = activeTag === tag.label;
+                                return (
+                                    <Button
+                                        key={tag.label}
+                                        type="button"
+                                        variant={selected ? "default" : "ghost"}
+                                        size="sm"
+                                        className={cn(
+                                            "shrink-0 rounded-full border",
+                                            filtering
+                                                ? "border-stone-900"
+                                                : "border-transparent",
+                                        )}
+                                        onClick={() => onToggleTag(tag.label)}
+                                    >
+                                        {tag.label === "闪念" ? (
+                                            <Zap className="h-4 w-4 fill-amber-400 text-amber-400" />
+                                        ) : (
+                                            <Hash className="h-4 w-4" />
+                                        )}
+                                        {tag.label}
+                                    </Button>
+                                );
+                            })}
+                            {tagNodes.length === 0 ? (
+                                <span className="rounded-full border border-dashed border-stone-300 bg-white/80 px-3 py-1 text-xs text-muted-foreground">
+                                    暂无历史标签，直接记录后会由 AI 补标签
+                                </span>
+                            ) : null}
+                            {seedTags.length === 0 ? (
+                                <span className="rounded-full border border-dashed border-stone-300 bg-white/80 px-3 py-1 text-xs text-muted-foreground">
+                                    未手选标签时，记录后会异步 AI 打标
+                                </span>
+                            ) : null}
+                        </div>
                     </div>
                     <Button
                         type="button"
-                        className="rounded-2xl px-5"
+                        className="shrink-0 rounded-2xl px-5"
                         onClick={() => void onSubmit()}
                         disabled={!value.trim() || saving}
                     >
@@ -1545,54 +1703,103 @@ function ModuleCell({ item, active }: { item: AssetModule; active: boolean }) {
     );
 }
 
-function buildCapturedNote(
-    body: string,
-    seedTags: string[],
-    options?: {
-        title?: string;
-        source?: string;
-        relatedTarget?: string;
-    },
-): NoteCardData {
-    const tags = deriveTagsFromCapture(body, seedTags);
-    const title = options?.title?.trim() || inferNoteTitle(body);
-    const mainTag = tags.find((tag) => tag !== "闪念") ?? tags[0] ?? "未整理";
+function mapPersistedNote(note: KnowledgeNoteDto): NoteCardData {
+    const tags = dedupeTags(note.tags);
+    const mainTag = tags[0] ?? "未整理";
+    const sourcePath = note.source_path?.trim() || note.slug;
+    const status = tags.length > 0 ? "reviewing" : "captured";
+
     return {
-        id: `capture-${Date.now()}`,
-        time: formatNoteTimestamp(new Date()),
-        title,
-        body,
+        id: sourcePath,
+        time: formatRemoteTimestamp(note.updated_at),
+        title: note.title,
+        body: note.body,
+        sourcePath: note.source_path,
+        relativePath: note.relative_path,
         tags,
-        kind: "Fragment",
-        source: options?.source || "人工记录",
-        accent: accentFromTag(mainTag),
-        status: "captured",
-        cluster: `${mainTag} 标签簇`,
-        structuredKind: "tagged-note",
+        kind: detectNoteKind(note.body),
+        source: "笔记工作台",
+        accent: accentForTag(mainTag),
+        status,
+        cluster: tags.length > 0 ? `${mainTag} 标签簇` : "待 AI 打标签",
+        structuredKind: "knowledge.note",
         promptContexts: tags.map((tag) => `tag:${tag}`),
-        unmapped: [
-            "等待后续按标签簇聚合整理",
-            "当前仅完成原文记录，尚未生成主题页",
-        ],
+        unmapped:
+            tags.length > 0
+                ? []
+                : ["当前未显式打标，等待 AI 归类或人工补标签。"],
         relations: [
             {
-                target: options?.relatedTarget || `capture/${slugifyTitle(title)}`,
-                relation: "新建记录",
+                target: note.relative_path || `note/${slugifyTitle(note.title)}`,
+                relation: "数据库记录",
                 confidence: 100,
             },
-            { target: `#${mainTag}`, relation: "标签入口", confidence: 96 },
+            ...(tags[0]
+                ? [{ target: `#${tags[0]}`, relation: "标签入口", confidence: 96 }]
+                : []),
         ],
         draft: {
-            title,
-            summary: summarizeBody(body),
+            title: note.title,
+            summary: note.excerpt?.trim() || summarizeBody(note.body),
             fields: [
-                { label: "标准类型", value: "capture.raw" },
-                { label: "当前状态", value: "已记录待整理", tone: "warning" },
+                { label: "标准类型", value: "knowledge.note" },
                 { label: "标签数", value: String(tags.length) },
-                { label: "后续入口", value: `tag/${mainTag}`, tone: "success" },
+                {
+                    label: "当前状态",
+                    value: tags.length > 0 ? "已打标签" : "待 AI 打标签",
+                    tone: tags.length > 0 ? "success" : "warning",
+                },
+                {
+                    label: "数据库路径",
+                    value: note.relative_path || note.filename,
+                },
             ],
         },
     };
+}
+
+function parseAiTagList(content: string): string[] {
+    const normalized = content
+        .replace(/```json/giu, "")
+        .replace(/```/gu, "")
+        .trim();
+    const candidates = [normalized];
+
+    const objectMatch = normalized.match(/\{[\s\S]*\}/u);
+    if (objectMatch) {
+        candidates.push(objectMatch[0]);
+    }
+
+    const arrayMatch = normalized.match(/\[[\s\S]*\]/u);
+    if (arrayMatch) {
+        candidates.push(`{"tags":${arrayMatch[0]}}`);
+    }
+
+    for (const candidate of candidates) {
+        try {
+            const parsed = JSON.parse(candidate) as
+                | { tags?: unknown }
+                | string[]
+                | null;
+            if (Array.isArray(parsed)) {
+                return dedupeTags(parsed.filter((item): item is string => typeof item === "string"));
+            }
+            if (parsed && Array.isArray(parsed.tags)) {
+                return dedupeTags(
+                    parsed.tags.filter((item): item is string => typeof item === "string"),
+                );
+            }
+        } catch {
+            // fall through to the next candidate
+        }
+    }
+
+    return dedupeTags(
+        normalized
+            .split(/[\n,，]/u)
+            .map((item) => item.replace(/^[-*#\d.\s]+/u, "").trim())
+            .filter(Boolean),
+    );
 }
 
 function deriveTagsFromCapture(body: string, seedTags: string[]) {
@@ -1607,34 +1814,6 @@ function deriveTagsFromCapture(body: string, seedTags: string[]) {
                 .filter(Boolean),
         ),
     );
-}
-
-function inferNoteTitle(body: string) {
-    const firstLine = body
-        .split("\n")
-        .map((line) => line.trim())
-        .find(Boolean) ?? "未命名碎片";
-    return firstLine.length > 28 ? `${firstLine.slice(0, 28)}…` : firstLine;
-}
-
-function formatNoteTimestamp(date: Date) {
-    return date.toISOString().slice(0, 19).replace("T", " ");
-}
-
-function accentFromTag(tag: string) {
-    if (["密钥", "账号"].includes(tag)) {
-        return "bg-rose-400";
-    }
-    if (["代码", "rust", "macOS"].includes(tag)) {
-        return "bg-amber-400";
-    }
-    if (["教程", "网站", "remote"].includes(tag)) {
-        return "bg-emerald-400";
-    }
-    if (["决策", "规则"].includes(tag)) {
-        return "bg-stone-900";
-    }
-    return "bg-blue-400";
 }
 
 function deriveTagNodes(notes: NoteCardData[]) {
@@ -1726,23 +1905,49 @@ function deriveGraphLines(notes: NoteCardData[]) {
 
 function NoteCard({
     note,
+    editing = false,
+    draftTitle,
+    draftBody,
+    savePending = false,
+    autoTagging = false,
     selected = false,
     compact = false,
     onSelect,
+    onDraftTitleChange,
+    onDraftBodyChange,
+    onCancelEdit,
+    onSaveEdit,
+    onDelete,
+    deletePending = false,
 }: {
     note: NoteCardData;
+    editing?: boolean;
+    draftTitle?: string;
+    draftBody?: string;
+    savePending?: boolean;
+    autoTagging?: boolean;
     selected?: boolean;
     compact?: boolean;
     onSelect?: () => void;
+    onDraftTitleChange?: (value: string) => void;
+    onDraftBodyChange?: (value: string) => void;
+    onCancelEdit?: () => void;
+    onSaveEdit?: () => Promise<void> | void;
+    onDelete?: () => Promise<void> | void;
+    deletePending?: boolean;
 }) {
     return (
         <article
             className={cn(
                 "mb-4 break-inside-avoid overflow-hidden rounded-3xl border bg-white shadow-[0_12px_28px_rgba(42,37,29,0.07)]",
-                selected ? "border-stone-900 ring-1 ring-stone-900/10" : "border-stone-200",
-                onSelect && "cursor-pointer",
+                editing
+                    ? "border-amber-500 ring-2 ring-amber-200/80 shadow-[0_18px_36px_rgba(180,116,0,0.12)]"
+                    : selected
+                      ? "border-stone-900 ring-1 ring-stone-900/10"
+                      : "border-stone-200",
+                !editing && onSelect && "cursor-pointer",
             )}
-            onClick={onSelect}
+            onClick={editing ? undefined : onSelect}
         >
             <div className={cn("h-1.5", note.accent)} />
             <div className={cn("p-4", compact && "p-3")}>
@@ -1758,29 +1963,88 @@ function NoteCard({
                             <StatusBadge
                                 status={note.status === "captured" ? "Draft" : "Review"}
                             />
+                            {autoTagging ? (
+                                <Badge variant="outline" className="rounded-full border-amber-300 bg-amber-50 text-amber-800">
+                                    AI 打标中
+                                </Badge>
+                            ) : null}
                             <span className="text-xs text-muted-foreground">
                                 {note.source}
                             </span>
                         </div>
                     </div>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                        <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    {editing ? (
+                        <InlineEditActionBar
+                            pending={savePending}
+                            onCancel={onCancelEdit}
+                            onSave={onSaveEdit}
+                        />
+                    ) : (
+                        <InlineDeleteAction
+                            pending={deletePending}
+                            onConfirm={onDelete}
+                        />
+                    )}
                 </div>
-                <div className="mt-4">
-                    <h3 className={cn("text-base font-semibold text-stone-950", compact && "text-sm")}>
-                        {note.title}
-                    </h3>
-                    <p className={cn("mt-2 text-[15px] leading-7 text-stone-900", compact && "line-clamp-4 text-sm leading-6")}>
-                        {note.body}
-                    </p>
-                </div>
+                {editing ? (
+                    <div className="mt-4 space-y-3">
+                        <div className="rounded-2xl border border-amber-200 bg-[#fffaf0] p-2">
+                            <Input
+                                value={draftTitle ?? ""}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => onDraftTitleChange?.(event.target.value)}
+                                className="border-0 bg-transparent px-2 text-base font-semibold text-stone-950 shadow-none focus-visible:ring-0"
+                                placeholder="输入标题，不填则按正文首行生成"
+                            />
+                        </div>
+                        <div className="rounded-2xl border border-stone-200 bg-[#fffdf8] p-2">
+                            <Textarea
+                                value={draftBody ?? ""}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => onDraftBodyChange?.(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !savePending) {
+                                        event.preventDefault();
+                                        void onSaveEdit?.();
+                                    }
+                                    if (event.key === "Escape" && !savePending) {
+                                        event.preventDefault();
+                                        onCancelEdit?.();
+                                    }
+                                }}
+                                className="min-h-36 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-7 text-stone-900 shadow-none focus-visible:ring-0"
+                                placeholder="直接修改正文内容"
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-dashed border-amber-200 bg-[#fff9ec] px-3 py-2 text-[11px] text-amber-800">
+                            <span>点击卡片即进入编辑，`Cmd/Ctrl + Enter` 保存，`Esc` 取消。</span>
+                            <Badge variant="outline" className="rounded-full border-amber-200 bg-white/80 text-amber-700">
+                                编辑中
+                            </Badge>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mt-4">
+                        <h3 className={cn("text-base font-semibold text-stone-950", compact && "text-sm")}>
+                            {note.title}
+                        </h3>
+                        <p className={cn("mt-2 text-[15px] leading-7 text-stone-900", compact && "line-clamp-4 text-sm leading-6")}>
+                            {note.body}
+                        </p>
+                    </div>
+                )}
                 <div className="mt-4 flex flex-wrap gap-2">
-                    {note.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="rounded-full">
-                            #{tag}
+                    {note.tags.length > 0 ? (
+                        note.tags.map((tag) => (
+                            <Badge key={tag} variant="secondary" className="rounded-full">
+                                #{tag}
+                            </Badge>
+                        ))
+                    ) : (
+                        <Badge variant="outline" className="rounded-full border-dashed">
+                            待打标签
                         </Badge>
-                    ))}
+                    )}
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border bg-[#fbfaf5] px-3 py-2 text-xs text-muted-foreground">
                     <span>{note.cluster}</span>
@@ -1788,6 +2052,133 @@ function NoteCard({
                 </div>
             </div>
         </article>
+    );
+}
+
+function InlineEditActionBar({
+    pending = false,
+    onCancel,
+    onSave,
+}: {
+    pending?: boolean;
+    onCancel?: () => void;
+    onSave?: () => Promise<void> | void;
+}) {
+    return (
+        <div
+            className="flex shrink-0 items-center gap-2"
+            onClick={(event) => event.stopPropagation()}
+        >
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-full border-stone-300 bg-white/90 px-3 text-xs"
+                onClick={onCancel}
+                disabled={pending}
+            >
+                取消
+            </Button>
+            <Button
+                type="button"
+                size="sm"
+                className="h-8 rounded-full bg-stone-900 px-3 text-xs text-white hover:bg-stone-800"
+                onClick={() => void onSave?.()}
+                disabled={pending}
+            >
+                {pending ? (
+                    <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        保存中
+                    </>
+                ) : (
+                    "保存"
+                )}
+            </Button>
+        </div>
+    );
+}
+
+function InlineDeleteAction({
+    pending = false,
+    onConfirm,
+}: {
+    pending?: boolean;
+    onConfirm?: () => Promise<void> | void;
+}) {
+    const [confirming, setConfirming] = useState(false);
+
+    function stopCardSelect(event: MouseEvent<HTMLElement>) {
+        event.stopPropagation();
+    }
+
+    async function handleConfirm(event: MouseEvent<HTMLButtonElement>) {
+        event.stopPropagation();
+        if (!onConfirm || pending) {
+            return;
+        }
+        try {
+            await onConfirm();
+        } finally {
+            setConfirming(false);
+        }
+    }
+
+    return (
+        <div
+            className="flex shrink-0 items-center justify-end"
+            onClick={stopCardSelect}
+        >
+            {pending ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold text-rose-700">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    删除中
+                </span>
+            ) : confirming ? (
+                <div className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50/90 p-1 pl-3 shadow-sm">
+                    <span className="text-[11px] font-semibold text-rose-700">
+                        确认删除
+                    </span>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="确认删除"
+                        className="h-7 w-7 rounded-full text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
+                        onClick={handleConfirm}
+                    >
+                        <Check className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="取消删除"
+                        className="h-7 w-7 rounded-full text-stone-500 hover:bg-stone-200 hover:text-stone-700"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            setConfirming(false);
+                        }}
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+            ) : (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 rounded-full px-3 text-xs font-semibold text-stone-500 hover:bg-rose-50 hover:text-rose-700"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setConfirming(true);
+                    }}
+                >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    删除
+                </Button>
+            )}
+        </div>
     );
 }
 
@@ -1905,7 +2296,7 @@ function dedupeTags(tags: string[]): string[] {
     return Array.from(
         new Set(
             tags
-                .map((tag) => tag.trim())
+                .map((tag) => tag.trim().replace(/^#+/u, "").trim())
                 .filter((tag) => tag.length > 0),
         ),
     );
@@ -1974,6 +2365,14 @@ function formatLocalTimestamp(date: Date): string {
         padNumber(date.getSeconds()),
     ];
     return `${parts.join("-")} ${clock.join(":")}`;
+}
+
+function formatRemoteTimestamp(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value.replace("T", " ").replace(/Z$/u, "");
+    }
+    return formatLocalTimestamp(date);
 }
 
 function padNumber(value: number): string {

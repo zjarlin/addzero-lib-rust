@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS knowledge_documents (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE knowledge_documents
+    ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+
 CREATE INDEX IF NOT EXISTS knowledge_documents_source_idx
     ON knowledge_documents (source_id, is_active);
 

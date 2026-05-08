@@ -10,6 +10,7 @@ import EnvPage from "./pages/env";
 import LoginPage from "./pages/login";
 import MarketPage from "./pages/market";
 import { InstancePluginPage, SystemPluginPage } from "./pages/plugin-page";
+import SetupPage from "./pages/setup";
 import SystemPage from "./pages/system";
 import WasmStudioPage from "./pages/wasm-studio";
 
@@ -18,6 +19,7 @@ const routes = [
     {
         element: <RootLayout />,
         children: [
+            { path: "/setup", element: <SetupPage /> },
             { path: "/login", element: <LoginPage /> },
             { index: true, element: <Navigate to="/assets/notes" replace /> },
             { path: "/assets", element: <Navigate to="/assets/notes" replace /> },

@@ -159,18 +159,16 @@ fn platform_kernel() -> Result<&'static Arc<PlatformKernel>, String> {
 }
 
 fn default_catalog_dir() -> PathBuf {
-    default_aio_dir().join("wasm-plugin-catalog")
+    default_plugins_root().join("catalog")
 }
 
 fn default_package_root() -> PathBuf {
-    default_aio_dir().join("wasm-plugin-host")
+    default_plugins_root().join("host")
 }
 
-fn default_aio_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".addzero")
-        .join("aio")
+fn default_plugins_root() -> PathBuf {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins");
+    root.canonicalize().unwrap_or(root)
 }
 
 fn normalize_existing_dir(raw: &str) -> Result<PathBuf, String> {

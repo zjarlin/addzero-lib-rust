@@ -346,7 +346,7 @@ impl CliMarketService {
     fn repo(&self) -> CliMarketResult<&CliMarketRepo> {
         self.pg.as_ref().ok_or_else(|| {
             CliMarketError::Message(
-                "CLI 市场 PostgreSQL 未就绪：请设置 AIO_DATABASE_URL 或 DATABASE_URL".to_string(),
+                "CLI 市场 PostgreSQL 未就绪：请设置 MSC_AIO_DATABASE_URL，或在仓库 .env / ~/.config/aio/aio.env 中配置 MSC_AIO_DATABASE_URL / DATABASE_URL".to_string(),
             )
         })
     }

@@ -527,8 +527,8 @@ export function WasmStudioWorkbench({
 
                                 <InspectorSection title="Runtime rail">
                                     <div className="grid gap-3">
-                                        <RuntimeTag label="package root" value="~/.addzero/aio/wasm-plugin-host" />
-                                        <RuntimeTag label="catalog dir" value="~/.addzero/aio/wasm-plugin-catalog" />
+                                        <RuntimeTag label="package root" value="apps/aio/plugins/host" />
+                                        <RuntimeTag label="catalog dir" value="apps/aio/plugins/catalog" />
                                         <RuntimeTag label="page source" value="canvas_document" />
                                         <RuntimeTag label="promotion" value="plugin asset bundle" />
                                     </div>

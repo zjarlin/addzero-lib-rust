@@ -132,8 +132,10 @@ mod tests {
             preview: "preview".to_string(),
             excerpt: "excerpt".to_string(),
             headings: vec!["h1".to_string()],
+            tags: vec!["rust".to_string()],
             body: "body".to_string(),
             content_hash: "abc".to_string(),
+            updated_at: chrono::Utc::now(),
         }];
 
         let rendered = render_catalog("postgres-sync", &sources, &docs);

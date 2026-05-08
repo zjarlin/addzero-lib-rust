@@ -3,6 +3,26 @@ export interface SessionUser {
     username: string | null;
 }
 
+export interface BootstrapStatusDto {
+    desktop_mode: boolean;
+    setup_required: boolean;
+    database_configured: boolean;
+    database_reachable: boolean;
+    config_path: string;
+    message: string;
+}
+
+export interface BootstrapDatabaseSetupDto {
+    database_url: string;
+}
+
+export interface BootstrapDatabaseSaveResultDto {
+    database_configured: boolean;
+    database_reachable: boolean;
+    config_path: string;
+    message: string;
+}
+
 export interface LoginRequest {
     username: string;
     password: string;
@@ -37,19 +57,25 @@ export interface SyncReportDto {
 }
 
 export interface KnowledgeNoteDto {
+    slug: string;
     source_path: string;
     relative_path: string;
     title: string;
+    filename: string;
     preview: string;
+    excerpt: string;
     body: string;
     headings: string[];
+    tags: string[];
     updated_at: string;
 }
 
 export interface KnowledgeEntryUpsertDto {
     source_path?: string | null;
     relative_path: string;
+    title: string;
     body: string;
+    tags: string[];
 }
 
 export interface KnowledgeEntryDeleteDto {
@@ -871,6 +897,10 @@ function isTauri(): boolean {
         typeof window !== "undefined" &&
         !!(window.__TAURI__ || window.__TAURI_INTERNALS__)
     );
+}
+
+export function isDesktopRuntime(): boolean {
+    return isTauri();
 }
 
 /** Detect the correct API base URL depending on runtime environment. */

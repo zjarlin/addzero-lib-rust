@@ -63,8 +63,10 @@ impl KnowledgeRepository {
                     preview: doc.preview,
                     excerpt: doc.excerpt,
                     headings: doc.headings,
+                    tags: doc.tags,
                     body: doc.body,
                     content_hash: doc.content_hash,
+                    updated_at: doc.updated_at,
                 })
             })
             .collect()
@@ -116,7 +118,6 @@ impl KnowledgeRepository {
         source_id: Uuid,
         doc: &KnowledgeDocument,
     ) -> Result<(), KnowledgeError> {
-        let now = Utc::now();
         let active = knowledge_document::ActiveModel {
             id: Set(Uuid::new_v4()),
             source_id: Set(source_id),
@@ -130,11 +131,12 @@ impl KnowledgeRepository {
             preview: Set(doc.preview.clone()),
             excerpt: Set(doc.excerpt.clone()),
             headings: Set(doc.headings.clone()),
+            tags: Set(doc.tags.clone()),
             body: Set(doc.body.clone()),
             content_hash: Set(doc.content_hash.clone()),
             is_active: Set(true),
             created_at: NotSet,
-            updated_at: Set(now),
+            updated_at: Set(doc.updated_at),
         };
 
         knowledge_document::Entity::insert(active)
@@ -151,6 +153,7 @@ impl KnowledgeRepository {
                         knowledge_document::Column::Preview,
                         knowledge_document::Column::Excerpt,
                         knowledge_document::Column::Headings,
+                        knowledge_document::Column::Tags,
                         knowledge_document::Column::Body,
                         knowledge_document::Column::ContentHash,
                         knowledge_document::Column::IsActive,

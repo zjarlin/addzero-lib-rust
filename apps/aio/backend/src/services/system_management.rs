@@ -37,7 +37,7 @@ static PG_POOL: Lazy<Option<PgPool>> = Lazy::new(|| {
 fn pg_pool() -> SystemManagementResult<PgPool> {
     PG_POOL.as_ref().cloned().ok_or_else(|| {
         SystemManagementError::msg(
-            "MSC_AIO_DATABASE_URL / DATABASE_URL not set or pool init failed",
+            "MSC_AIO_DATABASE_URL / repo .env / DATABASE_URL / ~/.config/aio/aio.env not set or pool init failed",
         )
     })
 }

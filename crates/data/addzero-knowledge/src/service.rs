@@ -1,6 +1,8 @@
 use addzero_persistence::PersistenceContext;
 use chrono::Utc;
+use sea_orm::{ConnectOptions, Database};
 use sha2::{Digest, Sha256};
+use std::time::Duration;
 
 use crate::{
     discovery::discover_source_documents,
@@ -18,9 +20,19 @@ pub struct KnowledgeService {
 
 impl KnowledgeService {
     pub async fn connect(database_url: &str) -> Result<Self, KnowledgeError> {
-        let persistence = PersistenceContext::connect_with_url(database_url).await?;
+        let mut options = ConnectOptions::new(database_url.to_owned());
+        options
+            .max_connections(4)
+            .min_connections(1)
+            .acquire_timeout(Duration::from_secs(5))
+            .connect_timeout(Duration::from_secs(5))
+            .sqlx_logging(false);
+
+        let connection = Database::connect(options)
+            .await
+            .map_err(|err| KnowledgeError::Message(format!("connect knowledge db: {err}")))?;
         Ok(Self {
-            repository: KnowledgeRepository::new(persistence.into_connection()),
+            repository: KnowledgeRepository::new(connection),
         })
     }
 
@@ -103,6 +115,7 @@ fn build_manual_document(
     input: &ManualKnowledgeDocumentInput,
     source_root: String,
 ) -> KnowledgeDocument {
+    let now = Utc::now();
     let title = derive_title(&input.title, &input.body);
     let content = normalize_manual_markdown(&title, &input.body);
     let headings = extract_headings(&content);
@@ -128,9 +141,28 @@ fn build_manual_document(
         preview: truncate_chars(&cleaned, 110),
         excerpt: truncate_chars(&cleaned, 900),
         headings,
+        tags: normalize_tags(&input.tags),
         body: content,
         content_hash,
+        updated_at: now,
     }
+}
+
+fn normalize_tags(raw: &[String]) -> Vec<String> {
+    let mut tags = Vec::new();
+
+    for tag in raw {
+        let cleaned = tag.trim().trim_start_matches('#').trim();
+        if cleaned.is_empty() {
+            continue;
+        }
+        if tags.iter().any(|existing| existing == cleaned) {
+            continue;
+        }
+        tags.push(cleaned.to_string());
+    }
+
+    tags
 }
 
 fn derive_title(title: &str, body: &str) -> String {

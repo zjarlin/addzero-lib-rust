@@ -26,6 +26,7 @@ use uuid::Uuid;
 
 use crate::services::{
     AiProviderConfigDto, AiProviderConfigUpsertDto, AssetGraphDto, AssetSyncReportDto,
+    BootstrapDatabaseSaveResultDto, BootstrapDatabaseSetupDto, BootstrapStatusDto,
     BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto, ChatResponseDto, FileIndexDto,
     FilterOptions, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto,
     KnowledgeFeedDto, KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto,
@@ -194,7 +195,9 @@ async fn ensure_ai_provider_schema(database_url: &str) -> Result<()> {
 
 pub async fn run_migrations() -> Result<()> {
     let database_url =
-        resolved_database_url().expect("MSC_AIO_DATABASE_URL or DATABASE_URL must be set");
+        resolved_database_url().expect(
+            "MSC_AIO_DATABASE_URL / repo .env / DATABASE_URL / ~/.config/aio/aio.env must be set",
+        );
 
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(1)
@@ -385,6 +388,8 @@ pub async fn run_api_server() -> Result<()> {
     let address: SocketAddr = bind.parse()?;
     let listener = tokio::net::TcpListener::bind(address).await?;
     let router = Router::new()
+        .route("/api/bootstrap/status", get(get_bootstrap_status))
+        .route("/api/bootstrap/database", post(save_bootstrap_database))
         .route("/api/admin/session", get(get_session))
         .route("/api/admin/session/login", post(login))
         .route("/api/admin/session/logout", post(logout))
@@ -629,6 +634,22 @@ fn is_valid_local_dev_port(port: &str) -> bool {
 
 async fn get_session(headers: HeaderMap) -> ApiResult<Json<SessionUser>> {
     Ok(Json(admin_auth().session_user(&headers)))
+}
+
+async fn get_bootstrap_status() -> ApiResult<Json<BootstrapStatusDto>> {
+    let status = crate::services::desktop_bootstrap::bootstrap_status_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(status))
+}
+
+async fn save_bootstrap_database(
+    Json(input): Json<BootstrapDatabaseSetupDto>,
+) -> ApiResult<Json<BootstrapDatabaseSaveResultDto>> {
+    let result = crate::services::desktop_bootstrap::save_database_url_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
 }
 
 async fn login(Json(input): Json<LoginRequest>) -> ApiResult<Response> {

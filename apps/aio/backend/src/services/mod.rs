@@ -10,6 +10,7 @@ pub mod auth;
 pub mod branding_settings;
 pub mod browser_http;
 pub mod cli_market;
+pub mod desktop_bootstrap;
 pub mod download_station;
 pub mod in_memory_skills;
 pub mod knowledge_entries;
@@ -40,6 +41,9 @@ pub use branding_settings::{
     default_branding_settings_api,
 };
 pub use cli_market::{SharedCliMarketApi, default_cli_market_api};
+pub use desktop_bootstrap::{
+    BootstrapDatabaseSaveResultDto, BootstrapDatabaseSetupDto, BootstrapStatusDto,
+};
 pub use download_station::{
     FileIndexDto, FilterOptions, ScanStatsDto, ShareLinkDto, SharedDownloadStationApi,
     default_download_station_api,

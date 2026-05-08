@@ -268,7 +268,7 @@ async fn pool() -> AssetGraphResult<sqlx::postgres::PgPool> {
         .get_or_try_init(|| async {
             let database_url = addzero_knowledge::database_url().ok_or_else(|| {
                 AssetGraphError::new(
-                    "缺少 PostgreSQL 连接：请设置 AIO_DATABASE_URL 或 DATABASE_URL",
+                    "缺少 PostgreSQL 连接：请设置 MSC_AIO_DATABASE_URL，或在仓库 .env / ~/.config/aio/aio.env 中配置 MSC_AIO_DATABASE_URL / DATABASE_URL",
                 )
             })?;
             sqlx::postgres::PgPoolOptions::new()

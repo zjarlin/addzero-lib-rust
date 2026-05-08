@@ -31,20 +31,21 @@ impl PluginStarter for StorageStarter {
             pages: vec![PluginPage {
                 id: "packages".to_string(),
                 title: "包仓库".to_string(),
-                subtitle: "业务插件包以 .azplugin 发布并进入 catalog。".to_string(),
+                subtitle: "业务插件包以 .azplugin 发布并进入 apps/aio/plugins/catalog。"
+                    .to_string(),
                 schema: PageSchema::Table(TableSchema {
                     columns: vec!["目录".to_string(), "内容".to_string(), "说明".to_string()],
                     rows: vec![
                         TableRow {
                             cells: vec![
-                                "catalog/".to_string(),
+                                "apps/aio/plugins/catalog/".to_string(),
                                 "*.azplugin".to_string(),
                                 "应用商店可安装包".to_string(),
                             ],
                         },
                         TableRow {
                             cells: vec![
-                                "installed/".to_string(),
+                                "apps/aio/plugins/host/".to_string(),
                                 "解压后的包内容".to_string(),
                                 "实例化运行前的宿主缓存".to_string(),
                             ],
