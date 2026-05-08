@@ -15,6 +15,10 @@ thiserror.workspace = true
 tokio.workspace = true
 log.workspace = true
 uuid.workspace = true
+wasmtime = { version = "38.0.4", default-features = false, features = ["cranelift", "runtime", "std"] }
+
+[dev-dependencies]
+wat = "1"
 
 [lints]
 workspace = true

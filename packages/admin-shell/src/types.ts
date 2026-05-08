@@ -37,6 +37,7 @@ export interface DomainNode {
   label: string;
   href: string;
   order: number;
+  activePatterns?: string[];
 }
 
 export interface RightPanelSlot {
@@ -50,6 +51,8 @@ export interface AdminShellState {
   topbarActions: TopbarAction[];
   domains: DomainNode[];
   sections: SectionNode[];
+  navigationTitle?: string;
+  navigationDetail?: string;
   rightPanel?: RightPanelSlot | null;
 }
 
