@@ -1,3 +1,4 @@
+use std::env;
 use std::time::Duration;
 
 use axum::http::HeaderMap;
@@ -39,9 +40,9 @@ impl AdminAuthFailure {
 
 impl AdminSessionService {
     pub fn from_env() -> Self {
-        let username = std::env::var("AIO_ADMIN_USERNAME").unwrap_or_else(|_| "admin".into());
-        let password = std::env::var("AIO_ADMIN_PASSWORD").unwrap_or_else(|_| "admin".into());
-        let secret = std::env::var("AIO_ADMIN_SESSION_SECRET")
+        let username = env::var("AIO_ADMIN_USERNAME").unwrap_or_else(|_| "admin".into());
+        let password = env::var("AIO_ADMIN_PASSWORD").unwrap_or_else(|_| "admin".into());
+        let secret = env::var("AIO_ADMIN_SESSION_SECRET")
             .unwrap_or_else(|_| "dev-session-secret-change-me".into());
         if secret == "dev-session-secret-change-me" {
             log::warn!("⚠️  AIO_ADMIN_SESSION_SECRET 未设置，使用默认密钥。生产环境请务必配置！");
@@ -51,7 +52,7 @@ impl AdminSessionService {
                 "⚠️  使用默认凭证 admin/admin，生产环境请配置 AIO_ADMIN_USERNAME 和 AIO_ADMIN_PASSWORD"
             );
         }
-        let ttl_hours = std::env::var("AIO_ADMIN_SESSION_HOURS")
+        let ttl_hours = env::var("AIO_ADMIN_SESSION_HOURS")
             .ok()
             .and_then(|value| value.parse::<u64>().ok())
             .unwrap_or(12);
@@ -144,8 +145,7 @@ impl AdminSessionService {
 }
 
 fn sign(key: &[u8], payload: &[u8]) -> anyhow::Result<Vec<u8>> {
-    let mut mac =
-        HmacSha256::new_from_slice(key).map_err(|err| anyhow::anyhow!("HMAC 初始化失败: {err}"))?;
+    let mut mac = HmacSha256::new_from_slice(key).map_err(|err| anyhow::anyhow!("HMAC 初始化失败: {err}"))?;
     mac.update(payload);
     Ok(mac.finalize().into_bytes().to_vec())
 }
