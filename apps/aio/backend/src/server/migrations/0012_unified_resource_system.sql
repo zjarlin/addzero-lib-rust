@@ -13,10 +13,10 @@ CREATE TABLE IF NOT EXISTS unified_resources (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_unified_resources_type ON unified_resources(resource_type);
-CREATE INDEX idx_unified_resources_category ON unified_resources(category);
-CREATE INDEX idx_unified_resources_tags ON unified_resources USING GIN(tags);
-CREATE INDEX idx_unified_resources_active ON unified_resources(is_active);
+CREATE INDEX IF NOT EXISTS idx_unified_resources_type ON unified_resources(resource_type);
+CREATE INDEX IF NOT EXISTS idx_unified_resources_category ON unified_resources(category);
+CREATE INDEX IF NOT EXISTS idx_unified_resources_tags ON unified_resources USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_unified_resources_active ON unified_resources(is_active);
 
 -- 资源部署目标表（支持多工具/多目录部署）
 CREATE TABLE IF NOT EXISTS resource_deployments (
@@ -31,9 +31,9 @@ CREATE TABLE IF NOT EXISTS resource_deployments (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_resource_deployments_resource ON resource_deployments(resource_id);
-CREATE INDEX idx_resource_deployments_tool ON resource_deployments(target_tool);
-CREATE INDEX idx_resource_deployments_enabled ON resource_deployments(is_enabled);
+CREATE INDEX IF NOT EXISTS idx_resource_deployments_resource ON resource_deployments(resource_id);
+CREATE INDEX IF NOT EXISTS idx_resource_deployments_tool ON resource_deployments(target_tool);
+CREATE INDEX IF NOT EXISTS idx_resource_deployments_enabled ON resource_deployments(is_enabled);
 
 -- 资源扫描源配置表（配置从哪些目录扫描不同类型的资源）
 CREATE TABLE IF NOT EXISTS resource_scan_sources (
@@ -50,9 +50,9 @@ CREATE TABLE IF NOT EXISTS resource_scan_sources (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_resource_scan_sources_type ON resource_scan_sources(resource_type);
-CREATE INDEX idx_resource_scan_sources_tool ON resource_scan_sources(tool_name);
-CREATE INDEX idx_resource_scan_sources_active ON resource_scan_sources(is_active);
+CREATE INDEX IF NOT EXISTS idx_resource_scan_sources_type ON resource_scan_sources(resource_type);
+CREATE INDEX IF NOT EXISTS idx_resource_scan_sources_tool ON resource_scan_sources(tool_name);
+CREATE INDEX IF NOT EXISTS idx_resource_scan_sources_active ON resource_scan_sources(is_active);
 
 -- 资源分类表
 CREATE TABLE IF NOT EXISTS resource_categories (
@@ -66,8 +66,8 @@ CREATE TABLE IF NOT EXISTS resource_categories (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_resource_categories_type ON resource_categories(resource_type);
-CREATE INDEX idx_resource_categories_parent ON resource_categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_resource_categories_type ON resource_categories(resource_type);
+CREATE INDEX IF NOT EXISTS idx_resource_categories_parent ON resource_categories(parent_id);
 
 -- 插入默认扫描源配置
 INSERT INTO resource_scan_sources (name, resource_type, scan_path, tool_name, scan_pattern, metadata, is_active) VALUES

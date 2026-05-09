@@ -296,20 +296,12 @@ pub fn unpack_package(path: &Path, target_dir: &Path) -> Result<(), RuntimeError
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index)?;
         let entry_name = entry.name();
-
-        // Reject absolute paths and entries containing path traversal components
-        if entry_name.starts_with('/')
-            || entry_name.starts_with('\\')
-            || Path::new(entry_name)
-                .components()
-                .any(|c| matches!(c, std::path::Component::ParentDir))
-        {
+        let Some(enclosed_name) = entry.enclosed_name() else {
             return Err(RuntimeError::InvalidPackage(format!(
-                "package entry `{entry_name}` contains path traversal"
+                "package entry `{entry_name}` escapes target directory"
             )));
-        }
-
-        let out_path = target_dir.join(entry.sanitized_name());
+        };
+        let out_path = target_dir.join(enclosed_name);
 
         // Secondary guard: canonicalized path must stay within target_dir
         let check_path = if out_path.exists() {

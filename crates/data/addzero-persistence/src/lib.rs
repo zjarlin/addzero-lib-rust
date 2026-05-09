@@ -44,6 +44,9 @@ impl PersistenceContext {
         if !WORKSPACE_MIGRATIONS_DONE.load(Ordering::Acquire) {
             let _guard = WORKSPACE_MIGRATION_LOCK.lock().await;
             if !WORKSPACE_MIGRATIONS_DONE.load(Ordering::Acquire) {
+                cleanup_invalid_migration_records(&db)
+                    .await
+                    .map_err(PersistenceError::Migrate)?;
                 match WorkspaceMigrator::up(&db, None).await {
                     Ok(()) => {}
                     Err(err) if is_concurrent_migration_conflict(&err) => {}
@@ -164,10 +167,22 @@ fn is_concurrent_migration_conflict(err: &DbErr) -> bool {
             && message.contains("seaql_migrations")
 }
 
+async fn cleanup_invalid_migration_records(db: &DatabaseConnection) -> Result<(), DbErr> {
+    WorkspaceMigrator::install(db).await?;
+    db.execute_unprepared("DELETE FROM seaql_migrations WHERE version = 'lib'")
+        .await?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{read_database_url_from_path, workspace_env_path_from};
+    use super::{
+        WorkspaceMigrator, read_database_url_from_path, split_sql_statements,
+        workspace_env_path_from,
+    };
+    use sea_orm_migration::prelude::MigratorTrait;
     use std::{
+        collections::HashSet,
         fs,
         path::PathBuf,
         time::{SystemTime, UNIX_EPOCH},
@@ -203,6 +218,50 @@ mod tests {
         fs::remove_dir_all(dir).unwrap();
     }
 
+    #[test]
+    fn workspace_migration_names_are_stable_and_unique() {
+        let names = WorkspaceMigrator::migrations()
+            .into_iter()
+            .map(|migration| migration.name().to_string())
+            .collect::<Vec<_>>();
+        let unique = names.iter().collect::<HashSet<_>>();
+
+        assert_eq!(
+            unique.len(),
+            names.len(),
+            "each migration needs its own seaql_migrations version"
+        );
+        assert!(
+            !names.iter().any(|name| name == "lib"),
+            "file-level derived migration names collapse all inline migrations to `lib`"
+        );
+        assert!(names.contains(&"0002_clianything_market".to_string()));
+        assert!(names.contains(&"0012_unified_resource_system".to_string()));
+    }
+
+    #[test]
+    fn split_sql_statements_keeps_dollar_quoted_blocks_together() {
+        let sql = r#"
+            DO $$
+            BEGIN
+                IF TRUE THEN
+                    RAISE NOTICE 'contains; semicolon';
+                END IF;
+            END $$;
+            CREATE TABLE IF NOT EXISTS demo (id INTEGER);
+        "#;
+
+        let statements = split_sql_statements(sql);
+
+        assert_eq!(
+            statements.len(),
+            2,
+            "the DO block must remain one executable statement"
+        );
+        assert!(statements[0].contains("RAISE NOTICE"));
+        assert!(statements[1].starts_with("CREATE TABLE"));
+    }
+
     fn unique_temp_dir(prefix: &str) -> PathBuf {
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -226,12 +285,14 @@ impl MigratorTrait for WorkspaceMigrator {
             Box::new(KnowledgeSchemaMigration),
             Box::new(SkillSchemaMigration),
             Box::new(RemoveAgentRuntimeSchemaMigration),
+            Box::new(AdminMenuSystemSchemaMigration),
+            Box::new(UnifiedResourceSystemSchemaMigration),
         ]
     }
 }
 
 async fn execute_sql(manager: &SchemaManager<'_>, sql: &str) -> Result<(), DbErr> {
-    for statement in sql.split(';') {
+    for statement in split_sql_statements(sql) {
         let trimmed = statement.trim();
         if trimmed.is_empty() {
             continue;
@@ -241,8 +302,113 @@ async fn execute_sql(manager: &SchemaManager<'_>, sql: &str) -> Result<(), DbErr
     Ok(())
 }
 
-#[derive(DeriveMigrationName)]
+fn split_sql_statements(sql: &str) -> Vec<String> {
+    let mut statements = Vec::new();
+    let mut start = 0;
+    let mut index = 0;
+    let bytes = sql.as_bytes();
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut dollar_tag: Option<String> = None;
+
+    while index < bytes.len() {
+        let ch = bytes[index] as char;
+
+        if let Some(tag) = dollar_tag.as_deref() {
+            if ch == '$' && sql[index..].starts_with(tag) {
+                index += tag.len();
+                dollar_tag = None;
+            } else {
+                index += 1;
+            }
+            continue;
+        }
+
+        if in_single_quote {
+            if ch == '\'' {
+                if bytes.get(index + 1) == Some(&b'\'') {
+                    index += 2;
+                    continue;
+                }
+                in_single_quote = false;
+            }
+            index += 1;
+            continue;
+        }
+
+        if in_double_quote {
+            if ch == '"' {
+                in_double_quote = false;
+            }
+            index += 1;
+            continue;
+        }
+
+        match ch {
+            '\'' => {
+                in_single_quote = true;
+                index += 1;
+            }
+            '"' => {
+                in_double_quote = true;
+                index += 1;
+            }
+            '$' => {
+                if let Some(tag) = read_dollar_tag(&sql[index..]) {
+                    index += tag.len();
+                    dollar_tag = Some(tag);
+                } else {
+                    index += 1;
+                }
+            }
+            ';' => {
+                let statement = sql[start..index].trim();
+                if !statement.is_empty() {
+                    statements.push(statement.to_string());
+                }
+                index += 1;
+                start = index;
+            }
+            _ => {
+                index += 1;
+            }
+        }
+    }
+
+    let statement = sql[start..].trim();
+    if !statement.is_empty() {
+        statements.push(statement.to_string());
+    }
+
+    statements
+}
+
+fn read_dollar_tag(input: &str) -> Option<String> {
+    let rest = input.strip_prefix('$')?;
+    let end = rest.find('$')?;
+    let tag = &rest[..end];
+    if tag
+        .chars()
+        .all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+    {
+        Some(format!("${tag}$"))
+    } else {
+        None
+    }
+}
+
+macro_rules! migration_name {
+    ($migration:ty, $name:literal) => {
+        impl MigrationName for $migration {
+            fn name(&self) -> &str {
+                $name
+            }
+        }
+    };
+}
+
 struct CliMarketSchemaMigration;
+migration_name!(CliMarketSchemaMigration, "0002_clianything_market");
 
 #[async_trait::async_trait]
 impl MigrationTrait for CliMarketSchemaMigration {
@@ -261,8 +427,8 @@ impl MigrationTrait for CliMarketSchemaMigration {
     }
 }
 
-#[derive(DeriveMigrationName)]
 struct AdminAssetGraphSchemaMigration;
+migration_name!(AdminAssetGraphSchemaMigration, "0003_admin_asset_graph");
 
 #[async_trait::async_trait]
 impl MigrationTrait for AdminAssetGraphSchemaMigration {
@@ -281,8 +447,11 @@ impl MigrationTrait for AdminAssetGraphSchemaMigration {
     }
 }
 
-#[derive(DeriveMigrationName)]
 struct AdminSoftwareCatalogSchemaMigration;
+migration_name!(
+    AdminSoftwareCatalogSchemaMigration,
+    "0004_admin_software_catalog"
+);
 
 #[async_trait::async_trait]
 impl MigrationTrait for AdminSoftwareCatalogSchemaMigration {
@@ -299,8 +468,11 @@ impl MigrationTrait for AdminSoftwareCatalogSchemaMigration {
     }
 }
 
-#[derive(DeriveMigrationName)]
 struct AdminBrandingSettingsSchemaMigration;
+migration_name!(
+    AdminBrandingSettingsSchemaMigration,
+    "0006_admin_branding_settings"
+);
 
 #[async_trait::async_trait]
 impl MigrationTrait for AdminBrandingSettingsSchemaMigration {
@@ -319,8 +491,8 @@ impl MigrationTrait for AdminBrandingSettingsSchemaMigration {
     }
 }
 
-#[derive(DeriveMigrationName)]
 struct AssetSchemaMigration;
+migration_name!(AssetSchemaMigration, "0001_addzero_assets_init");
 
 #[async_trait::async_trait]
 impl MigrationTrait for AssetSchemaMigration {
@@ -337,8 +509,8 @@ impl MigrationTrait for AssetSchemaMigration {
     }
 }
 
-#[derive(DeriveMigrationName)]
 struct KnowledgeSchemaMigration;
+migration_name!(KnowledgeSchemaMigration, "0001_addzero_knowledge_init");
 
 #[async_trait::async_trait]
 impl MigrationTrait for KnowledgeSchemaMigration {
@@ -355,8 +527,8 @@ impl MigrationTrait for KnowledgeSchemaMigration {
     }
 }
 
-#[derive(DeriveMigrationName)]
 struct SkillSchemaMigration;
+migration_name!(SkillSchemaMigration, "0001_addzero_skills_init");
 
 #[async_trait::async_trait]
 impl MigrationTrait for SkillSchemaMigration {
@@ -373,8 +545,11 @@ impl MigrationTrait for SkillSchemaMigration {
     }
 }
 
-#[derive(DeriveMigrationName)]
 struct RemoveAgentRuntimeSchemaMigration;
+migration_name!(
+    RemoveAgentRuntimeSchemaMigration,
+    "0009_remove_agent_runtime"
+);
 
 #[async_trait::async_trait]
 impl MigrationTrait for RemoveAgentRuntimeSchemaMigration {
@@ -393,8 +568,8 @@ impl MigrationTrait for RemoveAgentRuntimeSchemaMigration {
     }
 }
 
-#[derive(DeriveMigrationName)]
 struct AdminMenuSystemSchemaMigration;
+migration_name!(AdminMenuSystemSchemaMigration, "0011_admin_menu_system");
 
 #[async_trait::async_trait]
 impl MigrationTrait for AdminMenuSystemSchemaMigration {
@@ -413,8 +588,11 @@ impl MigrationTrait for AdminMenuSystemSchemaMigration {
     }
 }
 
-#[derive(DeriveMigrationName)]
 struct UnifiedResourceSystemSchemaMigration;
+migration_name!(
+    UnifiedResourceSystemSchemaMigration,
+    "0012_unified_resource_system"
+);
 
 #[async_trait::async_trait]
 impl MigrationTrait for UnifiedResourceSystemSchemaMigration {

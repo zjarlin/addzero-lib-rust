@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 // ─── Plugin Metadata ────────────────────────────────────────────────
 
-/// Plugin manifest — shipped inside every `.aio-plugin` bundle.
+/// Plugin manifest shipped inside every `.azplugin` bundle.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PluginManifest {
     /// Unique plugin identifier (e.g. "com.addzero.rhai-engine").

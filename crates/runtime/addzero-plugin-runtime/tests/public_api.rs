@@ -1,12 +1,15 @@
-use std::{fs, path::Path};
+use std::{fs, io::Write, path::Path};
 
 use addzero_plugin_contract::{
     HostCapability, MarkdownSchema, PageSchema, PluginDescriptor, PluginKind,
     PluginMenuContribution, PluginPackageManifest, PluginPage, PluginStatus, RuntimeBinding,
 };
-use addzero_plugin_runtime::{PluginRuntime, create_package_from_dir};
+use addzero_plugin_runtime::{
+    PluginRuntime, RuntimeError, create_package_from_dir, unpack_package,
+};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
+use zip::{ZipWriter, write::SimpleFileOptions};
 
 #[test]
 fn installs_packaged_plugin_and_creates_instances() {
@@ -81,6 +84,33 @@ fn installs_packaged_plugin_and_creates_instances() {
             || instance.slug.starts_with("memory")
             || instance.slug.starts_with("plugin")
     );
+}
+
+#[test]
+fn unpack_should_reject_path_traversal_entries() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let package_path = temp.path().join("unsafe.azplugin");
+    let target = temp.path().join("target");
+
+    let package_file = fs::File::create(&package_path).expect("package should create");
+    let mut writer = ZipWriter::new(package_file);
+    writer
+        .start_file("../escape.txt", SimpleFileOptions::default())
+        .expect("unsafe entry should write");
+    writer
+        .write_all(b"escape")
+        .expect("unsafe entry bytes should write");
+    writer.finish().expect("package should finish");
+
+    let err = unpack_package(&package_path, &target).expect_err("unsafe path must be rejected");
+    match err {
+        RuntimeError::InvalidPackage(message) => {
+            // The extractor must reject traversal before touching the output directory.
+            assert!(message.contains("escapes target directory"));
+        }
+        other => panic!("expected invalid package error, got {other:?}"),
+    }
+    assert!(!temp.path().join("escape.txt").exists());
 }
 
 fn write_checksums(source: &Path) {

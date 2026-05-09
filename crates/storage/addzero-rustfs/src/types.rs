@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fmt;
 use std::time::SystemTime;
 
 #[derive(Clone, PartialEq, Eq)]

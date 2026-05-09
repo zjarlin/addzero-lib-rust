@@ -623,9 +623,12 @@ impl From<ScanStats> for ScanStatsDto {
 
 /// Shared API trait
 pub trait SharedDownloadStationApi: Send + Sync {
-    fn scan_directories(&self, directories: Vec<String>) -> LocalBoxFuture<Result<ScanStatsDto>>;
-    fn list_files(&self, filter: FilterOptions) -> LocalBoxFuture<Result<Vec<FileIndexDto>>>;
-    fn get_stats(&self) -> LocalBoxFuture<Result<ScanStatsDto>>;
+    fn scan_directories(
+        &self,
+        directories: Vec<String>,
+    ) -> LocalBoxFuture<'_, Result<ScanStatsDto>>;
+    fn list_files(&self, filter: FilterOptions) -> LocalBoxFuture<'_, Result<Vec<FileIndexDto>>>;
+    fn get_stats(&self) -> LocalBoxFuture<'_, Result<ScanStatsDto>>;
     fn create_share(
         &self,
         source: String,
@@ -633,12 +636,15 @@ pub trait SharedDownloadStationApi: Send + Sync {
         file_name: String,
         hours: i64,
         created_by: Option<String>,
-    ) -> LocalBoxFuture<Result<ShareLinkDto>>;
-    fn get_share(&self, token: String) -> LocalBoxFuture<Result<Option<ShareLinkDto>>>;
+    ) -> LocalBoxFuture<'_, Result<ShareLinkDto>>;
+    fn get_share(&self, token: String) -> LocalBoxFuture<'_, Result<Option<ShareLinkDto>>>;
 }
 
 impl SharedDownloadStationApi for DownloadStationService {
-    fn scan_directories(&self, directories: Vec<String>) -> LocalBoxFuture<Result<ScanStatsDto>> {
+    fn scan_directories(
+        &self,
+        directories: Vec<String>,
+    ) -> LocalBoxFuture<'_, Result<ScanStatsDto>> {
         let service = self.clone();
         Box::pin(async move {
             let stats = service.scan_directories(directories).await?;
@@ -646,7 +652,7 @@ impl SharedDownloadStationApi for DownloadStationService {
         })
     }
 
-    fn list_files(&self, filter: FilterOptions) -> LocalBoxFuture<Result<Vec<FileIndexDto>>> {
+    fn list_files(&self, filter: FilterOptions) -> LocalBoxFuture<'_, Result<Vec<FileIndexDto>>> {
         let service = self.clone();
         Box::pin(async move {
             let files = service.list_files(filter).await?;
@@ -654,7 +660,7 @@ impl SharedDownloadStationApi for DownloadStationService {
         })
     }
 
-    fn get_stats(&self) -> LocalBoxFuture<Result<ScanStatsDto>> {
+    fn get_stats(&self) -> LocalBoxFuture<'_, Result<ScanStatsDto>> {
         let service = self.clone();
         Box::pin(async move {
             let stats = service.get_stats().await?;
@@ -669,7 +675,7 @@ impl SharedDownloadStationApi for DownloadStationService {
         file_name: String,
         hours: i64,
         created_by: Option<String>,
-    ) -> LocalBoxFuture<Result<ShareLinkDto>> {
+    ) -> LocalBoxFuture<'_, Result<ShareLinkDto>> {
         let service = self.clone();
         Box::pin(async move {
             let share = service
@@ -679,7 +685,7 @@ impl SharedDownloadStationApi for DownloadStationService {
         })
     }
 
-    fn get_share(&self, token: String) -> LocalBoxFuture<Result<Option<ShareLinkDto>>> {
+    fn get_share(&self, token: String) -> LocalBoxFuture<'_, Result<Option<ShareLinkDto>>> {
         let service = self.clone();
         Box::pin(async move {
             let share = service.get_share(&token).await?;

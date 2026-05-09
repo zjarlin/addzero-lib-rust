@@ -508,10 +508,8 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
     const [editDrafts, setEditDrafts] = useState<Record<string, { title: string; body: string }>>({});
     const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
     const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
-    const [autoTaggingNoteIds, setAutoTaggingNoteIds] = useState<string[]>([]);
-    const [captureDraft, setCaptureDraft] = useState(
-        'for c in tl tr bl br; do defaults write com.apple.dock "wvous-$c-corner" -int 0; defaults write com.apple.dock "wvous-$c-modifier" -int 0; done; killall Dock',
-    );
+    const [batchTaggingNoteIds, setBatchTaggingNoteIds] = useState<string[]>([]);
+    const [captureDraft, setCaptureDraft] = useState("");
     const [seedTags, setSeedTags] = useState<string[]>([]);
     const [captureSaving, setCaptureSaving] = useState(false);
     const [captureMessage, setCaptureMessage] = useState<string | null>(null);
@@ -548,14 +546,18 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         [resolvedActiveTag, tagGraph],
     );
     const graphLines = useMemo(() => deriveGraphLines(notes), [notes]);
+    const pendingTagNotes = useMemo(
+        () => notes.filter((note) => note.tags.length === 0),
+        [notes],
+    );
     const tabCounts = useMemo(
         () => ({
             inbox: filteredNotes.length,
             tags: tagNodes.length,
             graph: graphLines.length,
-            organize: connectedTags.length,
+            organize: pendingTagNotes.length,
         }),
-        [connectedTags.length, filteredNotes.length, graphLines.length, tagNodes.length],
+        [filteredNotes.length, graphLines.length, pendingTagNotes.length, tagNodes.length],
     );
     const activeTagHeading = resolvedActiveTag ? `#${resolvedActiveTag}` : "全部标签";
     const activeTagSpecValue = resolvedActiveTag ? `#${resolvedActiveTag}` : "未选择";
@@ -684,8 +686,8 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         return mapped;
     }
 
-    function updateAutoTagging(noteId: string, pending: boolean) {
-        setAutoTaggingNoteIds((current) => {
+    function updateBatchTagging(noteId: string, pending: boolean) {
+        setBatchTaggingNoteIds((current) => {
             if (pending) {
                 return current.includes(noteId) ? current : [...current, noteId];
             }
@@ -693,7 +695,7 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         });
     }
 
-    async function requestAiTags(title: string, body: string) {
+    async function requestAiTagsForNotes(notesToTag: NoteCardData[]) {
         const response = await fetch(`${baseUrl}/api/ai/chat`, {
             method: "POST",
             credentials: "include",
@@ -707,15 +709,22 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                         content: [
                             "你是笔记标签整理器。",
                             "请只返回 JSON，不要返回 Markdown、解释或额外文字。",
-                            '输出格式必须是 {"tags":["标签1","标签2"]}。',
-                            "标签要求：2 到 5 个，短词，中文优先，可混合必要英文技术词。",
+                            '输出格式必须是 {"items":[{"id":"笔记ID","tags":["标签1","标签2"]}]}。',
+                            "每条笔记输出 2 到 5 个标签，短词，中文优先，可混合必要英文技术词。",
                             "优先复用已有标签池；只有在明显不合适时才补充新标签。",
+                            "不要遗漏输入里的任何 id。",
                             `当前已有标签池：${tagNodes.map((tag) => tag.label).join("、") || "暂无"}`,
                         ].join("\n"),
                     },
                     {
                         role: "user",
-                        content: [`标题：${title}`, "", "正文：", body.slice(0, 4000)].join("\n"),
+                        content: JSON.stringify({
+                            notes: notesToTag.map((note) => ({
+                                id: note.id,
+                                title: note.title,
+                                body: note.body.slice(0, 1600),
+                            })),
+                        }),
                     },
                 ],
             }),
@@ -729,36 +738,61 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                 content?: string;
             };
         };
-        return parseAiTagList(payload.message?.content ?? "");
+        return parseAiTagMap(payload.message?.content ?? "");
     }
 
-    async function autoTagPersistedNote(note: KnowledgeNoteDto) {
-        const noteId = note.source_path || note.slug;
-        updateAutoTagging(noteId, true);
-        try {
-            const tags = await requestAiTags(note.title, note.body);
+    async function saveBatchTags(notesToTag: NoteCardData[], tagMap: Map<string, string[]>) {
+        let taggedCount = 0;
+        for (const note of notesToTag) {
+            const tags = tagMap.get(note.id) ?? [];
             if (tags.length === 0) {
-                return;
+                continue;
             }
             const saved = await persistKnowledgeEntry({
-                source_path: note.source_path,
-                relative_path: note.relative_path,
+                source_path: note.sourcePath ?? "",
+                relative_path: note.relativePath ?? "",
                 title: note.title,
                 body: note.body,
                 tags,
             });
-            const mapped = mergePersistedNote(saved, noteId);
-            setSelectedNoteId((current) => (current === noteId ? mapped.id : current));
+            const mapped = mergePersistedNote(saved, note.id);
+            setSelectedNoteId((current) => (current === note.id ? mapped.id : current));
             setActiveTag((current) => current || mapped.tags[0] || "");
+            taggedCount += 1;
+        }
+        return taggedCount;
+    }
+
+    async function handleBatchTagPendingNotes() {
+        if (batchTaggingNoteIds.length > 0 || savingNoteId || deletingNoteId) {
+            return;
+        }
+        if (pendingTagNotes.length === 0) {
+            setCaptureError(null);
+            setCaptureMessage("当前没有待 AI 打标的笔记。");
+            return;
+        }
+
+        setActiveView("organize");
+        setCaptureMessage(null);
+        setCaptureError(null);
+        pendingTagNotes.forEach((note) => updateBatchTagging(note.id, true));
+        try {
+            const tagMap = await requestAiTagsForNotes(pendingTagNotes);
+            const taggedCount = await saveBatchTags(pendingTagNotes, tagMap);
+            setCaptureMessage(
+                taggedCount > 0
+                    ? `已统一打标 ${taggedCount} 条笔记。`
+                    : "AI 没有返回可用标签，笔记保持待整理状态。",
+            );
         } catch (error) {
-            setCaptureMessage(null);
             setCaptureError(
                 error instanceof Error
-                    ? `笔记已入库，但 AI 打标失败：${error.message}`
-                    : "笔记已入库，但 AI 打标失败。",
+                    ? `批量 AI 打标失败：${error.message}`
+                    : "批量 AI 打标失败。",
             );
         } finally {
-            updateAutoTagging(noteId, false);
+            pendingTagNotes.forEach((note) => updateBatchTagging(note.id, false));
         }
     }
 
@@ -778,7 +812,7 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
         setActiveTag((current) =>
             current && !nextNotes.some((note) => note.tags.includes(current)) ? "" : current,
         );
-        updateAutoTagging(noteId, false);
+        updateBatchTagging(noteId, false);
         stopEditingNote(noteId);
     }
 
@@ -905,14 +939,12 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
             const note = mergePersistedNote(saved);
             pushCapturedNote(note);
             resetComposer();
+            const savedLocation = saved.relative_path?.trim() || saved.title;
             setCaptureMessage(
                 tags.length > 0
-                    ? `已记录到 ${saved.relative_path}`
-                    : `已记录到 ${saved.relative_path}，AI 正在补标签`,
+                    ? `已记录到 ${savedLocation}`
+                    : `已记录到 ${savedLocation}，已加入待整理队列`,
             );
-            if (tags.length === 0) {
-                void autoTagPersistedNote(saved);
-            }
         } catch (error) {
             setCaptureError(
                 error instanceof Error
@@ -1014,7 +1046,7 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                                     <NoteCard
                                         key={note.id}
                                         note={note}
-                                        autoTagging={autoTaggingNoteIds.includes(note.id)}
+                                        tagging={batchTaggingNoteIds.includes(note.id)}
                                         editing={editingNoteId === note.id}
                                         draftTitle={editDrafts[note.id]?.title ?? note.title}
                                         draftBody={editDrafts[note.id]?.body ?? note.body}
@@ -1107,7 +1139,7 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                                                     <NoteCard
                                                         key={note.id}
                                                         note={note}
-                                                        autoTagging={autoTaggingNoteIds.includes(note.id)}
+                                                        tagging={batchTaggingNoteIds.includes(note.id)}
                                                         compact
                                                         editing={editingNoteId === note.id}
                                                         draftTitle={editDrafts[note.id]?.title ?? note.title}
@@ -1263,7 +1295,7 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                                                     <NoteCard
                                                         key={`${note.id}-organize`}
                                                         note={note}
-                                                        autoTagging={autoTaggingNoteIds.includes(note.id)}
+                                                        tagging={batchTaggingNoteIds.includes(note.id)}
                                                         compact
                                                         editing={editingNoteId === note.id}
                                                         draftTitle={editDrafts[note.id]?.title ?? note.title}
@@ -1296,14 +1328,21 @@ function NotesWorkbench({ activeModule }: { activeModule: AssetModule }) {
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-2 p-4 pt-0">
-                                            <Button type="button" className="w-full rounded-2xl justify-start">
+                                            <Button
+                                                type="button"
+                                                className="w-full rounded-2xl justify-start"
+                                                onClick={() => void handleBatchTagPendingNotes()}
+                                                disabled={pendingTagNotes.length === 0 || batchTaggingNoteIds.length > 0}
+                                            >
+                                                {batchTaggingNoteIds.length > 0
+                                                    ? `正在 AI 打标 ${batchTaggingNoteIds.length} 条`
+                                                    : `统一 AI 打标 ${pendingTagNotes.length} 条`}
+                                            </Button>
+                                            <Button type="button" variant="outline" className="w-full rounded-2xl justify-start">
                                                 合并重复碎片并提炼结论
                                             </Button>
                                             <Button type="button" variant="outline" className="w-full rounded-2xl justify-start">
                                                 输出标签簇摘要
-                                            </Button>
-                                            <Button type="button" variant="outline" className="w-full rounded-2xl justify-start">
-                                                生成主题页草稿
                                             </Button>
                                         </CardContent>
                                     </Card>
@@ -1408,12 +1447,12 @@ function QuickCapture({
                             })}
                             {tagNodes.length === 0 ? (
                                 <span className="rounded-full border border-dashed border-stone-300 bg-white/80 px-3 py-1 text-xs text-muted-foreground">
-                                    暂无历史标签，直接记录后会由 AI 补标签
+                                    暂无历史标签，记录后进入待整理队列
                                 </span>
                             ) : null}
                             {seedTags.length === 0 ? (
                                 <span className="rounded-full border border-dashed border-stone-300 bg-white/80 px-3 py-1 text-xs text-muted-foreground">
-                                    未手选标签时，记录后会异步 AI 打标
+                                    未手选标签时不自动打标，后续在整理页统一处理
                                 </span>
                             ) : null}
                         </div>
@@ -1476,7 +1515,7 @@ function RichMarkdownEditor({
             <MDXEditor
                 ref={editorRef}
                 markdown={value}
-                onChange={(markdown) => {
+                onChange={(markdown: string) => {
                     lastMarkdownRef.current = markdown;
                     onChange(markdown);
                 }}
@@ -1795,13 +1834,13 @@ function mapPersistedNote(note: KnowledgeNoteDto): NoteCardData {
         source: "笔记工作台",
         accent: accentForTag(mainTag),
         status,
-        cluster: tags.length > 0 ? `${mainTag} 标签簇` : "待 AI 打标签",
+        cluster: tags.length > 0 ? `${mainTag} 标签簇` : "待统一打标签",
         structuredKind: "knowledge.note",
         promptContexts: tags.map((tag) => `tag:${tag}`),
         unmapped:
             tags.length > 0
                 ? []
-                : ["当前未显式打标，等待 AI 归类或人工补标签。"],
+                : ["当前未显式打标，等待整理页统一 AI 打标或人工补标签。"],
         relations: [
             {
                 target: note.relative_path || `note/${slugifyTitle(note.title)}`,
@@ -1820,7 +1859,7 @@ function mapPersistedNote(note: KnowledgeNoteDto): NoteCardData {
                 { label: "标签数", value: String(tags.length) },
                 {
                     label: "当前状态",
-                    value: tags.length > 0 ? "已打标签" : "待 AI 打标签",
+                    value: tags.length > 0 ? "已打标签" : "待统一打标签",
                     tone: tags.length > 0 ? "success" : "warning",
                 },
                 {
@@ -1832,48 +1871,50 @@ function mapPersistedNote(note: KnowledgeNoteDto): NoteCardData {
     };
 }
 
-function parseAiTagList(content: string): string[] {
+function parseAiTagMap(content: string): Map<string, string[]> {
     const normalized = content
         .replace(/```json/giu, "")
         .replace(/```/gu, "")
         .trim();
     const candidates = [normalized];
-
     const objectMatch = normalized.match(/\{[\s\S]*\}/u);
     if (objectMatch) {
         candidates.push(objectMatch[0]);
     }
 
-    const arrayMatch = normalized.match(/\[[\s\S]*\]/u);
-    if (arrayMatch) {
-        candidates.push(`{"tags":${arrayMatch[0]}}`);
-    }
-
     for (const candidate of candidates) {
         try {
             const parsed = JSON.parse(candidate) as
-                | { tags?: unknown }
-                | string[]
+                | { items?: unknown }
+                | Record<string, unknown>
                 | null;
-            if (Array.isArray(parsed)) {
-                return dedupeTags(parsed.filter((item): item is string => typeof item === "string"));
+            const map = new Map<string, string[]>();
+            if (parsed && Array.isArray(parsed.items)) {
+                for (const item of parsed.items) {
+                    if (!item || typeof item !== "object") {
+                        continue;
+                    }
+                    const record = item as { id?: unknown; tags?: unknown };
+                    if (typeof record.id !== "string" || !Array.isArray(record.tags)) {
+                        continue;
+                    }
+                    const tags = dedupeTags(
+                        record.tags.filter((tag): tag is string => typeof tag === "string"),
+                    );
+                    if (tags.length > 0) {
+                        map.set(record.id, tags);
+                    }
+                }
             }
-            if (parsed && Array.isArray(parsed.tags)) {
-                return dedupeTags(
-                    parsed.tags.filter((item): item is string => typeof item === "string"),
-                );
+            if (map.size > 0) {
+                return map;
             }
         } catch {
             // fall through to the next candidate
         }
     }
 
-    return dedupeTags(
-        normalized
-            .split(/[\n,，]/u)
-            .map((item) => item.replace(/^[-*#\d.\s]+/u, "").trim())
-            .filter(Boolean),
-    );
+    return new Map();
 }
 
 function deriveTagsFromCapture(body: string, seedTags: string[]) {
@@ -1983,7 +2024,7 @@ function NoteCard({
     draftTitle,
     draftBody,
     savePending = false,
-    autoTagging = false,
+    tagging = false,
     selected = false,
     compact = false,
     onSelect,
@@ -1999,7 +2040,7 @@ function NoteCard({
     draftTitle?: string;
     draftBody?: string;
     savePending?: boolean;
-    autoTagging?: boolean;
+    tagging?: boolean;
     selected?: boolean;
     compact?: boolean;
     onSelect?: () => void;
@@ -2037,7 +2078,7 @@ function NoteCard({
                             <StatusBadge
                                 status={note.status === "captured" ? "Draft" : "Review"}
                             />
-                            {autoTagging ? (
+                            {tagging ? (
                                 <Badge variant="outline" className="rounded-full border-amber-300 bg-amber-50 text-amber-800">
                                     AI 打标中
                                 </Badge>

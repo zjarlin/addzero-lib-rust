@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS admin_menus (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_admin_menus_parent ON admin_menus(parent_id);
-CREATE INDEX idx_admin_menus_route ON admin_menus(route_path);
-CREATE INDEX idx_admin_menus_visible ON admin_menus(visible);
+CREATE INDEX IF NOT EXISTS idx_admin_menus_parent ON admin_menus(parent_id);
+CREATE INDEX IF NOT EXISTS idx_admin_menus_route ON admin_menus(route_path);
+CREATE INDEX IF NOT EXISTS idx_admin_menus_visible ON admin_menus(visible);
 
 -- 权限表
 CREATE TABLE IF NOT EXISTS admin_permissions (
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS admin_permissions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_admin_permissions_name ON admin_permissions(name);
-CREATE INDEX idx_admin_permissions_category ON admin_permissions(category);
+CREATE INDEX IF NOT EXISTS idx_admin_permissions_name ON admin_permissions(name);
+CREATE INDEX IF NOT EXISTS idx_admin_permissions_category ON admin_permissions(category);
 
 -- 菜单权限关联表
 CREATE TABLE IF NOT EXISTS admin_menu_permissions (
@@ -47,9 +47,9 @@ CREATE TABLE IF NOT EXISTS admin_resources (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_admin_resources_name ON admin_resources(name);
-CREATE INDEX idx_admin_resources_category ON admin_resources(category);
-CREATE INDEX idx_admin_resources_source_type ON admin_resources(source_type);
+CREATE INDEX IF NOT EXISTS idx_admin_resources_name ON admin_resources(name);
+CREATE INDEX IF NOT EXISTS idx_admin_resources_category ON admin_resources(category);
+CREATE INDEX IF NOT EXISTS idx_admin_resources_source_type ON admin_resources(source_type);
 
 -- 部署路径表
 CREATE TABLE IF NOT EXISTS admin_deployment_paths (
@@ -63,8 +63,8 @@ CREATE TABLE IF NOT EXISTS admin_deployment_paths (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_admin_deployment_paths_resource ON admin_deployment_paths(resource_id);
-CREATE INDEX idx_admin_deployment_paths_tool ON admin_deployment_paths(tool_name);
+CREATE INDEX IF NOT EXISTS idx_admin_deployment_paths_resource ON admin_deployment_paths(resource_id);
+CREATE INDEX IF NOT EXISTS idx_admin_deployment_paths_tool ON admin_deployment_paths(tool_name);
 
 -- 资源权限关联表
 CREATE TABLE IF NOT EXISTS admin_resource_permissions (

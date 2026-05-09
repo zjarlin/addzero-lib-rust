@@ -1,4 +1,4 @@
-Place independent `aio-plugin-*` repositories here.
+Place independent `addzero-plugin-*` repositories here.
 
 Recommended model:
 

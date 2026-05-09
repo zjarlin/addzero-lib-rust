@@ -9,7 +9,6 @@ use ring::aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey};
 use ring::pbkdf2::{self, PBKDF2_HMAC_SHA256};
 use ring::rand::{SecureRandom, SystemRandom};
 use std::collections::BTreeMap;
-use std::fmt;
 use std::io::Read;
 use std::num::NonZeroU32;
 use std::path::Path;

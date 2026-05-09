@@ -1,8 +1,6 @@
 use addzero_persistence::PersistenceContext;
 use chrono::Utc;
-use sea_orm::{ConnectOptions, Database};
 use sha2::{Digest, Sha256};
-use std::time::Duration;
 
 use crate::{
     discovery::discover_source_documents,
@@ -35,20 +33,8 @@ impl KnowledgeService {
             });
         }
 
-        let mut options = ConnectOptions::new(database_url.to_owned());
-        options
-            .max_connections(4)
-            .min_connections(1)
-            .acquire_timeout(Duration::from_secs(5))
-            .connect_timeout(Duration::from_secs(5))
-            .sqlx_logging(false);
-
-        let connection = Database::connect(options)
-            .await
-            .map_err(|err| KnowledgeError::Message(format!("connect knowledge db: {err}")))?;
-        Ok(Self {
-            backend: KnowledgeBackend::Postgres(KnowledgeRepository::new(connection)),
-        })
+        let persistence = PersistenceContext::connect_with_url(database_url).await?;
+        Ok(Self::from_persistence(&persistence))
     }
 
     pub fn from_persistence(persistence: &PersistenceContext) -> Self {

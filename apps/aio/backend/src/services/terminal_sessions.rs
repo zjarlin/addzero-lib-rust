@@ -13,9 +13,7 @@ use chrono::{DateTime, Utc};
 #[cfg(not(target_arch = "wasm32"))]
 use once_cell::sync::Lazy;
 #[cfg(not(target_arch = "wasm32"))]
-use portable_pty::{
-    Child, ChildKiller, CommandBuilder, MasterPty, PtySize, PtySystem, native_pty_system,
-};
+use portable_pty::{Child, ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -482,7 +480,7 @@ impl TerminalSessionStore {
         let runtime = Arc::new(TerminalRuntime::new(rows, cols));
 
         let pty_system = native_pty_system();
-        let mut pair = pty_system
+        let pair = pty_system
             .openpty(PtySize {
                 rows,
                 cols,

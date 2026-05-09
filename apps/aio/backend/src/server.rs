@@ -27,17 +27,16 @@ use uuid::Uuid;
 use crate::services::{
     AiProviderConfigDto, AiProviderConfigUpsertDto, AssetGraphDto, AssetSyncReportDto,
     BootstrapDatabaseSaveResultDto, BootstrapDatabaseSetupDto, BootstrapStatusDto,
-    BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto, ChatResponseDto, FileIndexDto,
-    FilterOptions, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto,
-    KnowledgeFeedDto, KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto,
-    KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest,
-    PluginDescriptorDto, PluginInstallRequestDto, ResolveKnowledgeExceptionInput, ScanStatsDto,
-    ShareLinkDto, SkillDto, SkillSourceDto, SkillUpsertDto, StartVibeCodingRequestDto,
-    StartVibeCodingResponseDto, StorageBrowseRequestDto, StorageBrowseResultDto,
-    StorageCreateFolderDto, StorageCreateFolderResultDto, StorageDeleteFolderDto,
-    StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto, StorageShareResultDto,
-    StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto, SyncReportDto,
-    TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
+    BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto, ChatResponseDto, FilterOptions,
+    KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto, KnowledgeFeedDto,
+    KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto,
+    KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest, PluginDescriptorDto,
+    PluginInstallRequestDto, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto,
+    SkillUpsertDto, StartVibeCodingRequestDto, StartVibeCodingResponseDto, StorageBrowseRequestDto,
+    StorageBrowseResultDto, StorageCreateFolderDto, StorageCreateFolderResultDto,
+    StorageDeleteFolderDto, StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto,
+    StorageShareResultDto, StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto,
+    SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
     TerminalSessionSnapshotDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
     WasmPluginRuntimeSnapshotDto, WasmPluginUploadRequestDto, WasmPluginUploadResultDto,
     download_station::{FileIndex, ScanStats, ShareLink},
@@ -284,110 +283,127 @@ fn migration_files() -> Result<Vec<PathBuf>> {
 
 fn split_sql_statements(sql: &str) -> Vec<String> {
     let mut statements = Vec::new();
-    let mut current = String::new();
-    let mut chars = sql.chars().peekable();
+    let mut start = 0;
+    let mut index = 0;
+    let bytes = sql.as_bytes();
     let mut in_single_quote = false;
     let mut in_double_quote = false;
     let mut dollar_tag: Option<String> = None;
 
-    while let Some(ch) = chars.next() {
-        if let Some(tag) = dollar_tag.as_ref() {
-            current.push(ch);
-            if ch == '$' {
-                let remaining: String = chars.clone().collect();
-                if remaining.starts_with(tag) {
-                    for expected in tag.chars() {
-                        current.push(expected);
-                        let next = chars.next();
-                        debug_assert_eq!(next, Some(expected));
-                    }
-                    dollar_tag = None;
-                }
+    while index < bytes.len() {
+        let ch = bytes[index] as char;
+
+        if let Some(tag) = dollar_tag.as_deref() {
+            if ch == '$' && sql[index..].starts_with(tag) {
+                index += tag.len();
+                dollar_tag = None;
+            } else {
+                index += 1;
             }
             continue;
         }
 
         if in_single_quote {
-            current.push(ch);
             if ch == '\'' {
-                if matches!(chars.peek(), Some('\'')) {
-                    current.push('\'');
-                    chars.next();
-                } else {
-                    in_single_quote = false;
+                if bytes.get(index + 1) == Some(&b'\'') {
+                    index += 2;
+                    continue;
                 }
+                in_single_quote = false;
             }
+            index += 1;
             continue;
         }
 
         if in_double_quote {
-            current.push(ch);
             if ch == '"' {
                 in_double_quote = false;
             }
+            index += 1;
             continue;
         }
 
-        if ch == '\'' {
-            in_single_quote = true;
-            current.push(ch);
-            continue;
-        }
-
-        if ch == '"' {
-            in_double_quote = true;
-            current.push(ch);
-            continue;
-        }
-
-        if ch == '$' {
-            let mut tag = String::new();
-            let mut probe = chars.clone();
-            let mut opened_dollar_tag = false;
-            while let Some(next) = probe.next() {
-                if next == '$' {
-                    current.push('$');
-                    for expected in tag.chars() {
-                        current.push(expected);
-                        let next_live = chars.next();
-                        debug_assert_eq!(next_live, Some(expected));
-                    }
-                    current.push('$');
-                    chars.next();
-                    dollar_tag = Some(tag.clone());
-                    opened_dollar_tag = true;
-                    break;
+        match ch {
+            '\'' => {
+                in_single_quote = true;
+                index += 1;
+            }
+            '"' => {
+                in_double_quote = true;
+                index += 1;
+            }
+            '$' => {
+                if let Some(tag) = read_dollar_tag(&sql[index..]) {
+                    index += tag.len();
+                    dollar_tag = Some(tag);
+                } else {
+                    index += 1;
                 }
-                if !(next == '_' || next.is_ascii_alphanumeric()) {
-                    current.push('$');
-                    current.push_str(&tag);
-                    tag.clear();
-                    break;
+            }
+            ';' => {
+                let statement = sql[start..index].trim();
+                if !statement.is_empty() {
+                    statements.push(statement.to_string());
                 }
-                tag.push(next);
+                index += 1;
+                start = index;
             }
-            if opened_dollar_tag || tag.is_empty() {
-                continue;
+            _ => {
+                index += 1;
             }
         }
-
-        if ch == ';' {
-            if !current.trim().is_empty() {
-                statements.push(current.trim().to_string());
-            }
-            current.clear();
-            continue;
-        }
-
-        current.push(ch);
     }
 
-    if !current.trim().is_empty() {
-        statements.push(current.trim().to_string());
+    let statement = sql[start..].trim();
+    if !statement.is_empty() {
+        statements.push(statement.to_string());
     }
 
     statements
 }
+
+fn read_dollar_tag(input: &str) -> Option<String> {
+    let rest = input.strip_prefix('$')?;
+    let end = rest.find('$')?;
+    let tag = &rest[..end];
+    if tag
+        .chars()
+        .all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+    {
+        Some(format!("${tag}$"))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod migration_tests {
+    use super::split_sql_statements;
+
+    #[test]
+    fn split_sql_statements_keeps_dollar_quoted_blocks_together() {
+        let sql = r#"
+            DO $$
+            BEGIN
+                IF TRUE THEN
+                    RAISE NOTICE 'contains; semicolon';
+                END IF;
+            END $$;
+            CREATE TABLE IF NOT EXISTS demo (id INTEGER);
+        "#;
+
+        let statements = split_sql_statements(sql);
+
+        assert_eq!(
+            statements.len(),
+            2,
+            "the DO block must remain one executable statement"
+        );
+        assert!(statements[0].contains("RAISE NOTICE"));
+        assert!(statements[1].starts_with("CREATE TABLE"));
+    }
+}
+
 pub async fn run_api_server() -> Result<()> {
     let bind = std::env::var("AIO_API_BIND").unwrap_or_else(|_| "127.0.0.1:8787".into());
     let address: SocketAddr = bind.parse()?;
@@ -1849,10 +1865,6 @@ impl ApiError {
             status: StatusCode::NOT_FOUND,
             message: message.into(),
         }
-    }
-
-    fn bad_request_from(err: anyhow::Error) -> Self {
-        Self::bad_request(err.to_string())
     }
 
     fn internal_from(err: anyhow::Error) -> Self {
