@@ -1,8 +1,11 @@
 use crate::http::HttpApiClient;
 use crate::model::{
-    AddressCredential, AddressLoginRequest, AddressSettings, ListResponse, MailRow,
-    NewAddressRequest, ParsedMailRow, SendMailRequest, SuccessResponse, TempMailSettings,
+    AddressCredential, AddressLoginRequest, AddressSettings, CreateMailboxRequest, ListResponse,
+    MailRow, NewAddressRequest, PageRequest, ParsedMailRow, SendMailRequest, SuccessResponse,
+    TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary, TempMailProviderKind,
+    TempMailSettings,
 };
+use crate::provider::TempMailProvider;
 use crate::util::{required_non_blank, sha256_hex};
 use crate::{ApiConfig, TempMailResult};
 use reqwest::header::ACCEPT;
@@ -10,11 +13,11 @@ use serde_json::json;
 
 /// Blocking API client for a `dreamhunter2333/cloudflare_temp_email` deployment.
 #[derive(Debug, Clone)]
-pub struct TempMailApi {
+pub struct CloudflareTempMailApi {
     http: HttpApiClient,
 }
 
-impl TempMailApi {
+impl CloudflareTempMailApi {
     /// Creates a client from explicit worker configuration.
     pub fn new(config: ApiConfig) -> TempMailResult<Self> {
         Ok(Self {
@@ -236,52 +239,51 @@ impl TempMailApi {
 }
 
 /// Creates a Temp Email client for a deployed Cloudflare worker.
-pub fn create_temp_mail_api(base_url: impl Into<String>) -> TempMailResult<TempMailApi> {
+impl TempMailProvider for CloudflareTempMailApi {
+    fn provider_kind(&self) -> TempMailProviderKind {
+        TempMailProviderKind::Cloudflare
+    }
+
+    fn create_mailbox(&self, request: &CreateMailboxRequest) -> TempMailResult<TempMailMailbox> {
+        self.new_address(&NewAddressRequest::from(request))
+            .map(TempMailMailbox::from_cloudflare)
+    }
+
+    fn list_messages(
+        &self,
+        mailbox: &TempMailMailbox,
+        page: PageRequest,
+    ) -> TempMailResult<ListResponse<TempMailMessageSummary>> {
+        let response = self.list_mails(&mailbox.credential, page)?;
+        Ok(ListResponse {
+            results: response
+                .results
+                .into_iter()
+                .map(TempMailMessageSummary::from)
+                .collect(),
+            count: response.count,
+        })
+    }
+
+    fn get_message(
+        &self,
+        mailbox: &TempMailMailbox,
+        message_id: &str,
+    ) -> TempMailResult<Option<TempMailMessageDetail>> {
+        let Ok(mail_id) = message_id.trim().parse::<u64>() else {
+            return Ok(None);
+        };
+        self.get_mail(&mailbox.credential, mail_id)
+            .map(|mail| mail.map(TempMailMessageDetail::from))
+    }
+}
+
+/// Backward-compatible alias for the default concrete temp-mail implementation.
+pub type TempMailApi = CloudflareTempMailApi;
+
+pub fn create_temp_mail_api(base_url: impl Into<String>) -> TempMailResult<CloudflareTempMailApi> {
     let config = ApiConfig::builder(base_url)
         .default_header(ACCEPT.as_str(), "application/json")
         .build()?;
-    TempMailApi::new(config)
-}
-
-/// Pagination used by list endpoints. Upstream accepts `limit` in `1..=100`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PageRequest {
-    pub limit: usize,
-    pub offset: usize,
-}
-
-impl PageRequest {
-    /// Creates a request after clamping `limit` to upstream's accepted range.
-    pub const fn new(limit: usize, offset: usize) -> Self {
-        Self {
-            limit: clamp_limit(limit),
-            offset,
-        }
-    }
-
-    fn to_query(self) -> [(&'static str, String); 2] {
-        [
-            ("limit", self.limit.to_string()),
-            ("offset", self.offset.to_string()),
-        ]
-    }
-}
-
-impl Default for PageRequest {
-    fn default() -> Self {
-        Self {
-            limit: 20,
-            offset: 0,
-        }
-    }
-}
-
-const fn clamp_limit(limit: usize) -> usize {
-    if limit == 0 {
-        1
-    } else if limit > 100 {
-        100
-    } else {
-        limit
-    }
+    CloudflareTempMailApi::new(config)
 }

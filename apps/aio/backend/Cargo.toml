@@ -57,6 +57,7 @@ once_cell = "1"
 portable-pty = "0.9.0"
 sqlx.workspace = true
 tokio.workspace = true
+toml_edit.workspace = true
 tower-http = { version = "0.6.8", features = ["cors"] }
 vt100 = "0.16.2"
 walkdir = "2"

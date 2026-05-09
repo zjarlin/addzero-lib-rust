@@ -39,6 +39,7 @@ import {
     TabsContent,
     TabsList,
     TabsTrigger,
+    Textarea,
     cn,
 } from "@az/ui";
 import {
@@ -47,7 +48,7 @@ import {
     type WasmPluginInstallResult,
     type WasmPluginMarketplaceEntry,
     type WasmPluginRuntimeSnapshot,
-    uploadWasmPlugin,
+    uploadWasmPluginFirmware,
 } from "../lib/wasm-plugin-runtime";
 
 const sceneCards = {
@@ -130,6 +131,7 @@ type StatusFilter = "all" | "installed" | "available" | "disabled" | "builtin";
 type LaneFilter = "all" | "builtin" | "external";
 type SortMode = "featured" | "name" | "instances";
 type DetailTab = "overview" | "package" | "activity";
+type FirmwareKind = "System" | "Business";
 
 type MarketEntryItem =
     | {
@@ -185,6 +187,9 @@ function WasmMarketplacePage() {
     const [lastInstall, setLastInstall] = useState<WasmPluginInstallResult | null>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadFile, setUploadFile] = useState<File | null>(null);
+    const [firmwareName, setFirmwareName] = useState("");
+    const [firmwareDescription, setFirmwareDescription] = useState("");
+    const [firmwareKind, setFirmwareKind] = useState<FirmwareKind>("Business");
 
     const loadSnapshot = useCallback(async () => {
         setLoading(true);
@@ -371,12 +376,15 @@ function WasmMarketplacePage() {
             setUploadFile(null);
             return;
         }
-        if (!file.name.toLowerCase().endsWith(".azplugin")) {
+        if (!file.name.toLowerCase().endsWith(".wasm")) {
             setUploadFile(null);
-            setActionError("插件市场只允许用户上传 `.azplugin` 插件包");
+            setActionError("固件上传只接收 `.wasm` 二进制");
             return;
         }
         setUploadFile(file);
+        if (!firmwareName.trim()) {
+            setFirmwareName(file.name.replace(/\.wasm$/i, ""));
+        }
     }
 
     async function installExternalPlugin(entry: WasmPluginMarketplaceEntry) {
@@ -400,9 +408,19 @@ function WasmMarketplacePage() {
         }
     }
 
-    async function uploadExternalPluginPackage() {
+    async function uploadFirmwarePlugin() {
+        const name = firmwareName.trim();
+        const description = firmwareDescription.trim();
+        if (!name) {
+            setActionError("请填写插件名");
+            return;
+        }
+        if (!description) {
+            setActionError("请填写描述");
+            return;
+        }
         if (!uploadFile) {
-            setActionError("请先选择一个 `.azplugin` 插件包");
+            setActionError("请先选择一个 `.wasm` 固件文件");
             return;
         }
         setUploading(true);
@@ -410,19 +428,24 @@ function WasmMarketplacePage() {
         setActionMessage(null);
         try {
             const bytes = Array.from(new Uint8Array(await uploadFile.arrayBuffer()));
-            const result = await uploadWasmPlugin({
+            const result = await uploadWasmPluginFirmware({
+                name,
+                description,
+                firmware_kind: firmwareKind,
                 file_name: uploadFile.name,
                 bytes,
             });
             setActionMessage(
-                `已校验并入库：${result.plugin_name} ${result.version} (${result.plugin_id})`,
+                `已写入 PG/MinIO：${result.plugin_name} ${result.version} (${result.plugin_id})`,
             );
             setUploadFile(null);
+            setFirmwareName("");
+            setFirmwareDescription("");
             setDetailTab("package");
             window.dispatchEvent(new Event("aio:plugin-runtime-updated"));
             await loadSnapshot();
         } catch (err) {
-            setActionError(err instanceof Error ? err.message : "上传插件包失败");
+            setActionError(err instanceof Error ? err.message : "上传固件失败");
         } finally {
             setUploading(false);
         }
@@ -445,7 +468,7 @@ function WasmMarketplacePage() {
                                 Built-in / 系统
                             </Badge>
                             <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
-                                External / user upload only
+                                PG Metadata / MinIO WASM
                             </Badge>
                         </div>
                     </div>
@@ -458,13 +481,13 @@ function WasmMarketplacePage() {
                                 </h1>
                                 <div className="flex flex-wrap gap-2">
                                     <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
-                                        only `.azplugin`
+                                        `.wasm` firmware
                                     </Badge>
                                     <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
-                                        server validation
+                                        PG metadata
                                     </Badge>
                                     <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
-                                        catalog install
+                                        MinIO binary
                                     </Badge>
                                 </div>
                             </div>
@@ -503,7 +526,7 @@ function WasmMarketplacePage() {
                                 <QuickMetricButton
                                     label="待装"
                                     value={String(availableExternalCount)}
-                                    detail="已入 catalog"
+                                    detail="已入 PG"
                                     active={statusFilter === "available"}
                                     onClick={() => {
                                         setLaneFilter("external");
@@ -536,15 +559,20 @@ function WasmMarketplacePage() {
                                 <Button
                                     type="button"
                                     className="rounded-full bg-stone-950 px-5"
-                                    onClick={() => void uploadExternalPluginPackage()}
-                                    disabled={uploading || !uploadFile}
+                                    onClick={() => void uploadFirmwarePlugin()}
+                                    disabled={
+                                        uploading ||
+                                        !uploadFile ||
+                                        !firmwareName.trim() ||
+                                        !firmwareDescription.trim()
+                                    }
                                 >
                                     {uploading ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
                                         <Upload className="h-4 w-4" />
                                     )}
-                                    上传并校验
+                                    上传固件
                                 </Button>
                                 <Button
                                     type="button"
@@ -553,7 +581,7 @@ function WasmMarketplacePage() {
                                     onClick={() => void loadSnapshot()}
                                 >
                                     <RefreshCw className="h-4 w-4" />
-                                    刷新 catalog
+                                    刷新插件
                                 </Button>
                             </div>
                         </div>
@@ -583,18 +611,55 @@ function WasmMarketplacePage() {
 
                         <div className="grid gap-4">
                             <DockCard
-                                title="上传坞站"
-                                eyebrow="Upload Dock"
+                                title="固件入库"
+                                eyebrow="Firmware Upload"
                                 icon={<Upload className="h-4 w-4" />}
                             >
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <label className="block">
+                                        <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-stone-500">
+                                            插件名
+                                        </span>
+                                        <Input
+                                            value={firmwareName}
+                                            onChange={(event) => setFirmwareName(event.target.value)}
+                                            placeholder="例如 工业协议转换网关"
+                                            className="rounded-2xl border-stone-200 bg-white/80"
+                                        />
+                                    </label>
+                                    <SegmentGroup
+                                        label="分类"
+                                        value={firmwareKind}
+                                        options={[
+                                            { id: "System", label: "系统固件" },
+                                            { id: "Business", label: "业务固件" },
+                                        ]}
+                                        onChange={(value) => setFirmwareKind(value as FirmwareKind)}
+                                    />
+                                </div>
+
+                                <label className="block">
+                                    <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-stone-500">
+                                        描述
+                                    </span>
+                                    <Textarea
+                                        value={firmwareDescription}
+                                        onChange={(event) =>
+                                            setFirmwareDescription(event.target.value)
+                                        }
+                                        placeholder="说明这个固件暴露的协议、能力或业务入口"
+                                        className="min-h-[88px] rounded-2xl border-stone-200 bg-white/80"
+                                    />
+                                </label>
+
                                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                                     <label className="block">
                                         <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-stone-500">
-                                            插件包
+                                            固件文件
                                         </span>
                                         <Input
                                             type="file"
-                                            accept=".azplugin"
+                                            accept=".wasm,application/wasm"
                                             onChange={(event) =>
                                                 handleUploadSelection(
                                                     event.target.files?.[0] ?? null,
@@ -606,8 +671,13 @@ function WasmMarketplacePage() {
                                     <Button
                                         type="button"
                                         className="rounded-full bg-stone-950 px-5"
-                                        onClick={() => void uploadExternalPluginPackage()}
-                                        disabled={uploading || !uploadFile}
+                                        onClick={() => void uploadFirmwarePlugin()}
+                                        disabled={
+                                            uploading ||
+                                            !uploadFile ||
+                                            !firmwareName.trim() ||
+                                            !firmwareDescription.trim()
+                                        }
                                     >
                                         {uploading ? (
                                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -623,21 +693,24 @@ function WasmMarketplacePage() {
                                         label="文件"
                                         value={uploadFile?.name ?? "未选择"}
                                     />
-                                    <CompactInfoTile label="入口" value="user upload" />
+                                    <CompactInfoTile
+                                        label="分类"
+                                        value={firmwareKind === "System" ? "系统固件" : "业务固件"}
+                                    />
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
                                     <Badge variant="outline" className="rounded-full bg-white/80">
-                                        `.azplugin`
+                                        `.wasm`
                                     </Badge>
                                     <Badge variant="outline" className="rounded-full bg-white/80">
-                                        plugin.toml
+                                        PostgreSQL
                                     </Badge>
                                     <Badge variant="outline" className="rounded-full bg-white/80">
-                                        checksums.sha256
+                                        MinIO
                                     </Badge>
                                     <Badge variant="outline" className="rounded-full bg-white/80">
-                                        runtime.binary_path
+                                        server descriptor
                                     </Badge>
                                 </div>
                             </DockCard>
@@ -944,8 +1017,8 @@ function MarketplaceDetailPanel({
                     />
                     <MiniPanel
                         label="Runtime"
-                        value={isBuiltin ? "Shell" : "Catalog"}
-                        detail={isBuiltin ? "route entry" : "validated ingest"}
+                        value={isBuiltin ? "Shell" : "PG/MinIO"}
+                        detail={isBuiltin ? "route entry" : "persisted firmware"}
                     />
                 </div>
             </CardHeader>
@@ -979,24 +1052,24 @@ function MarketplaceDetailPanel({
                                 eyebrow="Verification"
                                 icon={<ShieldCheck className="h-4 w-4" />}
                             >
-                                <ChecklistRow label="file" state="pass" detail="`.azplugin` only" />
-                                <ChecklistRow label="manifest" state="pass" detail="requires `plugin.toml`" />
-                                <ChecklistRow label="checksum" state="pass" detail="requires `checksums.sha256`" />
-                                <ChecklistRow label="binary path" state="pass" detail="requires `runtime.binary_path`" />
+                                <ChecklistRow label="file" state="pass" detail="`.wasm` only" />
+                                <ChecklistRow label="metadata" state="pass" detail="stored in PostgreSQL" />
+                                <ChecklistRow label="binary" state="pass" detail="stored in MinIO" />
+                                <ChecklistRow label="descriptor" state="pass" detail="generated by server" />
                                 <ChecklistRow
                                     label="plugin kind"
                                     state={isBuiltin ? "warn" : "pass"}
                                     detail={
                                         isBuiltin
                                             ? "built-in entry bypasses upload flow"
-                                            : "reject non-Business package"
+                                            : "System / Business firmware category"
                                     }
                                 />
                             </InstrumentPanel>
 
                             <InstrumentPanel
                                 title="入库轨迹"
-                                eyebrow="Catalog Path"
+                                eyebrow="Storage Path"
                                 icon={<FolderArchive className="h-4 w-4" />}
                             >
                                 <PathLine label="package_root" value={runtimePackageRoot} />
@@ -1034,7 +1107,7 @@ function MarketplaceDetailPanel({
                                     <>
                                         <ActionTile
                                             title={item.entry.status === "Available" ? "安装实例" : "新建实例"}
-                                            detail="从 catalog 直接进入实例化。"
+                                            detail="从 PG 插件元数据直接创建实例。"
                                             cta={item.entry.status === "Available" ? "安装" : "创建"}
                                             onClick={onInstall}
                                             loading={pendingPluginId === item.entry.plugin_id}
@@ -1102,9 +1175,9 @@ function BuiltinInteractiveOverview({ entry }: { entry: BuiltinEntry }) {
                 icon={<ShieldCheck className="h-4 w-4" />}
             >
                 <SignalRow label="Built-in only" detail="市场内置项只保留 插件 / 系统。" />
-                <SignalRow label="External split" detail="其余目录项全部按外部 WASM 插件处理。" />
-                <SignalRow label="Upload gate" detail="市场不接源码目录导入。" />
-                <SignalRow label="Install path" detail="校验通过后入 catalog，再做实例动作。" />
+                <SignalRow label="Firmware split" detail="上传时明确选择系统固件或业务固件。" />
+                <SignalRow label="Upload gate" detail="市场不接源码目录导入，只接 `.wasm` 固件。" />
+                <SignalRow label="Storage path" detail="元数据写 PostgreSQL，二进制写 MinIO。" />
             </InstrumentPanel>
         </div>
     );

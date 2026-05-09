@@ -37,7 +37,8 @@ use crate::services::{
     StorageDeleteFolderDto, StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto,
     StorageShareResultDto, StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto,
     SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
-    TerminalSessionSnapshotDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
+    TerminalSessionSnapshotDto, WasmPluginBinaryUploadRequestDto,
+    WasmPluginFirmwareUploadRequestDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
     WasmPluginRuntimeSnapshotDto, WasmPluginUploadRequestDto, WasmPluginUploadResultDto,
     download_station::{FileIndex, ScanStats, ShareLink},
     menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
@@ -468,6 +469,14 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/plugins/{id}", axum::routing::delete(uninstall_plugin))
         .route("/api/wasm/plugins/overview", get(wasm_plugin_overview))
         .route("/api/wasm/plugins/upload", post(upload_wasm_plugin))
+        .route(
+            "/api/wasm/plugins/upload-binary",
+            post(upload_wasm_binary_plugin),
+        )
+        .route(
+            "/api/wasm/plugins/upload-firmware",
+            post(upload_wasm_firmware_plugin),
+        )
         .route(
             "/api/wasm/plugins/install-catalog",
             post(install_catalog_wasm_plugin),
@@ -1114,6 +1123,28 @@ async fn upload_wasm_plugin(
 ) -> ApiResult<Json<WasmPluginUploadResultDto>> {
     ensure_auth(admin_auth(), &headers)?;
     let result = crate::services::wasm_plugins::upload_wasm_plugin_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn upload_wasm_binary_plugin(
+    headers: HeaderMap,
+    Json(input): Json<WasmPluginBinaryUploadRequestDto>,
+) -> ApiResult<Json<WasmPluginUploadResultDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let result = crate::services::wasm_plugins::upload_wasm_binary_plugin_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn upload_wasm_firmware_plugin(
+    headers: HeaderMap,
+    Json(input): Json<WasmPluginFirmwareUploadRequestDto>,
+) -> ApiResult<Json<WasmPluginUploadResultDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let result = crate::services::wasm_plugins::upload_wasm_firmware_plugin_on_server(input)
         .await
         .map_err(ApiError::bad_request)?;
     Ok(Json(result))

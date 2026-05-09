@@ -1,6 +1,119 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Supported concrete temporary email providers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TempMailProviderKind {
+    /// Self-hosted Cloudflare Worker from `dreamhunter2333/cloudflare_temp_email`.
+    Cloudflare,
+    /// Hosted mail.tm-compatible API.
+    MailTm,
+}
+
+/// Pagination used by list endpoints. Values are normalized to common provider limits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PageRequest {
+    pub limit: usize,
+    pub offset: usize,
+}
+
+impl PageRequest {
+    /// Creates a request after clamping `limit` to `1..=100`.
+    pub const fn new(limit: usize, offset: usize) -> Self {
+        Self {
+            limit: clamp_limit(limit),
+            offset,
+        }
+    }
+
+    pub(crate) fn to_query(self) -> [(&'static str, String); 2] {
+        [
+            ("limit", self.limit.to_string()),
+            ("offset", self.offset.to_string()),
+        ]
+    }
+}
+
+impl Default for PageRequest {
+    fn default() -> Self {
+        Self {
+            limit: 20,
+            offset: 0,
+        }
+    }
+}
+
+/// Provider-neutral request for creating a mailbox.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreateMailboxRequest {
+    /// Preferred local part. Providers may sanitize it or generate a random one.
+    pub name: Option<String>,
+    /// Preferred domain. Providers may select a default when omitted.
+    pub domain: Option<String>,
+    /// Optional password length for providers that create password-based accounts.
+    pub password_length: usize,
+    /// Optional Cloudflare Turnstile token for deployments that require it.
+    pub cf_token: Option<String>,
+    /// Whether random subdomain creation should be requested when supported.
+    pub enable_random_subdomain: bool,
+}
+
+impl CreateMailboxRequest {
+    /// Creates a request with a preferred local part and provider-selected domain.
+    pub fn named(name: impl Into<String>) -> Self {
+        Self {
+            name: Some(name.into()),
+            domain: None,
+            password_length: 16,
+            cf_token: None,
+            enable_random_subdomain: false,
+        }
+    }
+
+    /// Creates a request with a preferred local part and domain.
+    pub fn new(name: impl Into<String>, domain: impl Into<String>) -> Self {
+        Self {
+            name: Some(name.into()),
+            domain: Some(domain.into()),
+            password_length: 16,
+            cf_token: None,
+            enable_random_subdomain: false,
+        }
+    }
+
+    /// Requests a provider-generated mailbox.
+    pub const fn random() -> Self {
+        Self {
+            name: None,
+            domain: None,
+            password_length: 16,
+            cf_token: None,
+            enable_random_subdomain: false,
+        }
+    }
+
+    /// Sets password length for providers that need a password.
+    #[must_use]
+    pub const fn password_length(mut self, value: usize) -> Self {
+        self.password_length = value;
+        self
+    }
+
+    /// Sets the Cloudflare Turnstile token when required.
+    #[must_use]
+    pub fn cf_token(mut self, value: impl Into<String>) -> Self {
+        self.cf_token = Some(value.into());
+        self
+    }
+
+    /// Requests random subdomain creation on providers that support it.
+    #[must_use]
+    pub const fn enable_random_subdomain(mut self, value: bool) -> Self {
+        self.enable_random_subdomain = value;
+        self
+    }
+}
+
 /// Public settings returned by `/open_api/settings`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -104,6 +217,17 @@ impl NewAddressRequest {
     }
 }
 
+impl From<&CreateMailboxRequest> for NewAddressRequest {
+    fn from(value: &CreateMailboxRequest) -> Self {
+        Self {
+            name: value.name.clone(),
+            domain: value.domain.clone(),
+            cf_token: value.cf_token.clone(),
+            enable_random_subdomain: Some(value.enable_random_subdomain),
+        }
+    }
+}
+
 /// Address credential returned by `/api/new_address` and `/api/address_login`.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct AddressCredential {
@@ -112,6 +236,44 @@ pub struct AddressCredential {
     #[serde(default)]
     pub password: Option<String>,
     pub address_id: u64,
+}
+
+/// Provider-neutral mailbox credential.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TempMailMailbox {
+    pub provider: TempMailProviderKind,
+    pub address: String,
+    pub credential: String,
+    pub account_id: Option<String>,
+    pub password: Option<String>,
+}
+
+impl TempMailMailbox {
+    /// Creates a provider-neutral mailbox from a Cloudflare address credential.
+    pub fn from_cloudflare(value: AddressCredential) -> Self {
+        Self {
+            provider: TempMailProviderKind::Cloudflare,
+            address: value.address,
+            credential: value.jwt,
+            account_id: Some(value.address_id.to_string()),
+            password: value.password,
+        }
+    }
+
+    /// Creates a provider-neutral mailbox for token-based providers.
+    pub fn token(
+        provider: TempMailProviderKind,
+        address: impl Into<String>,
+        token: impl Into<String>,
+    ) -> Self {
+        Self {
+            provider,
+            address: address.into(),
+            credential: token.into(),
+            account_id: None,
+            password: None,
+        }
+    }
 }
 
 /// Address settings returned by `/api/settings`.
@@ -150,6 +312,76 @@ pub struct MailRow {
     pub created_at: Option<String>,
     #[serde(flatten)]
     pub extra: serde_json::Map<String, Value>,
+}
+
+/// Provider-neutral message summary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TempMailMessageSummary {
+    pub id: String,
+    pub from_address: String,
+    pub from_name: String,
+    pub subject: String,
+    pub intro: String,
+    pub created_at: String,
+}
+
+impl From<MailRow> for TempMailMessageSummary {
+    fn from(value: MailRow) -> Self {
+        Self {
+            id: value.id.to_string(),
+            from_address: value.source.unwrap_or_default(),
+            from_name: String::new(),
+            subject: extract_raw_subject(value.raw.as_deref()).unwrap_or_default(),
+            intro: String::new(),
+            created_at: value.created_at.unwrap_or_default(),
+        }
+    }
+}
+
+/// Provider-neutral message detail.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TempMailMessageDetail {
+    pub id: String,
+    pub from_address: String,
+    pub from_name: String,
+    pub to: Vec<TempMailRecipient>,
+    pub subject: String,
+    pub text: String,
+    pub html: String,
+    pub raw: String,
+    pub created_at: String,
+}
+
+impl From<MailRow> for TempMailMessageDetail {
+    fn from(value: MailRow) -> Self {
+        let subject = extract_raw_subject(value.raw.as_deref()).unwrap_or_default();
+        Self {
+            id: value.id.to_string(),
+            from_address: value.source.unwrap_or_default(),
+            from_name: String::new(),
+            to: value
+                .address
+                .map(|address| {
+                    vec![TempMailRecipient {
+                        address,
+                        name: String::new(),
+                    }]
+                })
+                .unwrap_or_default(),
+            subject,
+            text: String::new(),
+            html: String::new(),
+            raw: value.raw.unwrap_or_default(),
+            created_at: value.created_at.unwrap_or_default(),
+        }
+    }
+}
+
+/// Provider-neutral email recipient.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TempMailRecipient {
+    pub address: String,
+    pub name: String,
 }
 
 /// Parsed mailbox row from `/api/parsed_mails`.
@@ -284,5 +516,27 @@ impl AddressLoginRequest {
     pub fn cf_token(mut self, value: impl Into<String>) -> Self {
         self.cf_token = Some(value.into());
         self
+    }
+}
+
+fn extract_raw_subject(raw: Option<&str>) -> Option<String> {
+    raw.and_then(|raw| {
+        raw.lines().find_map(|line| {
+            line.strip_prefix("Subject:")
+                .or_else(|| line.strip_prefix("subject:"))
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+        })
+    })
+}
+
+const fn clamp_limit(limit: usize) -> usize {
+    if limit == 0 {
+        1
+    } else if limit > 100 {
+        100
+    } else {
+        limit
     }
 }

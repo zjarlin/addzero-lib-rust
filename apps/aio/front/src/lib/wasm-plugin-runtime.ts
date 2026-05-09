@@ -67,12 +67,55 @@ export interface WasmPluginUploadRequest {
     bytes: number[];
 }
 
+export interface WasmPluginBinaryUploadRequest {
+    file_name: string;
+    bytes: number[];
+    descriptor: {
+        id: string;
+        name: string;
+        version: string;
+        kind: "Business";
+        summary: string;
+        tags: string[];
+        icon: string | null;
+        compatibility: string[];
+        capabilities: string[];
+        menus: {
+            section: string;
+            label: string;
+            page_id: string;
+            order: number;
+            icon: string | null;
+        }[];
+        pages: {
+            id: string;
+            title: string;
+            subtitle: string;
+            schema: WasmPluginPageSchema;
+        }[];
+    };
+    default_instance_label?: string | null;
+}
+
+export type WasmPluginFirmwareKind = "System" | "Business";
+
+export interface WasmPluginFirmwareUploadRequest {
+    name: string;
+    description: string;
+    firmware_kind: WasmPluginFirmwareKind;
+    file_name: string;
+    bytes: number[];
+}
+
 export interface WasmPluginUploadResult {
     package_path: string;
     plugin_id: string;
     plugin_name: string;
     version: string;
     validated: boolean;
+    storage_backend: string;
+    binary_object_key?: string | null;
+    binary_sha256?: string | null;
 }
 
 export interface WasmPluginInstallRequest {
@@ -180,6 +223,34 @@ export function uploadWasmPlugin(
 ) {
     return requestJson<WasmPluginUploadResult>(
         "/api/wasm/plugins/upload",
+        {
+            method: "POST",
+            body: JSON.stringify(input),
+        },
+        baseUrl,
+    );
+}
+
+export function uploadWasmPluginBinary(
+    input: WasmPluginBinaryUploadRequest,
+    baseUrl = getApiBaseUrl(),
+) {
+    return requestJson<WasmPluginUploadResult>(
+        "/api/wasm/plugins/upload-binary",
+        {
+            method: "POST",
+            body: JSON.stringify(input),
+        },
+        baseUrl,
+    );
+}
+
+export function uploadWasmPluginFirmware(
+    input: WasmPluginFirmwareUploadRequest,
+    baseUrl = getApiBaseUrl(),
+) {
+    return requestJson<WasmPluginUploadResult>(
+        "/api/wasm/plugins/upload-firmware",
         {
             method: "POST",
             body: JSON.stringify(input),

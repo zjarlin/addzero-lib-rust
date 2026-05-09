@@ -97,6 +97,56 @@ fn temp_mail_send_mail_and_mutations_use_bearer_auth() -> Result<(), Box<dyn Err
     Ok(())
 }
 
+#[test]
+fn temp_mail_provider_trait_supports_cloudflare_and_mail_tm() -> Result<(), Box<dyn Error>> {
+    let cloudflare_server = TestServer::spawn(vec![
+        TestResponse::json(r#"{"address":"demo@test.example.com","jwt":"jwt-1","address_id":7}"#),
+        TestResponse::json(
+            r#"{"results":[{"id":12,"source":"alice@test.example.com","address":"demo@test.example.com","raw":"Subject: Trait\r\n\r\nBody","created_at":"2026-05-09 10:00:00"}],"count":1}"#,
+        ),
+    ])?;
+    let mail_tm_server = TestServer::spawn(vec![
+        TestResponse::json(
+            r#"{"hydra:member":[{"id":"domain-1","domain":"mail.tm","isActive":true,"isPrivate":false}]}"#,
+        ),
+        TestResponse::json(r#"{"id":"account-1"}"#),
+        TestResponse::json(r#"{"token":"token-1"}"#),
+        TestResponse::json(
+            r#"{"hydra:member":[{"id":"msg-1","from":{"address":"from@mail.tm","name":"Sender"},"subject":"Hello","intro":"Intro","createdAt":"2026-05-09T10:00:00.000Z"}]}"#,
+        ),
+    ])?;
+
+    let cloudflare =
+        CloudflareTempMailApi::new(ApiConfig::builder(cloudflare_server.base_url()).build()?)?;
+    let mail_tm = MailTmTempMailApi::new(ApiConfig::builder(mail_tm_server.base_url()).build()?)?;
+    let providers: Vec<&dyn TempMailProvider> = vec![&cloudflare, &mail_tm];
+
+    let cloudflare_mailbox =
+        providers[0].create_mailbox(&CreateMailboxRequest::new("demo", "test.example.com"))?;
+    let cloudflare_messages =
+        providers[0].list_messages(&cloudflare_mailbox, PageRequest::new(10, 0))?;
+    let mail_tm_mailbox = providers[1].create_mailbox(&CreateMailboxRequest::named("demo"))?;
+    let mail_tm_messages = providers[1].list_messages(&mail_tm_mailbox, PageRequest::default())?;
+
+    assert_eq!(
+        providers[0].provider_kind(),
+        TempMailProviderKind::Cloudflare
+    );
+    assert_eq!(cloudflare_messages.results[0].subject, "Trait");
+    assert_eq!(providers[1].provider_kind(), TempMailProviderKind::MailTm);
+    assert_eq!(mail_tm_messages.results[0].from_name, "Sender");
+
+    let cloudflare_requests = cloudflare_server.finish()?;
+    assert_eq!(cloudflare_requests[0].path, "/api/new_address");
+    assert_eq!(cloudflare_requests[1].path, "/api/mails?limit=10&offset=0");
+    let mail_tm_requests = mail_tm_server.finish()?;
+    assert_eq!(mail_tm_requests[0].path, "/domains");
+    assert_eq!(mail_tm_requests[1].path, "/accounts");
+    assert_eq!(mail_tm_requests[2].path, "/token");
+    assert_eq!(mail_tm_requests[3].path, "/messages?page=1");
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CapturedRequest {
     method: String,

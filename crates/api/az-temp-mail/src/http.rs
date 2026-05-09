@@ -38,6 +38,21 @@ impl HttpApiClient {
         Ok(self.client.get(self.join_url(path)?))
     }
 
+    pub(crate) fn get_with_query(
+        &self,
+        path: &str,
+        query: &[(&str, String)],
+    ) -> TempMailResult<RequestBuilder> {
+        let mut url = self.join_url(path)?;
+        if !query.is_empty() {
+            let mut pairs = url.query_pairs_mut();
+            for (name, value) in query {
+                pairs.append_pair(name, value);
+            }
+        }
+        Ok(self.client.get(url))
+    }
+
     pub(crate) fn post(&self, path: &str) -> TempMailResult<RequestBuilder> {
         Ok(self.client.post(self.join_url(path)?))
     }

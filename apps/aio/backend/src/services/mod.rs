@@ -25,6 +25,8 @@ pub mod system_management;
 pub mod terminal_sessions;
 pub mod vibe_coding;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod wasm_plugin_store;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod wasm_plugins;
 
 pub use ai_chat::{
@@ -96,6 +98,7 @@ pub use terminal_sessions::{
 pub use vibe_coding::{StartVibeCodingRequestDto, StartVibeCodingResponseDto};
 #[cfg(not(target_arch = "wasm32"))]
 pub use wasm_plugins::{
-    WasmPluginInstallRequestDto, WasmPluginInstallResultDto, WasmPluginRuntimeSnapshotDto,
-    WasmPluginUploadRequestDto, WasmPluginUploadResultDto,
+    WasmPluginBinaryUploadRequestDto, WasmPluginFirmwareKindDto,
+    WasmPluginFirmwareUploadRequestDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
+    WasmPluginRuntimeSnapshotDto, WasmPluginUploadRequestDto, WasmPluginUploadResultDto,
 };

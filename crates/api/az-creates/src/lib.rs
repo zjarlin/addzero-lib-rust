@@ -21,10 +21,14 @@ pub use az_temp_mail::{
     AddressCredential as TempMailAddressCredential,
     AddressLoginRequest as TempMailAddressLoginRequest, AddressSettings as TempMailAddressSettings,
     ApiConfig as TempMailApiConfig, ApiConfigBuilder as TempMailApiConfigBuilder,
-    ListResponse as TempMailListResponse, MailRow, NewAddressRequest as TempMailNewAddressRequest,
-    PageRequest as TempMailPageRequest, ParsedMailAttachment as TempMailParsedMailAttachment,
-    ParsedMailRow, SendMailRequest, SuccessResponse as TempMailSuccessResponse, TempMail,
-    TempMailApi, TempMailError, TempMailResult, TempMailSettings, create_temp_mail_api,
+    CloudflareTempMailApi, CreateMailboxRequest as TempMailCreateMailboxRequest,
+    ListResponse as TempMailListResponse, MailRow, MailTmDomain, MailTmTempMailApi,
+    NewAddressRequest as TempMailNewAddressRequest, PageRequest as TempMailPageRequest,
+    ParsedMailAttachment as TempMailParsedMailAttachment, ParsedMailRow, SendMailRequest,
+    SuccessResponse as TempMailSuccessResponse, TempMail, TempMailApi, TempMailError,
+    TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary, TempMailProvider,
+    TempMailProviderKind, TempMailRecipient, TempMailResult, TempMailSettings, create_mail_tm_api,
+    create_temp_mail_api,
 };
 pub use config::{ApiConfig, ApiConfigBuilder};
 pub use error::{CreatesError, CreatesResult};
@@ -53,6 +57,28 @@ impl Creates {
 
     pub fn temp_mail_with_config(config: TempMailApiConfig) -> TempMailResult<TempMailApi> {
         TempMailApi::new(config)
+    }
+
+    pub fn temp_mail_cloudflare(
+        base_url: impl Into<String>,
+    ) -> TempMailResult<CloudflareTempMailApi> {
+        create_temp_mail_api(base_url)
+    }
+
+    pub fn temp_mail_cloudflare_with_config(
+        config: TempMailApiConfig,
+    ) -> TempMailResult<CloudflareTempMailApi> {
+        CloudflareTempMailApi::new(config)
+    }
+
+    pub fn temp_mail_mail_tm() -> TempMailResult<MailTmTempMailApi> {
+        create_mail_tm_api()
+    }
+
+    pub fn temp_mail_mail_tm_with_config(
+        config: TempMailApiConfig,
+    ) -> TempMailResult<MailTmTempMailApi> {
+        MailTmTempMailApi::new(config)
     }
 
     pub fn music_search() -> CreatesResult<MusicSearchApi> {

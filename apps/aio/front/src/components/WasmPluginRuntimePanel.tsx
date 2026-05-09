@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getApiBaseUrl } from "@az/api-client";
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from "@az/ui";
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    Input,
+    Textarea,
+} from "@az/ui";
 import {
     fetchWasmPluginOverview,
     installCatalogWasmPlugin,
     type WasmPluginInstallResult,
     type WasmPluginMarketplaceEntry,
     type WasmPluginRuntimeSnapshot,
-    uploadWasmPlugin,
+    type WasmPluginFirmwareKind,
+    uploadWasmPluginFirmware,
 } from "../lib/wasm-plugin-runtime";
 
 export default function WasmPluginRuntimePanel() {
@@ -22,6 +32,9 @@ export default function WasmPluginRuntimePanel() {
     const [pendingPluginId, setPendingPluginId] = useState<string | null>(null);
     const [lastInstall, setLastInstall] = useState<WasmPluginInstallResult | null>(null);
     const [uploadFile, setUploadFile] = useState<File | null>(null);
+    const [firmwareName, setFirmwareName] = useState("");
+    const [firmwareDescription, setFirmwareDescription] = useState("");
+    const [firmwareKind, setFirmwareKind] = useState<WasmPluginFirmwareKind>("Business");
 
     async function load() {
         setLoading(true);
@@ -39,9 +52,36 @@ export default function WasmPluginRuntimePanel() {
         void load();
     }, [baseUrl]);
 
+    function handleFirmwareFile(file: File | null) {
+        setError(null);
+        if (!file) {
+            setUploadFile(null);
+            return;
+        }
+        if (!file.name.toLowerCase().endsWith(".wasm")) {
+            setUploadFile(null);
+            setError("请上传 `.wasm` 固件文件");
+            return;
+        }
+        setUploadFile(file);
+        if (!firmwareName.trim()) {
+            setFirmwareName(file.name.replace(/\.wasm$/i, ""));
+        }
+    }
+
     async function uploadPluginPackage() {
+        const name = firmwareName.trim();
+        const description = firmwareDescription.trim();
+        if (!name) {
+            setError("请填写插件名");
+            return;
+        }
+        if (!description) {
+            setError("请填写描述");
+            return;
+        }
         if (!uploadFile) {
-            setError("请先选择一个 `.azplugin` 插件包");
+            setError("请先选择一个 `.wasm` 固件文件");
             return;
         }
         setUploading(true);
@@ -49,19 +89,24 @@ export default function WasmPluginRuntimePanel() {
         setMessage(null);
         try {
             const bytes = Array.from(new Uint8Array(await uploadFile.arrayBuffer()));
-            const result = await uploadWasmPlugin(
+            const result = await uploadWasmPluginFirmware(
                 {
+                    name,
+                    description,
+                    firmware_kind: firmwareKind,
                     file_name: uploadFile.name,
                     bytes,
                 },
                 baseUrl,
             );
-            setMessage(`已校验并导入: ${result.plugin_name} ${result.version} (${result.plugin_id})`);
+            setMessage(`已写入 PG/MinIO: ${result.plugin_name} ${result.version} (${result.plugin_id})`);
             setUploadFile(null);
+            setFirmwareName("");
+            setFirmwareDescription("");
             window.dispatchEvent(new Event("aio:plugin-runtime-updated"));
             await load();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "上传插件包失败");
+            setError(err instanceof Error ? err.message : "上传固件失败");
         } finally {
             setUploading(false);
         }
@@ -84,13 +129,14 @@ export default function WasmPluginRuntimePanel() {
             window.dispatchEvent(new Event("aio:plugin-runtime-updated"));
             await load();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "安装 catalog 插件失败");
+            setError(err instanceof Error ? err.message : "创建插件实例失败");
         } finally {
             setPendingPluginId(null);
         }
     }
 
     const entries = snapshot?.marketplace.entries ?? [];
+    const businessEntries = entries.filter((entry) => entry.kind === "Business");
 
     return (
         <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -98,7 +144,7 @@ export default function WasmPluginRuntimePanel() {
                 <CardHeader>
                     <CardTitle className="text-base">WASM 插件运行时</CardTitle>
                     <p className="text-sm text-muted-foreground">
-                        这里接的是正式 `.azplugin` catalog + instance 链路，不再走旧的内存注册表。
+                        正式路径是 PostgreSQL 保存插件元数据，MinIO 保存 WASM 二进制。
                     </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -136,18 +182,56 @@ export default function WasmPluginRuntimePanel() {
                     ) : null}
                     <div className="space-y-3 rounded-lg border p-4">
                         <div>
-                            <div className="text-sm font-medium">上传用户插件包</div>
+                            <div className="text-sm font-medium">上传 WASM 固件</div>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                只允许用户上传 `.azplugin` 包，服务端会先做完整校验，再放入 catalog。
+                                只填插件名、描述、固件文件和系统/业务分类，其余描述由服务端生成。
                             </p>
                         </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="block">
+                                <span className="mb-2 block text-sm font-medium">插件名</span>
+                                <Input
+                                    value={firmwareName}
+                                    onChange={(event) => setFirmwareName(event.target.value)}
+                                />
+                            </label>
+                            <div className="space-y-2">
+                                <span className="block text-sm font-medium">分类</span>
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        ["System", "系统固件"],
+                                        ["Business", "业务固件"],
+                                    ].map(([value, label]) => (
+                                        <Button
+                                            key={value}
+                                            type="button"
+                                            size="sm"
+                                            variant={firmwareKind === value ? "default" : "outline"}
+                                            onClick={() =>
+                                                setFirmwareKind(value as WasmPluginFirmwareKind)
+                                            }
+                                        >
+                                            {label}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                         <label className="block">
-                            <span className="mb-2 block text-sm font-medium">插件包</span>
+                            <span className="mb-2 block text-sm font-medium">描述</span>
+                            <Textarea
+                                value={firmwareDescription}
+                                onChange={(event) => setFirmwareDescription(event.target.value)}
+                                className="min-h-[88px]"
+                            />
+                        </label>
+                        <label className="block">
+                            <span className="mb-2 block text-sm font-medium">固件文件</span>
                             <Input
                                 type="file"
-                                accept=".azplugin,application/zip"
+                                accept=".wasm,application/wasm"
                                 onChange={(event) =>
-                                    setUploadFile(event.target.files?.[0] ?? null)
+                                    handleFirmwareFile(event.target.files?.[0] ?? null)
                                 }
                             />
                         </label>
@@ -158,9 +242,14 @@ export default function WasmPluginRuntimePanel() {
                             <Button
                                 type="button"
                                 onClick={() => void uploadPluginPackage()}
-                                disabled={uploading || !uploadFile}
+                                disabled={
+                                    uploading ||
+                                    !uploadFile ||
+                                    !firmwareName.trim() ||
+                                    !firmwareDescription.trim()
+                                }
                             >
-                                上传并校验
+                                上传固件
                             </Button>
                             <Button type="button" variant="outline" onClick={() => void load()}>
                                 刷新运行时
@@ -185,7 +274,7 @@ export default function WasmPluginRuntimePanel() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-base">Catalog / 已可挂载插件</CardTitle>
+                    <CardTitle className="text-base">PG / 已可挂载插件</CardTitle>
                     <p className="text-sm text-muted-foreground">
                         业务插件从这里安装成实例，实例页会自动出现在左侧导航。
                     </p>
@@ -193,12 +282,12 @@ export default function WasmPluginRuntimePanel() {
                 <CardContent className="space-y-3">
                     {loading ? (
                         <div className="text-sm text-muted-foreground">正在加载运行时…</div>
-                    ) : entries.length === 0 ? (
+                    ) : businessEntries.length === 0 ? (
                         <div className="text-sm text-muted-foreground">
-                            当前 catalog 里还没有业务插件包。
+                            当前 PG 里还没有 WASM 固件。
                         </div>
                     ) : (
-                        entries.map((entry) => (
+                        businessEntries.map((entry) => (
                             <div
                                 key={`${entry.plugin_id}:${entry.version}`}
                                 className="rounded-lg border p-4"

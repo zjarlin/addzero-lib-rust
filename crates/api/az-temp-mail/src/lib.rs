@@ -23,17 +23,22 @@ mod client;
 mod config;
 mod error;
 mod http;
+mod mail_tm;
 mod model;
+mod provider;
 mod util;
 
-pub use client::{PageRequest, TempMailApi, create_temp_mail_api};
+pub use client::{CloudflareTempMailApi, TempMailApi, create_temp_mail_api};
 pub use config::{ApiConfig, ApiConfigBuilder};
 pub use error::{TempMailError, TempMailResult};
+pub use mail_tm::{MailTmDomain, MailTmTempMailApi, create_mail_tm_api};
 pub use model::{
-    AddressCredential, AddressLoginRequest, AddressSettings, ListResponse, MailRow,
-    NewAddressRequest, ParsedMailAttachment, ParsedMailRow, SendMailRequest, SuccessResponse,
-    TempMailSettings,
+    AddressCredential, AddressLoginRequest, AddressSettings, CreateMailboxRequest, ListResponse,
+    MailRow, NewAddressRequest, PageRequest, ParsedMailAttachment, ParsedMailRow, SendMailRequest,
+    SuccessResponse, TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary,
+    TempMailProviderKind, TempMailRecipient, TempMailSettings,
 };
+pub use provider::TempMailProvider;
 
 /// Namespace-style entry point for constructing temp-mail clients.
 #[derive(Debug, Clone, Copy, Default)]
@@ -48,5 +53,15 @@ impl TempMail {
     /// Creates a client from explicit configuration.
     pub fn cloudflare_with_config(config: ApiConfig) -> TempMailResult<TempMailApi> {
         TempMailApi::new(config)
+    }
+
+    /// Creates a client for the hosted mail.tm-compatible provider.
+    pub fn mail_tm() -> TempMailResult<MailTmTempMailApi> {
+        create_mail_tm_api()
+    }
+
+    /// Creates a mail.tm-compatible client from explicit configuration.
+    pub fn mail_tm_with_config(config: ApiConfig) -> TempMailResult<MailTmTempMailApi> {
+        MailTmTempMailApi::new(config)
     }
 }

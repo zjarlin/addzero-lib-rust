@@ -116,6 +116,7 @@ dependencies = [
  "sqlx",
  "thiserror 2.0.18",
  "tokio",
+ "toml_edit 0.22.27",
  "tower-http",
  "uuid",
  "vt100",
