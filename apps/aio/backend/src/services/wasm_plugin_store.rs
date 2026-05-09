@@ -91,16 +91,69 @@ struct WasmPluginBinaryStorage {
     bucket: String,
 }
 
+impl WasmPluginBinaryStorage {
+    async fn put_object_bytes(
+        &self,
+        object_key: &str,
+        bytes: Vec<u8>,
+        content_type: Option<String>,
+    ) -> WasmPluginStoreResult<()> {
+        let client = self.client.clone();
+        let bucket = self.bucket.clone();
+        let object_key = object_key.to_string();
+        let object_key_for_error = object_key.clone();
+        tokio::task::spawn_blocking(move || {
+            client
+                .put_object_bytes(&bucket, &object_key, &bytes, content_type.as_deref())
+                .map(|_| ())
+                .map_err(|err| WasmPluginStoreError::MinioUnavailable(err.to_string()))
+        })
+        .await
+        .map_err(|err| {
+            WasmPluginStoreError::MinioUnavailable(format!(
+                "MinIO upload task failed for `{object_key_for_error}`: {err}"
+            ))
+        })?
+    }
+
+    async fn get_object(&self, bucket: &str, object_key: &str) -> WasmPluginStoreResult<Vec<u8>> {
+        let client = self.client.clone();
+        let bucket = bucket.to_string();
+        let object_key = object_key.to_string();
+        let object_key_for_error = object_key.clone();
+        tokio::task::spawn_blocking(move || {
+            client
+                .get_object(&bucket, &object_key)
+                .map_err(|err| WasmPluginStoreError::MinioUnavailable(err.to_string()))
+        })
+        .await
+        .map_err(|err| {
+            WasmPluginStoreError::MinioUnavailable(format!(
+                "MinIO download task failed for `{object_key_for_error}`: {err}"
+            ))
+        })?
+    }
+}
+
 impl WasmPluginStore {
     pub async fn connect(database_url: &str) -> WasmPluginStoreResult<Self> {
         let pool = PgPool::connect(database_url).await?;
         ensure_wasm_plugin_schema(&pool).await?;
-        let environment =
-            minio_environment_from_env().map_err(WasmPluginStoreError::MinioUnavailable)?;
-        environment
-            .client
-            .ensure_bucket(&environment.bucket)
-            .map_err(|err| WasmPluginStoreError::MinioUnavailable(err.to_string()))?;
+        let environment = tokio::task::spawn_blocking(|| {
+            let environment =
+                minio_environment_from_env().map_err(WasmPluginStoreError::MinioUnavailable)?;
+            environment
+                .client
+                .ensure_bucket(&environment.bucket)
+                .map_err(|err| WasmPluginStoreError::MinioUnavailable(err.to_string()))?;
+            Ok::<_, WasmPluginStoreError>(environment)
+        })
+        .await
+        .map_err(|err| {
+            WasmPluginStoreError::MinioUnavailable(format!(
+                "init MinIO environment task failed: {err}"
+            ))
+        })??;
         Ok(Self {
             pool,
             storage: WasmPluginBinaryStorage {
@@ -137,14 +190,12 @@ impl WasmPluginStore {
             WASM_PLUGIN_OBJECT_PREFIX, descriptor.id, descriptor.version, binary_sha256,
         );
         self.storage
-            .client
             .put_object_bytes(
-                &self.storage.bucket,
                 &binary_object_key,
-                bytes,
-                Some("application/wasm"),
+                bytes.to_vec(),
+                Some("application/wasm".to_string()),
             )
-            .map_err(|err| WasmPluginStoreError::MinioUnavailable(err.to_string()))?;
+            .await?;
 
         let manifest = PluginPackageManifest {
             descriptor,
@@ -212,14 +263,12 @@ impl WasmPluginStore {
             WASM_PLUGIN_OBJECT_PREFIX, descriptor.id, descriptor.version, binary_sha256,
         );
         self.storage
-            .client
             .put_object_bytes(
-                &self.storage.bucket,
                 &binary_object_key,
-                bytes,
-                Some("application/wasm"),
+                bytes.to_vec(),
+                Some("application/wasm".to_string()),
             )
-            .map_err(|err| WasmPluginStoreError::MinioUnavailable(err.to_string()))?;
+            .await?;
 
         let manifest = PluginPackageManifest {
             descriptor,
@@ -802,14 +851,12 @@ impl WasmPluginStore {
                 .unwrap_or("text/x-shellscript")
                 .to_string();
             self.storage
-                .client
                 .put_object_bytes(
-                    &self.storage.bucket,
                     &object_key,
-                    &resource.bytes,
-                    Some(&content_type),
+                    resource.bytes.clone(),
+                    Some(content_type.clone()),
                 )
-                .map_err(|err| WasmPluginStoreError::MinioUnavailable(err.to_string()))?;
+                .await?;
             let install_path = default_cli_install_dir().join(&command_name);
             sqlx::query(
                 r#"
@@ -846,9 +893,8 @@ impl WasmPluginStore {
         for command in commands {
             let bytes = self
                 .storage
-                .client
                 .get_object(&command.object_bucket, &command.object_key)
-                .map_err(|err| WasmPluginStoreError::MinioUnavailable(err.to_string()))?;
+                .await?;
             let digest = sha256_hex(&bytes);
             if digest != command.object_sha256 {
                 return Err(WasmPluginStoreError::InvalidPackage(format!(

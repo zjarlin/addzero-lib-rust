@@ -110,6 +110,7 @@ pub async fn save_minio_config_on_server(
         .to_string();
 
     ping_minio(&endpoint, &access_key, &secret_key, &region)
+        .await
         .map_err(|err| format!("MinIO 连接测试失败：{err}"))?;
 
     write_local_env(&[
@@ -165,7 +166,7 @@ async fn build_platform_config(
         && !access_key.trim().is_empty()
         && !secret_key.trim().is_empty();
     let minio = if minio_configured {
-        match ping_minio(&endpoint, &access_key, &secret_key, &region) {
+        match ping_minio(&endpoint, &access_key, &secret_key, &region).await {
             Ok(()) => MinioConfigDto {
                 endpoint,
                 access_key,
@@ -221,7 +222,25 @@ async fn ping_postgres(database_url: &str) -> Result<(), String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn ping_minio(
+async fn ping_minio(
+    endpoint: &str,
+    access_key: &str,
+    secret_key: &str,
+    region: &str,
+) -> Result<(), String> {
+    let endpoint = endpoint.to_string();
+    let access_key = access_key.to_string();
+    let secret_key = secret_key.to_string();
+    let region = region.to_string();
+    tokio::task::spawn_blocking(move || {
+        ping_minio_blocking(&endpoint, &access_key, &secret_key, &region)
+    })
+    .await
+    .map_err(|err| format!("MinIO 连接测试任务失败：{err}"))?
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn ping_minio_blocking(
     endpoint: &str,
     access_key: &str,
     secret_key: &str,
@@ -243,7 +262,7 @@ fn ping_minio(
 }
 
 #[cfg(target_arch = "wasm32")]
-fn ping_minio(
+async fn ping_minio(
     _endpoint: &str,
     _access_key: &str,
     _secret_key: &str,

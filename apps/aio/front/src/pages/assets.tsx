@@ -412,7 +412,7 @@ function NotesPluginRedirectPage() {
                 if (!cancelled) {
                     setError(
                         err instanceof Error
-                            ? err.message
+                            ? notesPluginRegistrationErrorMessage(err.message)
                             : "注册碎片笔记插件失败",
                     );
                 }
@@ -439,8 +439,17 @@ function NotesPluginRedirectPage() {
                 </CardHeader>
                 <CardContent>
                     {error ? (
-                        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">
-                            注册失败：{error}
+                        <div className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700">
+                            <div>注册失败：{error}</div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="border-rose-200 bg-white text-rose-700 hover:bg-rose-100"
+                                onClick={() => navigate("/env")}
+                            >
+                                去环境配置
+                            </Button>
                         </div>
                     ) : (
                         <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
@@ -451,6 +460,17 @@ function NotesPluginRedirectPage() {
             </Card>
         </div>
     );
+}
+
+function notesPluginRegistrationErrorMessage(message: string): string {
+    if (
+        message.includes("PostgreSQL metadata storage") ||
+        message.includes("MinIO binary storage") ||
+        message.includes("bare wasm upload requires")
+    ) {
+        return "需要先配置 PostgreSQL 和 MinIO。插件元数据必须写入 PostgreSQL，`.wasm` 二进制必须写入 MinIO。";
+    }
+    return message;
 }
 
 function AssetDataTable({
