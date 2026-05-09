@@ -1,3 +1,24 @@
+#![forbid(unsafe_code)]
+//! Browser automation helpers for form-oriented workflows and authorized
+//! registration testing.
+//!
+//! The crate keeps the original [`BrowserAutomation`] facade for simple
+//! one-page form fills and adds reusable modules for browser profiles, proxy
+//! configuration, isolated browser sessions, and trait-based registration
+//! flows.
+
+pub mod fingerprint;
+pub mod flows;
+pub mod proxy;
+pub mod registration;
+pub mod session;
+
+pub use fingerprint::{FingerprintProfile, FingerprintProfileTemplate, SELECTION_POOL};
+pub use flows::KiroRegistrationFlow;
+pub use proxy::{ProxyConfig, ProxyType};
+pub use registration::{RegistrationFlow, RegistrationResult, extract_verification_code};
+pub use session::{BrowserSession, FingerprintStrategy, SessionConfig, SessionConfigBuilder};
+
 use az_context::ThreadLocalUtil;
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
 use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
@@ -13,42 +34,109 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
+/// Crate-wide result type for browser automation operations.
 pub type BrowserAutomationResult<T> = Result<T, BrowserAutomationError>;
 
+/// Error type for browser launch, CDP, artifact, proxy, and workflow failures.
 #[derive(Debug, Error)]
 pub enum BrowserAutomationError {
+    /// Browser launch options could not be built.
     #[error("browser launch configuration is invalid: {0}")]
     InvalidLaunchOptions(String),
+    /// A browser or Chrome DevTools Protocol operation failed.
     #[error("browser operation failed: {0}")]
     Browser(String),
+    /// A required form field could not be located on the target page.
     #[error("required field `{name}` was not found on `{url}`")]
-    MissingRequiredField { name: String, url: String },
+    MissingRequiredField {
+        /// Missing field name.
+        name: String,
+        /// Page URL where the field was expected.
+        url: String,
+    },
+    /// No start URL has been stored in [`BrowserAutomationContextStore`].
     #[error("browser context does not contain a start url")]
     MissingStartUrl,
+    /// The CDP `/json/version` response did not include a debugger websocket.
     #[error("cdp endpoint `{0}` does not expose a websocket debugger url")]
     MissingCdpWebSocketUrl(String),
+    /// Querying a CDP endpoint failed.
     #[error("failed to query cdp endpoint `{endpoint}`: {message}")]
-    CdpEndpointQuery { endpoint: String, message: String },
+    CdpEndpointQuery {
+        /// Endpoint that was queried.
+        endpoint: String,
+        /// Error message from the transport or response decoder.
+        message: String,
+    },
+    /// Chrome or Chromium could not be found in the known executable paths.
     #[error("could not find a Chrome/Chromium executable for CDP mode")]
     ChromeExecutableNotFound,
+    /// Starting Chrome for CDP mode failed.
     #[error("failed to start Chrome for CDP mode: {0}")]
     ChromeLaunch(String),
+    /// A debug artifact could not be written.
     #[error("failed to persist debug artifact at `{path}`: {source}")]
     ArtifactIo {
+        /// Path that failed to write.
         path: PathBuf,
+        /// Underlying I/O error.
         #[source]
         source: std::io::Error,
     },
+    /// A proxy URL could not be parsed.
+    #[error("proxy url `{url}` is invalid: {message}")]
+    InvalidProxyUrl {
+        /// Original proxy URL.
+        url: String,
+        /// Parse failure reason.
+        message: String,
+    },
+    /// A proxy pool file could not be loaded.
+    #[error("failed to load proxy pool `{path}`: {source}")]
+    ProxyPoolIo {
+        /// Proxy pool file path.
+        path: PathBuf,
+        /// Underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
+    /// Session configuration is internally inconsistent.
+    #[error("browser session configuration is invalid: {0}")]
+    InvalidSessionConfig(String),
+    /// A browser session did not become reachable through CDP in time.
+    #[error("browser session at `{endpoint}` did not become ready within {timeout_ms}ms")]
+    SessionNotReady {
+        /// CDP HTTP endpoint that was polled.
+        endpoint: String,
+        /// Timeout budget in milliseconds.
+        timeout_ms: u64,
+    },
+    /// A registration flow is intentionally unavailable.
+    #[error("registration flow `{flow}` is not supported: {reason}")]
+    UnsupportedRegistrationFlow {
+        /// Registration flow name.
+        flow: String,
+        /// Reason the flow is unavailable.
+        reason: String,
+    },
 }
 
+/// Options for the legacy [`BrowserAutomation`] facade.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BrowserAutomationOptions {
+    /// Enables debug artifacts and forces headful browsing.
     pub debug: bool,
+    /// Requests headless browsing when debug mode is disabled.
     pub headless: bool,
+    /// Browser operation timeout in milliseconds.
     pub timeout_ms: u64,
+    /// Delay inserted after individual form actions.
     pub slow_mo_ms: u64,
+    /// Optional directory for screenshots and HTML debug dumps.
     pub artifacts_dir: Option<PathBuf>,
+    /// Optional explicit Chrome or Chromium executable path.
     pub executable_path: Option<PathBuf>,
+    /// Browser connection mode.
     pub mode: BrowserMode,
 }
 
@@ -67,14 +155,18 @@ impl Default for BrowserAutomationOptions {
 }
 
 impl BrowserAutomationOptions {
+    /// Returns the headless setting after applying debug-mode behavior.
     pub fn effective_headless(&self) -> bool {
         if self.debug { false } else { self.headless }
     }
 }
 
+/// Browser connection strategy used by the legacy facade.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BrowserMode {
+    /// Connect to an existing or auto-started Chrome DevTools endpoint.
     Cdp(CdpEndpoint),
+    /// Launch a browser through `headless_chrome`.
     Launch,
 }
 
@@ -84,9 +176,12 @@ impl Default for BrowserMode {
     }
 }
 
+/// Chrome DevTools Protocol endpoint address.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CdpEndpoint {
+    /// HTTP endpoint such as `http://127.0.0.1:9222`.
     Http(String),
+    /// Direct websocket debugger URL.
     WebSocket(String),
 }
 
@@ -96,24 +191,35 @@ impl Default for CdpEndpoint {
     }
 }
 
+/// Form action kind for [`FormFieldDef`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum FieldType {
+    /// Type text into an input-like element.
     #[default]
     Input,
+    /// Click an element.
     Click,
+    /// Click a checkbox-like element and mark it checked when possible.
     Check,
 }
 
+/// Declarative form field operation used by [`BrowserAutomation::fill`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FormFieldDef {
+    /// Human-readable field name used in errors and debug artifact names.
     pub name: String,
+    /// Candidate selectors. Supports CSS plus `label:`, `placeholder:`, and `role:` prefixes.
     pub selectors: Vec<String>,
+    /// Value typed for [`FieldType::Input`].
     pub value: String,
+    /// Whether missing selectors should fail the workflow.
     pub required: bool,
+    /// Field operation type.
     pub field_type: FieldType,
 }
 
 impl FormFieldDef {
+    /// Creates an input field definition with one or more selector candidates.
     pub fn input(
         name: impl Into<String>,
         selectors: impl IntoIterator<Item = impl Into<String>>,
@@ -128,6 +234,7 @@ impl FormFieldDef {
         }
     }
 
+    /// Creates a click field definition with one or more selector candidates.
     pub fn click(
         name: impl Into<String>,
         selectors: impl IntoIterator<Item = impl Into<String>>,
@@ -141,6 +248,7 @@ impl FormFieldDef {
         }
     }
 
+    /// Creates a checkbox field definition with one or more selector candidates.
     pub fn check(
         name: impl Into<String>,
         selectors: impl IntoIterator<Item = impl Into<String>>,
@@ -154,62 +262,82 @@ impl FormFieldDef {
         }
     }
 
+    /// Marks whether this field is required.
+    #[must_use]
     pub fn required(mut self, required: bool) -> Self {
         self.required = required;
         self
     }
 }
 
+/// Thread-local browser automation context.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BrowserAutomationContext {
+    /// Normalized URL used as the workflow start point.
     pub start_url: String,
 }
 
 impl BrowserAutomationContext {
+    /// Creates a context from a URL, adding `https://` when no scheme is present.
     pub fn new(start_url: impl Into<String>) -> Self {
         Self {
             start_url: normalize_url(start_url.into()),
         }
     }
 
+    /// Creates a context for Baidu search examples.
     pub fn baidu() -> Self {
         Self::new("https://www.baidu.com")
     }
 }
 
+/// Thread-local store for [`BrowserAutomationContext`].
 #[derive(Debug, Default, Clone, Copy)]
 pub struct BrowserAutomationContextStore;
 
 impl BrowserAutomationContextStore {
+    /// Stores a browser automation context for the current thread.
     pub fn set(context: BrowserAutomationContext) {
         ThreadLocalUtil::set(context);
     }
 
+    /// Stores a start URL for the current thread.
     pub fn set_start_url(start_url: impl Into<String>) {
         Self::set(BrowserAutomationContext::new(start_url));
     }
 
+    /// Stores the Baidu example context for the current thread.
     pub fn set_baidu() {
         Self::set(BrowserAutomationContext::baidu());
     }
 
+    /// Returns the current thread's browser automation context.
     pub fn get() -> Option<BrowserAutomationContext> {
         ThreadLocalUtil::get::<BrowserAutomationContext>()
     }
 
+    /// Returns the current thread's normalized start URL.
     pub fn start_url() -> Option<String> {
         Self::get().map(|context| context.start_url)
     }
 
+    /// Removes the current thread's browser automation context.
     pub fn clear() {
         ThreadLocalUtil::remove::<BrowserAutomationContext>();
     }
 }
 
+/// Legacy single-page browser automation facade.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct BrowserAutomation;
 
 impl BrowserAutomation {
+    /// Opens a tab, navigates to `url`, and executes `block` with that tab.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserAutomationError`] when browser connection, navigation,
+    /// or the callback fails.
     pub fn with_tab<T>(
         url: impl AsRef<str>,
         options: &BrowserAutomationOptions,
@@ -229,6 +357,12 @@ impl BrowserAutomation {
         block(&tab)
     }
 
+    /// Fills a page with the supplied field definitions and optional submit selector.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserAutomationError`] when navigation fails, a required
+    /// field is missing, or a browser action fails.
     pub fn fill(
         url: impl AsRef<str>,
         fields: &[FormFieldDef],
@@ -256,6 +390,12 @@ impl BrowserAutomation {
         })
     }
 
+    /// Executes multiple field groups on one page.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserAutomationError`] when navigation fails, a required
+    /// field is missing, or a browser action fails.
     pub fn fill_steps(
         url: impl AsRef<str>,
         steps: &[Vec<FormFieldDef>],
@@ -275,6 +415,12 @@ impl BrowserAutomation {
         })
     }
 
+    /// Fills the start URL stored in [`BrowserAutomationContextStore`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserAutomationError::MissingStartUrl`] if no context was
+    /// set, or the same errors as [`BrowserAutomation::fill`].
     pub fn fill_from_context(
         fields: &[FormFieldDef],
         options: &BrowserAutomationOptions,
@@ -285,6 +431,11 @@ impl BrowserAutomation {
         Self::fill(start_url, fields, options, submit_selectors)
     }
 
+    /// Runs the built-in Baidu search example.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserAutomationError`] when browser automation fails.
     pub fn run_baidu_search(
         query: impl AsRef<str>,
         options: &BrowserAutomationOptions,
@@ -302,6 +453,11 @@ impl BrowserAutomation {
         Self::fill_from_context(&fields, options, None)
     }
 
+    /// Opens a URL and keeps the tab alive for `hold_for`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserAutomationError`] when browser automation fails.
     pub fn open_and_hold(
         url: impl AsRef<str>,
         options: &BrowserAutomationOptions,
@@ -314,6 +470,12 @@ impl BrowserAutomation {
         })
     }
 
+    /// Opens the current thread's stored start URL and keeps it alive.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserAutomationError::MissingStartUrl`] if no context was
+    /// set, or browser errors from [`BrowserAutomation::open_and_hold`].
     pub fn open_and_hold_from_context(
         options: &BrowserAutomationOptions,
         hold_for: Duration,
@@ -482,6 +644,7 @@ fn ensure_cdp_chrome_running(endpoint: &str) -> BrowserAutomationResult<()> {
     )))
 }
 
+/// Extracts the port from an HTTP or websocket CDP endpoint.
 pub fn parse_cdp_port(endpoint: &str) -> Option<u16> {
     let after_scheme = endpoint
         .split_once("://")
@@ -747,6 +910,7 @@ fn normalize_url(url: String) -> String {
     }
 }
 
+/// Normalizes a CDP HTTP endpoint by adding a scheme and trimming trailing slashes.
 pub fn normalize_cdp_http_url(endpoint: impl AsRef<str>) -> String {
     let endpoint = endpoint.as_ref().trim();
     if endpoint.starts_with("http://") || endpoint.starts_with("https://") {

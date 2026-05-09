@@ -8,11 +8,17 @@ authors.workspace = true
 
 [dependencies]
 az-context = { path = "../../core/az-context" }
+az-temp-mail = { path = "../../api/az-temp-mail" }
 headless_chrome = "1.0.18"
+rand = "0.8"
+regex.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
+tracing = "0.1"
+uuid.workspace = true
 
 [lints]
 workspace = true

@@ -64,3 +64,50 @@ fn cdp_port_parser_extracts_port_from_http_url() {
     assert_eq!(parse_cdp_port("http://127.0.0.1:9222"), Some(9222));
     assert_eq!(parse_cdp_port("http://localhost:9333/"), Some(9333));
 }
+
+#[test]
+fn fingerprint_random_profile_uses_supported_desktop_platform() {
+    let profile = FingerprintProfile::random();
+
+    assert!(matches!(
+        profile.platform.as_str(),
+        "Win32" | "MacIntel" | "Linux x86_64"
+    ));
+}
+
+#[test]
+fn fingerprint_pool_templates_are_distinct() {
+    let unique = fingerprint::SELECTION_POOL
+        .iter()
+        .map(|profile| {
+            (
+                profile.user_agent,
+                profile.platform,
+                profile.viewport,
+                profile.timezone,
+            )
+        })
+        .collect::<std::collections::HashSet<_>>();
+
+    assert_eq!(unique.len(), fingerprint::SELECTION_POOL.len());
+}
+
+#[test]
+fn proxy_url_parser_supports_socks5_credentials() -> BrowserAutomationResult<()> {
+    let proxy = ProxyConfig::from_url("socks5://user:pass@localhost:1080")?;
+
+    assert_eq!(proxy.proxy_type, ProxyType::Socks5);
+    assert_eq!(proxy.host, "localhost");
+    assert_eq!(proxy.port, 1080);
+    assert_eq!(proxy.username.as_deref(), Some("user"));
+    assert_eq!(proxy.password.as_deref(), Some("pass"));
+    Ok(())
+}
+
+#[test]
+fn registration_code_parser_extracts_six_digit_code() {
+    assert_eq!(
+        extract_verification_code("Use 654321 to continue.").as_deref(),
+        Some("654321")
+    );
+}
