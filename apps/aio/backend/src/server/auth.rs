@@ -145,7 +145,8 @@ impl AdminSessionService {
 }
 
 fn sign(key: &[u8], payload: &[u8]) -> anyhow::Result<Vec<u8>> {
-    let mut mac = HmacSha256::new_from_slice(key).map_err(|err| anyhow::anyhow!("HMAC 初始化失败: {err}"))?;
+    let mut mac =
+        HmacSha256::new_from_slice(key).map_err(|err| anyhow::anyhow!("HMAC 初始化失败: {err}"))?;
     mac.update(payload);
     Ok(mac.finalize().into_bytes().to_vec())
 }

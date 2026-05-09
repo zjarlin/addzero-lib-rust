@@ -126,7 +126,7 @@ const builtinEntries = [
 
 type MarketScene = "cli" | "skill" | "wasm";
 type BuiltinEntry = (typeof builtinEntries)[number];
-type StatusFilter = "all" | "installed" | "available" | "builtin";
+type StatusFilter = "all" | "installed" | "available" | "disabled" | "builtin";
 type LaneFilter = "all" | "builtin" | "external";
 type SortMode = "featured" | "name" | "instances";
 type DetailTab = "overview" | "package" | "activity";
@@ -282,6 +282,9 @@ function WasmMarketplacePage() {
             if (statusFilter === "available" && item.state !== "Available") {
                 return false;
             }
+            if (statusFilter === "disabled" && item.state !== "Disabled") {
+                return false;
+            }
             if (
                 deferredSearch &&
                 !item.searchText.includes(deferredSearch) &&
@@ -346,6 +349,35 @@ function WasmMarketplacePage() {
     const availableExternalCount = externalItems.filter(
         (item) => item.state === "Available",
     ).length;
+    const disabledExternalCount = externalItems.filter(
+        (item) => item.state === "Disabled",
+    ).length;
+    const sortLabel =
+        sortMode === "name" ? "名称" : sortMode === "instances" ? "实例" : "推荐";
+    const railMode =
+        statusFilter === "installed"
+            ? "installed"
+            : statusFilter === "available"
+              ? "available"
+              : laneFilter === "builtin" || statusFilter === "builtin"
+                ? "builtin"
+                : laneFilter === "external"
+                  ? "external"
+                  : "all";
+
+    function handleUploadSelection(file: File | null) {
+        setActionError(null);
+        if (!file) {
+            setUploadFile(null);
+            return;
+        }
+        if (!file.name.toLowerCase().endsWith(".azplugin")) {
+            setUploadFile(null);
+            setActionError("插件市场只允许用户上传 `.azplugin` 插件包");
+            return;
+        }
+        setUploadFile(file);
+    }
 
     async function installExternalPlugin(entry: WasmPluginMarketplaceEntry) {
         setPendingPluginId(entry.plugin_id);
@@ -398,33 +430,179 @@ function WasmMarketplacePage() {
 
     return (
         <div className="space-y-6">
-            <section className="overflow-hidden rounded-[28px] border border-stone-200/80 bg-[linear-gradient(180deg,#fbf8f1_0%,#f7f1e3_42%,#fffdf8_100%)] shadow-[0_24px_80px_rgba(39,35,24,0.08)]">
-                <div className="grid gap-0 xl:grid-cols-[1.08fr_0.92fr]">
-                    <div className="border-b border-stone-200/80 px-7 py-7 xl:border-b-0 xl:border-r">
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.28em] text-stone-500">
-                                <PanelTop className="h-3.5 w-3.5" />
-                                Plugin Marketplace
+            <section className="overflow-hidden rounded-[32px] border border-stone-200/80 bg-[linear-gradient(180deg,#fdfaf2_0%,#f5eedd_40%,#fffdfa_100%)] shadow-[0_28px_90px_rgba(39,35,24,0.08)]">
+                <div className="px-7 py-7">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.28em] text-stone-500">
+                            <PanelTop className="h-3.5 w-3.5" />
+                            Plugin Marketplace
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
+                                Built-in / 插件
+                            </Badge>
+                            <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
+                                Built-in / 系统
+                            </Badge>
+                            <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
+                                External / user upload only
+                            </Badge>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_132px_minmax(0,1fr)]">
+                        <div className="space-y-5">
+                            <div className="space-y-3">
+                                <h1 className="text-4xl font-semibold tracking-[-0.05em] text-stone-950 sm:text-5xl">
+                                    WASM 插件市场
+                                </h1>
+                                <div className="flex flex-wrap gap-2">
+                                    <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
+                                        only `.azplugin`
+                                    </Badge>
+                                    <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
+                                        server validation
+                                    </Badge>
+                                    <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
+                                        catalog install
+                                    </Badge>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="rounded-full bg-white/70 px-3 py-1 text-[11px]">
-                                    Built-in 2
-                                </Badge>
-                                <Badge variant="outline" className="rounded-full bg-white/70 px-3 py-1 text-[11px]">
-                                    External {externalItems.length}
-                                </Badge>
+
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                <QuickMetricButton
+                                    label="内置"
+                                    value="2"
+                                    detail="插件 / 系统"
+                                    active={laneFilter === "builtin" || statusFilter === "builtin"}
+                                    onClick={() => {
+                                        setLaneFilter("builtin");
+                                        setStatusFilter("builtin");
+                                    }}
+                                />
+                                <QuickMetricButton
+                                    label="外部"
+                                    value={String(externalItems.length)}
+                                    detail="全部外部 WASM"
+                                    active={laneFilter === "external" && statusFilter === "all"}
+                                    onClick={() => {
+                                        setLaneFilter("external");
+                                        setStatusFilter("all");
+                                    }}
+                                />
+                                <QuickMetricButton
+                                    label="已装"
+                                    value={String(installedExternalCount)}
+                                    detail="可继续建实例"
+                                    active={statusFilter === "installed"}
+                                    onClick={() => {
+                                        setLaneFilter("external");
+                                        setStatusFilter("installed");
+                                    }}
+                                />
+                                <QuickMetricButton
+                                    label="待装"
+                                    value={String(availableExternalCount)}
+                                    detail="已入 catalog"
+                                    active={statusFilter === "available"}
+                                    onClick={() => {
+                                        setLaneFilter("external");
+                                        setStatusFilter("available");
+                                    }}
+                                />
+                                <QuickMetricButton
+                                    label="停用"
+                                    value={String(disabledExternalCount)}
+                                    detail="暂不可安装"
+                                    active={statusFilter === "disabled"}
+                                    onClick={() => {
+                                        setLaneFilter("external");
+                                        setStatusFilter("disabled");
+                                    }}
+                                />
+                                <QuickMetricButton
+                                    label="实例"
+                                    value={String(runtimeCounts?.plugin_instances ?? 0)}
+                                    detail="运行中的业务实例"
+                                    active={false}
+                                    onClick={() => {
+                                        setLaneFilter("external");
+                                        setStatusFilter("installed");
+                                    }}
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap gap-3">
+                                <Button
+                                    type="button"
+                                    className="rounded-full bg-stone-950 px-5"
+                                    onClick={() => void uploadExternalPluginPackage()}
+                                    disabled={uploading || !uploadFile}
+                                >
+                                    {uploading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Upload className="h-4 w-4" />
+                                    )}
+                                    上传并校验
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="rounded-full bg-white/80 px-5"
+                                    onClick={() => void loadSnapshot()}
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                    刷新 catalog
+                                </Button>
                             </div>
                         </div>
 
-                        <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_128px_1fr] xl:items-center">
-                            <div className="space-y-4">
-                                <h1 className="text-4xl font-semibold tracking-[-0.04em] text-stone-950 sm:text-5xl">
-                                    WASM 插件市场
-                                </h1>
-                                <p className="max-w-xl text-sm leading-7 text-stone-600">
-                                    只保留一个真实动作链路：用户上传 `.azplugin`、服务端校验、进入 catalog、安装实例。
-                                </p>
-                                <div className="flex flex-wrap gap-3">
+                        <CenterFilterSpine
+                            active={railMode}
+                            onSelect={(mode) => {
+                                if (mode === "all") {
+                                    setLaneFilter("all");
+                                    setStatusFilter("all");
+                                    return;
+                                }
+                                if (mode === "builtin") {
+                                    setLaneFilter("builtin");
+                                    setStatusFilter("builtin");
+                                    return;
+                                }
+                                if (mode === "external") {
+                                    setLaneFilter("external");
+                                    setStatusFilter("all");
+                                    return;
+                                }
+                                setLaneFilter("external");
+                                setStatusFilter(mode as StatusFilter);
+                            }}
+                        />
+
+                        <div className="grid gap-4">
+                            <DockCard
+                                title="上传坞站"
+                                eyebrow="Upload Dock"
+                                icon={<Upload className="h-4 w-4" />}
+                            >
+                                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                                    <label className="block">
+                                        <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-stone-500">
+                                            插件包
+                                        </span>
+                                        <Input
+                                            type="file"
+                                            accept=".azplugin"
+                                            onChange={(event) =>
+                                                handleUploadSelection(
+                                                    event.target.files?.[0] ?? null,
+                                                )
+                                            }
+                                            className="rounded-2xl border-stone-200 bg-white/80"
+                                        />
+                                    </label>
                                     <Button
                                         type="button"
                                         className="rounded-full bg-stone-950 px-5"
@@ -436,75 +614,22 @@ function WasmMarketplacePage() {
                                         ) : (
                                             <Upload className="h-4 w-4" />
                                         )}
-                                        上传并校验
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="rounded-full bg-white/70 px-5"
-                                        onClick={() => void loadSnapshot()}
-                                    >
-                                        <RefreshCw className="h-4 w-4" />
-                                        刷新 catalog
+                                        入库
                                     </Button>
                                 </div>
-                            </div>
 
-                            <div className="hidden h-full items-center justify-center xl:flex">
-                                <div className="flex h-28 w-28 items-center justify-center rounded-full border border-stone-200 bg-white/80 shadow-[inset_0_0_0_8px_rgba(245,240,230,0.9)]">
-                                    <Puzzle className="h-8 w-8 text-stone-900" />
-                                </div>
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
-                                <HeroStat
-                                    label="已安装"
-                                    value={String(installedExternalCount)}
-                                    detail="已进入宿主并可实例化"
-                                />
-                                <HeroStat
-                                    label="待安装"
-                                    value={String(availableExternalCount)}
-                                    detail="已在 catalog 中等待动作"
-                                />
-                                <HeroStat
-                                    label="实例"
-                                    value={String(runtimeCounts?.plugin_instances ?? 0)}
-                                    detail="业务插件实际运行实例"
-                                />
-                                <HeroStat
-                                    label="上传模式"
-                                    value="User only"
-                                    detail="拒绝源码目录导入"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="px-7 py-7">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <DockCard
-                                title="上传坞站"
-                                eyebrow="Upload Dock"
-                                icon={<Upload className="h-4 w-4" />}
-                            >
-                                <label className="block">
-                                    <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-stone-500">
-                                        插件包
-                                    </span>
-                                    <Input
-                                        type="file"
-                                        accept=".azplugin,application/zip"
-                                        onChange={(event) =>
-                                            setUploadFile(event.target.files?.[0] ?? null)
-                                        }
-                                        className="rounded-2xl border-stone-200 bg-white/80"
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    <CompactInfoTile
+                                        label="文件"
+                                        value={uploadFile?.name ?? "未选择"}
                                     />
-                                </label>
-                                <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 px-4 py-3 text-sm text-stone-600">
-                                    {uploadFile ? uploadFile.name : "等待用户上传 `.azplugin`"}
+                                    <CompactInfoTile label="入口" value="user upload" />
                                 </div>
+
                                 <div className="flex flex-wrap gap-2">
+                                    <Badge variant="outline" className="rounded-full bg-white/80">
+                                        `.azplugin`
+                                    </Badge>
                                     <Badge variant="outline" className="rounded-full bg-white/80">
                                         plugin.toml
                                     </Badge>
@@ -518,7 +643,7 @@ function WasmMarketplacePage() {
                             </DockCard>
 
                             <DockCard
-                                title="过滤轨道"
+                                title="检索轨道"
                                 eyebrow="Control Rail"
                                 icon={<Filter className="h-4 w-4" />}
                             >
@@ -531,6 +656,7 @@ function WasmMarketplacePage() {
                                         className="rounded-2xl border-stone-200 bg-white/80 pl-9"
                                     />
                                 </div>
+
                                 <div className="grid gap-2 sm:grid-cols-2">
                                     <SegmentGroup
                                         label="范围"
@@ -549,11 +675,13 @@ function WasmMarketplacePage() {
                                             { id: "all", label: "全部" },
                                             { id: "installed", label: "已装" },
                                             { id: "available", label: "待装" },
+                                            { id: "disabled", label: "停用" },
                                             { id: "builtin", label: "内置" },
                                         ]}
                                         onChange={(value) => setStatusFilter(value as StatusFilter)}
                                     />
                                 </div>
+
                                 <SegmentGroup
                                     label="排序"
                                     value={sortMode}
@@ -564,6 +692,18 @@ function WasmMarketplacePage() {
                                     ]}
                                     onChange={(value) => setSortMode(value as SortMode)}
                                 />
+
+                                <div className="grid gap-2 sm:grid-cols-3">
+                                    <CompactInfoTile
+                                        label="显示"
+                                        value={String(filteredItems.length)}
+                                    />
+                                    <CompactInfoTile
+                                        label="选中"
+                                        value={selectedItem?.name ?? "--"}
+                                    />
+                                    <CompactInfoTile label="排序" value={sortLabel} />
+                                </div>
                             </DockCard>
                         </div>
                     </div>
@@ -581,19 +721,23 @@ function WasmMarketplacePage() {
                 <Card className="overflow-hidden rounded-[28px] border-stone-200/80 bg-white/95 shadow-[0_22px_70px_rgba(37,31,17,0.06)]">
                     <CardHeader className="border-b border-stone-200/80 bg-[#fbf9f4] pb-4">
                         <div className="flex items-center justify-between gap-3">
-                            <div>
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-stone-200 bg-white text-stone-700">
+                                    <PackageOpen className="h-4 w-4" />
+                                </div>
                                 <CardTitle className="text-lg tracking-[-0.02em]">插件目录</CardTitle>
-                                <p className="mt-1 text-sm text-stone-500">
-                                    列表里直接做筛选、状态判断和快速动作。
-                                </p>
                             </div>
-                            {loading ? (
-                                <Loader2 className="h-4 w-4 animate-spin text-stone-500" />
-                            ) : (
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="outline" className="rounded-full bg-white px-3 py-1 text-[11px]">
-                                    {filteredItems.length} 项
+                                    Visible {filteredItems.length}
                                 </Badge>
-                            )}
+                                <Badge variant="outline" className="rounded-full bg-white px-3 py-1 text-[11px]">
+                                    Sort {sortLabel}
+                                </Badge>
+                                {loading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-stone-500" />
+                                ) : null}
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -701,6 +845,11 @@ function MarketplaceDetailPanel({
         item.lane === "external" && lastInstall?.plugin_id === item.entry.plugin_id
             ? lastInstall
             : null;
+    const manifestId = isBuiltin ? item.entry.id : item.entry.plugin_id;
+    const version = isBuiltin ? "builtin" : item.entry.version;
+    const compatibilityCount = isBuiltin ? 0 : item.entry.compatibility.length;
+    const capabilityCount = isBuiltin ? 0 : item.entry.capabilities.length;
+    const tagCount = isBuiltin ? 0 : item.entry.tags.length;
 
     return (
         <>
@@ -715,9 +864,6 @@ function MarketplaceDetailPanel({
                             <h2 className="text-4xl font-semibold tracking-[-0.04em] text-stone-950">
                                 {item.name}
                             </h2>
-                            <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600">
-                                {item.summary}
-                            </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <StateBadge state={item.state} />
@@ -770,21 +916,36 @@ function MarketplaceDetailPanel({
                     </div>
                 </div>
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="mt-6 grid gap-3 lg:grid-cols-5">
                     <MiniPanel
                         label="Scope"
                         value={isBuiltin ? "Host" : "External"}
-                        detail={isBuiltin ? "内置入口" : "用户上传插件"}
+                        detail={isBuiltin ? "built-in" : "user upload"}
+                    />
+                    <MiniPanel
+                        label="Version"
+                        value={version}
+                        detail={manifestId}
                     />
                     <MiniPanel
                         label="State"
                         value={item.state}
-                        detail={isBuiltin ? "固定存在" : `${item.instanceCount} 个实例`}
+                        detail={isBuiltin ? "fixed" : `${item.instanceCount} instances`}
+                    />
+                    <MiniPanel
+                        label="Compat"
+                        value={String(compatibilityCount)}
+                        detail={isBuiltin ? "host route" : "compat matrix"}
+                    />
+                    <MiniPanel
+                        label="Caps"
+                        value={String(capabilityCount || tagCount)}
+                        detail={isBuiltin ? "shell actions" : "caps / tags"}
                     />
                     <MiniPanel
                         label="Runtime"
                         value={isBuiltin ? "Shell" : "Catalog"}
-                        detail={isBuiltin ? "主域入口" : "校验后入库"}
+                        detail={isBuiltin ? "route entry" : "validated ingest"}
                     />
                 </div>
             </CardHeader>
@@ -818,23 +979,23 @@ function MarketplaceDetailPanel({
                                 eyebrow="Verification"
                                 icon={<ShieldCheck className="h-4 w-4" />}
                             >
-                                <ChecklistRow label="文件类型" state="pass" detail="只接受 `.azplugin`" />
-                                <ChecklistRow label="Manifest" state="pass" detail="要求 `plugin.toml`" />
-                                <ChecklistRow label="Checksum" state="pass" detail="要求 `checksums.sha256`" />
-                                <ChecklistRow label="Binary path" state="pass" detail="要求 `runtime.binary_path`" />
+                                <ChecklistRow label="file" state="pass" detail="`.azplugin` only" />
+                                <ChecklistRow label="manifest" state="pass" detail="requires `plugin.toml`" />
+                                <ChecklistRow label="checksum" state="pass" detail="requires `checksums.sha256`" />
+                                <ChecklistRow label="binary path" state="pass" detail="requires `runtime.binary_path`" />
                                 <ChecklistRow
-                                    label="Plugin kind"
+                                    label="plugin kind"
                                     state={isBuiltin ? "warn" : "pass"}
                                     detail={
                                         isBuiltin
-                                            ? "内置入口不参与上传链路"
-                                            : "拒绝非 Business 类型插件"
+                                            ? "built-in entry bypasses upload flow"
+                                            : "reject non-Business package"
                                     }
                                 />
                             </InstrumentPanel>
 
                             <InstrumentPanel
-                                title="仓库轨迹"
+                                title="入库轨迹"
                                 eyebrow="Catalog Path"
                                 icon={<FolderArchive className="h-4 w-4" />}
                             >
@@ -859,13 +1020,13 @@ function MarketplaceDetailPanel({
                                     <>
                                         <ActionTile
                                             title="打开当前入口"
-                                            detail="进入内置域处理宿主能力。"
+                                            detail="进入内置工作域。"
                                             cta="进入"
                                             onClick={onOpen}
                                         />
                                         <ActionTile
                                             title="切换内置项"
-                                            detail="左侧选择“插件 / 系统”，右侧即时切换。"
+                                            detail="左侧只保留 插件 / 系统 两个内置入口。"
                                             passive
                                         />
                                     </>
@@ -873,7 +1034,7 @@ function MarketplaceDetailPanel({
                                     <>
                                         <ActionTile
                                             title={item.entry.status === "Available" ? "安装实例" : "新建实例"}
-                                            detail="直接从目录项进入实例化动作。"
+                                            detail="从 catalog 直接进入实例化。"
                                             cta={item.entry.status === "Available" ? "安装" : "创建"}
                                             onClick={onInstall}
                                             loading={pendingPluginId === item.entry.plugin_id}
@@ -883,7 +1044,7 @@ function MarketplaceDetailPanel({
                                             detail={
                                                 latestForItem?.page_ids[0]
                                                     ? `${latestForItem.instance_slug}`
-                                                    : "当前插件还没有本轮最新实例。"
+                                                    : "暂无最近实例。"
                                             }
                                             cta="打开"
                                             passive={!latestForItem?.page_ids[0]}
@@ -910,7 +1071,7 @@ function MarketplaceDetailPanel({
                                     </>
                                 ) : (
                                     <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 px-4 py-6 text-sm text-stone-500">
-                                        当前没有可展示的最近实例结果。
+                                        暂无最近实例结果。
                                     </div>
                                 )}
                             </InstrumentPanel>
@@ -924,9 +1085,9 @@ function MarketplaceDetailPanel({
 
 function BuiltinInteractiveOverview({ entry }: { entry: BuiltinEntry }) {
     return (
-        <div className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
+        <div className="grid gap-4 lg:grid-cols-[1.02fr_0.98fr]">
             <InstrumentPanel
-                title="主职责"
+                title="内置功能面"
                 eyebrow="Core Role"
                 icon={<Puzzle className="h-4 w-4" />}
             >
@@ -936,14 +1097,14 @@ function BuiltinInteractiveOverview({ entry }: { entry: BuiltinEntry }) {
             </InstrumentPanel>
 
             <InstrumentPanel
-                title="交互提示"
-                eyebrow="Use It"
-                icon={<ChevronRight className="h-4 w-4" />}
+                title="市场边界"
+                eyebrow="Boundary"
+                icon={<ShieldCheck className="h-4 w-4" />}
             >
-                <SignalRow label="左侧筛选" detail="范围 / 状态 / 排序即时生效。" />
-                <SignalRow label="目录点击" detail="切换右侧 tabs，不跳离市场。" />
-                <SignalRow label="上传坞站" detail="只接受用户上传包，不再接源码目录。" />
-                <SignalRow label="实例动作" detail="外部插件在目录和详情都可直接安装。" />
+                <SignalRow label="Built-in only" detail="市场内置项只保留 插件 / 系统。" />
+                <SignalRow label="External split" detail="其余目录项全部按外部 WASM 插件处理。" />
+                <SignalRow label="Upload gate" detail="市场不接源码目录导入。" />
+                <SignalRow label="Install path" detail="校验通过后入 catalog，再做实例动作。" />
             </InstrumentPanel>
         </div>
     );
@@ -957,7 +1118,7 @@ function ExternalInteractiveOverview({
     return (
         <div className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
             <InstrumentPanel
-                title="能力贡献"
+                title="能力矩阵"
                 eyebrow="Capabilities"
                 icon={<Blocks className="h-4 w-4" />}
             >
@@ -966,32 +1127,32 @@ function ExternalInteractiveOverview({
                         <SignalRow
                             key={String(capability)}
                             label={String(capability)}
-                            detail="由 descriptor 声明并由宿主装配。"
+                            detail="descriptor declared"
                         />
                     ))
                 ) : (
-                    <SignalRow label="未声明 capability" detail="当前插件没有额外宿主能力声明。" />
+                    <SignalRow label="未声明 capability" detail="no extra host capability" />
                 )}
             </InstrumentPanel>
 
             <InstrumentPanel
-                title="兼容性与标签"
+                title="兼容 / 标签"
                 eyebrow="Metadata"
                 icon={<ShieldCheck className="h-4 w-4" />}
             >
                 {entry.compatibility.length > 0 ? (
                     entry.compatibility.map((item) => (
-                        <SignalRow key={item} label={item} detail="宿主兼容面。" />
+                        <SignalRow key={item} label={item} detail="compat target" />
                     ))
                 ) : (
-                    <SignalRow label="未声明 compatibility" detail="暂缺兼容性元数据。" />
+                    <SignalRow label="未声明 compatibility" detail="compat metadata missing" />
                 )}
                 {entry.tags.length > 0 ? (
                     entry.tags.map((tag) => (
-                        <SignalRow key={tag} label={`#${tag}`} detail="用于检索和分类。" />
+                        <SignalRow key={tag} label={`#${tag}`} detail="search / grouping" />
                     ))
                 ) : (
-                    <SignalRow label="无标签" detail="当前插件没有 tags。" />
+                    <SignalRow label="无标签" detail="tags missing" />
                 )}
             </InstrumentPanel>
         </div>
@@ -1041,13 +1202,24 @@ function MarketRailItem({
                             )}
                         </div>
                         <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-between gap-2">
                                 <div className="truncate text-sm font-semibold text-stone-950">
                                     {item.name}
                                 </div>
                                 <StateBadge state={item.state} compact />
                             </div>
-                            <p className="mt-1 line-clamp-2 text-sm leading-6 text-stone-500">
+                            <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] uppercase tracking-[0.14em] text-stone-400">
+                                <RailMiniStat label="lane" value={item.lane} />
+                                <RailMiniStat
+                                    label="instances"
+                                    value={String(item.instanceCount)}
+                                />
+                                <RailMiniStat
+                                    label="mode"
+                                    value={item.lane === "builtin" ? "route" : "wasm"}
+                                />
+                            </div>
+                            <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-500">
                                 {item.summary}
                             </p>
                         </div>
@@ -1194,6 +1366,89 @@ function DockCard({
     );
 }
 
+function QuickMetricButton({
+    label,
+    value,
+    detail,
+    active,
+    onClick,
+}: {
+    label: string;
+    value: string;
+    detail: string;
+    active: boolean;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={cn(
+                "rounded-[22px] border px-4 py-4 text-left transition",
+                active
+                    ? "border-stone-950 bg-stone-950 text-white shadow-[0_16px_40px_rgba(30,26,18,0.16)]"
+                    : "border-stone-200/80 bg-white/75 text-stone-950 hover:bg-white",
+            )}
+        >
+            <div
+                className={cn(
+                    "text-[11px] uppercase tracking-[0.18em]",
+                    active ? "text-stone-300" : "text-stone-500",
+                )}
+            >
+                {label}
+            </div>
+            <div className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{value}</div>
+            <div className={cn("mt-2 text-sm", active ? "text-stone-200" : "text-stone-500")}>
+                {detail}
+            </div>
+        </button>
+    );
+}
+
+function CenterFilterSpine({
+    active,
+    onSelect,
+}: {
+    active: "all" | "builtin" | "external" | "installed" | "available";
+    onSelect: (value: "all" | "builtin" | "external" | "installed" | "available") => void;
+}) {
+    const nodes = [
+        { id: "all", label: "ALL" },
+        { id: "builtin", label: "BI" },
+        { id: "external", label: "EXT" },
+        { id: "installed", label: "IN" },
+        { id: "available", label: "AVL" },
+    ] as const;
+
+    return (
+        <div className="hidden xl:flex xl:flex-col xl:items-center xl:justify-center">
+            <div className="flex h-full min-h-[420px] w-full flex-col items-center justify-center rounded-[28px] border border-stone-200/70 bg-white/45 px-4 py-5">
+                <div className="text-[10px] uppercase tracking-[0.32em] text-stone-500">
+                    Rail
+                </div>
+                <div className="mt-5 flex h-full flex-col items-center justify-center gap-3">
+                    {nodes.map((node) => (
+                        <button
+                            key={node.id}
+                            type="button"
+                            onClick={() => onSelect(node.id)}
+                            className={cn(
+                                "flex h-14 w-14 items-center justify-center rounded-full border text-[11px] font-semibold tracking-[0.2em] transition",
+                                active === node.id
+                                    ? "border-stone-950 bg-stone-950 text-white"
+                                    : "border-stone-200 bg-white/80 text-stone-500 hover:bg-white",
+                            )}
+                        >
+                            {node.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function HeroStat({
     label,
     value,
@@ -1232,6 +1487,15 @@ function MiniPanel({
     );
 }
 
+function CompactInfoTile({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-2xl border border-stone-200 bg-[#fffdfa] px-4 py-3">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-stone-500">{label}</div>
+            <div className="mt-2 truncate text-sm font-medium text-stone-950">{value}</div>
+        </div>
+    );
+}
+
 function InstrumentPanel({
     eyebrow,
     title,
@@ -1262,6 +1526,15 @@ function SignalRow({ label, detail }: { label: string; detail: string }) {
         <div className="rounded-2xl border border-stone-200 bg-[#fffdfa] px-4 py-3">
             <div className="text-sm font-medium text-stone-950">{label}</div>
             <div className="mt-1 text-sm text-stone-500">{detail}</div>
+        </div>
+    );
+}
+
+function RailMiniStat({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-xl border border-stone-200 bg-white/75 px-2 py-2">
+            <div className="truncate">{label}</div>
+            <div className="mt-1 truncate text-stone-700">{value}</div>
         </div>
     );
 }

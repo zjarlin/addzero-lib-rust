@@ -74,6 +74,10 @@ pub fn resolved_database_url() -> Option<String> {
     })
 }
 
+fn is_postgres_database_url(database_url: &str) -> bool {
+    database_url.starts_with("postgres://") || database_url.starts_with("postgresql://")
+}
+
 fn local_env_values() -> BTreeMap<String, String> {
     let Some(path) = addzero_persistence::local_env_path() else {
         return BTreeMap::new();
@@ -103,7 +107,10 @@ pub async fn services() -> &'static BackendServices {
                 FsRepo::new(std::path::PathBuf::from("./skills"))
             });
             let database_url = resolved_database_url();
-            let skills = SkillService::try_attach(database_url.as_deref(), fs).await;
+            let postgres_database_url = database_url
+                .as_deref()
+                .filter(|url| is_postgres_database_url(url));
+            let skills = SkillService::try_attach(postgres_database_url, fs).await;
             if skills.is_pg_online() {
                 if let Err(err) = skills.sync_now().await {
                     log::warn!("initial skill sync failed: {err:?}");
@@ -112,29 +119,28 @@ pub async fn services() -> &'static BackendServices {
 
             let admin_auth = admin_auth().clone();
             let secret_master_key = env::var("ADDZERO_SECRET_MASTER_KEY").ok();
-            if let Some(url) = database_url.as_deref() {
+            if let Some(url) = postgres_database_url {
                 if let Err(err) = ensure_ai_provider_schema(url).await {
                     log::warn!("ensure ai provider schema failed: {err:?}");
                 }
             }
             let assets = addzero_assets::AssetService::try_attach(
-                database_url.as_deref(),
+                postgres_database_url,
                 secret_master_key.as_deref(),
             )
             .await;
             let cli_market =
-                crate::services::cli_market::CliMarketService::try_attach(database_url.as_deref())
+                crate::services::cli_market::CliMarketService::try_attach(postgres_database_url)
                     .await;
-            let software_catalog =
-                if let Some(url) = database_url.as_deref().filter(|url| !url.trim().is_empty()) {
-                    addzero_software_catalog::SoftwareCatalogService::connect(url)
-                        .await
-                        .ok()
-                } else {
-                    None
-                };
+            let software_catalog = if let Some(url) = postgres_database_url {
+                addzero_software_catalog::SoftwareCatalogService::connect(url)
+                    .await
+                    .ok()
+            } else {
+                None
+            };
 
-            let download_station = if let Some(url) = database_url.as_deref() {
+            let download_station = if let Some(url) = postgres_database_url {
                 sqlx::PgPool::connect(url)
                     .await
                     .ok()
@@ -143,7 +149,7 @@ pub async fn services() -> &'static BackendServices {
                 None
             };
 
-            let menu_system = if let Some(url) = database_url.as_deref() {
+            let menu_system = if let Some(url) = postgres_database_url {
                 sqlx::PgPool::connect(url)
                     .await
                     .ok()
@@ -944,8 +950,7 @@ async fn skill_status(headers: HeaderMap) -> ApiResult<Json<SyncReportDto>> {
 }
 
 async fn list_knowledge_entries(headers: HeaderMap) -> ApiResult<Json<Vec<KnowledgeNoteDto>>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
+    ensure_auth(admin_auth(), &headers)?;
     let notes = crate::services::knowledge_entries::list_knowledge_entries_on_server()
         .await
         .map_err(ApiError::bad_request)?;
@@ -956,8 +961,7 @@ async fn save_knowledge_entry(
     headers: HeaderMap,
     Json(input): Json<KnowledgeEntryUpsertDto>,
 ) -> ApiResult<Json<KnowledgeNoteDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
+    ensure_auth(admin_auth(), &headers)?;
     let saved = crate::services::knowledge_entries::save_knowledge_entry_on_server(input)
         .await
         .map_err(ApiError::bad_request)?;
@@ -968,8 +972,7 @@ async fn delete_knowledge_entry(
     headers: HeaderMap,
     Json(input): Json<KnowledgeEntryDeleteDto>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
+    ensure_auth(admin_auth(), &headers)?;
     crate::services::knowledge_entries::delete_knowledge_entry_on_server(input)
         .await
         .map_err(ApiError::bad_request)?;

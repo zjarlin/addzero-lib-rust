@@ -1,11 +1,16 @@
 use std::{
     fs,
     path::{Path, PathBuf},
+    str::FromStr,
     time::Duration,
 };
 
 use serde::{Deserialize, Serialize};
-use sqlx::{Connection, Executor, postgres::PgConnection, sqlite::SqliteConnection};
+use sqlx::{
+    Connection, Executor,
+    postgres::PgConnection,
+    sqlite::{SqliteConnectOptions, SqliteConnection},
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BootstrapStatusDto {
@@ -134,7 +139,11 @@ async fn ping_database(database_url: &str) -> Result<(), String> {
     if is_sqlite_url(database_url) {
         ensure_sqlite_parent_dir(database_url)?;
 
-        let connect_future = SqliteConnection::connect(database_url);
+        let connect_options = SqliteConnectOptions::from_str(database_url)
+            .map_err(|err| format!("解析 SQLite 地址失败：{err}"))?
+            .create_if_missing(true)
+            .foreign_keys(true);
+        let connect_future = SqliteConnection::connect_with(&connect_options);
         let mut connection = tokio::time::timeout(Duration::from_secs(5), connect_future)
             .await
             .map_err(|_| "连接超时".to_string())?

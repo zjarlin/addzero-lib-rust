@@ -115,12 +115,6 @@ const FALLBACK_SCENES: Record<string, SectionNode[]> = {
                     href: "/market",
                     activePatterns: ["/market"],
                 },
-                {
-                    id: "plugin-instance-entry",
-                    label: "业务实例页",
-                    href: "/market/wasm",
-                    activePatterns: ["/apps/:instanceSlug/:pageId"],
-                },
             ],
         },
     ],
@@ -151,7 +145,7 @@ const SCENE_META: Record<string, { title: string; detail: string }> = {
     },
     plugins: {
         title: "插件路由树",
-        detail: "WASM 插件、实例页与扩展点",
+        detail: "WASM 插件市场与扩展点",
     },
     system: {
         title: "系统路由树",

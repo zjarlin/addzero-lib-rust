@@ -1,5 +1,21 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
+import "@mdxeditor/editor/style.css";
+import {
+    BlockTypeSelect,
+    BoldItalicUnderlineToggles,
+    CreateLink,
+    ListsToggle,
+    markdownShortcutPlugin,
+    MDXEditor,
+    type MDXEditorMethods,
+    headingsPlugin,
+    linkPlugin,
+    listsPlugin,
+    quotePlugin,
+    toolbarPlugin,
+    UndoRedo,
+} from "@mdxeditor/editor";
 import {
     type ColumnDef,
     flexRender,
@@ -13,12 +29,10 @@ import {
 import {
     Archive,
     ArrowUpDown,
-    AtSign,
     Boxes,
     Check,
     CheckCircle2,
     CheckSquare,
-    Code2,
     Database,
     FileArchive,
     FileText,
@@ -29,10 +43,8 @@ import {
     Layers3,
     Loader2,
     Link2,
-    List,
     MoreHorizontal,
     PackageOpen,
-    Paperclip,
     Plus,
     Search,
     Send,
@@ -41,7 +53,6 @@ import {
     SlidersHorizontal,
     Smile,
     Sparkles,
-    TableProperties,
     Tags,
     Trash2,
     UploadCloud,
@@ -66,7 +77,6 @@ import {
     TabsContent,
     TabsList,
     TabsTrigger,
-    Textarea,
     cn,
 } from "@addzero/ui";
 import { getApiBaseUrl, type KnowledgeNoteDto } from "@addzero/api-client";
@@ -154,6 +164,27 @@ interface GraphLine {
     target: string;
     weight: number;
 }
+
+const NOTE_EDITOR_PLUGINS = [
+    headingsPlugin({ allowedHeadingLevels: [1, 2, 3] }),
+    listsPlugin(),
+    quotePlugin(),
+    linkPlugin(),
+    markdownShortcutPlugin(),
+    toolbarPlugin({
+        toolbarClassName:
+            "!border-0 !border-b !border-stone-200 !bg-[#fffdf7] !px-3 !py-2 lg:!px-4 lg:!py-3",
+        toolbarContents: () => (
+            <>
+                <UndoRedo />
+                <BlockTypeSelect />
+                <BoldItalicUnderlineToggles />
+                <ListsToggle />
+                <CreateLink />
+            </>
+        ),
+    }),
+] as const;
 
 const MODULES: AssetModule[] = [
     {
@@ -1326,38 +1357,25 @@ function QuickCapture({
     return (
         <section className="border-b bg-[#f6f5ef] p-3 lg:p-5">
             <Card className="overflow-hidden rounded-3xl border-stone-300 bg-white shadow-[0_16px_44px_rgba(42,37,29,0.10)]">
-                <div className="flex flex-wrap items-center gap-2 border-b bg-[#fffdf7] px-3 py-2 text-sm text-muted-foreground lg:gap-3 lg:px-4 lg:py-3">
-                    <Smile className="h-4 w-4" />
-                    <span className="font-semibold text-foreground">H</span>
-                    <span className="font-black text-foreground">B</span>
-                    <span className="italic text-foreground">I</span>
-                    <Link2 className="h-4 w-4" />
-                    <List className="h-4 w-4" />
-                    <CheckSquare className="h-4 w-4" />
-                    <TableProperties className="h-4 w-4" />
-                    <Code2 className="h-4 w-4" />
-                    <Hash className="h-4 w-4" />
-                    <AtSign className="h-4 w-4" />
-                    <Paperclip className="h-4 w-4" />
-                    <div className="ml-auto flex items-center gap-2 text-xs">
-                        <Badge variant="outline" className="rounded-full">
-                            Markdown
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full">
-                            待整理
-                        </Badge>
+                <div className="border-b bg-[#fffdf7] px-3 py-2 text-sm text-muted-foreground lg:px-4 lg:py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Smile className="h-4 w-4" />
+                        <span className="font-medium text-foreground">Markdown Rich Text</span>
+                        <div className="ml-auto flex items-center gap-2 text-xs">
+                            <Badge variant="outline" className="rounded-full">
+                                Markdown
+                            </Badge>
+                            <Badge variant="outline" className="rounded-full">
+                                富文本
+                            </Badge>
+                        </div>
                     </div>
                 </div>
-                <Textarea
-                    className="min-h-28 resize-none border-0 bg-white px-4 py-3 text-base leading-7 shadow-none focus-visible:ring-0 lg:min-h-32 lg:py-4"
+                <RichMarkdownEditor
                     value={value}
-                    onChange={(event) => onChange(event.target.value)}
-                    onKeyDown={(event) => {
-                        if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !saving) {
-                            event.preventDefault();
-                            void onSubmit();
-                        }
-                    }}
+                    onChange={onChange}
+                    placeholder="记录碎片、命令、结论或上下文。支持标题、列表、引用、链接。"
+                    minHeight={144}
                 />
                 <div className="flex items-center justify-between gap-3 border-t bg-[#fffdf7] px-3 py-2 lg:px-4 lg:py-3">
                     <div className="min-w-0 flex-1 overflow-x-auto">
@@ -1421,6 +1439,62 @@ function QuickCapture({
                 )}
             </Card>
         </section>
+    );
+}
+
+function RichMarkdownEditor({
+    value,
+    onChange,
+    placeholder,
+    minHeight,
+    compact = false,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    minHeight: number;
+    compact?: boolean;
+}) {
+    const editorRef = useRef<MDXEditorMethods>(null);
+    const lastMarkdownRef = useRef(value);
+
+    useEffect(() => {
+        if (value !== lastMarkdownRef.current) {
+            editorRef.current?.setMarkdown(value);
+            lastMarkdownRef.current = value;
+        }
+    }, [value]);
+
+    return (
+        <div
+            className={cn(
+                "rich-note-editor bg-white",
+                compact ? "rounded-[18px]" : "rounded-none",
+            )}
+            style={{ minHeight }}
+        >
+            <MDXEditor
+                ref={editorRef}
+                markdown={value}
+                onChange={(markdown) => {
+                    lastMarkdownRef.current = markdown;
+                    onChange(markdown);
+                }}
+                placeholder={
+                    <div className="px-4 py-3 text-sm text-stone-400">{placeholder}</div>
+                }
+                className={cn(
+                    "text-stone-900",
+                    compact ? "[&_.mdxeditor-toolbar]:rounded-t-[18px]" : "",
+                )}
+                contentEditableClassName={cn(
+                    "prose prose-stone max-w-none px-4 py-3 text-[15px] leading-7 outline-none",
+                    "min-h-[140px]",
+                    compact && "min-h-[180px] px-3 py-3 text-[15px]",
+                )}
+                plugins={[...NOTE_EDITOR_PLUGINS]}
+            />
+        </div>
     );
 }
 
@@ -1998,10 +2072,8 @@ function NoteCard({
                             />
                         </div>
                         <div className="rounded-2xl border border-stone-200 bg-[#fffdf8] p-2">
-                            <Textarea
-                                value={draftBody ?? ""}
+                            <div
                                 onClick={(event) => event.stopPropagation()}
-                                onChange={(event) => onDraftBodyChange?.(event.target.value)}
                                 onKeyDown={(event) => {
                                     if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !savePending) {
                                         event.preventDefault();
@@ -2012,9 +2084,15 @@ function NoteCard({
                                         onCancelEdit?.();
                                     }
                                 }}
-                                className="min-h-36 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-7 text-stone-900 shadow-none focus-visible:ring-0"
-                                placeholder="直接修改正文内容"
-                            />
+                            >
+                                <RichMarkdownEditor
+                                    value={draftBody ?? ""}
+                                    onChange={(value) => onDraftBodyChange?.(value)}
+                                    placeholder="直接修改正文内容"
+                                    minHeight={180}
+                                    compact
+                                />
+                            </div>
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-dashed border-amber-200 bg-[#fff9ec] px-3 py-2 text-[11px] text-amber-800">
                             <span>点击卡片即进入编辑，`Cmd/Ctrl + Enter` 保存，`Esc` 取消。</span>
