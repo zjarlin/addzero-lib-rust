@@ -4,6 +4,7 @@ import {
     Bot,
     BrainCircuit,
     Cable,
+    Cloud,
     Database,
     Loader2,
     MonitorSmartphone,
@@ -15,6 +16,17 @@ import { getApiBaseUrl } from "@az/api-client";
 
 type RuntimeStatus = "online" | "pending" | "offline";
 
+interface CloudflareTunnelStatus {
+    config_path: string;
+    config_exists: boolean;
+    tunnel_running: boolean;
+    host_count: number;
+    http_count: number;
+    tcp_count: number;
+    cli_commands: { name: string; path: string; installed: boolean }[];
+    hosts: { hostname: string; service: string; mode: string; local: string; port: string }[];
+}
+
 interface CapabilityCardProps {
     title: string;
     detail: string;
@@ -25,6 +37,7 @@ interface CapabilityCardProps {
 export default function Dashboard() {
     const [skillsCount, setSkillsCount] = useState<number | null>(null);
     const [apiReady, setApiReady] = useState<boolean | null>(null);
+    const [tunnelStatus, setTunnelStatus] = useState<CloudflareTunnelStatus | null>(null);
 
     useEffect(() => {
         const baseUrl = getApiBaseUrl();
@@ -42,7 +55,20 @@ export default function Dashboard() {
             })
             .then((data: unknown[]) => setSkillsCount(data.length))
             .catch(() => setSkillsCount(0));
+
+        fetch(`${baseUrl}/api/cloudflare-tunnel/status`, { credentials: "include" })
+            .then((res) => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                return res.json();
+            })
+            .then((data: CloudflareTunnelStatus) => setTunnelStatus(data))
+            .catch(() => setTunnelStatus(null));
     }, []);
+
+    const installedCliCount =
+        tunnelStatus?.cli_commands.filter((command) => command.installed).length ?? 0;
 
     const capabilityCards = useMemo(
         () => [
@@ -65,6 +91,19 @@ export default function Dashboard() {
                 icon: <Blocks className="h-4 w-4" />,
             },
             {
+                title: "Cloudflare Tunnel",
+                detail: tunnelStatus
+                    ? `${tunnelStatus.host_count} hosts · ${installedCliCount}/4 CLI`
+                    : "Tunnel host 映射与 CLI 命令状态",
+                status:
+                    tunnelStatus === null
+                        ? ("pending" as RuntimeStatus)
+                        : tunnelStatus.tunnel_running
+                          ? ("online" as RuntimeStatus)
+                          : ("offline" as RuntimeStatus),
+                icon: <Cloud className="h-4 w-4" />,
+            },
+            {
                 title: "双端外壳",
                 detail: "Web + Tauri 共享同一工作台与后端内核",
                 status:
@@ -76,7 +115,7 @@ export default function Dashboard() {
                 icon: <MonitorSmartphone className="h-4 w-4" />,
             },
         ],
-        [apiReady],
+        [apiReady, installedCliCount, tunnelStatus],
     );
 
     return (
@@ -97,7 +136,7 @@ export default function Dashboard() {
                         </p>
                     </div>
 
-                    <div className="grid gap-0 md:grid-cols-3">
+                    <div className="grid gap-0 md:grid-cols-4">
                         <SignalBlock
                             label="API 状态"
                             value={
@@ -121,6 +160,17 @@ export default function Dashboard() {
                                 )
                             }
                             detail="已装载能力定义"
+                        />
+                        <SignalBlock
+                            label="Tunnel"
+                            value={
+                                tunnelStatus ? (
+                                    String(tunnelStatus.host_count)
+                                ) : (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                )
+                            }
+                            detail={`${tunnelStatus?.http_count ?? 0} HTTP / ${tunnelStatus?.tcp_count ?? 0} TCP`}
                         />
                         <SignalBlock
                             label="当前阶段"
@@ -161,6 +211,37 @@ export default function Dashboard() {
                 {capabilityCards.map((item) => (
                     <CapabilityCard key={item.title} {...item} />
                 ))}
+            </section>
+
+            <section className="rounded-lg border bg-card">
+                <div className="border-b px-5 py-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                        <Cloud className="h-4 w-4 text-muted-foreground" />
+                        Cloudflare Tunnel
+                    </div>
+                </div>
+                <div className="grid gap-0 md:grid-cols-4">
+                    <SignalBlock
+                        label="进程"
+                        value={tunnelStatus?.tunnel_running ? "Running" : "Stopped"}
+                        detail="cloudflared tunnel run"
+                    />
+                    <SignalBlock
+                        label="配置"
+                        value={tunnelStatus?.config_exists ? "Ready" : "Missing"}
+                        detail={tunnelStatus?.config_path ?? "~/.cloudflared/config.yml"}
+                    />
+                    <SignalBlock
+                        label="Host"
+                        value={String(tunnelStatus?.host_count ?? 0)}
+                        detail="ingress hostname mappings"
+                    />
+                    <SignalBlock
+                        label="CLI"
+                        value={`${installedCliCount}/4`}
+                        detail="addhost showhost rmhost autohost"
+                    />
+                </div>
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">

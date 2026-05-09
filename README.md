@@ -64,18 +64,18 @@
 本地运行时，`aio` / `msc-aio` 与同步 CLI 会按以下优先级读取数据库连接：
 
 1. `MSC_AIO_DATABASE_URL`
-2. `仓库根 .env`
-3. `DATABASE_URL`
-4. `~/.config/aio/aio.env`
+2. `DATABASE_URL`
+3. `~/.config/aio/aio.env`
 
 示例：
 
 ```bash
-printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > .env
+mkdir -p ~/.config/aio
+printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > ~/.config/aio/aio.env
 cargo run -p az-knowledge --bin knowledge-sync
 ```
 
-如果想保留用户级回退文件，仍可写到 `~/.config/aio/aio.env`。
+桌面端首次启动时如果检测不到 `~/.config/aio/aio.env`，会进入引导页；引导页会给出 `host.docker.internal` 示例，并可直接配置 PostgreSQL 与 MinIO。仓库内不再需要 `.env`。
 
 桌面壳开发入口：
 
@@ -83,7 +83,7 @@ cargo run -p az-knowledge --bin knowledge-sync
 pnpm run dev:aio
 ```
 
-这个命令会先执行 `cargo run -p aio -- migrate`，再启动 Tauri dev，并由 Tauri 自动拉起 `apps/aio/front`。
+这个命令会先执行 `cargo run -p aio -- migrate`，再启动 Tauri dev，并由 Tauri 自动拉起 `apps/aio/front`。如果还没有 PostgreSQL 配置，迁移命令会跳过，桌面端会进入初始化引导。
 
 更完整的蓝图说明见：
 

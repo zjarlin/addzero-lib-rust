@@ -8,6 +8,7 @@ import {
     type WasmPluginPageSchema,
     type WasmPluginResolvedPage,
 } from "../lib/wasm-plugin-runtime";
+import { NotesFragmentsPluginView } from "../components/NotesFragmentsPluginView";
 
 export function SystemPluginPage() {
     const { pluginId = "", pageId = "" } = useParams();
@@ -111,12 +112,18 @@ function PluginPageScaffold({
                 </div>
             </div>
 
-            <PluginSchemaView schema={page.schema} />
+            <PluginSchemaView schema={page.schema} baseUrl={baseUrl} />
         </div>
     );
 }
 
-function PluginSchemaView({ schema }: { schema: WasmPluginPageSchema }) {
+function PluginSchemaView({
+    schema,
+    baseUrl,
+}: {
+    schema: WasmPluginPageSchema;
+    baseUrl: string;
+}) {
     switch (schema.kind) {
         case "markdown":
             return (
@@ -275,6 +282,8 @@ function PluginSchemaView({ schema }: { schema: WasmPluginPageSchema }) {
                     </div>
                 </div>
             );
+        case "notes_fragments":
+            return <NotesFragmentsPluginView schema={schema} baseUrl={baseUrl} />;
         default:
             return (
                 <div className="rounded-lg border bg-card px-5 py-5 text-sm text-muted-foreground">

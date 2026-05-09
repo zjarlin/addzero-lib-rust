@@ -4,6 +4,7 @@ import {
     getApiBaseUrl,
     isDesktopRuntime,
     type BootstrapDatabaseSaveResultDto,
+    type BootstrapPlatformSaveResultDto,
     type BootstrapStatusDto,
 } from "@az/api-client";
 import {
@@ -20,9 +21,16 @@ export default function SetupPage() {
     const baseUrl = useMemo(() => getApiBaseUrl(), []);
     const desktopMode = useMemo(() => isDesktopRuntime(), []);
     const [status, setStatus] = useState<BootstrapStatusDto | null>(null);
-    const [databaseUrl, setDatabaseUrl] = useState("");
+    const [databaseUrl, setDatabaseUrl] = useState(
+        "postgresql://postgres:postgres@host.docker.internal:5432/aio",
+    );
+    const [minioEndpoint, setMinioEndpoint] = useState("http://host.docker.internal:9000");
+    const [minioAccessKey, setMinioAccessKey] = useState("minioadmin");
+    const [minioSecretKey, setMinioSecretKey] = useState("minioadmin");
+    const [minioRegion, setMinioRegion] = useState("us-east-1");
+    const [enableMinio, setEnableMinio] = useState(true);
     const [loading, setLoading] = useState(true);
-    const [savingMode, setSavingMode] = useState<"postgres" | "sqlite" | null>(null);
+    const [savingMode, setSavingMode] = useState<"platform" | "postgres" | "sqlite" | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const saving = savingMode !== null;
@@ -76,6 +84,56 @@ export default function SetupPage() {
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        await savePlatformConfig();
+    }
+
+    async function savePlatformConfig() {
+        setSavingMode("platform");
+        setError(null);
+        setMessage(null);
+        try {
+            const response = await fetch(`${baseUrl}/api/bootstrap/platform-config`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    postgres: databaseUrl.trim()
+                        ? {
+                              database_url: databaseUrl.trim(),
+                          }
+                        : null,
+                    minio: enableMinio
+                        ? {
+                              endpoint: minioEndpoint.trim(),
+                              access_key: minioAccessKey.trim(),
+                              secret_key: minioSecretKey.trim(),
+                              region: minioRegion.trim() || "us-east-1",
+                          }
+                        : null,
+                }),
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || `HTTP ${response.status}`);
+            }
+            const payload = (await response.json()) as BootstrapPlatformSaveResultDto;
+            setMessage(payload.message);
+            if (!payload.setup_required) {
+                window.location.replace("/login");
+            }
+        } catch (submitError) {
+            setError(
+                submitError instanceof Error
+                    ? submitError.message
+                    : "保存本机平台配置失败。",
+            );
+        } finally {
+            setSavingMode(null);
+        }
+    }
+
+    async function savePostgresOnly() {
         setSavingMode("postgres");
         setError(null);
         setMessage(null);
@@ -141,12 +199,12 @@ export default function SetupPage() {
                         AIO Desktop
                     </div>
                     <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-tight">
-                        纯桌面本地工作台，首次启动先接 PostgreSQL，或者直接落本机 SQLite
+                        首次启动先生成本机 aio.env，再进入工作台
                     </h1>
                     <p className="mt-4 max-w-lg text-sm leading-7 text-stone-300">
                         桌面壳子、前端资源和本地 API 都在本机运行。
-                        如果你已经有正式库，就先接 PostgreSQL；如果现在只想先跑起来，
-                        可以直接跳过，系统会把数据落到本机内嵌 SQLite，后续再切回 PostgreSQL。
+                        如果你的 PostgreSQL 或 MinIO 跑在 Docker Desktop 里，可以直接使用
+                        host.docker.internal 示例；如果现在只想先跑起来，可以直接落本机 SQLite。
                     </p>
                 </div>
 
@@ -161,7 +219,7 @@ export default function SetupPage() {
                     />
                     <DesktopSignal
                         label="持久化策略"
-                        value="PostgreSQL 优先 / SQLite 首启兜底"
+                        value="本机 aio.env / SQLite 首启兜底"
                     />
                 </div>
             </section>
@@ -178,11 +236,11 @@ export default function SetupPage() {
                                 Desktop Bootstrap
                             </div>
                             <CardTitle className="text-2xl tracking-tight">
-                                配置数据库
+                                配置本机平台依赖
                             </CardTitle>
                             <CardDescription className="text-sm leading-6">
-                                你可以先接 PostgreSQL；如果这一步跳过，系统会直接启用本机内嵌 SQLite。
-                                两种方式都会把地址写进本机配置文件，后续桌面端直接复用。
+                                AIO 会把 PostgreSQL 和 MinIO 写进 ~/.config/aio/aio.env。
+                                不需要仓库内 .env；进程环境变量只作为高级覆盖。
                             </CardDescription>
                         </CardHeader>
 
@@ -202,10 +260,85 @@ export default function SetupPage() {
                                         <Input
                                             value={databaseUrl}
                                             onChange={(event) => setDatabaseUrl(event.target.value)}
-                                            placeholder="postgresql://user:password@host:5432/database?sslmode=require"
+                                            placeholder="postgresql://postgres:postgres@host.docker.internal:5432/aio"
                                             autoFocus
                                         />
+                                        <div className="mt-2 text-xs text-muted-foreground">
+                                            Docker Desktop 示例：postgresql://postgres:postgres@host.docker.internal:5432/aio
+                                        </div>
                                     </label>
+
+                                    <div className="rounded-2xl border border-stone-300 bg-[#fcfaf4] px-4 py-4">
+                                        <label className="flex items-center justify-between gap-3">
+                                            <span className="flex items-center gap-2 text-sm font-medium">
+                                                <HardDrive className="h-4 w-4 text-muted-foreground" />
+                                                同时配置 MinIO
+                                            </span>
+                                            <input
+                                                type="checkbox"
+                                                checked={enableMinio}
+                                                onChange={(event) => setEnableMinio(event.target.checked)}
+                                            />
+                                        </label>
+
+                                        {enableMinio ? (
+                                            <div className="mt-4 grid gap-3">
+                                                <label className="block">
+                                                    <span className="mb-2 block text-sm text-muted-foreground">
+                                                        MinIO Endpoint
+                                                    </span>
+                                                    <Input
+                                                        value={minioEndpoint}
+                                                        onChange={(event) =>
+                                                            setMinioEndpoint(event.target.value)
+                                                        }
+                                                        placeholder="http://host.docker.internal:9000"
+                                                    />
+                                                </label>
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    <label className="block">
+                                                        <span className="mb-2 block text-sm text-muted-foreground">
+                                                            Access Key
+                                                        </span>
+                                                        <Input
+                                                            value={minioAccessKey}
+                                                            onChange={(event) =>
+                                                                setMinioAccessKey(event.target.value)
+                                                            }
+                                                        />
+                                                    </label>
+                                                    <label className="block">
+                                                        <span className="mb-2 block text-sm text-muted-foreground">
+                                                            Secret Key
+                                                        </span>
+                                                        <Input
+                                                            type="password"
+                                                            value={minioSecretKey}
+                                                            onChange={(event) =>
+                                                                setMinioSecretKey(event.target.value)
+                                                            }
+                                                        />
+                                                    </label>
+                                                </div>
+                                                <label className="block">
+                                                    <span className="mb-2 block text-sm text-muted-foreground">
+                                                        Region
+                                                    </span>
+                                                    <Input
+                                                        value={minioRegion}
+                                                        onChange={(event) =>
+                                                            setMinioRegion(event.target.value)
+                                                        }
+                                                        placeholder="us-east-1"
+                                                    />
+                                                </label>
+                                                <div className="text-xs text-muted-foreground">
+                                                    Docker Desktop 示例：endpoint 使用 http://host.docker.internal:9000，
+                                                    默认账号 minioadmin / minioadmin，bucket 固定为 aio。
+                                                </div>
+                                            </div>
+                                        ) : null}
+                                    </div>
 
                                     <div className="rounded-2xl border border-dashed border-stone-300 bg-[#fcfaf4] px-4 py-3 text-sm text-muted-foreground">
                                         <div className="font-medium text-foreground">保存位置</div>
@@ -213,7 +346,8 @@ export default function SetupPage() {
                                             {status?.config_path || "~/.config/aio/aio.env"}
                                         </div>
                                         <div className="mt-1 text-xs text-muted-foreground">
-                                            跳过 PostgreSQL 时会自动创建 `~/.config/aio/aio.sqlite3`
+                                            跳过 PostgreSQL 时会自动创建 `~/.config/aio/aio.sqlite3`。
+                                            MinIO 配置也写在同一个文件里，不需要仓库内 .env。
                                         </div>
                                         <div className="mt-3 flex items-start gap-2">
                                             <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-600" />
@@ -239,17 +373,24 @@ export default function SetupPage() {
                                         <Button
                                             type="submit"
                                             className="w-full rounded-2xl"
-                                            disabled={saving || !databaseUrl.trim()}
+                                            disabled={
+                                                saving ||
+                                                !databaseUrl.trim() ||
+                                                (enableMinio &&
+                                                    (!minioEndpoint.trim() ||
+                                                        !minioAccessKey.trim() ||
+                                                        !minioSecretKey.trim()))
+                                            }
                                         >
-                                            {savingMode === "postgres" ? (
+                                            {savingMode === "platform" ? (
                                                 <>
                                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                                    测试连接并保存
+                                                    正在测试并保存
                                                 </>
                                             ) : (
                                                 <>
                                                     <Save className="h-4 w-4" />
-                                                    测试连接并保存
+                                                    测试并保存平台配置
                                                 </>
                                             )}
                                         </Button>
@@ -274,6 +415,23 @@ export default function SetupPage() {
                                             )}
                                         </Button>
                                     </div>
+
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="w-full rounded-2xl"
+                                        disabled={saving || !databaseUrl.trim()}
+                                        onClick={() => void savePostgresOnly()}
+                                    >
+                                        {savingMode === "postgres" ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                只保存 PostgreSQL
+                                            </>
+                                        ) : (
+                                            "只测试并保存 PostgreSQL"
+                                        )}
+                                    </Button>
                                 </>
                             )}
                         </CardContent>

@@ -23,6 +23,57 @@ export interface BootstrapDatabaseSaveResultDto {
     message: string;
 }
 
+export interface PostgresConfigDto {
+    database_url: string;
+    configured: boolean;
+    reachable: boolean;
+    message: string;
+}
+
+export interface MinioConfigDto {
+    endpoint: string;
+    access_key: string;
+    secret_configured: boolean;
+    region: string;
+    bucket: string;
+    configured: boolean;
+    reachable: boolean;
+    message: string;
+}
+
+export interface PlatformConfigDto {
+    config_path: string;
+    postgres: PostgresConfigDto;
+    minio: MinioConfigDto;
+}
+
+export interface PostgresConfigUpdateDto {
+    database_url: string;
+}
+
+export interface MinioConfigUpdateDto {
+    endpoint: string;
+    access_key: string;
+    secret_key?: string | null;
+    region?: string | null;
+}
+
+export interface PlatformConfigSaveResultDto {
+    config: PlatformConfigDto;
+    message: string;
+}
+
+export interface BootstrapPlatformSetupDto {
+    postgres?: PostgresConfigUpdateDto | null;
+    minio?: MinioConfigUpdateDto | null;
+}
+
+export interface BootstrapPlatformSaveResultDto {
+    config: PlatformConfigDto;
+    setup_required: boolean;
+    message: string;
+}
+
 export interface LoginRequest {
     username: string;
     password: string;
@@ -415,6 +466,17 @@ export interface CliMarketEntry {
     doc_refs: CliDocRef[];
 }
 
+export interface CliSimpleMetadata {
+    name: string;
+    display_name: string;
+    version: string;
+    description: string;
+    requires: string;
+    install_cmd: string;
+    entry_point: string;
+    category: string;
+}
+
 export interface CliMarketCatalog {
     entries: CliMarketEntry[];
 }
@@ -613,6 +675,29 @@ export function createApiClient(baseUrl: string) {
                     ...jsonBody(input),
                 },
             ),
+        getPlatformConfig: () =>
+            request<PlatformConfigDto>(
+                baseUrl,
+                "/api/admin/settings/platform-config",
+            ),
+        savePostgresConfig: (input: PostgresConfigUpdateDto) =>
+            request<PlatformConfigSaveResultDto>(
+                baseUrl,
+                "/api/admin/settings/platform-config/postgres",
+                {
+                    method: "POST",
+                    ...jsonBody(input),
+                },
+            ),
+        saveMinioConfig: (input: MinioConfigUpdateDto) =>
+            request<PlatformConfigSaveResultDto>(
+                baseUrl,
+                "/api/admin/settings/platform-config/minio",
+                {
+                    method: "POST",
+                    ...jsonBody(input),
+                },
+            ),
         uploadLogo: (input: {
             file_name: string;
             content_type?: string | null;
@@ -801,6 +886,13 @@ export function createApiClient(baseUrl: string) {
                 method: "DELETE",
             }),
         cliCatalog: () => request<CliMarketCatalog>(baseUrl, "/api/cli-market"),
+        cliSimpleCatalog: () =>
+            request<CliSimpleMetadata[]>(baseUrl, "/api/cli-market/simple"),
+        cliSimpleUpsert: (input: CliSimpleMetadata) =>
+            request<CliSimpleMetadata>(baseUrl, "/api/cli-market/simple/upsert", {
+                method: "POST",
+                ...jsonBody(input),
+            }),
         cliEntry: (id: string) =>
             request<CliMarketEntry | null>(
                 baseUrl,

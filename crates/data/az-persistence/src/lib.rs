@@ -81,7 +81,7 @@ impl PersistenceContext {
 
 #[derive(Debug, Error)]
 pub enum PersistenceError {
-    #[error("missing MSC_AIO_DATABASE_URL / repo .env / DATABASE_URL / ~/.config/aio/aio.env")]
+    #[error("missing MSC_AIO_DATABASE_URL / DATABASE_URL / ~/.config/aio/aio.env")]
     MissingDatabaseUrl,
     #[error("connect to postgres: {0}")]
     Connect(#[source] DbErr),
@@ -95,7 +95,6 @@ pub fn database_url() -> Option<String> {
     env::var("MSC_AIO_DATABASE_URL")
         .ok()
         .filter(|value| !value.trim().is_empty())
-        .or_else(read_database_url_from_workspace_env)
         .or_else(|| {
             env::var("DATABASE_URL")
                 .ok()
@@ -104,6 +103,7 @@ pub fn database_url() -> Option<String> {
         .or_else(read_database_url_from_local_env)
 }
 
+#[deprecated(note = "AIO desktop configuration is stored in ~/.config/aio/aio.env")]
 pub fn workspace_env_path() -> Option<PathBuf> {
     let cwd = env::current_dir().ok()?;
     workspace_env_path_from(&cwd)
@@ -111,11 +111,6 @@ pub fn workspace_env_path() -> Option<PathBuf> {
 
 pub fn local_env_path() -> Option<PathBuf> {
     home_dir().map(|home| home.join(LOCAL_ENV_FILE))
-}
-
-fn read_database_url_from_workspace_env() -> Option<String> {
-    let path = workspace_env_path()?;
-    read_database_url_from_path(&path)
 }
 
 fn read_database_url_from_local_env() -> Option<String> {

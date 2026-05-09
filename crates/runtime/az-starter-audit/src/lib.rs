@@ -62,6 +62,8 @@ impl PluginStarter for AuditStarter {
                     }],
                 }),
             }],
+            metadata: Default::default(),
+            cli_commands: vec![],
         }
     }
 }

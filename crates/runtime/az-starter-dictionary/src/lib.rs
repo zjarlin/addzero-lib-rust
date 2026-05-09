@@ -61,6 +61,8 @@ impl PluginStarter for DictionaryStarter {
                     empty_message: "暂无字典项。".to_string(),
                 }),
             }],
+            metadata: Default::default(),
+            cli_commands: vec![],
         }
     }
 }

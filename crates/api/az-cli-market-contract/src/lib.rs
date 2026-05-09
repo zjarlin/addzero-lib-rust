@@ -365,6 +365,19 @@ pub struct CliRegistryCompatEntry {
     pub category: String,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CliSimpleMetadata {
+    pub name: String,
+    pub display_name: String,
+    pub version: String,
+    pub description: String,
+    pub requires: String,
+    pub install_cmd: String,
+    pub entry_point: String,
+    pub category: String,
+}
+
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum CliMarketContractError {
     #[error("{0}")]

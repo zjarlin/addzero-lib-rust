@@ -35,6 +35,8 @@ impl PluginStarter for MenuStarter {
                     body: "菜单由宿主壳子统一解析：固定页 -> 系统插件 -> 业务实例。新增插件只补描述与注册，不再改主路由。".to_string(),
                 }),
             }],
+            metadata: Default::default(),
+            cli_commands: vec![],
         }
     }
 }

@@ -42,6 +42,35 @@ pub struct PluginDescriptor {
     pub capabilities: Vec<HostCapability>,
     pub menus: Vec<PluginMenuContribution>,
     pub pages: Vec<PluginPage>,
+    #[serde(default)]
+    pub metadata: PluginMetadata,
+    #[serde(default)]
+    pub cli_commands: Vec<PluginCliCommand>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginMetadata {
+    pub github_url: String,
+    pub description: String,
+    pub maintainer_type: String,
+    pub maintainer_name: String,
+    pub primary_language: String,
+    pub category: String,
+    pub install_command: String,
+    pub agent_install_command: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginCliCommand {
+    pub command_name: String,
+    pub file_name: String,
+    pub object_bucket: String,
+    pub object_key: String,
+    pub object_sha256: String,
+    pub object_size_bytes: u64,
+    pub content_type: String,
+    pub install_path: String,
+    pub status: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +99,7 @@ pub enum PageSchema {
     Board(BoardSchema),
     Markdown(MarkdownSchema),
     Graph(GraphSchema),
+    NotesFragments(NotesFragmentsSchema),
 }
 
 impl Default for PageSchema {
@@ -111,6 +141,15 @@ pub struct BoardSchema {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MarkdownSchema {
     pub body: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NotesFragmentsSchema {
+    pub list_path: String,
+    pub save_path: String,
+    pub delete_path: String,
+    pub placeholder: String,
+    pub empty_message: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

@@ -300,7 +300,7 @@ export function WasmStudioWorkbench({
                                     <StageStrip
                                         title="Plugin Runtime"
                                         tone="rose"
-                                        body="Catalog registration, package root, and install rail. This is where `.azplugin` bundles enter the system."
+                                        body="Catalog registration, package root, and install rail. This is where `.wasm` plugin binaries enter the system."
                                         metric="18"
                                     />
                                     <div className="border-x border-[#574c41]/10 bg-[radial-gradient(circle_at_top,#fff9f2_0%,#f5eadb_38%,#efe1cf_100%)] px-6 py-6">

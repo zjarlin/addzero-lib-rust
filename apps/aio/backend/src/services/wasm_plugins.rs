@@ -1,16 +1,14 @@
 #![cfg(not(target_arch = "wasm32"))]
 
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use az_plugin_contract::{
-    BoardSchema, MarketplaceSnapshot, MetricCard, PageSchema, PluginDescriptor, PluginKind,
-    PluginMenuContribution, PluginPage, PluginStatus, RecordGroup, RecordItem, ResolvedPage,
-    RuntimeOverview, ShellSnapshot,
+    BoardSchema, MarketplaceSnapshot, MetricCard, NotesFragmentsSchema, PageSchema,
+    PluginDescriptor, PluginKind, PluginMenuContribution, PluginMetadata, PluginPage, PluginStatus,
+    RecordGroup, RecordItem, ResolvedPage, RuntimeOverview, ShellSnapshot,
 };
 use az_plugin_kernel::PlatformKernel;
-use az_plugin_runtime::{read_manifest_from_package, validate_package};
 use chrono::Utc;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -18,7 +16,7 @@ use sha2::{Digest, Sha256};
 
 use crate::server::resolved_database_url;
 
-use super::wasm_plugin_store::{WasmFirmwareKind, WasmPluginStore};
+use super::wasm_plugin_store::{WasmFirmwareKind, WasmPluginCliResourceUpload, WasmPluginStore};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WasmPluginRuntimeSnapshotDto {
@@ -28,17 +26,21 @@ pub struct WasmPluginRuntimeSnapshotDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WasmPluginUploadRequestDto {
-    pub file_name: String,
-    pub bytes: Vec<u8>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WasmPluginBinaryUploadRequestDto {
     pub file_name: String,
     pub bytes: Vec<u8>,
     pub descriptor: PluginDescriptor,
     pub default_instance_label: Option<String>,
+    #[serde(default)]
+    pub cli_resources: Vec<WasmPluginCliResourceUploadDto>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WasmPluginCliResourceUploadDto {
+    pub command_name: String,
+    pub file_name: String,
+    pub bytes: Vec<u8>,
+    pub content_type: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,6 +56,10 @@ pub struct WasmPluginFirmwareUploadRequestDto {
     pub firmware_kind: WasmPluginFirmwareKindDto,
     pub file_name: String,
     pub bytes: Vec<u8>,
+    #[serde(default)]
+    pub metadata: PluginMetadata,
+    #[serde(default)]
+    pub cli_resources: Vec<WasmPluginCliResourceUploadDto>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,6 +72,17 @@ pub struct WasmPluginUploadResultDto {
     pub storage_backend: String,
     pub binary_object_key: Option<String>,
     pub binary_sha256: Option<String>,
+}
+
+impl From<WasmPluginCliResourceUploadDto> for WasmPluginCliResourceUpload {
+    fn from(value: WasmPluginCliResourceUploadDto) -> Self {
+        Self {
+            command_name: value.command_name,
+            file_name: value.file_name,
+            bytes: value.bytes,
+            content_type: value.content_type,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -231,66 +248,6 @@ pub async fn install_catalog_wasm_plugin_on_server(
     })
 }
 
-pub async fn upload_wasm_plugin_on_server(
-    input: WasmPluginUploadRequestDto,
-) -> Result<WasmPluginUploadResultDto, String> {
-    let file_name = normalized_upload_file_name(&input.file_name)?;
-    if input.bytes.is_empty() {
-        return Err("plugin upload bytes cannot be empty".to_string());
-    }
-
-    if let Some(store) = wasm_plugin_store()? {
-        let stored = store
-            .import_azplugin_package(&file_name, &input.bytes)
-            .await
-            .map_err(|err| format!("store uploaded plugin in PG/MinIO: {err}"))?;
-        return Ok(WasmPluginUploadResultDto {
-            package_path: format!("{}/{}", stored.binary_bucket, stored.binary_object_key),
-            plugin_id: stored.plugin_id,
-            plugin_name: stored.plugin_name,
-            version: stored.version,
-            validated: true,
-            storage_backend: "pg+minio".to_string(),
-            binary_object_key: Some(stored.binary_object_key),
-            binary_sha256: Some(stored.binary_sha256),
-        });
-    }
-
-    let kernel = platform_kernel()?;
-    let temp_dir = default_plugins_root().join(".tmp");
-    fs::create_dir_all(&temp_dir)
-        .map_err(|err| format!("create temp plugin dir {}: {err}", temp_dir.display()))?;
-    let temp_path = temp_dir.join(format!("upload-{file_name}"));
-    fs::write(&temp_path, &input.bytes)
-        .map_err(|err| format!("write uploaded plugin {}: {err}", temp_path.display()))?;
-
-    let result = (|| {
-        validate_package(&temp_path)
-            .map_err(|err| format!("validate uploaded package {}: {err}", temp_path.display()))?;
-        let manifest = read_manifest_from_package(&temp_path)
-            .map_err(|err| format!("read uploaded manifest {}: {err}", temp_path.display()))?;
-        if manifest.descriptor.kind != PluginKind::Business {
-            return Err(
-                "only external Business wasm plugins can be uploaded to marketplace".to_string(),
-            );
-        }
-        let package_path = store_uploaded_package(kernel, &manifest.descriptor.id, &temp_path)?;
-        Ok(WasmPluginUploadResultDto {
-            package_path: package_path.display().to_string(),
-            plugin_id: manifest.descriptor.id,
-            plugin_name: manifest.descriptor.name,
-            version: manifest.descriptor.version,
-            validated: true,
-            storage_backend: "catalog-file".to_string(),
-            binary_object_key: None,
-            binary_sha256: None,
-        })
-    })();
-
-    let _ = fs::remove_file(&temp_path);
-    result
-}
-
 pub async fn upload_wasm_binary_plugin_on_server(
     input: WasmPluginBinaryUploadRequestDto,
 ) -> Result<WasmPluginUploadResultDto, String> {
@@ -310,6 +267,7 @@ pub async fn upload_wasm_binary_plugin_on_server(
             &input.bytes,
             input.descriptor,
             input.default_instance_label,
+            input.cli_resources.into_iter().map(Into::into).collect(),
         )
         .await
         .map_err(|err| format!("store uploaded wasm in PG/MinIO: {err}"))?;
@@ -340,7 +298,13 @@ pub async fn upload_wasm_firmware_plugin_on_server(
                 .to_string(),
         );
     };
-    let descriptor = build_firmware_descriptor(&name, &description, &input.firmware_kind);
+    let descriptor = build_firmware_descriptor(
+        &name,
+        &description,
+        &input.firmware_kind,
+        input.metadata,
+        input.cli_resources.len(),
+    );
     let firmware_kind = match input.firmware_kind {
         WasmPluginFirmwareKindDto::System => WasmFirmwareKind::System,
         WasmPluginFirmwareKindDto::Business => WasmFirmwareKind::Business,
@@ -352,6 +316,7 @@ pub async fn upload_wasm_firmware_plugin_on_server(
             descriptor,
             Some(name),
             firmware_kind,
+            input.cli_resources.into_iter().map(Into::into).collect(),
         )
         .await
         .map_err(|err| format!("store uploaded firmware in PG/MinIO: {err}"))?;
@@ -365,6 +330,72 @@ pub async fn upload_wasm_firmware_plugin_on_server(
         binary_object_key: Some(stored.binary_object_key),
         binary_sha256: Some(stored.binary_sha256),
     })
+}
+
+pub async fn seed_cloudflare_tunnel_plugin_on_server() -> Result<WasmPluginUploadResultDto, String>
+{
+    register_cloudflare_tunnel_plugin_on_server().await
+}
+
+pub async fn register_cloudflare_tunnel_plugin_on_server()
+-> Result<WasmPluginUploadResultDto, String> {
+    let descriptor = cloudflare_tunnel_descriptor();
+    let resources = cloudflare_tunnel_cli_resources()?;
+    let input = WasmPluginBinaryUploadRequestDto {
+        file_name: "cloudflare-tunnel.wasm".to_string(),
+        bytes: lifecycle_only_wasm(),
+        descriptor,
+        default_instance_label: Some("Cloudflare Tunnel".to_string()),
+        cli_resources: resources,
+    };
+    upload_wasm_binary_plugin_on_server(input).await
+}
+
+pub async fn register_notes_fragments_plugin_on_server()
+-> Result<WasmPluginInstallResultDto, String> {
+    let descriptor = notes_fragments_descriptor();
+    let plugin_id = descriptor.id.clone();
+    if let Some(store) = wasm_plugin_store()? {
+        if let Some(instance) = store
+            .first_instance_for_plugin(&plugin_id)
+            .await
+            .map_err(|err| format!("load existing notes fragments plugin instance: {err}"))?
+        {
+            let version = store
+                .marketplace_snapshot()
+                .await
+                .ok()
+                .and_then(|snapshot| {
+                    snapshot
+                        .entries
+                        .into_iter()
+                        .find(|entry| entry.plugin_id == plugin_id)
+                })
+                .map(|entry| entry.version)
+                .unwrap_or_else(|| descriptor.version.clone());
+            return Ok(WasmPluginInstallResultDto {
+                plugin_id,
+                plugin_name: instance.plugin_name,
+                version,
+                instance_slug: instance.slug,
+                instance_label: instance.label,
+                page_ids: instance.page_ids,
+            });
+        }
+    }
+    let input = WasmPluginBinaryUploadRequestDto {
+        file_name: "notes-fragments.wasm".to_string(),
+        bytes: lifecycle_only_wasm(),
+        descriptor,
+        default_instance_label: Some("碎片笔记".to_string()),
+        cli_resources: vec![],
+    };
+    let uploaded = upload_wasm_binary_plugin_on_server(input).await?;
+    install_catalog_wasm_plugin_on_server(WasmPluginInstallRequestDto {
+        plugin_id: uploaded.plugin_id,
+        instance_label: Some("碎片笔记".to_string()),
+    })
+    .await
 }
 
 pub async fn resolve_system_wasm_plugin_page_on_server(
@@ -438,48 +469,6 @@ fn default_plugins_root() -> PathBuf {
     root.canonicalize().unwrap_or(root)
 }
 
-fn store_uploaded_package(
-    kernel: &Arc<PlatformKernel>,
-    plugin_id: &str,
-    source_path: &Path,
-) -> Result<PathBuf, String> {
-    let catalog_dir = kernel
-        .catalog_dir()
-        .map_err(|err| format!("resolve wasm plugin catalog dir: {err}"))?;
-    fs::create_dir_all(&catalog_dir)
-        .map_err(|err| format!("create catalog dir {}: {err}", catalog_dir.display()))?;
-    let target_path = catalog_dir.join(format!("{plugin_id}.azplugin"));
-    fs::copy(source_path, &target_path).map_err(|err| {
-        format!(
-            "copy uploaded package {} -> {}: {err}",
-            source_path.display(),
-            target_path.display()
-        )
-    })?;
-    kernel
-        .refresh_catalog()
-        .map_err(|err| format!("refresh wasm plugin catalog after upload: {err}"))?;
-    Ok(target_path)
-}
-
-fn normalized_upload_file_name(raw: &str) -> Result<String, String> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Err("upload file name is required".to_string());
-    }
-    if !trimmed.ends_with(".azplugin") {
-        return Err("only `.azplugin` plugin packages can be uploaded".to_string());
-    }
-    let file_name = Path::new(trimmed)
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(|| "upload file name is invalid".to_string())?;
-    if file_name != trimmed {
-        return Err("upload file name must not contain parent directories".to_string());
-    }
-    Ok(file_name.to_string())
-}
-
 fn normalized_binary_upload_file_name(raw: &str) -> Result<String, String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -510,6 +499,8 @@ fn build_firmware_descriptor(
     name: &str,
     description: &str,
     firmware_kind: &WasmPluginFirmwareKindDto,
+    mut metadata: PluginMetadata,
+    cli_command_count: usize,
 ) -> PluginDescriptor {
     let slug = slugify(name);
     let plugin_id = if slug.is_empty() {
@@ -572,13 +563,13 @@ fn build_firmware_descriptor(
                         detail: "WASM 固件二进制不落本地 catalog 文件。".to_string(),
                     },
                     MetricCard {
-                        label: "入口".to_string(),
-                        value: "插件化".to_string(),
-                        detail: "菜单、页面和实例都由插件描述驱动。".to_string(),
+                        label: "CLI".to_string(),
+                        value: cli_command_count.to_string(),
+                        detail: "命令资源由 PostgreSQL 索引并从 MinIO 安装到本机。".to_string(),
                     },
                 ],
                 groups: vec![RecordGroup {
-                    title: "固件说明".to_string(),
+                    title: "插件说明".to_string(),
                     items: vec![
                         RecordItem {
                             title: "描述".to_string(),
@@ -591,10 +582,25 @@ fn build_firmware_descriptor(
                                 .to_string(),
                             meta: "pg+minio".to_string(),
                         },
+                        RecordItem {
+                            title: "维护者".to_string(),
+                            detail: metadata.maintainer_name.clone(),
+                            meta: metadata.maintainer_type.clone(),
+                        },
                     ],
                 }],
             }),
         }],
+        metadata: {
+            if metadata.description.trim().is_empty() {
+                metadata.description = description.to_string();
+            }
+            if metadata.category.trim().is_empty() {
+                metadata.category = category_label.to_string();
+            }
+            metadata
+        },
+        cli_commands: vec![],
     }
 }
 
@@ -623,6 +629,335 @@ fn short_fingerprint(value: &str) -> String {
     digest.update(value.as_bytes());
     let hash = format!("{:x}", digest.finalize());
     format!("firmware-{}", &hash[..12])
+}
+
+fn cloudflare_tunnel_descriptor() -> PluginDescriptor {
+    PluginDescriptor {
+        id: "cloudflare-tunnel".to_string(),
+        name: "Cloudflare Tunnel".to_string(),
+        version: Utc::now().format("%Y.%m.%d.%H%M%S").to_string(),
+        kind: PluginKind::Business,
+        summary: "Expose local HTTP and TCP services through Cloudflare Tunnel and install OS-level host management CLI commands.".to_string(),
+        tags: vec![
+            "cloudflare".to_string(),
+            "tunnel".to_string(),
+            "cli".to_string(),
+            "network".to_string(),
+        ],
+        icon: Some("cloud".to_string()),
+        compatibility: vec!["desktop".to_string(), "macos".to_string()],
+        capabilities: vec![],
+        menus: vec![
+            PluginMenuContribution {
+                section: "运维工具".to_string(),
+                label: "Tunnel 总览".to_string(),
+                page_id: "overview".to_string(),
+                order: 10,
+                icon: Some("cloud".to_string()),
+            },
+            PluginMenuContribution {
+                section: "运维工具".to_string(),
+                label: "CLI 命令".to_string(),
+                page_id: "cli".to_string(),
+                order: 11,
+                icon: Some("terminal".to_string()),
+            },
+        ],
+        pages: vec![
+            PluginPage {
+                id: "overview".to_string(),
+                title: "Cloudflare Tunnel".to_string(),
+                subtitle: "本机 tunnel、DNS host 映射和 CLI 安装状态。".to_string(),
+                schema: PageSchema::Board(BoardSchema {
+                    metrics: vec![
+                        MetricCard {
+                            label: "工件".to_string(),
+                            value: ".wasm".to_string(),
+                            detail: "运行时二进制进入 MinIO，不使用自定义插件包。".to_string(),
+                        },
+                        MetricCard {
+                            label: "元数据".to_string(),
+                            value: "PostgreSQL".to_string(),
+                            detail: "维护者、安装命令、菜单和页面描述都在数据库。".to_string(),
+                        },
+                        MetricCard {
+                            label: "CLI".to_string(),
+                            value: "4".to_string(),
+                            detail: "addhost / showhost / rmhost / autohost".to_string(),
+                        },
+                    ],
+                    groups: vec![RecordGroup {
+                        title: "交付能力".to_string(),
+                        items: vec![
+                            RecordItem {
+                                title: "addhost".to_string(),
+                                detail: "把本机端口映射到 Cloudflare Tunnel hostname。".to_string(),
+                                meta: "~/.local/bin/addhost".to_string(),
+                            },
+                            RecordItem {
+                                title: "showhost".to_string(),
+                                detail: "查看 tunnel ingress、本地进程、DNS 和 HTTPS 可达性。".to_string(),
+                                meta: "~/.local/bin/showhost".to_string(),
+                            },
+                            RecordItem {
+                                title: "autohost".to_string(),
+                                detail: "从 Docker 容器发布端口自动生成 host 映射。".to_string(),
+                                meta: "~/.local/bin/autohost".to_string(),
+                            },
+                        ],
+                    }],
+                }),
+            },
+            PluginPage {
+                id: "cli".to_string(),
+                title: "CLI 命令".to_string(),
+                subtitle: "插件安装后由宿主从 MinIO 发布到本机 PATH。".to_string(),
+                schema: PageSchema::Table(az_plugin_contract::TableSchema {
+                    columns: vec![
+                        "命令".to_string(),
+                        "用途".to_string(),
+                        "安装位置".to_string(),
+                    ],
+                    rows: vec![
+                        az_plugin_contract::TableRow {
+                            cells: vec![
+                                "addhost".to_string(),
+                                "新增或更新 tunnel ingress hostname".to_string(),
+                                "~/.local/bin/addhost".to_string(),
+                            ],
+                        },
+                        az_plugin_contract::TableRow {
+                            cells: vec![
+                                "showhost".to_string(),
+                                "查询 tunnel host 状态".to_string(),
+                                "~/.local/bin/showhost".to_string(),
+                            ],
+                        },
+                        az_plugin_contract::TableRow {
+                            cells: vec![
+                                "rmhost".to_string(),
+                                "移除 tunnel ingress hostname".to_string(),
+                                "~/.local/bin/rmhost".to_string(),
+                            ],
+                        },
+                        az_plugin_contract::TableRow {
+                            cells: vec![
+                                "autohost".to_string(),
+                                "按 Docker 运行端口自动维护 host 映射".to_string(),
+                                "~/.local/bin/autohost".to_string(),
+                            ],
+                        },
+                    ],
+                    empty_message: "暂无 CLI 命令。".to_string(),
+                }),
+            },
+        ],
+        metadata: PluginMetadata {
+            github_url: "https://github.com/cloudflare/cloudflared".to_string(),
+            description: "Local Cloudflare Tunnel hostname manager for AIO desktop environments."
+                .to_string(),
+            maintainer_type: "local".to_string(),
+            maintainer_name: "zjarlin".to_string(),
+            primary_language: "Bash/Python".to_string(),
+            category: "Network Tools".to_string(),
+            install_command: "Install plugin instance to publish addhost/showhost/rmhost/autohost into ~/.local/bin".to_string(),
+            agent_install_command: "Upload cloudflare-tunnel.wasm metadata and CLI resources through the AIO DB-first plugin API.".to_string(),
+        },
+        cli_commands: vec![],
+    }
+}
+
+fn notes_fragments_descriptor() -> PluginDescriptor {
+    PluginDescriptor {
+        id: "notes-fragments".to_string(),
+        name: "碎片笔记".to_string(),
+        version: Utc::now().format("%Y.%m.%d.%H%M%S").to_string(),
+        kind: PluginKind::Business,
+        summary: "Capture raw markdown fragments as a DB-backed notes plugin.".to_string(),
+        tags: vec![
+            "notes".to_string(),
+            "fragments".to_string(),
+            "markdown".to_string(),
+            "knowledge".to_string(),
+        ],
+        icon: Some("note".to_string()),
+        compatibility: vec!["web".to_string(), "desktop".to_string()],
+        capabilities: vec![],
+        menus: vec![PluginMenuContribution {
+            section: "个人资产".to_string(),
+            label: "碎片笔记".to_string(),
+            page_id: "fragments".to_string(),
+            order: 10,
+            icon: Some("note".to_string()),
+        }],
+        pages: vec![PluginPage {
+            id: "fragments".to_string(),
+            title: "碎片笔记".to_string(),
+            subtitle: "只记录原始碎片，整理能力后续作为独立页面接入。".to_string(),
+            schema: PageSchema::NotesFragments(NotesFragmentsSchema {
+                list_path: "/api/knowledge/entries".to_string(),
+                save_path: "/api/knowledge/entries".to_string(),
+                delete_path: "/api/knowledge/entries/delete".to_string(),
+                placeholder: "记录碎片、命令、结论或上下文。支持 Markdown 和 #标签。"
+                    .to_string(),
+                empty_message: "还没有笔记。直接记录一条碎片。".to_string(),
+            }),
+        }],
+        metadata: PluginMetadata {
+            github_url: "".to_string(),
+            description: "DB-first markdown fragment capture plugin for AIO.".to_string(),
+            maintainer_type: "local".to_string(),
+            maintainer_name: "zjarlin".to_string(),
+            primary_language: "Rust/TypeScript/WASM".to_string(),
+            category: "Knowledge Tools".to_string(),
+            install_command: "Register notes-fragments.wasm through AIO plugin API.".to_string(),
+            agent_install_command:
+                "POST /api/wasm/plugins/register/notes-fragments to write metadata into PostgreSQL and the .wasm binary into MinIO."
+                    .to_string(),
+        },
+        cli_commands: vec![],
+    }
+}
+
+fn cloudflare_tunnel_cli_resources() -> Result<Vec<WasmPluginCliResourceUploadDto>, String> {
+    let autohost = standalone_autohost_script()?;
+    Ok(vec![
+        cli_resource_from_path(
+            "addhost",
+            "addhost",
+            Path::new("/Users/zjarlin/.local/bin/addhost"),
+        )?,
+        cli_resource_from_path(
+            "showhost",
+            "showhost",
+            Path::new("/Users/zjarlin/.local/bin/showhost"),
+        )?,
+        cli_resource_from_path(
+            "rmhost",
+            "rmhost",
+            Path::new("/Users/zjarlin/.local/bin/rmhost"),
+        )?,
+        WasmPluginCliResourceUploadDto {
+            command_name: "autohost".to_string(),
+            file_name: "autohost".to_string(),
+            bytes: autohost.into_bytes(),
+            content_type: Some("text/x-shellscript".to_string()),
+        },
+    ])
+}
+
+fn cli_resource_from_path(
+    command_name: &str,
+    file_name: &str,
+    path: &Path,
+) -> Result<WasmPluginCliResourceUploadDto, String> {
+    let bytes =
+        fs::read(path).map_err(|err| format!("read CLI resource {}: {err}", path.display()))?;
+    Ok(WasmPluginCliResourceUploadDto {
+        command_name: command_name.to_string(),
+        file_name: file_name.to_string(),
+        bytes,
+        content_type: Some("text/x-shellscript".to_string()),
+    })
+}
+
+fn standalone_autohost_script() -> Result<String, String> {
+    let source_path = Path::new("/Users/zjarlin/.config/shell/rc.d/22-autohost.sh");
+    let source = fs::read_to_string(source_path)
+        .map_err(|err| format!("read autohost source {}: {err}", source_path.display()))?;
+    Ok(format!(
+        "{source}\n\nif [ \"${{BASH_SOURCE[0]:-$0}}\" = \"$0\" ]; then\n  autohost \"$@\"\nfi\n"
+    ))
+}
+
+fn lifecycle_only_wasm() -> Vec<u8> {
+    let exports = [
+        "aio_on_load",
+        "aio_on_enable",
+        "aio_on_disable",
+        "aio_on_unload",
+    ];
+    let header = b"\0asm"
+        .iter()
+        .copied()
+        .chain([1, 0, 0, 0])
+        .collect::<Vec<_>>();
+    let type_section = wasm_section(1, wasm_vec(vec![vec![0x60, 0x00, 0x01, 0x7f]]));
+    let function_section = wasm_section(3, wasm_vec(exports.iter().map(|_| vec![0]).collect()));
+    let export_section = wasm_section(
+        7,
+        wasm_vec(
+            exports
+                .iter()
+                .enumerate()
+                .map(|(index, name)| {
+                    let mut entry = wasm_name(name);
+                    entry.push(0x00);
+                    entry.extend(encode_u32(index as u32));
+                    entry
+                })
+                .collect(),
+        ),
+    );
+    let body = vec![0x00, 0x41, 0x00, 0x0b];
+    let code_section = wasm_section(
+        10,
+        wasm_vec(
+            exports
+                .iter()
+                .map(|_| {
+                    let mut item = encode_u32(body.len() as u32);
+                    item.extend(body.clone());
+                    item
+                })
+                .collect(),
+        ),
+    );
+    [
+        header,
+        type_section,
+        function_section,
+        export_section,
+        code_section,
+    ]
+    .concat()
+}
+
+fn wasm_section(section_id: u8, payload: Vec<u8>) -> Vec<u8> {
+    let mut section = vec![section_id];
+    section.extend(encode_u32(payload.len() as u32));
+    section.extend(payload);
+    section
+}
+
+fn wasm_vec(items: Vec<Vec<u8>>) -> Vec<u8> {
+    let mut out = encode_u32(items.len() as u32);
+    for item in items {
+        out.extend(item);
+    }
+    out
+}
+
+fn wasm_name(value: &str) -> Vec<u8> {
+    let bytes = value.as_bytes();
+    let mut out = encode_u32(bytes.len() as u32);
+    out.extend(bytes);
+    out
+}
+
+fn encode_u32(mut value: u32) -> Vec<u8> {
+    let mut out = Vec::new();
+    loop {
+        let mut byte = (value & 0x7f) as u8;
+        value >>= 7;
+        if value != 0 {
+            byte |= 0x80;
+        }
+        out.push(byte);
+        if value == 0 {
+            return out;
+        }
+    }
 }
 
 fn merge_marketplace(base: &mut MarketplaceSnapshot, persistent: MarketplaceSnapshot) {

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
     Bot,
+    Database,
+    HardDrive,
     Loader2,
     Palette,
     Save,
@@ -12,6 +14,7 @@ import {
     getApiBaseUrl,
     type BrandingLogoSource,
     type BrandingSettingsDto,
+    type PlatformConfigDto,
 } from "@az/api-client";
 import {
     Button,
@@ -57,13 +60,13 @@ interface AiProviderConfigUpsertDto {
 const CONFIG_FILE_ITEMS = [
     {
         title: "数据库连接",
-        detail: "仓库根 .env（优先）或 ~/.config/aio/aio.env 中的 MSC_AIO_DATABASE_URL / DATABASE_URL",
-        status: "文件入口",
+        detail: "前台维护 MSC_AIO_DATABASE_URL，保存前测试连接。",
+        status: "已接通",
     },
     {
         title: "对象存储",
-        detail: "AIO_MINIO_* 环境变量目前仍通过运行环境注入",
-        status: "待前台化",
+        detail: "前台维护 AIO_MINIO_*，固定 bucket 为 aio。",
+        status: "已接通",
     },
     {
         title: "AI Provider 密钥",
@@ -80,10 +83,18 @@ const CONFIG_FILE_ITEMS = [
 export function ConfigurationWorkbench() {
     const baseUrl = useMemo(() => getApiBaseUrl(), []);
     const [branding, setBranding] = useState<BrandingSettingsDto | null>(null);
+    const [platformConfig, setPlatformConfig] = useState<PlatformConfigDto | null>(null);
+    const [postgresUrl, setPostgresUrl] = useState("");
+    const [minioEndpoint, setMinioEndpoint] = useState("");
+    const [minioAccessKey, setMinioAccessKey] = useState("");
+    const [minioSecretKey, setMinioSecretKey] = useState("");
+    const [minioRegion, setMinioRegion] = useState("us-east-1");
     const [providers, setProviders] = useState<AiProviderDraft[]>([]);
     const [loading, setLoading] = useState(true);
     const [savingBranding, setSavingBranding] = useState(false);
     const [savingProvider, setSavingProvider] = useState<string | null>(null);
+    const [savingPostgres, setSavingPostgres] = useState(false);
+    const [savingMinio, setSavingMinio] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
 
@@ -94,7 +105,7 @@ export function ConfigurationWorkbench() {
             setLoading(true);
             setError(null);
             try {
-                const [brandingData, providerData] = await Promise.all([
+                const [brandingData, providerData, platformData] = await Promise.all([
                     fetch(`${baseUrl}/api/admin/settings/branding`, {
                         credentials: "include",
                     }).then((res) => {
@@ -107,9 +118,16 @@ export function ConfigurationWorkbench() {
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         return res.json() as Promise<AiProviderConfigDto[]>;
                     }),
+                    fetch(`${baseUrl}/api/admin/settings/platform-config`, {
+                        credentials: "include",
+                    }).then((res) => {
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        return res.json() as Promise<PlatformConfigDto>;
+                    }),
                 ]);
                 if (cancelled) return;
                 setBranding(brandingData);
+                applyPlatformConfig(platformData);
                 setProviders(
                     providerData.map((provider) => ({
                         ...provider,
@@ -198,6 +216,66 @@ export function ConfigurationWorkbench() {
         }
     }
 
+    async function savePostgresConfig() {
+        setSavingPostgres(true);
+        setError(null);
+        setMessage(null);
+        try {
+            const payload = await fetch(`${baseUrl}/api/admin/settings/platform-config/postgres`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ database_url: postgresUrl.trim() }),
+            }).then((res) => {
+                if (!res.ok) {
+                    return res.text().then((text) => {
+                        throw new Error(text || "保存 PostgreSQL 配置失败");
+                    });
+                }
+                return res.json() as Promise<{ config: PlatformConfigDto; message: string }>;
+            });
+            applyPlatformConfig(payload.config);
+            setMessage(payload.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "保存 PostgreSQL 配置失败");
+        } finally {
+            setSavingPostgres(false);
+        }
+    }
+
+    async function saveMinioConfig() {
+        setSavingMinio(true);
+        setError(null);
+        setMessage(null);
+        try {
+            const payload = await fetch(`${baseUrl}/api/admin/settings/platform-config/minio`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    endpoint: minioEndpoint.trim(),
+                    access_key: minioAccessKey.trim(),
+                    secret_key: minioSecretKey.trim() ? minioSecretKey.trim() : null,
+                    region: minioRegion.trim() ? minioRegion.trim() : "us-east-1",
+                }),
+            }).then((res) => {
+                if (!res.ok) {
+                    return res.text().then((text) => {
+                        throw new Error(text || "保存 MinIO 配置失败");
+                    });
+                }
+                return res.json() as Promise<{ config: PlatformConfigDto; message: string }>;
+            });
+            applyPlatformConfig(payload.config);
+            setMinioSecretKey("");
+            setMessage(payload.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "保存 MinIO 配置失败");
+        } finally {
+            setSavingMinio(false);
+        }
+    }
+
     function updateProvider(
         providerKey: AiProviderDraft["provider"],
         patch: Partial<AiProviderDraft>,
@@ -207,6 +285,14 @@ export function ConfigurationWorkbench() {
                 item.provider === providerKey ? { ...item, ...patch } : item,
             ),
         );
+    }
+
+    function applyPlatformConfig(config: PlatformConfigDto) {
+        setPlatformConfig(config);
+        setPostgresUrl(config.postgres.database_url);
+        setMinioEndpoint(config.minio.endpoint);
+        setMinioAccessKey(config.minio.access_key);
+        setMinioRegion(config.minio.region || "us-east-1");
     }
 
     return (
@@ -238,8 +324,8 @@ export function ConfigurationWorkbench() {
                         icon={<Bot className="h-4 w-4" />}
                     />
                     <TopSignal
-                        title="文件配置"
-                        detail="逐步把 env / json / toml / yaml 收进统一配置面板"
+                        title="平台依赖"
+                        detail="PostgreSQL 与 MinIO 写入本机 aio.env"
                         icon={<ShieldCheck className="h-4 w-4" />}
                     />
                     <TopSignal
@@ -338,6 +424,123 @@ export function ConfigurationWorkbench() {
                                     </Field>
                                 </div>
                             ) : null}
+                        </ConfigPanel>
+
+                        <ConfigPanel
+                            title="PostgreSQL"
+                            description="保存到 ~/.config/aio/aio.env 的 MSC_AIO_DATABASE_URL。保存前会测试 SELECT 1。"
+                            action={
+                                <StatusPill
+                                    configured={platformConfig?.postgres.configured ?? false}
+                                    reachable={platformConfig?.postgres.reachable ?? false}
+                                />
+                            }
+                        >
+                            <div className="grid gap-4">
+                                <Field label="PostgreSQL URL">
+                                    <Input
+                                        value={postgresUrl}
+                                        placeholder="postgresql://user:password@host:5432/database?sslmode=require"
+                                        onChange={(event) => setPostgresUrl(event.target.value)}
+                                    />
+                                </Field>
+                                <ConfigStatusLine
+                                    icon={<Database className="h-4 w-4" />}
+                                    message={platformConfig?.postgres.message ?? "未读取到 PostgreSQL 状态。"}
+                                    path={platformConfig?.config_path}
+                                />
+                                <Button
+                                    type="button"
+                                    onClick={() => void savePostgresConfig()}
+                                    disabled={savingPostgres || !postgresUrl.trim()}
+                                    size="sm"
+                                >
+                                    {savingPostgres ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
+                                    测试并保存 PostgreSQL
+                                </Button>
+                            </div>
+                        </ConfigPanel>
+
+                        <ConfigPanel
+                            title="MinIO"
+                            description="保存到 ~/.config/aio/aio.env 的 AIO_MINIO_*。bucket 固定为 aio，保存时会确保 bucket 存在。"
+                            action={
+                                <StatusPill
+                                    configured={platformConfig?.minio.configured ?? false}
+                                    reachable={platformConfig?.minio.reachable ?? false}
+                                />
+                            }
+                        >
+                            <div className="grid gap-4">
+                                <Field label="Endpoint">
+                                    <Input
+                                        value={minioEndpoint}
+                                        placeholder="https://minio-api.example.com"
+                                        onChange={(event) => setMinioEndpoint(event.target.value)}
+                                    />
+                                </Field>
+                                <Field label="Access Key">
+                                    <Input
+                                        value={minioAccessKey}
+                                        onChange={(event) => setMinioAccessKey(event.target.value)}
+                                    />
+                                </Field>
+                                <Field label="Secret Key">
+                                    <Input
+                                        type="password"
+                                        value={minioSecretKey}
+                                        placeholder={
+                                            platformConfig?.minio.secret_configured
+                                                ? "留空表示保留现有 secret"
+                                                : "输入后保存"
+                                        }
+                                        onChange={(event) => setMinioSecretKey(event.target.value)}
+                                    />
+                                </Field>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <Field label="Region">
+                                        <Input
+                                            value={minioRegion}
+                                            placeholder="us-east-1"
+                                            onChange={(event) => setMinioRegion(event.target.value)}
+                                        />
+                                    </Field>
+                                    <Field label="Bucket">
+                                        <Input
+                                            value={platformConfig?.minio.bucket ?? "aio"}
+                                            disabled
+                                        />
+                                    </Field>
+                                </div>
+                                <ConfigStatusLine
+                                    icon={<HardDrive className="h-4 w-4" />}
+                                    message={platformConfig?.minio.message ?? "未读取到 MinIO 状态。"}
+                                    path={platformConfig?.config_path}
+                                />
+                                <Button
+                                    type="button"
+                                    onClick={() => void saveMinioConfig()}
+                                    disabled={
+                                        savingMinio ||
+                                        !minioEndpoint.trim() ||
+                                        !minioAccessKey.trim() ||
+                                        (!platformConfig?.minio.secret_configured &&
+                                            !minioSecretKey.trim())
+                                    }
+                                    size="sm"
+                                >
+                                    {savingMinio ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
+                                    测试并保存 MinIO
+                                </Button>
+                            </div>
                         </ConfigPanel>
 
                         <ConfigPanel
@@ -440,8 +643,8 @@ export function ConfigurationWorkbench() {
 
                     <div className="space-y-6">
                         <ConfigPanel
-                            title="配置文件前台化路线"
-                            description="不是所有软件配置都已经接通，但边界要明确。"
+                            title="配置落点"
+                            description="本页只写本机 aio.env；进程环境变量只作为高级覆盖。"
                         >
                             <div className="space-y-3">
                                 {CONFIG_FILE_ITEMS.map((item) => (
@@ -534,6 +737,52 @@ function Field({
             <div className="mb-2 text-sm font-medium">{label}</div>
             {children}
         </label>
+    );
+}
+
+function StatusPill({
+    configured,
+    reachable,
+}: {
+    configured: boolean;
+    reachable: boolean;
+}) {
+    const label = reachable ? "可用" : configured ? "不可用" : "未配置";
+    const className = reachable
+        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : configured
+          ? "border-amber-200 bg-amber-50 text-amber-700"
+          : "border-muted bg-muted text-muted-foreground";
+    return (
+        <span className={`rounded-md border px-2 py-1 text-[11px] font-medium ${className}`}>
+            {label}
+        </span>
+    );
+}
+
+function ConfigStatusLine({
+    icon,
+    message,
+    path,
+}: {
+    icon: React.ReactNode;
+    message: string;
+    path?: string;
+}) {
+    return (
+        <div className="rounded-lg border bg-muted/20 px-3 py-3 text-sm">
+            <div className="flex items-start gap-2 text-muted-foreground">
+                <span className="mt-0.5">{icon}</span>
+                <div className="min-w-0">
+                    <div>{message}</div>
+                    {path ? (
+                        <div className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                            {path}
+                        </div>
+                    ) : null}
+                </div>
+            </div>
+        </div>
     );
 }
 

@@ -31,29 +31,31 @@ impl PluginStarter for StorageStarter {
             pages: vec![PluginPage {
                 id: "packages".to_string(),
                 title: "包仓库".to_string(),
-                subtitle: "业务插件包以 .azplugin 发布并进入 apps/aio/plugins/catalog。"
+                subtitle: "业务插件以 .wasm 工件上传，元数据写入 PostgreSQL，二进制写入 MinIO。"
                     .to_string(),
                 schema: PageSchema::Table(TableSchema {
                     columns: vec!["目录".to_string(), "内容".to_string(), "说明".to_string()],
                     rows: vec![
                         TableRow {
                             cells: vec![
-                                "apps/aio/plugins/catalog/".to_string(),
-                                "*.azplugin".to_string(),
-                                "应用商店可安装包".to_string(),
+                                "PostgreSQL".to_string(),
+                                "插件元数据".to_string(),
+                                "页面、菜单、维护者、安装命令和资源索引".to_string(),
                             ],
                         },
                         TableRow {
                             cells: vec![
-                                "apps/aio/plugins/host/".to_string(),
-                                "解压后的包内容".to_string(),
-                                "实例化运行前的宿主缓存".to_string(),
+                                "MinIO".to_string(),
+                                "*.wasm / CLI 资源".to_string(),
+                                "运行时二进制与脚本文件对象".to_string(),
                             ],
                         },
                     ],
                     empty_message: "暂无包仓库信息。".to_string(),
                 }),
             }],
+            metadata: Default::default(),
+            cli_commands: vec![],
         }
     }
 }

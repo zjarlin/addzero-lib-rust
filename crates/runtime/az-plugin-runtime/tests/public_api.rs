@@ -44,6 +44,8 @@ fn installs_packaged_plugin_and_creates_instances() {
                     body: "hello".to_string(),
                 }),
             }],
+            metadata: Default::default(),
+            cli_commands: vec![],
         },
         runtime: RuntimeBinding {
             binary_path: "backend/plugin.wasm".to_string(),

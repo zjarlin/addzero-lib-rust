@@ -61,6 +61,8 @@ impl PluginStarter for IdentityStarter {
                     empty_message: "暂无用户。".to_string(),
                 }),
             }],
+            metadata: Default::default(),
+            cli_commands: vec![],
         }
     }
 }

@@ -71,7 +71,7 @@ async fn pool() -> Result<sqlx::postgres::PgPool, String> {
 
     let database_url = crate::server::resolved_database_url()
         .ok_or_else(|| {
-            "MSC_AIO_DATABASE_URL / repo .env / DATABASE_URL / ~/.config/aio/aio.env must be set"
+            "MSC_AIO_DATABASE_URL / DATABASE_URL / ~/.config/aio/aio.env must be set"
                 .to_string()
         })?;
     let pool = PgPoolOptions::new()

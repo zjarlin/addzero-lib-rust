@@ -12,6 +12,8 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteConnection},
 };
 
+use super::platform_config::{MinioConfigUpdateDto, PlatformConfigDto, PostgresConfigUpdateDto};
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BootstrapStatusDto {
     pub desktop_mode: bool,
@@ -35,17 +37,30 @@ pub struct BootstrapDatabaseSaveResultDto {
     pub message: String,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BootstrapPlatformSetupDto {
+    pub postgres: Option<PostgresConfigUpdateDto>,
+    pub minio: Option<MinioConfigUpdateDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BootstrapPlatformSaveResultDto {
+    pub config: PlatformConfigDto,
+    pub setup_required: bool,
+    pub message: String,
+}
+
 pub async fn bootstrap_status_on_server() -> Result<BootstrapStatusDto, String> {
     let config_path = local_config_path()?;
     let config_path_display = config_path.display().to_string();
-    let Some(database_url) = az_persistence::database_url() else {
+    let Some(database_url) = local_database_url(&config_path) else {
         return Ok(BootstrapStatusDto {
             desktop_mode: true,
             setup_required: true,
             database_configured: false,
             database_reachable: false,
             config_path: config_path_display,
-            message: "首次启动先配置 PostgreSQL；如果现在跳过，也可以直接使用本机内嵌 SQLite。"
+            message: "首次启动先生成 ~/.config/aio/aio.env。可以接 PostgreSQL / MinIO，也可以先使用本机 SQLite。"
                 .to_string(),
         });
     };
@@ -93,7 +108,35 @@ pub async fn save_database_url_on_server(
         database_configured: true,
         database_reachable: true,
         config_path: path.display().to_string(),
-        message: "PostgreSQL 地址已保存到本机配置，重新进入登录即可使用。".to_string(),
+        message: "PostgreSQL 地址已保存到 ~/.config/aio/aio.env，重新进入登录即可使用。"
+            .to_string(),
+    })
+}
+
+pub async fn save_platform_setup_on_server(
+    input: BootstrapPlatformSetupDto,
+) -> Result<BootstrapPlatformSaveResultDto, String> {
+    let mut messages = Vec::new();
+    if let Some(postgres) = input.postgres {
+        super::platform_config::save_postgres_config_on_server(postgres).await?;
+        messages.push("PostgreSQL 已保存");
+    }
+    if let Some(minio) = input.minio {
+        super::platform_config::save_minio_config_on_server(minio).await?;
+        messages.push("MinIO 已保存");
+    }
+    if messages.is_empty() {
+        return Err("至少需要保存 PostgreSQL 或 MinIO 中的一项配置。".to_string());
+    }
+
+    let config = super::platform_config::load_platform_config_on_server().await?;
+    Ok(BootstrapPlatformSaveResultDto {
+        setup_required: !config.postgres.reachable,
+        config,
+        message: format!(
+            "{}。配置已写入 ~/.config/aio/aio.env。",
+            messages.join("，")
+        ),
     })
 }
 
@@ -117,6 +160,28 @@ pub async fn save_local_sqlite_on_server() -> Result<BootstrapDatabaseSaveResult
             "已切换到本机内嵌 SQLite，数据文件位于 {}。",
             sqlite_path.display()
         ),
+    })
+}
+
+fn local_database_url(config_path: &Path) -> Option<String> {
+    let content = fs::read_to_string(config_path).ok()?;
+    env_value(&content, "MSC_AIO_DATABASE_URL")
+        .or_else(|| env_value(&content, "DATABASE_URL"))
+        .filter(|value| !value.trim().is_empty())
+}
+
+fn env_value(content: &str, expected_key: &str) -> Option<String> {
+    content.lines().find_map(|line| {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            return None;
+        }
+        let (key, value) = trimmed.split_once('=')?;
+        if key.trim() == expected_key {
+            Some(value.trim().to_string())
+        } else {
+            None
+        }
     })
 }
 

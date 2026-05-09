@@ -18,6 +18,10 @@ use tokio::sync::OnceCell;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use az_agent_runtime_contract::{LoginRequest, SessionUser};
+use az_cli_market_contract::{
+    CliMarketCatalog, CliMarketEntry, CliMarketInstallRequest, CliMarketInstallResult,
+    CliSimpleMetadata,
+};
 use az_plugin_contract::ResolvedPage;
 use az_script_engine::script::ScriptEngine;
 use az_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
@@ -26,12 +30,14 @@ use uuid::Uuid;
 
 use crate::services::{
     AiProviderConfigDto, AiProviderConfigUpsertDto, AssetGraphDto, AssetSyncReportDto,
-    BootstrapDatabaseSaveResultDto, BootstrapDatabaseSetupDto, BootstrapStatusDto,
-    BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto, ChatResponseDto, FilterOptions,
+    BootstrapDatabaseSaveResultDto, BootstrapDatabaseSetupDto, BootstrapPlatformSaveResultDto,
+    BootstrapPlatformSetupDto, BootstrapStatusDto, BrandingSettingsDto, BrandingSettingsUpdate,
+    ChatRequestDto, ChatResponseDto, CloudflareTunnelStatusDto, FilterOptions,
     KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto, KnowledgeFeedDto,
     KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto,
-    KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest, PluginDescriptorDto,
-    PluginInstallRequestDto, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto,
+    KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest, MinioConfigUpdateDto,
+    PlatformConfigDto, PlatformConfigSaveResultDto, PluginDescriptorDto, PluginInstallRequestDto,
+    PostgresConfigUpdateDto, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto,
     SkillUpsertDto, StartVibeCodingRequestDto, StartVibeCodingResponseDto, StorageBrowseRequestDto,
     StorageBrowseResultDto, StorageCreateFolderDto, StorageCreateFolderResultDto,
     StorageDeleteFolderDto, StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto,
@@ -39,7 +45,7 @@ use crate::services::{
     SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
     TerminalSessionSnapshotDto, WasmPluginBinaryUploadRequestDto,
     WasmPluginFirmwareUploadRequestDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
-    WasmPluginRuntimeSnapshotDto, WasmPluginUploadRequestDto, WasmPluginUploadResultDto,
+    WasmPluginRuntimeSnapshotDto, WasmPluginUploadResultDto,
     download_station::{FileIndex, ScanStats, ShareLink},
     menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
 };
@@ -200,9 +206,17 @@ async fn ensure_ai_provider_schema(database_url: &str) -> Result<()> {
 }
 
 pub async fn run_migrations() -> Result<()> {
-    let database_url = resolved_database_url().expect(
-        "MSC_AIO_DATABASE_URL / repo .env / DATABASE_URL / ~/.config/aio/aio.env must be set",
-    );
+    let Some(database_url) = resolved_database_url() else {
+        println!(
+            "Database is not configured; skipping PostgreSQL migrations until ~/.config/aio/aio.env is created."
+        );
+        return Ok(());
+    };
+
+    if !is_postgres_database_url(&database_url) {
+        println!("Database is not PostgreSQL; skipping PostgreSQL migrations.");
+        return Ok(());
+    }
 
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(1)
@@ -416,6 +430,10 @@ pub async fn run_api_server() -> Result<()> {
             "/api/bootstrap/database/sqlite-local",
             post(save_bootstrap_local_sqlite),
         )
+        .route(
+            "/api/bootstrap/platform-config",
+            post(save_bootstrap_platform_config),
+        )
         .route("/api/admin/session", get(get_session))
         .route("/api/admin/session/login", post(login))
         .route("/api/admin/session/logout", post(logout))
@@ -443,11 +461,28 @@ pub async fn run_api_server() -> Result<()> {
             "/api/admin/settings/branding",
             get(get_branding_settings).post(save_branding_settings),
         )
+        .route(
+            "/api/admin/settings/platform-config",
+            get(get_platform_config),
+        )
+        .route(
+            "/api/admin/settings/platform-config/postgres",
+            post(save_platform_postgres_config),
+        )
+        .route(
+            "/api/admin/settings/platform-config/minio",
+            post(save_platform_minio_config),
+        )
         .route("/api/skills", get(list_skills))
         .route("/api/skills/status", get(skill_status))
         .route("/api/skills/sync", post(sync_skills))
         .route("/api/skills/upsert", post(upsert_skill))
         .route("/api/skills/{name}", get(get_skill).delete(delete_skill))
+        .route("/api/cli-market", get(cli_market_catalog))
+        .route("/api/cli-market/simple", get(cli_simple_catalog))
+        .route("/api/cli-market/simple/upsert", post(cli_simple_upsert))
+        .route("/api/cli-market/{id}", get(cli_market_entry))
+        .route("/api/cli-market/{id}/install", post(cli_market_install))
         .route(
             "/api/knowledge/entries",
             get(list_knowledge_entries).post(save_knowledge_entry),
@@ -468,7 +503,10 @@ pub async fn run_api_server() -> Result<()> {
         .route("/api/plugins/{id}/disable", post(disable_plugin))
         .route("/api/plugins/{id}", axum::routing::delete(uninstall_plugin))
         .route("/api/wasm/plugins/overview", get(wasm_plugin_overview))
-        .route("/api/wasm/plugins/upload", post(upload_wasm_plugin))
+        .route(
+            "/api/cloudflare-tunnel/status",
+            get(get_cloudflare_tunnel_status),
+        )
         .route(
             "/api/wasm/plugins/upload-binary",
             post(upload_wasm_binary_plugin),
@@ -480,6 +518,18 @@ pub async fn run_api_server() -> Result<()> {
         .route(
             "/api/wasm/plugins/install-catalog",
             post(install_catalog_wasm_plugin),
+        )
+        .route(
+            "/api/wasm/plugins/seed/cloudflare-tunnel",
+            post(seed_cloudflare_tunnel_plugin),
+        )
+        .route(
+            "/api/wasm/plugins/register/cloudflare-tunnel",
+            post(register_cloudflare_tunnel_plugin),
+        )
+        .route(
+            "/api/wasm/plugins/register/notes-fragments",
+            post(register_notes_fragments_plugin),
         )
         .route(
             "/api/wasm/plugins/system/{plugin_id}/{page_id}",
@@ -690,6 +740,15 @@ async fn save_bootstrap_local_sqlite() -> ApiResult<Json<BootstrapDatabaseSaveRe
     Ok(Json(result))
 }
 
+async fn save_bootstrap_platform_config(
+    Json(input): Json<BootstrapPlatformSetupDto>,
+) -> ApiResult<Json<BootstrapPlatformSaveResultDto>> {
+    let result = crate::services::desktop_bootstrap::save_platform_setup_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
 async fn login(Json(input): Json<LoginRequest>) -> ApiResult<Response> {
     let auth = admin_auth();
     let cookie = auth
@@ -774,6 +833,39 @@ async fn save_branding_settings(
         .await
         .map_err(|err| ApiError::bad_request(err.to_string()))?;
     Ok(Json(settings))
+}
+
+async fn get_platform_config(headers: HeaderMap) -> ApiResult<Json<PlatformConfigDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let config = crate::services::platform_config::load_platform_config_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(config))
+}
+
+async fn save_platform_postgres_config(
+    headers: HeaderMap,
+    Json(input): Json<PostgresConfigUpdateDto>,
+) -> ApiResult<Json<PlatformConfigSaveResultDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let result = crate::services::platform_config::save_postgres_config_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn save_platform_minio_config(
+    headers: HeaderMap,
+    Json(input): Json<MinioConfigUpdateDto>,
+) -> ApiResult<Json<PlatformConfigSaveResultDto>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let result = crate::services::platform_config::save_minio_config_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
 }
 
 async fn upload_logo(
@@ -974,6 +1066,61 @@ async fn skill_status(headers: HeaderMap) -> ApiResult<Json<SyncReportDto>> {
     )))
 }
 
+async fn cli_market_catalog(headers: HeaderMap) -> ApiResult<Json<CliMarketCatalog>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let catalog = crate::services::cli_market::catalog_on_server()
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(catalog))
+}
+
+async fn cli_simple_catalog(headers: HeaderMap) -> ApiResult<Json<Vec<CliSimpleMetadata>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let entries = crate::services::cli_market::simple_metadata_catalog_on_server()
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(entries))
+}
+
+async fn cli_simple_upsert(
+    headers: HeaderMap,
+    Json(input): Json<CliSimpleMetadata>,
+) -> ApiResult<Json<CliSimpleMetadata>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let entry = crate::services::cli_market::upsert_simple_metadata_on_server(input)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(entry))
+}
+
+async fn cli_market_entry(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult<Json<Option<CliMarketEntry>>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let entry = crate::services::cli_market::get_entry_on_server(&id)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(entry))
+}
+
+async fn cli_market_install(
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(input): Json<CliMarketInstallRequest>,
+) -> ApiResult<Json<CliMarketInstallResult>> {
+    let backend = services().await;
+    ensure_auth(&backend.admin_auth, &headers)?;
+    let result = crate::services::cli_market::install_entry_on_server(&id, input)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(result))
+}
+
 async fn list_knowledge_entries(headers: HeaderMap) -> ApiResult<Json<Vec<KnowledgeNoteDto>>> {
     ensure_auth(admin_auth(), &headers)?;
     let notes = crate::services::knowledge_entries::list_knowledge_entries_on_server()
@@ -1106,23 +1253,22 @@ async fn wasm_plugin_overview(headers: HeaderMap) -> ApiResult<Json<WasmPluginRu
     Ok(Json(snapshot))
 }
 
+async fn get_cloudflare_tunnel_status(
+    headers: HeaderMap,
+) -> ApiResult<Json<CloudflareTunnelStatusDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let status = crate::services::cloudflare_tunnel::cloudflare_tunnel_status_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(status))
+}
+
 async fn install_catalog_wasm_plugin(
     headers: HeaderMap,
     Json(input): Json<WasmPluginInstallRequestDto>,
 ) -> ApiResult<Json<WasmPluginInstallResultDto>> {
     ensure_auth(admin_auth(), &headers)?;
     let result = crate::services::wasm_plugins::install_catalog_wasm_plugin_on_server(input)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(result))
-}
-
-async fn upload_wasm_plugin(
-    headers: HeaderMap,
-    Json(input): Json<WasmPluginUploadRequestDto>,
-) -> ApiResult<Json<WasmPluginUploadResultDto>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let result = crate::services::wasm_plugins::upload_wasm_plugin_on_server(input)
         .await
         .map_err(ApiError::bad_request)?;
     Ok(Json(result))
@@ -1145,6 +1291,36 @@ async fn upload_wasm_firmware_plugin(
 ) -> ApiResult<Json<WasmPluginUploadResultDto>> {
     ensure_auth(admin_auth(), &headers)?;
     let result = crate::services::wasm_plugins::upload_wasm_firmware_plugin_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn seed_cloudflare_tunnel_plugin(
+    headers: HeaderMap,
+) -> ApiResult<Json<WasmPluginUploadResultDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let result = crate::services::wasm_plugins::seed_cloudflare_tunnel_plugin_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn register_cloudflare_tunnel_plugin(
+    headers: HeaderMap,
+) -> ApiResult<Json<WasmPluginUploadResultDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let result = crate::services::wasm_plugins::register_cloudflare_tunnel_plugin_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn register_notes_fragments_plugin(
+    headers: HeaderMap,
+) -> ApiResult<Json<WasmPluginInstallResultDto>> {
+    ensure_auth(admin_auth(), &headers)?;
+    let result = crate::services::wasm_plugins::register_notes_fragments_plugin_on_server()
         .await
         .map_err(ApiError::bad_request)?;
     Ok(Json(result))

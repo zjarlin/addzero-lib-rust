@@ -32,6 +32,8 @@ impl PluginStarter for DemoStarter {
                     body: "hello".to_string(),
                 }),
             }],
+            metadata: Default::default(),
+            cli_commands: vec![],
         }
     }
 }

@@ -60,6 +60,8 @@ impl PluginStarter for OrganizationStarter {
                     empty_message: "暂无部门。".to_string(),
                 }),
             }],
+            metadata: Default::default(),
+            cli_commands: vec![],
         }
     }
 }

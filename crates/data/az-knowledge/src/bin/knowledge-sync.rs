@@ -4,9 +4,8 @@ use az_knowledge::{KnowledgeService, database_url, source_specs};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let database_url = database_url().context(
-        "missing MSC_AIO_DATABASE_URL / repo .env / DATABASE_URL / ~/.config/aio/aio.env",
-    )?;
+    let database_url = database_url()
+        .context("missing MSC_AIO_DATABASE_URL / DATABASE_URL / ~/.config/aio/aio.env")?;
     let sources = source_specs();
     if sources.is_empty() {
         bail!("no knowledge roots were discovered on this machine");

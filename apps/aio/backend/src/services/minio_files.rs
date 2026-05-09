@@ -1,7 +1,7 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::{collections::BTreeMap, path::Path, sync::Mutex};
+use std::{collections::BTreeMap, fs, path::Path, sync::Mutex};
 
 #[cfg(not(target_arch = "wasm32"))]
 use az_minio::{DEFAULT_PRESIGNED_EXPIRATION_SECONDS, MinioClient, MinioConfig};
@@ -753,28 +753,12 @@ pub(crate) struct MinioEnvironment {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn minio_environment_from_env() -> Result<MinioEnvironment, String> {
-    let endpoint = read_env_any(&[
-        "AIO_MINIO_ENDPOINT",
-        "ADMIN_PACKAGE_S3_ENDPOINT",
-        "ADMIN_LOGO_S3_ENDPOINT",
-    ])?;
-    let access_key = read_env_any(&[
-        "AIO_MINIO_ACCESS_KEY",
-        "ADMIN_PACKAGE_S3_ACCESS_KEY",
-        "ADMIN_LOGO_S3_ACCESS_KEY",
-    ])?;
-    let secret_key = read_env_any(&[
-        "AIO_MINIO_SECRET_KEY",
-        "ADMIN_PACKAGE_S3_SECRET_KEY",
-        "ADMIN_LOGO_S3_SECRET_KEY",
-    ])?;
+    let endpoint = read_env_any(&["AIO_MINIO_ENDPOINT"])?;
+    let access_key = read_env_any(&["AIO_MINIO_ACCESS_KEY"])?;
+    let secret_key = read_env_any(&["AIO_MINIO_SECRET_KEY"])?;
     let bucket = canonical_bucket_name()?;
-    let region = read_env_any_optional(&[
-        "AIO_MINIO_REGION",
-        "ADMIN_PACKAGE_S3_REGION",
-        "ADMIN_LOGO_S3_REGION",
-    ])
-    .unwrap_or_else(|| "us-east-1".to_string());
+    let region =
+        read_env_any_optional(&["AIO_MINIO_REGION"]).unwrap_or_else(|| "us-east-1".to_string());
 
     let config = MinioConfig::builder(endpoint.clone(), access_key, secret_key)
         .region(region)
@@ -890,12 +874,10 @@ fn normalized_content_type(content_type: Option<&str>, file_name: &str) -> Strin
 
 #[cfg(not(target_arch = "wasm32"))]
 fn read_env_any(names: &[&str]) -> Result<String, String> {
+    let values = merged_env_values();
     for name in names {
-        if let Ok(value) = std::env::var(name) {
-            let trimmed = value.trim();
-            if !trimmed.is_empty() {
-                return Ok(trimmed.to_string());
-            }
+        if let Some(value) = values.get(*name) {
+            return Ok(value.clone());
         }
     }
     Err(format!("缺少环境变量：{}", names.join(" / ")))
@@ -903,19 +885,50 @@ fn read_env_any(names: &[&str]) -> Result<String, String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn read_env_any_optional(names: &[&str]) -> Option<String> {
-    names.iter().find_map(|name| {
-        std::env::var(name)
-            .ok()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty())
-    })
+    let values = merged_env_values();
+    names.iter().find_map(|name| values.get(*name).cloned())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn merged_env_values() -> BTreeMap<String, String> {
+    let mut values = BTreeMap::new();
+    if let Some(path) = az_persistence::local_env_path() {
+        values.extend(read_env_values_from_file(&path));
+    }
+    for (key, value) in std::env::vars() {
+        let trimmed = value.trim();
+        if !trimmed.is_empty() {
+            values.insert(key, trimmed.to_string());
+        }
+    }
+    values
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_env_values_from_file(path: &Path) -> BTreeMap<String, String> {
+    let Ok(content) = fs::read_to_string(path) else {
+        return BTreeMap::new();
+    };
+    content
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                return None;
+            }
+            let (key, value) = trimmed.split_once('=')?;
+            let value = value.trim();
+            if value.is_empty() {
+                return None;
+            }
+            Some((key.trim().to_string(), value.to_string()))
+        })
+        .collect()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn canonical_bucket_name() -> Result<String, String> {
     enforce_bucket_env("AIO_MINIO_BUCKET")?;
-    enforce_bucket_env("ADMIN_PACKAGE_S3_BUCKET")?;
-    enforce_bucket_env("ADMIN_LOGO_S3_BUCKET")?;
     Ok(AIO_BUCKET_NAME.to_string())
 }
 

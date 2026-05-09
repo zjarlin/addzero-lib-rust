@@ -14,6 +14,7 @@ use az_cli_market_contract::{
     CliMarketImportReport, CliMarketImportRequest, CliMarketImportRowReport,
     CliMarketInstallHistoryItem, CliMarketInstallRequest, CliMarketInstallResult,
     CliMarketSourceType, CliMarketStatus, CliMarketSummary, CliPlatform, CliRegistryCompatEntry,
+    CliSimpleMetadata,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
@@ -346,7 +347,7 @@ impl CliMarketService {
     fn repo(&self) -> CliMarketResult<&CliMarketRepo> {
         self.pg.as_ref().ok_or_else(|| {
             CliMarketError::Message(
-                "CLI 市场 PostgreSQL 未就绪：请设置 MSC_AIO_DATABASE_URL，或在仓库 .env / ~/.config/aio/aio.env 中配置 MSC_AIO_DATABASE_URL / DATABASE_URL".to_string(),
+                "CLI 市场 PostgreSQL 未就绪：请设置 MSC_AIO_DATABASE_URL，或在 ~/.config/aio/aio.env 中配置 MSC_AIO_DATABASE_URL / DATABASE_URL".to_string(),
             )
         })
     }
@@ -1237,6 +1238,25 @@ pub async fn upsert_entry_on_server(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+pub async fn upsert_simple_metadata_on_server(
+    input: CliSimpleMetadata,
+) -> CliMarketResult<CliSimpleMetadata> {
+    let saved = upsert_entry_on_server(simple_metadata_to_upsert(input)).await?;
+    entry_to_simple_metadata(&saved)
+        .ok_or_else(|| CliMarketError::Message("保存后无法还原 CLI 元数据".to_string()))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn simple_metadata_catalog_on_server() -> CliMarketResult<Vec<CliSimpleMetadata>> {
+    let catalog = catalog_on_server().await?;
+    Ok(catalog
+        .entries
+        .iter()
+        .filter_map(entry_to_simple_metadata)
+        .collect())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn import_entries_on_server(
     input: CliMarketImportRequest,
 ) -> CliMarketResult<CliMarketImportReport> {
@@ -1738,6 +1758,40 @@ fn entry_to_registry_compat(entry: &CliMarketEntry) -> Option<CliRegistryCompatE
         install_cmd: first_method.command_template.clone(),
         entry_point: entry.entry_point.clone(),
         category: entry.category_code.clone(),
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn entry_to_simple_metadata(entry: &CliMarketEntry) -> Option<CliSimpleMetadata> {
+    let text = entry
+        .locales
+        .iter()
+        .find(|locale| locale.locale == CliLocale::ZhCn)
+        .or_else(|| entry.locales.first())?;
+    let method = entry.install_methods.first()?;
+    Some(CliSimpleMetadata {
+        name: entry.slug.clone(),
+        display_name: text.display_name.clone(),
+        version: entry.latest_version.clone(),
+        description: text.summary.clone(),
+        requires: text.requires_text.clone(),
+        install_cmd: method.command_template.clone(),
+        entry_point: entry.entry_point.clone(),
+        category: entry.category_code.clone(),
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn simple_metadata_to_upsert(input: CliSimpleMetadata) -> CliMarketEntryUpsert {
+    registry_entry_to_upsert(CliRegistryCompatEntry {
+        name: input.name,
+        display_name: input.display_name,
+        version: input.version,
+        description: input.description,
+        requires: input.requires,
+        install_cmd: input.install_cmd,
+        entry_point: input.entry_point,
+        category: input.category,
     })
 }
 

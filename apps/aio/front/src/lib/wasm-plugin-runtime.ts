@@ -28,6 +28,24 @@ export interface WasmPluginMarketplaceEntry {
     instances: number;
 }
 
+export interface WasmPluginMetadata {
+    github_url: string;
+    description: string;
+    maintainer_type: string;
+    maintainer_name: string;
+    primary_language: string;
+    category: string;
+    install_command: string;
+    agent_install_command: string;
+}
+
+export interface WasmPluginCliResourceUpload {
+    command_name: string;
+    file_name: string;
+    bytes: number[];
+    content_type?: string | null;
+}
+
 export interface WasmPluginRuntimeOverview {
     counts: {
         system_plugins: number;
@@ -62,11 +80,6 @@ export interface WasmPluginRuntimeSnapshot {
     runtime: WasmPluginRuntimeOverview;
 }
 
-export interface WasmPluginUploadRequest {
-    file_name: string;
-    bytes: number[];
-}
-
 export interface WasmPluginBinaryUploadRequest {
     file_name: string;
     bytes: number[];
@@ -93,8 +106,11 @@ export interface WasmPluginBinaryUploadRequest {
             subtitle: string;
             schema: WasmPluginPageSchema;
         }[];
+        metadata?: WasmPluginMetadata;
+        cli_commands?: unknown[];
     };
     default_instance_label?: string | null;
+    cli_resources?: WasmPluginCliResourceUpload[];
 }
 
 export type WasmPluginFirmwareKind = "System" | "Business";
@@ -105,6 +121,8 @@ export interface WasmPluginFirmwareUploadRequest {
     firmware_kind: WasmPluginFirmwareKind;
     file_name: string;
     bytes: number[];
+    metadata?: WasmPluginMetadata;
+    cli_resources?: WasmPluginCliResourceUpload[];
 }
 
 export interface WasmPluginUploadResult {
@@ -187,6 +205,14 @@ export type WasmPluginPageSchema =
               kind: string;
               label?: string | null;
           }[];
+      }
+    | {
+          kind: "notes_fragments";
+          list_path: string;
+          save_path: string;
+          delete_path: string;
+          placeholder: string;
+          empty_message: string;
       };
 
 async function requestJson<T>(
@@ -217,20 +243,6 @@ export function fetchWasmPluginOverview(baseUrl = getApiBaseUrl()) {
     );
 }
 
-export function uploadWasmPlugin(
-    input: WasmPluginUploadRequest,
-    baseUrl = getApiBaseUrl(),
-) {
-    return requestJson<WasmPluginUploadResult>(
-        "/api/wasm/plugins/upload",
-        {
-            method: "POST",
-            body: JSON.stringify(input),
-        },
-        baseUrl,
-    );
-}
-
 export function uploadWasmPluginBinary(
     input: WasmPluginBinaryUploadRequest,
     baseUrl = getApiBaseUrl(),
@@ -254,6 +266,28 @@ export function uploadWasmPluginFirmware(
         {
             method: "POST",
             body: JSON.stringify(input),
+        },
+        baseUrl,
+    );
+}
+
+export function registerCloudflareTunnelPlugin(baseUrl = getApiBaseUrl()) {
+    return requestJson<WasmPluginUploadResult>(
+        "/api/wasm/plugins/register/cloudflare-tunnel",
+        {
+            method: "POST",
+            body: JSON.stringify({}),
+        },
+        baseUrl,
+    );
+}
+
+export function registerNotesFragmentsPlugin(baseUrl = getApiBaseUrl()) {
+    return requestJson<WasmPluginInstallResult>(
+        "/api/wasm/plugins/register/notes-fragments",
+        {
+            method: "POST",
+            body: JSON.stringify({}),
         },
         baseUrl,
     );

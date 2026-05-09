@@ -10,6 +10,8 @@ pub mod auth;
 pub mod branding_settings;
 pub mod browser_http;
 pub mod cli_market;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod cloudflare_tunnel;
 pub mod desktop_bootstrap;
 pub mod download_station;
 pub mod in_memory_skills;
@@ -18,6 +20,7 @@ pub mod knowledge_graph;
 pub mod logo_storage;
 pub mod menu_system;
 pub mod minio_files;
+pub mod platform_config;
 pub mod plugins;
 pub mod skills;
 pub mod software_catalog;
@@ -43,8 +46,13 @@ pub use branding_settings::{
     default_branding_settings_api,
 };
 pub use cli_market::{SharedCliMarketApi, default_cli_market_api};
+#[cfg(not(target_arch = "wasm32"))]
+pub use cloudflare_tunnel::{
+    CloudflareTunnelCliCommandDto, CloudflareTunnelHostDto, CloudflareTunnelStatusDto,
+};
 pub use desktop_bootstrap::{
-    BootstrapDatabaseSaveResultDto, BootstrapDatabaseSetupDto, BootstrapStatusDto,
+    BootstrapDatabaseSaveResultDto, BootstrapDatabaseSetupDto, BootstrapPlatformSaveResultDto,
+    BootstrapPlatformSetupDto, BootstrapStatusDto,
 };
 pub use download_station::{
     FileIndexDto, FilterOptions, ScanStatsDto, ShareLinkDto, SharedDownloadStationApi,
@@ -75,6 +83,10 @@ pub use minio_files::{
     StorageShareResultDto, StorageUploadFileDto, StorageUploadRequestDto, StorageUploadResultDto,
     default_minio_files_api,
 };
+pub use platform_config::{
+    MinioConfigDto, MinioConfigUpdateDto, PlatformConfigDto, PlatformConfigSaveResultDto,
+    PostgresConfigDto, PostgresConfigUpdateDto,
+};
 pub use plugins::{
     PluginDescriptorDto, PluginInstallRequestDto, PluginManifestDto, SharedPluginsApi,
     default_plugins_api,
@@ -100,5 +112,5 @@ pub use vibe_coding::{StartVibeCodingRequestDto, StartVibeCodingResponseDto};
 pub use wasm_plugins::{
     WasmPluginBinaryUploadRequestDto, WasmPluginFirmwareKindDto,
     WasmPluginFirmwareUploadRequestDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
-    WasmPluginRuntimeSnapshotDto, WasmPluginUploadRequestDto, WasmPluginUploadResultDto,
+    WasmPluginRuntimeSnapshotDto, WasmPluginUploadResultDto,
 };

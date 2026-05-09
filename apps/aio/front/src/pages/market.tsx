@@ -8,6 +8,11 @@ import {
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+    createApiClient,
+    getApiBaseUrl,
+    type CliSimpleMetadata,
+} from "@az/api-client";
+import {
     ArrowUpRight,
     Blocks,
     CheckCircle2,
@@ -45,6 +50,8 @@ import {
 import {
     fetchWasmPluginOverview,
     installCatalogWasmPlugin,
+    registerCloudflareTunnelPlugin,
+    registerNotesFragmentsPlugin,
     type WasmPluginInstallResult,
     type WasmPluginMarketplaceEntry,
     type WasmPluginRuntimeSnapshot,
@@ -70,7 +77,7 @@ const sceneCards = {
             },
             {
                 title: "本机部署",
-                detail: "勾选后导出为本地 `.azplugin` 子目录，后续交给 WASM 宿主装载。",
+                detail: "插件工件为 `.wasm`，元数据写入 PG，资源写入 MinIO。",
                 tag: "deploy",
             },
         ],
@@ -133,6 +140,29 @@ type SortMode = "featured" | "name" | "instances";
 type DetailTab = "overview" | "package" | "activity";
 type FirmwareKind = "System" | "Business";
 
+const cliSimpleMetadataFields = [
+    "name",
+    "display_name",
+    "version",
+    "description",
+    "requires",
+    "install_cmd",
+    "entry_point",
+    "category",
+] as const;
+
+const cliSimpleMetadataExample: CliSimpleMetadata = {
+    name: "gimp",
+    display_name: "GIMP",
+    version: "1.0.0",
+    description: "Raster image processing via gimp -i -b (batch mode)",
+    requires: "gimp (apt install gimp)",
+    install_cmd:
+        "pip install git+https://github.com/HKUDS/CLI-Anything.git#subdirectory=gimp/agent-harness",
+    entry_point: "cli-anything-gimp",
+    category: "image",
+};
+
 type MarketEntryItem =
     | {
           id: string;
@@ -157,10 +187,15 @@ type MarketEntryItem =
           instanceCount: number;
       };
 
-export default function MarketPage() {
+interface MarketPageProps {
+    forcedScene?: MarketScene;
+}
+
+export default function MarketPage({ forcedScene }: MarketPageProps = {}) {
     const params = useParams<{ scene?: string }>();
-    const scene: MarketScene =
+    const routeScene: MarketScene =
         params.scene === "cli" || params.scene === "skill" ? params.scene : "wasm";
+    const scene: MarketScene = forcedScene ?? routeScene;
 
     if (scene !== "wasm") {
         return <SceneMarketPage scene={scene} />;
@@ -186,6 +221,8 @@ function WasmMarketplacePage() {
     const [pendingPluginId, setPendingPluginId] = useState<string | null>(null);
     const [lastInstall, setLastInstall] = useState<WasmPluginInstallResult | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [registeringCloudflare, setRegisteringCloudflare] = useState(false);
+    const [registeringNotes, setRegisteringNotes] = useState(false);
     const [uploadFile, setUploadFile] = useState<File | null>(null);
     const [firmwareName, setFirmwareName] = useState("");
     const [firmwareDescription, setFirmwareDescription] = useState("");
@@ -451,6 +488,48 @@ function WasmMarketplacePage() {
         }
     }
 
+    async function registerCloudflarePlugin() {
+        setRegisteringCloudflare(true);
+        setActionError(null);
+        setActionMessage(null);
+        try {
+            const result = await registerCloudflareTunnelPlugin();
+            setActionMessage(
+                `已写入 PG/MinIO：${result.plugin_name} ${result.version} (${result.plugin_id})`,
+            );
+            setLaneFilter("external");
+            setStatusFilter("available");
+            setSelectedId(`external:${result.plugin_id}`);
+            setDetailTab("package");
+            window.dispatchEvent(new Event("aio:plugin-runtime-updated"));
+            await loadSnapshot();
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : "写入 Cloudflare Tunnel 插件失败");
+        } finally {
+            setRegisteringCloudflare(false);
+        }
+    }
+
+    async function registerNotesPlugin() {
+        setRegisteringNotes(true);
+        setActionError(null);
+        setActionMessage(null);
+        try {
+            const result = await registerNotesFragmentsPlugin();
+            setLastInstall(result);
+            setActionMessage(
+                `已创建实例：${result.instance_label} (${result.instance_slug})`,
+            );
+            window.dispatchEvent(new Event("aio:plugin-runtime-updated"));
+            await loadSnapshot();
+            navigate(`/apps/${result.instance_slug}/${result.page_ids[0] ?? "fragments"}`);
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : "注册碎片笔记插件失败");
+        } finally {
+            setRegisteringNotes(false);
+        }
+    }
+
     return (
         <div className="space-y-6">
             <section className="overflow-hidden rounded-[32px] border border-stone-200/80 bg-[linear-gradient(180deg,#fdfaf2_0%,#f5eedd_40%,#fffdfa_100%)] shadow-[0_28px_90px_rgba(39,35,24,0.08)]">
@@ -573,6 +652,34 @@ function WasmMarketplacePage() {
                                         <Upload className="h-4 w-4" />
                                     )}
                                     上传固件
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="rounded-full bg-white/80 px-5"
+                                    onClick={() => void registerCloudflarePlugin()}
+                                    disabled={registeringCloudflare}
+                                >
+                                    {registeringCloudflare ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <PackageOpen className="h-4 w-4" />
+                                    )}
+                                    Cloudflare Tunnel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="rounded-full bg-white/80 px-5"
+                                    onClick={() => void registerNotesPlugin()}
+                                    disabled={registeringNotes}
+                                >
+                                    {registeringNotes ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <PackageOpen className="h-4 w-4" />
+                                    )}
+                                    碎片笔记
                                 </Button>
                                 <Button
                                     type="button"
@@ -712,6 +819,76 @@ function WasmMarketplacePage() {
                                     <Badge variant="outline" className="rounded-full bg-white/80">
                                         server descriptor
                                     </Badge>
+                                </div>
+                            </DockCard>
+
+                            <DockCard
+                                title="Cloudflare Tunnel"
+                                eyebrow="DB-first Plugin"
+                                icon={<PackageOpen className="h-4 w-4" />}
+                            >
+                                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                    <div className="space-y-2">
+                                        <div className="text-sm font-medium text-stone-900">
+                                            写入 tunnel 插件元数据和 CLI 资源
+                                        </div>
+                                        <p className="text-sm text-stone-500">
+                                            `.wasm` 作为插件工件进入 MinIO；addhost、showhost、rmhost、autohost 作为 CLI 资源入库，安装实例时发布到本机 PATH。
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        className="rounded-full bg-stone-950 px-5"
+                                        onClick={() => void registerCloudflarePlugin()}
+                                        disabled={registeringCloudflare}
+                                    >
+                                        {registeringCloudflare ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <PackageOpen className="h-4 w-4" />
+                                        )}
+                                        写入
+                                    </Button>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-3">
+                                    <CompactInfoTile label="工件" value=".wasm" />
+                                    <CompactInfoTile label="元数据" value="PostgreSQL" />
+                                    <CompactInfoTile label="资源" value="MinIO CLI" />
+                                </div>
+                            </DockCard>
+
+                            <DockCard
+                                title="碎片笔记"
+                                eyebrow="DB-first Plugin"
+                                icon={<PackageOpen className="h-4 w-4" />}
+                            >
+                                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                    <div className="space-y-2">
+                                        <div className="text-sm font-medium text-stone-900">
+                                            注册 notes-fragments.wasm 并打开实例
+                                        </div>
+                                        <p className="text-sm text-stone-500">
+                                            笔记不再是内置资产页；平台只负责注册 `.wasm` 插件、保存 PG 元数据和 MinIO 工件，碎片流由插件页面承载。
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        className="rounded-full bg-stone-950 px-5"
+                                        onClick={() => void registerNotesPlugin()}
+                                        disabled={registeringNotes}
+                                    >
+                                        {registeringNotes ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <PackageOpen className="h-4 w-4" />
+                                        )}
+                                        打开
+                                    </Button>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-3">
+                                    <CompactInfoTile label="入口" value="/apps/:slug/fragments" />
+                                    <CompactInfoTile label="schema" value="notes_fragments" />
+                                    <CompactInfoTile label="整理" value="后续独立页面" />
                                 </div>
                             </DockCard>
 
@@ -1337,6 +1514,10 @@ function MarketRailItem({
 }
 
 function SceneMarketPage({ scene }: { scene: Exclude<MarketScene, "wasm"> }) {
+    if (scene === "cli") {
+        return <CliSimpleMetadataPage />;
+    }
+
     const content = sceneCards[scene];
 
     return (
@@ -1377,6 +1558,402 @@ function SceneMarketPage({ scene }: { scene: Exclude<MarketScene, "wasm"> }) {
             </section>
         </div>
     );
+}
+
+function CliSimpleMetadataPage() {
+    const api = useMemo(() => createApiClient(getApiBaseUrl()), []);
+    const [entries, setEntries] = useState<CliSimpleMetadata[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [search, setSearch] = useState("");
+    const [selectedName, setSelectedName] = useState<string | null>(null);
+    const [draftText, setDraftText] = useState(
+        formatCliSimpleMetadata(cliSimpleMetadataExample),
+    );
+    const [message, setMessage] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadEntries = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const nextEntries = await api.cliSimpleCatalog();
+            setEntries(nextEntries);
+            setSelectedName((current) => {
+                if (current && nextEntries.some((entry) => entry.name === current)) {
+                    return current;
+                }
+                return nextEntries[0]?.name ?? null;
+            });
+            if (nextEntries.length === 0) {
+                setDraftText(formatCliSimpleMetadata(cliSimpleMetadataExample));
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "CLI 元数据加载失败");
+        } finally {
+            setLoading(false);
+        }
+    }, [api]);
+
+    useEffect(() => {
+        void loadEntries();
+    }, [loadEntries]);
+
+    const selectedEntry = useMemo(
+        () => entries.find((entry) => entry.name === selectedName) ?? null,
+        [entries, selectedName],
+    );
+
+    useEffect(() => {
+        if (selectedEntry) {
+            setDraftText(formatCliSimpleMetadata(selectedEntry));
+        }
+    }, [selectedEntry]);
+
+    const filteredEntries = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+        if (!keyword) {
+            return entries;
+        }
+        return entries.filter((entry) =>
+            [
+                entry.name,
+                entry.display_name,
+                entry.version,
+                entry.description,
+                entry.requires,
+                entry.install_cmd,
+                entry.entry_point,
+                entry.category,
+            ]
+                .join("\n")
+                .toLowerCase()
+                .includes(keyword),
+        );
+    }, [entries, search]);
+
+    const categories = useMemo(() => {
+        const values = new Set(
+            entries
+                .map((entry) => entry.category.trim())
+                .filter((category) => category.length > 0),
+        );
+        return [...values].sort((left, right) =>
+            left.localeCompare(right, "zh-Hans-CN"),
+        );
+    }, [entries]);
+
+    async function saveMetadata() {
+        setSaving(true);
+        setError(null);
+        setMessage(null);
+        try {
+            const input = parseCliSimpleMetadataJson(draftText);
+            const saved = await api.cliSimpleUpsert(input);
+            setMessage(`已保存 ${saved.name}`);
+            setDraftText(formatCliSimpleMetadata(saved));
+            await loadEntries();
+            setSelectedName(saved.name);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "CLI 元数据保存失败");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    function useExample() {
+        setSelectedName(null);
+        setDraftText(formatCliSimpleMetadata(cliSimpleMetadataExample));
+        setMessage("已载入 GIMP 示例");
+        setError(null);
+    }
+
+    return (
+        <div className="space-y-6">
+            <section className="overflow-hidden rounded-[28px] border border-stone-200/80 bg-[linear-gradient(135deg,#fff8e8_0%,#f5f7ef_48%,#eef6ff_100%)] shadow-[0_24px_80px_rgba(35,35,25,0.08)]">
+                <div className="px-6 py-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.24em] text-stone-500">
+                            <PackageOpen className="h-3.5 w-3.5" />
+                            Agent Asset / CLI
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
+                                8 字段合同
+                            </Badge>
+                            <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
+                                PostgreSQL
+                            </Badge>
+                            <Badge variant="outline" className="rounded-full bg-white/80 px-3 py-1 text-[11px]">
+                                Desktop-only install
+                            </Badge>
+                        </div>
+                    </div>
+                    <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                        <div>
+                            <h1 className="text-3xl font-semibold tracking-[-0.045em] text-stone-950 sm:text-4xl">
+                                CLI 元数据只收这 8 个字段
+                            </h1>
+                            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+                                贡献者提交的 JSON 必须完全匹配示例字段；安装执行仍属于桌面端本机能力，Web
+                                侧不承载本机执行逻辑。
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            <MetricTile label="CLI" value={String(entries.length)} />
+                            <MetricTile label="分类" value={String(categories.length)} />
+                            <MetricTile label="合同" value="8" />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+                <Card className="overflow-hidden rounded-[24px] border-stone-200/80 bg-white/95 shadow-[0_18px_54px_rgba(37,31,17,0.06)]">
+                    <CardHeader className="border-b border-stone-200/80 bg-[#fbfaf5] pb-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <CardTitle className="text-base tracking-[-0.02em]">
+                                    CLI 目录
+                                </CardTitle>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    字段来源只取 simple metadata
+                                </p>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full"
+                                onClick={() => void loadEntries()}
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                )}
+                                刷新
+                            </Button>
+                        </div>
+                        <div className="relative mt-4">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                            <Input
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder="搜索 name / category / command"
+                                className="rounded-full border-stone-200 bg-white pl-9"
+                            />
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <ScrollArea className="h-[560px]">
+                            <div className="space-y-2 p-3">
+                                {filteredEntries.map((entry) => (
+                                    <button
+                                        key={entry.name}
+                                        type="button"
+                                        onClick={() => setSelectedName(entry.name)}
+                                        className={cn(
+                                            "w-full rounded-2xl border p-4 text-left transition",
+                                            selectedName === entry.name
+                                                ? "border-stone-950 bg-stone-950 text-white shadow-[0_12px_28px_rgba(28,25,18,0.18)]"
+                                                : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50",
+                                        )}
+                                    >
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="truncate text-sm font-semibold">
+                                                    {entry.display_name || entry.name}
+                                                </div>
+                                                <div
+                                                    className={cn(
+                                                        "mt-1 truncate text-xs",
+                                                        selectedName === entry.name
+                                                            ? "text-stone-300"
+                                                            : "text-stone-500",
+                                                    )}
+                                                >
+                                                    {entry.name} · {entry.version}
+                                                </div>
+                                            </div>
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    "shrink-0 rounded-full text-[10px]",
+                                                    selectedName === entry.name
+                                                        ? "border-white/30 bg-white/10 text-white"
+                                                        : "bg-white",
+                                                )}
+                                            >
+                                                {entry.category}
+                                            </Badge>
+                                        </div>
+                                        <p
+                                            className={cn(
+                                                "mt-3 line-clamp-2 text-xs leading-5",
+                                                selectedName === entry.name
+                                                    ? "text-stone-200"
+                                                    : "text-stone-600",
+                                            )}
+                                        >
+                                            {entry.description}
+                                        </p>
+                                    </button>
+                                ))}
+                                {!loading && filteredEntries.length === 0 ? (
+                                    <div className="rounded-2xl border border-dashed border-stone-200 p-5 text-center text-sm text-muted-foreground">
+                                        暂无匹配 CLI 元数据
+                                    </div>
+                                ) : null}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+
+                <Card className="overflow-hidden rounded-[24px] border-stone-200/80 bg-white/95 shadow-[0_18px_54px_rgba(37,31,17,0.06)]">
+                    <CardHeader className="border-b border-stone-200/80 bg-[#fffdf8] pb-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <CardTitle className="text-base tracking-[-0.02em]">
+                                    贡献者 JSON
+                                </CardTitle>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    不允许嵌套字段，不允许额外字段，字段值均为字符串
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="rounded-full"
+                                    onClick={useExample}
+                                >
+                                    GIMP 示例
+                                </Button>
+                                <Button
+                                    type="button"
+                                    className="rounded-full bg-stone-950 px-5"
+                                    onClick={() => void saveMetadata()}
+                                    disabled={saving}
+                                >
+                                    {saving ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <CheckCircle2 className="h-4 w-4" />
+                                    )}
+                                    保存
+                                </Button>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4 p-5">
+                        <Textarea
+                            value={draftText}
+                            onChange={(event) => setDraftText(event.target.value)}
+                            spellCheck={false}
+                            className="min-h-[420px] resize-y rounded-2xl border-stone-200 bg-[#11130f] font-mono text-sm leading-6 text-stone-50 shadow-inner placeholder:text-stone-500"
+                        />
+                        {error ? (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                {error}
+                            </div>
+                        ) : null}
+                        {message ? (
+                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                                {message}
+                            </div>
+                        ) : null}
+                        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                            {cliSimpleMetadataFields.map((field) => (
+                                <div
+                                    key={field}
+                                    className="rounded-2xl border border-stone-200 bg-stone-50/80 px-3 py-2"
+                                >
+                                    <div className="font-mono text-[12px] text-stone-900">
+                                        {field}
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-stone-500">
+                                        string required
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+}
+
+function MetricTile({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-2xl border border-white/70 bg-white/75 p-4 text-center shadow-[0_14px_34px_rgba(34,34,22,0.06)]">
+            <div className="text-2xl font-semibold tracking-[-0.04em] text-stone-950">
+                {value}
+            </div>
+            <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-stone-500">
+                {label}
+            </div>
+        </div>
+    );
+}
+
+function formatCliSimpleMetadata(input: CliSimpleMetadata) {
+    return JSON.stringify(
+        {
+            name: input.name,
+            display_name: input.display_name,
+            version: input.version,
+            description: input.description,
+            requires: input.requires,
+            install_cmd: input.install_cmd,
+            entry_point: input.entry_point,
+            category: input.category,
+        },
+        null,
+        2,
+    );
+}
+
+function parseCliSimpleMetadataJson(value: string): CliSimpleMetadata {
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(value);
+    } catch (err) {
+        throw new Error(err instanceof Error ? `JSON 解析失败：${err.message}` : "JSON 解析失败");
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        throw new Error("CLI 元数据必须是单个 JSON object");
+    }
+
+    const object = parsed as Record<string, unknown>;
+    const allowed = new Set<string>(cliSimpleMetadataFields);
+    const extraFields = Object.keys(object).filter((field) => !allowed.has(field));
+    if (extraFields.length > 0) {
+        throw new Error(`只允许 8 个字段，多余字段：${extraFields.join(", ")}`);
+    }
+
+    const missingFields = cliSimpleMetadataFields.filter(
+        (field) => !Object.prototype.hasOwnProperty.call(object, field),
+    );
+    if (missingFields.length > 0) {
+        throw new Error(`缺少字段：${missingFields.join(", ")}`);
+    }
+
+    const metadata = {} as CliSimpleMetadata;
+    for (const field of cliSimpleMetadataFields) {
+        const fieldValue = object[field];
+        if (typeof fieldValue !== "string") {
+            throw new Error(`字段 ${field} 必须是字符串`);
+        }
+        const trimmed = fieldValue.trim();
+        if (!trimmed) {
+            throw new Error(`字段 ${field} 不能为空`);
+        }
+        metadata[field] = trimmed;
+    }
+    return metadata;
 }
 
 function SegmentGroup({
