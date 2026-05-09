@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "apps/*/backend",
-    "apps/*/desktop/src-tauri",
     "crates/api/*",
     "crates/apps/*",
     "crates/config/*",
@@ -70,6 +69,8 @@ sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "s
 sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio-rustls", "sqlx-postgres", "sqlx-sqlite", "with-chrono", "with-json", "with-uuid"] }
 sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio-rustls", "sqlx-postgres", "sqlx-sqlite"] }
 futures-util = "0.3.31"
+crossterm = { version = "0.29.0", features = ["event-stream"] }
+ratatui = "0.30.0"
 quinn = { version = "0.11.9", default-features = false, features = ["runtime-tokio", "rustls"] }
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
 

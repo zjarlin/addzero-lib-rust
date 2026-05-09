@@ -1,0 +1,133 @@
+use crate::types::{DEFAULT_SPEEDTEST_CONCURRENCY, DEFAULT_SPEEDTEST_TIMEOUT, ProxyNode, SpeedTestResult};
+use std::cmp::Ordering;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::net::TcpStream;
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
+
+/// Runs TCP connection latency tests for every proxy node.
+///
+/// `concurrency` values of `0` fall back to [`DEFAULT_SPEEDTEST_CONCURRENCY`].
+/// `timeout` values of `0ms` fall back to [`DEFAULT_SPEEDTEST_TIMEOUT`].
+/// Returned results are sorted by successful latency ascending, with failures
+/// placed after successful results.
+pub async fn batch_speed_test(
+    nodes: &[ProxyNode],
+    concurrency: usize,
+    timeout: Duration,
+) -> Vec<SpeedTestResult> {
+    let concurrency = if concurrency == 0 {
+        DEFAULT_SPEEDTEST_CONCURRENCY
+    } else {
+        concurrency
+    };
+    let timeout = if timeout.is_zero() {
+        DEFAULT_SPEEDTEST_TIMEOUT
+    } else {
+        timeout
+    };
+    let semaphore = Arc::new(Semaphore::new(concurrency));
+    let mut join_set = JoinSet::new();
+
+    for (node_index, node) in nodes.iter().enumerate() {
+        let permit_source = Arc::clone(&semaphore);
+        let server = node.server.clone();
+        let port = node.port;
+        join_set.spawn(async move {
+            let permit = permit_source.acquire_owned().await;
+            if let Err(error) = permit {
+                return SpeedTestResult {
+                    node_index,
+                    latency_ms: None,
+                    success: false,
+                    error_msg: Some(format!("speed test semaphore closed: {error}")),
+                };
+            }
+
+            test_tcp_latency(node_index, server, port, timeout).await
+        });
+    }
+
+    let mut results = Vec::with_capacity(nodes.len());
+    while let Some(joined) = join_set.join_next().await {
+        match joined {
+            Ok(result) => results.push(result),
+            Err(error) => results.push(SpeedTestResult {
+                node_index: usize::MAX,
+                latency_ms: None,
+                success: false,
+                error_msg: Some(format!("speed test task failed: {error}")),
+            }),
+        }
+    }
+
+    results.sort_by(compare_speed_results);
+    results
+}
+
+async fn test_tcp_latency(
+    node_index: usize,
+    server: String,
+    port: u16,
+    timeout_duration: Duration,
+) -> SpeedTestResult {
+    let address = format!("{server}:{port}");
+    let started_at = Instant::now();
+    match tokio::time::timeout(timeout_duration, TcpStream::connect(&address)).await {
+        Ok(Ok(_stream)) => SpeedTestResult {
+            node_index,
+            latency_ms: Some(started_at.elapsed().as_millis()),
+            success: true,
+            error_msg: None,
+        },
+        Ok(Err(error)) => SpeedTestResult {
+            node_index,
+            latency_ms: None,
+            success: false,
+            error_msg: Some(format!("tcp connect failed for {address}: {error}")),
+        },
+        Err(_elapsed) => SpeedTestResult {
+            node_index,
+            latency_ms: None,
+            success: false,
+            error_msg: Some(format!("timeout after {}ms for {address}", timeout_duration.as_millis())),
+        },
+    }
+}
+
+fn compare_speed_results(left: &SpeedTestResult, right: &SpeedTestResult) -> Ordering {
+    match (left.success, right.success) {
+        (true, true) => left
+            .latency_ms
+            .unwrap_or(u128::MAX)
+            .cmp(&right.latency_ms.unwrap_or(u128::MAX))
+            .then_with(|| left.node_index.cmp(&right.node_index)),
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        (false, false) => left.node_index.cmp(&right.node_index),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::ProxyType;
+    use serde_yaml::Value;
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn batch_speed_test_should_report_success_for_open_tcp_port() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let accept_task = tokio::spawn(async move {
+            let _accepted = listener.accept().await;
+        });
+        let node = ProxyNode::new("Local", ProxyType::Ss, "127.0.0.1", port, Value::Null);
+
+        let results = batch_speed_test(&[node], 1, Duration::from_secs(1)).await;
+        let _ = accept_task.await;
+
+        assert!(results[0].success);
+    }
+}
