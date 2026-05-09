@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "apps/*/backend",
     "apps/*/desktop/src-tauri",
-    "crates/aio-*",
     "crates/api/*",
     "crates/apps/*",
     "crates/config/*",
@@ -30,6 +29,7 @@ license = "MIT OR Apache-2.0"
 authors = ["zjarlin"]
 
 [workspace.dependencies]
+automod = "1.0.16"
 base64 = "0.22.1"
 chrono = { version = "0.4.42", features = ["clock"] }
 deunicode = "1.6.2"

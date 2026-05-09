@@ -6,7 +6,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::services::StoredLogoDto;
+use crate::services::logo_storage::StoredLogoDto;
 
 pub use super::LocalBoxFuture;
 
