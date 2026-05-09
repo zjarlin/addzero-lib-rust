@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use aio_engine::script::ScriptEngine;
+use addzero_script_engine::script::ScriptEngine;
 use axum::{
     Json,
     extract::Path,
@@ -91,12 +91,12 @@ pub async fn eval_rhai_env(
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
 
-    let engine = aio_engine_rhai::RhaiEngine::new();
-    let input = aio_engine::script::ScriptInput {
+    let engine = addzero_script_engine_rhai::RhaiEngine::new();
+    let input = addzero_script_engine::script::ScriptInput {
         source: body.source,
-        lang: aio_engine::script::ScriptLang::Rhai,
+        lang: addzero_script_engine::script::ScriptLang::Rhai,
         vars: body.vars,
-        policy: aio_core::sandbox::SandboxPolicy::permissive(),
+        policy: addzero_sandbox::sandbox::SandboxPolicy::permissive(),
         timeout_secs: 10,
     };
 

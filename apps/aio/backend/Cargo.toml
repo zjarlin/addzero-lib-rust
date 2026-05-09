@@ -7,15 +7,16 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-aio-core = { path = "../../../crates/aio-core" }
-aio-engine = { path = "../../../crates/aio-engine" }
-aio-engine-rhai = { path = "../../../crates/aio-engine-rhai" }
-aio-plugin-api = { path = "../../../crates/aio-plugin-api" }
-aio-runtime = { path = "../../../crates/aio-runtime" }
+addzero-sandbox = { path = "../../../crates/core/addzero-sandbox" }
+addzero-script-engine = { path = "../../../crates/runtime/addzero-script-engine" }
+addzero-script-engine-rhai = { path = "../../../crates/runtime/addzero-script-engine-rhai" }
+addzero-wasm-plugin-api = { path = "../../../crates/runtime/addzero-wasm-plugin-api" }
+addzero-wasm-plugin-host = { path = "../../../crates/runtime/addzero-wasm-plugin-host" }
 addzero-admin-plugin-registry = { path = "../../../crates/runtime/addzero-admin-plugin-registry" }
 addzero-agent-runtime-contract = { path = "../../../crates/data/addzero-agent-runtime-contract" }
 addzero-cli-market-contract = { path = "../../../crates/api/addzero-cli-market-contract" }
 addzero-software-catalog = { path = "../../../crates/data/addzero-software-catalog" }
+automod.workspace = true
 base64.workspace = true
 blake3 = "1.5.5"
 chrono = { workspace = true, features = ["serde"] }

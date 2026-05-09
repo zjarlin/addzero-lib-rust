@@ -432,7 +432,7 @@ export default function MarketPage() {
                 <div className="rounded-lg border bg-card p-5">
                     <h2 className="text-base font-semibold">扩展点契约</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        这些项已经在 `aio-plugin-api` 里定义，前台语义要和宿主契约保持一致。
+                        这些项已经在 `addzero-wasm-plugin-api` 里定义，前台语义要和宿主契约保持一致。
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
                         {extensionPoints.map((point) => (

@@ -531,6 +531,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "addzero-sandbox"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "addzero-script-engine"
+version = "0.1.0"
+dependencies = [
+ "addzero-sandbox",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "addzero-script-engine-rhai"
+version = "0.1.0"
+dependencies = [
+ "addzero-sandbox",
+ "addzero-script-engine",
+ "rhai",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "addzero-serial"
 version = "0.1.0"
 dependencies = [
@@ -699,6 +727,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "addzero-wasm-plugin-api"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "addzero-wasm-plugin-host"
+version = "0.1.0"
+dependencies = [
+ "addzero-wasm-plugin-api",
+ "thiserror 2.0.18",
+ "uuid",
+ "wasmtime",
+ "wat",
+]
+
+[[package]]
 name = "addzero-yml"
 version = "0.1.0"
 dependencies = [
@@ -765,15 +814,16 @@ dependencies = [
  "addzero-plugin-kernel",
  "addzero-plugin-runtime",
  "addzero-rustfs",
+ "addzero-sandbox",
+ "addzero-script-engine",
+ "addzero-script-engine-rhai",
  "addzero-skills",
  "addzero-software-catalog",
  "addzero-system-starters",
- "aio-core",
- "aio-engine",
- "aio-engine-rhai",
- "aio-plugin-api",
- "aio-runtime",
+ "addzero-wasm-plugin-api",
+ "addzero-wasm-plugin-host",
  "anyhow",
+ "automod",
  "axum",
  "base64 0.22.1",
  "bcrypt",
@@ -806,30 +856,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aio-adapter"
-version = "0.1.0"
-dependencies = [
- "aio-core",
- "aio-engine",
- "aio-runtime",
- "log",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "aio-core"
-version = "0.1.0"
-dependencies = [
- "log",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
 name = "aio-desktop"
 version = "0.1.0"
 dependencies = [
@@ -842,58 +868,6 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-opener",
  "tokio",
-]
-
-[[package]]
-name = "aio-engine"
-version = "0.1.0"
-dependencies = [
- "aio-core",
- "aio-plugin-api",
- "log",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "aio-engine-rhai"
-version = "0.1.0"
-dependencies = [
- "aio-core",
- "aio-engine",
- "log",
- "rhai",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "aio-plugin-api"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "uuid",
-]
-
-[[package]]
-name = "aio-runtime"
-version = "0.1.0"
-dependencies = [
- "aio-core",
- "aio-plugin-api",
- "log",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
- "wasmtime",
- "wat",
 ]
 
 [[package]]
@@ -1231,6 +1205,17 @@ name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
+
+[[package]]
+name = "automod"
+version = "1.0.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8b5778837666541195063243828c5b6139221b47dc4ec3ba81738e532469ab1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
 
 [[package]]
 name = "aws-lc-rs"

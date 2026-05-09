@@ -19,28 +19,43 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use addzero_agent_runtime_contract::{LoginRequest, SessionUser};
 use addzero_plugin_contract::ResolvedPage;
+use addzero_script_engine::script::ScriptEngine;
 use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
-use aio_engine::script::ScriptEngine;
 use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::services::{
-    AiProviderConfigDto, AiProviderConfigUpsertDto, AssetGraphDto, AssetSyncReportDto,
-    BrandingSettingsDto, BrandingSettingsUpdate, ChatRequestDto, ChatResponseDto, FileIndexDto,
-    FilterOptions, KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto,
-    KnowledgeFeedDto, KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto,
-    KnowledgeNodeSummaryDto, KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest,
-    PluginDescriptorDto, PluginInstallRequestDto, ResolveKnowledgeExceptionInput, ScanStatsDto,
-    ShareLinkDto, SkillDto, SkillSourceDto, SkillUpsertDto, StartVibeCodingRequestDto,
-    StartVibeCodingResponseDto, StorageBrowseRequestDto, StorageBrowseResultDto,
-    StorageCreateFolderDto, StorageCreateFolderResultDto, StorageDeleteFolderDto,
-    StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto, StorageShareResultDto,
-    StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto, SyncReportDto,
-    TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
-    TerminalSessionSnapshotDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
-    WasmPluginRegisterDevRequestDto, WasmPluginRegisterDevResultDto, WasmPluginRuntimeSnapshotDto,
-    download_station::{FileIndex, ScanStats, ShareLink},
+    ai_chat::{AiProviderConfigDto, AiProviderConfigUpsertDto, ChatRequestDto, ChatResponseDto},
+    asset_graph::{AssetGraphDto, AssetSyncReportDto},
+    branding_settings::{BrandingSettingsDto, BrandingSettingsUpdate},
+    download_station::{
+        FileIndex, FileIndexDto, FilterOptions, ScanStats, ScanStatsDto, ShareLink, ShareLinkDto,
+    },
+    knowledge_entries::{KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeNoteDto},
+    knowledge_graph::{
+        IngestKnowledgeRawInput, KnowledgeExceptionCardDto, KnowledgeFeedDto,
+        KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto,
+        KnowledgeSourceRefDto, ResolveKnowledgeExceptionInput,
+    },
+    logo_storage::{LogoUploadRequest, StoredLogoDto},
     menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
+    minio_files::{
+        StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
+        StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,
+        StorageDeleteResultDto, StorageShareRequestDto, StorageShareResultDto,
+        StorageUploadRequestDto, StorageUploadResultDto,
+    },
+    plugins::{PluginDescriptorDto, PluginInstallRequestDto},
+    skills::{SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto},
+    terminal_sessions::{
+        TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
+        TerminalSessionSnapshotDto,
+    },
+    vibe_coding::{StartVibeCodingRequestDto, StartVibeCodingResponseDto},
+    wasm_plugins::{
+        WasmPluginInstallRequestDto, WasmPluginInstallResultDto, WasmPluginRegisterDevRequestDto,
+        WasmPluginRegisterDevResultDto, WasmPluginRuntimeSnapshotDto,
+    },
 };
 
 use self::auth::AdminSessionService;
@@ -137,7 +152,7 @@ pub async fn services() -> &'static BackendServices {
                 sqlx::PgPool::connect(url)
                     .await
                     .ok()
-                    .map(|pool| crate::services::default_download_station_api(pool))
+                    .map(|pool| crate::services::download_station::default_download_station_api(pool))
             } else {
                 None
             };
@@ -1209,7 +1224,7 @@ async fn knowledge_exceptions(
 
 async fn knowledge_ingest_raw(
     headers: HeaderMap,
-    Json(input): Json<crate::services::IngestKnowledgeRawInput>,
+    Json(input): Json<crate::services::knowledge_graph::IngestKnowledgeRawInput>,
 ) -> ApiResult<Json<KnowledgeNodeSummaryDto>> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
@@ -1851,12 +1866,12 @@ async fn run_rhai(
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
 
-    let engine = aio_engine_rhai::RhaiEngine::new();
-    let input = aio_engine::script::ScriptInput {
+    let engine = addzero_script_engine_rhai::RhaiEngine::new();
+    let input = addzero_script_engine::script::ScriptInput {
         source: body.source,
-        lang: aio_engine::script::ScriptLang::Rhai,
+        lang: addzero_script_engine::script::ScriptLang::Rhai,
         vars: body.vars,
-        policy: aio_core::sandbox::SandboxPolicy::permissive(),
+        policy: addzero_sandbox::sandbox::SandboxPolicy::permissive(),
         timeout_secs: 30,
     };
 
