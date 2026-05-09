@@ -67,7 +67,7 @@ Treat `tokio-toasty` like a Rust starter, not a widget collection.
 ## Repository Fit
 
 1. If the work is repo-internal, prefer `crates/runtime/` for runtime and starter crates.
-2. Align with existing starter conventions such as `addzero-starter-*` when the feature is intended to be Addzero-specific.
+2. Align with existing starter conventions such as `az-starter-*` when the feature is intended to be Addzero-specific.
 3. Preserve `tokio-toasty` naming only when the goal is a reusable standalone crate family instead of an Addzero-only starter.
 4. Keep domain logic out of `apps/*`; app code should install adapters and call the facade only.
 

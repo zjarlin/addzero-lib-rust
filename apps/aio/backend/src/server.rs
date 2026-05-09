@@ -17,10 +17,10 @@ use once_cell::sync::Lazy;
 use tokio::sync::OnceCell;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use addzero_agent_runtime_contract::{LoginRequest, SessionUser};
-use addzero_plugin_contract::ResolvedPage;
-use addzero_script_engine::script::ScriptEngine;
-use addzero_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
+use az_agent_runtime_contract::{LoginRequest, SessionUser};
+use az_plugin_contract::ResolvedPage;
+use az_script_engine::script::ScriptEngine;
+use az_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -48,9 +48,9 @@ use self::auth::AdminSessionService;
 pub struct BackendServices {
     pub skills: SkillService,
     pub admin_auth: AdminSessionService,
-    pub assets: addzero_assets::AssetService,
+    pub assets: az_assets::AssetService,
     pub cli_market: crate::services::cli_market::CliMarketService,
-    pub software_catalog: Option<addzero_software_catalog::SoftwareCatalogService>,
+    pub software_catalog: Option<az_software_catalog::SoftwareCatalogService>,
     pub download_station: Option<crate::services::download_station::DownloadStationService>,
     pub menu_system: Option<crate::services::menu_system::MenuService>,
 }
@@ -63,7 +63,7 @@ pub(crate) fn admin_auth() -> &'static AdminSessionService {
 }
 
 pub fn resolved_database_url() -> Option<String> {
-    addzero_persistence::database_url().or_else(|| {
+    az_persistence::database_url().or_else(|| {
         let values = local_env_values();
         values
             .get("MSC_AIO_DATABASE_URL")
@@ -78,7 +78,7 @@ fn is_postgres_database_url(database_url: &str) -> bool {
 }
 
 fn local_env_values() -> BTreeMap<String, String> {
-    let Some(path) = addzero_persistence::local_env_path() else {
+    let Some(path) = az_persistence::local_env_path() else {
         return BTreeMap::new();
     };
     let Ok(content) = fs::read_to_string(path) else {
@@ -123,7 +123,7 @@ pub async fn services() -> &'static BackendServices {
                     log::warn!("ensure ai provider schema failed: {err:?}");
                 }
             }
-            let assets = addzero_assets::AssetService::try_attach(
+            let assets = az_assets::AssetService::try_attach(
                 postgres_database_url,
                 secret_master_key.as_deref(),
             )
@@ -132,7 +132,7 @@ pub async fn services() -> &'static BackendServices {
                 crate::services::cli_market::CliMarketService::try_attach(postgres_database_url)
                     .await;
             let software_catalog = if let Some(url) = postgres_database_url {
-                addzero_software_catalog::SoftwareCatalogService::connect(url)
+                az_software_catalog::SoftwareCatalogService::connect(url)
                     .await
                     .ok()
             } else {
@@ -1798,7 +1798,7 @@ fn ensure_auth(auth: &AdminSessionService, headers: &HeaderMap) -> ApiResult<()>
     Ok(())
 }
 
-fn skill_to_dto(skill: addzero_skills::Skill) -> SkillDto {
+fn skill_to_dto(skill: az_skills::Skill) -> SkillDto {
     SkillDto {
         name: skill.name,
         keywords: skill.keywords,
@@ -1815,7 +1815,7 @@ fn skill_to_dto(skill: addzero_skills::Skill) -> SkillDto {
 }
 
 fn sync_report_to_dto(
-    report: addzero_skills::SyncReport,
+    report: az_skills::SyncReport,
     pg_online: bool,
     fs_root: String,
 ) -> SyncReportDto {
@@ -1894,12 +1894,12 @@ async fn run_rhai(
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
 
-    let engine = addzero_script_engine_rhai::RhaiEngine::new();
-    let input = addzero_script_engine::script::ScriptInput {
+    let engine = az_script_engine_rhai::RhaiEngine::new();
+    let input = az_script_engine::script::ScriptInput {
         source: body.source,
-        lang: addzero_script_engine::script::ScriptLang::Rhai,
+        lang: az_script_engine::script::ScriptLang::Rhai,
         vars: body.vars,
-        policy: addzero_sandbox::sandbox::SandboxPolicy::permissive(),
+        policy: az_sandbox::sandbox::SandboxPolicy::permissive(),
         timeout_secs: 30,
     };
 

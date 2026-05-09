@@ -12,7 +12,7 @@ import {
   CardTitle,
   Separator,
   cn,
-} from "@addzero/ui";
+} from "@az/ui";
 
 export interface RemoteDevice {
   id: string;

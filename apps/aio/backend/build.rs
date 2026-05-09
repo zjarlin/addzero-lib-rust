@@ -1,6 +1,6 @@
 use std::{env, fs, path::PathBuf};
 
-use addzero_knowledge::{
+use az_knowledge::{
     KnowledgeService, KnowledgeSourceSpec, database_url, discover_documents, local_env_path,
     render_catalog, source_specs,
 };
@@ -28,9 +28,7 @@ fn main() {
     fs::write(out_path, output).expect("failed to write generated knowledge catalog");
 }
 
-fn load_docs(
-    sources: &[KnowledgeSourceSpec],
-) -> (String, Vec<addzero_knowledge::KnowledgeDocument>) {
+fn load_docs(sources: &[KnowledgeSourceSpec]) -> (String, Vec<az_knowledge::KnowledgeDocument>) {
     let Some(url) = database_url() else {
         let scan = discover_documents(sources);
         return ("filesystem-fallback".to_string(), scan.documents);

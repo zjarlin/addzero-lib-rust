@@ -1,0 +1,59 @@
+{
+  "id": "industrial-protocol-gateway",
+  "version": "0.1.0",
+  "endpoints": [
+    {
+      "id": "rtu-line-a",
+      "protocol": "modbus-rtu",
+      "address": "COM3 9600-8-N-1 unit=1",
+      "role": "source"
+    },
+    {
+      "id": "tcp-energy",
+      "protocol": "modbus-tcp",
+      "address": "10.10.8.21:502 unit=2",
+      "role": "source"
+    },
+    {
+      "id": "opc-supervisor",
+      "protocol": "opc-ua",
+      "address": "opc.tcp://scada.local:4840",
+      "role": "bidirectional"
+    },
+    {
+      "id": "mqtt-edge",
+      "protocol": "mqtt",
+      "address": "mqtts://broker.local:8883/site/aio",
+      "role": "sink"
+    },
+    {
+      "id": "mes-http",
+      "protocol": "http-json",
+      "address": "https://mes.local/api/ingest",
+      "role": "sink"
+    }
+  ],
+  "routes": [
+    {
+      "id": "rtu-to-mqtt-production",
+      "source": "rtu-line-a",
+      "target": "mqtt-edge",
+      "mapping": "holding[40001..40012] -> site/aio/line-a/production",
+      "cadence_ms": 1000
+    },
+    {
+      "id": "tcp-to-opc-energy",
+      "source": "tcp-energy",
+      "target": "opc-supervisor",
+      "mapping": "input[30001..30016] -> ns=2;s=Energy.LineA",
+      "cadence_ms": 2000
+    },
+    {
+      "id": "opc-to-mes-quality",
+      "source": "opc-supervisor",
+      "target": "mes-http",
+      "mapping": "ns=2;s=Quality.Events -> /api/ingest/quality",
+      "cadence_ms": 5000
+    }
+  ]
+}

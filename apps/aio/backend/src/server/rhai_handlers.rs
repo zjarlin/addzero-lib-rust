@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use addzero_script_engine::script::ScriptEngine;
 use axum::{
     Json,
     extract::Path,
     http::{HeaderMap, StatusCode},
 };
+use az_script_engine::script::ScriptEngine;
 use serde::Deserialize;
 
 use crate::server::{ApiError, ApiResult, ensure_auth, services};
@@ -91,12 +91,12 @@ pub async fn eval_rhai_env(
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
 
-    let engine = addzero_script_engine_rhai::RhaiEngine::new();
-    let input = addzero_script_engine::script::ScriptInput {
+    let engine = az_script_engine_rhai::RhaiEngine::new();
+    let input = az_script_engine::script::ScriptInput {
         source: body.source,
-        lang: addzero_script_engine::script::ScriptLang::Rhai,
+        lang: az_script_engine::script::ScriptLang::Rhai,
         vars: body.vars,
-        policy: addzero_sandbox::sandbox::SandboxPolicy::permissive(),
+        policy: az_sandbox::sandbox::SandboxPolicy::permissive(),
         timeout_secs: 10,
     };
 

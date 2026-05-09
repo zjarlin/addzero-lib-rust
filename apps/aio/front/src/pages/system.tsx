@@ -29,7 +29,7 @@ import {
     TabsTrigger,
     Textarea,
     cn,
-} from "@addzero/ui";
+} from "@az/ui";
 import { emitAiWorkspaceSeed } from "../lib/ai-workspace";
 import { ConfigurationWorkbench } from "./env";
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getApiBaseUrl } from "@addzero/api-client";
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from "@addzero/ui";
+import { getApiBaseUrl } from "@az/api-client";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from "@az/ui";
 import {
     fetchWasmPluginOverview,
     installCatalogWasmPlugin,

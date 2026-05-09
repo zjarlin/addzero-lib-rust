@@ -1,0 +1,15 @@
+[package]
+name = "az-starter-organization"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+az-plugin-contract = { path = "../az-plugin-contract" }
+az-plugin-macros = { path = "../az-plugin-macros" }
+az-plugin-registry = { path = "../az-plugin-registry" }
+
+[lints]
+workspace = true

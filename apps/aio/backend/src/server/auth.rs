@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-use addzero_agent_runtime_contract::{LoginRequest, SessionUser};
+use az_agent_runtime_contract::{LoginRequest, SessionUser};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -162,8 +162,8 @@ fn find_cookie<'a>(header: &'a str, key: &str) -> Option<&'a str> {
 #[cfg(test)]
 mod tests {
     use super::AdminSessionService;
-    use addzero_agent_runtime_contract::LoginRequest;
     use axum::http::{HeaderMap, HeaderValue};
+    use az_agent_runtime_contract::LoginRequest;
 
     #[test]
     fn cookie_round_trip_should_restore_user() {

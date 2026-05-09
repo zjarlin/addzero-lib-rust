@@ -185,7 +185,7 @@ impl SkillsApi for EmbeddedSkillsApi {
             let backend = crate::server::services().await;
             backend
                 .skills
-                .upsert(addzero_skills::SkillUpsert {
+                .upsert(az_skills::SkillUpsert {
                     name: input.name,
                     keywords: input.keywords,
                     description: input.description,
@@ -248,7 +248,7 @@ impl SkillsApi for EmbeddedSkillsApi {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn skill_to_dto(skill: addzero_skills::Skill) -> SkillDto {
+fn skill_to_dto(skill: az_skills::Skill) -> SkillDto {
     SkillDto {
         name: skill.name,
         keywords: skill.keywords,
@@ -257,9 +257,9 @@ fn skill_to_dto(skill: addzero_skills::Skill) -> SkillDto {
         content_hash: skill.content_hash,
         updated_at: skill.updated_at,
         source: match skill.source {
-            addzero_skills::SkillSource::Postgres => SkillSourceDto::Postgres,
-            addzero_skills::SkillSource::FileSystem => SkillSourceDto::FileSystem,
-            addzero_skills::SkillSource::Both => SkillSourceDto::Both,
+            az_skills::SkillSource::Postgres => SkillSourceDto::Postgres,
+            az_skills::SkillSource::FileSystem => SkillSourceDto::FileSystem,
+            az_skills::SkillSource::Both => SkillSourceDto::Both,
         },
     }
 }

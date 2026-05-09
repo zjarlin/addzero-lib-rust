@@ -7,15 +7,15 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-addzero-sandbox = { path = "../../../crates/core/addzero-sandbox" }
-addzero-script-engine = { path = "../../../crates/runtime/addzero-script-engine" }
-addzero-script-engine-rhai = { path = "../../../crates/runtime/addzero-script-engine-rhai" }
-addzero-wasm-plugin-api = { path = "../../../crates/runtime/addzero-wasm-plugin-api" }
-addzero-wasm-plugin-host = { path = "../../../crates/runtime/addzero-wasm-plugin-host" }
-addzero-admin-plugin-registry = { path = "../../../crates/runtime/addzero-admin-plugin-registry" }
-addzero-agent-runtime-contract = { path = "../../../crates/data/addzero-agent-runtime-contract" }
-addzero-cli-market-contract = { path = "../../../crates/api/addzero-cli-market-contract" }
-addzero-software-catalog = { path = "../../../crates/data/addzero-software-catalog" }
+az-sandbox = { path = "../../../crates/core/az-sandbox" }
+az-script-engine = { path = "../../../crates/runtime/az-script-engine" }
+az-script-engine-rhai = { path = "../../../crates/runtime/az-script-engine-rhai" }
+az-wasm-plugin-api = { path = "../../../crates/runtime/az-wasm-plugin-api" }
+az-wasm-plugin-host = { path = "../../../crates/runtime/az-wasm-plugin-host" }
+az-admin-plugin-registry = { path = "../../../crates/runtime/az-admin-plugin-registry" }
+az-agent-runtime-contract = { path = "../../../crates/data/az-agent-runtime-contract" }
+az-cli-market-contract = { path = "../../../crates/api/az-cli-market-contract" }
+az-software-catalog = { path = "../../../crates/data/az-software-catalog" }
 automod.workspace = true
 base64.workspace = true
 blake3 = "1.5.5"
@@ -28,18 +28,18 @@ thiserror.workspace = true
 uuid.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-addzero-ai-agent = { path = "../../../crates/runtime/addzero-ai-agent" }
-addzero-ai-chat = { path = "../../../crates/api/addzero-ai-chat" }
-addzero-assets = { path = "../../../crates/data/addzero-assets" }
-addzero-knowledge = { path = "../../../crates/data/addzero-knowledge" }
-addzero-minio = { path = "../../../crates/storage/addzero-minio" }
-addzero-persistence = { path = "../../../crates/data/addzero-persistence" }
-addzero-plugin-contract = { path = "../../../crates/runtime/addzero-plugin-contract" }
-addzero-plugin-kernel = { path = "../../../crates/runtime/addzero-plugin-kernel" }
-addzero-plugin-runtime = { path = "../../../crates/runtime/addzero-plugin-runtime" }
-addzero-skills = { path = "../../../crates/data/addzero-skills" }
-addzero-rustfs = { path = "../../../crates/storage/addzero-rustfs" }
-addzero-system-starters = { path = "../../../crates/runtime/addzero-system-starters" }
+az-ai-agent = { path = "../../../crates/runtime/az-ai-agent" }
+az-ai-chat = { path = "../../../crates/api/az-ai-chat" }
+az-assets = { path = "../../../crates/data/az-assets" }
+az-knowledge = { path = "../../../crates/data/az-knowledge" }
+az-minio = { path = "../../../crates/storage/az-minio" }
+az-persistence = { path = "../../../crates/data/az-persistence" }
+az-plugin-contract = { path = "../../../crates/runtime/az-plugin-contract" }
+az-plugin-kernel = { path = "../../../crates/runtime/az-plugin-kernel" }
+az-plugin-runtime = { path = "../../../crates/runtime/az-plugin-runtime" }
+az-skills = { path = "../../../crates/data/az-skills" }
+az-rustfs = { path = "../../../crates/storage/az-rustfs" }
+az-system-starters = { path = "../../../crates/runtime/az-system-starters" }
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
 dirs.workspace = true
@@ -63,7 +63,7 @@ walkdir = "2"
 zip.workspace = true
 
 [build-dependencies]
-addzero-knowledge = { path = "../../../crates/data/addzero-knowledge" }
+az-knowledge = { path = "../../../crates/data/az-knowledge" }
 tokio.workspace = true
 
 [lints]

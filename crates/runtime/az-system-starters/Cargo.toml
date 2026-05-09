@@ -1,0 +1,18 @@
+[package]
+name = "az-system-starters"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+az-starter-audit = { path = "../az-starter-audit" }
+az-starter-dictionary = { path = "../az-starter-dictionary" }
+az-starter-identity = { path = "../az-starter-identity" }
+az-starter-menu = { path = "../az-starter-menu" }
+az-starter-organization = { path = "../az-starter-organization" }
+az-starter-storage = { path = "../az-starter-storage" }
+
+[lints]
+workspace = true

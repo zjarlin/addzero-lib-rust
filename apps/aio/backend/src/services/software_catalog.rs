@@ -1,10 +1,10 @@
 use std::rc::Rc;
 
 #[cfg(target_arch = "wasm32")]
-use addzero_software_catalog::SoftwareCatalogError;
+use az_software_catalog::SoftwareCatalogError;
 #[cfg(not(target_arch = "wasm32"))]
-use addzero_software_catalog::SoftwareCatalogService;
-pub use addzero_software_catalog::{
+use az_software_catalog::SoftwareCatalogService;
+pub use az_software_catalog::{
     InstallerKind, SoftwareCatalogDto, SoftwareCatalogResult, SoftwareDraftInput, SoftwareEntryDto,
     SoftwareEntryInput, SoftwareInstallMethodDto, SoftwareMetadataDto, SoftwareMetadataFetchInput,
     SoftwarePlatform, current_platform,
@@ -111,7 +111,7 @@ impl SoftwareCatalogApi for EmbeddedSoftwareCatalogApi {
         Box::pin(async move {
             let backend = crate::server::services().await;
             let service = backend.software_catalog.as_ref().ok_or_else(|| {
-                addzero_software_catalog::SoftwareCatalogError::Message(
+                az_software_catalog::SoftwareCatalogError::Message(
                     "software catalog backend unavailable".to_string(),
                 )
             })?;
@@ -126,7 +126,7 @@ impl SoftwareCatalogApi for EmbeddedSoftwareCatalogApi {
         Box::pin(async move {
             let backend = crate::server::services().await;
             let service = backend.software_catalog.as_ref().ok_or_else(|| {
-                addzero_software_catalog::SoftwareCatalogError::Message(
+                az_software_catalog::SoftwareCatalogError::Message(
                     "software catalog backend unavailable".to_string(),
                 )
             })?;
@@ -138,7 +138,7 @@ impl SoftwareCatalogApi for EmbeddedSoftwareCatalogApi {
         Box::pin(async move {
             let backend = crate::server::services().await;
             let service = backend.software_catalog.as_ref().ok_or_else(|| {
-                addzero_software_catalog::SoftwareCatalogError::Message(
+                az_software_catalog::SoftwareCatalogError::Message(
                     "software catalog backend unavailable".to_string(),
                 )
             })?;
@@ -153,7 +153,7 @@ impl SoftwareCatalogApi for EmbeddedSoftwareCatalogApi {
         Box::pin(async move {
             let backend = crate::server::services().await;
             let service = backend.software_catalog.as_ref().ok_or_else(|| {
-                addzero_software_catalog::SoftwareCatalogError::Message(
+                az_software_catalog::SoftwareCatalogError::Message(
                     "software catalog backend unavailable".to_string(),
                 )
             })?;
@@ -168,7 +168,7 @@ impl SoftwareCatalogApi for EmbeddedSoftwareCatalogApi {
         Box::pin(async move {
             let backend = crate::server::services().await;
             let service = backend.software_catalog.as_ref().ok_or_else(|| {
-                addzero_software_catalog::SoftwareCatalogError::Message(
+                az_software_catalog::SoftwareCatalogError::Message(
                     "software catalog backend unavailable".to_string(),
                 )
             })?;

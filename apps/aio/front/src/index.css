@@ -1,4 +1,4 @@
-@import "@addzero/ui/styles/index.css";
+@import "@az/ui/styles/index.css";
 
 @source "../../../../packages/ui/src";
 @source "../../../../packages/admin-shell/src";

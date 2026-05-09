@@ -40,13 +40,13 @@ importers:
 
   apps/aio/front:
     dependencies:
-      '@addzero/admin-shell':
+      '@az/admin-shell':
         specifier: workspace:*
         version: link:../../../packages/admin-shell
-      '@addzero/api-client':
+      '@az/api-client':
         specifier: workspace:*
         version: link:../../../packages/api-client
-      '@addzero/ui':
+      '@az/ui':
         specifier: workspace:*
         version: link:../../../packages/ui
       '@mdxeditor/editor':
@@ -101,7 +101,7 @@ importers:
 
   packages/admin-shell:
     dependencies:
-      '@addzero/ui':
+      '@az/ui':
         specifier: workspace:*
         version: link:../ui
       lucide-react:
@@ -115,7 +115,7 @@ importers:
 
   packages/remote-ui:
     dependencies:
-      '@addzero/ui':
+      '@az/ui':
         specifier: workspace:*
         version: link:../ui
       lucide-react:

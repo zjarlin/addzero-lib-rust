@@ -18,7 +18,7 @@
     "frameWidth": 1220,
     "frameHeight": 720,
     "layout": "topbar main context axis + left side context tree + edge-to-edge content workspace",
-    "componentStyle": "React + source-owned shadcn/ui primitives in @addzero/ui",
+    "componentStyle": "React + source-owned shadcn/ui primitives in @az/ui",
     "tableModel": "TanStack Table column defs + global filter + sorting + pagination + row actions"
   },
   "tokens": {
@@ -261,7 +261,7 @@
       "docs/prototypes/aio-admin-prototype-handoff.json"
     ],
     "validatedCommands": [
-      "pnpm --filter @addzero/aio-front lint"
+      "pnpm --filter @az/aio-front lint"
     ]
   },
   "figmaMcpStatus": {

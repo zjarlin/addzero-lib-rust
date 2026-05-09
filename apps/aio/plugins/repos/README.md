@@ -1,4 +1,4 @@
-Place independent `addzero-plugin-*` repositories here.
+Place independent `az-plugin-*` repositories here.
 
 Recommended model:
 

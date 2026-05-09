@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use addzero_cli_market_contract::{
+use az_cli_market_contract::{
     CliDocRef, CliEntryKind, CliImportFormat, CliImportMode, CliInstallMethod, CliInstallerKind,
     CliLocale, CliLocaleText, CliMarketCatalog, CliMarketEntry, CliMarketEntryUpsert,
     CliMarketExportArtifact, CliMarketExportRequest, CliMarketImportJob, CliMarketImportJobDetail,

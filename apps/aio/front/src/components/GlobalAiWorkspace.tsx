@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Route, Send, Sparkles, Trash2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getApiBaseUrl } from "@addzero/api-client";
+import { getApiBaseUrl } from "@az/api-client";
 import {
     Badge,
     Button,
@@ -18,7 +18,7 @@ import {
     SheetTitle,
     SheetTrigger,
     Textarea,
-} from "@addzero/ui";
+} from "@az/ui";
 import {
     AI_WORKSPACE_PANEL_EVENT,
     AI_WORKSPACE_SEED_EVENT,

@@ -4,11 +4,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use addzero_plugin_contract::{
+use az_plugin_contract::{
     MarketplaceSnapshot, PluginKind, ResolvedPage, RuntimeOverview, ShellSnapshot,
 };
-use addzero_plugin_kernel::PlatformKernel;
-use addzero_plugin_runtime::{read_manifest_from_package, validate_package};
+use az_plugin_kernel::PlatformKernel;
+use az_plugin_runtime::{read_manifest_from_package, validate_package};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -51,7 +51,7 @@ pub struct WasmPluginInstallResultDto {
 }
 
 static PLATFORM_KERNEL: Lazy<Result<Arc<PlatformKernel>, String>> = Lazy::new(|| {
-    addzero_system_starters::link_all();
+    az_system_starters::link_all();
     PlatformKernel::new(default_catalog_dir(), default_package_root())
         .map(Arc::new)
         .map_err(|err| format!("init wasm plugin kernel: {err}"))
@@ -92,7 +92,7 @@ pub async fn install_catalog_wasm_plugin_on_server(
 
     let plugin_name = current.name.clone();
     let version = current.version.clone();
-    if current.status != addzero_plugin_contract::PluginStatus::Installed {
+    if current.status != az_plugin_contract::PluginStatus::Installed {
         kernel
             .install_catalog_plugin(&input.plugin_id)
             .map_err(|err| format!("install catalog plugin `{}`: {err}", input.plugin_id))?;

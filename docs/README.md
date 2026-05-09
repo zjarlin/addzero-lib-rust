@@ -10,7 +10,7 @@
 - 根目录 `README.md`
 - `crates/**/README.md`
 
-这意味着这次新增在 `addzero-creates` README 里的网易云音乐、Suno、天眼查、华为云签名版用法，会直接进入小鳄鱼生成站点。
+这意味着这次新增在 `az-creates` README 里的网易云音乐、Suno、天眼查、华为云签名版用法，会直接进入小鳄鱼生成站点。
 
 默认不会收录：
 
@@ -20,7 +20,7 @@
 
 ## 在当前仓库生成文档站
 
-截至 2026-04-21，npm 上实际已发布的包名是 `xiaoeyu`，不是 `@addzero/xiaoeyu`。
+截至 2026-04-21，npm 上实际已发布的包名是 `xiaoeyu`，不是 `@az/xiaoeyu`。
 
 如果你要用当前 npm 已发布版本：
 
@@ -55,7 +55,7 @@ npm run build --prefix docs
 - `!` 开头表示重新放行
 - 后写的规则覆盖前写的规则
 
-## 如果你后面要把它改成 `@addzero/xiaoeyu`
+## 如果你后面要把它改成 `@az/xiaoeyu`
 
 你现在 `addzero-lib-jvm/xiaoeyu/package.json` 里最直接的阻塞是：
 
@@ -69,7 +69,7 @@ npm run build --prefix docs
 
 ```json
 {
-  "name": "@addzero/xiaoeyu",
+  "name": "@az/xiaoeyu",
   "version": "0.1.0",
   "description": "Generate repository documentation sites from README files.",
   "type": "module",
@@ -94,12 +94,12 @@ npm run build --prefix docs
 
 下面这套流程按 npm 官方文档整理，适合发布 scoped public package：
 
-1. 先确认包名和 scope 可用，例如 `@addzero/xiaoeyu`
+1. 先确认包名和 scope 可用，例如 `@az/xiaoeyu`
 2. 去掉 `private: true`
 3. 执行 `npm pack --dry-run`，先看最终会发哪些文件
 4. 执行 `npm login`
 5. 执行 `npm publish --access public`
-6. 发布后访问 `https://www.npmjs.com/package/@addzero/xiaoeyu` 检查页面
+6. 发布后访问 `https://www.npmjs.com/package/@az/xiaoeyu` 检查页面
 
 官方文档：
 
@@ -108,7 +108,7 @@ npm run build --prefix docs
 
 ## 更稳的做法
 
-如果你后面准备长期维护 `@addzero/xiaoeyu`，建议尽快切到 npm 的 trusted publishing：
+如果你后面准备长期维护 `@az/xiaoeyu`，建议尽快切到 npm 的 trusted publishing：
 
 - 在 GitHub Actions 里用 OIDC 发布
 - 不再长期保存 npm automation token

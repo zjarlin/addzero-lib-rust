@@ -12,8 +12,8 @@
   },
   "aliases": {
     "components": "@/components",
-    "utils": "@addzero/ui/lib/utils",
-    "ui": "@addzero/ui/components"
+    "utils": "@az/ui/lib/utils",
+    "ui": "@az/ui/components"
   },
   "iconLibrary": "lucide"
 }

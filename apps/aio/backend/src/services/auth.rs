@@ -3,7 +3,7 @@ use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::RefCell;
 
-use addzero_agent_runtime_contract::{LoginRequest, SessionUser};
+use az_agent_runtime_contract::{LoginRequest, SessionUser};
 use thiserror::Error;
 
 use super::skills::LocalBoxFuture;

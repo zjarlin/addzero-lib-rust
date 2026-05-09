@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Loader2, Lock, User } from "lucide-react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@addzero/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@az/ui";
 import { useAuthStore } from "../stores/auth";
 
 export default function LoginPage() {

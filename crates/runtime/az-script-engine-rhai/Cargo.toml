@@ -1,0 +1,17 @@
+[package]
+name = "az-script-engine-rhai"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+az-sandbox = { path = "../../core/az-sandbox" }
+az-script-engine = { path = "../az-script-engine" }
+rhai = { version = "1", features = ["sync", "serde"] }
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

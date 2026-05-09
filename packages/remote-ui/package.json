@@ -1,5 +1,5 @@
 {
-  "name": "@addzero/remote-ui",
+  "name": "@az/remote-ui",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -21,7 +21,7 @@
     "react": "^19.2.5"
   },
   "dependencies": {
-    "@addzero/ui": "workspace:*",
+    "@az/ui": "workspace:*",
     "lucide-react": "^0.553.0",
     "react": "^19.2.5"
   }

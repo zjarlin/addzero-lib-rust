@@ -78,8 +78,8 @@ import {
     TabsList,
     TabsTrigger,
     cn,
-} from "@addzero/ui";
-import { getApiBaseUrl, type KnowledgeNoteDto } from "@addzero/api-client";
+} from "@az/ui";
+import { getApiBaseUrl, type KnowledgeNoteDto } from "@az/api-client";
 
 type AssetModuleId =
     | "notes"

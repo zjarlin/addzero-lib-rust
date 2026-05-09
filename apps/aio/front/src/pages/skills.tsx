@@ -11,7 +11,7 @@ import {
     Search,
     Trash2,
 } from "lucide-react";
-import { getApiBaseUrl } from "@addzero/api-client";
+import { getApiBaseUrl } from "@az/api-client";
 import {
     Badge,
     Button,
@@ -19,7 +19,7 @@ import {
     ScrollArea,
     Textarea,
     cn,
-} from "@addzero/ui";
+} from "@az/ui";
 
 interface Skill {
     name: string;

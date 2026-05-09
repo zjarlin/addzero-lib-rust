@@ -12,7 +12,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
     cn,
-} from "@addzero/ui";
+} from "@az/ui";
 
 import type {
     AdminProvider,

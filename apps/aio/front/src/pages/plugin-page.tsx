@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getApiBaseUrl } from "@addzero/api-client";
-import { Badge } from "@addzero/ui";
+import { getApiBaseUrl } from "@az/api-client";
+import { Badge } from "@az/ui";
 import {
     fetchInstanceWasmPluginPage,
     fetchSystemWasmPluginPage,

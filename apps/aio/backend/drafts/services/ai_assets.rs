@@ -506,7 +506,7 @@ pub async fn list_model_providers_on_server() -> anyhow::Result<Vec<AiModelProvi
                 .unwrap_or_else(|| AiModelProviderDto {
                     provider,
                     label: provider.label().to_string(),
-                    default_model: addzero_ai_agent::default_model_for(provider.into()).to_string(),
+                    default_model: az_ai_agent::default_model_for(provider.into()).to_string(),
                     enabled: false,
                     api_key_configured: false,
                     updated_at: None,
@@ -580,7 +580,7 @@ pub async fn delete_prompt_button_on_server(id: String) -> anyhow::Result<()> {
 pub async fn capture_ai_asset_on_server(
     input: AiCaptureRequestDto,
 ) -> anyhow::Result<AiCaptureResponseDto> {
-    use addzero_assets::{AssetEdgeUpsert, AssetKind, AssetUpsert};
+    use az_assets::{AssetEdgeUpsert, AssetKind, AssetUpsert};
 
     let raw_content = input.raw_content.trim().to_string();
     if raw_content.is_empty() {
@@ -601,7 +601,7 @@ pub async fn capture_ai_asset_on_server(
         })
         .await?;
 
-    let target_kind = addzero_assets::AssetKind::from(input.target_kind);
+    let target_kind = az_assets::AssetKind::from(input.target_kind);
     let prompt = select_prompt_for_run(input.prompt_button_id.as_deref(), target_kind).await?;
     let provider_secret = match prompt.as_ref() {
         Some(prompt) => backend.assets.provider_secret(prompt.provider).await?,
@@ -681,8 +681,8 @@ pub async fn capture_ai_asset_on_server(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn mirror_skill_asset_on_server(skill: &addzero_skills::Skill) -> anyhow::Result<()> {
-    use addzero_assets::{AssetKind, AssetUpsert};
+pub async fn mirror_skill_asset_on_server(skill: &az_skills::Skill) -> anyhow::Result<()> {
+    use az_assets::{AssetKind, AssetUpsert};
 
     let backend = crate::server::services().await;
     let existing_id = backend
@@ -721,7 +721,7 @@ pub async fn mirror_skill_asset_on_server(skill: &addzero_skills::Skill) -> anyh
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn delete_skill_asset_on_server(name: &str) -> anyhow::Result<()> {
-    use addzero_assets::AssetKind;
+    use az_assets::AssetKind;
 
     let backend = crate::server::services().await;
     let ids = backend
@@ -747,8 +747,8 @@ pub async fn delete_skill_asset_on_server(name: &str) -> anyhow::Result<()> {
 #[cfg(not(target_arch = "wasm32"))]
 async fn select_prompt_for_run(
     prompt_button_id: Option<&str>,
-    target_kind: addzero_assets::AssetKind,
-) -> anyhow::Result<Option<addzero_assets::AiPromptButton>> {
+    target_kind: az_assets::AssetKind,
+) -> anyhow::Result<Option<az_assets::AiPromptButton>> {
     let backend = crate::server::services().await;
     let prompts = backend.assets.list_prompt_buttons().await?;
     if let Some(id) = prompt_button_id {
@@ -771,7 +771,7 @@ async fn select_prompt_for_run(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn mirror_generated_asset_to_legacy_graph(asset: &addzero_assets::Asset) {
+async fn mirror_generated_asset_to_legacy_graph(asset: &az_assets::Asset) {
     let Some(kind) = legacy_graph_kind(asset.kind) else {
         return;
     };
@@ -799,12 +799,12 @@ async fn mirror_generated_asset_to_legacy_graph(asset: &addzero_assets::Asset) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn legacy_graph_kind(kind: addzero_assets::AssetKind) -> Option<crate::services::AssetKindDto> {
+fn legacy_graph_kind(kind: az_assets::AssetKind) -> Option<crate::services::AssetKindDto> {
     match kind {
-        addzero_assets::AssetKind::Note => Some(crate::services::AssetKindDto::Note),
-        addzero_assets::AssetKind::Software => Some(crate::services::AssetKindDto::Software),
-        addzero_assets::AssetKind::Package => Some(crate::services::AssetKindDto::Package),
-        addzero_assets::AssetKind::Capture | addzero_assets::AssetKind::Skill => None,
+        az_assets::AssetKind::Note => Some(crate::services::AssetKindDto::Note),
+        az_assets::AssetKind::Software => Some(crate::services::AssetKindDto::Software),
+        az_assets::AssetKind::Package => Some(crate::services::AssetKindDto::Package),
+        az_assets::AssetKind::Capture | az_assets::AssetKind::Skill => None,
     }
 }
 
@@ -814,16 +814,16 @@ fn default_prompt_button_id() -> uuid::Uuid {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn default_prompt_button() -> addzero_assets::AiPromptButton {
-    addzero_assets::AiPromptButton {
+fn default_prompt_button() -> az_assets::AiPromptButton {
+    az_assets::AiPromptButton {
         id: default_prompt_button_id(),
         label: "归纳为笔记".to_string(),
-        target_kind: addzero_assets::AssetKind::Note,
+        target_kind: az_assets::AssetKind::Note,
         prompt_template:
             "把用户连续输入的采集内容归纳成结构化笔记，自动生成标题、标签、正文摘要和知识图谱关系。"
                 .to_string(),
-        provider: addzero_assets::AiProviderKind::OpenAi,
-        model: addzero_ai_agent::default_model_for(addzero_assets::AiProviderKind::OpenAi)
+        provider: az_assets::AiProviderKind::OpenAi,
+        model: az_ai_agent::default_model_for(az_assets::AiProviderKind::OpenAi)
             .to_string(),
         enabled: true,
         updated_at: chrono::Utc::now(),
@@ -848,7 +848,7 @@ fn parse_uuid(id: &str) -> anyhow::Result<uuid::Uuid> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<AiAssetKindDto> for addzero_assets::AssetKind {
+impl From<AiAssetKindDto> for az_assets::AssetKind {
     fn from(value: AiAssetKindDto) -> Self {
         match value {
             AiAssetKindDto::Capture => Self::Capture,
@@ -861,20 +861,20 @@ impl From<AiAssetKindDto> for addzero_assets::AssetKind {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<addzero_assets::AssetKind> for AiAssetKindDto {
-    fn from(value: addzero_assets::AssetKind) -> Self {
+impl From<az_assets::AssetKind> for AiAssetKindDto {
+    fn from(value: az_assets::AssetKind) -> Self {
         match value {
-            addzero_assets::AssetKind::Capture => Self::Capture,
-            addzero_assets::AssetKind::Note => Self::Note,
-            addzero_assets::AssetKind::Skill => Self::Skill,
-            addzero_assets::AssetKind::Software => Self::Software,
-            addzero_assets::AssetKind::Package => Self::Package,
+            az_assets::AssetKind::Capture => Self::Capture,
+            az_assets::AssetKind::Note => Self::Note,
+            az_assets::AssetKind::Skill => Self::Skill,
+            az_assets::AssetKind::Software => Self::Software,
+            az_assets::AssetKind::Package => Self::Package,
         }
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<AiProviderKindDto> for addzero_assets::AiProviderKind {
+impl From<AiProviderKindDto> for az_assets::AiProviderKind {
     fn from(value: AiProviderKindDto) -> Self {
         match value {
             AiProviderKindDto::OpenAi => Self::OpenAi,
@@ -885,19 +885,19 @@ impl From<AiProviderKindDto> for addzero_assets::AiProviderKind {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<addzero_assets::AiProviderKind> for AiProviderKindDto {
-    fn from(value: addzero_assets::AiProviderKind) -> Self {
+impl From<az_assets::AiProviderKind> for AiProviderKindDto {
+    fn from(value: az_assets::AiProviderKind) -> Self {
         match value {
-            addzero_assets::AiProviderKind::OpenAi => Self::OpenAi,
-            addzero_assets::AiProviderKind::Anthropic => Self::Anthropic,
-            addzero_assets::AiProviderKind::Gemini => Self::Gemini,
+            az_assets::AiProviderKind::OpenAi => Self::OpenAi,
+            az_assets::AiProviderKind::Anthropic => Self::Anthropic,
+            az_assets::AiProviderKind::Gemini => Self::Gemini,
         }
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<addzero_assets::Asset> for AiAssetDto {
-    fn from(value: addzero_assets::Asset) -> Self {
+impl From<az_assets::Asset> for AiAssetDto {
+    fn from(value: az_assets::Asset) -> Self {
         Self {
             id: value.id.to_string(),
             kind: value.kind.into(),
@@ -914,7 +914,7 @@ impl From<addzero_assets::Asset> for AiAssetDto {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl TryFrom<AiAssetUpsertDto> for addzero_assets::AssetUpsert {
+impl TryFrom<AiAssetUpsertDto> for az_assets::AssetUpsert {
     type Error = anyhow::Error;
 
     fn try_from(value: AiAssetUpsertDto) -> Result<Self, Self::Error> {
@@ -935,8 +935,8 @@ impl TryFrom<AiAssetUpsertDto> for addzero_assets::AssetUpsert {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<addzero_assets::AiModelProvider> for AiModelProviderDto {
-    fn from(value: addzero_assets::AiModelProvider) -> Self {
+impl From<az_assets::AiModelProvider> for AiModelProviderDto {
+    fn from(value: az_assets::AiModelProvider) -> Self {
         let provider = AiProviderKindDto::from(value.provider);
         Self {
             provider,
@@ -950,7 +950,7 @@ impl From<addzero_assets::AiModelProvider> for AiModelProviderDto {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<AiModelProviderUpsertDto> for addzero_assets::AiModelProviderUpsert {
+impl From<AiModelProviderUpsertDto> for az_assets::AiModelProviderUpsert {
     fn from(value: AiModelProviderUpsertDto) -> Self {
         Self {
             provider: value.provider.into(),
@@ -962,8 +962,8 @@ impl From<AiModelProviderUpsertDto> for addzero_assets::AiModelProviderUpsert {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<addzero_assets::AiPromptButton> for AiPromptButtonDto {
-    fn from(value: addzero_assets::AiPromptButton) -> Self {
+impl From<az_assets::AiPromptButton> for AiPromptButtonDto {
+    fn from(value: az_assets::AiPromptButton) -> Self {
         Self {
             id: value.id.to_string(),
             label: value.label,
@@ -978,7 +978,7 @@ impl From<addzero_assets::AiPromptButton> for AiPromptButtonDto {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl TryFrom<AiPromptButtonUpsertDto> for addzero_assets::AiPromptButtonUpsert {
+impl TryFrom<AiPromptButtonUpsertDto> for az_assets::AiPromptButtonUpsert {
     type Error = anyhow::Error;
 
     fn try_from(value: AiPromptButtonUpsertDto) -> Result<Self, Self::Error> {
@@ -995,8 +995,8 @@ impl TryFrom<AiPromptButtonUpsertDto> for addzero_assets::AiPromptButtonUpsert {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<addzero_assets::SuggestedEdge> for SuggestedEdgeDto {
-    fn from(value: addzero_assets::SuggestedEdge) -> Self {
+impl From<az_assets::SuggestedEdge> for SuggestedEdgeDto {
+    fn from(value: az_assets::SuggestedEdge) -> Self {
         Self {
             target_title: value.target_title,
             relation: value.relation,

@@ -1,0 +1,237 @@
+default_instance_label = "产线协议转换网关"
+
+[descriptor]
+id = "industrial-protocol-gateway"
+name = "工业协议转换网关"
+version = "0.1.0"
+kind = "Business"
+summary = "统一编排 Modbus RTU/TCP、OPC UA、MQTT 与 HTTP JSON 的协议转换、路由和边缘数据上送。"
+tags = ["industrial", "gateway", "modbus", "opc-ua", "mqtt"]
+icon = "router"
+compatibility = ["web", "desktop"]
+capabilities = ["Http", "Db", "Kv", "Log"]
+
+[[descriptor.menus]]
+section = "业务应用"
+label = "协议网关"
+page_id = "overview"
+order = 20
+icon = "router"
+
+[[descriptor.menus]]
+section = "业务应用"
+label = "转换路由"
+page_id = "routes"
+order = 21
+icon = "route"
+
+[[descriptor.pages]]
+id = "overview"
+title = "网关总览"
+subtitle = "面向产线设备、SCADA、MES 与云端的边缘协议转换控制台。"
+
+[descriptor.pages.schema]
+kind = "board"
+
+[[descriptor.pages.schema.metrics]]
+label = "已声明端点"
+value = "5"
+detail = "Modbus RTU、Modbus TCP、OPC UA、MQTT、HTTP JSON"
+
+[[descriptor.pages.schema.metrics]]
+label = "转换路由"
+value = "3"
+detail = "生产计数、能耗采集、质量事件三条默认通路"
+
+[[descriptor.pages.schema.metrics]]
+label = "运行边界"
+value = "WASM"
+detail = "以 .azplugin 方式安装，不向主程序硬编码业务页面"
+
+[[descriptor.pages.schema.groups]]
+title = "核心职责"
+
+[[descriptor.pages.schema.groups.items]]
+title = "南向采集"
+detail = "从 PLC 串口总线、Modbus TCP 仪表和 OPC UA 监控节点读取现场状态。"
+meta = "source"
+
+[[descriptor.pages.schema.groups.items]]
+title = "语义映射"
+detail = "把寄存器区间、节点路径和事件字段转换为稳定的业务字段名。"
+meta = "mapping"
+
+[[descriptor.pages.schema.groups.items]]
+title = "北向分发"
+detail = "按路由把标准化数据发布到 MQTT broker、OPC UA 服务器或 MES HTTP API。"
+meta = "sink"
+
+[[descriptor.pages.schema.groups]]
+title = "落地原则"
+
+[[descriptor.pages.schema.groups.items]]
+title = "库优先"
+detail = "串口与 Modbus 的底层能力应继续沉淀到 az-serial、az-mqtt 或后续 az-modbus 类库，插件层只保留业务编排。"
+meta = "boundary"
+
+[[descriptor.pages.schema.groups.items]]
+title = "可追溯"
+detail = "每条转换路由都需要显式 source、target、mapping 与采样周期，避免把协议细节散落在页面代码中。"
+meta = "traceability"
+
+[[descriptor.pages]]
+id = "routes"
+title = "转换路由"
+subtitle = "默认路由表展示数据从现场协议进入业务系统的转换关系。"
+
+[descriptor.pages.schema]
+kind = "table"
+columns = ["路由", "源端点", "目标端点", "映射", "周期"]
+empty_message = "尚未声明转换路由。"
+
+[[descriptor.pages.schema.rows]]
+cells = ["PLC 生产计数 -> MQTT", "rtu-line-a / Modbus RTU", "mqtt-edge / MQTT", "holding[40001..40012] -> site/aio/line-a/production", "1000ms"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["能耗仪表 -> OPC UA", "tcp-energy / Modbus TCP", "opc-supervisor / OPC UA", "input[30001..30016] -> ns=2;s=Energy.LineA", "2000ms"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["质量事件 -> MES", "opc-supervisor / OPC UA", "mes-http / HTTP JSON", "ns=2;s=Quality.Events -> /api/ingest/quality", "5000ms"]
+
+[[descriptor.pages]]
+id = "topology"
+title = "协议拓扑"
+subtitle = "按协议端点和转换关系查看网关的二维上下文。"
+
+[descriptor.pages.schema]
+kind = "graph"
+
+[[descriptor.pages.schema.nodes]]
+id = "rtu-line-a"
+label = "Line A PLC serial bus"
+category = "Modbus RTU"
+description = "COM3 9600-8-N-1 unit=1"
+details = "生产计数、运行状态与报警位。"
+
+[[descriptor.pages.schema.nodes]]
+id = "tcp-energy"
+label = "Energy meter Modbus TCP"
+category = "Modbus TCP"
+description = "10.10.8.21:502 unit=2"
+details = "电压、电流、功率与用电量寄存器。"
+
+[[descriptor.pages.schema.nodes]]
+id = "opc-supervisor"
+label = "Plant supervisor OPC UA"
+category = "OPC UA"
+description = "opc.tcp://scada.local:4840"
+details = "SCADA 监管数据与质量事件节点。"
+
+[[descriptor.pages.schema.nodes]]
+id = "mqtt-edge"
+label = "Edge telemetry broker"
+category = "MQTT"
+description = "mqtts://broker.local:8883/site/aio"
+details = "边缘遥测主题树。"
+
+[[descriptor.pages.schema.nodes]]
+id = "mes-http"
+label = "MES HTTP adapter"
+category = "HTTP JSON"
+description = "https://mes.local/api/ingest"
+details = "MES 事件写入接口。"
+
+[[descriptor.pages.schema.edges]]
+source = "rtu-line-a"
+target = "mqtt-edge"
+kind = "conversion"
+label = "production counters"
+
+[[descriptor.pages.schema.edges]]
+source = "tcp-energy"
+target = "opc-supervisor"
+kind = "conversion"
+label = "energy registers"
+
+[[descriptor.pages.schema.edges]]
+source = "opc-supervisor"
+target = "mes-http"
+kind = "conversion"
+label = "quality events"
+
+[[descriptor.pages]]
+id = "endpoint-policy"
+title = "接入边界"
+subtitle = "端点权限、协议责任和后续持久化边界。"
+
+[descriptor.pages.schema]
+kind = "detail"
+summary = "该插件先提供可安装的业务网关壳与路由模型；真实串口、Modbus、OPC UA 驱动应继续通过共享网络/协议 crate 接入，避免在插件页面内手写字节帧。"
+
+[[descriptor.pages.schema.fields]]
+label = "正式持久化"
+value = "PostgreSQL，用于保存端点、路由、映射版本和审计记录。"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "南向协议"
+value = "Modbus RTU、Modbus TCP、OPC UA。"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "北向协议"
+value = "MQTT、OPC UA、HTTP JSON。"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "宿主能力"
+value = "Http、Db、Kv、Log。"
+readonly = true
+
+[[descriptor.pages.schema.timeline]]
+title = "插件包"
+detail = "按 AIO .azplugin 规范提供 plugin.toml、backend/plugin.wasm 与 checksums.sha256。"
+meta = "0.1.0"
+
+[[descriptor.pages.schema.timeline]]
+title = "路由模型"
+detail = "源码内保留 GatewayProfile、Endpoint、ConversionRoute，并用单元测试验证默认路由端点可解析。"
+meta = "domain"
+
+[[descriptor.pages.schema.timeline]]
+title = "下一步"
+detail = "当宿主开放插件操作 API 后，把路由 CRUD、实时状态和协议驱动绑定到共享 crate。"
+meta = "runtime"
+
+[[descriptor.pages]]
+id = "runtime-config"
+title = "运行配置"
+subtitle = "默认实例的只读配置说明。"
+
+[descriptor.pages.schema]
+kind = "form"
+
+[[descriptor.pages.schema.fields]]
+label = "实例名称"
+value = "产线协议转换网关"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "最小采样周期"
+value = "50ms"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "默认 MQTT 主题前缀"
+value = "site/aio"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "路由版本策略"
+value = "显式版本，变更需审计"
+readonly = true
+
+[runtime]
+binary_path = "backend/plugin.wasm"
+checksum_path = "checksums.sha256"
+assets_dir = "assets"

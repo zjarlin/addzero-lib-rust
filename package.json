@@ -1,17 +1,17 @@
 {
-    "name": "addzero-frontend-workspace",
+    "name": "az-frontend-workspace",
     "private": true,
     "packageManager": "pnpm@10.26.2",
     "scripts": {
-        "build": "pnpm --filter @addzero/ui build && pnpm --filter @addzero/admin-shell build && pnpm --filter @addzero/api-client build && pnpm --filter @addzero/remote-ui build && pnpm --filter @addzero/aio-front build",
-        "build:desktop": "pnpm --filter @addzero/aio-desktop tauri build",
+        "build": "pnpm --filter @az/ui build && pnpm --filter @az/admin-shell build && pnpm --filter @az/api-client build && pnpm --filter @az/remote-ui build && pnpm --filter @az/aio-front build",
+        "build:desktop": "pnpm --filter @az/aio-desktop tauri build",
         "db:migrate:aio": "cargo run -p aio --bin aio -- migrate",
-        "dev:web": "pnpm --filter @addzero/aio-front dev",
-        "dev:aio": "pnpm run db:migrate:aio && pnpm --filter @addzero/aio-desktop tauri dev",
-        "dev:desktop": "pnpm --filter @addzero/aio-desktop tauri dev",
-        "lint": "pnpm --filter @addzero/ui lint && pnpm --filter @addzero/admin-shell lint && pnpm --filter @addzero/api-client lint && pnpm --filter @addzero/remote-ui lint && pnpm --filter @addzero/aio-front lint",
-        "test": "pnpm --filter @addzero/ui test && pnpm --filter @addzero/admin-shell test && pnpm --filter @addzero/api-client test && pnpm --filter @addzero/remote-ui test",
-        "typecheck": "pnpm --filter @addzero/ui typecheck && pnpm --filter @addzero/admin-shell typecheck && pnpm --filter @addzero/api-client typecheck && pnpm --filter @addzero/remote-ui typecheck && pnpm --filter @addzero/aio-front lint"
+        "dev:web": "pnpm --filter @az/aio-front dev",
+        "dev:aio": "pnpm run db:migrate:aio && pnpm --filter @az/aio-desktop tauri dev",
+        "dev:desktop": "pnpm --filter @az/aio-desktop tauri dev",
+        "lint": "pnpm --filter @az/ui lint && pnpm --filter @az/admin-shell lint && pnpm --filter @az/api-client lint && pnpm --filter @az/remote-ui lint && pnpm --filter @az/aio-front lint",
+        "test": "pnpm --filter @az/ui test && pnpm --filter @az/admin-shell test && pnpm --filter @az/api-client test && pnpm --filter @az/remote-ui test",
+        "typecheck": "pnpm --filter @az/ui typecheck && pnpm --filter @az/admin-shell typecheck && pnpm --filter @az/api-client typecheck && pnpm --filter @az/remote-ui typecheck && pnpm --filter @az/aio-front lint"
     },
     "devDependencies": {
         "@types/node": "^24.10.1",

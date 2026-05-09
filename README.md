@@ -39,7 +39,7 @@
 
 - `msc-aio` 已经开始承接 admin 壳子、多模块场景与知识库可视化
 - 技能数据仍有内存实现
-- 知识库已经新增 `addzero-knowledge` 数据域 crate，可把本机候选知识目录同步进 PostgreSQL `msc_aio`
+- 知识库已经新增 `az-knowledge` 数据域 crate，可把本机候选知识目录同步进 PostgreSQL `msc_aio`
 - `msc-aio` 的知识页现在会优先从 PG 镜像生成目录，PG 不可用时才退回文件系统快照
 - PG 能力在部分底层 crate 已经存在，但还没有完全打通到 `all in pg`
 - `msc-aio` 的正式 REST + CLI 同源链路仍处于蓝图阶段，下一步需要优先收敛 contract 与数据模型
@@ -72,7 +72,7 @@
 
 ```bash
 printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/msc_aio' > .env
-cargo run -p addzero-knowledge --bin knowledge-sync
+cargo run -p az-knowledge --bin knowledge-sync
 ```
 
 如果想保留用户级回退文件，仍可写到 `~/.config/aio/aio.env`。
@@ -89,21 +89,21 @@ pnpm run dev:aio
 
 - [docs/plans/2026-04-28-msc-aio-blueprint.md](docs/plans/2026-04-28-msc-aio-blueprint.md)
 
-这次新增了 `addzero-creates`，用于把 `addzero-lib-jvm/lib/tool-jvm/network-call` 里适合公开沉淀的常见 API 收口为 Rust 创建器；同时把音乐领域能力单独抽到了 `addzero-music`。
+这次新增了 `az-creates`，用于把 `addzero-lib-jvm/lib/tool-jvm/network-call` 里适合公开沉淀的常见 API 收口为 Rust 创建器；同时把音乐领域能力单独抽到了 `az-music`。
 
 ## 当前重点模块
 
 | Crate | 说明 |
 | --- | --- |
-| `addzero-creates` | 常见 HTTP API 创建器，现已包含 Maven Central、mail.tm、网易云音乐搜索、Suno、天眼查 |
-| `addzero-music` | 独立音乐领域 crate，承载网易云搜索 / 歌词 / Suno 能力 |
-| `addzero-curl` | curl 命令解析、请求构建与响应辅助 |
-| `addzero-email` | SMTP 邮件发送与附件处理 |
-| `addzero-rustfs` | Rust S3 兼容对象存储客户端 |
-| `addzero-minio` | 基于 `addzero-rustfs` 的 MinIO 便利封装 |
-| `addzero-mqtt` | MQTT blocking 客户端与消息辅助 |
-| `addzero-ssh` | SSH 命令执行与文件传输 |
-| `addzero-excel` | 纯 Rust `.xlsx` 读写与结构处理 |
+| `az-creates` | 常见 HTTP API 创建器，现已包含 Maven Central、mail.tm、网易云音乐搜索、Suno、天眼查 |
+| `az-music` | 独立音乐领域 crate，承载网易云搜索 / 歌词 / Suno 能力 |
+| `az-curl` | curl 命令解析、请求构建与响应辅助 |
+| `az-email` | SMTP 邮件发送与附件处理 |
+| `az-rustfs` | Rust S3 兼容对象存储客户端 |
+| `az-minio` | 基于 `az-rustfs` 的 MinIO 便利封装 |
+| `az-mqtt` | MQTT blocking 客户端与消息辅助 |
+| `az-ssh` | SSH 命令执行与文件传输 |
+| `az-excel` | 纯 Rust `.xlsx` 读写与结构处理 |
 
 ## 领域目录
 
@@ -128,15 +128,15 @@ cargo test
 如果你只想验证新增的 API 创建器：
 
 ```bash
-cargo test -p addzero-creates
+cargo test -p az-creates
 ```
 
-## `addzero-creates` 用法
+## `az-creates` 用法
 
 ### 1. Maven Central
 
 ```rust
-use addzero_creates::Creates;
+use az_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::maven_central()?;
@@ -149,7 +149,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 2. 网易云音乐搜索
 
 ```rust
-use addzero_creates::Creates;
+use az_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::music_search()?;
@@ -162,7 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 3. Suno
 
 ```rust
-use addzero_creates::{Creates, SunoMusicRequest};
+use az_creates::{Creates, SunoMusicRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::suno("your-suno-token")?;
@@ -180,7 +180,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 4. 天眼查
 
 ```rust
-use addzero_creates::Creates;
+use az_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha("your-authorization", "your-x-auth-token")?;
@@ -193,7 +193,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 5. Temp Mail
 
 ```rust
-use addzero_creates::Creates;
+use az_creates::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::temp_mail()?;
@@ -207,7 +207,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use std::time::Duration;
-use addzero_creates::{ApiConfig, Creates};
+use az_creates::{ApiConfig, Creates};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ApiConfig::builder("https://search.maven.org")
@@ -223,9 +223,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-更完整的 `addzero-creates` API 和范围说明见：
+更完整的 `az-creates` API 和范围说明见：
 
-- [crates/api/addzero-creates/](crates/api/addzero-creates/)
+- [crates/api/az-creates/](crates/api/az-creates/)
 
 ## 为什么没有直接全量搬运 JVM `network-call`
 
@@ -252,7 +252,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - 根目录 `README.md`
 - `crates/**/README.md`
 
-这次新增的 `addzero-creates` 音乐、Suno、天眼查用法，也会跟着这两个 README 一起被小鳄鱼站点收录。
+这次新增的 `az-creates` 音乐、Suno、天眼查用法，也会跟着这两个 README 一起被小鳄鱼站点收录。
 
 默认不会收录：
 

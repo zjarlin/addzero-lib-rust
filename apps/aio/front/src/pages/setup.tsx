@@ -5,7 +5,7 @@ import {
     isDesktopRuntime,
     type BootstrapDatabaseSaveResultDto,
     type BootstrapStatusDto,
-} from "@addzero/api-client";
+} from "@az/api-client";
 import {
     Button,
     Card,
@@ -14,7 +14,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-} from "@addzero/ui";
+} from "@az/ui";
 
 export default function SetupPage() {
     const baseUrl = useMemo(() => getApiBaseUrl(), []);

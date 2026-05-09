@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getApiBaseUrl } from "@addzero/api-client";
+import { getApiBaseUrl } from "@az/api-client";
 
 interface AuthState {
   username: string | null;

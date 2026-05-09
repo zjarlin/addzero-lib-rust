@@ -9,7 +9,7 @@ import {
     WandSparkles,
 } from "lucide-react";
 import Editor from "@monaco-editor/react";
-import { getApiBaseUrl } from "@addzero/api-client";
+import { getApiBaseUrl } from "@az/api-client";
 import {
     Badge,
     Button,
@@ -25,7 +25,7 @@ import {
     TabsList,
     TabsTrigger,
     Textarea,
-} from "@addzero/ui";
+} from "@az/ui";
 
 interface RunResult {
     exit_code: number;

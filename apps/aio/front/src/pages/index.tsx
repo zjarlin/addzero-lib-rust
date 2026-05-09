@@ -11,7 +11,7 @@ import {
     TerminalSquare,
     Workflow,
 } from "lucide-react";
-import { getApiBaseUrl } from "@addzero/api-client";
+import { getApiBaseUrl } from "@az/api-client";
 
 type RuntimeStatus = "online" | "pending" | "offline";
 

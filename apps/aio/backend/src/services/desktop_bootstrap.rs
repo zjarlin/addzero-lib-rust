@@ -38,7 +38,7 @@ pub struct BootstrapDatabaseSaveResultDto {
 pub async fn bootstrap_status_on_server() -> Result<BootstrapStatusDto, String> {
     let config_path = local_config_path()?;
     let config_path_display = config_path.display().to_string();
-    let Some(database_url) = addzero_persistence::database_url() else {
+    let Some(database_url) = az_persistence::database_url() else {
         return Ok(BootstrapStatusDto {
             desktop_mode: true,
             setup_required: true,
@@ -173,8 +173,7 @@ fn write_local_database_url(database_url: &str) -> Result<PathBuf, String> {
 }
 
 fn local_config_path() -> Result<PathBuf, String> {
-    addzero_persistence::local_env_path()
-        .ok_or_else(|| "无法定位 ~/.config/aio/aio.env".to_string())
+    az_persistence::local_env_path().ok_or_else(|| "无法定位 ~/.config/aio/aio.env".to_string())
 }
 
 fn local_sqlite_database_path() -> Result<PathBuf, String> {

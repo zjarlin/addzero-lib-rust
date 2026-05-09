@@ -113,7 +113,7 @@ pub async fn upsert_provider_config_on_server(
     let backend = crate::server::services().await;
     let provider = backend
         .assets
-        .upsert_provider(addzero_assets::AiModelProviderUpsert {
+        .upsert_provider(az_assets::AiModelProviderUpsert {
             provider: input.provider.into(),
             base_url: normalized_base_url,
             default_model: normalized_model,
@@ -248,7 +248,7 @@ where
 
 async fn send_openai_compatible_chat(
     provider: AiProviderKindDto,
-    secret: addzero_assets::AssetProviderSecret,
+    secret: az_assets::AssetProviderSecret,
     messages: Vec<Message>,
 ) -> Result<ChatResponseDto, String> {
     #[derive(Serialize)]
@@ -423,14 +423,14 @@ fn default_provider_config(provider: AiProviderKindDto) -> AiProviderConfigDto {
         provider,
         label: provider.label().to_string(),
         base_url: None,
-        default_model: addzero_ai_agent::default_model_for(provider.into()).to_string(),
+        default_model: az_ai_agent::default_model_for(provider.into()).to_string(),
         enabled: false,
         api_key_configured: false,
         updated_at: None,
     }
 }
 
-impl From<AiProviderKindDto> for addzero_assets::AiProviderKind {
+impl From<AiProviderKindDto> for az_assets::AiProviderKind {
     fn from(value: AiProviderKindDto) -> Self {
         match value {
             AiProviderKindDto::OpenAi => Self::OpenAi,
@@ -440,18 +440,18 @@ impl From<AiProviderKindDto> for addzero_assets::AiProviderKind {
     }
 }
 
-impl From<addzero_assets::AiProviderKind> for AiProviderKindDto {
-    fn from(value: addzero_assets::AiProviderKind) -> Self {
+impl From<az_assets::AiProviderKind> for AiProviderKindDto {
+    fn from(value: az_assets::AiProviderKind) -> Self {
         match value {
-            addzero_assets::AiProviderKind::OpenAi => Self::OpenAi,
-            addzero_assets::AiProviderKind::Anthropic => Self::Anthropic,
-            addzero_assets::AiProviderKind::Gemini => Self::Gemini,
+            az_assets::AiProviderKind::OpenAi => Self::OpenAi,
+            az_assets::AiProviderKind::Anthropic => Self::Anthropic,
+            az_assets::AiProviderKind::Gemini => Self::Gemini,
         }
     }
 }
 
-impl From<addzero_assets::AiModelProvider> for AiProviderConfigDto {
-    fn from(value: addzero_assets::AiModelProvider) -> Self {
+impl From<az_assets::AiModelProvider> for AiProviderConfigDto {
+    fn from(value: az_assets::AiModelProvider) -> Self {
         let provider = AiProviderKindDto::from(value.provider);
         Self {
             provider,

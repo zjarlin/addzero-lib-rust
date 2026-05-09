@@ -1,5 +1,5 @@
 {
-    "name": "@addzero/aio-front",
+    "name": "@az/aio-front",
     "private": true,
     "version": "0.1.0",
     "type": "module",
@@ -10,9 +10,9 @@
         "lint": "tsc -b --noEmit"
     },
     "dependencies": {
-        "@addzero/admin-shell": "workspace:*",
-        "@addzero/api-client": "workspace:*",
-        "@addzero/ui": "workspace:*",
+        "@az/admin-shell": "workspace:*",
+        "@az/api-client": "workspace:*",
+        "@az/ui": "workspace:*",
         "@mdxeditor/editor": "^3.55.0",
         "@monaco-editor/react": "^4.7.0",
         "@tanstack/react-table": "^8.21.3",

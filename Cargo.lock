@@ -26,739 +26,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "addzero-admin-plugin-registry"
-version = "0.1.0"
-dependencies = [
- "inventory",
-]
-
-[[package]]
-name = "addzero-agent-runtime-contract"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "uuid",
-]
-
-[[package]]
-name = "addzero-ai-agent"
-version = "0.1.0"
-dependencies = [
- "addzero-assets",
- "anyhow",
- "rig-core",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "addzero-ai-chat"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "addzero-api-translate"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "urlencoding",
-]
-
-[[package]]
-name = "addzero-area"
-version = "0.1.0"
-
-[[package]]
-name = "addzero-array"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "addzero-assets"
-version = "0.1.0"
-dependencies = [
- "addzero-persistence",
- "anyhow",
- "base64 0.22.1",
- "chrono",
- "log",
- "ring",
- "sea-orm",
- "serde",
- "serde_json",
- "sha2",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "addzero-browser-automation"
-version = "0.1.0"
-dependencies = [
- "addzero-context",
- "headless_chrome",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-cli-market-contract"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "uuid",
-]
-
-[[package]]
-name = "addzero-cli-repl"
-version = "0.1.0"
-dependencies = [
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-common"
-version = "0.1.0"
-dependencies = [
- "chrono",
-]
-
-[[package]]
-name = "addzero-context"
-version = "0.1.0"
-
-[[package]]
-name = "addzero-creates"
-version = "0.1.0"
-dependencies = [
- "addzero-music",
- "addzero-temp-mail",
- "chrono",
- "hmac",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-curl"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "regex",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "shlex",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-database-model"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-ddl-generator"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-dict-macros"
-version = "0.1.0"
-dependencies = [
- "addzero-dict-spec",
- "proc-macro2",
- "quote",
- "serde_json",
- "syn 2.0.117",
- "trybuild",
-]
-
-[[package]]
-name = "addzero-dict-spec"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-docker"
-version = "0.1.0"
-dependencies = [
- "shlex",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-email"
-version = "0.1.0"
-dependencies = [
- "lettre",
- "mime_guess",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-error"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-excel"
-version = "0.1.0"
-dependencies = [
- "quick-xml 0.38.4",
- "thiserror 2.0.18",
- "zip",
-]
-
-[[package]]
-name = "addzero-funbox"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "addzero-io"
-version = "0.1.0"
-dependencies = [
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-json"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "addzero-knowledge"
-version = "0.1.0"
-dependencies = [
- "addzero-persistence",
- "anyhow",
- "chrono",
- "deunicode",
- "dirs",
- "sea-orm",
- "serde",
- "serde_json",
- "sha2",
- "sqlx",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "addzero-log"
-version = "0.1.0"
-dependencies = [
- "log",
-]
-
-[[package]]
-name = "addzero-lowcode"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum",
- "reqwest 0.12.28",
- "rhai",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "addzero-math"
-version = "0.1.0"
-dependencies = [
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-maven"
-version = "0.1.0"
-dependencies = [
- "addzero-music",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-minio"
-version = "0.1.0"
-dependencies = [
- "addzero-rustfs",
- "base64 0.22.1",
- "ring",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-model"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "addzero-mqtt"
-version = "0.1.0"
-dependencies = [
- "rumqttc",
- "rustls",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-music"
-version = "0.1.0"
-dependencies = [
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-persistence"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "sea-orm",
- "sea-orm-migration",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "addzero-pinyin"
-version = "0.1.0"
-dependencies = [
- "pinyin",
- "regex",
-]
-
-[[package]]
-name = "addzero-plugin-contract"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
-]
-
-[[package]]
-name = "addzero-plugin-kernel"
-version = "0.1.0"
-dependencies = [
- "addzero-plugin-contract",
- "addzero-plugin-registry",
- "addzero-plugin-runtime",
- "shaku",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-plugin-macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "addzero-plugin-registry"
-version = "0.1.0"
-dependencies = [
- "addzero-plugin-contract",
- "inventory",
-]
-
-[[package]]
-name = "addzero-plugin-runtime"
-version = "0.1.0"
-dependencies = [
- "addzero-plugin-contract",
- "chrono",
- "serde",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "toml_edit 0.22.27",
- "uuid",
- "zip",
-]
-
-[[package]]
-name = "addzero-reflection"
-version = "0.1.0"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-regex"
-version = "0.1.0"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "addzero-remote-host"
-version = "0.1.0"
-dependencies = [
- "addzero-remote-model",
- "chrono",
- "thiserror 2.0.18",
- "uuid",
-]
-
-[[package]]
-name = "addzero-remote-model"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "uuid",
-]
-
-[[package]]
-name = "addzero-remote-protocol"
-version = "0.1.0"
-dependencies = [
- "addzero-remote-model",
- "chrono",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "uuid",
-]
-
-[[package]]
-name = "addzero-remote-session"
-version = "0.1.0"
-dependencies = [
- "addzero-remote-model",
- "addzero-remote-protocol",
- "chrono",
- "quinn",
- "serde",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "addzero-rustfs"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "hmac",
- "md5",
- "mime_guess",
- "quick-xml 0.38.4",
- "reqwest 0.12.28",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-sandbox"
-version = "0.1.0"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "addzero-script-engine"
-version = "0.1.0"
-dependencies = [
- "addzero-sandbox",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-script-engine-rhai"
-version = "0.1.0"
-dependencies = [
- "addzero-sandbox",
- "addzero-script-engine",
- "rhai",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-serial"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "addzero-skills"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "log",
- "regex",
- "serde",
- "serde_yaml",
- "sha2",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "addzero-software-catalog"
-version = "0.1.0"
-dependencies = [
- "addzero-persistence",
- "chrono",
- "regex",
- "reqwest 0.12.28",
- "sea-orm",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "uuid",
-]
-
-[[package]]
-name = "addzero-sql"
-version = "0.1.0"
-dependencies = [
- "serde",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-ssh"
-version = "0.1.0"
-dependencies = [
- "ssh2",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-starter-audit"
-version = "0.1.0"
-dependencies = [
- "addzero-plugin-contract",
- "addzero-plugin-macros",
- "addzero-plugin-registry",
-]
-
-[[package]]
-name = "addzero-starter-dictionary"
-version = "0.1.0"
-dependencies = [
- "addzero-plugin-contract",
- "addzero-plugin-macros",
- "addzero-plugin-registry",
-]
-
-[[package]]
-name = "addzero-starter-identity"
-version = "0.1.0"
-dependencies = [
- "addzero-plugin-contract",
- "addzero-plugin-macros",
- "addzero-plugin-registry",
-]
-
-[[package]]
-name = "addzero-starter-menu"
-version = "0.1.0"
-dependencies = [
- "addzero-plugin-contract",
- "addzero-plugin-macros",
- "addzero-plugin-registry",
-]
-
-[[package]]
-name = "addzero-starter-organization"
-version = "0.1.0"
-dependencies = [
- "addzero-plugin-contract",
- "addzero-plugin-macros",
- "addzero-plugin-registry",
-]
-
-[[package]]
-name = "addzero-starter-storage"
-version = "0.1.0"
-dependencies = [
- "addzero-plugin-contract",
- "addzero-plugin-macros",
- "addzero-plugin-registry",
-]
-
-[[package]]
-name = "addzero-str"
-version = "0.1.0"
-dependencies = [
- "deunicode",
- "regex",
- "tempfile",
-]
-
-[[package]]
-name = "addzero-stream-wrapper"
-version = "0.1.0"
-
-[[package]]
-name = "addzero-system-starters"
-version = "0.1.0"
-dependencies = [
- "addzero-starter-audit",
- "addzero-starter-dictionary",
- "addzero-starter-identity",
- "addzero-starter-menu",
- "addzero-starter-organization",
- "addzero-starter-storage",
-]
-
-[[package]]
-name = "addzero-temp-mail"
-version = "0.1.0"
-dependencies = [
- "addzero-music",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "addzero-toml"
-version = "0.1.0"
-dependencies = [
- "serde",
- "tempfile",
- "thiserror 2.0.18",
- "toml_edit 0.22.27",
-]
-
-[[package]]
-name = "addzero-tree"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "addzero-wasm-plugin-api"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "uuid",
-]
-
-[[package]]
-name = "addzero-wasm-plugin-host"
-version = "0.1.0"
-dependencies = [
- "addzero-wasm-plugin-api",
- "thiserror 2.0.18",
- "uuid",
- "wasmtime",
- "wat",
-]
-
-[[package]]
-name = "addzero-yml"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_yaml",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -802,30 +69,30 @@ dependencies = [
 name = "aio"
 version = "0.1.0"
 dependencies = [
- "addzero-admin-plugin-registry",
- "addzero-agent-runtime-contract",
- "addzero-ai-agent",
- "addzero-ai-chat",
- "addzero-assets",
- "addzero-cli-market-contract",
- "addzero-knowledge",
- "addzero-minio",
- "addzero-persistence",
- "addzero-plugin-contract",
- "addzero-plugin-kernel",
- "addzero-plugin-runtime",
- "addzero-rustfs",
- "addzero-sandbox",
- "addzero-script-engine",
- "addzero-script-engine-rhai",
- "addzero-skills",
- "addzero-software-catalog",
- "addzero-system-starters",
- "addzero-wasm-plugin-api",
- "addzero-wasm-plugin-host",
  "anyhow",
  "automod",
  "axum",
+ "az-admin-plugin-registry",
+ "az-agent-runtime-contract",
+ "az-ai-agent",
+ "az-ai-chat",
+ "az-assets",
+ "az-cli-market-contract",
+ "az-knowledge",
+ "az-minio",
+ "az-persistence",
+ "az-plugin-contract",
+ "az-plugin-kernel",
+ "az-plugin-runtime",
+ "az-rustfs",
+ "az-sandbox",
+ "az-script-engine",
+ "az-script-engine-rhai",
+ "az-skills",
+ "az-software-catalog",
+ "az-system-starters",
+ "az-wasm-plugin-api",
+ "az-wasm-plugin-host",
  "base64 0.22.1",
  "bcrypt",
  "blake3",
@@ -1293,6 +560,767 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "az-admin-plugin-registry"
+version = "0.1.0"
+dependencies = [
+ "inventory",
+]
+
+[[package]]
+name = "az-agent-runtime-contract"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "uuid",
+]
+
+[[package]]
+name = "az-ai-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "az-assets",
+ "rig-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "az-ai-chat"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "az-api-translate"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "urlencoding",
+]
+
+[[package]]
+name = "az-area"
+version = "0.1.0"
+
+[[package]]
+name = "az-array"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "az-assets"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "az-persistence",
+ "base64 0.22.1",
+ "chrono",
+ "log",
+ "ring",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "az-browser-automation"
+version = "0.1.0"
+dependencies = [
+ "az-context",
+ "headless_chrome",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-cli-market-contract"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "az-cli-repl"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-codex-auth-support"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "regex",
+ "reqwest 0.12.28",
+ "ring",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "az-common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+]
+
+[[package]]
+name = "az-context"
+version = "0.1.0"
+
+[[package]]
+name = "az-creates"
+version = "0.1.0"
+dependencies = [
+ "az-music",
+ "az-temp-mail",
+ "chrono",
+ "hmac",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-curl"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "regex",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "shlex",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-database-model"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-ddl-generator"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-dict-macros"
+version = "0.1.0"
+dependencies = [
+ "az-dict-spec",
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "syn 2.0.117",
+ "trybuild",
+]
+
+[[package]]
+name = "az-dict-spec"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-docker"
+version = "0.1.0"
+dependencies = [
+ "shlex",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-email"
+version = "0.1.0"
+dependencies = [
+ "lettre",
+ "mime_guess",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-error"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-excel"
+version = "0.1.0"
+dependencies = [
+ "quick-xml 0.38.4",
+ "thiserror 2.0.18",
+ "zip",
+]
+
+[[package]]
+name = "az-funbox"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "az-io"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-json"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "az-knowledge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "az-persistence",
+ "chrono",
+ "deunicode",
+ "dirs",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "az-log"
+version = "0.1.0"
+dependencies = [
+ "log",
+]
+
+[[package]]
+name = "az-lowcode"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "reqwest 0.12.28",
+ "rhai",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "az-math"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-maven"
+version = "0.1.0"
+dependencies = [
+ "az-music",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-minio"
+version = "0.1.0"
+dependencies = [
+ "az-rustfs",
+ "base64 0.22.1",
+ "ring",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-model"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "az-mqtt"
+version = "0.1.0"
+dependencies = [
+ "rumqttc",
+ "rustls",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-music"
+version = "0.1.0"
+dependencies = [
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-persistence"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sea-orm",
+ "sea-orm-migration",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "az-pinyin"
+version = "0.1.0"
+dependencies = [
+ "pinyin",
+ "regex",
+]
+
+[[package]]
+name = "az-plugin-contract"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+]
+
+[[package]]
+name = "az-plugin-kernel"
+version = "0.1.0"
+dependencies = [
+ "az-plugin-contract",
+ "az-plugin-registry",
+ "az-plugin-runtime",
+ "shaku",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-plugin-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "az-plugin-registry"
+version = "0.1.0"
+dependencies = [
+ "az-plugin-contract",
+ "inventory",
+]
+
+[[package]]
+name = "az-plugin-runtime"
+version = "0.1.0"
+dependencies = [
+ "az-plugin-contract",
+ "chrono",
+ "serde",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+ "toml_edit 0.22.27",
+ "uuid",
+ "zip",
+]
+
+[[package]]
+name = "az-reflection"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-regex"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "az-remote-host"
+version = "0.1.0"
+dependencies = [
+ "az-remote-model",
+ "chrono",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "az-remote-model"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
+name = "az-remote-protocol"
+version = "0.1.0"
+dependencies = [
+ "az-remote-model",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "az-remote-session"
+version = "0.1.0"
+dependencies = [
+ "az-remote-model",
+ "az-remote-protocol",
+ "chrono",
+ "quinn",
+ "serde",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "az-rustfs"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "hmac",
+ "md5",
+ "mime_guess",
+ "quick-xml 0.38.4",
+ "reqwest 0.12.28",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-sandbox"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "az-script-engine"
+version = "0.1.0"
+dependencies = [
+ "az-sandbox",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-script-engine-rhai"
+version = "0.1.0"
+dependencies = [
+ "az-sandbox",
+ "az-script-engine",
+ "rhai",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-serial"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "az-skills"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "log",
+ "regex",
+ "serde",
+ "serde_yaml",
+ "sha2",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "az-sms"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "az-software-catalog"
+version = "0.1.0"
+dependencies = [
+ "az-persistence",
+ "chrono",
+ "regex",
+ "reqwest 0.12.28",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "az-sql"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-ssh"
+version = "0.1.0"
+dependencies = [
+ "ssh2",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-starter-audit"
+version = "0.1.0"
+dependencies = [
+ "az-plugin-contract",
+ "az-plugin-macros",
+ "az-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-dictionary"
+version = "0.1.0"
+dependencies = [
+ "az-plugin-contract",
+ "az-plugin-macros",
+ "az-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-identity"
+version = "0.1.0"
+dependencies = [
+ "az-plugin-contract",
+ "az-plugin-macros",
+ "az-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-menu"
+version = "0.1.0"
+dependencies = [
+ "az-plugin-contract",
+ "az-plugin-macros",
+ "az-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-organization"
+version = "0.1.0"
+dependencies = [
+ "az-plugin-contract",
+ "az-plugin-macros",
+ "az-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-storage"
+version = "0.1.0"
+dependencies = [
+ "az-plugin-contract",
+ "az-plugin-macros",
+ "az-plugin-registry",
+]
+
+[[package]]
+name = "az-str"
+version = "0.1.0"
+dependencies = [
+ "deunicode",
+ "regex",
+ "tempfile",
+]
+
+[[package]]
+name = "az-stream-wrapper"
+version = "0.1.0"
+
+[[package]]
+name = "az-system-starters"
+version = "0.1.0"
+dependencies = [
+ "az-starter-audit",
+ "az-starter-dictionary",
+ "az-starter-identity",
+ "az-starter-menu",
+ "az-starter-organization",
+ "az-starter-storage",
+]
+
+[[package]]
+name = "az-temp-mail"
+version = "0.1.0"
+dependencies = [
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-toml"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tempfile",
+ "thiserror 2.0.18",
+ "toml_edit 0.22.27",
+]
+
+[[package]]
+name = "az-tree"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "az-wasm-plugin-api"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "az-wasm-plugin-host"
+version = "0.1.0"
+dependencies = [
+ "az-wasm-plugin-api",
+ "thiserror 2.0.18",
+ "uuid",
+ "wasmtime",
+ "wat",
+]
+
+[[package]]
+name = "az-yml"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

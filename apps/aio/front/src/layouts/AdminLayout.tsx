@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AdminWorkbench } from "@addzero/admin-shell";
-import type { AdminShellContext } from "@addzero/admin-shell";
+import { AdminWorkbench } from "@az/admin-shell";
+import type { AdminShellContext } from "@az/admin-shell";
 import {
     CommandDialog,
     CommandEmpty,
@@ -10,7 +10,7 @@ import {
     CommandItem,
     CommandList,
     CommandShortcut,
-} from "@addzero/ui";
+} from "@az/ui";
 import { useAdminProvider } from "../hooks/useAdminProvider";
 import { useAuthStore } from "../stores/auth";
 import { useThemeStore } from "../stores/theme";

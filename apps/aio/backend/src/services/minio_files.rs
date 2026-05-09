@@ -4,7 +4,7 @@ use std::{future::Future, pin::Pin, rc::Rc};
 use std::{collections::BTreeMap, path::Path, sync::Mutex};
 
 #[cfg(not(target_arch = "wasm32"))]
-use addzero_minio::{DEFAULT_PRESIGNED_EXPIRATION_SECONDS, MinioClient, MinioConfig};
+use az_minio::{DEFAULT_PRESIGNED_EXPIRATION_SECONDS, MinioClient, MinioConfig};
 #[cfg(not(target_arch = "wasm32"))]
 use base64::Engine as _;
 #[cfg(not(target_arch = "wasm32"))]
@@ -491,7 +491,7 @@ impl MinioBackend {
                 object.size,
                 object
                     .content_type
-                    .unwrap_or_else(|| addzero_rustfs::guess_content_type(Path::new(&object_key))),
+                    .unwrap_or_else(|| az_rustfs::guess_content_type(Path::new(&object_key))),
                 object
                     .last_modified
                     .unwrap_or_else(|| "unknown".to_string()),
@@ -644,7 +644,7 @@ impl MinioBackend {
             .map_err(|err| MinioFilesError::new(format!("生成分享链接失败：{err}")))?;
 
         let encrypted_url = self.share_secret.as_ref().map(|secret| {
-            addzero_minio::encrypt_url(secret, &presigned.url)
+            az_minio::encrypt_url(secret, &presigned.url)
                 .map_err(|err| MinioFilesError::new(format!("生成加密分享链接失败：{err}")))
         });
         let encrypted_url = match encrypted_url {
@@ -780,7 +780,7 @@ pub(crate) fn minio_environment_from_env() -> Result<MinioEnvironment, String> {
         .region(region)
         .build()
         .map_err(|err| err.to_string())?;
-    let client = addzero_minio::create_client(config).map_err(|err| err.to_string())?;
+    let client = az_minio::create_client(config).map_err(|err| err.to_string())?;
 
     Ok(MinioEnvironment {
         client,
@@ -884,7 +884,7 @@ fn storage_file_dto(
 fn normalized_content_type(content_type: Option<&str>, file_name: &str) -> String {
     match content_type {
         Some(value) if !value.trim().is_empty() => value.to_string(),
-        _ => addzero_rustfs::guess_content_type(Path::new(file_name)),
+        _ => az_rustfs::guess_content_type(Path::new(file_name)),
     }
 }
 

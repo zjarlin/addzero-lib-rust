@@ -1,5 +1,5 @@
 {
-    "name": "@addzero/aio-desktop",
+    "name": "@az/aio-desktop",
     "private": true,
     "version": "0.1.0",
     "scripts": {

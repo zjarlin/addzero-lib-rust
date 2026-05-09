@@ -3,11 +3,11 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use addzero_plugin_contract::{
+use az_plugin_contract::{
     MarkdownSchema, PageSchema, PluginDescriptor, PluginKind, PluginMenuContribution,
     PluginPackageManifest, PluginPage, RuntimeBinding,
 };
-use addzero_plugin_runtime::create_package_from_dir;
+use az_plugin_runtime::create_package_from_dir;
 use chrono::Utc;
 use regex::Regex;
 use reqwest::Client;
@@ -193,7 +193,7 @@ pub fn deploy_market_bundle(
 
 fn build_http_client() -> Result<Client, String> {
     Client::builder()
-        .user_agent("addzero-aio-market/0.1")
+        .user_agent("az-aio-market/0.1")
         .connect_timeout(Duration::from_secs(8))
         .timeout(Duration::from_secs(15))
         .build()
@@ -419,9 +419,9 @@ fn build_wasm_samples(wasm_plugins: Vec<PluginDescriptorDto>) -> Vec<MarketCatal
             id: format!("wasm:{}", plugin.manifest_id),
             scene: MarketSceneDto::Wasm,
             source: if plugin.builtin {
-                "addzero-wasm-plugin-host builtin".to_string()
+                "az-wasm-plugin-host builtin".to_string()
             } else {
-                "addzero-wasm-plugin-host".to_string()
+                "az-wasm-plugin-host".to_string()
             },
             slug: plugin.manifest_id.clone(),
             title: plugin.name.clone(),
@@ -975,7 +975,7 @@ mod tests {
 
     #[test]
     fn sanitize_path_component_keeps_safe_chars() {
-        assert_eq!(sanitize_path_component("com.addzero/ui"), "com.addzero-ui");
+        assert_eq!(sanitize_path_component("com.addzero/ui"), "com.az-ui");
     }
 
     #[test]

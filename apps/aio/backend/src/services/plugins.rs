@@ -1,10 +1,10 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use addzero_wasm_plugin_api::{
+use az_wasm_plugin_api::{
     ExtensionPoint, PluginHandle, PluginManifest, PluginRegistry, PluginState,
 };
-use addzero_wasm_plugin_host::RuntimePluginRegistry;
+use az_wasm_plugin_host::RuntimePluginRegistry;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 

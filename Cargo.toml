@@ -15,8 +15,8 @@ members = [
     "crates/text/*",
 ]
 exclude = [
-    "crates/runtime/addzero-admin-domain-audit",
-    "crates/ui/addzero-remote-ui",
+    "crates/runtime/az-admin-domain-audit",
+    "crates/ui/az-remote-ui",
     "crates/ui/dioxus-components",
     "crates/ui/dioxus-nox-markdown",
 ]

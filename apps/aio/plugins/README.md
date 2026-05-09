@@ -2,7 +2,7 @@
 
 This directory is the only repo-local root for AIO plugins.
 
-- `repos/`: source repositories for decoupled `addzero-plugin-*` projects. These can be mounted here as git submodules.
+- `repos/`: source repositories for decoupled `az-plugin-*` projects. These can be mounted here as git submodules.
 - `catalog/`: built `.azplugin` wasm packages that the host can install.
 - `host/`: unpacked runtime host cache for installed wasm plugin packages.
 

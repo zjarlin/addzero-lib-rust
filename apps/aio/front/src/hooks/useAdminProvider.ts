@@ -7,13 +7,13 @@ import type {
     DomainNode,
     MenuNode,
     SectionNode,
-} from "@addzero/admin-shell";
-import { Button } from "@addzero/ui";
+} from "@az/admin-shell";
+import { Button } from "@az/ui";
 import {
     getApiBaseUrl,
     createMenuTreeApi,
     type MenuTreeNodeDto,
-} from "@addzero/api-client";
+} from "@az/api-client";
 import {
     fetchWasmPluginOverview,
     type WasmPluginNavigationSection,

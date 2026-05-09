@@ -29,7 +29,7 @@ use once_cell::sync::Lazy;
 
 #[cfg(not(target_arch = "wasm32"))]
 static PG_POOL: Lazy<Option<PgPool>> = Lazy::new(|| {
-    let url = addzero_persistence::database_url()?;
+    let url = az_persistence::database_url()?;
     PgPool::connect_lazy(&url).ok()
 });
 

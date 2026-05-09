@@ -9,7 +9,7 @@ import {
     Separator,
     Textarea,
     cn,
-} from "@addzero/ui";
+} from "@az/ui";
 import {
     AudioLines,
     Bot,

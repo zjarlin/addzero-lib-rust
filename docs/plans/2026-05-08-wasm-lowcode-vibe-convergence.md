@@ -26,14 +26,14 @@
 
 仓库里已经有可复用的三块基础：
 
-- `crates/runtime/addzero-plugin-contract/src/lib.rs`
+- `crates/runtime/az-plugin-contract/src/lib.rs`
   这里定义了插件页面、菜单、marketplace、shell snapshot。当前的 `PageSchema` 还是结果页 DSL，偏展示，不够承载画布编辑。
-- `crates/apps/addzero-lowcode/src/schema.rs`
+- `crates/apps/az-lowcode/src/schema.rs`
   这里已经有 `LayoutSchema`、`ComponentNode`、`GridArea`、`EventBindingRecord`。这其实已经是画布页的核心文档模型。
 - `apps/aio/backend/src/services/vibe_coding.rs`
   这里已经有在线启动 coding session 的后端入口。它现在是“开一个终端会话”，还不是“围绕画布节点做定向生成”。
 
-这说明不需要再造第四套模型，应该直接以 `addzero-lowcode` 为页面结构核心。
+这说明不需要再造第四套模型，应该直接以 `az-lowcode` 为页面结构核心。
 
 ## 3. Target Shape
 
@@ -94,9 +94,9 @@
 
 - Status: Proposed
 - Decision:
-  对所有需要拖拽编辑的插件页面，正式页面结构统一使用 `addzero-lowcode::LayoutSchema`
+  对所有需要拖拽编辑的插件页面，正式页面结构统一使用 `az-lowcode::LayoutSchema`
 - Consequences:
-  `addzero-plugin-contract` 需要增加 `canvas_document` 页类型，现有展示型 schema 作为轻量快捷页保留
+  `az-plugin-contract` 需要增加 `canvas_document` 页类型，现有展示型 schema 作为轻量快捷页保留
 
 ### ADR-002: Vibe output must target schema first, code second
 
@@ -155,7 +155,7 @@
 
 ### Phase 1: Contract convergence
 
-- 在 `addzero-plugin-contract` 中新增 `canvas_document`
+- 在 `az-plugin-contract` 中新增 `canvas_document`
 - `ResolvedPage` 返回页面来源和编辑能力元数据
 - 保留现有 `PageSchema` 以兼容旧页面
 
@@ -192,8 +192,8 @@
 
 如果按这个方向推进，下一步最值钱的不是继续改市场页，而是：
 
-1. 先给 `addzero-plugin-contract::PageSchema` 增加 `canvas_document`
-2. 把 `addzero-lowcode::LayoutSchema` 作为插件页载荷接进去
+1. 先给 `az-plugin-contract::PageSchema` 增加 `canvas_document`
+2. 把 `az-lowcode::LayoutSchema` 作为插件页载荷接进去
 3. 在 `aio-front` 先做一个“只读 canvas renderer + 右侧 props 面板”
 4. 再加一个“对选中节点启动 vibe session”的入口
 

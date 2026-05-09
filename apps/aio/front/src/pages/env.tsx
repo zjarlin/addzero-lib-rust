@@ -12,7 +12,7 @@ import {
     getApiBaseUrl,
     type BrandingLogoSource,
     type BrandingSettingsDto,
-} from "@addzero/api-client";
+} from "@az/api-client";
 import {
     Button,
     Card,
@@ -27,7 +27,7 @@ import {
     SelectTrigger,
     SelectValue,
     Textarea,
-} from "@addzero/ui";
+} from "@az/ui";
 import { WasmStudioWorkbench } from "./wasm-studio";
 
 interface AiProviderDraft extends AiProviderConfigDto {

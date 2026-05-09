@@ -1,0 +1,16 @@
+[package]
+name = "az-remote-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+az-remote-model = { path = "../../core/az-remote-model" }
+chrono = { workspace = true, features = ["serde"] }
+thiserror.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

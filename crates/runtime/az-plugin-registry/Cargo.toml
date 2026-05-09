@@ -1,0 +1,14 @@
+[package]
+name = "az-plugin-registry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+az-plugin-contract = { path = "../az-plugin-contract" }
+inventory.workspace = true
+
+[lints]
+workspace = true

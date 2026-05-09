@@ -4,7 +4,7 @@ import {
   getApiBaseUrl,
   isDesktopRuntime,
   type BootstrapStatusDto,
-} from "@addzero/api-client";
+} from "@az/api-client";
 import { useAuthStore } from "../stores/auth";
 import AdminLayout from "../layouts/AdminLayout";
 

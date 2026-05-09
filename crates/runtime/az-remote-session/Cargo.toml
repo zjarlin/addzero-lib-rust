@@ -1,0 +1,20 @@
+[package]
+name = "az-remote-session"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+az-remote-model = { path = "../../core/az-remote-model" }
+az-remote-protocol = { path = "../../network/az-remote-protocol" }
+chrono = { workspace = true, features = ["serde"] }
+quinn.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

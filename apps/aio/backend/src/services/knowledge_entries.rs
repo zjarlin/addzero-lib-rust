@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::OnceCell;
 
 #[cfg(not(target_arch = "wasm32"))]
-use addzero_knowledge::{KnowledgeDocument, KnowledgeService, ManualKnowledgeDocumentInput};
+use az_knowledge::{KnowledgeDocument, KnowledgeService, ManualKnowledgeDocumentInput};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::Utc;
 
@@ -187,7 +187,7 @@ pub async fn delete_knowledge_entry_on_server(
 
 #[cfg(not(target_arch = "wasm32"))]
 async fn connect_knowledge_service() -> Result<KnowledgeService, String> {
-    let database_url = addzero_knowledge::database_url().ok_or_else(|| {
+    let database_url = az_knowledge::database_url().ok_or_else(|| {
         "缺少数据库连接：请设置 PostgreSQL 地址，或在桌面首启时直接切换到本机 SQLite。".to_string()
     })?;
     let service = KNOWLEDGE_SERVICE

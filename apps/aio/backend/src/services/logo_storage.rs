@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 #[cfg(not(target_arch = "wasm32"))]
-use addzero_minio::MinioClient;
+use az_minio::MinioClient;
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

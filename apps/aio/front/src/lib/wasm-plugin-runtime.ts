@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "@addzero/api-client";
+import { getApiBaseUrl } from "@az/api-client";
 
 export interface WasmPluginNavigationItem {
     label: string;

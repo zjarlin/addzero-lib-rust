@@ -40,7 +40,7 @@ import {
     TabsList,
     TabsTrigger,
     cn,
-} from "@addzero/ui";
+} from "@az/ui";
 import {
     fetchWasmPluginOverview,
     installCatalogWasmPlugin,
