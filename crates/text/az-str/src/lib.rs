@@ -329,6 +329,22 @@ pub fn contains_chinese(input: Option<&str>) -> bool {
     input.unwrap_or_default().chars().any(is_chinese)
 }
 
+/// Builds a stable ASCII table name from an English name first, then a Chinese
+/// fallback when the English name is blank.
+pub fn default_table_english_name(english_name: &str, chinese_name: Option<&str>) -> String {
+    let source = if english_name.trim().is_empty() {
+        chinese_name.unwrap_or_default()
+    } else {
+        english_name
+    };
+
+    let without_parenthetical = parenthetical_regex().replace_all(source, "");
+    let ascii = deunicode(without_parenthetical.trim());
+    let name = to_snake_case(&ascii, "", "");
+    let compact = underscore_regex().replace_all(&name, "_");
+    compact.trim_matches('_').to_owned()
+}
+
 pub fn join<S: AsRef<str>>(separator: &str, values: &[S]) -> String {
     values
         .iter()
