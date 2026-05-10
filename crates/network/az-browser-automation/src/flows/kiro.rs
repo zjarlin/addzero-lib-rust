@@ -61,9 +61,10 @@ impl KiroRegistrationFlow {
         while std::time::Instant::now() < deadline {
             if let Ok(url) = session.execute_js("document.location.href")
                 && let Some(s) = url.as_str()
-                    && s.contains(substring) {
-                        return true;
-                    }
+                && s.contains(substring)
+            {
+                return true;
+            }
             thread::sleep(Duration::from_millis(500));
         }
         false
@@ -78,9 +79,10 @@ impl KiroRegistrationFlow {
         );
         while std::time::Instant::now() < deadline {
             if let Ok(val) = session.execute_js(&js)
-                && val.as_bool() == Some(true) {
-                    return true;
-                }
+                && val.as_bool() == Some(true)
+            {
+                return true;
+            }
             thread::sleep(Duration::from_millis(300));
         }
         false
@@ -143,10 +145,7 @@ impl KiroRegistrationFlow {
     }
 
     /// Clicks a button by visible text content.
-    fn click_button_with_text(
-        session: &BrowserSession,
-        text: &str,
-    ) -> BrowserAutomationResult<()> {
+    fn click_button_with_text(session: &BrowserSession, text: &str) -> BrowserAutomationResult<()> {
         let js = format!(
             r#"
             (() => {{
@@ -222,19 +221,13 @@ impl RegistrationFlow for KiroRegistrationFlow {
         thread::sleep(Duration::from_millis(rng.gen_range(2000..4000)));
 
         // Step 3: Wait for AWS Builder ID page
-        let is_builder_id_page = Self::wait_for_url(
-            session,
-            "buildervoice.aws.amazon.com",
-            Duration::from_secs(15),
-        ) || Self::wait_for_url(
-            session,
-            "signin.aws.amazon.com",
-            Duration::from_secs(5),
-        ) || Self::wait_for_url(
-            session,
-            "id.aws.amazon.com",
-            Duration::from_secs(5),
-        );
+        let is_builder_id_page =
+            Self::wait_for_url(
+                session,
+                "buildervoice.aws.amazon.com",
+                Duration::from_secs(15),
+            ) || Self::wait_for_url(session, "signin.aws.amazon.com", Duration::from_secs(5))
+                || Self::wait_for_url(session, "id.aws.amazon.com", Duration::from_secs(5));
 
         if !is_builder_id_page
             && !Self::wait_for_element(session, "input[type='email']", Duration::from_secs(5))
@@ -251,11 +244,7 @@ impl RegistrationFlow for KiroRegistrationFlow {
         let _ = session.screenshot("/tmp/kiro-step3-builderid.png");
 
         // Step 4: Enter email and click Continue
-        let email_selectors = [
-            "input[type='email']",
-            "input[name='email']",
-            "#email",
-        ];
+        let email_selectors = ["input[type='email']", "input[name='email']", "#email"];
         let email_filled = email_selectors.iter().any(|sel| {
             Self::wait_for_element(session, sel, Duration::from_secs(5))
                 && Self::human_type(session, sel, email).is_ok()

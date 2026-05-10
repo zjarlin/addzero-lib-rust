@@ -1,4 +1,0 @@
-packages:
-    - apps/aio/desktop
-    - apps/aio/front
-    - packages/*

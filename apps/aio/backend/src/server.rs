@@ -22,7 +22,6 @@ use az_cli_market_contract::{
     CliMarketCatalog, CliMarketEntry, CliMarketInstallRequest, CliMarketInstallResult,
     CliSimpleMetadata,
 };
-use az_plugin_contract::ResolvedPage;
 use az_script_engine::script::ScriptEngine;
 use az_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 use serde::Deserialize;
@@ -36,16 +35,14 @@ use crate::services::{
     KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto, KnowledgeFeedDto,
     KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto,
     KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest, MinioConfigUpdateDto,
-    PlatformConfigDto, PlatformConfigSaveResultDto, PluginDescriptorDto, PluginInstallRequestDto,
-    PostgresConfigUpdateDto, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto,
-    SkillUpsertDto, StartVibeCodingRequestDto, StartVibeCodingResponseDto, StorageBrowseRequestDto,
+    PlatformConfigDto, PlatformConfigSaveResultDto, PostgresConfigUpdateDto,
+    ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
+    StartVibeCodingRequestDto, StartVibeCodingResponseDto, StorageBrowseRequestDto,
     StorageBrowseResultDto, StorageCreateFolderDto, StorageCreateFolderResultDto,
     StorageDeleteFolderDto, StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto,
     StorageShareResultDto, StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto,
     SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
-    TerminalSessionSnapshotDto, WasmPluginBinaryUploadRequestDto,
-    WasmPluginFirmwareUploadRequestDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
-    WasmPluginRuntimeSnapshotDto, WasmPluginUploadResultDto,
+    TerminalSessionSnapshotDto,
     download_station::{FileIndex, ScanStats, ShareLink},
     menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
 };
@@ -496,48 +493,9 @@ pub async fn run_api_server() -> Result<()> {
             get(list_ai_providers).post(save_ai_provider),
         )
         .route("/api/ai/chat", post(run_ai_chat))
-        .route("/api/plugins/builtin", get(list_builtin_plugins))
-        .route("/api/plugins", get(list_loaded_plugins))
-        .route("/api/plugins/install", post(install_plugin))
-        .route("/api/plugins/{id}/enable", post(enable_plugin))
-        .route("/api/plugins/{id}/disable", post(disable_plugin))
-        .route("/api/plugins/{id}", axum::routing::delete(uninstall_plugin))
-        .route("/api/wasm/plugins/overview", get(wasm_plugin_overview))
         .route(
             "/api/cloudflare-tunnel/status",
             get(get_cloudflare_tunnel_status),
-        )
-        .route(
-            "/api/wasm/plugins/upload-binary",
-            post(upload_wasm_binary_plugin),
-        )
-        .route(
-            "/api/wasm/plugins/upload-firmware",
-            post(upload_wasm_firmware_plugin),
-        )
-        .route(
-            "/api/wasm/plugins/install-catalog",
-            post(install_catalog_wasm_plugin),
-        )
-        .route(
-            "/api/wasm/plugins/seed/cloudflare-tunnel",
-            post(seed_cloudflare_tunnel_plugin),
-        )
-        .route(
-            "/api/wasm/plugins/register/cloudflare-tunnel",
-            post(register_cloudflare_tunnel_plugin),
-        )
-        .route(
-            "/api/wasm/plugins/register/notes-fragments",
-            post(register_notes_fragments_plugin),
-        )
-        .route(
-            "/api/wasm/plugins/system/{plugin_id}/{page_id}",
-            get(resolve_system_wasm_plugin_page),
-        )
-        .route(
-            "/api/wasm/plugins/apps/{instance_slug}/{page_id}",
-            get(resolve_instance_wasm_plugin_page),
         )
         .route("/api/vibe-coding/start", post(start_vibe_coding))
         .route(
@@ -1184,75 +1142,6 @@ async fn run_ai_chat(
     Ok(Json(response))
 }
 
-async fn list_builtin_plugins(headers: HeaderMap) -> ApiResult<Json<Vec<PluginDescriptorDto>>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    Ok(Json(
-        crate::services::plugins::list_builtin_plugins_on_server().await,
-    ))
-}
-
-async fn list_loaded_plugins(headers: HeaderMap) -> ApiResult<Json<Vec<PluginDescriptorDto>>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    Ok(Json(
-        crate::services::plugins::list_loaded_plugins_on_server().await,
-    ))
-}
-
-async fn install_plugin(
-    headers: HeaderMap,
-    Json(input): Json<PluginInstallRequestDto>,
-) -> ApiResult<Json<PluginDescriptorDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let plugin = crate::services::plugins::install_plugin_on_server(input)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(plugin))
-}
-
-async fn enable_plugin(
-    headers: HeaderMap,
-    Path(id): Path<String>,
-) -> ApiResult<Json<PluginDescriptorDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let plugin = crate::services::plugins::enable_plugin_on_server(id)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(plugin))
-}
-
-async fn disable_plugin(
-    headers: HeaderMap,
-    Path(id): Path<String>,
-) -> ApiResult<Json<PluginDescriptorDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let plugin = crate::services::plugins::disable_plugin_on_server(id)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(plugin))
-}
-
-async fn uninstall_plugin(headers: HeaderMap, Path(id): Path<String>) -> ApiResult<StatusCode> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    crate::services::plugins::uninstall_plugin_on_server(id)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(StatusCode::NO_CONTENT)
-}
-
-async fn wasm_plugin_overview(headers: HeaderMap) -> ApiResult<Json<WasmPluginRuntimeSnapshotDto>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let snapshot = crate::services::wasm_plugins::wasm_plugin_runtime_snapshot_on_server()
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(snapshot))
-}
-
 async fn get_cloudflare_tunnel_status(
     headers: HeaderMap,
 ) -> ApiResult<Json<CloudflareTunnelStatusDto>> {
@@ -1261,96 +1150,6 @@ async fn get_cloudflare_tunnel_status(
         .await
         .map_err(ApiError::bad_request)?;
     Ok(Json(status))
-}
-
-async fn install_catalog_wasm_plugin(
-    headers: HeaderMap,
-    Json(input): Json<WasmPluginInstallRequestDto>,
-) -> ApiResult<Json<WasmPluginInstallResultDto>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let result = crate::services::wasm_plugins::install_catalog_wasm_plugin_on_server(input)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(result))
-}
-
-async fn upload_wasm_binary_plugin(
-    headers: HeaderMap,
-    Json(input): Json<WasmPluginBinaryUploadRequestDto>,
-) -> ApiResult<Json<WasmPluginUploadResultDto>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let result = crate::services::wasm_plugins::upload_wasm_binary_plugin_on_server(input)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(result))
-}
-
-async fn upload_wasm_firmware_plugin(
-    headers: HeaderMap,
-    Json(input): Json<WasmPluginFirmwareUploadRequestDto>,
-) -> ApiResult<Json<WasmPluginUploadResultDto>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let result = crate::services::wasm_plugins::upload_wasm_firmware_plugin_on_server(input)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(result))
-}
-
-async fn seed_cloudflare_tunnel_plugin(
-    headers: HeaderMap,
-) -> ApiResult<Json<WasmPluginUploadResultDto>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let result = crate::services::wasm_plugins::seed_cloudflare_tunnel_plugin_on_server()
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(result))
-}
-
-async fn register_cloudflare_tunnel_plugin(
-    headers: HeaderMap,
-) -> ApiResult<Json<WasmPluginUploadResultDto>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let result = crate::services::wasm_plugins::register_cloudflare_tunnel_plugin_on_server()
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(result))
-}
-
-async fn register_notes_fragments_plugin(
-    headers: HeaderMap,
-) -> ApiResult<Json<WasmPluginInstallResultDto>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let result = crate::services::wasm_plugins::register_notes_fragments_plugin_on_server()
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(result))
-}
-
-async fn resolve_system_wasm_plugin_page(
-    headers: HeaderMap,
-    Path((plugin_id, page_id)): Path<(String, String)>,
-) -> ApiResult<Json<ResolvedPage>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let page = crate::services::wasm_plugins::resolve_system_wasm_plugin_page_on_server(
-        plugin_id, page_id,
-    )
-    .await
-    .map_err(ApiError::bad_request)?;
-    Ok(Json(page))
-}
-
-async fn resolve_instance_wasm_plugin_page(
-    headers: HeaderMap,
-    Path((instance_slug, page_id)): Path<(String, String)>,
-) -> ApiResult<Json<ResolvedPage>> {
-    ensure_auth(admin_auth(), &headers)?;
-    let page = crate::services::wasm_plugins::resolve_instance_wasm_plugin_page_on_server(
-        instance_slug,
-        page_id,
-    )
-    .await
-    .map_err(ApiError::bad_request)?;
-    Ok(Json(page))
 }
 
 async fn start_vibe_coding(

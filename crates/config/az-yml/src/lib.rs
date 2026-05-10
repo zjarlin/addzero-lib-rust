@@ -1,3 +1,24 @@
+//! # az-yml
+//!
+//! YAML 配置文件的加载、路径查询与值提取工具库，面向 Spring Boot 风格配置约定。
+//!
+//! 主要功能：
+//!
+//! - [`load_yaml`] / [`load_yaml_value`] — 从文件读取并解析 YAML 为任意 `DeserializeOwned` 类型或原始 [`YamlDoc`]。
+//! - [`YamlPath`] — 点号路径解析，支持 `a.b[0]`、带引号的键名等嵌套访问语法。
+//! - [`YamlDoc`] — 封装 `serde_yaml::Value`，提供 `get`、`get_string` 等路径查询方法，字符串值自动进行环境变量替换（`${VAR:default}`）。
+//! - [`YamlLookup`] — 通用路径查找 trait，[`YamlDoc`] 和 `serde_yaml::Value` 均已实现。
+//! - [`SpringYaml`] — 模拟 Spring Boot 的配置文件解析策略，支持 `application.yml` 与 `application-{profile}.yml` 的 profile 激活。
+//! - [`DatabaseConfigReader`] — 从 Spring YAML 配置中自动扫描 JDBC / R2DBC 数据源 URL、用户名与密码。
+//!
+//! ## 宏
+//!
+//! - [`yaml_path!`] — 编译期路径解析（字面量，非法路径 panic）。
+//! - [`yaml_get!`] — 组合路径解析与值查询的便捷宏。
+//!
+//! ## 安全
+//!
+//! [`DatabaseConfig`] 的 [`std::fmt::Debug`] 实现会对 `jdbc_password` 字段脱敏（`***REDACTED***`）。
 use serde::de::DeserializeOwned;
 use serde_yaml::Value;
 use std::env;

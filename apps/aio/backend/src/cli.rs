@@ -10,6 +10,8 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// 启动本机 TUI 工作台
+    Tui,
     /// 启动 API 后端服务
     Serve,
     /// 运行数据库迁移

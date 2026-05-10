@@ -8,14 +8,14 @@
 
 - 一套面向个人知识资产、同步任务和命令化能力的 AIO 平台
 - 一个以 PostgreSQL 为唯一正式持久化源的后台系统
-- 一个同时提供 Vite/React 管理界面、Tauri 桌面壳、Axum REST API、以及同源 CLI 的工作台
+- 一个同时提供 Rust TUI、Axum REST API、以及同源 CLI 的工作台
 
 这套系统的目标不是只做一个“网页后台”，而是把自己日常要管理的知识库、同步任务、脚本能力、导入导出流程统一收进同一个平台里，让“万事万物都 CLI 化”成为默认交付形态，而不是补充能力。
 
 ### 核心原则
 
 - `all in pg`：正式业务数据全部进入 PostgreSQL，数据库名为 `msc_aio`
-- `axum + Vite/React + Tauri`：Axum 负责后端 API 与任务入口，Vite/React 负责管理界面，Tauri 负责桌面壳
+- `axum + ratatui/crossterm`：Axum 负责后端 API 与任务入口，`ratatui + crossterm` 负责本机高性能 TUI
 - `REST + CLI 同源`：后端写 REST API 的同时，CLI 从同一套操作定义生成，避免手写两套接口
 - `import != source of truth`：文件系统扫描、构建期嵌入、临时内存实现都只作为导入态或开发态，不作为最终数据落点
 - `大功能一模块`：按功能边界拆模块，文件粒度保持在人类可以轻松阅读的范围内
@@ -30,14 +30,12 @@
    暴露 REST API、认证、任务调度入口、OpenAPI 文档以及自动化调用面
 4. CLI 层
    从与 REST 同源的操作定义生成命令，保证后台能力天然可脚本化
-5. Vite/React Admin 层
-   作为管理工作台，用于查看知识资产、同步状态、任务历史、配置与系统上下文
-6. Tauri Desktop 壳
-   通过 localhost plugin 加载同一套 Next 静态前端资产，桌面能力通过 provider/config 暴露
+5. Rust TUI 层
+   作为本机管理工作台，用于查看知识资产、同步状态、任务历史、配置与系统上下文；默认直接复用 Rust service layer，不走 HTTP 回环
 
 ### 当前状态
 
-- `msc-aio` 已经开始承接 admin 壳子、多模块场景与知识库可视化
+- `msc-aio` 已经开始承接 TUI 壳子、多模块场景与知识库可视化
 - 技能数据仍有内存实现
 - 知识库已经新增 `az-knowledge` 数据域 crate，可把本机候选知识目录同步进 PostgreSQL `msc_aio`
 - `msc-aio` 的知识页现在会优先从 PG 镜像生成目录，PG 不可用时才退回文件系统快照
@@ -75,15 +73,23 @@ printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/ms
 cargo run -p az-knowledge --bin knowledge-sync
 ```
 
-桌面端首次启动时如果检测不到 `~/.config/aio/aio.env`，会进入引导页；引导页会给出 `host.docker.internal` 示例，并可直接配置 PostgreSQL 与 MinIO。仓库内不再需要 `.env`。
+`aio tui` 首次启动时如果检测不到 `~/.config/aio/aio.env`，会直接进入内置的 setup wizard；配置完成后会刷新 PostgreSQL 与 MinIO 连通状态。仓库内不再需要 Node、pnpm、TypeScript 或 Tauri。
 
-桌面壳开发入口：
+当前 AIO 常用入口：
 
 ```bash
-pnpm run dev:aio
+cargo run -p aio -- tui
+cargo run -p aio -- serve
+cargo run -p aio -- migrate
+cargo run -p aio -- system docs
 ```
 
-这个命令会先执行 `cargo run -p aio -- migrate`，再启动 Tauri dev，并由 Tauri 自动拉起 `apps/aio/front`。如果还没有 PostgreSQL 配置，迁移命令会跳过，桌面端会进入初始化引导。
+其中：
+
+- `aio tui` 是默认主入口，本机工作台直接复用 Rust service layer
+- `aio serve` 保留给外部自动化和 API 客户端
+- `aio migrate` 单独执行数据库迁移
+- `aio system ...` 保留系统治理 CRUD 与文档能力
 
 更完整的蓝图说明见：
 

@@ -667,8 +667,10 @@ dependencies = [
  "clap",
  "serde",
  "serde_json",
+ "shlex",
  "tempfile",
  "tokio",
+ "urlencoding",
 ]
 
 [[package]]

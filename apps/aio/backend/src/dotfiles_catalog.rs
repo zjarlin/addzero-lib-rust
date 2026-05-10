@@ -219,7 +219,7 @@ pub const DOTFILE_ENTRIES: &[DotfileEntry] = &[
         platform: "macOS",
         status: "已整理",
         sync_mode: "文件同步",
-        target_reason: "统一 Java、Rust、pnpm、Gradle 等 toolchain 的家目录和 PATH 入口。",
+        target_reason: "统一 Java、Rust、Gradle 等 toolchain 的家目录和 PATH 入口。",
         conflict_hint: "目录路径和版本依赖主机环境，推荐保留结构化字段并按机器渲染。",
         note: "对齐 xlsx 里的 export / PATH 规则，但 Web 侧只登记文件级元数据。",
     },

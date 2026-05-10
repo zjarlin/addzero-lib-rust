@@ -66,7 +66,7 @@ pub fn start_vibe_coding_on_server(
 fn build_bootstrap_prompt(input: &StartVibeCodingRequestDto) -> String {
     let mut sections = Vec::new();
     sections.push(
-        "You are running inside the AIO workbench as the current plugin-development coding agent."
+        "You are running inside the AIO workbench as the current module-development coding agent."
             .to_string(),
     );
     sections.push(format!(

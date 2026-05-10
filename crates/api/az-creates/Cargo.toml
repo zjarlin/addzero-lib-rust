@@ -8,7 +8,7 @@ authors.workspace = true
 
 [dependencies]
 az-music = { path = "../../music/az-music" }
-az-temp-mail = { path = "../az-temp-mail" }
+az-temp-mail = { path = "../../network/az-temp-mail" }
 chrono.workspace = true
 hmac.workspace = true
 reqwest.workspace = true

@@ -1,3 +1,25 @@
+//! # az-toml
+//!
+//! Gradle 风格 Version Catalog TOML 文件的解析、构建、序列化与合并工具库。
+//!
+//! 用于处理 `libs.versions.toml` 格式的 TOML 配置文件，支持：
+//!
+//! - 从字符串或文件路径解析为 [`VersionCatalog`] 结构体。
+//! - 通过 [`VersionCatalog::load_or_init`] 在文件不存在时自动创建默认模板。
+//! - 通过 [`VersionCatalog::to_string_pretty`] 格式化输出 TOML 内容。
+//! - 通过 [`VersionCatalog::merge_many`] 合并多个 catalog（版本、插件、bundle 首次优先，库按 group+name 去重）。
+//! - 通过 [`catalog!`] 宏以声明式 DSL 构建 catalog 值。
+//! - 通过 [`insert_after_table`] 在 TOML 文本中按表名定位并插入内容。
+//!
+//! ## 主要类型
+//!
+//! | 类型 | 说明 |
+//! |------|------|
+//! | [`VersionCatalog`] | 顶层 catalog，包含 versions、libraries、plugins、bundles 四个分组 |
+//! | [`VersionEntry`] | `[versions]` 条目，包含版本引用名和版本号 |
+//! | [`LibraryEntry`] | `[libraries]` 条目，包含 group、name 和 version / version.ref |
+//! | [`PluginEntry`] | `[plugins]` 条目，包含插件 id 和 version / version.ref |
+//! | [`BundleEntry`] | `[bundles]` 条目，将多个 library key 打包 |
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fs;

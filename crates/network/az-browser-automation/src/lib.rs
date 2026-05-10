@@ -7,12 +7,18 @@
 //! configuration, isolated browser sessions, and trait-based registration
 //! flows.
 
+pub mod ai_reg_auto;
 pub mod fingerprint;
 pub mod flows;
 pub mod proxy;
 pub mod registration;
 pub mod session;
 
+pub use ai_reg_auto::{
+    OpenAiAuthAutomation, OpenAiAuthFlow, OpenAiAuthOptions, OpenAiAuthResult, OpenAiAuthStage,
+    OpenAiRecordingOptions, OpenAiRecordingResult, OpenAiRecordingStep, OpenAiRecordingStepResult,
+    OpenAiRecordingStepStatus,
+};
 pub use fingerprint::{FingerprintProfile, FingerprintProfileTemplate, SELECTION_POOL};
 pub use flows::KiroRegistrationFlow;
 pub use proxy::{ProxyConfig, ProxyType};

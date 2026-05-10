@@ -1,0 +1,28 @@
+[package]
+name = "az-drive-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+az-drive-agent = { path = "../../../crates/runtime/az-drive-agent" }
+az-drive-core = { path = "../../../crates/storage/az-drive-core" }
+az-drive-store = { path = "../../../crates/storage/az-drive-store" }
+az-drive-webdav = { path = "../../../crates/network/az-drive-webdav" }
+az-rustfs = { path = "../../../crates/storage/az-rustfs" }
+clap = { version = "4.5.38", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+shlex.workspace = true
+tokio.workspace = true
+urlencoding.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

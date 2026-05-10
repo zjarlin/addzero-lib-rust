@@ -20,25 +20,27 @@ use crate::services::system_management::{
 };
 
 pub async fn run_system_cli(cli: SystemCli) -> Result<()> {
-    match cli.command {
-        SystemSubcommand::Docs(args) => print_docs(args)?,
-        SystemSubcommand::User(cli) => run_user_cli(cli).await?,
-        SystemSubcommand::Role(cli) => run_role_cli(cli).await?,
-        SystemSubcommand::Menu(cli) => run_menu_cli(cli).await?,
-        SystemSubcommand::Department(cli) => run_department_cli(cli).await?,
-        SystemSubcommand::DictGroup(cli) => run_dict_group_cli(cli).await?,
-        SystemSubcommand::DictItem(cli) => run_dict_item_cli(cli).await?,
-    }
+    println!("{}", run_system_cli_to_string(cli).await?);
     Ok(())
 }
 
-fn print_docs(args: SystemDocsArgs) -> Result<()> {
-    let text = match args.module {
+pub async fn run_system_cli_to_string(cli: SystemCli) -> Result<String> {
+    match cli.command {
+        SystemSubcommand::Docs(args) => Ok(print_docs(args)),
+        SystemSubcommand::User(cli) => run_user_cli(cli).await,
+        SystemSubcommand::Role(cli) => run_role_cli(cli).await,
+        SystemSubcommand::Menu(cli) => run_menu_cli(cli).await,
+        SystemSubcommand::Department(cli) => run_department_cli(cli).await,
+        SystemSubcommand::DictGroup(cli) => run_dict_group_cli(cli).await,
+        SystemSubcommand::DictItem(cli) => run_dict_item_cli(cli).await,
+    }
+}
+
+fn print_docs(args: SystemDocsArgs) -> String {
+    match args.module {
         Some(module) => module_doc(module),
         None => overview_doc(),
-    };
-    println!("{text}");
-    Ok(())
+    }
 }
 
 fn overview_doc() -> String {
@@ -163,10 +165,10 @@ fn module_doc(module: SystemModuleKind) -> String {
     }
 }
 
-async fn run_user_cli(cli: UserCli) -> Result<()> {
+async fn run_user_cli(cli: UserCli) -> Result<String> {
     match cli.command {
-        UserSubcommand::List => print_json(&list_users_on_server().await?)?,
-        UserSubcommand::Get(IdArgs { id }) => print_json(&get_user_on_server(id).await?)?,
+        UserSubcommand::List => json_output(&list_users_on_server().await?),
+        UserSubcommand::Get(IdArgs { id }) => json_output(&get_user_on_server(id).await?),
         UserSubcommand::Create(args) => {
             let user = create_user_on_server(UserUpsertDto {
                 username: args.username,
@@ -178,7 +180,7 @@ async fn run_user_cli(cli: UserCli) -> Result<()> {
             if !args.role_ids.is_empty() {
                 authorize_user_roles_on_server(user.id, args.role_ids).await?;
             }
-            print_json(&get_user_on_server(user.id).await?)?;
+            json_output(&get_user_on_server(user.id).await?)
         }
         UserSubcommand::Update(args) => {
             let user = update_user_on_server(
@@ -191,27 +193,26 @@ async fn run_user_cli(cli: UserCli) -> Result<()> {
                 },
             )
             .await?;
-            print_json(&get_user_on_server(user.id).await?)?;
+            json_output(&get_user_on_server(user.id).await?)
         }
         UserSubcommand::Delete(IdArgs { id }) => {
             delete_user_on_server(id).await?;
-            println!("{{\"deleted\":true,\"id\":{id}}}");
+            Ok(format!("{{\"deleted\":true,\"id\":{id}}}"))
         }
         UserSubcommand::AuthorizeRoles(args) => {
             authorize_user_roles_on_server(args.id, args.role_ids).await?;
-            print_json(&get_user_on_server(args.id).await?)?;
+            json_output(&get_user_on_server(args.id).await?)
         }
         UserSubcommand::EffectiveMenus(IdArgs { id }) => {
-            print_json(&get_user_effective_menu_ids_on_server(id).await?)?;
+            json_output(&get_user_effective_menu_ids_on_server(id).await?)
         }
     }
-    Ok(())
 }
 
-async fn run_role_cli(cli: RoleCli) -> Result<()> {
+async fn run_role_cli(cli: RoleCli) -> Result<String> {
     match cli.command {
-        RoleSubcommand::List => print_json(&list_roles_on_server().await?)?,
-        RoleSubcommand::Get(IdArgs { id }) => print_json(&get_role_on_server(id).await?)?,
+        RoleSubcommand::List => json_output(&list_roles_on_server().await?),
+        RoleSubcommand::Get(IdArgs { id }) => json_output(&get_role_on_server(id).await?),
         RoleSubcommand::Create(args) => {
             let role = create_role_on_server(RoleUpsertDto {
                 name: args.name,
@@ -221,7 +222,7 @@ async fn run_role_cli(cli: RoleCli) -> Result<()> {
             if !args.menu_ids.is_empty() {
                 authorize_role_menus_on_server(role.id, args.menu_ids).await?;
             }
-            print_json(&get_role_on_server(role.id).await?)?;
+            json_output(&get_role_on_server(role.id).await?)
         }
         RoleSubcommand::Update(args) => {
             let role = update_role_on_server(
@@ -232,139 +233,122 @@ async fn run_role_cli(cli: RoleCli) -> Result<()> {
                 },
             )
             .await?;
-            print_json(&get_role_on_server(role.id).await?)?;
+            json_output(&get_role_on_server(role.id).await?)
         }
         RoleSubcommand::Delete(IdArgs { id }) => {
             delete_role_on_server(id).await?;
-            println!("{{\"deleted\":true,\"id\":{id}}}");
+            Ok(format!("{{\"deleted\":true,\"id\":{id}}}"))
         }
         RoleSubcommand::AuthorizeMenus(args) => {
             authorize_role_menus_on_server(args.id, args.menu_ids).await?;
-            print_json(&get_role_on_server(args.id).await?)?;
+            json_output(&get_role_on_server(args.id).await?)
         }
     }
-    Ok(())
 }
 
-async fn run_menu_cli(cli: crate::cli::MenuCli) -> Result<()> {
+async fn run_menu_cli(cli: crate::cli::MenuCli) -> Result<String> {
     match cli.command {
-        MenuSubcommand::List => print_json(&list_menus_on_server().await?)?,
+        MenuSubcommand::List => json_output(&list_menus_on_server().await?),
         MenuSubcommand::Create(args) => {
-            print_json(&create_menu_on_server(menu_input_from_create(args)).await?)?;
+            json_output(&create_menu_on_server(menu_input_from_create(args)).await?)
         }
         MenuSubcommand::Update(args) => {
-            print_json(&update_menu_on_server(args.id, menu_input_from_update(args)).await?)?;
+            json_output(&update_menu_on_server(args.id, menu_input_from_update(args)).await?)
         }
         MenuSubcommand::Delete(IdArgs { id }) => {
             delete_menu_on_server(id).await?;
-            println!("{{\"deleted\":true,\"id\":{id}}}");
+            Ok(format!("{{\"deleted\":true,\"id\":{id}}}"))
         }
     }
-    Ok(())
 }
 
-async fn run_department_cli(cli: crate::cli::DepartmentCli) -> Result<()> {
+async fn run_department_cli(cli: crate::cli::DepartmentCli) -> Result<String> {
     match cli.command {
-        DepartmentSubcommand::List => print_json(&list_departments_on_server().await?)?,
-        DepartmentSubcommand::Create(args) => {
-            print_json(
-                &create_department_on_server(DepartmentUpsertDto {
+        DepartmentSubcommand::List => json_output(&list_departments_on_server().await?),
+        DepartmentSubcommand::Create(args) => json_output(
+            &create_department_on_server(DepartmentUpsertDto {
+                parent_id: args.parent_id,
+                name: args.name,
+                sort_order: args.sort_order,
+            })
+            .await?,
+        ),
+        DepartmentSubcommand::Update(args) => json_output(
+            &update_department_on_server(
+                args.id,
+                DepartmentUpsertDto {
                     parent_id: args.parent_id,
                     name: args.name,
                     sort_order: args.sort_order,
-                })
-                .await?,
-            )?;
-        }
-        DepartmentSubcommand::Update(args) => {
-            print_json(
-                &update_department_on_server(
-                    args.id,
-                    DepartmentUpsertDto {
-                        parent_id: args.parent_id,
-                        name: args.name,
-                        sort_order: args.sort_order,
-                    },
-                )
-                .await?,
-            )?;
-        }
+                },
+            )
+            .await?,
+        ),
         DepartmentSubcommand::Delete(IdArgs { id }) => {
             delete_department_on_server(id).await?;
-            println!("{{\"deleted\":true,\"id\":{id}}}");
+            Ok(format!("{{\"deleted\":true,\"id\":{id}}}"))
         }
     }
-    Ok(())
 }
 
-async fn run_dict_group_cli(cli: crate::cli::DictGroupCli) -> Result<()> {
+async fn run_dict_group_cli(cli: crate::cli::DictGroupCli) -> Result<String> {
     match cli.command {
-        DictGroupSubcommand::List => print_json(&list_dict_groups_on_server().await?)?,
-        DictGroupSubcommand::Create(args) => {
-            print_json(
-                &create_dict_group_on_server(DictGroupUpsertDto {
+        DictGroupSubcommand::List => json_output(&list_dict_groups_on_server().await?),
+        DictGroupSubcommand::Create(args) => json_output(
+            &create_dict_group_on_server(DictGroupUpsertDto {
+                name: args.name,
+                description: args.description,
+            })
+            .await?,
+        ),
+        DictGroupSubcommand::Update(args) => json_output(
+            &update_dict_group_on_server(
+                args.id,
+                DictGroupUpsertDto {
                     name: args.name,
                     description: args.description,
-                })
-                .await?,
-            )?;
-        }
-        DictGroupSubcommand::Update(args) => {
-            print_json(
-                &update_dict_group_on_server(
-                    args.id,
-                    DictGroupUpsertDto {
-                        name: args.name,
-                        description: args.description,
-                    },
-                )
-                .await?,
-            )?;
-        }
+                },
+            )
+            .await?,
+        ),
         DictGroupSubcommand::Delete(IdArgs { id }) => {
             delete_dict_group_on_server(id).await?;
-            println!("{{\"deleted\":true,\"id\":{id}}}");
+            Ok(format!("{{\"deleted\":true,\"id\":{id}}}"))
         }
     }
-    Ok(())
 }
 
-async fn run_dict_item_cli(cli: crate::cli::DictItemCli) -> Result<()> {
+async fn run_dict_item_cli(cli: crate::cli::DictItemCli) -> Result<String> {
     match cli.command {
         DictItemSubcommand::List(args) => {
-            print_json(&list_dict_items_on_server(args.group_id).await?)?
+            json_output(&list_dict_items_on_server(args.group_id).await?)
         }
-        DictItemSubcommand::Create(args) => {
-            print_json(
-                &create_dict_item_on_server(DictItemUpsertDto {
+        DictItemSubcommand::Create(args) => json_output(
+            &create_dict_item_on_server(DictItemUpsertDto {
+                group_id: args.group_id,
+                label: args.label,
+                value: args.value,
+                sort_order: args.sort_order,
+            })
+            .await?,
+        ),
+        DictItemSubcommand::Update(args) => json_output(
+            &update_dict_item_on_server(
+                args.id,
+                DictItemUpsertDto {
                     group_id: args.group_id,
                     label: args.label,
                     value: args.value,
                     sort_order: args.sort_order,
-                })
-                .await?,
-            )?;
-        }
-        DictItemSubcommand::Update(args) => {
-            print_json(
-                &update_dict_item_on_server(
-                    args.id,
-                    DictItemUpsertDto {
-                        group_id: args.group_id,
-                        label: args.label,
-                        value: args.value,
-                        sort_order: args.sort_order,
-                    },
-                )
-                .await?,
-            )?;
-        }
+                },
+            )
+            .await?,
+        ),
         DictItemSubcommand::Delete(IdArgs { id }) => {
             delete_dict_item_on_server(id).await?;
-            println!("{{\"deleted\":true,\"id\":{id}}}");
+            Ok(format!("{{\"deleted\":true,\"id\":{id}}}"))
         }
     }
-    Ok(())
 }
 
 fn menu_input_from_create(args: MenuCreateArgs) -> MenuUpsertDto {
@@ -393,7 +377,6 @@ fn menu_input_from_update(args: MenuUpdateArgs) -> MenuUpsertDto {
     }
 }
 
-fn print_json<T: serde::Serialize>(value: &T) -> Result<()> {
-    println!("{}", serde_json::to_string_pretty(value)?);
-    Ok(())
+fn json_output<T: serde::Serialize>(value: &T) -> Result<String> {
+    Ok(serde_json::to_string_pretty(value)?)
 }

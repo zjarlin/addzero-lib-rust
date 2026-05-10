@@ -21,16 +21,11 @@ pub mod logo_storage;
 pub mod menu_system;
 pub mod minio_files;
 pub mod platform_config;
-pub mod plugins;
 pub mod skills;
 pub mod software_catalog;
 pub mod system_management;
 pub mod terminal_sessions;
 pub mod vibe_coding;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod wasm_plugin_store;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod wasm_plugins;
 
 pub use ai_chat::{
     AiProviderConfigDto, AiProviderConfigUpsertDto, AiProviderKindDto, ChatMessageDto,
@@ -87,10 +82,6 @@ pub use platform_config::{
     MinioConfigDto, MinioConfigUpdateDto, PlatformConfigDto, PlatformConfigSaveResultDto,
     PostgresConfigDto, PostgresConfigUpdateDto,
 };
-pub use plugins::{
-    PluginDescriptorDto, PluginInstallRequestDto, PluginManifestDto, SharedPluginsApi,
-    default_plugins_api,
-};
 pub use skills::{
     SharedSkillsApi, SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto, default_skills_api,
 };
@@ -108,9 +99,3 @@ pub use terminal_sessions::{
     default_terminal_sessions_api,
 };
 pub use vibe_coding::{StartVibeCodingRequestDto, StartVibeCodingResponseDto};
-#[cfg(not(target_arch = "wasm32"))]
-pub use wasm_plugins::{
-    WasmPluginBinaryUploadRequestDto, WasmPluginFirmwareKindDto,
-    WasmPluginFirmwareUploadRequestDto, WasmPluginInstallRequestDto, WasmPluginInstallResultDto,
-    WasmPluginRuntimeSnapshotDto, WasmPluginUploadResultDto,
-};

@@ -4,7 +4,11 @@ use aio::cli::{Cli, Command};
 
 fn main() {
     let cli = Cli::parse();
-    match cli.command.unwrap_or(Command::Serve) {
+    match cli.command.unwrap_or(Command::Tui) {
+        Command::Tui => {
+            let runtime = tokio::runtime::Runtime::new().expect("tokio runtime");
+            runtime.block_on(aio::tui::run_tui()).expect("run tui");
+        }
         Command::Migrate => {
             let runtime = tokio::runtime::Runtime::new().expect("tokio runtime");
             runtime

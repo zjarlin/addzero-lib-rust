@@ -1,0 +1,17 @@
+[package]
+name = "az-drive-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+chrono = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+sha2.workspace = true
+thiserror.workspace = true
+uuid.workspace = true

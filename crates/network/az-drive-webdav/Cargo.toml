@@ -1,0 +1,22 @@
+[package]
+name = "az-drive-webdav"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+axum.workspace = true
+az-drive-core = { path = "../../storage/az-drive-core" }
+az-drive-store = { path = "../../storage/az-drive-store" }
+chrono = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

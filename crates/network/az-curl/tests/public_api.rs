@@ -15,7 +15,8 @@ fn parses_complex_post_command() {
           --data-raw '{"pageIndex":0,"pageSize":96,"sorts":[{"name":"createTime","order":"desc"}],"terms":[]}'
     "#;
 
-    let parsed = CurlParser::parse(command).expect("curl should parse");
+    let result = CurlParser::parse(command);
+    let parsed = result.expect("curl should parse");
 
     assert_eq!(parsed.method, Method::POST);
     assert_eq!(
@@ -118,7 +119,8 @@ fn executor_sends_request_to_local_server() {
     );
 
     let executor = CurlExecutor::new();
-    let response = executor.execute(command).expect("request should succeed");
+    let result = executor.execute(command);
+    let response = result.expect("request should succeed");
     let request = join_handle.join().expect("server thread should join");
 
     assert_eq!(response.status, 200);

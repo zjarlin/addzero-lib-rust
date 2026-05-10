@@ -1,0 +1,25 @@
+[package]
+name = "az-drive-agent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+az-drive-core = { path = "../../storage/az-drive-core" }
+az-drive-store = { path = "../../storage/az-drive-store" }
+chrono = { workspace = true, features = ["serde"] }
+dirs.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+walkdir = "2"
+
+[dev-dependencies]
+tempfile.workspace = true

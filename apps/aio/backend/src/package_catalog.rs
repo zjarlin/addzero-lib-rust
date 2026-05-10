@@ -137,7 +137,7 @@ pub const PACKAGE_ASSETS: &[PackageAsset] = &[
         install_target: "~/.local/node/v22",
         checksum_state: "待补 SHA256",
         relation: "关联软件对象：前端构建与脚本运行时",
-        note: "和 pnpm、前端构建脚本一起构成知识前端与后台的依赖面。",
+        note: "作为通用脚本运行时资产保留，用于少量跨语言工具和开发环境依赖。",
     },
     PackageAsset {
         slug: "knowledge-graph-demo",

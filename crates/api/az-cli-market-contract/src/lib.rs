@@ -1,3 +1,28 @@
+//! CLI 市场数据契约层——定义 CLI 生态中工具条目、安装方式、导入导出等全部共享类型。
+//!
+//! 本 crate 纯做类型定义，不包含任何 IO 或网络逻辑；API 服务端与 CLI 客户端
+//! 共同依赖此 crate，从而保证协议层面的一致性。
+//!
+//! ## 核心类型
+//!
+//! - [`CliMarketEntry`] — 单条 CLI 工具市场条目（含国际化描述、安装方式、文档引用）
+//! - [`CliMarketEntryUpsert`] — 创建 / 更新时使用的 DTO（`id` 可选）
+//! - [`CliMarketCatalog`] — 带摘要统计的完整目录快照
+//! - [`CliMarketImportRequest`] / [`CliMarketImportReport`] — 导入请求与逐行报告
+//! - [`CliMarketExportRequest`] / [`CliMarketExportArtifact`] — 导出请求与 base64 附件
+//! - [`CliMarketInstallRequest`] / [`CliMarketInstallResult`] — 安装执行与结果
+//!
+//! ## 枚举分类
+//!
+//! | 枚举                | 说明                 |
+//! |---------------------|----------------------|
+//! | `CliMarketStatus`   | 条目生命周期状态     |
+//! | `CliEntryKind`      | 条目类型（CLI/Wrapper/Installer/Bundle） |
+//! | `CliLocale`         | 语言区域             |
+//! | `CliPlatform`       | 目标平台             |
+//! | `CliInstallerKind`  | 包管理器 / 安装方式  |
+//! | `CliImportFormat`   | 导入文件格式         |
+
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

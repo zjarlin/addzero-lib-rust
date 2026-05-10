@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: az_drive
+      POSTGRES_USER: az_drive
+      POSTGRES_PASSWORD: az_drive
+    ports:
+      - "15433:5432"
+    volumes:
+      - az-drive-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U az_drive -d az_drive"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: az_drive
+      MINIO_ROOT_PASSWORD: az_drive_secret
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    volumes:
+      - az-drive-minio:/data
+
+  aio-drive:
+    build:
+      context: ../../..
+      dockerfile: apps/drive/backend/Dockerfile
+    environment:
+      AZ_DRIVE_BIND: 0.0.0.0:8788
+      AZ_DRIVE_DATABASE_URL: postgresql://az_drive:az_drive@postgres:5432/az_drive
+      AZ_DRIVE_MINIO_ENDPOINT: http://minio:9000
+      AZ_DRIVE_MINIO_ACCESS_KEY: az_drive
+      AZ_DRIVE_MINIO_SECRET_KEY: az_drive_secret
+      AZ_DRIVE_BUCKET: aio-drive
+    ports:
+      - "8788:8788"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+volumes:
+  az-drive-postgres:
+  az-drive-minio:

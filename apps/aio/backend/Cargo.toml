@@ -1,5 +1,6 @@
 [package]
 name = "aio"
+default-run = "aio"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,12 +8,10 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+az-tui = { path = "../../../crates/apps/az-tui" }
 az-sandbox = { path = "../../../crates/core/az-sandbox" }
 az-script-engine = { path = "../../../crates/runtime/az-script-engine" }
 az-script-engine-rhai = { path = "../../../crates/runtime/az-script-engine-rhai" }
-az-wasm-plugin-api = { path = "../../../crates/runtime/az-wasm-plugin-api" }
-az-wasm-plugin-host = { path = "../../../crates/runtime/az-wasm-plugin-host" }
-az-admin-plugin-registry = { path = "../../../crates/runtime/az-admin-plugin-registry" }
 az-agent-runtime-contract = { path = "../../../crates/data/az-agent-runtime-contract" }
 az-cli-market-contract = { path = "../../../crates/api/az-cli-market-contract" }
 az-software-catalog = { path = "../../../crates/data/az-software-catalog" }
@@ -34,9 +33,6 @@ az-assets = { path = "../../../crates/data/az-assets" }
 az-knowledge = { path = "../../../crates/data/az-knowledge" }
 az-minio = { path = "../../../crates/storage/az-minio" }
 az-persistence = { path = "../../../crates/data/az-persistence" }
-az-plugin-contract = { path = "../../../crates/runtime/az-plugin-contract" }
-az-plugin-kernel = { path = "../../../crates/runtime/az-plugin-kernel" }
-az-plugin-runtime = { path = "../../../crates/runtime/az-plugin-runtime" }
 az-skills = { path = "../../../crates/data/az-skills" }
 az-rustfs = { path = "../../../crates/storage/az-rustfs" }
 az-system-starters = { path = "../../../crates/runtime/az-system-starters" }

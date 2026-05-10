@@ -17,6 +17,7 @@ async fn live_subscription_should_fetch_test_and_generate_config() -> ClashResul
     assert!(!yaml_nodes.is_empty());
 
     let results = batch_speed_test(&base_nodes, 10, Duration::from_secs(2)).await;
+
     println!("speed test results: {}", results.len());
     for result in results.iter().take(10) {
         println!(
