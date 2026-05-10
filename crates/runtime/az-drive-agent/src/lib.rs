@@ -16,13 +16,13 @@ use az_drive_store::{
     DriveVersion,
 };
 use chrono::{DateTime, Utc};
+use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use uuid::Uuid;
-use walkdir::WalkDir;
 
 /// Result alias for agent operations.
 pub type DriveAgentResult<T> = Result<T, DriveAgentError>;
@@ -117,6 +117,21 @@ pub struct HostedPathState {
     pub last_synced_at: Option<DateTime<Utc>>,
 }
 
+/// Local directory root whose descendants are hosted for synchronization.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct HostedRootState {
+    /// Device-local absolute directory path.
+    pub local_path: PathBuf,
+    /// Remote space id.
+    pub space_id: String,
+    /// Remote root alias.
+    pub root_alias: String,
+    /// Remote relative path for the hosted directory.
+    pub relative_path: String,
+    /// Hosting creation time.
+    pub hosted_at: DateTime<Utc>,
+}
+
 /// Device-local conflict projection.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LocalConflictState {
@@ -141,6 +156,9 @@ pub struct LocalState {
     pub roots: Vec<LocalRootState>,
     /// Hosted local paths.
     pub hosted: Vec<HostedPathState>,
+    /// Hosted directory roots whose descendants are discovered on sync.
+    #[serde(default)]
+    pub hosted_roots: Vec<HostedRootState>,
     /// Locally observed conflicts.
     pub conflicts: Vec<LocalConflictState>,
 }
@@ -155,6 +173,7 @@ impl LocalState {
             device_name,
             roots: Vec::new(),
             hosted: Vec::new(),
+            hosted_roots: Vec::new(),
             conflicts: Vec::new(),
         }
     }
@@ -357,6 +376,20 @@ impl DriveAgent {
                     source,
                 })?;
 
+        if metadata.is_dir() {
+            let root_mapping = registry.resolve_host_path(&requested, preferred_alias.as_ref())?;
+            upsert_hosted_root_state(
+                &mut state,
+                HostedRootState {
+                    local_path: root_mapping.local_abs_path,
+                    space_id: self.config.space_id.clone(),
+                    root_alias: root_mapping.root_alias.to_string(),
+                    relative_path: root_mapping.relative_path.to_string(),
+                    hosted_at: Utc::now(),
+                },
+            );
+        }
+
         let files = if metadata.is_dir() {
             collect_files(&requested)?
         } else {
@@ -386,11 +419,14 @@ impl DriveAgent {
     pub async fn unhost_path(&self, path: &str) -> DriveAgentResult<usize> {
         let requested = normalize_absolute_path(&expand_path_expression(path))?;
         let mut state = self.state_store.load_or_init().await?;
-        let before = state.hosted.len();
+        let before = state.hosted.len() + state.hosted_roots.len();
         state.hosted.retain(|hosted| {
             hosted.local_path != requested && !hosted.local_path.starts_with(&requested)
         });
-        let removed = before.saturating_sub(state.hosted.len());
+        state.hosted_roots.retain(|hosted| {
+            hosted.local_path != requested && !hosted.local_path.starts_with(&requested)
+        });
+        let removed = before.saturating_sub(state.hosted.len() + state.hosted_roots.len());
         self.state_store.save(&state).await?;
         Ok(removed)
     }
@@ -430,6 +466,7 @@ impl DriveAgent {
     /// Returns [`DriveAgentError`] when local I/O or remote store operations fail.
     pub async fn sync_once(&self) -> DriveAgentResult<Vec<HostedStatus>> {
         let mut state = self.state_store.load_or_init().await?;
+        self.discover_hosted_root_files(&mut state).await?;
         let mut statuses = Vec::new();
         let mut hosted_records = std::mem::take(&mut state.hosted);
         for mut hosted in hosted_records.drain(..) {
@@ -617,6 +654,25 @@ impl DriveAgent {
         Ok(())
     }
 
+    async fn discover_hosted_root_files(&self, state: &mut LocalState) -> DriveAgentResult<()> {
+        let registry = registry_from_state(state)?;
+        let roots = state.hosted_roots.clone();
+        for root in roots {
+            if !root.local_path.exists() {
+                continue;
+            }
+            let root_alias = RootAlias::parse(&root.root_alias)?;
+            for file in collect_files(&root.local_path)? {
+                if state.hosted.iter().any(|hosted| hosted.local_path == file) {
+                    continue;
+                }
+                let mapping = registry.resolve_host_path(&file, Some(&root_alias))?;
+                self.host_file(state, mapping).await?;
+            }
+        }
+        Ok(())
+    }
+
     async fn try_merge_or_write_conflict(
         &self,
         state: &mut LocalState,
@@ -742,6 +798,16 @@ fn upsert_hosted_state(state: &mut LocalState, hosted: HostedPathState) {
         .sort_by(|left, right| left.local_path.cmp(&right.local_path));
 }
 
+fn upsert_hosted_root_state(state: &mut LocalState, hosted: HostedRootState) {
+    state
+        .hosted_roots
+        .retain(|item| item.local_path != hosted.local_path);
+    state.hosted_roots.push(hosted);
+    state
+        .hosted_roots
+        .sort_by(|left, right| left.local_path.cmp(&right.local_path));
+}
+
 fn hosted_status(hosted: &HostedPathState) -> HostedStatus {
     HostedStatus {
         local_path: hosted.local_path.clone(),
@@ -757,9 +823,22 @@ fn hosted_status(hosted: &HostedPathState) -> HostedStatus {
 
 fn collect_files(root: &Path) -> DriveAgentResult<Vec<PathBuf>> {
     let mut files = Vec::new();
-    for entry in WalkDir::new(root).follow_links(false) {
+    let walker = WalkBuilder::new(root)
+        .follow_links(false)
+        .hidden(false)
+        .ignore(true)
+        .git_ignore(true)
+        .git_global(true)
+        .git_exclude(true)
+        .require_git(false)
+        .parents(true)
+        .build();
+    for entry in walker {
         let entry = entry.map_err(|err| DriveAgentError::WalkDir(err.to_string()))?;
-        if entry.file_type().is_file() {
+        if entry
+            .file_type()
+            .is_some_and(|file_type| file_type.is_file())
+        {
             files.push(entry.path().to_path_buf());
         }
     }
@@ -878,6 +957,79 @@ mod tests {
 
         assert_eq!(removed, 1);
         assert!(file.exists());
+    }
+
+    #[tokio::test]
+    async fn hosted_directory_discovers_children_and_respects_gitignore() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let metadata = Arc::new(InMemoryDriveMetadataStore::new());
+        let objects = Arc::new(InMemoryDriveObjectStore::new());
+        let agent = agent(&temp, "a", metadata, objects);
+        let root = temp.path().join("workspace");
+        let visible = root.join("docs/a.md");
+        let ignored_dir_file = root.join("target/generated.txt");
+        let ignored_glob_file = root.join("notes/debug.log");
+        tokio::fs::create_dir_all(visible.parent().expect("visible parent"))
+            .await
+            .expect("visible parent should be created");
+        tokio::fs::create_dir_all(ignored_dir_file.parent().expect("ignored dir parent"))
+            .await
+            .expect("ignored dir parent should be created");
+        tokio::fs::create_dir_all(ignored_glob_file.parent().expect("ignored glob parent"))
+            .await
+            .expect("ignored glob parent should be created");
+        tokio::fs::write(root.join(".gitignore"), b"target/\n*.log\n")
+            .await
+            .expect("gitignore should be written");
+        tokio::fs::write(&visible, b"visible")
+            .await
+            .expect("visible file should be written");
+        tokio::fs::write(&ignored_dir_file, b"ignored")
+            .await
+            .expect("ignored dir file should be written");
+        tokio::fs::write(&ignored_glob_file, b"ignored")
+            .await
+            .expect("ignored glob file should be written");
+        agent
+            .add_root("workspace", root.to_str().expect("utf8 path"))
+            .await
+            .expect("root should add");
+
+        agent
+            .host_path(root.to_str().expect("utf8 path"), None, None)
+            .await
+            .expect("directory should host");
+
+        let initial = agent.status(None).await.expect("status should load");
+        // The hosted directory must include normal descendants and exclude gitignored paths.
+        assert!(initial.iter().any(|status| status.local_path == visible));
+        assert!(
+            initial
+                .iter()
+                .all(|status| status.local_path != ignored_dir_file)
+        );
+        assert!(
+            initial
+                .iter()
+                .all(|status| status.local_path != ignored_glob_file)
+        );
+
+        let new_file = root.join("docs/new.md");
+        tokio::fs::write(&new_file, b"new")
+            .await
+            .expect("new file should be written");
+        agent
+            .sync_once()
+            .await
+            .expect("sync should discover new file");
+        let after_sync = agent.status(None).await.expect("status should reload");
+
+        // A hosted directory root is persistent, so later non-ignored children become hosted.
+        assert!(
+            after_sync
+                .iter()
+                .any(|status| status.local_path == new_file)
+        );
     }
 
     #[tokio::test]

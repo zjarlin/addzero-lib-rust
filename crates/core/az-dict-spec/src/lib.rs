@@ -1,3 +1,22 @@
+//! 字典（枚举）数据的规范定义与校验。
+//!
+//! 本 crate 提供 [`DictionarySpec`] 和 [`DictionaryItemSpec`] 结构体，用于在应用层统一描述、
+//! 校验和序列化字典型数据（如状态码、分类标签、枚举选项等）。
+//!
+//! # 核心类型
+//!
+//! - [`DictionarySpec`] — 字典规范的顶层定义，包含代码、名称、作用域、原始值类型和条目列表
+//! - [`DictionaryItemSpec`] — 单个字典条目的规范
+//! - [`DictEnumItem<T>`] — 编译期静态字典枚举项，适用于代码内嵌常量
+//! - [`RawValueKind`] — 原始值类型枚举（整数/字符串）
+//!
+//! # 校验规则
+//!
+//! - `code`、`name`、`scope`、`item.code`、`item.label` 不能为空
+//! - `items` 列表不能为空
+//! - 条目的 `code` 和原始值（`rawIntValue` / `rawTextValue`）不能重复
+//! - 整数型字典只能使用 `rawIntValue`，字符串型字典只能使用 `rawTextValue`
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeSet;

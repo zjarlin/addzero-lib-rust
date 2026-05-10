@@ -48,6 +48,8 @@
 - 不再维护“大一统 re-export 门面”文件，例如在 `services.rs` 中集中 `pub use` 整个子系统的 DTO、service、helper。
 - 调用方默认直接依赖真实模块路径，例如 `crate::services::ai_chat::ChatRequestDto`，并借助 IDE 自动导包，而不是依赖扁平门面别名。
 - 共享入口文件只保留真正的入口职责：模块发现、少量基础类型别名、必要的顶层编排；不要把它继续堆成隐式 API 广场。
+- 对普通数据结构、上下文结构、配置结构，默认优先直接使用 `T { ... }` 结构体字面量构造，而不是继续补自定义 fluent builder / `with_xxx` 链式接口。
+- 只有当类型不适合公开字段、需要强约束校验、必须隐藏内部不变量，或外部库生态已经明确要求 builder 模式时，才引入 `new(...)` / builder；否则按字面量初始化处理。
 
 <!-- autoskills:start -->
 

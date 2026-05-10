@@ -1,5 +1,35 @@
 #![forbid(unsafe_code)]
 
+//! 聚合式第三方 API 客户端集合，统一封装多种外部服务调用。
+//!
+//! `az-creates` 是一个"门面"（facade）crate，将多个独立的 API 客户端整合到统一入口，
+//! 涵盖以下能力：
+//!
+//! - **Maven Central**（[`maven`]）—— 搜索 Maven 仓库中的构件（`MavenArtifact`），支持按
+//!   groupId、artifactId 或坐标组合查询。
+//! - **天眼查**（[`tianyancha`]）—— 企业信息查询，提供标准版（`TianyanchaApi`）与华为云
+//!   代理版（`TianyanchaHuaweiApi`）两种接入方式，支持公司搜索与详情查询。
+//! - **临时邮箱**（re-export 自 `az-temp-mail`）—— 创建临时邮箱、收发邮件、管理地址等，
+//!   支持 Cloudflare 和 Mail.tm 两种后端。
+//! - **音乐搜索/生成**（re-export 自 `az-music`）—— 网易云音乐搜索、歌词获取、
+//!   Suno AI 音乐生成等。
+//!
+//! 所有 API 客户端通过 [`Creates`] 结构体的便捷方法创建，也可通过各子模块直接构造。
+//!
+//! # 快速开始
+//!
+//! ```no_run
+//! use az_creates::Creates;
+//!
+//! // 搜索 Maven Central
+//! let maven = Creates::maven_central()?;
+//! let artifacts = maven.search_by_group_id("com.google.guava", 10)?;
+//!
+//! // 创建临时邮箱
+//! let temp_mail = Creates::temp_mail("https://api.example.com")?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+
 mod config;
 mod error;
 mod http;
