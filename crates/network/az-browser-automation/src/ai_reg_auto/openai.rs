@@ -2,6 +2,9 @@
 
 use crate::BrowserAutomationResult;
 use crate::{BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions};
+use crate::FingerprintProfile;
+use az_sms::SmsProvider;
+use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
 use headless_chrome::Tab;
 use headless_chrome::protocol::cdp::Runtime;
 use serde::Deserialize;
@@ -9,6 +12,15 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+
+use rand::Rng;
+
+/// Sleeps a random duration between 5-70 seconds to mimic human pacing.
+fn random_jitter() {
+    let mut rng = rand::thread_rng();
+    let secs = rng.gen_range(5..=70);
+    thread::sleep(Duration::from_secs(secs));
+}
 
 /// OpenAI authorization flow mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +50,8 @@ pub enum OpenAiAuthStage {
     CaptchaRequired,
     /// The page reached a state the automation intentionally leaves to a human.
     AwaitingUserAction,
+    /// Onboarding / "About You" page (name, age, etc.).
+    OnboardingRequired,
 }
 
 /// Step identifiers for manual OpenAI entry-flow recording.
@@ -332,6 +346,24 @@ impl OpenAiAuthResult {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct OpenAiAuthAutomation;
 
+/// If the page shows a "session ended" notice, click "Log in" to
+/// dismiss it and reach the real auth form.
+fn dismiss_session_ended(tab: &Arc<Tab>) -> BrowserAutomationResult<bool> {
+    let body = evaluate_json(
+        tab,
+        "document.body ? document.body.innerText.slice(0, 500) : ''",
+    )?;
+    let text = body.as_str().unwrap_or("").to_lowercase();
+    if text.contains("session ended")
+        || text.contains("会话已结束")
+        || text.contains("your session")
+    {
+        click_button_by_text(tab, &["Log in", "Login", "登录", "log in"])
+    } else {
+        Ok(false)
+    }
+}
+
 impl OpenAiAuthAutomation {
     /// Runs a manual entry-flow recording plan.
     ///
@@ -392,14 +424,37 @@ impl OpenAiAuthAutomation {
         })
     }
 
+    /// If the page shows a "session ended" notice, click "Log in" to
+    /// dismiss it and reach the real auth form.
+    fn dismiss_session_ended(tab: &Arc<Tab>) -> BrowserAutomationResult<bool> {
+        let body = evaluate_json(
+            tab,
+            "document.body ? document.body.innerText.slice(0, 500) : ''",
+        )?;
+        let text = body.as_str().unwrap_or("").to_lowercase();
+        if text.contains("session ended")
+            || text.contains("会话已结束")
+            || text.contains("your session")
+        {
+            // Click "Log in" / "登录" to reset the stale session
+            click_button_by_text(tab, &["Log in", "Login", "登录", "log in"])
+        } else {
+            Ok(false)
+        }
+    }
+
     fn run_on_tab(
         tab: &Arc<Tab>,
         auth_options: &OpenAiAuthOptions,
     ) -> BrowserAutomationResult<OpenAiAuthResult> {
         thread::sleep(auth_options.step_delay);
 
+        // Clear any stale session first (OpenAI may show "session ended")
+        let _ = dismiss_session_ended(tab);
+        thread::sleep(auth_options.step_delay);
+
         if auth_options.flow == OpenAiAuthFlow::SignUp {
-            let _ = click_button_by_text(tab, &["Sign up", "Create account"]);
+            let _ = click_button_by_text(tab, &["Sign up", "Create account", "注册", "Create", "Get started", "Don\'t have", "sign up", "Create", "Get started", "Start", "Register", "Don\'t have"]);
             thread::sleep(auth_options.step_delay);
         }
 
@@ -531,9 +586,16 @@ const EMAIL_SELECTORS: &[&str] = &[
     "input[type='email']",
     "input[name='email']",
     "input[name='username']",
+    "input[autocomplete='email']",
     "input[autocomplete='username']",
+    "input[id*='email' i]",
+    "input[id*='username' i]",
     "input[placeholder*='email' i]",
+    "input[placeholder*='address' i]",
     "input[aria-label*='email' i]",
+    "input[data-testid*='email' i]",
+    "input:not([type='hidden']):not([type='submit']):not([type='button'])",
+    "input[type='text']:not([readonly]):not([disabled])",
 ];
 
 const PASSWORD_SELECTORS: &[&str] = &[
@@ -541,8 +603,10 @@ const PASSWORD_SELECTORS: &[&str] = &[
     "input[name='password']",
     "input[autocomplete='current-password']",
     "input[autocomplete='new-password']",
+    "input[id*='password' i]",
     "input[placeholder*='password' i]",
     "input[aria-label*='password' i]",
+    "input[data-testid*='password' i]",
 ];
 
 #[derive(Debug, Clone, Deserialize)]
@@ -553,6 +617,8 @@ struct AuthPageState {
     has_password_input: bool,
     has_verification: bool,
     has_captcha: bool,
+    #[serde(default)]
+    has_onboarding: bool,
 }
 
 impl AuthPageState {
@@ -561,6 +627,7 @@ impl AuthPageState {
         url.contains("platform.openai.com")
             || url.contains("chatgpt.com")
             || url.contains("chat.openai.com")
+        // `about-you` is onboarding, NOT authenticated — handled separately
     }
 }
 
@@ -710,16 +777,30 @@ fn read_state(tab: &Arc<Tab>) -> BrowserAutomationResult<AuthPageState> {
                 ].join(' ').toLowerCase();
                 return haystack.includes('password');
             });
-            const hasVerification = [
-                'verify',
-                'verification',
-                'check your email',
-                'security code',
-                'multi-factor',
-                'two-factor',
-                'authenticator',
-                'one-time code'
-            ].some((token) => bodyText.includes(token));
+            const href = window.location.href.toLowerCase();
+            const hasOnboarding = href.includes('about-you')
+                || href.includes('onboarding')
+                || bodyText.includes('about you')
+                || bodyText.includes('完成帐户')
+                || bodyText.includes('完成账户');
+
+            const hasVerification = href.includes('verify')
+                || href.includes('verification')
+                || href.includes('code')
+                || [
+                    'verify',
+                    'verification',
+                    'check your email',
+                    'security code',
+                    'multi-factor',
+                    'two-factor',
+                    'authenticator',
+                    'one-time code',
+                    '验证',
+                    '验证码',
+                    '邮箱验证',
+                    '安全码',
+                ].some((token) => bodyText.includes(token));
             const hasCaptcha = bodyText.includes('captcha')
                 || document.querySelector('[class*="captcha" i], [id*="captcha" i], iframe[src*="captcha" i], iframe[src*="hcaptcha" i], iframe[src*="recaptcha" i], iframe[src*="turnstile" i]') !== null;
             return {
@@ -727,7 +808,8 @@ fn read_state(tab: &Arc<Tab>) -> BrowserAutomationResult<AuthPageState> {
                 title: document.title,
                 hasPasswordInput,
                 hasVerification,
-                hasCaptcha
+                hasCaptcha,
+                hasOnboarding
             };
         })()
         "#,
@@ -892,6 +974,1021 @@ fn normalize_page_url(start_url: String) -> String {
         trimmed.to_owned()
     } else {
         format!("https://{trimmed}")
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Full Registration Flow — temp_mail + SMS integration
+// ═══════════════════════════════════════════════════════════════════
+
+/// Configuration for a complete OpenAI signup that handles email verification
+/// via a disposable mailbox and phone verification via 5sim SMS.
+#[derive(Debug, Clone)]
+pub struct OpenAiFullRegOptions {
+    /// Start URL (defaults to OpenAI sign-up page).
+    pub start_url: String,
+    /// Password to use during sign-up. Auto-generated if not provided.
+    pub password: Option<String>,
+    /// Delay between automation steps.
+    pub step_delay: Duration,
+    /// Optional hold after the flow reaches a terminal stage.
+    pub hold_for: Option<Duration>,
+    /// 5sim API token for purchasing SMS verification numbers.
+    pub sms_token: Option<String>,
+    /// 5sim product name (e.g. `"openai"`).
+    pub sms_product: String,
+    /// 5sim country code (e.g. `"usa"`).
+    pub sms_country: String,
+    /// 5sim operator code (e.g. `"any"`).
+    pub sms_operator: String,
+    /// Prefix for the disposable email local part.
+    pub email_prefix: String,
+}
+
+impl Default for OpenAiFullRegOptions {
+    fn default() -> Self {
+        Self {
+            start_url: OpenAiAuthOptions::SIGN_UP_URL.to_owned(),
+            password: None,
+            step_delay: Duration::from_millis(700),
+            hold_for: None,
+            sms_token: None,
+            sms_product: "openai".to_owned(),
+            sms_country: "usa".to_owned(),
+            sms_operator: "any".to_owned(),
+            email_prefix: "azit".to_owned(),
+        }
+    }
+}
+
+/// Result of a complete OpenAI signup attempt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpenAiFullRegResult {
+    /// Created disposable email address.
+    pub email: String,
+    /// Disposable email password (mail.tm credential).
+    pub email_password: String,
+    /// JWT token for the disposable mailbox.
+    pub jwt_token: String,
+    /// Password used for the OpenAI account.
+    pub openai_password: String,
+    /// Final automation stage.
+    pub stage: OpenAiAuthStage,
+    /// Final browser URL after the flow.
+    pub final_url: String,
+    /// Final page title.
+    pub page_title: String,
+    /// Human-readable outcome.
+    pub message: String,
+    /// Phone number purchased for SMS verification (if any).
+    pub sms_phone: Option<String>,
+    /// 5sim SMS order ID (if phone verification was used).
+    pub sms_order_id: Option<u64>,
+}
+
+/// Complete OpenAI registration automation.
+///
+/// This wraps [`OpenAiAuthAutomation`] and adds:
+/// - disposable email creation via [`az_temp_mail`]
+/// - email verification code polling via the temp mailbox
+/// - phone verification via [`az_sms`] (5sim)
+#[derive(Debug, Default, Clone, Copy)]
+pub struct OpenAiRegAutomation;
+
+impl OpenAiRegAutomation {
+    /// Runs the full OpenAI sign-up loop with disposable email and optional
+    /// SMS verification.
+    ///
+    /// # Flow
+    ///
+    /// 1. Create a disposable mailbox on mail.tm
+    /// 2. Open the sign-up page, fill email, continue
+    /// 3. If email verification is required →
+    ///    poll the disposable mailbox for the code, enter it
+    /// 4. Fill password (auto-generated if none provided)
+    /// 5. If phone verification is required →
+    ///    buy a 5sim number, enter it, poll for SMS code, enter it
+    /// 6. Return the final result
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserAutomationError`] when browser automation, temp-mail
+    /// creation, SMS purchasing, or page interaction fails.
+    pub fn run_full_registration(
+        reg_options: &OpenAiFullRegOptions,
+        browser_options: &BrowserAutomationOptions,
+    ) -> BrowserAutomationResult<OpenAiFullRegResult> {
+        // 1. Create disposable mailbox
+        let api = create_mail_tm_api().map_err(to_browser_error)?;
+        let mailbox = api
+            .create_mailbox_and_login(&reg_options.email_prefix, 16)
+            .map_err(to_browser_error)?;
+        let openai_password = reg_options
+            .password
+            .clone()
+            .unwrap_or_else(|| random_ascii_string(16));
+
+        let email = mailbox.address.clone();
+        let email_password = mailbox.password.clone().unwrap_or_default();
+        let jwt = mailbox.credential.clone();
+
+        let auth_options = OpenAiAuthOptions {
+            start_url: reg_options.start_url.clone(),
+            flow: OpenAiAuthFlow::SignUp,
+            email: Some(email.clone()),
+            password: Some(openai_password.clone()),
+            step_delay: reg_options.step_delay,
+            hold_for: None,
+        };
+
+        // 2–5. Run browser auth with email verification polling
+        let (mut auth_result, sms_phone, sms_order_id) = Self::run_with_verification(
+            &auth_options,
+            browser_options,
+            &api,
+            &mailbox,
+            reg_options,
+        )?;
+
+        // 6. Build final result
+        let result = OpenAiFullRegResult {
+            email,
+            email_password,
+            jwt_token: jwt,
+            openai_password,
+            stage: auth_result.stage,
+            final_url: std::mem::take(&mut auth_result.final_url),
+            page_title: std::mem::take(&mut auth_result.page_title),
+            message: std::mem::take(&mut auth_result.message),
+            sms_phone,
+            sms_order_id,
+        };
+
+        if let Some(hold_for) = reg_options.hold_for {
+            thread::sleep(hold_for);
+        }
+
+        Ok(result)
+    }
+
+    /// Runs the full registration flow on an existing [`BrowserSession`].
+    ///
+    /// This bypasses [`BrowserAutomation::with_tab`] and uses the caller-owned
+    /// session tab directly, allowing fingerprint profiles, proxies, and
+    /// isolated Chrome processes to be managed externally.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BrowserAutomationError`] when browser automation, temp-mail
+    /// creation, SMS purchasing, or page interaction fails.
+    pub fn run_on_session(
+        reg_options: &OpenAiFullRegOptions,
+        session: &crate::BrowserSession,
+    ) -> BrowserAutomationResult<OpenAiFullRegResult> {
+        let api = create_mail_tm_api().map_err(to_browser_error)?;
+        let mailbox = api
+            .create_mailbox_and_login(&reg_options.email_prefix, 16)
+            .map_err(to_browser_error)?;
+        let openai_password = reg_options
+            .password
+            .clone()
+            .unwrap_or_else(|| random_ascii_string(16));
+
+        let email = mailbox.address.clone();
+        let email_password = mailbox.password.clone().unwrap_or_default();
+        let jwt = mailbox.credential.clone();
+
+        let auth_options = OpenAiAuthOptions {
+            start_url: reg_options.start_url.clone(),
+            flow: OpenAiAuthFlow::SignUp,
+            email: Some(email.clone()),
+            password: Some(openai_password.clone()),
+            step_delay: reg_options.step_delay,
+            hold_for: None,
+        };
+
+        // Navigate to start URL before running verification on existing tab
+        session
+            .navigate(&auth_options.start_url)
+            .map_err(to_browser_error)?;
+
+        let (mut auth_result, sms_phone, sms_order_id) = Self::run_verification_on_tab(
+            session.tab(),
+            &auth_options,
+            &api,
+            &mailbox,
+            reg_options,
+        )?;
+
+        let result = OpenAiFullRegResult {
+            email,
+            email_password,
+            jwt_token: jwt,
+            openai_password,
+            stage: auth_result.stage,
+            final_url: std::mem::take(&mut auth_result.final_url),
+            page_title: std::mem::take(&mut auth_result.page_title),
+            message: std::mem::take(&mut auth_result.message),
+            sms_phone,
+            sms_order_id,
+        };
+
+        if let Some(hold_for) = reg_options.hold_for {
+            thread::sleep(hold_for);
+        }
+
+        Ok(result)
+    }
+
+    fn run_with_verification(
+        auth_options: &OpenAiAuthOptions,
+        browser_options: &BrowserAutomationOptions,
+        provider: &dyn TempMailProvider,
+        mailbox: &TempMailMailbox,
+        reg_options: &OpenAiFullRegOptions,
+    ) -> BrowserAutomationResult<(OpenAiAuthResult, Option<String>, Option<u64>)> {
+        BrowserAutomation::with_tab(&auth_options.start_url, browser_options, |tab| {
+            Self::run_verification_on_tab(tab, auth_options, provider, mailbox, reg_options)
+        })
+    }
+
+    /// Core verification logic extracted so it can be called from both
+    /// [`BrowserAutomation::with_tab`] and [`BrowserSession`] paths.
+    fn run_verification_on_tab(
+        tab: &Arc<Tab>,
+        auth_options: &OpenAiAuthOptions,
+        provider: &dyn TempMailProvider,
+        mailbox: &TempMailMailbox,
+        reg_options: &OpenAiFullRegOptions,
+    ) -> BrowserAutomationResult<(OpenAiAuthResult, Option<String>, Option<u64>)> {
+        thread::sleep(auth_options.step_delay);
+
+            // Clear stale session first
+            let _ = dismiss_session_ended(tab);
+            thread::sleep(auth_options.step_delay);
+            random_jitter();
+
+            // Click "Sign up" / "Create account" if on the login page.
+            let _ = click_button_by_text(tab, &["Sign up", "Create account", "注册", "Create", "Get started", "Don\\'t have"]);
+            thread::sleep(auth_options.step_delay);
+            random_jitter();
+
+            let mut state = read_state(tab)?;
+            if state.is_authenticated() {
+                let r = result(
+                    OpenAiAuthStage::Authenticated,
+                    state,
+                    "OpenAI already authenticated",
+                );
+                return Ok((r, None, None));
+            }
+
+            // ── fill email ──
+            let email = auth_options.email.as_deref().unwrap_or("");
+            if !fill_first_visible(tab, EMAIL_SELECTORS, email)? {
+                let r = result(
+                    OpenAiAuthStage::AwaitingUserAction,
+                    state,
+                    "email input not found",
+                );
+                return Ok((r, None, None));
+            }
+            if !click_continue(tab)? {
+                let r = result(
+                    OpenAiAuthStage::AwaitingUserAction,
+                    state,
+                    "submit after email not found",
+                );
+                return Ok((r, None, None));
+            }
+            random_jitter();
+
+            state = wait_for_state(tab, Duration::from_secs(25), |s| {
+                s.is_authenticated() || s.has_password_input || s.has_verification || s.has_captcha
+            })?;
+
+            if state.is_authenticated() {
+                let r = result(
+                    OpenAiAuthStage::Authenticated,
+                    state,
+                    "authenticated after email",
+                );
+                return Ok((r, None, None));
+            }
+            if state.has_captcha {
+                let r = result(
+                    OpenAiAuthStage::CaptchaRequired,
+                    state,
+                    "captcha after email",
+                );
+                return Ok((r, None, None));
+            }
+
+            // ── email verification code ──
+            if state.has_verification && !state.has_password_input {
+                state = Self::handle_email_verification(
+                    tab,
+                    provider,
+                    mailbox,
+                    auth_options.step_delay,
+                )?;
+                if state.is_authenticated() {
+                    let r = result(
+                        OpenAiAuthStage::Authenticated,
+                        state,
+                        "authenticated after email verification",
+                    );
+                    return Ok((r, None, None));
+                }
+
+                if state.has_captcha {
+                    let r = result(
+                        OpenAiAuthStage::CaptchaRequired,
+                        state,
+                        "captcha after email verification",
+                    );
+                    return Ok((r, None, None));
+                }
+            }
+
+            // ── fill password ──
+            if state.has_password_input {
+                let password = auth_options.password.as_deref().unwrap_or("");
+                if !fill_first_visible(tab, PASSWORD_SELECTORS, password)? {
+                    let r = result(
+                        OpenAiAuthStage::AwaitingUserAction,
+                        state,
+                        "password input visible but could not be filled",
+                    );
+                    return Ok((r, None, None));
+                }
+                if !click_continue(tab)? {
+                    let r = result(
+                        OpenAiAuthStage::AwaitingUserAction,
+                        state,
+                        "submit after password not found",
+                    );
+                    return Ok((r, None, None));
+                }
+                random_jitter();
+
+                state = wait_for_state(tab, Duration::from_secs(25), |s| {
+                    s.is_authenticated() || s.has_verification || s.has_captcha
+                })?;
+
+                if state.is_authenticated() {
+                    let r = result(
+                        OpenAiAuthStage::Authenticated,
+                        state,
+                        "authenticated after password",
+                    );
+                    return Ok((r, None, None));
+                }
+                if state.has_captcha {
+                    let r = result(
+                        OpenAiAuthStage::CaptchaRequired,
+                        state,
+                        "captcha after password",
+                    );
+                    return Ok((r, None, None));
+                }
+                // ── onboarding (About You: name + age) ──
+                if state.has_onboarding {
+                    random_jitter();
+                    state = Self::handle_onboarding(tab, auth_options.step_delay)?;
+                    if state.is_authenticated() {
+                        let r = result(
+                            OpenAiAuthStage::Authenticated,
+                            state,
+                            "authenticated after onboarding",
+                        );
+                        return Ok((r, None, None));
+                    }
+                }
+            }
+
+            // ── phone verification via SMS ──
+            if state.has_verification {
+                random_jitter();
+                // Try email verification first (poll temp_mail)
+                state = Self::handle_email_verification(
+                    tab, provider, mailbox, auth_options.step_delay,
+                )?;
+                if state.is_authenticated() {
+                    let r = result(
+                        OpenAiAuthStage::Authenticated,
+                        state,
+                        "authenticated after post-password email verification",
+                    );
+                    return Ok((r, None, None));
+                }
+
+                if !state.has_verification {
+                    // Email verification resolved, try phone next
+                }
+
+                let (sms_phone, sms_order_id) =
+                    Self::handle_phone_verification(tab, reg_options, auth_options.step_delay)?;
+
+                // Wait a moment for the final state
+                state = wait_for_state(tab, Duration::from_secs(15), |s| {
+                    s.is_authenticated() || s.has_captcha
+                })?;
+
+                let r = if state.is_authenticated() {
+                    result(
+                        OpenAiAuthStage::Authenticated,
+                        state,
+                        "authenticated after phone verification",
+                    )
+                } else {
+                    result(
+                        OpenAiAuthStage::VerificationRequired,
+                        state,
+                        "phone verification submitted; final state unknown",
+                    )
+                };
+                return Ok((r, sms_phone, sms_order_id));
+            }
+
+            // Fallback
+            let r = result(
+                OpenAiAuthStage::PasswordSubmitted,
+                state,
+                "flow ended without clear signal",
+            );
+            Ok((r, None, None))
+    }
+
+    /// Fills name and age on the "About You" onboarding page.
+    /// Uses React Aria-compatible filling since these are likely
+    /// `[role="textbox"]` elements, not native `<input>`.
+    fn handle_onboarding(
+        tab: &Arc<Tab>,
+        step_delay: Duration,
+    ) -> BrowserAutomationResult<AuthPageState> {
+        // Fill name + age (first two visible textboxes in DOM order)
+                let name = random_full_name();
+        let age = random_age();
+        Self::fill_all_textboxes(tab, &[&name, &age.to_string()])?;
+        thread::sleep(step_delay);
+        random_jitter();
+
+        // Click submit
+        let _ = click_button_by_text(
+            tab,
+            &[
+                "Complete account creation",
+                "Create account",
+                "Finish",
+                "Continue",
+                "Next",
+                "Submit",
+                "完成帐户创建",
+                "完成账户创建",
+                "完成",
+            ],
+        );
+        thread::sleep(Duration::from_secs(3));
+
+        let state = wait_for_state(tab, Duration::from_secs(15), |s| {
+            s.is_authenticated() || s.has_captcha || s.has_onboarding
+        })?;
+        // If still on onboarding, return onboarding state
+        if state.has_onboarding && !state.is_authenticated() {
+            return Ok(state);
+        }
+        Ok(state)
+    }
+
+    /// Fills ALL visible textboxes on the page in DOM order.
+    /// Uses execCommand for React Aria compatibility.
+    fn fill_all_textboxes(
+        tab: &Arc<Tab>,
+        values: &[&str],
+    ) -> BrowserAutomationResult<bool> {
+        let js_values = js_value(values)?;
+        let script = format!(
+            r#"
+            (() => {{
+                const values = {js_values};
+                const textboxes = [
+                    ...document.querySelectorAll('[role="textbox"]'),
+                    ...document.querySelectorAll('input[type="text"]:not([readonly]):not([disabled])'),
+                    ...document.querySelectorAll('input:not([type]):not([readonly]):not([disabled])'),
+                    ...document.querySelectorAll('input[type="number"]:not([readonly]):not([disabled])'),
+                ];
+                const visible = (el) => {{
+                    const style = window.getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    return !el.readOnly && !el.disabled
+                        && style.visibility !== 'hidden'
+                        && style.display !== 'none'
+                        && rect.width > 0 && rect.height > 0;
+                }};
+                let filled = 0;
+                for (const el of textboxes) {{
+                    if (!visible(el) || filled >= values.length) continue;
+                    const value = values[filled];
+                    el.focus();
+                    // Select all existing content
+                    if (document.activeElement === el) {{
+                        document.execCommand('selectAll', false, null);
+                        // Type the value via execCommand (works for both input and contentEditable)
+                        document.execCommand('insertText', false, value);
+                    }}
+                    // Also set value directly as fallback
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {{
+                        const nativeSetter = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype, 'value'
+                        );
+                        if (nativeSetter && nativeSetter.set) {{
+                            nativeSetter.set.call(el, value);
+                        }} else {{
+                            el.value = value;
+                        }}
+                    }} else {{
+                        el.textContent = value;
+                    }}
+                    // Dispatch React-compatible events
+                    el.dispatchEvent(new InputEvent('beforeinput', {{
+                        bubbles: true, cancelable: true,
+                        data: value, inputType: 'insertText'
+                    }}));
+                    el.dispatchEvent(new InputEvent('input', {{
+                        bubbles: true, data: value, inputType: 'insertText'
+                    }}));
+                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    el.dispatchEvent(new FocusEvent('blur', {{ bubbles: true }}));
+                    filled++;
+                }}
+                return filled === values.length;
+            }})()
+            "#
+        );
+        evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false))
+    }
+
+    /// Fills a React Aria textbox by searching for a visible textbox whose
+    /// accessible label matches one of the given labels.
+    fn fill_react_textbox(
+        tab: &Arc<Tab>,
+        label_cn: &str,
+        label_en: &str,
+        value: &str,
+    ) -> BrowserAutomationResult<bool> {
+        let js_labels = js_value(&[label_cn, label_en])?;
+        let js_value = js_value(value)?;
+        let script = format!(
+            r#"
+            (() => {{
+                const labels = {js_labels}.map(l => l.toLowerCase());
+                const value = {js_value};
+                // Find all textboxes (React Aria uses role="textbox")
+                const textboxes = [
+                    ...document.querySelectorAll('[role="textbox"]'),
+                    ...document.querySelectorAll('input[type="text"]:not([readonly]):not([disabled])'),
+                    ...document.querySelectorAll('input:not([type]):not([readonly]):not([disabled])'),
+                ];
+                const visible = (el) => {{
+                    const style = window.getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    return style.visibility !== 'hidden'
+                        && style.display !== 'none'
+                        && rect.width > 0 && rect.height > 0;
+                }};
+                for (const el of textboxes) {{
+                    if (!visible(el)) continue;
+                    // Check accessible name
+                    const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+                    const ariaLabelledby = el.getAttribute('aria-labelledby');
+                    let labelText = ariaLabel;
+                    if (ariaLabelledby) {{
+                        const labelEl = document.getElementById(ariaLabelledby);
+                        if (labelEl) labelText += ' ' + (labelEl.textContent || '').toLowerCase();
+                    }}
+                    // Also check nearby label elements
+                    const prevLabel = el.closest('label')?.textContent?.toLowerCase() || '';
+                    const matchesLabel = labels.some(l =>
+                        labelText.includes(l) || prevLabel.includes(l)
+                    );
+                    if (!matchesLabel) continue;
+
+                    // Found the right textbox — fill using React-compatible method
+                    el.focus();
+                    // For contentEditable divs
+                    if (el.contentEditable === 'true' || el.isContentEditable) {{
+                        el.textContent = '';
+                        el.dispatchEvent(new InputEvent('beforeinput', {{
+                            bubbles: true, inputType: 'insertText', data: value
+                        }}));
+                        document.execCommand('insertText', false, value);
+                        el.dispatchEvent(new InputEvent('input', {{
+                            bubbles: true, data: value, inputType: 'insertText'
+                        }}));
+                    }} else {{
+                        // Native input — use React value setter
+                        const nativeSetter = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype, 'value'
+                        );
+                        if (nativeSetter && nativeSetter.set) {{
+                            nativeSetter.set.call(el, value);
+                        }} else {{
+                            el.value = value;
+                        }}
+                        el.dispatchEvent(new InputEvent('input', {{
+                            bubbles: true, data: value, inputType: 'insertText'
+                        }}));
+                    }}
+                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    el.dispatchEvent(new Event('blur', {{ bubbles: true }}));
+                    return true;
+                }}
+                return false;
+            }})()
+            "#
+        );
+        evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false))
+    }
+
+    /// Polls the disposable mailbox for an email verification code and enters
+    /// it into the page.
+    fn handle_email_verification(
+        tab: &Arc<Tab>,
+        provider: &dyn TempMailProvider,
+        mailbox: &TempMailMailbox,
+        step_delay: Duration,
+    ) -> BrowserAutomationResult<AuthPageState> {
+        let code = Self::poll_temp_mail_code(provider, mailbox, Duration::from_secs(120));
+        let Some(code) = code else {
+            return read_state(tab);
+        };
+
+        // Find and fill verification code input
+        Self::fill_verification_code(tab, &code)?;
+        thread::sleep(step_delay);
+
+        if !click_continue(tab)? {
+            // Maybe the code was auto-submitted
+            thread::sleep(Duration::from_secs(3));
+        }
+
+        wait_for_state(tab, Duration::from_secs(25), |s| {
+            s.is_authenticated() || s.has_password_input || s.has_captcha
+        })
+    }
+
+    /// Polls the temp mailbox for a verification code, looking for 4–8 digit
+    /// numeric codes or common verification patterns.
+    fn poll_temp_mail_code(
+        provider: &dyn TempMailProvider,
+        mailbox: &TempMailMailbox,
+        max_wait: Duration,
+    ) -> Option<String> {
+        let deadline = Instant::now() + max_wait;
+        let interval = Duration::from_secs(4);
+
+        // Give the server at least a few seconds to deliver
+        thread::sleep(Duration::from_secs(3));
+
+        while Instant::now() < deadline {
+            if let Ok(listing) = provider.list_messages(mailbox, PageRequest::new(10, 0)) {
+                for summary in &listing.results {
+                    if let Ok(Some(detail)) = provider.get_message(mailbox, &summary.id.to_string())
+                    {
+                        let combined =
+                            format!("{} {} {}", summary.subject, detail.text, detail.html);
+                        if let Some(code) = extract_verification_code(&combined) {
+                            return Some(code);
+                        }
+                    }
+                }
+            }
+            thread::sleep(interval);
+        }
+        None
+    }
+
+    /// Handles phone verification: buys a 5sim number, enters it, polls for
+    /// the SMS code, and enters that.
+    fn handle_phone_verification(
+        tab: &Arc<Tab>,
+        reg_options: &OpenAiFullRegOptions,
+        step_delay: Duration,
+    ) -> BrowserAutomationResult<(Option<String>, Option<u64>)> {
+        let sms_token = match reg_options.sms_token.as_deref() {
+            Some(t) => t,
+            None => return Ok((None, None)),
+        };
+
+        // Buy SMS number via 5sim
+        let (sms_phone, order_id) = Self::buy_sms_number(sms_token, reg_options)?;
+
+        // Enter phone number into the page
+        Self::fill_phone_input(tab, &sms_phone)?;
+        thread::sleep(step_delay);
+
+        if !click_continue(tab)? {
+            thread::sleep(Duration::from_secs(3));
+        }
+
+        // Wait for the SMS verification input to appear
+        thread::sleep(Duration::from_secs(3));
+
+        // Poll 5sim for the SMS code
+        let code = Self::poll_sms_code(sms_token, order_id, Duration::from_secs(180));
+        if let Some(code) = code {
+            Self::fill_verification_code(tab, &code)?;
+            thread::sleep(step_delay);
+            let _ = click_continue(tab);
+            thread::sleep(Duration::from_secs(3));
+        }
+
+        Ok((Some(sms_phone), Some(order_id)))
+    }
+
+    /// Buys a one-time SMS activation number from 5sim.
+    fn buy_sms_number(
+        sms_token: &str,
+        reg_options: &OpenAiFullRegOptions,
+    ) -> BrowserAutomationResult<(String, u64)> {
+        let rt = tokio::runtime::Runtime::new().map_err(to_browser_error)?;
+        rt.block_on(async {
+            let client = az_sms::FivesimClient::from_token(sms_token).map_err(to_browser_error)?;
+            let request = az_sms::SmsActivationRequest::new(
+                &reg_options.sms_country,
+                &reg_options.sms_operator,
+                &reg_options.sms_product,
+            )
+            .map_err(to_browser_error)?;
+            let order = client
+                .buy_activation_number(request)
+                .await
+                .map_err(to_browser_error)?;
+
+            Ok((order.phone, order.id))
+        })
+    }
+
+    /// Polls 5sim for the SMS message containing a verification code.
+    fn poll_sms_code(sms_token: &str, order_id: u64, max_wait: Duration) -> Option<String> {
+        let rt = tokio::runtime::Runtime::new().ok()?;
+        rt.block_on(async {
+            let client = az_sms::FivesimClient::from_token(sms_token).ok()?;
+            let options = az_sms::WaitForSmsOptions::new(max_wait, Duration::from_secs(5)).ok()?;
+            match client.wait_for_sms(order_id, options).await {
+                Ok(order) => {
+                    // Prefer provider-extracted code
+                    if let Some(code) = order.sms.first().and_then(|msg| msg.code.clone()) {
+                        return Some(code);
+                    }
+                    // Fallback: extract code from text
+                    order
+                        .sms
+                        .first()
+                        .and_then(|msg| extract_verification_code(&msg.text))
+                }
+                Err(_) => None,
+            }
+        })
+    }
+
+    /// Fills a verification code into the first matching input on the page.
+    fn fill_verification_code(tab: &Arc<Tab>, code: &str) -> BrowserAutomationResult<bool> {
+        let selectors = js_value(VERIFICATION_CODE_SELECTORS)?;
+        let value = js_value(code)?;
+        let script = format!(
+            r#"
+            (() => {{
+                const selectors = {selectors};
+                const value = {value};
+                const visible = (el) => {{
+                    const style = window.getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    return !el.disabled && !el.readOnly
+                        && style.visibility !== 'hidden'
+                        && style.display !== 'none'
+                        && rect.width > 0 && rect.height > 0;
+                }};
+                for (const selector of selectors) {{
+                    for (const el of document.querySelectorAll(selector)) {{
+                        if (!visible(el) || !('value' in el)) continue;
+                        el.focus();
+                        const desc = Object.getOwnPropertyDescriptor(
+                            Object.getPrototypeOf(el), 'value');
+                        if (desc && desc.set) {{ desc.set.call(el, value); }}
+                        else {{ el.value = value; }}
+                        el.dispatchEvent(new InputEvent('input', {{
+                            bubbles: true, data: value, inputType: 'insertText'
+                        }}));
+                        el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        return true;
+                    }}
+                }}
+                return false;
+            }})()
+            "#
+        );
+        evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false))
+    }
+
+    /// Fills a phone number into the first matching phone input.
+    fn fill_phone_input(tab: &Arc<Tab>, phone: &str) -> BrowserAutomationResult<bool> {
+        let selectors = js_value(PHONE_SELECTORS)?;
+        let value = js_value(phone)?;
+        let script = format!(
+            r#"
+            (() => {{
+                const selectors = {selectors};
+                const value = {value};
+                const visible = (el) => {{
+                    const style = window.getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    return !el.disabled && !el.readOnly
+                        && style.visibility !== 'hidden'
+                        && style.display !== 'none'
+                        && rect.width > 0 && rect.height > 0;
+                }};
+                for (const selector of selectors) {{
+                    for (const el of document.querySelectorAll(selector)) {{
+                        if (!visible(el) || !('value' in el)) continue;
+                        el.focus();
+                        const desc = Object.getOwnPropertyDescriptor(
+                            Object.getPrototypeOf(el), 'value');
+                        if (desc && desc.set) {{ desc.set.call(el, value); }}
+                        else {{ el.value = value; }}
+                        el.dispatchEvent(new InputEvent('input', {{
+                            bubbles: true, data: value, inputType: 'insertText'
+                        }}));
+                        el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        return true;
+                    }}
+                }}
+                return false;
+            }})()
+            "#
+        );
+        evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false))
+    }
+}
+
+/// CSS selectors for verification code inputs.
+const VERIFICATION_CODE_SELECTORS: &[&str] = &[
+    "input[type='text'][maxlength='6']",
+    "input[inputmode='numeric']",
+    "input[name*='code' i]",
+    "input[name*='otp' i]",
+    "input[name*='verify' i]",
+    "input[name*='verification' i]",
+    "input[id*='code' i]",
+    "input[id*='otp' i]",
+    "input[id*='verify' i]",
+    "input[placeholder*='code' i]",
+    "input[placeholder*='6-digit' i]",
+    "input[aria-label*='code' i]",
+    "input[aria-label*='verification' i]",
+];
+
+/// CSS selectors for phone number inputs.
+const PHONE_SELECTORS: &[&str] = &[
+    "input[type='tel']",
+    "input[name*='phone' i]",
+    "input[name*='mobile' i]",
+    "input[id*='phone' i]",
+    "input[id*='mobile' i]",
+    "input[autocomplete='tel']",
+    "input[autocomplete='tel-national']",
+    "input[placeholder*='phone' i]",
+    "input[aria-label*='phone' i]",
+];
+
+/// Extracts a 4–8 digit verification code from a block of text.
+fn extract_verification_code(text: &str) -> Option<String> {
+    // Strip HTML tags first
+    let plain = strip_html_tags(text);
+    for pattern in &[
+        r"(?i)(?:verification|security|confirmation|one-time|otp)\s*(?:code|number|pin)?\s*[:]?\s*(\d{4,8})",
+        r"(?i)code\s*[:]?\s*(\d{4,8})",
+        r"(?i)(\d{4,8})\s*(?:is your|is the)\s*(?:verification|security|auth)",
+        r"\b(\d{6})\b",
+        r"\b(\d{5})\b",
+        r"\b(\d{4})\b",
+    ] {
+        if let Ok(re) = regex::Regex::new(pattern) {
+            if let Some(caps) = re.captures(&plain) {
+                return Some(caps[1].to_owned());
+            }
+        }
+    }
+    None
+}
+
+/// Removes HTML tags, keeping only the text content.
+fn strip_html_tags(html: &str) -> String {
+    let mut result = String::with_capacity(html.len());
+    let mut in_tag = false;
+    for ch in html.chars() {
+        match ch {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            _ if !in_tag => result.push(ch),
+            _ => {}
+        }
+    }
+    result
+}
+
+/// Generates a random ASCII string of the given length for passwords.
+fn random_ascii_string(len: usize) -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let chars: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$";
+    let mut state = seed as u64;
+    (0..len)
+        .map(|_| {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            chars[(state >> 33) as usize % chars.len()] as char
+        })
+        .collect()
+}
+
+fn random_full_name() -> String {
+    let first_names = [
+        "James", "Mary", "Robert", "Patricia", "John", "Jennifer", "Michael", "Linda",
+        "David", "Elizabeth", "William", "Barbara", "Richard", "Susan", "Joseph", "Jessica",
+        "Thomas", "Sarah", "Christopher", "Karen", "Charles", "Lisa", "Daniel", "Nancy",
+        "Matthew", "Betty", "Anthony", "Margaret", "Mark", "Sandra", "Donald", "Ashley",
+        "Steven", "Dorothy", "Paul", "Kimberly", "Andrew", "Emily", "Joshua", "Donna",
+        "Kenneth", "Michelle", "Kevin", "Carol", "Brian", "Amanda", "George", "Melissa",
+        "Timothy", "Deborah", "Ronald", "Stephanie", "Edward", "Rebecca", "Jason", "Sharon",
+        "Jeffrey", "Laura", "Ryan", "Cynthia", "Jacob", "Kathleen", "Gary", "Amy",
+        "Nicholas", "Angela", "Eric", "Shirley", "Jonathan", "Anna", "Stephen", "Brenda",
+        "Larry", "Pamela", "Justin", "Emma", "Scott", "Nicole", "Brandon", "Helen",
+        "Benjamin", "Samantha", "Samuel", "Katherine", "Raymond", "Christine", "Gregory",
+        "Debra", "Frank", "Rachel", "Alexander", "Carolyn", "Patrick", "Janet",
+        "Jack", "Catherine", "Dennis", "Maria", "Jerry", "Heather", "Tyler", "Diane",
+    ];
+    let last_names = [
+        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
+        "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson",
+        "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson",
+        "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+        "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen",
+        "Hill", "Flores", "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera",
+        "Campbell", "Mitchell", "Carter", "Roberts", "Gomez", "Phillips", "Evans",
+        "Turner", "Diaz", "Parker", "Cruz", "Edwards", "Collins", "Reyes", "Stewart",
+        "Morris", "Morales", "Murphy", "Cook", "Rogers", "Gutierrez", "Ortiz", "Morgan",
+        "Cooper", "Peterson", "Bailey", "Reed", "Kelly", "Howard", "Ramos", "Kim",
+        "Cox", "Ward", "Richardson", "Watson", "Brooks", "Chavez", "Wood", "James",
+        "Bennett", "Gray", "Mendoza", "Ruiz", "Hughes", "Price", "Alvarez", "Castillo",
+    ];
+    let mut state = random_seed();
+    let fi = ((state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407)) >> 33) as usize % first_names.len();
+    state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    let li = ((state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407)) >> 33) as usize % last_names.len();
+    format!("{} {}", first_names[fi], last_names[li])
+}
+
+fn random_age() -> u8 {
+    let mut state = random_seed();
+    state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    // Ages 18-55, weighted toward 22-40
+    let raw = ((state >> 33) as usize) % 100;
+    if raw < 50 { (22 + (raw % 19)) as u8 }
+    else if raw < 80 { (18 + (raw % 5)) as u8 }
+    else { (40 + (raw % 16)) as u8 }
+}
+
+fn random_seed() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64
+}
+
+fn char_to_key_code(ch: char) -> String {
+    match ch {
+        'a'..='z' => format!("Key{}", ch.to_uppercase()),
+        'A'..='Z' => format!("Key{ch}"),
+        '0'..='9' => format!("Digit{ch}"),
+        ' ' => "Space".into(),
+        _ => format!("Key{ch}"),
+    }
+}
+
+fn char_to_vk(ch: char) -> i32 {
+    match ch {
+        'a'..='z' => (ch as i32) - 32,
+        'A'..='Z' => ch as i32,
+        '0'..='9' => ch as i32,
+        ' ' => 32,
+        _ => 0,
     }
 }
 

@@ -6,7 +6,6 @@ use crate::model::{
 use crate::provider::TempMailProvider;
 use crate::util::{random_alpha_numeric, sanitize_local_part, trim_non_blank};
 use crate::{ApiConfig, TempMailError, TempMailResult};
-use reqwest::header::ACCEPT;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -190,10 +189,12 @@ impl TempMailProvider for MailTmTempMailApi {
 }
 
 /// Creates a client for the hosted `mail.tm` API.
+///
+/// Does NOT set `Accept: application/json` because mail.tm returns a plain
+/// JSON array (instead of the `{"hydra:member": [...]}` collection envelope)
+/// when that header is present, breaking the `HydraCollection` deserializer.
 pub fn create_mail_tm_api() -> TempMailResult<MailTmTempMailApi> {
-    let config = ApiConfig::builder("https://api.mail.tm")
-        .default_header(ACCEPT.as_str(), "application/json")
-        .build()?;
+    let config = ApiConfig::builder("https://api.mail.tm").build()?;
     MailTmTempMailApi::new(config)
 }
 

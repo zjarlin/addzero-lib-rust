@@ -710,7 +710,8 @@ async fn save_bootstrap_platform_config(
 async fn login(Json(input): Json<LoginRequest>) -> ApiResult<Response> {
     let auth = admin_auth();
     let cookie = auth
-        .authenticate(&input)
+        .authenticate_login(&input)
+        .await
         .map_err(|err| ApiError::unauthorized(err.message()))?;
     let mut response = Json(SessionUser {
         authenticated: true,

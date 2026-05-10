@@ -1,3 +1,33 @@
+//! 对集合进行链式条件筛选的流式查询包装器。
+//!
+//! 提供类似 MyBatis-Plus LambdaQueryWrapper 的链式 API，通过 `eq`、`like`、`in`
+//! 等字符串条件对 `Vec<T>` 进行过滤，并支持 `and`、`or`、`not` 等逻辑连接符组合谓词。
+//!
+//! # 核心类型
+//!
+//! - [`StreamWrapper<T>`] — 链式筛选的主入口，包装一个集合和可组合的谓词链。
+//!
+//! # 关键功能
+//!
+//! - **等值匹配**：[`StreamWrapper::eq`] 按精确字符串匹配过滤。
+//! - **模糊匹配**：[`StreamWrapper::like`] 按大小写不敏感的子串匹配过滤。
+//! - **集合匹配**：[`StreamWrapper::r#in`] 判断字段值是否在给定候选集合内。
+//! - **逻辑组合**：[`StreamWrapper::or`]、[`StreamWrapper::not`]、[`StreamWrapper::negate`]
+//!   控制后续条件与已有谓词的逻辑关系。
+//! - **结果提取**：[`StreamWrapper::list`] 收集所有匹配项，[`StreamWrapper::one`] 返回第一个匹配项。
+//!
+//! # 快速开始
+//!
+//! ```rust
+//! use az_stream_wrapper::lambdaquery;
+//!
+//! let items = vec!["apple", "banana", "avocado", "blueberry"];
+//! let result = lambdaquery(&items)
+//!     .like(true, |s: &&str| s, "av")
+//!     .list();
+//! assert_eq!(result, vec!["apple", "avocado"]);
+//! ```
+
 use std::sync::Arc;
 
 type Predicate<T> = Arc<dyn Fn(&T) -> bool + 'static>;

@@ -193,7 +193,7 @@ impl FivesimClient {
 
         match serde_json::from_str::<T>(&body) {
             Ok(value) => Ok(value),
-            Err(error) if looks_like_provider_message(&body) => {
+            Err(_error) if looks_like_provider_message(&body) => {
                 Err(provider_error(Some(status.as_u16()), body))
             }
             Err(error) => Err(SmsError::Json(error)),

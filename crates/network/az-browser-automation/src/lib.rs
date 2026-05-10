@@ -535,6 +535,7 @@ fn build_launch_options(
             OsStr::new("--disable-component-update"),
             OsStr::new("--disable-background-networking"),
             OsStr::new("--password-store=basic"),
+            OsStr::new("--incognito"),
         ]);
 
     if let Some(path) = options
@@ -542,6 +543,7 @@ fn build_launch_options(
         .clone()
         .or_else(resolve_chrome_executable)
     {
+        eprintln!("[az-browser-automation] 启动浏览器: {}", path.display());
         builder.path(Some(path));
     }
 

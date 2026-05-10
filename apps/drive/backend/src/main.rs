@@ -12,7 +12,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[cfg(target_os = "macos")]
-mod macos_actions;
+use az_drive_app::macos_actions;
 
 #[derive(Debug, Parser)]
 #[command(name = "az-drive-app")]
@@ -40,6 +40,8 @@ enum Command {
     Unhost(PathArgs),
     /// Show hosted status.
     Status(StatusArgs),
+    /// List tracked files.
+    Ls(az_drive_app::cli::DriveLsArgs),
     /// List unresolved conflicts.
     Conflicts,
     /// Manage local root aliases.
@@ -139,6 +141,7 @@ async fn main() -> Result<()> {
             let statuses = build_agent().await?.status(args.path.as_deref()).await?;
             print_json(&statuses)
         }
+        Command::Ls(args) => az_drive_app::cli::run_drive_ls(args).await,
         Command::Conflicts => {
             let conflicts = build_agent().await?.conflicts().await?;
             print_json(&conflicts)
@@ -191,11 +194,9 @@ async fn build_agent() -> Result<DriveAgent> {
     let (metadata, objects) = build_stores().await?;
     let state_store = LocalStateStore::new(LocalStateStore::default_path());
     let state = state_store.load_or_init().await?;
-    let config = DriveAgentConfig::new(
-        az_drive_app::default_space_id(),
-        state.device_id,
-        state.device_name,
-    );
+    let primary_space = az_drive_app::default_space_id();
+    let config = DriveAgentConfig::new(primary_space.clone(), state.device_id, state.device_name)
+        .with_fused_space_ids(az_drive_app::default_fused_space_ids(&primary_space));
     Ok(DriveAgent::new(metadata, objects, state_store, config))
 }
 

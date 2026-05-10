@@ -1,3 +1,26 @@
+//! 通用树形节点遍历与版本号比较工具库。
+//!
+//! 提供 [`AreaNode`] trait 为任意类型实现树形结构的子节点访问，
+//! 以及 [`AreaOps`] 封装深度优先遍历、子节点读写等操作。
+//! 同时包含 [`compare_versions`] 函数，支持数字与文本混合段的版本号比较。
+//!
+//! # 快速开始
+//!
+//! ```rust
+//! use az_area::{AreaNode, AreaOps, impl_area_node};
+//!
+//! #[derive(Clone, Debug)]
+//! struct Node { name: String, children: Vec<Node> }
+//! impl_area_node!(Node, children = children);
+//!
+//! let root = Node {
+//!     name: "root".into(),
+//!     children: vec![Node { name: "leaf".into(), children: vec![] }],
+//! };
+//! let names: Vec<_> = AreaOps.walk(&root).map(|n| n.name.clone()).collect();
+//! assert_eq!(names, vec!["root".to_string(), "leaf".to_string()]);
+//! ```
+
 use std::cmp::Ordering;
 
 pub trait AreaNode: Sized {

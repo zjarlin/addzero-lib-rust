@@ -1,7 +1,11 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
 use serde::{Deserialize, Serialize};
+#[cfg(not(target_arch = "wasm32"))]
+use sha2::{Digest, Sha256};
 use thiserror::Error;
+#[cfg(not(target_arch = "wasm32"))]
+use uuid::Uuid;
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
@@ -47,6 +51,15 @@ fn pg_pool() -> SystemManagementResult<PgPool> {
 #[cfg(not(target_arch = "wasm32"))]
 fn hash_password(plain: &str) -> SystemManagementResult<String> {
     bcrypt::hash(plain, 10).map_err(|e| SystemManagementError::msg(format!("bcrypt hash: {e}")))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn verify_password(plain: &str, stored: &str) -> SystemManagementResult<bool> {
+    if stored.starts_with("$2") {
+        return bcrypt::verify(plain, stored)
+            .map_err(|e| SystemManagementError::msg(format!("bcrypt verify: {e}")));
+    }
+    Ok(stored == plain)
 }
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
@@ -118,6 +131,52 @@ pub struct UserWithRolesDto {
     pub user: UserDto,
     pub role_ids: Vec<i32>,
     pub role_names: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiKeyOwnerDto {
+    pub user_id: i32,
+    pub username: String,
+    pub nickname: String,
+    pub status: String,
+    pub key_prefix: String,
+    pub label: String,
+    pub owner_space_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CreatedApiKeyDto {
+    pub api_key: String,
+    pub owner: ApiKeyOwnerDto,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum UserAuthenticationResult {
+    Authenticated(UserDto),
+    UsernameNotFound,
+    PasswordIncorrect,
+    AccountDisabled(String),
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn drive_space_id_for_username(username: &str) -> String {
+    let safe = username
+        .trim()
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_') {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    if safe.is_empty() {
+        "main".to_owned()
+    } else {
+        format!("user-{safe}")
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1044,6 +1103,194 @@ pub async fn authorize_role_menus_on_server(
 }
 
 // ─── Server functions: Users ────────────────────────────────────────────────
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn authenticate_user_on_server(
+    username: &str,
+    password: &str,
+) -> SystemManagementResult<UserAuthenticationResult> {
+    let username = username.trim();
+    if username.is_empty() {
+        return Ok(UserAuthenticationResult::UsernameNotFound);
+    }
+
+    let pool = pg_pool()?;
+    let row = sqlx::query_as::<_, (i32, String, String, String, String)>(
+        "SELECT id, username, password_hash, nickname, status FROM sys_user WHERE username = $1",
+    )
+    .bind(username)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| SystemManagementError::msg(format!("authenticate_user lookup: {e}")))?;
+
+    let Some((id, username, password_hash, nickname, status)) = row else {
+        return Ok(UserAuthenticationResult::UsernameNotFound);
+    };
+
+    if status == "disabled" {
+        return Ok(UserAuthenticationResult::AccountDisabled(status));
+    }
+    if !verify_password(password, &password_hash)? {
+        return Ok(UserAuthenticationResult::PasswordIncorrect);
+    }
+
+    Ok(UserAuthenticationResult::Authenticated(UserDto {
+        id,
+        username,
+        nickname,
+        status,
+    }))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn admin_role_id_on_server() -> SystemManagementResult<i32> {
+    let pool = pg_pool()?;
+    sqlx::query_scalar::<_, i32>("SELECT id FROM sys_role WHERE name = $1")
+        .bind("管理员")
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| SystemManagementError::msg(format!("admin_role lookup: {e}")))?
+        .ok_or_else(|| SystemManagementError::msg("管理员角色不存在，请先运行 aio migrate"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_api_key_on_server(
+    username: &str,
+    label: &str,
+) -> SystemManagementResult<CreatedApiKeyDto> {
+    let pool = pg_pool()?;
+    let user = user_by_username(username).await?;
+    let api_key = generate_api_key();
+    let key_hash = hash_api_key(&api_key);
+    let key_prefix = key_prefix(&api_key);
+    let label = label.trim().to_owned();
+    let owner_space_id = drive_space_id_for_username(&user.username);
+    sqlx::query(
+        "INSERT INTO sys_api_key (id, user_id, key_hash, key_prefix, label, owner_space_id) \
+         VALUES ($1, $2, $3, $4, $5, $6)",
+    )
+    .bind(Uuid::new_v4())
+    .bind(user.id)
+    .bind(&key_hash)
+    .bind(&key_prefix)
+    .bind(&label)
+    .bind(&owner_space_id)
+    .execute(&pool)
+    .await
+    .map_err(|e| SystemManagementError::msg(format!("create_api_key: {e}")))?;
+
+    Ok(CreatedApiKeyDto {
+        api_key,
+        owner: ApiKeyOwnerDto {
+            user_id: user.id,
+            username: user.username,
+            nickname: user.nickname,
+            status: user.status,
+            key_prefix,
+            label,
+            owner_space_id,
+        },
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn resolve_api_key_on_server(api_key: &str) -> SystemManagementResult<ApiKeyOwnerDto> {
+    let api_key = api_key.trim();
+    if api_key.is_empty() {
+        return Err(SystemManagementError::msg("api key cannot be empty"));
+    }
+    let pool = pg_pool()?;
+    let key_hash = hash_api_key(api_key);
+    let row = sqlx::query_as::<_, (i32, String, String, String, String, String, String)>(
+        "SELECT u.id, u.username, u.nickname, u.status, k.key_prefix, k.label, k.owner_space_id \
+         FROM sys_api_key k \
+         JOIN sys_user u ON u.id = k.user_id \
+         WHERE k.key_hash = $1 AND k.revoked_at IS NULL",
+    )
+    .bind(&key_hash)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| SystemManagementError::msg(format!("resolve_api_key: {e}")))?
+    .ok_or_else(|| SystemManagementError::msg("api key not found or revoked"))?;
+
+    sqlx::query("UPDATE sys_api_key SET last_used_at = NOW() WHERE key_hash = $1")
+        .bind(&key_hash)
+        .execute(&pool)
+        .await
+        .map_err(|e| SystemManagementError::msg(format!("touch_api_key: {e}")))?;
+
+    Ok(ApiKeyOwnerDto {
+        user_id: row.0,
+        username: row.1,
+        nickname: row.2,
+        status: row.3,
+        key_prefix: row.4,
+        label: row.5,
+        owner_space_id: row.6,
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn revoke_api_key_on_server(
+    username: &str,
+    key_prefix: &str,
+) -> SystemManagementResult<bool> {
+    let user = user_by_username(username).await?;
+    let pool = pg_pool()?;
+    let result = sqlx::query(
+        "UPDATE sys_api_key SET revoked_at = NOW() \
+         WHERE user_id = $1 AND key_prefix = $2 AND revoked_at IS NULL",
+    )
+    .bind(user.id)
+    .bind(key_prefix.trim())
+    .execute(&pool)
+    .await
+    .map_err(|e| SystemManagementError::msg(format!("revoke_api_key: {e}")))?;
+    Ok(result.rows_affected() > 0)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn user_by_username(username: &str) -> SystemManagementResult<UserDto> {
+    let pool = pg_pool()?;
+    let username = username.trim();
+    sqlx::query_as::<_, (i32, String, String, String)>(
+        "SELECT id, username, nickname, status FROM sys_user WHERE username = $1",
+    )
+    .bind(username)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| SystemManagementError::msg(format!("user_by_username: {e}")))?
+    .map(|(id, username, nickname, status)| UserDto {
+        id,
+        username,
+        nickname,
+        status,
+    })
+    .ok_or_else(|| SystemManagementError::msg(format!("user not found: {username}")))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn generate_api_key() -> String {
+    format!(
+        "aio_sk_{}{}",
+        Uuid::new_v4().simple(),
+        Uuid::new_v4().simple()
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn key_prefix(api_key: &str) -> String {
+    api_key.chars().take(18).collect()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn hash_api_key(api_key: &str) -> String {
+    let digest = Sha256::digest(api_key.as_bytes());
+    digest
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>()
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn list_users_on_server() -> SystemManagementResult<Vec<UserWithRolesDto>> {

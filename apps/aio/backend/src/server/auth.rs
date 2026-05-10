@@ -25,6 +25,7 @@ pub struct AdminSessionService {
 pub enum AdminAuthFailure {
     UsernameNotFound,
     PasswordIncorrect,
+    AccountDisabled(String),
     Internal(String),
 }
 
@@ -33,6 +34,7 @@ impl AdminAuthFailure {
         match self {
             Self::UsernameNotFound => "用户名不存在".to_string(),
             Self::PasswordIncorrect => "密码错误".to_string(),
+            Self::AccountDisabled(status) => format!("账户不可用: {status}"),
             Self::Internal(msg) => format!("认证服务内部错误: {msg}"),
         }
     }
@@ -69,6 +71,27 @@ impl AdminSessionService {
         self.validate_credentials(input)?;
         self.issue_cookie(input.username.trim())
             .map_err(|e| AdminAuthFailure::Internal(format!("签发会话签名失败: {e}")))
+    }
+
+    pub async fn authenticate_login(
+        &self,
+        input: &LoginRequest,
+    ) -> Result<String, AdminAuthFailure> {
+        match self.authenticate(input) {
+            Ok(cookie) => return Ok(cookie),
+            Err(env_failure) => match self.authenticate_registered_user(input).await {
+                Ok(Some(username)) => {
+                    return self
+                        .issue_cookie(&username)
+                        .map_err(|e| AdminAuthFailure::Internal(format!("签发会话签名失败: {e}")));
+                }
+                Ok(None) => return Err(env_failure),
+                Err(db_failure) if input.username.trim() == self.username => {
+                    return Err(env_failure.or_more_specific(db_failure));
+                }
+                Err(db_failure) => return Err(db_failure),
+            },
+        }
     }
 
     pub fn current_user(&self, headers: &HeaderMap) -> Option<String> {
@@ -124,6 +147,29 @@ impl AdminSessionService {
         ))
     }
 
+    async fn authenticate_registered_user(
+        &self,
+        input: &LoginRequest,
+    ) -> Result<Option<String>, AdminAuthFailure> {
+        use crate::services::system_management::{
+            UserAuthenticationResult, authenticate_user_on_server,
+        };
+
+        match authenticate_user_on_server(input.username.trim(), &input.password).await {
+            Ok(UserAuthenticationResult::Authenticated(user)) => Ok(Some(user.username)),
+            Ok(UserAuthenticationResult::UsernameNotFound) => Ok(None),
+            Ok(UserAuthenticationResult::PasswordIncorrect) => {
+                Err(AdminAuthFailure::PasswordIncorrect)
+            }
+            Ok(UserAuthenticationResult::AccountDisabled(status)) => {
+                Err(AdminAuthFailure::AccountDisabled(status))
+            }
+            Err(err) => Err(AdminAuthFailure::Internal(format!(
+                "系统用户认证失败: {err}"
+            ))),
+        }
+    }
+
     fn verify_cookie(&self, cookie_value: &str) -> Option<String> {
         let (payload_encoded, signature_encoded) = cookie_value.split_once('.')?;
         let payload = URL_SAFE_NO_PAD.decode(payload_encoded).ok()?;
@@ -141,6 +187,15 @@ impl AdminSessionService {
             return None;
         }
         Some(username.to_string())
+    }
+}
+
+impl AdminAuthFailure {
+    fn or_more_specific(self, other: Self) -> Self {
+        match (&self, &other) {
+            (Self::PasswordIncorrect, Self::Internal(_)) => self,
+            _ => other,
+        }
     }
 }
 

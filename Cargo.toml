@@ -46,7 +46,7 @@ proc-macro2 = "1.0.103"
 quick-xml = "0.38.4"
 quote = "1.0.41"
 regex = "1.12.2"
-reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "json", "multipart", "rustls-tls"] }
+reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "cookies", "json", "multipart", "rustls-tls"] }
 ring = "0.17.14"
 rumqttc = "0.25.1"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -99,6 +99,7 @@ az-remote-model = { version = "=2026.5.10", path = "crates/core/az-remote-model"
 az-remote-protocol = { version = "=2026.5.10", path = "crates/network/az-remote-protocol" }
 az-rustfs = { version = "=2026.5.10", path = "crates/storage/az-rustfs" }
 az-sandbox = { version = "=2026.5.10", path = "crates/core/az-sandbox" }
+az-sms = { version = "=2026.5.10", path = "crates/network/az-sms" }
 az-script-engine = { version = "=2026.5.10", path = "crates/runtime/az-script-engine" }
 az-script-engine-rhai = { version = "=2026.5.10", path = "crates/runtime/az-script-engine-rhai" }
 az-skills = { version = "=2026.5.10", path = "crates/data/az-skills" }

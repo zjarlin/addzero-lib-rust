@@ -165,15 +165,12 @@ static NSArray<NSString *> *AIOHostedRootPaths(void) {
 static BOOL AIOPathIsHosted(NSString *path) {
     NSString *candidate = AIONormalizedPath(path);
     for (NSString *hostedRoot in AIOHostedRootPaths()) {
-        if ([candidate isEqualToString:hostedRoot]) {
+        if (AIOPathContainsOrEquals(hostedRoot, candidate)) {
             return YES;
         }
     }
-    BOOL isDirectory = NO;
-    [[NSFileManager defaultManager] fileExistsAtPath:candidate isDirectory:&isDirectory];
     for (NSString *hosted in AIOHostedPaths()) {
-        if ([candidate isEqualToString:hosted] ||
-            (isDirectory && AIOPathContainsOrEquals(candidate, hosted))) {
+        if ([candidate isEqualToString:hosted]) {
             return YES;
         }
     }
@@ -190,19 +187,42 @@ static BOOL AIOURLsContainPath(NSArray<NSURL *> *urls, NSString *path) {
     return NO;
 }
 
-static NSArray<NSURL *> *AIOContextURLs(void) {
+static NSString *AIOURLListDescription(NSArray<NSURL *> *urls) {
+    NSMutableArray<NSString *> *paths = [NSMutableArray array];
+    for (NSURL *url in urls) {
+        if (url.path.length > 0) {
+            [paths addObject:url.path];
+        }
+    }
+    return [paths componentsJoinedByString:@", "];
+}
+
+static NSArray<NSURL *> *AIOContextURLs(FIMenuKind menuKind) {
     FIFinderSyncController *controller = [FIFinderSyncController defaultController];
     NSArray<NSURL *> *selected = controller.selectedItemURLs;
     NSURL *targeted = controller.targetedURL;
-    if (targeted != nil && !AIOURLsContainPath(selected, targeted.path)) {
-        return @[targeted];
-    }
-    if (selected.count > 0) {
+    if (menuKind == FIMenuKindContextualMenuForItems && selected.count > 0) {
+        AIOAppendLog([NSString stringWithFormat:@"context kind=%ld targeted=%@ selected=[%@] using=selected",
+                      (long)menuKind,
+                      targeted.path,
+                      AIOURLListDescription(selected)]);
         return selected;
     }
     if (targeted != nil) {
+        AIOAppendLog([NSString stringWithFormat:@"context kind=%ld targeted=%@ selected=[%@] using=targeted",
+                      (long)menuKind,
+                      targeted.path,
+                      AIOURLListDescription(selected)]);
         return @[targeted];
     }
+    if (selected.count > 0) {
+        AIOAppendLog([NSString stringWithFormat:@"context kind=%ld targeted=(null) selected=[%@] using=selected",
+                      (long)menuKind,
+                      AIOURLListDescription(selected)]);
+        return selected;
+    }
+    AIOAppendLog([NSString stringWithFormat:@"context kind=%ld targeted=(null) selected=[] using=empty",
+                  (long)menuKind]);
     return @[];
 }
 
@@ -230,22 +250,38 @@ static NSArray<NSURL *> *AIOContextURLs(void) {
 }
 
 static NSImage *AIOHostedBadgeImage(void) {
-    NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(18.0, 18.0)];
+    NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(20.0, 20.0)];
     [image lockFocus];
 
     [[NSColor colorWithSRGBRed:0.05 green:0.72 blue:0.28 alpha:1.0] setFill];
-    NSBezierPath *circle = [NSBezierPath bezierPathWithOvalInRect:NSMakeRect(1.0, 1.0, 16.0, 16.0)];
+    NSBezierPath *circle = [NSBezierPath bezierPathWithOvalInRect:NSMakeRect(1.0, 1.0, 18.0, 18.0)];
     [circle fill];
 
     [[NSColor whiteColor] setStroke];
     NSBezierPath *check = [NSBezierPath bezierPath];
-    check.lineWidth = 2.4;
+    check.lineWidth = 2.6;
     check.lineCapStyle = NSLineCapStyleRound;
     check.lineJoinStyle = NSLineJoinStyleRound;
-    [check moveToPoint:NSMakePoint(4.7, 9.0)];
-    [check lineToPoint:NSMakePoint(7.8, 5.9)];
-    [check lineToPoint:NSMakePoint(13.4, 12.5)];
+    [check moveToPoint:NSMakePoint(4.7, 10.1)];
+    [check lineToPoint:NSMakePoint(8.2, 6.6)];
+    [check lineToPoint:NSMakePoint(14.3, 13.4)];
     [check stroke];
+
+    NSBezierPath *arrow = [NSBezierPath bezierPath];
+    arrow.lineWidth = 1.6;
+    arrow.lineCapStyle = NSLineCapStyleRound;
+    [arrow moveToPoint:NSMakePoint(13.8, 5.9)];
+    [arrow curveToPoint:NSMakePoint(15.8, 9.1)
+          controlPoint1:NSMakePoint(15.4, 6.6)
+          controlPoint2:NSMakePoint(16.1, 7.8)];
+    [arrow stroke];
+    NSBezierPath *head = [NSBezierPath bezierPath];
+    [head moveToPoint:NSMakePoint(15.9, 9.0)];
+    [head lineToPoint:NSMakePoint(17.0, 6.5)];
+    [head lineToPoint:NSMakePoint(14.4, 7.0)];
+    [head closePath];
+    [[NSColor whiteColor] setFill];
+    [head fill];
 
     [image unlockFocus];
     image.template = NO;
@@ -273,7 +309,7 @@ static NSImage *AIOBadgeImage(NSString *symbolName, NSString *fallbackName, NSSt
     }
 
     NSMenu *menu = [[NSMenu alloc] initWithTitle:@"AIO Drive"];
-    NSArray<NSURL *> *urls = AIOContextURLs();
+    NSArray<NSURL *> *urls = AIOContextURLs(menuKind);
     self.commandURLs = urls;
     __block BOOL hasHosted = NO;
     __block BOOL hasUnhosted = NO;
@@ -286,6 +322,11 @@ static NSImage *AIOBadgeImage(NSString *symbolName, NSString *fallbackName, NSSt
             *stop = YES;
         }
     }];
+    AIOAppendLog([NSString stringWithFormat:@"menu kind=%ld urls=[%@] hasHosted=%@ hasUnhosted=%@",
+                  (long)menuKind,
+                  AIOURLListDescription(urls),
+                  hasHosted ? @"YES" : @"NO",
+                  hasUnhosted ? @"YES" : @"NO"]);
 
     if (hasUnhosted) {
         NSMenuItem *host = [[NSMenuItem alloc] initWithTitle:@"AIO Drive 托管"
@@ -324,7 +365,7 @@ static NSImage *AIOBadgeImage(NSString *symbolName, NSString *fallbackName, NSSt
 }
 
 - (void)runDriveCommand:(NSString *)command label:(NSString *)label {
-    NSArray<NSURL *> *urls = self.commandURLs.count > 0 ? self.commandURLs : AIOContextURLs();
+    NSArray<NSURL *> *urls = self.commandURLs.count > 0 ? self.commandURLs : AIOContextURLs(FIMenuKindContextualMenuForItems);
     if (urls.count == 0) {
         AIONotify(@"Finder 没有传入选中文件");
         AIOAppendLog([NSString stringWithFormat:@"%@ skipped: no selected URL", label]);
@@ -338,9 +379,27 @@ static NSImage *AIOBadgeImage(NSString *symbolName, NSString *fallbackName, NSSt
         return;
     }
 
+    NSString *home = AIORealHomeDirectory();
+    if ([command isEqualToString:@"host"]) {
+        NSMutableArray<NSURL *> *allowed = [NSMutableArray array];
+        for (NSURL *url in urls) {
+            if ([AIONormalizedPath(url.path) isEqualToString:AIONormalizedPath(home)]) {
+                AIOAppendLog(@"托管 skipped: refusing to host the whole home directory from Finder");
+                AIONotify(@"请托管具体文件或子目录，不要直接托管整个家目录");
+            } else {
+                [allowed addObject:url];
+            }
+        }
+        urls = allowed;
+        if (urls.count == 0) {
+            return;
+        }
+    }
+
     for (NSURL *url in urls) {
         [[FIFinderSyncController defaultController] setBadgeIdentifier:AIOBusyBadgeID forURL:url];
     }
+    AIONotify([NSString stringWithFormat:@"%@开始", label]);
 
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
         __block BOOL failed = NO;

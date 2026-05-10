@@ -4,10 +4,11 @@
 //! challenges such as CAPTCHA, MFA, and email verification are reported as
 //! manual-action stages instead of being bypassed.
 
-mod openai;
+pub mod api_reg;
+pub mod openai;
 
 pub use openai::{
     OpenAiAuthAutomation, OpenAiAuthFlow, OpenAiAuthOptions, OpenAiAuthResult, OpenAiAuthStage,
-    OpenAiRecordingOptions, OpenAiRecordingResult, OpenAiRecordingStep, OpenAiRecordingStepResult,
-    OpenAiRecordingStepStatus,
+    OpenAiFullRegOptions, OpenAiFullRegResult, OpenAiRecordingOptions, OpenAiRecordingResult,
+    OpenAiRecordingStep, OpenAiRecordingStepResult, OpenAiRecordingStepStatus, OpenAiRegAutomation,
 };

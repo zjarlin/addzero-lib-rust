@@ -159,6 +159,25 @@ pub struct DriveConflict {
     pub created_at: DateTime<Utc>,
 }
 
+/// Shared metadata rule that excludes a remote path from automatic hosting.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DriveIgnoredPath {
+    /// Stable ignore rule id.
+    pub id: Uuid,
+    /// Drive space or tenant.
+    pub space_id: String,
+    /// Cross-device root alias.
+    pub root_alias: RootAlias,
+    /// Path relative to the logical root.
+    pub relative_path: RelativePath,
+    /// Device that created or last updated the ignore rule.
+    pub source_device_id: String,
+    /// Rule creation time.
+    pub created_at: DateTime<Utc>,
+    /// Rule update time.
+    pub updated_at: DateTime<Utc>,
+}
+
 /// Metadata store contract shared by the daemon, server, and future AIO integration.
 #[async_trait]
 pub trait DriveMetadataStore: Send + Sync {
@@ -182,6 +201,27 @@ pub trait DriveMetadataStore: Send + Sync {
         root_alias: &RootAlias,
         prefix: &RelativePath,
     ) -> DriveStoreResult<Vec<DriveEntry>>;
+
+    /// Lists all non-deleted entries in a space.
+    async fn list_entries_by_space(&self, space_id: &str) -> DriveStoreResult<Vec<DriveEntry>>;
+
+    /// Creates or refreshes an ignore rule for a remote path.
+    async fn upsert_ignored_path(
+        &self,
+        key: &EntryKey,
+        source_device_id: &str,
+    ) -> DriveStoreResult<DriveIgnoredPath>;
+
+    /// Deletes an exact ignore rule for a remote path.
+    async fn delete_ignored_path(&self, key: &EntryKey) -> DriveStoreResult<()>;
+
+    /// Lists ignore rules, optionally scoped to a root and prefix.
+    async fn list_ignored_paths(
+        &self,
+        space_id: &str,
+        root_alias: Option<&RootAlias>,
+        prefix: Option<&RelativePath>,
+    ) -> DriveStoreResult<Vec<DriveIgnoredPath>>;
 
     /// Deletes an entry tombstone.
     async fn delete_entry(&self, key: &EntryKey) -> DriveStoreResult<()>;
@@ -234,6 +274,7 @@ pub struct InMemoryDriveMetadataStore {
 struct InMemoryState {
     entries_by_key: BTreeMap<String, DriveEntry>,
     entries_by_id: HashMap<Uuid, String>,
+    ignored_by_key: BTreeMap<String, DriveIgnoredPath>,
     versions: BTreeMap<Uuid, Vec<DriveVersion>>,
     locks: HashMap<Uuid, DriveLock>,
     conflicts: Vec<DriveConflict>,
@@ -321,6 +362,77 @@ impl DriveMetadataStore for InMemoryDriveMetadataStore {
             .collect::<Vec<_>>();
         entries.sort_by(|left, right| left.key.relative_path.cmp(&right.key.relative_path));
         Ok(entries)
+    }
+
+    async fn list_entries_by_space(&self, space_id: &str) -> DriveStoreResult<Vec<DriveEntry>> {
+        let mut entries = self
+            .state()?
+            .entries_by_key
+            .values()
+            .filter(|entry| entry.key.space_id == space_id && !entry.deleted)
+            .cloned()
+            .collect::<Vec<_>>();
+        entries.sort_by(entry_order);
+        Ok(entries)
+    }
+
+    async fn upsert_ignored_path(
+        &self,
+        key: &EntryKey,
+        source_device_id: &str,
+    ) -> DriveStoreResult<DriveIgnoredPath> {
+        let mut state = self.state()?;
+        let key_text = key.remote_path();
+        if let Some(existing) = state.ignored_by_key.get_mut(&key_text) {
+            existing.source_device_id = source_device_id.to_owned();
+            existing.updated_at = Utc::now();
+            return Ok(existing.clone());
+        }
+        let now = Utc::now();
+        let ignored = DriveIgnoredPath {
+            id: Uuid::new_v4(),
+            space_id: key.space_id.clone(),
+            root_alias: key.root_alias.clone(),
+            relative_path: key.relative_path.clone(),
+            source_device_id: source_device_id.to_owned(),
+            created_at: now,
+            updated_at: now,
+        };
+        state.ignored_by_key.insert(key_text, ignored.clone());
+        Ok(ignored)
+    }
+
+    async fn delete_ignored_path(&self, key: &EntryKey) -> DriveStoreResult<()> {
+        self.state()?.ignored_by_key.remove(&key.remote_path());
+        Ok(())
+    }
+
+    async fn list_ignored_paths(
+        &self,
+        space_id: &str,
+        root_alias: Option<&RootAlias>,
+        prefix: Option<&RelativePath>,
+    ) -> DriveStoreResult<Vec<DriveIgnoredPath>> {
+        let mut ignored = self
+            .state()?
+            .ignored_by_key
+            .values()
+            .filter(|ignored| {
+                ignored.space_id == space_id
+                    && root_alias.is_none_or(|alias| &ignored.root_alias == alias)
+                    && prefix.is_none_or(|prefix| {
+                        prefix.is_root()
+                            || ignored.relative_path == *prefix
+                            || ignored
+                                .relative_path
+                                .as_str()
+                                .starts_with(&format!("{}/", prefix.as_str()))
+                    })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        ignored.sort_by(ignored_order);
+        Ok(ignored)
     }
 
     async fn delete_entry(&self, key: &EntryKey) -> DriveStoreResult<()> {
@@ -627,6 +739,144 @@ impl DriveMetadataStore for PgDriveMetadataStore {
         .await?;
 
         rows.into_iter().map(row_to_entry).collect()
+    }
+
+    async fn list_entries_by_space(&self, space_id: &str) -> DriveStoreResult<Vec<DriveEntry>> {
+        let rows = sqlx::query_as::<
+            _,
+            (
+                Uuid,
+                String,
+                String,
+                String,
+                String,
+                i64,
+                Option<String>,
+                bool,
+                DateTime<Utc>,
+            ),
+        >(
+            r#"
+            SELECT id, space_id, root_alias, relative_path, kind, latest_version,
+                   latest_hash, deleted, updated_at
+            FROM drive_entries
+            WHERE space_id = $1 AND deleted = FALSE
+            ORDER BY root_alias, relative_path
+            "#,
+        )
+        .bind(space_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(row_to_entry).collect()
+    }
+
+    async fn upsert_ignored_path(
+        &self,
+        key: &EntryKey,
+        source_device_id: &str,
+    ) -> DriveStoreResult<DriveIgnoredPath> {
+        let id = Uuid::new_v4();
+        let row = sqlx::query_as::<
+            _,
+            (
+                Uuid,
+                String,
+                String,
+                String,
+                String,
+                DateTime<Utc>,
+                DateTime<Utc>,
+            ),
+        >(
+            r#"
+            INSERT INTO drive_ignored_paths (
+                id, space_id, root_alias, relative_path, source_device_id, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, NOW())
+            ON CONFLICT (space_id, root_alias, relative_path)
+            DO UPDATE SET source_device_id = EXCLUDED.source_device_id,
+                          updated_at = NOW()
+            RETURNING id, space_id, root_alias, relative_path, source_device_id,
+                      created_at, updated_at
+            "#,
+        )
+        .bind(id)
+        .bind(&key.space_id)
+        .bind(key.root_alias.as_str())
+        .bind(key.relative_path.as_str())
+        .bind(source_device_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        row_to_ignored_path(row)
+    }
+
+    async fn delete_ignored_path(&self, key: &EntryKey) -> DriveStoreResult<()> {
+        sqlx::query(
+            r#"
+            DELETE FROM drive_ignored_paths
+            WHERE space_id = $1 AND root_alias = $2 AND relative_path = $3
+            "#,
+        )
+        .bind(&key.space_id)
+        .bind(key.root_alias.as_str())
+        .bind(key.relative_path.as_str())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn list_ignored_paths(
+        &self,
+        space_id: &str,
+        root_alias: Option<&RootAlias>,
+        prefix: Option<&RelativePath>,
+    ) -> DriveStoreResult<Vec<DriveIgnoredPath>> {
+        let root_alias = root_alias.map(RootAlias::as_str);
+        let prefix_text = prefix.map(RelativePath::as_str);
+        let like_prefix = prefix.map(|prefix| {
+            if prefix.is_root() {
+                "%".to_owned()
+            } else {
+                format!("{}/%", prefix.as_str())
+            }
+        });
+        let rows = sqlx::query_as::<
+            _,
+            (
+                Uuid,
+                String,
+                String,
+                String,
+                String,
+                DateTime<Utc>,
+                DateTime<Utc>,
+            ),
+        >(
+            r#"
+            SELECT id, space_id, root_alias, relative_path, source_device_id,
+                   created_at, updated_at
+            FROM drive_ignored_paths
+            WHERE space_id = $1
+              AND ($2::TEXT IS NULL OR root_alias = $2)
+              AND (
+                  $3::TEXT IS NULL
+                  OR $3 = ''
+                  OR relative_path = $3
+                  OR relative_path LIKE $4
+              )
+            ORDER BY root_alias, relative_path
+            "#,
+        )
+        .bind(space_id)
+        .bind(root_alias)
+        .bind(prefix_text)
+        .bind(like_prefix.as_deref())
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(row_to_ignored_path).collect()
     }
 
     async fn delete_entry(&self, key: &EntryKey) -> DriveStoreResult<()> {
@@ -997,6 +1247,44 @@ fn row_to_conflict(
     })
 }
 
+fn row_to_ignored_path(
+    row: (
+        Uuid,
+        String,
+        String,
+        String,
+        String,
+        DateTime<Utc>,
+        DateTime<Utc>,
+    ),
+) -> DriveStoreResult<DriveIgnoredPath> {
+    let (id, space_id, root_alias, relative_path, source_device_id, created_at, updated_at) = row;
+    Ok(DriveIgnoredPath {
+        id,
+        space_id,
+        root_alias: RootAlias::parse(&root_alias)
+            .map_err(|err| DriveStoreError::ObjectStorage(err.to_string()))?,
+        relative_path: RelativePath::parse(&relative_path)
+            .map_err(|err| DriveStoreError::ObjectStorage(err.to_string()))?,
+        source_device_id,
+        created_at,
+        updated_at,
+    })
+}
+
+fn entry_order(left: &DriveEntry, right: &DriveEntry) -> std::cmp::Ordering {
+    left.key
+        .root_alias
+        .cmp(&right.key.root_alias)
+        .then_with(|| left.key.relative_path.cmp(&right.key.relative_path))
+}
+
+fn ignored_order(left: &DriveIgnoredPath, right: &DriveIgnoredPath) -> std::cmp::Ordering {
+    left.root_alias
+        .cmp(&right.root_alias)
+        .then_with(|| left.relative_path.cmp(&right.relative_path))
+}
+
 fn to_i64_version(value: u64) -> DriveStoreResult<i64> {
     i64::try_from(value).map_err(|_| DriveStoreError::VersionOutOfRange(value))
 }
@@ -1060,6 +1348,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn in_memory_store_lists_entries_by_space() {
+        let store = InMemoryDriveMetadataStore::new();
+        store
+            .upsert_entry(&key(), DriveEntryKind::File)
+            .await
+            .expect("main entry should upsert");
+        store
+            .upsert_entry(
+                &EntryKey::new(
+                    "other",
+                    RootAlias::parse("workspace").expect("alias should parse"),
+                    RelativePath::parse("docs/b.md").expect("path should parse"),
+                ),
+                DriveEntryKind::File,
+            )
+            .await
+            .expect("other entry should upsert");
+
+        let entries = store
+            .list_entries_by_space("main")
+            .await
+            .expect("space entries should list");
+
+        assert_eq!(entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn in_memory_store_lists_ignored_paths_by_prefix() {
+        let store = InMemoryDriveMetadataStore::new();
+        store
+            .upsert_ignored_path(&key(), "device-a")
+            .await
+            .expect("ignore should upsert");
+
+        let ignored = store
+            .list_ignored_paths(
+                "main",
+                Some(&RootAlias::parse("workspace").expect("alias should parse")),
+                Some(&RelativePath::parse("docs").expect("prefix should parse")),
+            )
+            .await
+            .expect("ignored paths should list");
+
+        assert_eq!(ignored[0].relative_path.as_str(), "docs/a.md");
+    }
+
+    #[tokio::test]
     async fn in_memory_object_store_round_trips_bytes() {
         let store = InMemoryDriveObjectStore::new();
 
@@ -1078,5 +1413,10 @@ mod tests {
     #[test]
     fn migration_declares_drive_entries_table() {
         assert!(DRIVE_MIGRATION_SQL.contains("CREATE TABLE IF NOT EXISTS drive_entries"));
+    }
+
+    #[test]
+    fn migration_declares_drive_ignored_paths_table() {
+        assert!(DRIVE_MIGRATION_SQL.contains("CREATE TABLE IF NOT EXISTS drive_ignored_paths"));
     }
 }

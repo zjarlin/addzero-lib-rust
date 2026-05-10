@@ -1,3 +1,5 @@
+#[cfg(not(target_arch = "wasm32"))]
+pub mod auth_cli;
 pub mod cli;
 pub mod dotfiles_catalog;
 pub mod knowledge_catalog;

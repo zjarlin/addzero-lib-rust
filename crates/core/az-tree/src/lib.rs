@@ -1,30 +1,60 @@
+//! 通用树形数据结构工具库。
+//!
+//! 提供从扁平 `(id, parent_id)` 列表构建树形结构的能力，并支持节点查找、深度计算、
+//! 路径追溯、前序遍历等常用树操作。
+//!
+//! # 核心类型
+//!
+//! - [`TreeNode<T>`] — 泛型树节点，持有 `id`、`parent_id`、`children` 和可选的 JSON 数据。
+//! - [`TreeError<T>`] — 构建过程中的错误类型，包括循环引用和缺失父节点。
+//!
+//! # 关键功能
+//!
+//! - **从扁平列表构建树**：[`build_tree`] 和 [`try_build_tree`] 接收 `(id, parent_id)` 对列表，
+//!   自动完成父子关系组装、循环检测和缺失父节点校验。
+//! - **节点查找**：[`TreeNode::find`] 和 [`TreeNode::find_mut`] 在子树中按 id 查找节点。
+//! - **树度量**：[`TreeNode::depth`] 返回最大深度，[`TreeNode::size`] 返回节点总数。
+//! - **路径追溯**：[`TreeNode::ancestors`] 返回从根到目标节点的 id 路径。
+//! - **遍历**：[`TreeNode::flatten`] 返回前序遍历的扁平节点列表。
+//!
+//! # 快速开始
+//!
+//! ```rust
+//! use az_tree::build_tree;
+//!
+//! let items = vec![(1, None), (2, Some(1)), (3, Some(1)), (4, Some(2))];
+//! let forest = build_tree(items);
+//! assert_eq!(forest.len(), 1);
+//! assert_eq!(forest[0].depth(), 3);
+//! assert_eq!(forest[0].size(), 4);
+//! ```
+
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use serde::{Deserialize, Serialize};
 
-/// A node in a generic tree data structure.
+/// 通用树节点。
 ///
-/// Each node has an identifier, an optional parent identifier, a list of children,
-/// and optional JSON data.
+/// 每个节点持有标识符、可选的父标识符、子节点列表和可选的 JSON 数据。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TreeNode<T> {
-    /// Unique identifier for this node.
+    /// 节点唯一标识符。
     pub id: T,
-    /// Identifier of the parent node, or `None` for root nodes.
+    /// 父节点标识符，根节点为 `None`。
     pub parent_id: Option<T>,
-    /// Child nodes of this node.
+    /// 子节点列表。
     pub children: Vec<TreeNode<T>>,
-    /// Arbitrary JSON data associated with this node.
+    /// 节点关联的任意 JSON 数据。
     pub data: Option<serde_json::Value>,
 }
 
-/// Errors that can occur during tree construction.
+/// 树构建过程中的错误类型。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TreeError<T> {
-    /// A cycle was detected involving the given node id.
+    /// 检测到涉及给定节点 id 的循环引用。
     Cycle(T),
-    /// A node references a parent_id that does not exist in the input.
+    /// 某个节点引用了不存在的 parent_id。
     MissingParent(T),
 }
 
@@ -41,16 +71,14 @@ impl<T: std::fmt::Debug> std::fmt::Display for TreeError<T> {
 
 impl<T: std::fmt::Debug + Send + Sync> std::error::Error for TreeError<T> {}
 
-/// A trait for building tree structures from flat (id, parent_id) pairs.
+/// 从扁平 `(id, parent_id)` 对构建树结构的 trait。
 pub trait TreeBuilder<T> {
-    /// Builds a forest (list of root trees) from a flat list of `(id, parent_id)` pairs.
+    /// 从扁平 `(id, parent_id)` 对列表构建森林（根节点列表）。
     ///
-    /// Nodes whose `parent_id` is `None` become roots. The returned `Vec` may contain
-    /// multiple trees if there are multiple roots.
+    /// `parent_id` 为 `None` 的节点成为根节点。返回的 `Vec` 可能包含多棵树。
     fn build_tree(items: Vec<(T, Option<T>)>) -> Vec<TreeNode<T>>;
 
-    /// Like [`build_tree`], but returns an error on cycles or missing parents
-    /// instead of panicking.
+    /// 与 [`build_tree`] 类似，但在遇到循环引用或缺失父节点时返回错误而非 panic。
     fn try_build_tree(items: Vec<(T, Option<T>)>) -> Result<Vec<TreeNode<T>>, TreeError<T>>;
 }
 
@@ -65,8 +93,8 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> TreeBuilder<T> for TreeNode<T> {
 }
 
 impl<T: Eq + Hash + Clone> TreeNode<T> {
-    /// Creates a new tree node with the given `id` and optional `parent_id`.
-    /// The node starts with no children and no data.
+    /// 使用给定的 `id` 和可选的 `parent_id` 创建新的树节点。
+    /// 节点初始时无子节点且无数据。
     pub fn new(id: T, parent_id: Option<T>) -> Self {
         Self {
             id,
@@ -76,14 +104,14 @@ impl<T: Eq + Hash + Clone> TreeNode<T> {
         }
     }
 
-    /// Adds a child node to this node.
+    /// 向此节点添加子节点。
     pub fn add_child(&mut self, child: TreeNode<T>) {
         self.children.push(child);
     }
 
-    /// Searches this subtree for a node with the given `id`.
+    /// 在此子树中搜索具有给定 `id` 的节点。
     ///
-    /// Returns a reference to the node if found, or `None`.
+    /// 找到则返回节点引用，否则返回 `None`。
     pub fn find(&self, id: &T) -> Option<&TreeNode<T>> {
         if self.id == *id {
             return Some(self);
@@ -96,9 +124,9 @@ impl<T: Eq + Hash + Clone> TreeNode<T> {
         None
     }
 
-    /// Searches this subtree for a node with the given `id` (mutable).
+    /// 在此子树中搜索具有给定 `id` 的节点（可变版本）。
     ///
-    /// Returns a mutable reference to the node if found, or `None`.
+    /// 找到则返回可变节点引用，否则返回 `None`。
     pub fn find_mut(&mut self, id: &T) -> Option<&mut TreeNode<T>> {
         if self.id == *id {
             return Some(self);
@@ -111,9 +139,9 @@ impl<T: Eq + Hash + Clone> TreeNode<T> {
         None
     }
 
-    /// Returns the maximum depth of this subtree.
+    /// 返回此子树的最大深度。
     ///
-    /// A leaf node has depth 1. Each level of children adds 1.
+    /// 叶子节点深度为 1，每增加一层子节点加 1。
     pub fn depth(&self) -> usize {
         if self.children.is_empty() {
             return 1;
@@ -121,15 +149,14 @@ impl<T: Eq + Hash + Clone> TreeNode<T> {
         1 + self.children.iter().map(|c| c.depth()).max().unwrap_or(0)
     }
 
-    /// Returns the total number of nodes in this subtree (including this node).
+    /// 返回此子树中的节点总数（包含自身）。
     pub fn size(&self) -> usize {
         1 + self.children.iter().map(|c| c.size()).sum::<usize>()
     }
 
-    /// Returns the path (list of node ids) from the root of this subtree to the
-    /// node identified by `id`, inclusive of both endpoints.
+    /// 返回从此子树的根到 `id` 节点的路径（节点 id 列表），两端均包含。
     ///
-    /// Returns an empty `Vec` if the node is not found.
+    /// 若节点未找到则返回空 `Vec`。
     pub fn ancestors(&self, id: &T) -> Vec<&T> {
         let mut path = Vec::new();
         if self.ancestors_inner(id, &mut path) {
@@ -153,7 +180,7 @@ impl<T: Eq + Hash + Clone> TreeNode<T> {
         false
     }
 
-    /// Returns all nodes in this subtree in depth-first (pre-order) traversal order.
+    /// 返回此子树中所有节点的深度优先（前序）遍历列表。
     pub fn flatten(&self) -> Vec<&TreeNode<T>> {
         let mut result = Vec::new();
         self.flatten_inner(&mut result);
@@ -168,32 +195,28 @@ impl<T: Eq + Hash + Clone> TreeNode<T> {
     }
 }
 
-/// Builds a forest from a flat list of `(id, parent_id)` pairs.
+/// 从扁平 `(id, parent_id)` 对列表构建森林。
 ///
-/// Nodes whose `parent_id` is `None` become roots. The returned `Vec` may contain
-/// multiple trees if there are multiple roots.
+/// `parent_id` 为 `None` 的节点成为根节点。返回的 `Vec` 可能包含多棵树。
 ///
 /// # Panics
 ///
-/// Panics if the input contains cycles or missing parents. Use [`try_build_tree`]
-/// for a non-panicking variant.
+/// 若输入包含循环引用或缺失父节点则 panic。使用 [`try_build_tree`] 获取非 panic 版本。
 pub fn build_tree<T: Eq + Hash + Clone + std::fmt::Debug>(
     items: Vec<(T, Option<T>)>,
 ) -> Vec<TreeNode<T>> {
     try_build_tree(items).expect("build_tree: input contains cycles or missing parents")
 }
 
-/// Builds a forest from a flat list of `(id, parent_id)` pairs, returning an error
-/// if cycles or missing parents are detected.
+/// 从扁平 `(id, parent_id)` 对列表构建森林，若检测到循环引用或缺失父节点则返回错误。
 ///
-/// Nodes whose `parent_id` is `None` become roots. The returned `Vec` may contain
-/// multiple trees if there are multiple roots.
+/// `parent_id` 为 `None` 的节点成为根节点。返回的 `Vec` 可能包含多棵树。
 pub fn try_build_tree<T: Eq + Hash + Clone>(
     items: Vec<(T, Option<T>)>,
 ) -> Result<Vec<TreeNode<T>>, TreeError<T>> {
     let all_ids: HashSet<&T> = items.iter().map(|(id, _)| id).collect();
 
-    // Validate: all parent_ids (when Some) must exist in the id set.
+    // 校验：所有 parent_id（当为 Some 时）必须存在于 id 集合中。
     for (id, parent_id) in &items {
         if let Some(pid) = parent_id {
             if !all_ids.contains(pid) {
@@ -202,8 +225,8 @@ pub fn try_build_tree<T: Eq + Hash + Clone>(
         }
     }
 
-    // Validate: detect cycles using iterative DFS.
-    // Build children map for traversal.
+    // 校验：使用迭代式 DFS 检测循环引用。
+    // 构建子节点映射用于遍历。
     let children_map: HashMap<&T, Vec<&T>> = {
         let mut map: HashMap<&T, Vec<&T>> = HashMap::new();
         for (id, parent_id) in &items {
@@ -214,9 +237,8 @@ pub fn try_build_tree<T: Eq + Hash + Clone>(
         map
     };
 
-    // Iterative DFS cycle detection with explicit visit tracking.
-    // Must start from ALL nodes, not just roots, because a pure cycle
-    // (e.g. 1→2→1) has no roots at all.
+    // 从所有节点开始迭代式 DFS 循环检测。
+    // 必须从所有节点开始，因为纯循环（如 1→2→1）没有根节点。
     {
         let all_node_ids: Vec<&T> = items.iter().map(|(id, _)| id).collect();
         let mut visited = HashSet::<&T>::new();
@@ -225,13 +247,11 @@ pub fn try_build_tree<T: Eq + Hash + Clone>(
             if visited.contains(start) {
                 continue;
             }
-            // Trace from start following children; track the current path.
             let mut path = Vec::<&T>::new();
             let mut dfs_stack: Vec<(&T, bool)> = vec![(start, false)];
 
             while let Some((node_id, processed)) = dfs_stack.pop() {
                 if processed {
-                    // All children explored, remove from current path.
                     path.pop();
                     visited.insert(node_id);
                     continue;
@@ -239,14 +259,11 @@ pub fn try_build_tree<T: Eq + Hash + Clone>(
                 if visited.contains(node_id) {
                     continue;
                 }
-                // Check if node is already on the current path (cycle).
                 if path.contains(&node_id) {
                     return Err(TreeError::Cycle((*node_id).clone()));
                 }
                 path.push(node_id);
-                // Push "processed" marker.
                 dfs_stack.push((node_id, true));
-                // Push children.
                 let kids = children_map.get(node_id).cloned().unwrap_or_default();
                 for kid in kids {
                     if path.contains(&kid) {
@@ -260,7 +277,7 @@ pub fn try_build_tree<T: Eq + Hash + Clone>(
         }
     }
 
-    // Build the actual tree.
+    // 构建实际的树结构。
     let mut index: HashMap<T, usize> = HashMap::new();
     for (i, (id, _)) in items.iter().enumerate() {
         index.insert(id.clone(), i);

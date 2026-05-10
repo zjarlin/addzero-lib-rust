@@ -1,5 +1,25 @@
 #![forbid(unsafe_code)]
 
+//! 远程桌面控制的数据模型定义库。
+//!
+//! 定义远程桌面会话所需的全部协议数据类型，包括设备描述、会话能力协商、
+//! 输入事件（鼠标/键盘）、剪贴板同步、文件传输信封、视频帧信封等。
+//! 这些类型可序列化为 JSON，用于客户端与服务端之间的消息交换。
+//!
+//! ## 主要类型
+//!
+//! - [`DeviceDescriptor`] — 设备信息（ID、名称、平台、角色、能力、在线状态）。
+//! - [`SessionRequest`] / [`SessionGrant`] — 会话建立的请求与授权流程。
+//! - [`SessionSummary`] — 会话完整状态快照，包含最新视频帧与剪贴板内容。
+//! - [`RemoteInputEvent`] — 远程输入事件枚举：鼠标移动、按键、滚轮、文本输入。
+//! - [`VideoFrameEnvelope`] / [`FileTransferEnvelope`] — 视频帧与文件分块传输的信封结构。
+//! - [`ClipboardPayload`] — 剪贴板同步载荷。
+//!
+//! ## 平台与角色
+//!
+//! [`RemotePlatform`] 支持 macOS、Windows、Linux (X11/Wayland)、Browser；
+//! [`DeviceRole`] 区分 Host（被控端）与 Viewer（控制端）。
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;

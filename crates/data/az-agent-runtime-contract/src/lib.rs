@@ -1,3 +1,26 @@
+//! Agent 运行时与服务端之间的 API 契约类型定义。
+//!
+//! 定义了 Agent 配对（pairing）、节点管理、技能同步、冲突解决及会话认证等
+//! 交互流程中使用的所有请求/响应数据结构和枚举类型。
+//!
+//! # 核心枚举
+//!
+//! - [`AgentArtifactChannel`] — Agent 分发渠道（macOS 二进制、Docker Compose）。
+//! - [`PairingStatus`] — 配对会话状态（待审批、已批准、已交换密钥、已过期、已撤销）。
+//! - [`AgentNodeStatus`] — Agent 节点在线状态（待确认、在线、离线、已撤销）。
+//! - [`ConflictResolution`] — 技能冲突解决策略（以 Web 端为准或以 Agent 端为准）。
+//!
+//! # 关键结构体
+//!
+//! - **配对流程**：[`PairingRequest`]、[`PairingSessionSummary`]、[`PairingCreateResponse`]、
+//!   [`PairingExchangeRequest`]、[`PairingExchangeResponse`]。
+//! - **节点管理**：[`AgentNode`]、[`AgentHeartbeat`]。
+//! - **技能同步**：[`SkillSnapshot`]、[`SkillSyncRequest`]、[`SkillSyncResponse`]、
+//!   [`SkillConflict`]、[`ResolveConflictRequest`]。
+//! - **汇总视图**：[`AgentRuntimeOverview`] — 聚合制品、节点、配对会话和冲突的总览。
+//! - **认证**：[`SessionUser`]、[`LoginRequest`]。
+//! - **制品**：[`AgentArtifact`] — Agent 安装包元数据（下载地址、校验和、安装/启动/卸载命令）。
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

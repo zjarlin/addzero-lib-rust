@@ -57,7 +57,7 @@ pub fn install() -> Result<MacosActionsInstallResult> {
     Ok(MacosActionsInstallResult {
         workflows: vec![host_workflow, unhost_workflow],
         scripts: vec![host_script, unhost_script],
-        env_paths: az_drive_app::drive_env_paths(),
+        env_paths: crate::drive_env_paths(),
         enabled_context_menu: enabled_host && enabled_unhost,
         refreshed_services_cache: refreshed,
         note: "Finder 右键入口已请求加入右键菜单和“快速操作”；如果未立即出现，请重新打开 Finder 右键菜单或重启 Finder。"

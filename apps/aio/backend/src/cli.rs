@@ -10,16 +10,122 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// 注册 AIO 用户到本机配置的系统用户表
+    Reg(RegArgs),
+    /// 登录 AIO 后台并保存本机 CLI 登录态
+    Login(LoginArgs),
+    /// 清除本机 CLI 登录态，并尽量通知后台退出会话
+    Logout(AuthServerArgs),
+    /// 查看当前本机 CLI 登录态
+    Whoami(AuthServerArgs),
+    /// 管理 API key 和本机融合源
+    #[command(subcommand, alias = "apikey")]
+    Key(KeyCommand),
     /// 启动本机 TUI 工作台
     Tui,
     /// 启动 API 后端服务
     Serve,
+    /// AIO Drive 文件托管命令
+    #[command(subcommand)]
+    Drive(az_drive_app::cli::DriveCommand),
     /// 运行数据库迁移
     Migrate,
     /// 打印当前架构状态
     Status,
     /// 面向 agent 的系统治理 CLI
     System(SystemCli),
+}
+
+#[derive(Debug, Args)]
+pub struct RegArgs {
+    /// 注册用户名
+    #[arg(long)]
+    pub username: String,
+    /// 注册密码；也可以用 --password-stdin 或 AIO_PASSWORD
+    #[arg(long)]
+    pub password: Option<String>,
+    /// 从 stdin 读取注册密码，避免写进 shell history
+    #[arg(long)]
+    pub password_stdin: bool,
+    /// 昵称，未传时默认等于 username
+    #[arg(long, default_value = "")]
+    pub nickname: String,
+    /// 用户状态，默认 enabled
+    #[arg(long, default_value = "enabled")]
+    pub status: String,
+    /// 给新用户绑定角色 id，可重复传
+    #[arg(long = "role-id")]
+    pub role_ids: Vec<i32>,
+    /// 给新用户绑定内置“管理员”角色
+    #[arg(long)]
+    pub admin: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct LoginArgs {
+    /// AIO 后台地址，默认读取 AIO_SERVER_URL/AIO_API_URL/AIO_API_BIND 或 http://127.0.0.1:8787
+    #[arg(long)]
+    pub server: Option<String>,
+    /// 登录用户名，默认读取 AIO_USERNAME/AIO_ADMIN_USERNAME 或 admin
+    #[arg(long)]
+    pub username: Option<String>,
+    /// 登录密码；未传时读取 AIO_PASSWORD/AIO_ADMIN_PASSWORD，最后回退到本机开发默认 admin
+    #[arg(long)]
+    pub password: Option<String>,
+    /// 从 stdin 读取密码，避免写进 shell history
+    #[arg(long)]
+    pub password_stdin: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct AuthServerArgs {
+    /// 覆盖登录态中的 AIO 后台地址
+    #[arg(long)]
+    pub server: Option<String>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum KeyCommand {
+    /// 为当前登录用户创建 API key
+    Create(KeyCreateArgs),
+    /// 查看 API key 对应的主人信息
+    Whoami(KeyValueArgs),
+    /// 添加别人的 API key 作为本机 Drive 融合源
+    Add(KeyAddArgs),
+    /// 从本机融合源移除 API key
+    Remove(KeySelectorArgs),
+    /// 撤销当前登录用户创建的 API key
+    Revoke(KeySelectorArgs),
+    /// 列出本机已添加的融合源
+    List,
+}
+
+#[derive(Debug, Args)]
+pub struct KeyCreateArgs {
+    /// API key 标签
+    #[arg(long, default_value = "")]
+    pub label: String,
+}
+
+#[derive(Debug, Args)]
+pub struct KeyValueArgs {
+    /// API key 原文
+    pub api_key: String,
+}
+
+#[derive(Debug, Args)]
+pub struct KeyAddArgs {
+    /// API key 原文
+    pub api_key: String,
+    /// 本机备注标签
+    #[arg(long, default_value = "")]
+    pub label: String,
+}
+
+#[derive(Debug, Args)]
+pub struct KeySelectorArgs {
+    /// API key 前缀或 owner 用户名
+    pub selector: String,
 }
 
 #[derive(Debug, Args)]

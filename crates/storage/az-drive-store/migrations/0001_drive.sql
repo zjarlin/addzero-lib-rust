@@ -55,6 +55,20 @@ CREATE TABLE IF NOT EXISTS drive_conflicts (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS drive_ignored_paths (
+    id UUID PRIMARY KEY,
+    space_id TEXT NOT NULL,
+    root_alias TEXT NOT NULL,
+    relative_path TEXT NOT NULL,
+    source_device_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (space_id, root_alias, relative_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_drive_ignored_paths_space_root_path
+    ON drive_ignored_paths(space_id, root_alias, relative_path);
+
 CREATE TABLE IF NOT EXISTS drive_devices (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
