@@ -1,10 +1,10 @@
 #![forbid(unsafe_code)]
 
-//! Headless realtime drive agent.
+//! 无头实时网盘代理。
 //!
-//! The daemon is intentionally GUI-free. It watches hosted paths through a
-//! polling loop, reconciles local and remote versions, and writes conflict
-//! copies automatically instead of requiring manual Git-style intervention.
+//! 该守护进程在设计上不依赖 GUI。它通过轮询循环监听托管路径，
+//! 对本地与远程版本进行对账，并自动写入冲突副本，
+//! 无需手动的 Git 式人工干预。
 
 use az_drive_core::{
     ChangeDecision, EntryKey, RelativePath, RootAlias, RootRegistry, conflict_file_name,

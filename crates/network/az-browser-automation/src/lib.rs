@@ -1,11 +1,9 @@
 #![forbid(unsafe_code)]
-//! Browser automation helpers for form-oriented workflows and authorized
-//! registration testing.
+//! 面向表单工作流和授权注册测试的浏览器自动化辅助工具。
 //!
-//! The crate keeps the original [`BrowserAutomation`] facade for simple
-//! one-page form fills and adds reusable modules for browser profiles, proxy
-//! configuration, isolated browser sessions, and trait-based registration
-//! flows.
+//! 本 crate 保留了原始的 [`BrowserAutomation`] 门面，用于简单的单页表单填写，
+//! 并新增了可复用的模块，涵盖浏览器配置文件、代理配置、隔离浏览器会话
+//! 以及基于 trait 的注册流程。
 
 pub mod ai_reg_auto;
 pub mod fingerprint;

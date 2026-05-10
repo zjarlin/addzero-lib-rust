@@ -1,7 +1,7 @@
-//! JSON utility functions extending `serde_json` with convenience helpers.
+//! 为 `serde_json` 扩展实用 JSON 工具函数的便捷辅助库。
 //!
-//! Provides dot-path queries, type-safe extraction, deep merge,
-//! flattening, and pretty-printing for [`serde_json::Value`].
+//! 为 [`serde_json::Value`] 提供点路径查询、类型安全提取、深度合并、
+//! 展平以及美化打印等功能。
 
 use std::collections::HashMap;
 

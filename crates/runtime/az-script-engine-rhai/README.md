@@ -1,12 +1,12 @@
 # az-script-engine-rhai
 
-Rhai implementation of the `az-script-engine` contract.
+`az-script-engine` 契约的 Rhai 实现。
 
-## What It Provides
+## 提供内容
 
 - `RhaiEngine`
 
-## Example
+## 示例
 
 ```rust
 use std::collections::BTreeMap;
@@ -27,7 +27,6 @@ let output = engine.run(ScriptInput {
 assert_eq!(output.exit_code, 0);
 ```
 
-## Scope
+## 适用范围
 
-Use this crate when you want an in-process Rhai engine behind a stable
-cross-engine contract.
+当需要一个基于稳定跨引擎契约的进程内 Rhai 引擎时使用此 crate。

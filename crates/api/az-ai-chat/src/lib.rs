@@ -1,10 +1,9 @@
-//! Unified Chat interface for AI/LLM providers.
+//! AI/LLM 提供商的统一聊天接口。
 //!
-//! Provides a common [`ChatClient`] trait and [`Message`] types to interact
-//! with OpenAI-compatible, Claude (Anthropic), and Google Gemini APIs through
-//! a single abstraction.
+//! 提供通用的 [`ChatClient`] trait 和 [`Message`] 类型，通过统一的抽象层
+//! 与 OpenAI 兼容接口、Claude（Anthropic）以及 Google Gemini API 进行交互。
 //!
-//! # Quick Start
+//! # 快速开始
 //!
 //! ```no_run
 //! use az_ai_chat::{OpenAiClient, ChatClient, Message, ChatOptions, Role};

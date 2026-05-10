@@ -1,10 +1,9 @@
 #![forbid(unsafe_code)]
 
-//! Minimal WebDAV-facing adapter for the standalone drive.
+//! 面向独立网盘的极简 WebDAV 适配层。
 //!
-//! This crate exposes WebDAV methods through Axum while delegating identity,
-//! versioning, and object storage to the shared drive crates. It is intentionally
-//! independent of `apps/aio`.
+//! 本 crate 通过 Axum 暴露 WebDAV 方法，同时将身份管理、版本控制和对象存储
+//! 委托给共享的网盘 crate。它在设计上独立于 `apps/aio`。
 
 use axum::Router;
 use axum::body::Bytes;

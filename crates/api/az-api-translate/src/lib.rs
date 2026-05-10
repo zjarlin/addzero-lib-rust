@@ -1,10 +1,9 @@
-//! Translation API client supporting multiple providers.
+//! 支持多提供商的翻译 API 客户端。
 //!
-//! Provides a common [`TranslateClient`] trait and supporting types to send
-//! translation requests to cloud translation services. Ships with a built-in
-//! MyMemory free translation implementation.
+//! 提供通用的 [`TranslateClient`] trait 及配套类型，用于向云端翻译服务
+//! 发送翻译请求。内置 MyMemory 免费翻译实现。
 //!
-//! # Quick Start
+//! # 快速开始
 //!
 //! ```no_run
 //! use az_api_translate::{MyMemoryClient, TranslateClient};

@@ -1,10 +1,9 @@
-//! Cross-platform serial port communication utilities.
+//! 跨平台串口通信工具。
 //!
-//! Provides a portable [`SerialPort`] abstraction for reading/writing data
-//! over serial (UART/RS-232) connections with configurable baud rate, parity,
-//! stop bits, and flow control.
+//! 提供可移植的 [`SerialPort`] 抽象，用于通过串口（UART/RS-232）连接读写数据，
+//! 支持可配置的波特率、校验位、停止位和流控制。
 //!
-//! # Quick Start
+//! # 快速开始
 //!
 //! ```no_run
 //! use az_serial::{SerialPort, SerialConfig, BaudRate, Parity, StopBits};

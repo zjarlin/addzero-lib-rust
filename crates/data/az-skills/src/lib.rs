@@ -1,6 +1,5 @@
-//! Skill management against `~/.agents/skills/<name>/SKILL.md` and an optional
-//! Postgres mirror. The service is the single entry point used by the
-//! msc-aio server functions.
+//! 针对 `~/.agents/skills/<name>/SKILL.md` 以及可选 Postgres 镜像的
+//! 技能管理服务。本服务是 msc-aio 服务端函数使用的唯一入口。
 pub mod fs_repo;
 pub mod pg_repo;
 pub mod sync;

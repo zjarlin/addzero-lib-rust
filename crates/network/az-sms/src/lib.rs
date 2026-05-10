@@ -1,11 +1,10 @@
 #![forbid(unsafe_code)]
-//! SMS provider abstraction and provider clients.
+//! SMS 提供商抽象和提供商客户端。
 //!
-//! The crate exposes a small provider trait for renting numbers, checking SMS
-//! delivery, and closing orders. It intentionally keeps account-creation or
-//! verification-bypass workflows out of the library boundary.
+//! 此 crate 暴露一个小型提供商 trait，用于租用号码、检查短信投递和关闭订单。
+//! 它刻意将账户创建或验证绕过工作流排除在库边界之外。
 //!
-//! # Quick Start
+//! # 快速开始
 //!
 //! ```no_run
 //! use az_sms::{FivesimClient, SmsActivationRequest, SmsProvider};

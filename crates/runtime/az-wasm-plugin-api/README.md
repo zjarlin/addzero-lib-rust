@@ -1,8 +1,8 @@
 # az-wasm-plugin-api
 
-Host-side contract types for loading and managing WASM plugins.
+用于加载和管理 WASM 插件的宿主端契约类型。
 
-## What It Provides
+## 提供内容
 
 - `PluginManifest`
 - `ExtensionPoint`
@@ -11,7 +11,7 @@ Host-side contract types for loading and managing WASM plugins.
 - `PluginRegistry`
 - `PluginError`
 
-## Example
+## 示例
 
 ```rust
 use az_wasm_plugin_api::{ExtensionPoint, PluginManifest};
@@ -32,7 +32,6 @@ let manifest = PluginManifest {
 assert_eq!(manifest.name, "Demo Plugin");
 ```
 
-## Scope
+## 适用范围
 
-This crate defines shared host-side types. It does not load WASM modules by
-itself.
+此 crate 定义共享的宿主端类型，本身不负责加载 WASM 模块。

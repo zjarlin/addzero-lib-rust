@@ -1,12 +1,12 @@
 # az-wasm-plugin-host
 
-Minimal Wasmtime-backed host for `az-wasm-plugin-api` plugins.
+基于 Wasmtime 的 `az-wasm-plugin-api` 插件最小化宿主。
 
-## What It Provides
+## 提供内容
 
 - `RuntimePluginRegistry`
 
-## Example
+## 示例
 
 ```rust
 use az_wasm_plugin_host::RuntimePluginRegistry;
@@ -15,7 +15,6 @@ let registry = RuntimePluginRegistry::new();
 assert!(registry.list().is_empty());
 ```
 
-## Scope
+## 适用范围
 
-This crate manages plugin lifecycle and WASM instantiation. It is intentionally
-small and does not define marketplace, UI, or business plugin models.
+此 crate 管理插件生命周期和 WASM 实例化。它刻意保持精简，不定义市场、UI 或业务插件模型。

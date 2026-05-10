@@ -1,4 +1,4 @@
-//! Minimal Wasmtime-backed host for `az-wasm-plugin-api` plugins.
+//! 基于 Wasmtime 的 `az-wasm-plugin-api` 插件极简宿主。
 
 use az_wasm_plugin_api::{PluginError, PluginHandle, PluginManifest, PluginRegistry, PluginState};
 use std::collections::BTreeMap;

@@ -1,11 +1,10 @@
 #![forbid(unsafe_code)]
-//! Client for deployed [`cloudflare_temp_email`](https://github.com/dreamhunter2333/cloudflare_temp_email) workers.
+//! 已部署 [`cloudflare_temp_email`](https://github.com/dreamhunter2333/cloudflare_temp_email) Workers 的客户端。
 //!
-//! The upstream project is a Cloudflare Workers temp-email application, not a
-//! hosted global API. This crate wraps the worker's public address, inbox, and
-//! send-mail endpoints while keeping the deployment URL explicit.
+//! 上游项目是一个 Cloudflare Workers 临时邮箱应用，并非托管的全局 API。
+//! 此 crate 包装了 Worker 的公共地址、收件箱和发信端点，同时保持部署 URL 的显式性。
 //!
-//! # Quick Start
+//! # 快速开始
 //!
 //! ```no_run
 //! use az_temp_mail::{NewAddressRequest, PageRequest, create_temp_mail_api};

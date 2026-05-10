@@ -1,4 +1,4 @@
-//! Host-side contract types for loading and managing WASM plugins.
+//! 用于加载和管理 WASM 插件的宿主端契约类型。
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

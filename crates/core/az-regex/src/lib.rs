@@ -1,7 +1,7 @@
-//! Regex utilities with compiled pattern caching and helper functions.
+//! 带编译模式缓存和辅助函数的正则表达式工具库。
 //!
-//! [`CachedRegex`] compiles a pattern once and reuses it for repeated matches,
-//! while the free functions provide one-shot convenience helpers.
+//! [`CachedRegex`] 编译一次正则模式并在重复匹配时复用，
+//! 同时提供自由函数作为一次性便捷辅助。
 
 use std::collections::HashMap;
 

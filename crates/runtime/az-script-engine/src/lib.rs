@@ -1,7 +1,7 @@
-//! Common contracts for embeddable script engines.
+//! 可嵌入脚本引擎的通用契约。
 //!
-//! This crate focuses on one thing: defining the request/response types and
-//! traits that concrete engines such as Rhai can implement.
+//! 此 crate 聚焦于一件事：定义请求/响应类型以及
+//! 具体引擎（如 Rhai）可以实现的 trait。
 
 pub mod script;
 

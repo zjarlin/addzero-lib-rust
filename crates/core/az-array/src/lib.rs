@@ -1,17 +1,16 @@
-//! Array and slice utility extensions.
+//! 数组和切片的实用工具扩展。
 //!
-//! Provides convenience functions for common operations on slices and vectors
-//! that aren't available in the standard library:
+//! 提供标准库中不可用的切片和向量常用操作便捷函数：
 //!
-//! - [`chunk`] — split into fixed-size chunks
-//! - [`unique`] — deduplicate preserving order
-//! - [`flatten_nested`] — flatten nested vectors
-//! - [`zip_longest`] — zip with fill value for uneven lengths
-//! - [`rotate_left`] / [`rotate_right`] — in-place rotation
-//! - [`window`] — sliding windows
-//! - [`frequencies`] — count occurrences
-//! - [`partition`] — split by predicate
-//! - [`pad_left`] — pad to desired length
+//! - [`chunk`] — 按固定大小分块
+//! - [`unique`] — 保持顺序的去重
+//! - [`flatten_nested`] — 展平嵌套向量
+//! - [`zip_longest`] — 不等长时以填充值压缩
+//! - [`rotate_left`] / [`rotate_right`] — 原地旋转
+//! - [`window`] — 滑动窗口
+//! - [`frequencies`] — 出现次数统计
+//! - [`partition`] — 按谓词分割
+//! - [`pad_left`] — 左填充至指定长度
 
 use std::collections::HashMap;
 use std::hash::Hash;

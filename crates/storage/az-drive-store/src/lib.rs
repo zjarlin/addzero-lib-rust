@@ -1,9 +1,9 @@
 #![forbid(unsafe_code)]
 
-//! Metadata and object storage abstractions for the standalone drive.
+//! 独立网盘的元数据与对象存储抽象。
 //!
-//! PostgreSQL is the formal metadata store, while the in-memory store exists
-//! for tests and local smoke runs. Object bytes are stored by content hash.
+//! PostgreSQL 是正式的元数据存储，而内存存储仅用于测试和本地冒烟运行。
+//! 对象字节按内容哈希进行存储。
 
 use async_trait::async_trait;
 use az_drive_core::{EntryKey, RelativePath, RootAlias};

@@ -1,9 +1,8 @@
-//! Unified error types for the addzero ecosystem.
+//! addzero 生态系统的统一错误类型。
 //!
-//! This crate provides a single [`AppError`] enum that covers common error
-//! scenarios encountered across backend services, including HTTP-style errors,
-//! I/O failures, and JSON (de)serialization issues. Use [`AppResult<T>`] as
-//! the standard return type for fallible operations.
+//! 本 crate 提供一个统一的 [`AppError`] 枚举，涵盖后端服务中常见的错误场景，
+//! 包括 HTTP 风格错误、I/O 失败以及 JSON（反）序列化问题。
+//! 使用 [`AppResult<T>`] 作为可失败操作的标准返回类型。
 
 /// Unified application error type.
 ///

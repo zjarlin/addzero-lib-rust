@@ -1,9 +1,9 @@
-//! Database model and schema definitions for code generation.
+//! 用于代码生成的数据库模型和 Schema 定义。
 //!
-//! Provides data structures to represent database schemas, tables, columns,
-//! relationships, and indexes in a dialect-agnostic way.
+//! 以方言无关的方式提供数据结构，用于表示数据库 Schema、表、列、
+//! 关系和索引。
 //!
-//! # Quick Start
+//! # 快速开始
 //!
 //! ```no_run
 //! use az_database_model::{Schema, Table, Column, DataType, Relation, RelationKind};

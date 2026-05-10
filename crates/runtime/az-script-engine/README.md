@@ -1,18 +1,17 @@
 # az-script-engine
 
-Common contracts for embeddable script engines.
+可嵌入脚本引擎的通用契约。
 
-This crate defines the request, response, language enum, and traits that
-concrete engines implement.
+此 crate 定义了请求、响应、语言枚举以及具体引擎实现的 trait。
 
-## What It Provides
+## 提供内容
 
 - `ScriptLang`
 - `ScriptInput`
 - `ScriptOutput`
 - `ScriptEngine`
 
-## Example
+## 示例
 
 ```rust
 use std::collections::BTreeMap;
@@ -31,6 +30,6 @@ let input = ScriptInput {
 assert_eq!(input.timeout_secs, 5);
 ```
 
-## Scope
+## 适用范围
 
-This crate is contract-only. It does not ship a concrete engine.
+此 crate 仅包含契约定义，不附带具体引擎实现。

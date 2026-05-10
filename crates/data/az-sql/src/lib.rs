@@ -1,9 +1,9 @@
-//! SQL query builder with type-safe SQL construction.
+//! 带类型安全 SQL 构建的 SQL 查询构建器。
 //!
-//! Provides a fluent API for building SELECT, INSERT, UPDATE, and DELETE
-//! queries with parameterized values to prevent SQL injection.
+//! 提供流式 API，用于构建 SELECT、INSERT、UPDATE 和 DELETE 查询，
+//! 并使用参数化值来防止 SQL 注入。
 //!
-//! # Quick Start
+//! # 快速开始
 //!
 //! ```
 //! use az_sql::{Query, QueryError, SelectQuery};

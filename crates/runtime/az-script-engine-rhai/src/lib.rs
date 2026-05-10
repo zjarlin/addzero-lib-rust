@@ -1,4 +1,4 @@
-//! Rhai implementation of the `az-script-engine` contract.
+//! `az-script-engine` 契约的 Rhai 实现。
 
 use az_script_engine::script::{ScriptEngine, ScriptFuture, ScriptInput, ScriptLang, ScriptOutput};
 use rhai::{Dynamic, Engine, Scope};

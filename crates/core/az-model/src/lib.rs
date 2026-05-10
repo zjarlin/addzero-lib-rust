@@ -1,13 +1,13 @@
-//! Generic model traits for database entities, pagination, and auditing.
+//! 数据库实体、分页和审计的通用模型 trait。
 //!
-//! Provides reusable trait abstractions that map to common ORM patterns:
+//! 提供可复用的 trait 抽象，对应常见的 ORM 模式：
 //!
-//! - [`Identifiable`] — entities with a primary key
-//! - [`Timestamped`] — entities with created/updated timestamps
-//! - [`SoftDeletable`] — entities that support soft deletion
-//! - [`Auditable`] — entities that track who created/updated them
-//! - [`Pageable`] — pagination request parameters
-//! - [`PageResult`] — paginated response container
+//! - [`Identifiable`] — 具有主键的实体
+//! - [`Timestamped`] — 具有创建/更新时间戳的实体
+//! - [`SoftDeletable`] — 支持软删除的实体
+//! - [`Auditable`] — 追踪创建/更新者的实体
+//! - [`Pageable`] — 分页请求参数
+//! - [`PageResult`] — 分页响应容器
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
