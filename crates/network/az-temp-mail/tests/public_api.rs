@@ -7,6 +7,41 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 #[test]
+fn cloudflare_context_builds_api_config_and_requests() -> Result<(), Box<dyn Error>> {
+    let context = CloudflareTempMailContext {
+        base_url: "https://mail.example.com".to_owned(),
+        custom_auth: Some("admin-secret".to_owned()),
+        address_name: Some("demo".to_owned()),
+        address_domain: Some("example.com".to_owned()),
+        cf_token: Some("cf-token".to_owned()),
+        enable_random_subdomain: Some(true),
+    };
+
+    let config = context.api_config()?;
+    let create_mailbox = context.create_mailbox_request();
+    let new_address = context.new_address_request();
+
+    assert_eq!(config.base_url, "https://mail.example.com");
+    assert_eq!(
+        config
+            .default_headers
+            .get("x-custom-auth")
+            .map(String::as_str),
+        Some("admin-secret")
+    );
+    assert_eq!(create_mailbox.name.as_deref(), Some("demo"));
+    assert_eq!(create_mailbox.domain.as_deref(), Some("example.com"));
+    assert_eq!(create_mailbox.cf_token.as_deref(), Some("cf-token"));
+    assert!(create_mailbox.enable_random_subdomain);
+    assert_eq!(new_address.name.as_deref(), Some("demo"));
+    assert_eq!(new_address.domain.as_deref(), Some("example.com"));
+    assert_eq!(new_address.cf_token.as_deref(), Some("cf-token"));
+    assert_eq!(new_address.enable_random_subdomain, Some(true));
+
+    Ok(())
+}
+
+#[test]
 fn temp_mail_create_address_and_list_parsed_mail_use_cloudflare_worker_paths()
 -> Result<(), Box<dyn Error>> {
     let server = TestServer::spawn(vec![

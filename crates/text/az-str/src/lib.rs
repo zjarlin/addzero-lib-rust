@@ -147,40 +147,6 @@ pub fn clean_blank(input: Option<&str>) -> String {
         .collect()
 }
 
-pub fn default_table_english_name(
-    table_english_name: impl AsRef<str>,
-    table_chinese_name: Option<&str>,
-) -> String {
-    let table_english_name = table_english_name.as_ref();
-    let seed = if table_english_name.trim().is_empty() {
-        table_chinese_name.unwrap_or_default()
-    } else {
-        table_english_name
-    };
-
-    let without_parenthetical = parenthetical_regex().replace_all(seed, "");
-    let transliterated = if table_english_name.trim().is_empty() {
-        deunicode(without_parenthetical.trim())
-    } else {
-        without_parenthetical.to_string()
-    };
-
-    let sanitized: String = transliterated
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() {
-                character
-            } else {
-                '_'
-            }
-        })
-        .collect();
-
-    underscore_regex()
-        .replace_all(sanitized.trim_matches('_'), "_")
-        .to_string()
-}
-
 pub fn parent_path_and_mkdir(
     path: impl AsRef<Path>,
     child_path: impl AsRef<Path>,

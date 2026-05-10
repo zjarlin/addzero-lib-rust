@@ -12,7 +12,7 @@ thiserror.workspace = true
 uuid.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-az-persistence = { path = "../az-persistence" }
+az-persistence.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 regex.workspace = true
 reqwest.workspace = true

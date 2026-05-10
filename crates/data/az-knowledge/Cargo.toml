@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-persistence = { path = "../az-persistence" }
+az-persistence.workspace = true
 anyhow.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 deunicode.workspace = true

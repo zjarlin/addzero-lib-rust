@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-plugin-contract = { path = "../az-plugin-contract" }
+az-plugin-contract.workspace = true
 inventory.workspace = true
 
 [lints]

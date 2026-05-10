@@ -7,9 +7,9 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-plugin-contract = { path = "../az-plugin-contract" }
-az-plugin-registry = { path = "../az-plugin-registry" }
-az-plugin-runtime = { path = "../az-plugin-runtime" }
+az-plugin-contract.workspace = true
+az-plugin-registry.workspace = true
+az-plugin-runtime.workspace = true
 shaku.workspace = true
 thiserror.workspace = true
 

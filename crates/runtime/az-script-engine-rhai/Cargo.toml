@@ -7,8 +7,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-sandbox = { path = "../../core/az-sandbox" }
-az-script-engine = { path = "../az-script-engine" }
+az-sandbox.workspace = true
+az-script-engine.workspace = true
 rhai = { version = "1", features = ["sync", "serde"] }
 serde_json.workspace = true
 thiserror.workspace = true

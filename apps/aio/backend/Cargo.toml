@@ -8,13 +8,13 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-tui = { path = "../../../crates/apps/az-tui" }
-az-sandbox = { path = "../../../crates/core/az-sandbox" }
-az-script-engine = { path = "../../../crates/runtime/az-script-engine" }
-az-script-engine-rhai = { path = "../../../crates/runtime/az-script-engine-rhai" }
-az-agent-runtime-contract = { path = "../../../crates/data/az-agent-runtime-contract" }
-az-cli-market-contract = { path = "../../../crates/api/az-cli-market-contract" }
-az-software-catalog = { path = "../../../crates/data/az-software-catalog" }
+az-tui.workspace = true
+az-sandbox.workspace = true
+az-script-engine.workspace = true
+az-script-engine-rhai.workspace = true
+az-agent-runtime-contract.workspace = true
+az-cli-market-contract.workspace = true
+az-software-catalog.workspace = true
 automod.workspace = true
 base64.workspace = true
 blake3 = "1.5.5"
@@ -27,15 +27,15 @@ thiserror.workspace = true
 uuid.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-az-ai-agent = { path = "../../../crates/runtime/az-ai-agent" }
-az-ai-chat = { path = "../../../crates/api/az-ai-chat" }
-az-assets = { path = "../../../crates/data/az-assets" }
-az-knowledge = { path = "../../../crates/data/az-knowledge" }
-az-minio = { path = "../../../crates/storage/az-minio" }
-az-persistence = { path = "../../../crates/data/az-persistence" }
-az-skills = { path = "../../../crates/data/az-skills" }
-az-rustfs = { path = "../../../crates/storage/az-rustfs" }
-az-system-starters = { path = "../../../crates/runtime/az-system-starters" }
+az-ai-agent.workspace = true
+az-ai-chat.workspace = true
+az-assets.workspace = true
+az-knowledge.workspace = true
+az-minio.workspace = true
+az-persistence.workspace = true
+az-skills.workspace = true
+az-rustfs.workspace = true
+az-system-starters.workspace = true
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
 dirs.workspace = true
@@ -60,7 +60,7 @@ walkdir = "2"
 zip.workspace = true
 
 [build-dependencies]
-az-knowledge = { path = "../../../crates/data/az-knowledge" }
+az-knowledge.workspace = true
 tokio.workspace = true
 
 [lints]

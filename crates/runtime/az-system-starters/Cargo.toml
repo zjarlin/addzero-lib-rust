@@ -7,12 +7,12 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-starter-audit = { path = "../az-starter-audit" }
-az-starter-dictionary = { path = "../az-starter-dictionary" }
-az-starter-identity = { path = "../az-starter-identity" }
-az-starter-menu = { path = "../az-starter-menu" }
-az-starter-organization = { path = "../az-starter-organization" }
-az-starter-storage = { path = "../az-starter-storage" }
+az-starter-audit.workspace = true
+az-starter-dictionary.workspace = true
+az-starter-identity.workspace = true
+az-starter-menu.workspace = true
+az-starter-organization.workspace = true
+az-starter-storage.workspace = true
 
 [lints]
 workspace = true

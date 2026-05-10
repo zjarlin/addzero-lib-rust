@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-wasm-plugin-api = { path = "../az-wasm-plugin-api" }
+az-wasm-plugin-api.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 wasmtime = { version = "38.0.4", default-features = false, features = ["cranelift", "runtime", "std"] }

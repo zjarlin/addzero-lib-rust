@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "addzdero-cli"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "anyhow",
  "clap",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "aio"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "anyhow",
  "automod",
@@ -396,14 +396,14 @@ dependencies = [
 
 [[package]]
 name = "az-admin-plugin-registry"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "inventory",
 ]
 
 [[package]]
 name = "az-agent-runtime-contract"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "chrono",
  "serde",
@@ -412,7 +412,7 @@ dependencies = [
 
 [[package]]
 name = "az-ai-agent"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "anyhow",
  "az-assets",
@@ -425,7 +425,7 @@ dependencies = [
 
 [[package]]
 name = "az-ai-chat"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "async-trait",
  "reqwest 0.12.28",
@@ -437,7 +437,7 @@ dependencies = [
 
 [[package]]
 name = "az-api-translate"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "async-trait",
  "reqwest 0.12.28",
@@ -450,11 +450,11 @@ dependencies = [
 
 [[package]]
 name = "az-area"
-version = "0.1.0"
+version = "2026.5.10"
 
 [[package]]
 name = "az-array"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -462,7 +462,7 @@ dependencies = [
 
 [[package]]
 name = "az-assets"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "anyhow",
  "az-persistence",
@@ -482,7 +482,7 @@ dependencies = [
 
 [[package]]
 name = "az-browser-automation"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-context",
  "az-temp-mail",
@@ -500,7 +500,7 @@ dependencies = [
 
 [[package]]
 name = "az-clash"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "automod",
  "base64",
@@ -517,7 +517,7 @@ dependencies = [
 
 [[package]]
 name = "az-cli-market-contract"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "base64",
  "serde",
@@ -528,14 +528,14 @@ dependencies = [
 
 [[package]]
 name = "az-cli-repl"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-codex-auth-support"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "base64",
  "chrono",
@@ -552,18 +552,18 @@ dependencies = [
 
 [[package]]
 name = "az-common"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "chrono",
 ]
 
 [[package]]
 name = "az-context"
-version = "0.1.0"
+version = "2026.5.10"
 
 [[package]]
 name = "az-creates"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-music",
  "az-temp-mail",
@@ -578,7 +578,7 @@ dependencies = [
 
 [[package]]
 name = "az-curl"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "base64",
  "regex",
@@ -591,7 +591,7 @@ dependencies = [
 
 [[package]]
 name = "az-database-model"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -600,7 +600,7 @@ dependencies = [
 
 [[package]]
 name = "az-ddl-generator"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -609,7 +609,7 @@ dependencies = [
 
 [[package]]
 name = "az-dict-macros"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-dict-spec",
  "proc-macro2",
@@ -621,7 +621,7 @@ dependencies = [
 
 [[package]]
 name = "az-dict-spec"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -630,7 +630,7 @@ dependencies = [
 
 [[package]]
 name = "az-docker"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "shlex",
  "thiserror 2.0.18",
@@ -638,7 +638,7 @@ dependencies = [
 
 [[package]]
 name = "az-drive-agent"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-drive-core",
  "az-drive-store",
@@ -655,7 +655,7 @@ dependencies = [
 
 [[package]]
 name = "az-drive-app"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "anyhow",
  "axum",
@@ -675,7 +675,7 @@ dependencies = [
 
 [[package]]
 name = "az-drive-core"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "chrono",
  "serde",
@@ -686,7 +686,7 @@ dependencies = [
 
 [[package]]
 name = "az-drive-store"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "async-trait",
  "az-drive-core",
@@ -702,7 +702,7 @@ dependencies = [
 
 [[package]]
 name = "az-drive-webdav"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "axum",
  "az-drive-core",
@@ -716,7 +716,7 @@ dependencies = [
 
 [[package]]
 name = "az-email"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "lettre",
  "mime_guess",
@@ -726,7 +726,7 @@ dependencies = [
 
 [[package]]
 name = "az-error"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -735,7 +735,7 @@ dependencies = [
 
 [[package]]
 name = "az-excel"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "quick-xml",
  "thiserror 2.0.18",
@@ -744,7 +744,7 @@ dependencies = [
 
 [[package]]
 name = "az-funbox"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -752,7 +752,7 @@ dependencies = [
 
 [[package]]
 name = "az-io"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "tempfile",
  "thiserror 2.0.18",
@@ -760,7 +760,7 @@ dependencies = [
 
 [[package]]
 name = "az-json"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -768,7 +768,7 @@ dependencies = [
 
 [[package]]
 name = "az-knowledge"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "anyhow",
  "az-persistence",
@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "az-log"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "log",
 ]
@@ -811,14 +811,14 @@ dependencies = [
 
 [[package]]
 name = "az-math"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-maven"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-music",
  "reqwest 0.12.28",
@@ -830,7 +830,7 @@ dependencies = [
 
 [[package]]
 name = "az-minio"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-rustfs",
  "base64",
@@ -841,7 +841,7 @@ dependencies = [
 
 [[package]]
 name = "az-model"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "chrono",
  "serde",
@@ -850,7 +850,7 @@ dependencies = [
 
 [[package]]
 name = "az-mqtt"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "rumqttc",
  "rustls",
@@ -859,7 +859,7 @@ dependencies = [
 
 [[package]]
 name = "az-music"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "az-persistence"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "async-trait",
  "sea-orm",
@@ -880,7 +880,7 @@ dependencies = [
 
 [[package]]
 name = "az-pinyin"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "pinyin",
  "regex",
@@ -888,7 +888,7 @@ dependencies = [
 
 [[package]]
 name = "az-plugin-contract"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "chrono",
  "serde",
@@ -896,7 +896,7 @@ dependencies = [
 
 [[package]]
 name = "az-plugin-kernel"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-plugin-contract",
  "az-plugin-registry",
@@ -907,7 +907,7 @@ dependencies = [
 
 [[package]]
 name = "az-plugin-macros"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -916,7 +916,7 @@ dependencies = [
 
 [[package]]
 name = "az-plugin-registry"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-plugin-contract",
  "inventory",
@@ -924,7 +924,7 @@ dependencies = [
 
 [[package]]
 name = "az-plugin-runtime"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-plugin-contract",
  "chrono",
@@ -939,7 +939,7 @@ dependencies = [
 
 [[package]]
 name = "az-reflection"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "regex",
  "serde",
@@ -949,7 +949,7 @@ dependencies = [
 
 [[package]]
 name = "az-regex"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "regex",
  "serde",
@@ -958,7 +958,7 @@ dependencies = [
 
 [[package]]
 name = "az-remote-host"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-remote-model",
  "chrono",
@@ -968,7 +968,7 @@ dependencies = [
 
 [[package]]
 name = "az-remote-model"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "chrono",
  "serde",
@@ -978,7 +978,7 @@ dependencies = [
 
 [[package]]
 name = "az-remote-protocol"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-remote-model",
  "chrono",
@@ -990,7 +990,7 @@ dependencies = [
 
 [[package]]
 name = "az-remote-session"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-remote-model",
  "az-remote-protocol",
@@ -1004,7 +1004,7 @@ dependencies = [
 
 [[package]]
 name = "az-rustfs"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "base64",
  "chrono",
@@ -1020,14 +1020,14 @@ dependencies = [
 
 [[package]]
 name = "az-sandbox"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "az-script-engine"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-sandbox",
  "serde",
@@ -1037,7 +1037,7 @@ dependencies = [
 
 [[package]]
 name = "az-script-engine-rhai"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-sandbox",
  "az-script-engine",
@@ -1048,7 +1048,7 @@ dependencies = [
 
 [[package]]
 name = "az-serial"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -1058,7 +1058,7 @@ dependencies = [
 
 [[package]]
 name = "az-skills"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1075,7 +1075,7 @@ dependencies = [
 
 [[package]]
 name = "az-sms"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "async-trait",
  "reqwest 0.12.28",
@@ -1087,7 +1087,7 @@ dependencies = [
 
 [[package]]
 name = "az-software-catalog"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-persistence",
  "chrono",
@@ -1102,7 +1102,7 @@ dependencies = [
 
 [[package]]
 name = "az-sql"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "thiserror 2.0.18",
@@ -1110,7 +1110,7 @@ dependencies = [
 
 [[package]]
 name = "az-ssh"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "ssh2",
  "tempfile",
@@ -1119,7 +1119,7 @@ dependencies = [
 
 [[package]]
 name = "az-starter-audit"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-plugin-contract",
  "az-plugin-macros",
@@ -1128,7 +1128,7 @@ dependencies = [
 
 [[package]]
 name = "az-starter-dictionary"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-plugin-contract",
  "az-plugin-macros",
@@ -1137,7 +1137,7 @@ dependencies = [
 
 [[package]]
 name = "az-starter-identity"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-plugin-contract",
  "az-plugin-macros",
@@ -1146,7 +1146,7 @@ dependencies = [
 
 [[package]]
 name = "az-starter-menu"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-plugin-contract",
  "az-plugin-macros",
@@ -1155,7 +1155,7 @@ dependencies = [
 
 [[package]]
 name = "az-starter-organization"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-plugin-contract",
  "az-plugin-macros",
@@ -1164,7 +1164,7 @@ dependencies = [
 
 [[package]]
 name = "az-starter-storage"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-plugin-contract",
  "az-plugin-macros",
@@ -1173,7 +1173,7 @@ dependencies = [
 
 [[package]]
 name = "az-str"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "deunicode",
  "regex",
@@ -1182,11 +1182,11 @@ dependencies = [
 
 [[package]]
 name = "az-stream-wrapper"
-version = "0.1.0"
+version = "2026.5.10"
 
 [[package]]
 name = "az-system-starters"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-starter-audit",
  "az-starter-dictionary",
@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "az-temp-mail"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
@@ -1209,7 +1209,7 @@ dependencies = [
 
 [[package]]
 name = "az-toml"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "tempfile",
@@ -1219,7 +1219,7 @@ dependencies = [
 
 [[package]]
 name = "az-tree"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -1227,7 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "az-tui"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "crossterm",
  "futures-util",
@@ -1237,7 +1237,7 @@ dependencies = [
 
 [[package]]
 name = "az-wasm-plugin-api"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -1247,7 +1247,7 @@ dependencies = [
 
 [[package]]
 name = "az-wasm-plugin-host"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "az-wasm-plugin-api",
  "thiserror 2.0.18",
@@ -1258,7 +1258,7 @@ dependencies = [
 
 [[package]]
 name = "az-yml"
-version = "0.1.0"
+version = "2026.5.10"
 dependencies = [
  "serde",
  "serde_yaml",

@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-assets = { path = "../../data/az-assets" }
+az-assets.workspace = true
 anyhow.workspace = true
 rig-core = "0.36.0"
 serde = { workspace = true, features = ["derive"] }

@@ -7,8 +7,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-context = { path = "../../core/az-context" }
-az-temp-mail = { path = "../az-temp-mail" }
+az-context.workspace = true
+az-temp-mail.workspace = true
 headless_chrome = "1.0.18"
 rand = "0.8"
 regex.workspace = true

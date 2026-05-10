@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-plugin-contract = { path = "../az-plugin-contract" }
+az-plugin-contract.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 serde.workspace = true
 sha2.workspace = true

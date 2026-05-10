@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-remote-model = { path = "../../core/az-remote-model" }
+az-remote-model.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

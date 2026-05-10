@@ -21,11 +21,13 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "2026.5.10"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT OR Apache-2.0"
 authors = ["zjarlin"]
+homepage = "https://github.com/zjarlin/addzero-lib-rust"
+repository = "https://github.com/zjarlin/addzero-lib-rust"
 
 [workspace.dependencies]
 automod = "1.0.16"
@@ -73,6 +75,43 @@ crossterm = { version = "0.29.0", features = ["event-stream"] }
 ratatui = "0.30.0"
 quinn = { version = "0.11.9", default-features = false, features = ["runtime-tokio", "rustls"] }
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
+az-agent-runtime-contract = { version = "=2026.5.10", path = "crates/data/az-agent-runtime-contract" }
+az-ai-agent = { version = "=2026.5.10", path = "crates/runtime/az-ai-agent" }
+az-ai-chat = { version = "=2026.5.10", path = "crates/api/az-ai-chat" }
+az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
+az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
+az-context = { version = "=2026.5.10", path = "crates/core/az-context" }
+az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }
+az-drive-agent = { version = "=2026.5.10", path = "crates/runtime/az-drive-agent" }
+az-drive-core = { version = "=2026.5.10", path = "crates/storage/az-drive-core" }
+az-drive-store = { version = "=2026.5.10", path = "crates/storage/az-drive-store" }
+az-drive-webdav = { version = "=2026.5.10", path = "crates/network/az-drive-webdav" }
+az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
+az-minio = { version = "=2026.5.10", path = "crates/storage/az-minio" }
+az-music = { version = "=2026.5.10", path = "crates/music/az-music" }
+az-persistence = { version = "=2026.5.10", path = "crates/data/az-persistence" }
+az-plugin-contract = { version = "=2026.5.10", path = "crates/runtime/az-plugin-contract" }
+az-plugin-macros = { version = "=2026.5.10", path = "crates/runtime/az-plugin-macros" }
+az-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/az-plugin-registry" }
+az-plugin-runtime = { version = "=2026.5.10", path = "crates/runtime/az-plugin-runtime" }
+az-remote-model = { version = "=2026.5.10", path = "crates/core/az-remote-model" }
+az-remote-protocol = { version = "=2026.5.10", path = "crates/network/az-remote-protocol" }
+az-rustfs = { version = "=2026.5.10", path = "crates/storage/az-rustfs" }
+az-sandbox = { version = "=2026.5.10", path = "crates/core/az-sandbox" }
+az-script-engine = { version = "=2026.5.10", path = "crates/runtime/az-script-engine" }
+az-script-engine-rhai = { version = "=2026.5.10", path = "crates/runtime/az-script-engine-rhai" }
+az-skills = { version = "=2026.5.10", path = "crates/data/az-skills" }
+az-software-catalog = { version = "=2026.5.10", path = "crates/data/az-software-catalog" }
+az-starter-audit = { version = "=2026.5.10", path = "crates/runtime/az-starter-audit" }
+az-starter-dictionary = { version = "=2026.5.10", path = "crates/runtime/az-starter-dictionary" }
+az-starter-identity = { version = "=2026.5.10", path = "crates/runtime/az-starter-identity" }
+az-starter-menu = { version = "=2026.5.10", path = "crates/runtime/az-starter-menu" }
+az-starter-organization = { version = "=2026.5.10", path = "crates/runtime/az-starter-organization" }
+az-starter-storage = { version = "=2026.5.10", path = "crates/runtime/az-starter-storage" }
+az-system-starters = { version = "=2026.5.10", path = "crates/runtime/az-system-starters" }
+az-temp-mail = { version = "=2026.5.10", path = "crates/network/az-temp-mail" }
+az-tui = { version = "=2026.5.10", path = "crates/apps/az-tui" }
+az-wasm-plugin-api = { version = "=2026.5.10", path = "crates/runtime/az-wasm-plugin-api" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -1,3 +1,13 @@
+//! 通用日期与时间工具集，基于 `chrono` 提供本地化日期转换、工作日计算与时间范围工具。
+//!
+//! ## 主要功能
+//!
+//! - **时间类型转换**：在 [`std::time::SystemTime`]、[`NaiveDate`]、[`NaiveDateTime`] 与本地时间之间互转。
+//! - **中文星期**：通过 [`weekday_zh_cn`] 将 [`Weekday`] 映射为中文名称（周一~周日）。
+//! - **月历工具**：[`all_days_in_month`] 枚举指定月份的所有日期；[`mid_month_supplement`] 补全缺失的月中日期。
+//! - **工作日判断**：[`is_workday`] 判断是否为工作日，[`count_workdays`] 统计月内工作日总数。
+//! - **时间区间**：[`min_max_of_day`] / [`today_min_max`] 获取某天的起止时间点，[`add_days`] 对 [`SystemTime`] 增减天数。
+
 use chrono::{
     DateTime, Datelike, Days, Duration, Local, LocalResult, NaiveDate, NaiveDateTime, NaiveTime,
     TimeZone, Utc, Weekday,

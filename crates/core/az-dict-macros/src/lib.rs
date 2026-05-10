@@ -1,3 +1,25 @@
+//! 数据字典枚举生成宏，从 JSON 规格文件自动生成类型安全的 Rust 枚举。
+//!
+//! `dict_enum!` 过程宏根据 [`az-dict-spec`] 定义的 JSON 字典规格，在编译期生成包含
+//! `code()`、`label()`、`description()`、`raw_value()`、`meta_json()` 等方法的枚举类型，
+//! 消除手写枚举与字典数据不一致的风险。
+//!
+//! ## 宏参数
+//!
+//! | 参数       | 说明                                       |
+//! |-----------|-------------------------------------------|
+//! | `name`    | 生成的枚举类型名                             |
+//! | `dict`    | 字典编码字符串，须与 JSON 中的 `code` 字段一致  |
+//! | `spec`    | JSON 规格，支持 `include_str!("...")` 或字面量  |
+//! | `raw_type`| 可选，覆盖默认的原始值类型（`i64` 或 `&'static str`）|
+//!
+//! ## 生成内容
+//!
+//! - 每个字典项对应一个枚举变体，变体名由 `to_pascal_case` 转换而来。
+//! - 若 `open_enum` 为 `true`，额外生成一个 `Unknown(T)` 变体以承载未知值。
+//! - 枚举自动派生 `Debug`、`Clone`、`Copy`、`PartialEq`、`Eq`、`PartialOrd`、`Ord`、`Hash`。
+//! - 提供 `items()` 方法返回所有字典项的静态切片，便于运行时遍历。
+
 use az_dict_spec::{DictionarySpec, RawValueKind};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};

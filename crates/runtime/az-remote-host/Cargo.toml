@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-remote-model = { path = "../../core/az-remote-model" }
+az-remote-model.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 thiserror.workspace = true
 uuid.workspace = true

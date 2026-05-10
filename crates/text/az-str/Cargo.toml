@@ -5,6 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+description = "String and identifier utilities for the addzero ecosystem"
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 deunicode.workspace = true

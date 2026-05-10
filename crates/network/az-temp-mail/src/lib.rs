@@ -18,8 +18,29 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! ```no_run
+//! use az_temp_mail::{CloudflareTempMailContext, PageRequest};
+//!
+//! # fn example() -> az_temp_mail::TempMailResult<()> {
+//! let context = CloudflareTempMailContext {
+//!     base_url: "https://mail.example.com".to_owned(),
+//!     custom_auth: Some("admin-secret".to_owned()),
+//!     address_name: Some("demo".to_owned()),
+//!     address_domain: Some("example.com".to_owned()),
+//!     cf_token: None,
+//!     enable_random_subdomain: None,
+//! };
+//! let api = context.create_api()?;
+//! let address = api.new_address(&context.new_address_request())?;
+//! let inbox = api.list_parsed_mails(&address.jwt, PageRequest::default())?;
+//! println!("{} has {} messages", address.address, inbox.count);
+//! # Ok(())
+//! # }
+//! ```
 
 mod client;
+mod cloudflare;
 mod config;
 mod error;
 mod http;
@@ -29,6 +50,7 @@ mod provider;
 mod util;
 
 pub use client::{CloudflareTempMailApi, TempMailApi, create_temp_mail_api};
+pub use cloudflare::CloudflareTempMailContext;
 pub use config::{ApiConfig, ApiConfigBuilder};
 pub use error::{TempMailError, TempMailResult};
 pub use mail_tm::{MailTmDomain, MailTmTempMailApi, create_mail_tm_api};
@@ -53,6 +75,13 @@ impl TempMail {
     /// Creates a client from explicit configuration.
     pub fn cloudflare_with_config(config: ApiConfig) -> TempMailResult<TempMailApi> {
         TempMailApi::new(config)
+    }
+
+    /// Creates a client from a higher-level Cloudflare worker context.
+    pub fn cloudflare_with_context(
+        context: &CloudflareTempMailContext,
+    ) -> TempMailResult<TempMailApi> {
+        context.create_api()
     }
 
     /// Creates a client for the hosted mail.tm-compatible provider.

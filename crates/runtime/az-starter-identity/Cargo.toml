@@ -7,9 +7,9 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-plugin-contract = { path = "../az-plugin-contract" }
-az-plugin-macros = { path = "../az-plugin-macros" }
-az-plugin-registry = { path = "../az-plugin-registry" }
+az-plugin-contract.workspace = true
+az-plugin-macros.workspace = true
+az-plugin-registry.workspace = true
 
 [lints]
 workspace = true
