@@ -8,12 +8,15 @@ use std::process::{Command, Stdio};
 
 const HOST_WORKFLOW_NAME: &str = "AIO Drive 托管.workflow";
 const UNHOST_WORKFLOW_NAME: &str = "AIO Drive 取消托管.workflow";
+const HOST_MENU_LABEL: &str = "AIO Drive 托管";
+const UNHOST_MENU_LABEL: &str = "AIO Drive 取消托管";
 
 #[derive(Debug, Serialize)]
 pub struct MacosActionsInstallResult {
     workflows: Vec<PathBuf>,
     scripts: Vec<PathBuf>,
     env_paths: Vec<PathBuf>,
+    enabled_context_menu: bool,
     refreshed_services_cache: bool,
     note: String,
 }
@@ -39,22 +42,25 @@ pub fn install() -> Result<MacosActionsInstallResult> {
     let unhost_workflow = services_dir.join(UNHOST_WORKFLOW_NAME);
     write_workflow(
         &host_workflow,
-        "AIO Drive 托管",
+        HOST_MENU_LABEL,
         &format!("exec {} \"$@\"", zsh_single_quote(&host_script)),
     )?;
     write_workflow(
         &unhost_workflow,
-        "AIO Drive 取消托管",
+        UNHOST_MENU_LABEL,
         &format!("exec {} \"$@\"", zsh_single_quote(&unhost_script)),
     )?;
 
+    let enabled_host = enable_context_menu(HOST_MENU_LABEL);
+    let enabled_unhost = enable_context_menu(UNHOST_MENU_LABEL);
     let refreshed = refresh_services_cache();
     Ok(MacosActionsInstallResult {
         workflows: vec![host_workflow, unhost_workflow],
         scripts: vec![host_script, unhost_script],
         env_paths: az_drive_app::drive_env_paths(),
+        enabled_context_menu: enabled_host && enabled_unhost,
         refreshed_services_cache: refreshed,
-        note: "Finder 右键入口在“快速操作”子菜单中；如果未立即出现，请重新打开 Finder 右键菜单或重启 Finder。"
+        note: "Finder 右键入口已请求加入右键菜单和“快速操作”；如果未立即出现，请重新打开 Finder 右键菜单或重启 Finder。"
             .to_owned(),
     })
 }
@@ -277,6 +283,25 @@ fn refresh_services_cache() -> bool {
         .stderr(Stdio::null())
         .status()
         .is_ok_and(|status| status.success())
+}
+
+fn enable_context_menu(menu_label: &str) -> bool {
+    let service_key = format!("(null) - {menu_label} - runWorkflowAsService");
+    Command::new("/usr/bin/defaults")
+        .arg("write")
+        .arg("pbs")
+        .arg("NSServicesStatus")
+        .arg("-dict-add")
+        .arg(defaults_string_key(&service_key))
+        .arg("{ presentation_modes = { ContextMenu = 1; FinderPreview = 1; ServicesMenu = 1; TouchBar = 1; }; }")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+fn defaults_string_key(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "\\'"))
 }
 
 fn home_dir() -> Option<PathBuf> {
