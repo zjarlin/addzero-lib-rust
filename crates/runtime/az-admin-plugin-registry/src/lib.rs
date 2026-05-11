@@ -1,3 +1,25 @@
+//! Admin 插件注册表，基于 `inventory` 实现编译期声明式注册。
+//!
+//! 本 crate 为 admin 工作面提供**双轴上下文导航树**的注册与查询基础设施。
+//! 各业务域通过 `register_admin_domain!`、`register_admin_branch!`、
+//! `register_admin_page!` 宏在编译期声明自己的域、分支和页面节点，
+//! 运行时通过 `registered_domains()`、`section_for_path()` 等函数
+//! 按排序和路径匹配组装出完整的导航树。
+//!
+//! ## 核心类型
+//!
+//! - [`AdminDomainRegistration`] — 主轴上下文域（业务域/产品壳）
+//! - [`AdminNavigationRegistration`] — 侧轴导航节点（分支或页面）
+//! - [`RegisteredAdminNode`] — 带子节点的递归导航树节点
+//! - [`RegisteredAdminSection`] — 某域下的完整菜单区段
+//!
+//! ## 关键特性
+//!
+//! - 支持动态路径段匹配（`:param` 风格）
+//! - 按 `order → label → id` 排序保证导航顺序稳定
+//! - 权限过滤通过 `permissions_any_of` 字段声明
+//! - 空域（无节点）自动从注册列表中移除
+
 use std::collections::BTreeMap;
 
 pub use inventory;

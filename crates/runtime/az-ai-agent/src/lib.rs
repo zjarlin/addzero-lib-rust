@@ -1,3 +1,22 @@
+//! 资产智能代理服务，负责内容采集、摘要生成与知识图谱边推断。
+//!
+//! 本 crate 封装了 [`AssetAgentService`]，为上层应用提供统一的
+//! AI 内容处理接口：接收原始文本，自动推断标题、标签和关联边，
+//! 输出结构化的 [`PromptRunOutput`]。
+//!
+//! ## 核心能力
+//!
+//! - `capture_asset` — 采集内容并结合提示模板生成结构化输出
+//! - `summarize_asset` — 对原始文本进行本地摘要推断
+//! - `extract_graph_edges` — 从文本中提取知识图谱关联边
+//! - `run_prompt_button` — 执行自定义提示按钮的运行
+//! - `default_model_for` — 根据 AI 提供商返回推荐默认模型名
+//!
+//! ## 设计约束
+//!
+//! 当前版本使用本地规则推断（标题提取、关键词匹配、边推断），
+//! 预留了 `run_with_provider_secret` 接口供后续接入远程 LLM。
+
 use anyhow::Result;
 use az_assets::{
     AiModelProvider, AiPromptButton, AiProviderKind, AssetKind, AssetProviderSecret,
