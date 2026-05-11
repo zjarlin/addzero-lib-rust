@@ -1,0 +1,247 @@
+default_instance_label = "配置中心"
+
+[descriptor]
+id = "config-center"
+name = "配置中心"
+version = "0.1.0"
+kind = "Business"
+summary = "以 Infisical-like 的项目、环境、配置项和同步边界管理运行环境配置，承接 biz_dotfiles.xlsx 与 ~/.config/shell 的双向同步。"
+tags = ["config", "secrets", "dotfiles", "shell", "environment"]
+icon = "key-round"
+compatibility = ["web", "desktop"]
+capabilities = ["Db", "Kv", "Log"]
+
+[[descriptor.menus]]
+section = "业务应用"
+label = "配置中心"
+page_id = "overview"
+order = 10
+icon = "key-round"
+
+[[descriptor.menus]]
+section = "业务应用"
+label = "配置元数据"
+page_id = "metadata"
+order = 11
+icon = "table"
+
+[[descriptor.menus]]
+section = "业务应用"
+label = "Shell 同步"
+page_id = "shell-sync"
+order = 12
+icon = "terminal"
+
+[[descriptor.menus]]
+section = "业务应用"
+label = "运行读取边界"
+page_id = "runtime-contract"
+order = 13
+icon = "shield-check"
+
+[[descriptor.pages]]
+id = "overview"
+title = "配置中心总览"
+subtitle = "项目、环境、配置项、shell 目标目录和运行读取契约统一由插件声明，宿主只提供渲染与授权能力。"
+
+[descriptor.pages.schema]
+kind = "board"
+
+[[descriptor.pages.schema.metrics]]
+label = "Excel 元数据"
+value = "132"
+detail = "Result 1 sheet 中的 legacy biz_dotfiles 行数。"
+
+[[descriptor.pages.schema.metrics]]
+label = "定义类型"
+value = "6"
+detail = "export / alias / aliass / function / var / sh。"
+
+[[descriptor.pages.schema.metrics]]
+label = "同步根"
+value = "~/.config/shell"
+detail = "shell 片段和 helper 脚本的正式落点。"
+
+[[descriptor.pages.schema.groups]]
+title = "配置中心模型"
+
+[[descriptor.pages.schema.groups.items]]
+title = "Project"
+detail = "以业务域或工具链作为项目边界，例如 shell、toolchain、remote access、publisher。"
+meta = "infisical-like"
+
+[[descriptor.pages.schema.groups.items]]
+title = "Environment"
+detail = "按 os_type / os_structure / status 组合出 mac、linux、cross-platform、disabled 等环境视图。"
+meta = "env axis"
+
+[[descriptor.pages.schema.groups.items]]
+title = "Secret / Config"
+detail = "配置项只在页面展示元数据；真实 value 由配置中心或本机 shell 文件在授权后解析。"
+meta = "redacted"
+
+[[descriptor.pages.schema.groups]]
+title = "同步策略"
+
+[[descriptor.pages.schema.groups.items]]
+title = "Excel -> Config Center"
+detail = "biz_dotfiles.xlsx 只作为导入源，映射 id、def_type、name、description、platform、status、location。"
+meta = "import"
+
+[[descriptor.pages.schema.groups.items]]
+title = "Config Center -> ~/.config/shell"
+detail = "导出变量、alias、function 和脚本片段按目标文件生成预览，再由宿主执行带审计的写入。"
+meta = "render + apply"
+
+[[descriptor.pages.schema.groups.items]]
+title = "~/.config/shell -> Config Center"
+detail = "本机文件变化先做 diff 和冲突标记，不能直接覆盖云端正式值。"
+meta = "collect + review"
+
+[[descriptor.pages]]
+id = "metadata"
+title = "配置元数据"
+subtitle = "来自 biz_dotfiles.xlsx 的字段模型和脱敏后的代表性配置项；使用页面搜索过滤键名、类型、平台和说明。"
+
+[descriptor.pages.schema]
+kind = "table"
+columns = ["键名", "类型", "平台", "结构", "状态", "目标/来源", "值策略", "说明"]
+empty_message = "尚未导入配置元数据。"
+
+[[descriptor.pages.schema.rows]]
+cells = ["PUBLISH_TOKEN", "export", "linux", "不限", "启用", "config-center://secret/publisher/PUBLISH_TOKEN", "secret: masked", "idea 发布 TOKEN；真实值必须由配置中心按授权读取。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["GRADLE_HOME", "export", "mac", "不限", "启用", "~/.config/shell/profile.d/20-toolchains.sh", "template: $(brew --prefix gradle)/libexec", "Gradle 家目录，适合按主机模板渲染。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["PATH", "export", "linux/mac", "不限", "启用", "profile.d / zshrc.d PATH policy", "computed", "PATH 是追加策略，不应作为单个覆盖值写回。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["TZ", "export", "linux", "不限", "启用", "~/.config/shell/profile.d/30-user-env.sh", "plain", "时区。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["LANG / LANGUAGE / LC_ALL", "export", "linux", "不限", "启用", "~/.config/shell/profile.d/30-user-env.sh", "plain", "语言环境变量组。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["sjzyxt_host / username / password", "export", "linux", "不限", "停用", "config-center://secret/sjzyxt/*", "secret: masked", "旧业务环境变量；disabled 状态默认不渲染到 shell。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["mysql_username / mysql_password", "export", "linux", "不限", "启用", "config-center://secret/mysql/*", "secret: masked", "MySQL 登录信息，应迁移为配置中心 secret。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["NAS_USER / NAS_PASSWORD", "export", "mac", "不限", "启用", "config-center://secret/nas/*", "secret: masked", "NAS 访问凭据，不写入插件描述。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["dk / dps / dlogs / dkrm", "alias/function", "linux/mac", "不限", "启用", "~/.config/shell/rc.d/10-aliases.sh", "shell expression", "Docker 相关交互命令集合。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["idea / webstorm / code", "alias/function", "linux/mac", "不限", "启用", "~/.config/shell/rc.d/15-legacy-aliases.sh", "shell expression", "JetBrains / 编辑器启动入口；路径需要按主机检查。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["commonip / ip / killport", "function", "linux/mac", "不限", "启用", "~/.config/shell/rc.d/20-functions.sh", "shell function", "本机网络和端口辅助函数。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["ssh / enssh / unssh / showssh", "function", "linux/mac", "不限", "启用", "~/.config/shell/rc.d/25-legacy-functions.sh", "shell function", "SSH 代理和访问辅助函数，写入前必须预览差异。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["html / rb / py / js / java / zip", "aliass", "linux/mac", "不限", "启用", "~/.config/shell/zshrc.d/40-suffix-aliases.zsh", "zsh-only", "后缀 alias 只适用于 zsh，不进入跨 shell export。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["openFileCmd / appRootPath", "var", "mac", "不限", "启用", "~/.config/shell/rc.d/30-interactive-env.sh", "local var", "交互命令变量，不作为进程级 secret。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["JAVA8_HOME / JAVA11_HOME / JAVA22_HOME", "var/export", "mac", "不限", "启用", "~/.config/shell/profile.d/20-toolchains.sh", "host template", "JDK 多版本路径，适合由 host adapter 检测后渲染。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["GRADLE_USER_HOME / MAVEN_HOME / PYTHON_HOME", "var/export", "mac", "不限", "启用", "~/.config/shell/profile.d/20-toolchains.sh", "host template", "工具链目录类配置，应区分全局默认和主机 override。"]
+
+[[descriptor.pages]]
+id = "shell-sync"
+title = "Shell 同步"
+subtitle = "配置中心和 ~/.config/shell 的双向同步拓扑，当前只声明边界与动作，真实写入需要宿主授权。"
+
+[descriptor.pages.schema]
+kind = "table"
+columns = ["同步对象", "目标路径", "方向", "状态", "冲突策略", "说明"]
+empty_message = "尚未声明 shell 同步对象。"
+
+[[descriptor.pages.schema.rows]]
+cells = ["shell.root", "~/.config/shell/", "双向", "已整理", "目录级 diff + 人工确认", "shell 片段聚合根，不允许整目录静默覆盖。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["shell.lib.loader", "~/.config/shell/lib/loader.sh", "配置中心 -> 本机", "已整理", "覆盖前预览", "影响所有 profile.d / rc.d / zshrc.d 的加载顺序。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["shell.profile.toolchains", "~/.config/shell/profile.d/20-toolchains.sh", "双向", "已整理", "主机模板优先", "Java、Rust、pnpm、Gradle 等工具链入口。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["shell.profile.user_env", "~/.config/shell/profile.d/30-user-env.sh", "双向", "已整理", "变量级 merge", "时区、语言、浏览器和 no_proxy 等登录环境变量。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["shell.rc.aliases", "~/.config/shell/rc.d/10-aliases.sh", "双向", "已整理", "alias 名级冲突", "公共 alias 集，最接近 legacy xlsx 的 alias 行。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["shell.rc.functions", "~/.config/shell/rc.d/20-functions.sh", "双向", "已整理", "函数级 diff", "公共交互函数。"]
+
+[[descriptor.pages.schema.rows]]
+cells = ["shell.local.private_env", "~/.config/shell/local.profile.d/10-private-env.sh", "本机 -> 配置中心", "私有", "只上传元数据", "私有值不得直接进入插件包或普通页面。"]
+
+[[descriptor.pages]]
+id = "runtime-contract"
+title = "运行读取边界"
+subtitle = "Rust 库和 OS 环境写入都必须通过宿主能力边界，不能让业务插件直接越权改系统。"
+
+[descriptor.pages.schema]
+kind = "detail"
+summary = "插件提供配置中心页面和生命周期入口；真正读取配置中心、渲染 shell、写入 OS 环境变量、回收本机变更时，需要宿主暴露经过授权的 operation API。"
+
+[[descriptor.pages.schema.fields]]
+label = "正式持久化"
+value = "PostgreSQL 保存项目、环境、键、版本和审计；MinIO 可保存导入源和导出快照。"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "源表结构"
+value = "biz_dotfiles.xlsx: os_type / os_structure / def_type / name / value / describtion / status / file_url / location。"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "本机落点"
+value = "~/.config/shell；home dotfiles 或 /etc 写入必须单独授权。"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "密钥策略"
+value = "secret-like value 只显示 masked，不写入 plugin.toml、前端源码或普通日志。"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "Rust 读取"
+value = "业务 Rust 库通过 config center client/trait 获取配置，不直接解析 Excel 或 shell 文件。"
+readonly = true
+
+[[descriptor.pages.schema.fields]]
+label = "OS 写入"
+value = "写入环境变量或 shell 文件必须先生成 diff 预览，再由宿主执行审计化 apply。"
+readonly = true
+
+[[descriptor.pages.schema.timeline]]
+title = "阶段 1"
+detail = "WASM 插件声明配置中心页面、可搜索表格和同步边界。"
+meta = "current"
+
+[[descriptor.pages.schema.timeline]]
+title = "阶段 2"
+detail = "宿主提供 config-center read/write operation API，插件只调用授权能力。"
+meta = "host ops"
+
+[[descriptor.pages.schema.timeline]]
+title = "阶段 3"
+detail = "Rust crate 统一通过配置中心 client 读取项目/环境配置，shell 文件降级为本机 materialized view。"
+meta = "library contract"
+
+[runtime]
+binary_path = "backend/plugin.wasm"
+checksum_path = "checksums.sha256"
+assets_dir = "assets"

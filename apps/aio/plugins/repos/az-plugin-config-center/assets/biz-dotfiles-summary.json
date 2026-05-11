@@ -1,0 +1,39 @@
+{
+  "source": "biz_dotfiles.xlsx",
+  "sheet": "Result 1",
+  "record_count": 132,
+  "columns": [
+    "id",
+    "create_by",
+    "update_by",
+    "create_time",
+    "update_time",
+    "os_type",
+    "os_structure",
+    "def_type",
+    "name",
+    "value",
+    "describtion",
+    "status",
+    "file_url",
+    "location"
+  ],
+  "os_type_counts": {
+    "linux": 95,
+    "mac": 37
+  },
+  "def_type_counts": {
+    "function": 42,
+    "alias": 40,
+    "export": 29,
+    "aliass": 11,
+    "var": 9,
+    "sh": 1
+  },
+  "status_counts": {
+    "enabled": 117,
+    "disabled": 14,
+    "unclassified": 1
+  },
+  "value_policy": "Secret-like values from the legacy workbook are never embedded in plugin metadata. Runtime writes must resolve approved values from the config center or local shell files through host capabilities."
+}
