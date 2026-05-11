@@ -1,3 +1,24 @@
+//! Workspace 级 PostgreSQL 持久化基础设施。
+//!
+//! 本 crate 提供统一的数据库连接建立、URL 发现和 schema 迁移管理，
+//! 是所有依赖 SeaORM 的 crate 的共同入口。
+//!
+//! ## 核心能力
+//!
+//! - **数据库 URL 发现**：按优先级从 `MSC_AIO_DATABASE_URL`、`DATABASE_URL` 环境变量
+//!   或 `~/.config/aio/aio.env` 配置文件中读取连接地址。
+//! - **连接管理**：通过 [`PersistenceContext`] 封装 SeaORM `DatabaseConnection`，
+//!   自动配置连接池参数（最大/最小连接数、超时时间）。
+//! - **Workspace 迁移**：[`WorkspaceMigrator`] 在首次连接时自动执行全部 workspace 级
+//!   SQL 迁移，使用 `AtomicBool` + tokio `Mutex` 保证并发安全。
+//! - **错误处理**：[`PersistenceError`] 统一封装连接、迁移、ping 等阶段的错误。
+//!
+//! ## 关键类型
+//!
+//! - [`PersistenceContext`] — 持有数据库连接和 URL 的上下文，提供 `connect()` / `connect_with_url()`。
+//! - [`WorkspaceMigrator`] — 实现 `MigratorTrait`，聚合所有 workspace 级迁移。
+//! - [`PersistenceError`] — 统一错误枚举。
+
 use std::{
     collections::BTreeMap,
     env, fs,
