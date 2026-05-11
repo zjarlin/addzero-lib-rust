@@ -38,6 +38,9 @@ jobs:
       - name: Scaffold docs site
         run: npx xiaoeyu@0.1.0 scaffold-site --target docs --config xiaoeyu.config.json --force
 
+      - name: Pin docs build compatibility overrides
+        run: npm pkg set overrides.webpackbar=7.0.0 --prefix docs
+
       - name: Install docs dependencies
         run: npm install --prefix docs
 
