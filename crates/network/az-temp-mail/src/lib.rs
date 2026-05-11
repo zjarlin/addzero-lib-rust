@@ -41,6 +41,7 @@
 mod client;
 mod cloudflare;
 mod config;
+mod emailnator;
 mod error;
 mod http;
 mod mail_tm;
@@ -51,6 +52,10 @@ mod util;
 pub use client::{CloudflareTempMailApi, TempMailApi, create_temp_mail_api};
 pub use cloudflare::CloudflareTempMailContext;
 pub use config::{ApiConfig, ApiConfigBuilder};
+pub use emailnator::{
+    EmailnatorEmailMode, EmailnatorEmailRequest, EmailnatorTempMailApi, create_emailnator_api,
+    extract_first_http_link,
+};
 pub use error::{TempMailError, TempMailResult};
 pub use mail_tm::{MailTmDomain, MailTmTempMailApi, create_mail_tm_api};
 pub use model::{
@@ -91,5 +96,15 @@ impl TempMail {
     /// Creates a mail.tm-compatible client from explicit configuration.
     pub fn mail_tm_with_config(config: ApiConfig) -> TempMailResult<MailTmTempMailApi> {
         MailTmTempMailApi::new(config)
+    }
+
+    /// Creates a client for the hosted Emailnator temporary mailbox service.
+    pub fn emailnator() -> TempMailResult<EmailnatorTempMailApi> {
+        create_emailnator_api()
+    }
+
+    /// Creates an Emailnator client from explicit configuration.
+    pub fn emailnator_with_config(config: ApiConfig) -> TempMailResult<EmailnatorTempMailApi> {
+        EmailnatorTempMailApi::new(config)
     }
 }

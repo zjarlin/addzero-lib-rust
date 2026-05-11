@@ -8,6 +8,8 @@ pub enum TempMailProviderKind {
     Cloudflare,
     /// Hosted mail.tm-compatible API.
     MailTm,
+    /// Hosted Emailnator webmail API.
+    Emailnator,
 }
 
 /// Pagination used by list endpoints. Values are normalized to common provider limits.

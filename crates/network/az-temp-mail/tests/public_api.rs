@@ -182,6 +182,47 @@ fn temp_mail_provider_trait_supports_cloudflare_and_mail_tm() -> Result<(), Box<
     Ok(())
 }
 
+#[test]
+fn emailnator_provider_uses_xsrf_cookie_and_message_paths() -> Result<(), Box<dyn Error>> {
+    let server = TestServer::spawn(vec![
+        TestResponse::text("<html></html>").header("Set-Cookie", "XSRF-TOKEN=token%3D; Path=/"),
+        TestResponse::json(r#"{"email":["demo@gmail.com"]}"#),
+        TestResponse::json(
+            r#"{"messageData":[{"messageID":"msg-1","from":"noreply@example.com","subject":"Code","time":"2026-05-11 10:00:00"}]}"#,
+        ),
+        TestResponse::text(r#"<div class="code">123456</div>"#),
+    ])?;
+
+    let api = EmailnatorTempMailApi::new(ApiConfig::builder(server.base_url()).build()?)?;
+    let mailbox = api.create_mailbox(&CreateMailboxRequest::random())?;
+    let messages = api.list_messages(&mailbox, PageRequest::default())?;
+    let detail = api
+        .get_message(&mailbox, &messages.results[0].id)?
+        .expect("message detail");
+
+    assert_eq!(mailbox.provider, TempMailProviderKind::Emailnator);
+    assert_eq!(mailbox.address, "demo@gmail.com");
+    assert_eq!(messages.results[0].id, "msg-1");
+    assert!(detail.raw.contains("123456"));
+
+    let requests = server.finish()?;
+    assert_eq!(requests[0].method, "GET");
+    assert_eq!(requests[0].path, "/");
+    assert_eq!(requests[1].path, "/generate-email");
+    assert!(requests[1].body.contains("plusGmail"));
+    assert_eq!(
+        requests[1].headers.get("x-xsrf-token").map(String::as_str),
+        Some("token=")
+    );
+    assert_eq!(
+        requests[1].headers.get("cookie").map(String::as_str),
+        Some("XSRF-TOKEN=token%3D")
+    );
+    assert_eq!(requests[2].path, "/message-list");
+    assert!(requests[3].body.contains("\"messageID\":\"msg-1\""));
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CapturedRequest {
     method: String,
@@ -194,6 +235,7 @@ struct CapturedRequest {
 struct TestResponse {
     status: u16,
     content_type: &'static str,
+    headers: Vec<(&'static str, &'static str)>,
     body: String,
 }
 
@@ -202,8 +244,23 @@ impl TestResponse {
         Self {
             status: 200,
             content_type: "application/json",
+            headers: Vec::new(),
             body: body.to_owned(),
         }
+    }
+
+    fn text(body: &str) -> Self {
+        Self {
+            status: 200,
+            content_type: "text/plain",
+            headers: Vec::new(),
+            body: body.to_owned(),
+        }
+    }
+
+    fn header(mut self, name: &'static str, value: &'static str) -> Self {
+        self.headers.push((name, value));
+        self
     }
 }
 
@@ -335,11 +392,15 @@ fn write_response(stream: &mut TcpStream, response: TestResponse) -> std::io::Re
     let payload = response.body.into_bytes();
     write!(
         stream,
-        "HTTP/1.1 {} OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {} OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n",
         response.status,
         response.content_type,
         payload.len()
     )?;
+    for (name, value) in response.headers {
+        write!(stream, "{name}: {value}\r\n")?;
+    }
+    write!(stream, "\r\n")?;
     stream.write_all(&payload)?;
     stream.flush()
 }
