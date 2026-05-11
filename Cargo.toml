@@ -71,8 +71,6 @@ sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "s
 sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio-rustls", "sqlx-postgres", "sqlx-sqlite", "with-chrono", "with-json", "with-uuid"] }
 sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio-rustls", "sqlx-postgres", "sqlx-sqlite"] }
 futures-util = "0.3.31"
-crossterm = { version = "0.29.0", features = ["event-stream"] }
-ratatui = "0.30.0"
 quinn = { version = "0.11.9", default-features = false, features = ["runtime-tokio", "rustls"] }
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
 az-agent-runtime-contract = { version = "=2026.5.10", path = "crates/data/az-agent-runtime-contract" }
@@ -112,7 +110,6 @@ az-starter-organization = { version = "=2026.5.10", path = "crates/runtime/az-st
 az-starter-storage = { version = "=2026.5.10", path = "crates/runtime/az-starter-storage" }
 az-system-starters = { version = "=2026.5.10", path = "crates/runtime/az-system-starters" }
 az-temp-mail = { version = "=2026.5.10", path = "crates/network/az-temp-mail" }
-az-tui = { version = "=2026.5.10", path = "crates/apps/az-tui" }
 az-wasm-plugin-api = { version = "=2026.5.10", path = "crates/runtime/az-wasm-plugin-api" }
 
 [workspace.lints.rust]

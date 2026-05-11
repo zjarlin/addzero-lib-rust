@@ -16,12 +16,18 @@ pub enum DriveCommand {
     Status(DriveStatusArgs),
     /// List tracked drive files.
     Ls(DriveLsArgs),
-    /// Pull remote files into this computer's logical roots.
+    /// Compatibility command: materialize visible remote files once.
     Pull(DrivePullArgs),
-    /// Run one sync scan for hosted files.
+    /// Run one bidirectional sync scan, including visible fused remote files.
     Sync,
     /// Run the polling sync daemon in the foreground.
     Daemon,
+    /// Manage Git Pool cloud-storage repositories.
+    #[command(subcommand)]
+    Pool(DrivePoolCommand),
+    /// Manage the Drive storage backend.
+    #[command(subcommand)]
+    Backend(DriveBackendCommand),
     /// Manage local root aliases.
     #[command(subcommand)]
     Root(DriveRootCommand),
@@ -76,7 +82,7 @@ pub struct DriveLsArgs {
     pub format: DriveListFormat,
 }
 
-/// Arguments for `drive pull`.
+/// Arguments for the compatibility remote materialization command.
 #[derive(Debug, Args)]
 pub struct DrivePullArgs {
     /// Optional local path filter, for example ~/.agents/skills.
@@ -99,6 +105,83 @@ pub enum DriveRootCommand {
     List,
     /// Add or replace a local logical root.
     Add(DriveRootAddArgs),
+}
+
+/// Git Pool subcommands.
+#[derive(Debug, Subcommand)]
+pub enum DrivePoolCommand {
+    /// Initialize the local Git Pool backend.
+    Init(DrivePoolInitArgs),
+    /// Add a writable content pool repository.
+    Add(DrivePoolAddArgs),
+    /// Mount another owner's pool as a fused source.
+    Mount(DrivePoolMountArgs),
+    /// Unmount a fused pool.
+    Unmount(DrivePoolUnmountArgs),
+    /// List configured pools and mounts.
+    List(DrivePoolListArgs),
+}
+
+/// Drive backend subcommands.
+#[derive(Debug, Subcommand)]
+pub enum DriveBackendCommand {
+    /// Show current backend status.
+    Status,
+    /// Select the default backend.
+    Use(DriveBackendUseArgs),
+    /// Import currently hosted local files into Git Pool.
+    MigrateToGitPool,
+}
+
+#[derive(Debug, Args)]
+pub struct DrivePoolInitArgs {
+    /// Optional control repository remote URL.
+    #[arg(long)]
+    pub control_remote: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct DrivePoolAddArgs {
+    /// Pool name.
+    pub name: String,
+    /// Pool Git remote URL or local bare repo path.
+    pub url: String,
+    /// Pool soft size limit, for example 8gb or 512mb.
+    #[arg(long)]
+    pub max_size: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct DrivePoolMountArgs {
+    /// Local mount name.
+    pub name: String,
+    /// Pool Git remote URL or local bare repo path.
+    pub url: String,
+    /// Owner Drive id, for example user-zhangsan.
+    #[arg(long)]
+    pub owner: String,
+    /// Mount as readonly. This is the default v1 behavior.
+    #[arg(long, default_value_t = true)]
+    pub readonly: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct DrivePoolUnmountArgs {
+    /// Local mount name.
+    pub name: String,
+}
+
+#[derive(Debug, Args)]
+pub struct DrivePoolListArgs {
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = DriveListFormat::Table)]
+    pub format: DriveListFormat,
+}
+
+#[derive(Debug, Args)]
+pub struct DriveBackendUseArgs {
+    /// Backend name: git-pool or pg-minio.
+    pub backend: String,
 }
 
 /// Arguments for `drive root add`.
@@ -137,6 +220,8 @@ pub async fn run_drive_command(command: DriveCommand) -> Result<()> {
             .run_polling_daemon()
             .await
             .map_err(Into::into),
+        DriveCommand::Pool(command) => run_drive_pool(command).await,
+        DriveCommand::Backend(command) => run_drive_backend(command).await,
         DriveCommand::Root(command) => run_drive_root(command).await,
     }
 }
@@ -205,7 +290,7 @@ pub async fn run_drive_ls(args: DriveLsArgs) -> Result<()> {
     }
 }
 
-/// Runs `drive pull`.
+/// Runs the compatibility remote materialization command.
 ///
 /// # Errors
 /// Returns an error when remote entries cannot be materialized.
@@ -249,6 +334,87 @@ pub async fn run_drive_root(command: DriveRootCommand) -> Result<()> {
         DriveRootCommand::Add(args) => agent.add_root(&args.alias, &args.path).await?,
     };
     print_roots_table(&roots)
+}
+
+/// Runs `drive pool`.
+///
+/// # Errors
+/// Returns an error when Git Pool setup or output serialization fails.
+pub async fn run_drive_pool(command: DrivePoolCommand) -> Result<()> {
+    match command {
+        DrivePoolCommand::Init(args) => {
+            let status = crate::init_git_pool_backend(args.control_remote.as_deref())?;
+            println!("{}", serde_json::to_string_pretty(&status)?);
+            Ok(())
+        }
+        DrivePoolCommand::Add(args) => {
+            let pool = crate::add_git_pool(
+                &args.name,
+                &args.url,
+                args.max_size.as_deref().map(parse_size_bytes).transpose()?,
+            )?;
+            println!("{}", serde_json::to_string_pretty(&pool)?);
+            Ok(())
+        }
+        DrivePoolCommand::Mount(args) => {
+            let mount = crate::mount_git_pool(&args.name, &args.url, &args.owner, args.readonly)?;
+            println!("{}", serde_json::to_string_pretty(&mount)?);
+            Ok(())
+        }
+        DrivePoolCommand::Unmount(args) => {
+            crate::unmount_git_pool(&args.name)?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "unmounted": true,
+                    "name": args.name,
+                }))?
+            );
+            Ok(())
+        }
+        DrivePoolCommand::List(args) => {
+            let status = crate::git_pool_backend_status()?;
+            match args.format {
+                DriveListFormat::Json => {
+                    println!("{}", serde_json::to_string_pretty(&status)?);
+                    Ok(())
+                }
+                DriveListFormat::Table => print_pool_table(&status),
+            }
+        }
+    }
+}
+
+/// Runs `drive backend`.
+///
+/// # Errors
+/// Returns an error when backend configuration or migration fails.
+pub async fn run_drive_backend(command: DriveBackendCommand) -> Result<()> {
+    match command {
+        DriveBackendCommand::Status => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&crate::drive_backend_status()?)?
+            );
+            Ok(())
+        }
+        DriveBackendCommand::Use(args) => {
+            crate::use_drive_backend(&args.backend)?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "backend": args.backend,
+                    "selected": true,
+                }))?
+            );
+            Ok(())
+        }
+        DriveBackendCommand::MigrateToGitPool => {
+            let statuses = crate::migrate_local_state_to_git_pool().await?;
+            println!("{}", serde_json::to_string_pretty(&statuses)?);
+            Ok(())
+        }
+    }
 }
 
 fn print_tracked_table(items: &[TrackedItem]) -> Result<()> {
@@ -302,6 +468,90 @@ fn print_roots_table(items: &[LocalRootState]) -> Result<()> {
     Ok(())
 }
 
+fn print_pool_table(status: &serde_json::Value) -> Result<()> {
+    println!(
+        "{:<10} {:<10} {:<12} {:<12} REMOTE",
+        "KIND", "NAME", "OWNER", "MODE"
+    );
+    if let Some(pools) = status.get("pools").and_then(serde_json::Value::as_array) {
+        for pool in pools {
+            println!(
+                "{:<10} {:<10} {:<12} {:<12} {}",
+                "pool",
+                pool.get("name")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("-"),
+                pool.get("owner_drive_id")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("-"),
+                if pool
+                    .get("readonly")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false)
+                {
+                    "readonly"
+                } else {
+                    "writable"
+                },
+                pool.get("remote_url")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("-")
+            );
+        }
+    }
+    if let Some(mounts) = status.get("mounts").and_then(serde_json::Value::as_array) {
+        for mount in mounts {
+            println!(
+                "{:<10} {:<10} {:<12} {:<12} {}",
+                "mount",
+                mount
+                    .get("name")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("-"),
+                mount
+                    .get("owner_drive_id")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("-"),
+                if mount
+                    .get("readonly")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(true)
+                {
+                    "readonly"
+                } else {
+                    "writable"
+                },
+                mount
+                    .get("remote_url")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("-")
+            );
+        }
+    }
+    Ok(())
+}
+
+fn parse_size_bytes(raw: &str) -> Result<u64> {
+    let value = raw.trim().to_ascii_lowercase();
+    let (number, multiplier) = if let Some(number) = value.strip_suffix("gb") {
+        (number, 1024_u64.pow(3))
+    } else if let Some(number) = value.strip_suffix("g") {
+        (number, 1024_u64.pow(3))
+    } else if let Some(number) = value.strip_suffix("mb") {
+        (number, 1024_u64.pow(2))
+    } else if let Some(number) = value.strip_suffix("m") {
+        (number, 1024_u64.pow(2))
+    } else if let Some(number) = value.strip_suffix("kb") {
+        (number, 1024)
+    } else if let Some(number) = value.strip_suffix("k") {
+        (number, 1024)
+    } else {
+        (value.as_str(), 1)
+    };
+    let number = number.trim().parse::<u64>()?;
+    Ok(number.saturating_mul(multiplier))
+}
+
 fn status_text(status: TrackedItemStatus) -> &'static str {
     match status {
         TrackedItemStatus::Tracked => "tracked",
@@ -324,7 +574,7 @@ fn source_text(source: TrackedItemSource) -> &'static str {
 
 fn pull_status_text(status: PullRemoteStatus) -> &'static str {
     match status {
-        PullRemoteStatus::Pulled => "pulled",
+        PullRemoteStatus::Pulled => "synced",
         PullRemoteStatus::AlreadyCurrent => "already_current",
         PullRemoteStatus::SkippedExisting => "skipped_existing",
         PullRemoteStatus::SkippedIgnored => "skipped_ignored",

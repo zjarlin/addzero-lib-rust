@@ -1,15 +1,11 @@
 use anyhow::{Context, Result};
 use axum::{Router, routing::get};
 use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalStateStore};
-use az_drive_store::{
-    DriveMetadataStore, DriveObjectStore, InMemoryDriveMetadataStore, InMemoryDriveObjectStore,
-    PgDriveMetadataStore, S3DriveObjectStore,
-};
+use az_drive_store::PgDriveMetadataStore;
 use az_drive_webdav::{DriveWebdavState, drive_webdav_router};
 use clap::{Args, Parser, Subcommand};
 use std::io::{self, Write};
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 #[cfg(target_os = "macos")]
 use az_drive_app::macos_actions;
@@ -44,6 +40,12 @@ enum Command {
     Ls(az_drive_app::cli::DriveLsArgs),
     /// List unresolved conflicts.
     Conflicts,
+    /// Manage Git Pool cloud-storage repositories.
+    #[command(subcommand)]
+    Pool(az_drive_app::cli::DrivePoolCommand),
+    /// Manage the Drive storage backend.
+    #[command(subcommand)]
+    Backend(az_drive_app::cli::DriveBackendCommand),
     /// Manage local root aliases.
     Root(RootCommand),
     /// Run PostgreSQL migrations and exit.
@@ -146,6 +148,8 @@ async fn main() -> Result<()> {
             let conflicts = build_agent().await?.conflicts().await?;
             print_json(&conflicts)
         }
+        Command::Pool(command) => az_drive_app::cli::run_drive_pool(command).await,
+        Command::Backend(command) => az_drive_app::cli::run_drive_backend(command).await,
         Command::Root(root) => match root.command {
             RootSubcommand::List => {
                 let roots = build_agent().await?.list_roots().await?;
@@ -160,7 +164,7 @@ async fn main() -> Result<()> {
             }
         },
         Command::Migrate => {
-            let Some(database_url) = database_url() else {
+            let Some(database_url) = az_drive_app::database_url() else {
                 anyhow::bail!("AZ_DRIVE_DATABASE_URL or DATABASE_URL is required for migrate");
             };
             let store = PgDriveMetadataStore::connect(&database_url).await?;
@@ -172,7 +176,7 @@ async fn main() -> Result<()> {
 }
 
 async fn serve(args: ServeArgs) -> Result<()> {
-    let (metadata, objects) = build_stores().await?;
+    let (metadata, objects, _sync) = az_drive_app::build_stores().await?;
     let state = DriveWebdavState::new(metadata, objects);
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
@@ -191,64 +195,29 @@ async fn serve(args: ServeArgs) -> Result<()> {
 }
 
 async fn build_agent() -> Result<DriveAgent> {
-    let (metadata, objects) = build_stores().await?;
+    let (metadata, objects, sync) = az_drive_app::build_stores().await?;
     let state_store = LocalStateStore::new(LocalStateStore::default_path());
     let state = state_store.load_or_init().await?;
-    let primary_space = az_drive_app::default_space_id();
-    let config = DriveAgentConfig::new(primary_space.clone(), state.device_id, state.device_name)
-        .with_fused_space_ids(az_drive_app::default_fused_space_ids(&primary_space));
-    Ok(DriveAgent::new(metadata, objects, state_store, config))
-}
-
-async fn build_stores() -> Result<(Arc<dyn DriveMetadataStore>, Arc<dyn DriveObjectStore>)> {
-    let metadata: Arc<dyn DriveMetadataStore> = if let Some(database_url) = database_url() {
-        let store = PgDriveMetadataStore::connect(&database_url)
-            .await
-            .context("failed to connect drive postgres metadata store")?;
-        store
-            .run_migrations()
-            .await
-            .context("failed to run drive postgres migrations")?;
-        Arc::new(store)
-    } else {
-        eprintln!(
-            "AZ_DRIVE_DATABASE_URL/MSC_AIO_DATABASE_URL/DATABASE_URL not set; using non-persistent metadata store"
-        );
-        Arc::new(InMemoryDriveMetadataStore::new())
-    };
-
-    let objects: Arc<dyn DriveObjectStore> = if let Some(config) = s3_config() {
-        let bucket = az_drive_app::default_bucket();
-        let store = tokio::task::spawn_blocking(move || {
-            let client = az_rustfs::create_storage_client(config);
-            S3DriveObjectStore::new(client, bucket)
-        })
-        .await
-        .context("S3 object store initialization task failed")?
-        .context("failed to initialize S3 object store")?;
-        Arc::new(store)
-    } else {
-        eprintln!("AZ_DRIVE_MINIO_*/AIO_MINIO_* not set; using non-persistent object store");
-        Arc::new(InMemoryDriveObjectStore::new())
-    };
-
-    Ok((metadata, objects))
-}
-
-fn database_url() -> Option<String> {
-    az_drive_app::setup::current_database_url().filter(|value| !value.trim().is_empty())
-}
-
-fn s3_config() -> Option<az_rustfs::S3ClientConfig> {
-    let endpoint = az_drive_app::setup::current_minio_endpoint()?;
-    let access_key = az_drive_app::setup::current_minio_access_key()?;
-    let secret_key = az_drive_app::setup::current_minio_secret_key()?;
-    let region = az_drive_app::setup::current_minio_region();
-    Some(
-        az_rustfs::S3ClientConfig::new(endpoint, access_key, secret_key)
-            .with_region(region)
-            .with_path_style_access(true),
+    let primary_owner_drive_id = az_drive_app::default_owner_drive_id();
+    let config = DriveAgentConfig::new(
+        primary_owner_drive_id.clone(),
+        state.device_id,
+        state.device_name,
     )
+    .with_fused_space_ids(az_drive_app::default_fused_space_ids(
+        &primary_owner_drive_id,
+    ))
+    .with_auto_materialize_space_ids(az_drive_app::default_auto_materialize_space_ids(
+        &primary_owner_drive_id,
+    ));
+    let agent = DriveAgent::new_with_sync(metadata, objects, sync, state_store, config);
+    if primary_owner_drive_id != "main" {
+        agent
+            .migrate_legacy_owner_drive("main", &primary_owner_drive_id)
+            .await
+            .context("failed to migrate legacy main drive namespace")?;
+    }
+    Ok(agent)
 }
 
 fn print_json(value: &impl serde::Serialize) -> Result<()> {

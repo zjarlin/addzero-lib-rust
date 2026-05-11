@@ -13,7 +13,8 @@ use az_drive_core::{
 };
 use az_drive_store::{
     DriveConflict, DriveEntry, DriveEntryKind, DriveIgnoredPath, DriveMetadataStore,
-    DriveObjectStore, DriveStoreError, DriveVersion,
+    DriveObjectStore, DriveStoreError, DriveSyncCoordinator, DriveVersion,
+    NoopDriveSyncCoordinator,
 };
 use chrono::{DateTime, Utc};
 use ignore::WalkBuilder;
@@ -64,10 +65,12 @@ pub enum DriveAgentError {
 /// Agent configuration that is stable across CLI and future AIO embedding.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DriveAgentConfig {
-    /// Default drive space.
+    /// Primary owner Drive namespace.
     pub space_id: String,
-    /// Additional spaces visible for read-side fusion.
+    /// Additional owner Drive namespaces visible for read-side fusion.
     pub fused_space_ids: Vec<String>,
+    /// Owner Drive namespaces whose remote-only entries should be materialized during sync.
+    pub auto_materialize_space_ids: Vec<String>,
     /// Local device id.
     pub device_id: String,
     /// Human-readable device name used in conflict copies.
@@ -80,16 +83,18 @@ impl DriveAgentConfig {
     /// Creates a config with stable defaults.
     #[must_use]
     pub fn new(space_id: impl Into<String>, device_id: String, device_name: String) -> Self {
+        let space_id = space_id.into();
         Self {
-            space_id: space_id.into(),
+            space_id,
             fused_space_ids: Vec::new(),
+            auto_materialize_space_ids: Vec::new(),
             device_id,
             device_name,
             poll_interval: Duration::from_secs(2),
         }
     }
 
-    /// Adds read-side fused spaces.
+    /// Adds read-side fused owner Drives.
     #[must_use]
     pub fn with_fused_space_ids(mut self, spaces: impl IntoIterator<Item = String>) -> Self {
         for space in spaces {
@@ -98,6 +103,21 @@ impl DriveAgentConfig {
                 && !self.fused_space_ids.contains(&space)
             {
                 self.fused_space_ids.push(space);
+            }
+        }
+        self
+    }
+
+    /// Adds owner Drives whose remote-only entries are automatically materialized
+    /// during normal bidirectional sync.
+    #[must_use]
+    pub fn with_auto_materialize_space_ids(
+        mut self,
+        spaces: impl IntoIterator<Item = String>,
+    ) -> Self {
+        for space in spaces {
+            if !space.trim().is_empty() && !self.auto_materialize_space_ids.contains(&space) {
+                self.auto_materialize_space_ids.push(space);
             }
         }
         self
@@ -211,6 +231,8 @@ impl LocalState {
 /// Summary for CLI status output.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct HostedStatus {
+    /// Owner Drive id.
+    pub owner_drive_id: String,
     /// Local path.
     pub local_path: PathBuf,
     /// Remote key.
@@ -283,6 +305,8 @@ pub struct TrackedItem {
     pub canonical_path: String,
     /// Full remote key, for example `main/home/.agents/skills/foo`.
     pub remote_path: String,
+    /// Owner Drive id.
+    pub owner_drive_id: String,
     /// Remote root alias.
     pub root_alias: String,
     /// Remote relative path below the root alias.
@@ -335,12 +359,20 @@ pub struct PullRemoteItem {
     pub canonical_path: String,
     /// Full remote key.
     pub remote_path: String,
+    /// Owner Drive id.
+    pub owner_drive_id: String,
     /// Last remote version.
     pub base_version: Option<u64>,
     /// Last remote content hash.
     pub content_hash: Option<String>,
     /// Whether the local file exists after the operation.
     pub exists: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RemoteMaterializeMode {
+    All,
+    UntrackedOnly,
 }
 
 struct ConflictRestoreRequest<'a> {
@@ -436,6 +468,7 @@ impl LocalStateStore {
 pub struct DriveAgent {
     metadata: Arc<dyn DriveMetadataStore>,
     objects: Arc<dyn DriveObjectStore>,
+    sync: Arc<dyn DriveSyncCoordinator>,
     state_store: LocalStateStore,
     config: DriveAgentConfig,
 }
@@ -452,6 +485,26 @@ impl DriveAgent {
         Self {
             metadata,
             objects,
+            sync: Arc::new(NoopDriveSyncCoordinator),
+            state_store,
+            config,
+        }
+    }
+
+    /// Creates a new drive agent with an explicit store synchronization
+    /// coordinator.
+    #[must_use]
+    pub fn new_with_sync(
+        metadata: Arc<dyn DriveMetadataStore>,
+        objects: Arc<dyn DriveObjectStore>,
+        sync: Arc<dyn DriveSyncCoordinator>,
+        state_store: LocalStateStore,
+        config: DriveAgentConfig,
+    ) -> Self {
+        Self {
+            metadata,
+            objects,
+            sync,
             state_store,
             config,
         }
@@ -513,6 +566,7 @@ impl DriveAgent {
         root_alias: Option<&str>,
         remote_path: Option<&str>,
     ) -> DriveAgentResult<Vec<HostedStatus>> {
+        self.sync.prepare_sync().await?;
         let mut state = self.state_store.load_or_init().await?;
         let registry = registry_from_state(&state)?;
         let preferred_alias = root_alias.map(RootAlias::parse).transpose()?;
@@ -579,6 +633,7 @@ impl DriveAgent {
         }
 
         self.state_store.save(&state).await?;
+        self.sync.flush_sync().await?;
         Ok(statuses)
     }
 
@@ -587,6 +642,7 @@ impl DriveAgent {
     /// # Errors
     /// Returns [`DriveAgentError`] when state loading or saving fails.
     pub async fn unhost_path(&self, path: &str) -> DriveAgentResult<usize> {
+        self.sync.prepare_sync().await?;
         let requested = normalize_absolute_path(&expand_path_expression(path))?;
         let mut state = self.state_store.load_or_init().await?;
         let registry = registry_from_state(&state)?;
@@ -617,6 +673,7 @@ impl DriveAgent {
             .saturating_sub(state.hosted.len() + state.hosted_roots.len())
             .max(usize::from(ignored_added));
         self.state_store.save(&state).await?;
+        self.sync.flush_sync().await?;
         Ok(removed)
     }
 
@@ -651,6 +708,7 @@ impl DriveAgent {
         path: Option<&str>,
         options: ListTrackedOptions,
     ) -> DriveAgentResult<Vec<TrackedItem>> {
+        self.sync.prepare_sync().await?;
         let state = self.state_store.load_or_init().await?;
         let registry = registry_from_state(&state)?;
         let requested = path
@@ -740,7 +798,25 @@ impl DriveAgent {
         path: Option<&str>,
         options: PullRemoteOptions,
     ) -> DriveAgentResult<Vec<PullRemoteItem>> {
+        self.sync.prepare_sync().await?;
         let mut state = self.state_store.load_or_init().await?;
+        let rows = self
+            .materialize_remote_entries(&mut state, path, options, RemoteMaterializeMode::All)
+            .await?;
+        if !options.dry_run {
+            self.state_store.save(&state).await?;
+            self.sync.flush_sync().await?;
+        }
+        Ok(rows)
+    }
+
+    async fn materialize_remote_entries(
+        &self,
+        state: &mut LocalState,
+        path: Option<&str>,
+        options: PullRemoteOptions,
+        mode: RemoteMaterializeMode,
+    ) -> DriveAgentResult<Vec<PullRemoteItem>> {
         let registry = registry_from_state(&state)?;
         let requested = path
             .map(|path| normalize_absolute_path(&expand_path_expression(path)))
@@ -753,12 +829,26 @@ impl DriveAgent {
         let mut rows = Vec::new();
 
         for entry in entries {
+            if mode == RemoteMaterializeMode::UntrackedOnly
+                && entry.key.space_id != self.config.space_id
+                && !self
+                    .config
+                    .auto_materialize_space_ids
+                    .contains(&entry.key.space_id)
+            {
+                continue;
+            }
             if item_filtered_out(&entry.key, requested_mapping.as_ref()) {
                 continue;
             }
             let Some(local_path) = local_path_for_key(&registry, &entry.key) else {
                 continue;
             };
+            if mode == RemoteMaterializeMode::UntrackedOnly
+                && state_has_hosted_key_or_path(state, &entry.key, &local_path)
+            {
+                continue;
+            }
             if is_key_ignored(&entry.key, &ignored) {
                 rows.push(pull_item_from_entry(
                     PullRemoteStatus::SkippedIgnored,
@@ -814,7 +904,7 @@ impl DriveAgent {
             };
 
             upsert_hosted_state(
-                &mut state,
+                state,
                 HostedPathState {
                     local_path: local_path.clone(),
                     space_id: entry.key.space_id.clone(),
@@ -836,9 +926,6 @@ impl DriveAgent {
             ));
         }
 
-        if !options.dry_run {
-            self.state_store.save(&state).await?;
-        }
         rows.sort_by(|left, right| {
             left.canonical_path
                 .cmp(&right.canonical_path)
@@ -872,15 +959,71 @@ impl DriveAgent {
     /// # Errors
     /// Returns [`DriveAgentError`] when store access fails.
     pub async fn conflicts(&self) -> DriveAgentResult<Vec<DriveConflict>> {
+        self.sync.prepare_sync().await?;
         Ok(self.metadata.list_conflicts(Some(false)).await?)
     }
 
-    /// Performs one synchronization scan for all hosted paths.
+    /// Migrates legacy `main` state into the current login owner's Drive id.
+    ///
+    /// The public product model is user/API-key ownership. The storage schema
+    /// still uses a namespace field internally, so this method performs the
+    /// one-time local and metadata namespace rewrite needed for old installs.
+    ///
+    /// # Errors
+    /// Returns [`DriveAgentError`] when metadata or local state persistence
+    /// fails.
+    pub async fn migrate_legacy_owner_drive(
+        &self,
+        legacy_owner_drive_id: &str,
+        owner_drive_id: &str,
+    ) -> DriveAgentResult<u64> {
+        self.sync.prepare_sync().await?;
+        if legacy_owner_drive_id == owner_drive_id {
+            return Ok(0);
+        }
+        let metadata_count = self
+            .metadata
+            .migrate_owner_drive_namespace(legacy_owner_drive_id, owner_drive_id)
+            .await?;
+        let mut state = self.state_store.load_or_init().await?;
+        let mut local_count = 0;
+        for hosted in &mut state.hosted {
+            if hosted.space_id == legacy_owner_drive_id {
+                hosted.space_id = owner_drive_id.to_owned();
+                local_count += 1;
+            }
+        }
+        for root in &mut state.hosted_roots {
+            if root.space_id == legacy_owner_drive_id {
+                root.space_id = owner_drive_id.to_owned();
+                local_count += 1;
+            }
+        }
+        if local_count > 0 {
+            self.state_store.save(&state).await?;
+        }
+        self.sync.flush_sync().await?;
+        Ok(metadata_count + local_count)
+    }
+
+    /// Performs one bidirectional synchronization scan for all hosted paths.
+    ///
+    /// Visible remote entries from fused owner Drives are materialized once before
+    /// the local scan, so adding a trusted API key makes that owner's hosted
+    /// files participate in normal sync without a separate user action.
     ///
     /// # Errors
     /// Returns [`DriveAgentError`] when local I/O or remote store operations fail.
     pub async fn sync_once(&self) -> DriveAgentResult<Vec<HostedStatus>> {
+        self.sync.prepare_sync().await?;
         let mut state = self.state_store.load_or_init().await?;
+        self.materialize_remote_entries(
+            &mut state,
+            None,
+            PullRemoteOptions::default(),
+            RemoteMaterializeMode::UntrackedOnly,
+        )
+        .await?;
         self.discover_hosted_root_files(&mut state).await?;
         let mut statuses = Vec::new();
         let mut hosted_records = std::mem::take(&mut state.hosted);
@@ -890,6 +1033,7 @@ impl DriveAgent {
             state.hosted.push(hosted);
         }
         self.state_store.save(&state).await?;
+        self.sync.flush_sync().await?;
         Ok(statuses)
     }
 
@@ -1073,14 +1217,14 @@ impl DriveAgent {
     async fn discover_hosted_root_files(&self, state: &mut LocalState) -> DriveAgentResult<()> {
         let registry = registry_from_state(state)?;
         let roots = state.hosted_roots.clone();
-        let ignored = self
-            .metadata
-            .list_ignored_paths(&self.config.space_id, None, None)
-            .await?;
         for root in roots {
             if !root.local_path.exists() {
                 continue;
             }
+            let ignored = self
+                .metadata
+                .list_ignored_paths(&root.space_id, None, None)
+                .await?;
             let root_alias = RootAlias::parse(&root.root_alias)?;
             for file in collect_files(&root.local_path)? {
                 if state.hosted.iter().any(|hosted| hosted.local_path == file) {
@@ -1221,6 +1365,15 @@ fn registry_from_state(state: &LocalState) -> DriveAgentResult<RootRegistry> {
     Ok(registry)
 }
 
+fn state_has_hosted_key_or_path(state: &LocalState, key: &EntryKey, local_path: &Path) -> bool {
+    state.hosted.iter().any(|hosted| {
+        hosted.local_path == local_path
+            || (hosted.space_id == key.space_id
+                && hosted.root_alias == key.root_alias.to_string()
+                && hosted.relative_path == key.relative_path.to_string())
+    })
+}
+
 fn upsert_hosted_state(state: &mut LocalState, hosted: HostedPathState) {
     state
         .hosted
@@ -1243,6 +1396,7 @@ fn upsert_hosted_root_state(state: &mut LocalState, hosted: HostedRootState) {
 
 fn hosted_status(hosted: &HostedPathState) -> HostedStatus {
     HostedStatus {
+        owner_drive_id: hosted.space_id.clone(),
         local_path: hosted.local_path.clone(),
         remote_path: format!(
             "{}/{}/{}",
@@ -1475,6 +1629,7 @@ fn tracked_item_from_key(
         display_path: display_path_for_key(key, registry),
         canonical_path: canonical_path_for_key(key),
         remote_path: key.remote_path(),
+        owner_drive_id: key.space_id.clone(),
         root_alias: key.root_alias.to_string(),
         relative_path: key.relative_path.to_string(),
         base_version,
@@ -1497,6 +1652,7 @@ fn pull_item_from_entry(
         display_path: display_path_for_key(&entry.key, registry),
         canonical_path: canonical_path_for_key(&entry.key),
         remote_path: entry.key.remote_path(),
+        owner_drive_id: entry.key.space_id.clone(),
         base_version: version
             .map(|version| version.version)
             .or(Some(entry.latest_version))
@@ -1745,11 +1901,26 @@ mod tests {
         metadata: Arc<InMemoryDriveMetadataStore>,
         objects: Arc<InMemoryDriveObjectStore>,
     ) -> DriveAgent {
+        agent_with_space(temp, name, "main", &[], metadata, objects)
+    }
+
+    fn agent_with_space(
+        temp: &TempDir,
+        name: &str,
+        space_id: &str,
+        fused_space_ids: &[&str],
+        metadata: Arc<InMemoryDriveMetadataStore>,
+        objects: Arc<InMemoryDriveObjectStore>,
+    ) -> DriveAgent {
         DriveAgent::new(
             metadata,
             objects,
             LocalStateStore::new(temp.path().join(format!("{name}.json"))),
-            DriveAgentConfig::new("main", format!("device-{name}"), name.to_owned()),
+            DriveAgentConfig::new(space_id, format!("device-{name}"), name.to_owned())
+                .with_fused_space_ids(fused_space_ids.iter().copied().map(str::to_owned))
+                .with_auto_materialize_space_ids(
+                    fused_space_ids.iter().copied().map(str::to_owned),
+                ),
         )
     }
 
@@ -2226,6 +2397,165 @@ mod tests {
                 .expect("status should load")
                 .iter()
                 .any(|status| status.local_path == file_b)
+        );
+    }
+
+    #[tokio::test]
+    async fn sync_once_materializes_primary_owner_remote_on_new_device() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let metadata = Arc::new(InMemoryDriveMetadataStore::new());
+        let objects = Arc::new(InMemoryDriveObjectStore::new());
+        let agent_a = agent(&temp, "a", Arc::clone(&metadata), Arc::clone(&objects));
+        let agent_b = agent(&temp, "b", metadata, objects);
+        let root_a = temp.path().join("a-root");
+        let root_b = temp.path().join("b-root");
+        let file_a = root_a.join("docs/a.txt");
+        tokio::fs::create_dir_all(file_a.parent().expect("file should have parent"))
+            .await
+            .expect("parent should be created");
+        tokio::fs::write(&file_a, b"from primary owner")
+            .await
+            .expect("source file should be written");
+        agent_a
+            .add_root("workspace", root_a.to_str().expect("utf8 path"))
+            .await
+            .expect("root a should add");
+        agent_b
+            .add_root("workspace", root_b.to_str().expect("utf8 path"))
+            .await
+            .expect("root b should add");
+        agent_a
+            .host_path(file_a.to_str().expect("utf8 path"), None, None)
+            .await
+            .expect("source file should host");
+
+        agent_b
+            .sync_once()
+            .await
+            .expect("new device sync should materialize primary owner file");
+
+        let file_b = root_b.join("docs/a.txt");
+        assert_eq!(
+            tokio::fs::read_to_string(&file_b)
+                .await
+                .expect("synced file should exist"),
+            "from primary owner"
+        );
+    }
+
+    #[tokio::test]
+    async fn migrate_legacy_owner_drive_updates_metadata_and_local_state() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let metadata = Arc::new(InMemoryDriveMetadataStore::new());
+        let objects = Arc::new(InMemoryDriveObjectStore::new());
+        let agent = agent(&temp, "a", metadata, objects);
+        let root = temp.path().join("workspace");
+        let file = root.join("docs/a.md");
+        tokio::fs::create_dir_all(file.parent().expect("file should have parent"))
+            .await
+            .expect("parent should be created");
+        tokio::fs::write(&file, b"hello")
+            .await
+            .expect("file should be written");
+        agent
+            .add_root("workspace", root.to_str().expect("utf8 path"))
+            .await
+            .expect("root should add");
+        agent
+            .host_path(file.to_str().expect("utf8 path"), None, None)
+            .await
+            .expect("file should host");
+
+        let migrated = agent
+            .migrate_legacy_owner_drive("main", "user-zjarlin")
+            .await
+            .expect("legacy owner drive should migrate");
+
+        assert!(migrated >= 2);
+        assert!(
+            agent
+                .list_tracked(None, ListTrackedOptions::default())
+                .await
+                .expect("tracked files should list")
+                .iter()
+                .any(|item| item.remote_path == "user-zjarlin/workspace/docs/a.md")
+        );
+    }
+
+    #[tokio::test]
+    async fn sync_once_materializes_fused_remote_and_uploads_local_edit() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let metadata = Arc::new(InMemoryDriveMetadataStore::new());
+        let objects = Arc::new(InMemoryDriveObjectStore::new());
+        let owner_space = "user-owner";
+        let agent_owner = agent_with_space(
+            &temp,
+            "owner",
+            owner_space,
+            &[],
+            Arc::clone(&metadata),
+            Arc::clone(&objects),
+        );
+        let agent_guest = agent_with_space(
+            &temp,
+            "guest",
+            "user-guest",
+            &[owner_space],
+            metadata,
+            objects,
+        );
+        let owner_root = temp.path().join("owner-root");
+        let guest_root = temp.path().join("guest-root");
+        let owner_file = owner_root.join("skills/demo/SKILL.md");
+        tokio::fs::create_dir_all(owner_file.parent().expect("file should have parent"))
+            .await
+            .expect("parent should be created");
+        tokio::fs::write(&owner_file, b"from owner")
+            .await
+            .expect("owner file should be written");
+        agent_owner
+            .add_root("workspace", owner_root.to_str().expect("utf8 path"))
+            .await
+            .expect("owner root should add");
+        agent_guest
+            .add_root("workspace", guest_root.to_str().expect("utf8 path"))
+            .await
+            .expect("guest root should add");
+        agent_owner
+            .host_path(owner_file.to_str().expect("utf8 path"), None, None)
+            .await
+            .expect("owner file should host");
+
+        agent_guest
+            .sync_once()
+            .await
+            .expect("guest sync should materialize fused file");
+
+        let guest_file = guest_root.join("skills/demo/SKILL.md");
+        assert_eq!(
+            tokio::fs::read_to_string(&guest_file)
+                .await
+                .expect("fused file should exist on guest"),
+            "from owner"
+        );
+
+        tokio::fs::write(&guest_file, b"from guest")
+            .await
+            .expect("guest edit should be written");
+        agent_guest
+            .sync_once()
+            .await
+            .expect("guest edit should upload to owner space");
+        agent_owner
+            .sync_once()
+            .await
+            .expect("owner sync should receive guest edit");
+
+        assert_eq!(
+            tokio::fs::read_to_string(&owner_file)
+                .await
+                .expect("owner file should receive remote update"),
+            "from guest"
         );
     }
 }

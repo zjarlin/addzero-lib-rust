@@ -141,7 +141,8 @@ pub struct ApiKeyOwnerDto {
     pub status: String,
     pub key_prefix: String,
     pub label: String,
-    pub owner_space_id: String,
+    #[serde(alias = "owner_space_id")]
+    pub owner_drive_id: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -160,7 +161,7 @@ pub enum UserAuthenticationResult {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn drive_space_id_for_username(username: &str) -> String {
+pub fn owner_drive_id_for_username(username: &str) -> String {
     let safe = username
         .trim()
         .chars()
@@ -177,6 +178,11 @@ pub fn drive_space_id_for_username(username: &str) -> String {
     } else {
         format!("user-{safe}")
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn drive_space_id_for_username(username: &str) -> String {
+    owner_drive_id_for_username(username)
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1164,7 +1170,7 @@ pub async fn create_api_key_on_server(
     let key_hash = hash_api_key(&api_key);
     let key_prefix = key_prefix(&api_key);
     let label = label.trim().to_owned();
-    let owner_space_id = drive_space_id_for_username(&user.username);
+    let owner_drive_id = owner_drive_id_for_username(&user.username);
     sqlx::query(
         "INSERT INTO sys_api_key (id, user_id, key_hash, key_prefix, label, owner_space_id) \
          VALUES ($1, $2, $3, $4, $5, $6)",
@@ -1174,7 +1180,7 @@ pub async fn create_api_key_on_server(
     .bind(&key_hash)
     .bind(&key_prefix)
     .bind(&label)
-    .bind(&owner_space_id)
+    .bind(&owner_drive_id)
     .execute(&pool)
     .await
     .map_err(|e| SystemManagementError::msg(format!("create_api_key: {e}")))?;
@@ -1188,7 +1194,7 @@ pub async fn create_api_key_on_server(
             status: user.status,
             key_prefix,
             label,
-            owner_space_id,
+            owner_drive_id,
         },
     })
 }
@@ -1226,7 +1232,7 @@ pub async fn resolve_api_key_on_server(api_key: &str) -> SystemManagementResult<
         status: row.3,
         key_prefix: row.4,
         label: row.5,
-        owner_space_id: row.6,
+        owner_drive_id: row.6,
     })
 }
 

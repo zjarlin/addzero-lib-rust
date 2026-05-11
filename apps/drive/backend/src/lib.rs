@@ -3,10 +3,11 @@
 //! Standalone headless drive app support utilities.
 
 use anyhow::Context;
-use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalStateStore};
+use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalState, LocalStateStore};
 use az_drive_store::{
-    DriveMetadataStore, DriveObjectStore, InMemoryDriveMetadataStore, InMemoryDriveObjectStore,
-    PgDriveMetadataStore, S3DriveObjectStore,
+    DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator, GitPoolConfig, GitPoolDriveStore,
+    GitPoolRepoConfig, InMemoryDriveMetadataStore, InMemoryDriveObjectStore,
+    NoopDriveSyncCoordinator, PgDriveMetadataStore, S3DriveObjectStore,
 };
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -14,6 +15,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use toml_edit::{DocumentMut, value};
 
 pub mod cli;
 pub mod setup;
@@ -22,7 +24,20 @@ pub mod setup;
 pub mod macos_actions;
 
 /// Shared drive store handles used by CLI and embedded AIO commands.
-pub type DriveStores = (Arc<dyn DriveMetadataStore>, Arc<dyn DriveObjectStore>);
+pub type DriveStores = (
+    Arc<dyn DriveMetadataStore>,
+    Arc<dyn DriveObjectStore>,
+    Arc<dyn DriveSyncCoordinator>,
+);
+
+/// Default Git pool root used by the source-of-truth backend.
+#[must_use]
+pub fn default_git_pool_root() -> PathBuf {
+    config_value("AIO_DRIVE_GIT_POOL_ROOT")
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".aio/drive-git-pool")))
+        .unwrap_or_else(|| PathBuf::from(".aio/drive-git-pool"))
+}
 
 /// Default server bind address for the standalone WebDAV service.
 #[must_use]
@@ -30,17 +45,23 @@ pub fn default_bind_addr() -> String {
     config_value("AZ_DRIVE_BIND").unwrap_or_else(|| "127.0.0.1:8788".to_owned())
 }
 
-/// Default drive space used by the CLI and daemon.
+/// Default Drive owner used by the CLI and daemon.
 #[must_use]
-pub fn default_space_id() -> String {
-    config_value("AZ_DRIVE_SPACE")
-        .or_else(|| auth_username().map(|username| drive_space_id_for_username(&username)))
+pub fn default_owner_drive_id() -> String {
+    read_auth_file()
+        .and_then(|auth| auth.default_owner_drive_id())
         .unwrap_or_else(|| "main".to_owned())
 }
 
-/// Stable per-user drive space used by API-key fusion.
+/// Compatibility alias for older internal callers.
 #[must_use]
-pub fn drive_space_id_for_username(username: &str) -> String {
+pub fn default_space_id() -> String {
+    default_owner_drive_id()
+}
+
+/// Stable per-user Drive owner id used by API-key authorization.
+#[must_use]
+pub fn owner_drive_id_for_username(username: &str) -> String {
     let safe = username
         .trim()
         .chars()
@@ -59,20 +80,42 @@ pub fn drive_space_id_for_username(username: &str) -> String {
     }
 }
 
-/// Additional spaces visible for read-side fusion.
+/// Compatibility alias for older internal callers.
 #[must_use]
-pub fn default_fused_space_ids(primary_space: &str) -> Vec<String> {
-    let mut spaces = Vec::new();
-    if primary_space != "main" {
-        spaces.push("main".to_owned());
-    }
+pub fn drive_space_id_for_username(username: &str) -> String {
+    owner_drive_id_for_username(username)
+}
+
+/// Additional owner Drives visible for read-side fusion.
+#[must_use]
+pub fn default_fused_space_ids(primary_owner_drive_id: &str) -> Vec<String> {
+    let mut drives = Vec::new();
     if let Some(auth) = read_auth_file() {
         for key in auth.trusted_api_keys {
-            push_unique_space(&mut spaces, key.owner_space_id);
+            push_unique_drive(&mut drives, key.owner_drive_id);
         }
     }
-    spaces.retain(|space| space != primary_space);
-    spaces
+    for owner in git_pool_mounted_owner_drive_ids() {
+        push_unique_drive(&mut drives, owner);
+    }
+    drives.retain(|drive| drive != primary_owner_drive_id);
+    drives
+}
+
+/// Owner Drives that should be materialized automatically during bidirectional sync.
+#[must_use]
+pub fn default_auto_materialize_space_ids(primary_owner_drive_id: &str) -> Vec<String> {
+    let mut drives = Vec::new();
+    if let Some(auth) = read_auth_file() {
+        for key in auth.trusted_api_keys {
+            push_unique_drive(&mut drives, key.owner_drive_id);
+        }
+    }
+    for owner in git_pool_mounted_owner_drive_ids() {
+        push_unique_drive(&mut drives, owner);
+    }
+    drives.retain(|drive| drive != primary_owner_drive_id);
+    drives
 }
 
 /// Default object bucket for drive bytes.
@@ -89,13 +132,43 @@ pub fn default_bucket() -> String {
 /// Returns an error when local state, PostgreSQL, migrations, or object store
 /// initialization fails.
 pub async fn build_agent() -> anyhow::Result<DriveAgent> {
-    let (metadata, objects) = build_stores().await?;
+    build_agent_and_migrate()
+        .await
+        .map(|(agent, _migrated)| agent)
+}
+
+/// Runs the legacy `main` to current owner Drive migration for the active login.
+///
+/// # Errors
+/// Returns an error when the agent cannot be built or migration fails.
+pub async fn migrate_legacy_main_for_current_owner() -> anyhow::Result<u64> {
+    build_agent_and_migrate()
+        .await
+        .map(|(_agent, migrated)| migrated)
+}
+
+async fn build_agent_and_migrate() -> anyhow::Result<(DriveAgent, u64)> {
+    let (metadata, objects, sync) = build_stores().await?;
     let state_store = LocalStateStore::new(LocalStateStore::default_path());
     let state = state_store.load_or_init().await?;
-    let primary_space = default_space_id();
-    let config = DriveAgentConfig::new(primary_space.clone(), state.device_id, state.device_name)
-        .with_fused_space_ids(default_fused_space_ids(&primary_space));
-    Ok(DriveAgent::new(metadata, objects, state_store, config))
+    let primary_owner_drive_id = default_owner_drive_id();
+    let config = DriveAgentConfig::new(
+        primary_owner_drive_id.clone(),
+        state.device_id,
+        state.device_name,
+    )
+    .with_fused_space_ids(default_fused_space_ids(&primary_owner_drive_id))
+    .with_auto_materialize_space_ids(default_auto_materialize_space_ids(&primary_owner_drive_id));
+    let agent = DriveAgent::new_with_sync(metadata, objects, sync, state_store, config);
+    let migrated = if primary_owner_drive_id != "main" {
+        agent
+            .migrate_legacy_owner_drive("main", &primary_owner_drive_id)
+            .await
+            .context("failed to migrate legacy main drive namespace")?
+    } else {
+        0
+    };
+    Ok((agent, migrated))
 }
 
 /// Builds configured metadata and object stores.
@@ -104,6 +177,13 @@ pub async fn build_agent() -> anyhow::Result<DriveAgent> {
 /// Returns an error when configured PostgreSQL or S3-compatible storage cannot
 /// be initialized.
 pub async fn build_stores() -> anyhow::Result<DriveStores> {
+    match current_drive_backend()? {
+        DriveBackend::GitPool => build_git_pool_stores(),
+        DriveBackend::PgMinio => build_pg_minio_stores().await,
+    }
+}
+
+async fn build_pg_minio_stores() -> anyhow::Result<DriveStores> {
     let metadata: Arc<dyn DriveMetadataStore> = if let Some(database_url) = database_url() {
         let store = PgDriveMetadataStore::connect(&database_url)
             .await
@@ -135,7 +215,328 @@ pub async fn build_stores() -> anyhow::Result<DriveStores> {
         Arc::new(InMemoryDriveObjectStore::new())
     };
 
-    Ok((metadata, objects))
+    Ok((metadata, objects, Arc::new(NoopDriveSyncCoordinator)))
+}
+
+fn build_git_pool_stores() -> anyhow::Result<DriveStores> {
+    let config = current_git_pool_config()?;
+    let store = Arc::new(GitPoolDriveStore::open(config)?);
+    let metadata: Arc<dyn DriveMetadataStore> = store.clone();
+    let objects: Arc<dyn DriveObjectStore> = store.clone();
+    let sync: Arc<dyn DriveSyncCoordinator> = store;
+    Ok((metadata, objects, sync))
+}
+
+fn git_pool_mounted_owner_drive_ids() -> Vec<String> {
+    if current_drive_backend().ok() != Some(DriveBackend::GitPool) {
+        return Vec::new();
+    }
+    let Ok(config) = current_git_pool_config() else {
+        return Vec::new();
+    };
+    let Ok(store) = GitPoolDriveStore::open(config) else {
+        return Vec::new();
+    };
+    store
+        .list_mounts()
+        .map(|mounts| {
+            mounts
+                .into_iter()
+                .map(|mount| mount.owner_drive_id)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Initializes the Git Pool backend and persists it as the default.
+///
+/// # Errors
+/// Returns an error when config cannot be written or the Git control repo cannot
+/// be initialized.
+pub fn init_git_pool_backend(control_remote: Option<&str>) -> anyhow::Result<serde_json::Value> {
+    let mut config = current_drive_config()?;
+    config.backend = "git_pool".to_owned();
+    config
+        .git_pool_root
+        .get_or_insert_with(default_git_pool_root);
+    config.control_remote = control_remote
+        .map(str::to_owned)
+        .or_else(|| config.control_remote.clone());
+    save_drive_config(&config)?;
+    let store = GitPoolDriveStore::open(current_git_pool_config()?)?;
+    Ok(store.backend_status()?)
+}
+
+/// Adds a writable Git pool repo.
+///
+/// # Errors
+/// Returns an error when Git setup or config writes fail.
+pub fn add_git_pool(
+    name: &str,
+    remote_url: &str,
+    max_size_bytes: Option<u64>,
+) -> anyhow::Result<GitPoolRepoConfig> {
+    let store = GitPoolDriveStore::open(current_git_pool_config()?)?;
+    Ok(store.init_pool(name, remote_url, max_size_bytes)?)
+}
+
+/// Mounts another owner Git pool as a read-side fused source.
+///
+/// # Errors
+/// Returns an error when Git setup or config writes fail.
+pub fn mount_git_pool(
+    name: &str,
+    remote_url: &str,
+    owner: &str,
+    readonly: bool,
+) -> anyhow::Result<serde_json::Value> {
+    let store = GitPoolDriveStore::open(current_git_pool_config()?)?;
+    let mount = store.mount_pool(name, remote_url, owner, readonly)?;
+    Ok(serde_json::to_value(mount)?)
+}
+
+/// Unmounts a fused Git pool.
+///
+/// # Errors
+/// Returns an error when config writes fail.
+pub fn unmount_git_pool(name: &str) -> anyhow::Result<()> {
+    let store = GitPoolDriveStore::open(current_git_pool_config()?)?;
+    Ok(store.unmount_pool(name)?)
+}
+
+/// Returns Git Pool backend status.
+///
+/// # Errors
+/// Returns an error when store metadata cannot be read.
+pub fn git_pool_backend_status() -> anyhow::Result<serde_json::Value> {
+    let store = GitPoolDriveStore::open(current_git_pool_config()?)?;
+    Ok(store.backend_status()?)
+}
+
+/// Returns the selected Drive backend status without forcing legacy backends
+/// through the Git Pool path.
+///
+/// # Errors
+/// Returns an error when Git Pool metadata cannot be read.
+pub fn drive_backend_status() -> anyhow::Result<serde_json::Value> {
+    let config = current_drive_config()?;
+    if config.backend == "git_pool" {
+        return git_pool_backend_status();
+    }
+    Ok(serde_json::json!({
+        "backend": config.backend,
+        "git_pool_root": config.git_pool_root.unwrap_or_else(default_git_pool_root),
+        "default_pool_limit_bytes": config.default_pool_limit_bytes,
+        "postgres_configured": database_url().is_some(),
+        "object_store_configured": s3_config().is_some(),
+    }))
+}
+
+/// Persists the drive backend selector.
+///
+/// # Errors
+/// Returns an error when config cannot be written.
+pub fn use_drive_backend(backend: &str) -> anyhow::Result<()> {
+    let mut config = current_drive_config()?;
+    config.backend = normalize_backend_name(backend)?;
+    config
+        .git_pool_root
+        .get_or_insert_with(default_git_pool_root);
+    save_drive_config(&config)
+}
+
+/// Imports currently hosted local paths into the Git Pool backend.
+///
+/// # Errors
+/// Returns an error when hosted state cannot be loaded or any file cannot be
+/// hosted into the Git Pool store.
+pub async fn migrate_local_state_to_git_pool() -> anyhow::Result<Vec<az_drive_agent::HostedStatus>>
+{
+    use_drive_backend("git_pool")?;
+    let state_store = LocalStateStore::new(LocalStateStore::default_path());
+    let state = state_store.load_or_init().await?;
+    let agent = build_agent().await?;
+    migrate_state_paths(&agent, &state).await
+}
+
+async fn migrate_state_paths(
+    agent: &DriveAgent,
+    state: &LocalState,
+) -> anyhow::Result<Vec<az_drive_agent::HostedStatus>> {
+    let mut statuses = Vec::new();
+    for root in &state.hosted_roots {
+        if root.local_path.exists() {
+            statuses.extend(
+                agent
+                    .host_path(
+                        &root.local_path.to_string_lossy(),
+                        Some(&root.root_alias),
+                        None,
+                    )
+                    .await?,
+            );
+        }
+    }
+    for hosted in &state.hosted {
+        if hosted.local_path.exists() {
+            statuses.extend(
+                agent
+                    .host_path(
+                        &hosted.local_path.to_string_lossy(),
+                        Some(&hosted.root_alias),
+                        Some(&hosted.relative_path),
+                    )
+                    .await?,
+            );
+        }
+    }
+    Ok(statuses)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DriveBackend {
+    GitPool,
+    PgMinio,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DriveTomlConfig {
+    backend: String,
+    git_pool_root: Option<PathBuf>,
+    control_remote: Option<String>,
+    default_pool_limit_bytes: u64,
+}
+
+fn current_drive_backend() -> anyhow::Result<DriveBackend> {
+    match current_drive_config()?.backend.as_str() {
+        "pg_minio" => Ok(DriveBackend::PgMinio),
+        _ => Ok(DriveBackend::GitPool),
+    }
+}
+
+fn current_git_pool_config() -> anyhow::Result<GitPoolConfig> {
+    let config = current_drive_config()?;
+    Ok(GitPoolConfig {
+        root: config.git_pool_root.unwrap_or_else(default_git_pool_root),
+        owner_drive_id: default_owner_drive_id(),
+        control_remote: config.control_remote,
+        default_pool_limit_bytes: config.default_pool_limit_bytes,
+    })
+}
+
+fn current_drive_config() -> anyhow::Result<DriveTomlConfig> {
+    let Some(path) = drive_toml_path() else {
+        return Ok(default_drive_toml_config());
+    };
+    if !path.exists() {
+        return Ok(default_drive_toml_config());
+    }
+    let raw = fs::read_to_string(&path)
+        .with_context(|| format!("读取 Drive 配置失败: {}", path.display()))?;
+    let doc = raw
+        .parse::<DocumentMut>()
+        .with_context(|| format!("解析 Drive 配置失败: {}", path.display()))?;
+    let mut config = default_drive_toml_config();
+    if let Some(backend) = doc
+        .get("backend")
+        .and_then(toml_edit::Item::as_str)
+        .filter(|value| !value.trim().is_empty())
+    {
+        config.backend = normalize_backend_name(backend)?;
+    }
+    if let Some(root) = doc
+        .get("git_pool_root")
+        .and_then(toml_edit::Item::as_str)
+        .filter(|value| !value.trim().is_empty())
+    {
+        config.git_pool_root = Some(expand_home_path(root));
+    }
+    if let Some(remote) = doc
+        .get("control_remote")
+        .and_then(toml_edit::Item::as_str)
+        .filter(|value| !value.trim().is_empty())
+    {
+        config.control_remote = Some(remote.to_owned());
+    }
+    if let Some(limit) = doc
+        .get("default_pool_limit_bytes")
+        .and_then(toml_edit::Item::as_integer)
+        .and_then(|value| u64::try_from(value).ok())
+    {
+        config.default_pool_limit_bytes = limit;
+    }
+    Ok(config)
+}
+
+fn save_drive_config(config: &DriveTomlConfig) -> anyhow::Result<()> {
+    let path = drive_toml_path().context("无法定位 ~/.config/aio/drive.toml")?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("创建 Drive 配置目录失败: {}", parent.display()))?;
+    }
+    let mut doc = DocumentMut::new();
+    doc["backend"] = value(config.backend.as_str());
+    doc["git_pool_root"] = value(path_to_config_string(
+        config
+            .git_pool_root
+            .clone()
+            .unwrap_or_else(default_git_pool_root),
+    ));
+    if let Some(remote) = &config.control_remote {
+        doc["control_remote"] = value(remote.as_str());
+    }
+    doc["default_pool_limit_bytes"] = value(config.default_pool_limit_bytes as i64);
+    fs::write(&path, doc.to_string())
+        .with_context(|| format!("写入 Drive 配置失败: {}", path.display()))
+}
+
+fn default_drive_toml_config() -> DriveTomlConfig {
+    DriveTomlConfig {
+        backend: "git_pool".to_owned(),
+        git_pool_root: Some(default_git_pool_root()),
+        control_remote: None,
+        default_pool_limit_bytes: az_drive_store::DEFAULT_GIT_POOL_LIMIT_BYTES,
+    }
+}
+
+fn normalize_backend_name(value: &str) -> anyhow::Result<String> {
+    match value.trim().replace('-', "_").as_str() {
+        "git_pool" => Ok("git_pool".to_owned()),
+        "pg_minio" | "pg" | "postgres_minio" => Ok("pg_minio".to_owned()),
+        other => anyhow::bail!("不支持的 Drive backend: {other}"),
+    }
+}
+
+fn drive_toml_path() -> Option<PathBuf> {
+    aio_config_dir().map(|dir| dir.join("drive.toml"))
+}
+
+fn path_to_config_string(path: PathBuf) -> String {
+    let Some(home) = env::var_os("HOME").map(PathBuf::from) else {
+        return path.display().to_string();
+    };
+    if let Ok(rest) = path.strip_prefix(&home) {
+        if rest.as_os_str().is_empty() {
+            return "~".to_owned();
+        }
+        return format!("~/{}", rest.display());
+    }
+    path.display().to_string()
+}
+
+fn expand_home_path(raw: &str) -> PathBuf {
+    if let Some(home) = env::var_os("HOME").map(PathBuf::from) {
+        if raw == "~" {
+            return home;
+        }
+        if let Some(rest) = raw.strip_prefix("~/") {
+            return home.join(rest);
+        }
+        if let Some(rest) = raw.strip_prefix("$HOME/") {
+            return home.join(rest);
+        }
+    }
+    PathBuf::from(raw)
 }
 
 /// Returns a configuration value from process env or drive env files.
@@ -206,18 +607,34 @@ pub fn aio_config_dir() -> Option<PathBuf> {
 struct AuthFile {
     username: String,
     #[serde(default)]
+    drive_api_key: Option<DriveApiKeyFile>,
+    #[serde(default)]
     trusted_api_keys: Vec<TrustedApiKeyFile>,
+}
+
+impl AuthFile {
+    fn default_owner_drive_id(&self) -> Option<String> {
+        self.drive_api_key
+            .as_ref()
+            .map(|key| key.owner_drive_id.clone())
+            .filter(|drive| !drive.trim().is_empty())
+            .or_else(|| {
+                (!self.username.trim().is_empty())
+                    .then(|| owner_drive_id_for_username(&self.username))
+            })
+    }
+}
+
+#[derive(Deserialize)]
+struct DriveApiKeyFile {
+    #[serde(alias = "owner_space_id")]
+    owner_drive_id: String,
 }
 
 #[derive(Deserialize)]
 struct TrustedApiKeyFile {
-    owner_space_id: String,
-}
-
-fn auth_username() -> Option<String> {
-    read_auth_file()
-        .map(|auth| auth.username)
-        .filter(|username| !username.trim().is_empty())
+    #[serde(alias = "owner_space_id")]
+    owner_drive_id: String,
 }
 
 fn read_auth_file() -> Option<AuthFile> {
@@ -226,9 +643,9 @@ fn read_auth_file() -> Option<AuthFile> {
     serde_json::from_str(&content).ok()
 }
 
-fn push_unique_space(spaces: &mut Vec<String>, space: String) {
-    if !space.trim().is_empty() && !spaces.contains(&space) {
-        spaces.push(space);
+fn push_unique_drive(drives: &mut Vec<String>, drive: String) {
+    if !drive.trim().is_empty() && !drives.contains(&drive) {
+        drives.push(drive);
     }
 }
 

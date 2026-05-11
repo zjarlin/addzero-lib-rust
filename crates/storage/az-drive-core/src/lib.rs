@@ -3,7 +3,7 @@
 //! 独立 AIO 网盘的核心路径、版本和冲突规则。
 //!
 //! 本 crate 刻意将本地绝对路径排除在远程标识之外。
-//! 远程文件通过 `space + root_alias + relative_path` 进行标识，
+//! 远程文件通过 `owner_drive + root_alias + relative_path` 进行标识，
 //! 而各设备在本地存储各自的绝对路径映射。
 
 use chrono::{DateTime, Utc};
@@ -189,7 +189,7 @@ impl TryFrom<&str> for RelativePath {
 /// Stable remote identity for a file or directory.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct EntryKey {
-    /// Drive space or tenant.
+    /// Owner Drive namespace.
     pub space_id: String,
     /// Cross-device root alias.
     pub root_alias: RootAlias,
@@ -212,7 +212,7 @@ impl EntryKey {
         }
     }
 
-    /// Returns the canonical remote path `space/root/relative`.
+    /// Returns the canonical remote path `owner_drive/root/relative`.
     #[must_use]
     pub fn remote_path(&self) -> String {
         if self.relative_path.is_root() {

@@ -15,3 +15,12 @@ fn public_drive_crates_are_importable_for_future_aio_integration() {
     assert_eq!(relative.as_str(), "notes/a.md");
     assert_eq!(config.space_id, "main");
 }
+
+#[test]
+fn owner_drive_id_is_stable_for_user_api_key_ownership() {
+    assert_eq!(
+        az_drive_app::owner_drive_id_for_username("zjarlin"),
+        "user-zjarlin"
+    );
+    assert_eq!(az_drive_app::owner_drive_id_for_username("张三"), "user-__");
+}

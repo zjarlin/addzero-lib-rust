@@ -52,6 +52,8 @@ pub enum OpenAiAuthStage {
     AwaitingUserAction,
     /// Onboarding / "About You" page (name, age, etc.).
     OnboardingRequired,
+    /// OpenAI rejected the registration based on Terms of Service.
+    TermsRejected,
 }
 
 /// Step identifiers for manual OpenAI entry-flow recording.
@@ -454,7 +456,8 @@ impl OpenAiAuthAutomation {
         thread::sleep(auth_options.step_delay);
 
         if auth_options.flow == OpenAiAuthFlow::SignUp {
-            let _ = click_button_by_text(tab, &["Sign up", "Create account", "注册", "Create", "Get started", "Don\'t have", "sign up", "Create", "Get started", "Start", "Register", "Don\'t have"]);
+            eprintln!("[DEBUG] attempting to click submit button...");
+        let _ = click_button_by_text(tab, &["Sign up", "Create account", "注册", "Create", "Get started", "Don\'t have", "sign up", "Create", "Get started", "Start", "Register", "Don\'t have"]);
             thread::sleep(auth_options.step_delay);
         }
 
@@ -619,6 +622,8 @@ struct AuthPageState {
     has_captcha: bool,
     #[serde(default)]
     has_onboarding: bool,
+    #[serde(default)]
+    has_terms_rejected: bool,
 }
 
 impl AuthPageState {
@@ -801,6 +806,11 @@ fn read_state(tab: &Arc<Tab>) -> BrowserAutomationResult<AuthPageState> {
                     '邮箱验证',
                     '安全码',
                 ].some((token) => bodyText.includes(token));
+            const hasTermsRejected = bodyText.includes('使用条款')
+                || bodyText.includes('terms of use')
+                || bodyText.includes('terms of service')
+                || bodyText.includes('cannot create')
+                || bodyText.includes('无法创建');
             const hasCaptcha = bodyText.includes('captcha')
                 || document.querySelector('[class*="captcha" i], [id*="captcha" i], iframe[src*="captcha" i], iframe[src*="hcaptcha" i], iframe[src*="recaptcha" i], iframe[src*="turnstile" i]') !== null;
             return {
@@ -809,7 +819,8 @@ fn read_state(tab: &Arc<Tab>) -> BrowserAutomationResult<AuthPageState> {
                 hasPasswordInput,
                 hasVerification,
                 hasCaptcha,
-                hasOnboarding
+                hasOnboarding,
+                hasTermsRejected
             };
         })()
         "#,
@@ -860,7 +871,9 @@ fn fill_first_visible(
         }})()
         "#
     );
-    evaluate_json(tab, &script).map(|value| value.as_bool().unwrap_or(false))
+    let click_result = evaluate_json(tab, &script).map(|value| value.as_bool().unwrap_or(false));
+    eprintln!("[DEBUG] click_button_by_text result={:?}", click_result);
+    click_result
 }
 
 fn click_button_by_text(tab: &Arc<Tab>, labels: &[&str]) -> BrowserAutomationResult<bool> {
@@ -899,7 +912,9 @@ fn click_button_by_text(tab: &Arc<Tab>, labels: &[&str]) -> BrowserAutomationRes
         }})()
         "#
     );
-    evaluate_json(tab, &script).map(|value| value.as_bool().unwrap_or(false))
+    let click_result = evaluate_json(tab, &script).map(|value| value.as_bool().unwrap_or(false));
+    eprintln!("[DEBUG] click_button_by_text result={:?}", click_result);
+    click_result
 }
 
 fn click_first_visible(tab: &Arc<Tab>, selectors: &[&str]) -> BrowserAutomationResult<bool> {
@@ -928,7 +943,9 @@ fn click_first_visible(tab: &Arc<Tab>, selectors: &[&str]) -> BrowserAutomationR
         }})()
         "#
     );
-    evaluate_json(tab, &script).map(|value| value.as_bool().unwrap_or(false))
+    let click_result = evaluate_json(tab, &script).map(|value| value.as_bool().unwrap_or(false));
+    eprintln!("[DEBUG] click_button_by_text result={:?}", click_result);
+    click_result
 }
 
 fn evaluate_json(tab: &Arc<Tab>, js: &str) -> BrowserAutomationResult<Value> {
@@ -1229,7 +1246,8 @@ impl OpenAiRegAutomation {
             random_jitter();
 
             // Click "Sign up" / "Create account" if on the login page.
-            let _ = click_button_by_text(tab, &["Sign up", "Create account", "注册", "Create", "Get started", "Don\\'t have"]);
+            eprintln!("[DEBUG] attempting to click submit button...");
+        let _ = click_button_by_text(tab, &["Sign up", "Create account", "注册", "Create", "Get started", "Don\\'t have"]);
             thread::sleep(auth_options.step_delay);
             random_jitter();
 
@@ -1333,7 +1351,7 @@ impl OpenAiRegAutomation {
                 random_jitter();
 
                 state = wait_for_state(tab, Duration::from_secs(25), |s| {
-                    s.is_authenticated() || s.has_verification || s.has_captcha
+                    s.is_authenticated() || s.has_verification || s.has_captcha || s.has_onboarding
                 })?;
 
                 if state.is_authenticated() {
@@ -1352,18 +1370,38 @@ impl OpenAiRegAutomation {
                     );
                     return Ok((r, None, None));
                 }
-                // ── onboarding (About You: name + age) ──
-                if state.has_onboarding {
-                    random_jitter();
-                    state = Self::handle_onboarding(tab, auth_options.step_delay)?;
-                    if state.is_authenticated() {
-                        let r = result(
-                            OpenAiAuthStage::Authenticated,
-                            state,
-                            "authenticated after onboarding",
-                        );
-                        return Ok((r, None, None));
-                    }
+            }
+
+            // ── terms rejected ──
+            if state.has_terms_rejected {
+                let r = result(
+                    OpenAiAuthStage::TermsRejected,
+                    state,
+                    "OpenAI rejected registration based on Terms of Service",
+                );
+                return Ok((r, None, None));
+            }
+
+            // ── onboarding (About You: name + age) ──
+            eprintln!("[DEBUG] has_onboarding={} has_password_input={} has_verification={} url={}", state.has_onboarding, state.has_password_input, state.has_verification, state.url);
+            if state.has_onboarding {
+                random_jitter();
+                state = Self::handle_onboarding(tab, auth_options.step_delay)?;
+                if state.is_authenticated() {
+                    let r = result(
+                        OpenAiAuthStage::Authenticated,
+                        state,
+                        "authenticated after onboarding",
+                    );
+                    return Ok((r, None, None));
+                }
+                if state.has_terms_rejected {
+                    let r = result(
+                        OpenAiAuthStage::TermsRejected,
+                        state,
+                        "OpenAI rejected registration based on Terms of Service",
+                    );
+                    return Ok((r, None, None));
                 }
             }
 
@@ -1427,14 +1465,16 @@ impl OpenAiRegAutomation {
         tab: &Arc<Tab>,
         step_delay: Duration,
     ) -> BrowserAutomationResult<AuthPageState> {
+        eprintln!("[DEBUG] handle_onboarding entered");
         // Fill name + age (first two visible textboxes in DOM order)
                 let name = random_full_name();
         let age = random_age();
+        eprintln!("[DEBUG] filling: name={} age={}", name, age);
         Self::fill_all_textboxes(tab, &[&name, &age.to_string()])?;
-        thread::sleep(step_delay);
-        random_jitter();
+        thread::sleep(Duration::from_secs(2));
 
         // Click submit
+        eprintln!("[DEBUG] attempting to click submit button...");
         let _ = click_button_by_text(
             tab,
             &[
@@ -1451,8 +1491,15 @@ impl OpenAiRegAutomation {
         );
         thread::sleep(Duration::from_secs(3));
 
+        // Check for terms rejection before polling
+        let immediate_state = read_state(tab)?;
+        if immediate_state.has_terms_rejected {
+            eprintln!("[DEBUG] handle_onboarding detected terms rejection");
+            return Ok(immediate_state);
+        }
+
         let state = wait_for_state(tab, Duration::from_secs(15), |s| {
-            s.is_authenticated() || s.has_captcha || s.has_onboarding
+            s.is_authenticated() || s.has_captcha || s.has_onboarding || s.has_terms_rejected
         })?;
         // If still on onboarding, return onboarding state
         if state.has_onboarding && !state.is_authenticated() {
@@ -1526,7 +1573,9 @@ impl OpenAiRegAutomation {
             }})()
             "#
         );
-        evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false))
+        let result = evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false));
+        eprintln!("[DEBUG] fill_all_textboxes result={:?}", result);
+        result
     }
 
     /// Fills a React Aria textbox by searching for a visible textbox whose
@@ -1608,7 +1657,9 @@ impl OpenAiRegAutomation {
             }})()
             "#
         );
-        evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false))
+        let result = evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false));
+        eprintln!("[DEBUG] fill_all_textboxes result={:?}", result);
+        result
     }
 
     /// Polls the disposable mailbox for an email verification code and enters
@@ -1789,7 +1840,9 @@ impl OpenAiRegAutomation {
             }})()
             "#
         );
-        evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false))
+        let result = evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false));
+        eprintln!("[DEBUG] fill_all_textboxes result={:?}", result);
+        result
     }
 
     /// Fills a phone number into the first matching phone input.
@@ -1828,7 +1881,9 @@ impl OpenAiRegAutomation {
             }})()
             "#
         );
-        evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false))
+        let result = evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false));
+        eprintln!("[DEBUG] fill_all_textboxes result={:?}", result);
+        result
     }
 }
 

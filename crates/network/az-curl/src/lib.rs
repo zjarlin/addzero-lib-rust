@@ -1,3 +1,20 @@
+//! 将 curl 命令字符串解析为结构化的 HTTP 请求表示，并支持直接执行。
+//!
+//! `az-curl` 提供 [`CurlParser`] 解析 curl 命令行字符串，提取方法、URL、
+//! 请求头、请求体、表单参数等信息，输出 [`ParsedCurl`] 结构体。
+//! 同时提供 [`CurlBuilder`] 以 Builder 模式程序化构建请求，以及 [`curl!`]
+//! 宏在编译期完成解析。
+//!
+//! # 示例
+//!
+//! ```
+//! use az_curl::CurlParser;
+//!
+//! let parsed = CurlParser::parse(r#"curl -H "Accept: application/json" https://api.example.com"#)?;
+//! assert_eq!(parsed.url, "https://api.example.com");
+//! # Ok::<(), az_curl::CurlError>(())
+//! ```
+
 use base64::Engine;
 use regex::Regex;
 use reqwest::Method;

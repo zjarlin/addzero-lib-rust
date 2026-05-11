@@ -1,3 +1,48 @@
+//! MQTT 客户端封装，基于 rumqttc 提供同步的发布/订阅接口。
+//!
+//! # 核心类型
+//!
+//! - [`MqttConfig`] — MQTT 连接配置，支持 TLS（CA 证书 + 客户端证书双向认证），
+//!   凭证字段在 `Debug` 输出中自动脱敏。
+//! - [`MqttClient`] — 客户端主入口，内部维护后台轮询线程，通过 [`MqttMessage`] 发布消息，
+//!   通过 `subscribe()` / `subscribe_many()` 订阅主题，通过 `receive()` / `receive_timeout()` 获取收到的消息。
+//! - [`MqttMessage`] — 待发布消息构建器，支持 topic、payload（字节或字符串）、QoS 和 retain 标志。
+//! - [`MqttReceivedMessage`] — 收到的消息，包含 topic、payload、QoS、retain、duplicate 及 packet_id。
+//! - [`MqttQoS`] — QoS 等级枚举（AtMostOnce / AtLeastOnce / ExactlyOnce），与 rumqttc 双向转换。
+//! - [`MqttError`] — 统一错误类型。
+//!
+//! # 关键功能
+//!
+//! - **Builder 模式**：`MqttConfig::builder(host, client_id)` 和 `MqttMessage::builder(topic)` 提供链式配置。
+//! - **TLS 支持**：通过 `ca_path()` 和 `client_auth_paths()` 配置 CA 和客户端证书，自动启用 TLS。
+//! - **Last Will**：通过 `last_will()` 设置遗嘱消息。
+//! - **批量接收**：`collect_messages(max, timeout)` 在超时内收集最多 N 条消息。
+//! - **自动断开清理**：`MqttClient` 实现 `Drop`，析构时自动停止后台线程并断开连接。
+//! - **禁止 unsafe**：整个 crate 使用 `#![forbid(unsafe_code)]`。
+//!
+//! # 快速开始
+//!
+//! ```rust,no_run
+//! use az_mqtt::{MqttConfig, MqttClient, MqttMessage, MqttQoS};
+//! use std::time::Duration;
+//!
+//! let config = MqttConfig::builder("broker.example.com", "my-client")
+//!     .port(1883)
+//!     .build()
+//!     .unwrap();
+//!
+//! let client = MqttClient::connect(config).unwrap();
+//!
+//! client.subscribe("sensors/temperature", MqttQoS::AtLeastOnce).unwrap();
+//!
+//! client.publish_str("sensors/humidity", "65.3", MqttQoS::AtMostOnce, false).unwrap();
+//!
+//! if let Ok(Some(msg)) = client.receive_timeout(Duration::from_secs(5)) {
+//!     println!("收到: {} -> {}", msg.topic, msg.payload_as_utf8_lossy());
+//! }
+//!
+//! client.disconnect().unwrap();
+//! ```
 #![forbid(unsafe_code)]
 
 use rumqttc::{

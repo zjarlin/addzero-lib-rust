@@ -10,30 +10,111 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// 注册 AIO 用户到本机配置的系统用户表
+    #[command(about = "注册 AIO 用户到本机配置的系统用户表")]
     Reg(RegArgs),
-    /// 登录 AIO 后台并保存本机 CLI 登录态
+    #[command(about = "登录 AIO 后台并保存本机 CLI 登录态")]
     Login(LoginArgs),
-    /// 清除本机 CLI 登录态，并尽量通知后台退出会话
+    #[command(about = "清除本机 CLI 登录态，并尽量通知后台退出会话")]
     Logout(AuthServerArgs),
-    /// 查看当前本机 CLI 登录态
+    #[command(about = "查看当前本机 CLI 登录态")]
     Whoami(AuthServerArgs),
-    /// 管理 API key 和本机融合源
+    #[command(about = "管理 API key 和本机融合源")]
     #[command(subcommand, alias = "apikey")]
     Key(KeyCommand),
-    /// 启动本机 TUI 工作台
-    Tui,
-    /// 启动 API 后端服务
+    #[command(about = "管理 AIO CLI 元数据、skill.sh 和外部 CLI")]
+    #[command(subcommand)]
+    Cli(AioCliCommand),
+    #[command(about = "启动 API 后端服务")]
     Serve,
-    /// AIO Drive 文件托管命令
+    #[command(about = "AIO Drive 文件托管命令")]
     #[command(subcommand)]
     Drive(az_drive_app::cli::DriveCommand),
-    /// 运行数据库迁移
+    #[command(about = "运行数据库迁移")]
     Migrate,
-    /// 打印当前架构状态
+    #[command(about = "打印当前架构状态")]
     Status,
-    /// 面向 agent 的系统治理 CLI
+    #[command(about = "面向 agent 的系统治理 CLI")]
     System(SystemCli),
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum CliOutputFormat {
+    Table,
+    Json,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum AioCliCommand {
+    #[command(about = "输出 AIO 内置 CLI 命令元数据")]
+    Metadata(CliMetadataArgs),
+    #[command(about = "安装或打印面向 agent 的 skill.sh")]
+    #[command(subcommand)]
+    Skill(AioCliSkillCommand),
+    #[command(about = "添加一个本机外部 CLI")]
+    Add(ExternalCliAddArgs),
+    #[command(about = "列出本机外部 CLI")]
+    List(ExternalCliListArgs),
+    #[command(about = "移除一个本机外部 CLI")]
+    Remove(ExternalCliRemoveArgs),
+    #[command(about = "运行一个本机外部 CLI")]
+    Run(ExternalCliRunArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct CliMetadataArgs {
+    #[arg(long, value_enum, default_value_t = CliOutputFormat::Table)]
+    pub format: CliOutputFormat,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum AioCliSkillCommand {
+    #[command(about = "写入 ~/.agents/skills/aio-cli/skill.sh")]
+    Install(CliSkillInstallArgs),
+    #[command(about = "打印将要安装的 skill.sh")]
+    Print,
+}
+
+#[derive(Debug, Args)]
+pub struct CliSkillInstallArgs {
+    #[arg(long)]
+    pub root: Option<String>,
+    #[arg(long)]
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct ExternalCliAddArgs {
+    pub name: String,
+    #[arg(long)]
+    pub command: String,
+    #[arg(long = "arg")]
+    pub args: Vec<String>,
+    #[arg(long, default_value = "")]
+    pub description: String,
+    #[arg(long)]
+    pub working_dir: Option<String>,
+    #[arg(long = "env")]
+    pub env: Vec<String>,
+    #[arg(long)]
+    pub replace: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct ExternalCliListArgs {
+    #[arg(long, value_enum, default_value_t = CliOutputFormat::Table)]
+    pub format: CliOutputFormat,
+}
+
+#[derive(Debug, Args)]
+pub struct ExternalCliRemoveArgs {
+    pub name: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ExternalCliRunArgs {
+    pub name: String,
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    pub args: Vec<String>,
 }
 
 #[derive(Debug, Args)]
@@ -439,4 +520,18 @@ pub struct DictItemUpdateArgs {
     pub value: String,
     #[arg(long, default_value_t = 0)]
     pub sort_order: i32,
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    use super::Cli;
+
+    #[test]
+    fn root_help_should_not_expose_tui_command() {
+        let help = Cli::command().render_long_help().to_string();
+
+        assert!(!help.contains("tui"));
+    }
 }

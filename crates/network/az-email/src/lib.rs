@@ -1,3 +1,41 @@
+//! SMTP 邮件发送客户端，基于 lettre 封装。
+//!
+//! # 核心类型
+//!
+//! - [`EmailConfig`] — SMTP 服务器连接配置，支持 SSL/TLS，密码字段在 `Debug` 输出中自动脱敏。
+//! - [`EmailMessage`] — 邮件消息构建器，支持纯文本、HTML、多收件人（to/cc/bcc）及文件附件。
+//! - [`SmtpEmailSender`] — 实现 [`EmailSender`] trait 的 SMTP 发送器。
+//! - [`EmailError`] — 统一错误类型，覆盖配置校验、地址解析、消息构建、传输和附件 IO 等场景。
+//!
+//! # 关键功能
+//!
+//! - **Builder 模式**：`EmailConfig::builder(...)` 和 `EmailMessage::builder()` 提供链式配置。
+//! - **全局默认发送器**：通过 `set_default_sender()` / `clear_default_sender()` 管理进程级默认发送器，
+//!   随后可用模块级 `send()` 便捷函数发送邮件。
+//! - **快捷函数**：`send_text()` 和 `send_html()` 封装"构建 + 发送"一步到位。
+//! - **附件支持**：自动根据文件路径推断 MIME 类型。
+//!
+//! # 快速开始
+//!
+//! ```rust,no_run
+//! use az_email::{EmailConfig, EmailMessage, send_with_config};
+//!
+//! let config = EmailConfig::builder("smtp.example.com", "user", "pass")
+//!     .port(587)
+//!     .build()
+//!     .unwrap();
+//!
+//! let message = EmailMessage::builder()
+//!     .from("sender@example.com")
+//!     .to("receiver@example.com")
+//!     .subject("测试邮件")
+//!     .text("这是一封测试邮件。")
+//!     .build()
+//!     .unwrap();
+//!
+//! send_with_config(&config, &message).unwrap();
+//! ```
+use lettre::message::header::ContentType;
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;

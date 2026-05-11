@@ -5,6 +5,7 @@
 
 static NSString * const AIOLogFileName = @"az-drive-finder-sync.log";
 static NSString * const AIOHostedBadgeID = @"hosted";
+static NSString * const AIOSharedBadgeID = @"shared";
 static NSString * const AIOBusyBadgeID = @"busy";
 static NSString * const AIOErrorBadgeID = @"error";
 extern int NSExtensionMain(int argc, char **argv);
@@ -14,7 +15,9 @@ extern int NSExtensionMain(int argc, char **argv);
 @end
 
 static NSImage *AIOHostedBadgeImage(void);
+static NSImage *AIOSharedBadgeImage(void);
 static NSImage *AIOBadgeImage(NSString *symbolName, NSString *fallbackName, NSString *description);
+static void AIOAppendLog(NSString *message);
 
 static NSURL *AIOURLForPath(NSString *path, BOOL isDirectory) {
     return [NSURL fileURLWithPath:path isDirectory:isDirectory];
@@ -53,6 +56,102 @@ static NSArray<NSString *> *AIOStateFileCandidates(void) {
     [paths addObject:[home stringByAppendingPathComponent:@"Library/Application Support/addzero/drive/state.json"]];
     [paths addObject:[home stringByAppendingPathComponent:@".config/addzero/drive/state.json"]];
     return paths;
+}
+
+static NSString *AIOOwnerDriveIDForUsername(NSString *username) {
+    NSMutableString *safe = [NSMutableString string];
+    for (NSUInteger index = 0; index < username.length; index++) {
+        unichar ch = [username characterAtIndex:index];
+        BOOL allowed = (ch >= 'a' && ch <= 'z') ||
+            (ch >= 'A' && ch <= 'Z') ||
+            (ch >= '0' && ch <= '9') ||
+            ch == '-' ||
+            ch == '_';
+        if (allowed) {
+            [safe appendFormat:@"%C", ch];
+        } else {
+            [safe appendString:@"_"];
+        }
+    }
+    if (safe.length == 0) {
+        return @"main";
+    }
+    return [@"user-" stringByAppendingString:safe];
+}
+
+static NSString *AIOAuthFilePath(void) {
+    return [[AIORealHomeDirectory() stringByAppendingPathComponent:@".config/aio"]
+            stringByAppendingPathComponent:@"auth.json"];
+}
+
+static NSString *AIODictionaryString(NSDictionary *dictionary, NSString *key) {
+    NSString *value = dictionary[key];
+    if ([value isKindOfClass:NSString.class] && value.length > 0) {
+        return value;
+    }
+    return nil;
+}
+
+static NSString *AIOOwnerDriveIDFromDictionary(NSDictionary *dictionary) {
+    NSString *ownerDriveID = AIODictionaryString(dictionary, @"owner_drive_id");
+    if (ownerDriveID.length > 0) {
+        return ownerDriveID;
+    }
+    return AIODictionaryString(dictionary, @"owner_space_id");
+}
+
+static NSDictionary *AIOAuthDictionary(void) {
+    NSData *data = [NSData dataWithContentsOfFile:AIOAuthFilePath()];
+    if (data.length == 0) {
+        return nil;
+    }
+    NSError *error = nil;
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+    if (error != nil || ![json isKindOfClass:NSDictionary.class]) {
+        AIOAppendLog([NSString stringWithFormat:@"failed to read auth state %@: %@",
+                      AIOAuthFilePath(),
+                      error]);
+        return nil;
+    }
+    return (NSDictionary *)json;
+}
+
+static NSString *AIOPrimaryOwnerDriveID(void) {
+    NSDictionary *auth = AIOAuthDictionary();
+    if (auth == nil) {
+        return @"main";
+    }
+    NSDictionary *driveApiKey = auth[@"drive_api_key"];
+    if ([driveApiKey isKindOfClass:NSDictionary.class]) {
+        NSString *ownerDriveID = AIOOwnerDriveIDFromDictionary(driveApiKey);
+        if (ownerDriveID.length > 0) {
+            return ownerDriveID;
+        }
+    }
+    NSString *username = auth[@"username"];
+    if (![username isKindOfClass:NSString.class] || username.length == 0) {
+        return @"main";
+    }
+    return AIOOwnerDriveIDForUsername(username);
+}
+
+static NSSet<NSString *> *AIOTrustedOwnerDriveIDs(void) {
+    NSDictionary *auth = AIOAuthDictionary();
+    NSArray *items = auth[@"trusted_api_keys"];
+    if (![items isKindOfClass:NSArray.class]) {
+        return [NSSet set];
+    }
+    NSMutableSet<NSString *> *drives = [NSMutableSet set];
+    for (id item in items) {
+        if (![item isKindOfClass:NSDictionary.class]) {
+            continue;
+        }
+        NSString *ownerDriveID = AIOOwnerDriveIDFromDictionary((NSDictionary *)item);
+        if (ownerDriveID.length > 0) {
+            [drives addObject:ownerDriveID];
+        }
+    }
+    return drives;
 }
 
 static void AIOAppendLog(NSString *message) {
@@ -119,7 +218,7 @@ static BOOL AIOPathContainsOrEquals(NSString *container, NSString *candidate) {
     return [right hasPrefix:prefix];
 }
 
-static NSArray<NSString *> *AIOStatePathsForKey(NSString *key) {
+static NSArray<NSDictionary *> *AIOStateItemsForKey(NSString *key) {
     NSFileManager *fileManager = [NSFileManager defaultManager];
     for (NSString *path in AIOStateFileCandidates()) {
         if (![fileManager fileExistsAtPath:path]) {
@@ -139,19 +238,49 @@ static NSArray<NSString *> *AIOStatePathsForKey(NSString *key) {
         if (![items isKindOfClass:NSArray.class]) {
             return @[];
         }
-        NSMutableArray<NSString *> *paths = [NSMutableArray array];
+        NSMutableArray<NSDictionary *> *records = [NSMutableArray array];
         for (id item in items) {
             if (![item isKindOfClass:NSDictionary.class]) {
                 continue;
             }
-            NSString *localPath = ((NSDictionary *)item)[@"local_path"];
-            if ([localPath isKindOfClass:NSString.class] && localPath.length > 0) {
-                [paths addObject:AIONormalizedPath(localPath)];
-            }
+            [records addObject:(NSDictionary *)item];
         }
-        return paths;
+        return records;
     }
     return @[];
+}
+
+static NSString *AIOStateItemLocalPath(NSDictionary *item) {
+    NSString *localPath = item[@"local_path"];
+    if ([localPath isKindOfClass:NSString.class] && localPath.length > 0) {
+        return AIONormalizedPath(localPath);
+    }
+    return nil;
+}
+
+static BOOL AIOStateItemIsShared(NSDictionary *item) {
+    NSString *ownerDriveID = item[@"space_id"];
+    if (![ownerDriveID isKindOfClass:NSString.class] || ownerDriveID.length == 0) {
+        return NO;
+    }
+    if ([ownerDriveID isEqualToString:@"main"]) {
+        return NO;
+    }
+    if ([ownerDriveID isEqualToString:AIOPrimaryOwnerDriveID()]) {
+        return NO;
+    }
+    return [AIOTrustedOwnerDriveIDs() containsObject:ownerDriveID];
+}
+
+static NSArray<NSString *> *AIOStatePathsForKey(NSString *key) {
+    NSMutableArray<NSString *> *paths = [NSMutableArray array];
+    for (NSDictionary *item in AIOStateItemsForKey(key)) {
+        NSString *localPath = AIOStateItemLocalPath(item);
+        if (localPath.length > 0) {
+            [paths addObject:localPath];
+        }
+    }
+    return paths;
 }
 
 static NSArray<NSString *> *AIOHostedPaths(void) {
@@ -171,6 +300,29 @@ static BOOL AIOPathIsHosted(NSString *path) {
     }
     for (NSString *hosted in AIOHostedPaths()) {
         if ([candidate isEqualToString:hosted]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static BOOL AIOPathIsSharedHosted(NSString *path) {
+    NSString *candidate = AIONormalizedPath(path);
+    for (NSDictionary *root in AIOStateItemsForKey(@"hosted_roots")) {
+        if (!AIOStateItemIsShared(root)) {
+            continue;
+        }
+        NSString *rootPath = AIOStateItemLocalPath(root);
+        if (rootPath.length > 0 && AIOPathContainsOrEquals(rootPath, candidate)) {
+            return YES;
+        }
+    }
+    for (NSDictionary *hosted in AIOStateItemsForKey(@"hosted")) {
+        if (!AIOStateItemIsShared(hosted)) {
+            continue;
+        }
+        NSString *hostedPath = AIOStateItemLocalPath(hosted);
+        if (hostedPath.length > 0 && [candidate isEqualToString:hostedPath]) {
             return YES;
         }
     }
@@ -237,6 +389,9 @@ static NSArray<NSURL *> *AIOContextURLs(FIMenuKind menuKind) {
         [controller setBadgeImage:AIOHostedBadgeImage()
                             label:@"AIO Drive 已托管"
                forBadgeIdentifier:AIOHostedBadgeID];
+        [controller setBadgeImage:AIOSharedBadgeImage()
+                            label:@"AIO Drive 融合同步"
+               forBadgeIdentifier:AIOSharedBadgeID];
         [controller setBadgeImage:AIOBadgeImage(@"arrow.triangle.2.circlepath.icloud", NSImageNameRefreshTemplate, @"AIO Drive syncing")
                             label:@"AIO Drive 同步中"
                forBadgeIdentifier:AIOBusyBadgeID];
@@ -282,6 +437,29 @@ static NSImage *AIOHostedBadgeImage(void) {
     [head closePath];
     [[NSColor whiteColor] setFill];
     [head fill];
+
+    [image unlockFocus];
+    image.template = NO;
+    return image;
+}
+
+static NSImage *AIOSharedBadgeImage(void) {
+    NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(20.0, 20.0)];
+    [image lockFocus];
+
+    [[NSColor colorWithSRGBRed:0.10 green:0.36 blue:0.92 alpha:1.0] setFill];
+    NSBezierPath *circle = [NSBezierPath bezierPathWithOvalInRect:NSMakeRect(1.0, 1.0, 18.0, 18.0)];
+    [circle fill];
+
+    [[NSColor whiteColor] setStroke];
+    NSBezierPath *check = [NSBezierPath bezierPath];
+    check.lineWidth = 2.7;
+    check.lineCapStyle = NSLineCapStyleRound;
+    check.lineJoinStyle = NSLineJoinStyleRound;
+    [check moveToPoint:NSMakePoint(4.8, 10.0)];
+    [check lineToPoint:NSMakePoint(8.2, 6.7)];
+    [check lineToPoint:NSMakePoint(15.0, 13.3)];
+    [check stroke];
 
     [image unlockFocus];
     image.template = NO;
@@ -350,7 +528,9 @@ static NSImage *AIOBadgeImage(NSString *symbolName, NSString *fallbackName, NSSt
 }
 
 - (void)requestBadgeIdentifierForURL:(NSURL *)url {
-    NSString *badge = AIOPathIsHosted(url.path) ? AIOHostedBadgeID : @"";
+    NSString *badge = AIOPathIsSharedHosted(url.path)
+        ? AIOSharedBadgeID
+        : (AIOPathIsHosted(url.path) ? AIOHostedBadgeID : @"");
     [[FIFinderSyncController defaultController] setBadgeIdentifier:badge forURL:url];
 }
 

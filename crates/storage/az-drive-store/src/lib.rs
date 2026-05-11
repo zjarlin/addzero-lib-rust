@@ -15,6 +15,13 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use thiserror::Error;
 use uuid::Uuid;
 
+pub mod git_pool;
+
+pub use git_pool::{
+    DEFAULT_GIT_POOL_LIMIT_BYTES, GitPoolConfig, GitPoolDriveStore, GitPoolMountConfig,
+    GitPoolRepoConfig,
+};
+
 /// Built-in PostgreSQL migration for the drive metadata schema.
 pub const DRIVE_MIGRATION_SQL: &str = include_str!("../migrations/0001_drive.sql");
 
@@ -42,6 +49,14 @@ pub enum DriveStoreError {
     /// Object storage operation failed.
     #[error("object storage error: {0}")]
     ObjectStorage(String),
+    /// Git pool operation failed with a concrete failure phase.
+    #[error("git pool {phase}: {message}")]
+    GitPool {
+        /// Stable failure phase such as `git_missing` or `push_failed`.
+        phase: &'static str,
+        /// Concrete cause.
+        message: String,
+    },
     /// Internal in-memory lock was poisoned and could not be recovered.
     #[error("in-memory drive store lock failed")]
     LockPoisoned,
@@ -164,7 +179,7 @@ pub struct DriveConflict {
 pub struct DriveIgnoredPath {
     /// Stable ignore rule id.
     pub id: Uuid,
-    /// Drive space or tenant.
+    /// Owner Drive namespace.
     pub space_id: String,
     /// Cross-device root alias.
     pub root_alias: RootAlias,
@@ -202,8 +217,15 @@ pub trait DriveMetadataStore: Send + Sync {
         prefix: &RelativePath,
     ) -> DriveStoreResult<Vec<DriveEntry>>;
 
-    /// Lists all non-deleted entries in a space.
+    /// Lists all non-deleted entries in an owner Drive namespace.
     async fn list_entries_by_space(&self, space_id: &str) -> DriveStoreResult<Vec<DriveEntry>>;
+
+    /// Migrates legacy namespace rows to the owner Drive namespace.
+    async fn migrate_owner_drive_namespace(
+        &self,
+        from_owner_drive_id: &str,
+        to_owner_drive_id: &str,
+    ) -> DriveStoreResult<u64>;
 
     /// Creates or refreshes an ignore rule for a remote path.
     async fn upsert_ignored_path(
@@ -262,6 +284,32 @@ pub trait DriveObjectStore: Send + Sync {
 
     /// Returns true when the object exists.
     async fn object_exists(&self, object_key: &str) -> DriveStoreResult<bool>;
+}
+
+/// Optional synchronization coordinator for stores that need remote VCS pulls
+/// and pushes around a logical drive operation.
+#[async_trait]
+pub trait DriveSyncCoordinator: Send + Sync {
+    /// Pulls remote state before local reads/writes.
+    async fn prepare_sync(&self) -> DriveStoreResult<()>;
+
+    /// Commits and pushes local state after successful writes.
+    async fn flush_sync(&self) -> DriveStoreResult<()>;
+}
+
+/// No-op coordinator used by database/object-store backends.
+#[derive(Clone, Default)]
+pub struct NoopDriveSyncCoordinator;
+
+#[async_trait]
+impl DriveSyncCoordinator for NoopDriveSyncCoordinator {
+    async fn prepare_sync(&self) -> DriveStoreResult<()> {
+        Ok(())
+    }
+
+    async fn flush_sync(&self) -> DriveStoreResult<()> {
+        Ok(())
+    }
 }
 
 /// Recoverable in-memory implementation for tests and local-only smoke runs.
@@ -374,6 +422,74 @@ impl DriveMetadataStore for InMemoryDriveMetadataStore {
             .collect::<Vec<_>>();
         entries.sort_by(entry_order);
         Ok(entries)
+    }
+
+    async fn migrate_owner_drive_namespace(
+        &self,
+        from_owner_drive_id: &str,
+        to_owner_drive_id: &str,
+    ) -> DriveStoreResult<u64> {
+        if from_owner_drive_id == to_owner_drive_id {
+            return Ok(0);
+        }
+        let mut state = self.state()?;
+        let old_keys = state
+            .entries_by_key
+            .iter()
+            .filter_map(|(key_text, entry)| {
+                (entry.key.space_id == from_owner_drive_id).then_some(key_text.clone())
+            })
+            .collect::<Vec<_>>();
+        let mut migrated = 0;
+        for old_key in old_keys {
+            let Some(mut entry) = state.entries_by_key.remove(&old_key) else {
+                continue;
+            };
+            let new_key = EntryKey::new(
+                to_owner_drive_id,
+                entry.key.root_alias.clone(),
+                entry.key.relative_path.clone(),
+            );
+            let new_key_text = new_key.remote_path();
+            if state.entries_by_key.contains_key(&new_key_text) {
+                entry.deleted = true;
+                entry.updated_at = Utc::now();
+                state.entries_by_key.insert(old_key, entry);
+                continue;
+            }
+            entry.key = new_key;
+            entry.updated_at = Utc::now();
+            state.entries_by_id.insert(entry.id, new_key_text.clone());
+            state.entries_by_key.insert(new_key_text, entry);
+            migrated += 1;
+        }
+
+        let old_ignored_keys = state
+            .ignored_by_key
+            .iter()
+            .filter_map(|(key_text, ignored)| {
+                (ignored.space_id == from_owner_drive_id).then_some(key_text.clone())
+            })
+            .collect::<Vec<_>>();
+        for old_key in old_ignored_keys {
+            let Some(mut ignored) = state.ignored_by_key.remove(&old_key) else {
+                continue;
+            };
+            let new_key = EntryKey::new(
+                to_owner_drive_id,
+                ignored.root_alias.clone(),
+                ignored.relative_path.clone(),
+            );
+            let new_key_text = new_key.remote_path();
+            if state.ignored_by_key.contains_key(&new_key_text) {
+                continue;
+            }
+            ignored.space_id = to_owner_drive_id.to_owned();
+            ignored.updated_at = Utc::now();
+            state.ignored_by_key.insert(new_key_text, ignored);
+            migrated += 1;
+        }
+        Ok(migrated)
     }
 
     async fn upsert_ignored_path(
@@ -769,6 +885,80 @@ impl DriveMetadataStore for PgDriveMetadataStore {
         .await?;
 
         rows.into_iter().map(row_to_entry).collect()
+    }
+
+    async fn migrate_owner_drive_namespace(
+        &self,
+        from_owner_drive_id: &str,
+        to_owner_drive_id: &str,
+    ) -> DriveStoreResult<u64> {
+        if from_owner_drive_id == to_owner_drive_id {
+            return Ok(0);
+        }
+        let mut tx = self.pool.begin().await?;
+        let moved_entries = sqlx::query(
+            r#"
+            UPDATE drive_entries AS source
+            SET space_id = $2, updated_at = NOW()
+            WHERE source.space_id = $1
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM drive_entries AS target
+                  WHERE target.space_id = $2
+                    AND target.root_alias = source.root_alias
+                    AND target.relative_path = source.relative_path
+              )
+            "#,
+        )
+        .bind(from_owner_drive_id)
+        .bind(to_owner_drive_id)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+
+        sqlx::query(
+            r#"
+            UPDATE drive_entries
+            SET deleted = TRUE, updated_at = NOW()
+            WHERE space_id = $1
+            "#,
+        )
+        .bind(from_owner_drive_id)
+        .execute(&mut *tx)
+        .await?;
+
+        let moved_ignored = sqlx::query(
+            r#"
+            UPDATE drive_ignored_paths AS source
+            SET space_id = $2, updated_at = NOW()
+            WHERE source.space_id = $1
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM drive_ignored_paths AS target
+                  WHERE target.space_id = $2
+                    AND target.root_alias = source.root_alias
+                    AND target.relative_path = source.relative_path
+              )
+            "#,
+        )
+        .bind(from_owner_drive_id)
+        .bind(to_owner_drive_id)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+
+        sqlx::query(
+            r#"
+            DELETE FROM drive_ignored_paths
+            WHERE space_id = $1
+            "#,
+        )
+        .bind(from_owner_drive_id)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(moved_entries + moved_ignored)
     }
 
     async fn upsert_ignored_path(
@@ -1372,6 +1562,63 @@ mod tests {
             .expect("space entries should list");
 
         assert_eq!(entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn in_memory_store_migrates_legacy_main_namespace_to_owner_drive() {
+        let store = InMemoryDriveMetadataStore::new();
+        let entry = store
+            .upsert_entry(&key(), DriveEntryKind::File)
+            .await
+            .expect("entry should upsert");
+        let hash = content_hash(b"hello");
+        store
+            .insert_version(DriveVersion {
+                id: Uuid::new_v4(),
+                entry_id: entry.id,
+                version: 1,
+                content_hash: hash.clone(),
+                object_key: object_key_for_hash(&hash),
+                size_bytes: 5,
+                device_id: "device-a".to_owned(),
+                modified_at: Utc::now(),
+            })
+            .await
+            .expect("version should insert");
+        store
+            .upsert_ignored_path(&key(), "device-a")
+            .await
+            .expect("ignore should upsert");
+
+        let migrated = store
+            .migrate_owner_drive_namespace("main", "user-zjarlin")
+            .await
+            .expect("namespace should migrate");
+
+        assert_eq!(migrated, 2);
+        assert!(
+            store
+                .list_entries_by_space("main")
+                .await
+                .expect("main entries should list")
+                .is_empty()
+        );
+        assert_eq!(
+            store
+                .list_entries_by_space("user-zjarlin")
+                .await
+                .expect("owner entries should list")
+                .len(),
+            1
+        );
+        assert_eq!(
+            store
+                .list_ignored_paths("user-zjarlin", None, None)
+                .await
+                .expect("owner ignored paths should list")
+                .len(),
+            1
+        );
     }
 
     #[tokio::test]

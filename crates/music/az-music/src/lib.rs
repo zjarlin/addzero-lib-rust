@@ -1,3 +1,41 @@
+//! 音乐平台 HTTP API 客户端，封装网易云音乐搜索与 Suno AI 音乐生成接口。
+//!
+//! # 概述
+//!
+//! 本 crate 提供两大类音乐服务的同步 HTTP 客户端：
+//!
+//! - **网易云音乐**（[`MusicSearchApi`] / [`NeteaseMusicApi`]）——支持歌曲、专辑、歌手、
+//!   歌单搜索，歌词查询（含原文、翻译、罗马音），歌曲详情获取，以及按歌名+歌手或歌词片段
+//!   模糊检索。
+//! - **Suno AI 音乐生成**（[`SunoApi`]）——支持 AI 音乐生成、歌词生成、歌曲拼接，
+//!   以及单任务 / 批量任务的轮询等待（可配置超时与轮询间隔）。
+//!
+//! 统一入口为 [`Music`] 结构体，通过 `Music::netease()` 或 `Music::suno(token)` 快速创建
+//! 对应的 API 客户端实例。
+//!
+//! # 核心类型
+//!
+//! | 类型 | 说明 |
+//! |------|------|
+//! | [`Music`] | 客户端工厂，提供 `netease()` / `suno()` 等便捷构造方法 |
+//! | [`ApiConfig`] / [`ApiConfigBuilder`] | HTTP 客户端配置（基础 URL、超时、默认请求头等） |
+//! | [`MusicSearchApi`] | 网易云音乐搜索与歌曲信息 API 客户端 |
+//! | [`SunoApi`] | Suno AI 音乐/歌词生成 API 客户端 |
+//! | [`MusicError`] / [`MusicResult`] | 统一错误类型与结果别名 |
+//! | [`MusicSearchType`] | 搜索维度枚举（歌曲、专辑、歌手、歌单、用户、MV、歌词、电台、视频） |
+//! | [`MusicSong`] / [`MusicArtist`] / [`MusicAlbum`] / [`MusicPlaylist`] | 网易云音乐核心数据模型 |
+//! | [`LyricResponse`] / [`LyricContent`] | 歌词响应（含原文、翻译、罗马音） |
+//! | [`SunoTask`] / [`SunoMusicRequest`] | Suno 任务与音乐生成请求模型 |
+//!
+//! # 关键特性
+//!
+//! - 网易云音乐：歌曲/专辑/歌手/歌单搜索、歌词查询、歌曲详情、按歌名+歌手或歌词片段检索
+//! - Suno AI：音乐生成、歌词生成、歌曲拼接、单任务轮询等待与批量任务轮询等待
+//! - 统一的 [`ApiConfig`] 配置体系，支持自定义基础 URL、连接/请求超时、User-Agent 及默认请求头
+//! - 基于 [`thiserror`] 的结构化错误处理（[`MusicError`]），覆盖配置校验、网络传输、HTTP 状态码、
+//!   JSON 解析及业务响应码校验等场景
+//! - 全部为同步阻塞调用（基于 `reqwest::blocking`），使用 `#![forbid(unsafe_code)]` 保证无 unsafe 代码
+
 #![forbid(unsafe_code)]
 
 use reqwest::Url;

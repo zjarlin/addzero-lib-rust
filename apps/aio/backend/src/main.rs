@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 
 use aio::cli::{Cli, Command};
 
@@ -11,8 +11,13 @@ fn main() {
 
 fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    let Some(command) = cli.command else {
+        Cli::command().print_help()?;
+        println!();
+        return Ok(());
+    };
     let runtime = tokio::runtime::Runtime::new()?;
-    match cli.command.unwrap_or(Command::Tui) {
+    match command {
         Command::Reg(args) => {
             runtime.block_on(aio::auth_cli::run_reg_command(args))?;
         }
@@ -28,8 +33,8 @@ fn run() -> anyhow::Result<()> {
         Command::Key(command) => {
             runtime.block_on(aio::auth_cli::run_key_command(command))?;
         }
-        Command::Tui => {
-            runtime.block_on(aio::tui::run_tui())?;
+        Command::Cli(command) => {
+            runtime.block_on(aio::external_cli::run_aio_cli_command(command))?;
         }
         Command::Migrate => {
             runtime.block_on(aio::server::run_migrations())?;

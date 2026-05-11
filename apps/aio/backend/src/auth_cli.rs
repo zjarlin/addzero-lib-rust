@@ -21,8 +21,8 @@ use crate::cli::{
 };
 use crate::services::system_management::{
     ApiKeyOwnerDto, UserUpsertDto, admin_role_id_on_server, authorize_user_roles_on_server,
-    create_api_key_on_server, create_user_on_server, get_user_on_server, resolve_api_key_on_server,
-    revoke_api_key_on_server,
+    create_api_key_on_server, create_user_on_server, get_user_on_server,
+    owner_drive_id_for_username, resolve_api_key_on_server, revoke_api_key_on_server,
 };
 
 const COOKIE_NAME: &str = "aio_session";
@@ -41,7 +41,23 @@ pub struct StoredAioAuth {
     pub logged_in_at: DateTime<Utc>,
     pub expires_at: Option<DateTime<Utc>>,
     #[serde(default)]
+    pub drive_api_key: Option<StoredDriveApiKey>,
+    #[serde(default)]
     pub trusted_api_keys: Vec<StoredTrustedApiKey>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct StoredDriveApiKey {
+    pub api_key: String,
+    pub key_prefix: String,
+    pub owner_user_id: i32,
+    pub owner_username: String,
+    pub owner_nickname: String,
+    pub owner_status: String,
+    #[serde(alias = "owner_space_id")]
+    pub owner_drive_id: String,
+    pub label: String,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -52,7 +68,8 @@ pub struct StoredTrustedApiKey {
     pub owner_username: String,
     pub owner_nickname: String,
     pub owner_status: String,
-    pub owner_space_id: String,
+    #[serde(alias = "owner_space_id")]
+    pub owner_drive_id: String,
     pub label: String,
     pub added_at: DateTime<Utc>,
 }
@@ -176,22 +193,29 @@ pub async fn run_login_command(args: LoginArgs) -> anyhow::Result<()> {
     let expires_at = cookie
         .max_age_seconds
         .map(|seconds| logged_in_at + Duration::seconds(seconds));
-    let trusted_api_keys = load_auth_file()
-        .ok()
-        .flatten()
-        .map(|auth| auth.trusted_api_keys)
+    let previous_auth = load_auth_file().ok().flatten();
+    let trusted_api_keys = previous_auth
+        .as_ref()
+        .map(|auth| auth.trusted_api_keys.clone())
         .unwrap_or_default();
+    let username = session.username.unwrap_or(username);
+    let drive_api_key = ensure_drive_api_key(previous_auth.as_ref(), &username).await?;
     let auth = StoredAioAuth {
         server_url,
-        username: session.username.unwrap_or(username),
+        username,
         session_cookie: cookie.value,
         logged_in_at,
         expires_at,
+        drive_api_key,
         trusted_api_keys,
     };
     save_auth_file(&auth)?;
+    let migrated = migrate_legacy_drive_after_login(&auth).await?;
 
     print_auth_summary("已登录", &auth);
+    if migrated > 0 {
+        println!("DRIVE_MIGRATED {migrated}");
+    }
     Ok(())
 }
 
@@ -288,6 +312,47 @@ async fn run_key_whoami(args: KeyValueArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn ensure_drive_api_key(
+    previous_auth: Option<&StoredAioAuth>,
+    username: &str,
+) -> anyhow::Result<Option<StoredDriveApiKey>> {
+    if let Some(key) = previous_auth
+        .and_then(|auth| auth.drive_api_key.clone())
+        .filter(|key| key.owner_username == username && !key.api_key.trim().is_empty())
+    {
+        return Ok(Some(key));
+    }
+    let created = create_api_key_on_server(username, "drive-default")
+        .await
+        .map_err(|err| anyhow::anyhow!("登录成功但准备 Drive API key 失败: {err}"))?;
+    Ok(Some(stored_drive_api_key_from_created(created)))
+}
+
+async fn migrate_legacy_drive_after_login(auth: &StoredAioAuth) -> anyhow::Result<u64> {
+    if auth.drive_api_key.is_none() {
+        return Ok(0);
+    }
+    az_drive_app::migrate_legacy_main_for_current_owner()
+        .await
+        .context("登录成功，但迁移历史 Drive 数据失败")
+}
+
+fn stored_drive_api_key_from_created(
+    created: crate::services::system_management::CreatedApiKeyDto,
+) -> StoredDriveApiKey {
+    StoredDriveApiKey {
+        api_key: created.api_key,
+        key_prefix: created.owner.key_prefix,
+        owner_user_id: created.owner.user_id,
+        owner_username: created.owner.username,
+        owner_nickname: created.owner.nickname,
+        owner_status: created.owner.status,
+        owner_drive_id: created.owner.owner_drive_id,
+        label: created.owner.label,
+        created_at: Utc::now(),
+    }
+}
+
 async fn run_key_add(args: KeyAddArgs) -> anyhow::Result<()> {
     let mut auth = require_current_auth()?;
     let owner = resolve_api_key_on_server(&args.api_key)
@@ -307,25 +372,38 @@ async fn run_key_add(args: KeyAddArgs) -> anyhow::Result<()> {
         owner_username: owner.username.clone(),
         owner_nickname: owner.nickname.clone(),
         owner_status: owner.status.clone(),
-        owner_space_id: owner.owner_space_id.clone(),
+        owner_drive_id: owner.owner_drive_id.clone(),
         label,
         added_at: Utc::now(),
     });
     auth.trusted_api_keys
         .sort_by(|left, right| left.owner_username.cmp(&right.owner_username));
     save_auth_file(&auth)?;
-    println!("已添加融合源");
+    let synced_count = sync_drive_after_key_add().await?;
+    println!("已添加融合源并纳入双向同步");
     print_api_key_owner(&owner);
+    println!("SYNCED  {synced_count}");
     Ok(())
+}
+
+async fn sync_drive_after_key_add() -> anyhow::Result<usize> {
+    let agent = az_drive_app::build_agent()
+        .await
+        .context("融合源已保存，但初始化 Drive 同步失败")?;
+    let statuses = agent
+        .sync_once()
+        .await
+        .context("融合源已保存，但首次双向同步失败")?;
+    Ok(statuses.len())
 }
 
 async fn run_key_list() -> anyhow::Result<()> {
     let auth = require_current_auth()?;
-    println!("{:<18} {:<18} {:<18} LABEL", "PREFIX", "OWNER", "SPACE");
+    println!("{:<18} {:<18} {:<18} LABEL", "PREFIX", "OWNER", "DRIVE");
     for key in auth.trusted_api_keys {
         println!(
             "{:<18} {:<18} {:<18} {}",
-            key.key_prefix, key.owner_username, key.owner_space_id, key.label
+            key.key_prefix, key.owner_username, key.owner_drive_id, key.label
         );
     }
     Ok(())
@@ -366,7 +444,7 @@ fn print_api_key_owner(owner: &ApiKeyOwnerDto) {
     println!("NICK    {}", owner.nickname);
     println!("STATUS  {}", owner.status);
     println!("PREFIX  {}", owner.key_prefix);
-    println!("SPACE   {}", owner.owner_space_id);
+    println!("DRIVE   {}", owner.owner_drive_id);
     if !owner.label.is_empty() {
         println!("LABEL   {}", owner.label);
     }
@@ -669,6 +747,11 @@ fn print_auth_summary(title: &str, auth: &StoredAioAuth) {
         Some(expires_at) => println!("EXPIRES {}", expires_at.to_rfc3339()),
         None => println!("EXPIRES unknown"),
     }
+    if let Some(key) = &auth.drive_api_key {
+        println!("DRIVE   {} ({})", key.owner_drive_id, key.key_prefix);
+    } else {
+        println!("DRIVE   {}", owner_drive_id_for_username(&auth.username));
+    }
 }
 
 #[cfg(test)]
@@ -705,6 +788,55 @@ mod tests {
     }
 
     #[test]
+    fn auth_file_should_accept_legacy_owner_space_id_fields() -> anyhow::Result<()> {
+        let auth: StoredAioAuth = serde_json::from_str(
+            r#"
+            {
+              "server_url": "http://127.0.0.1:8787",
+              "username": "zjarlin",
+              "session_cookie": "cookie-value",
+              "logged_in_at": "2026-05-10T00:00:00Z",
+              "expires_at": null,
+              "drive_api_key": {
+                "api_key": "aio_live_self",
+                "key_prefix": "self",
+                "owner_user_id": 1,
+                "owner_username": "zjarlin",
+                "owner_nickname": "zjarlin",
+                "owner_status": "enabled",
+                "owner_space_id": "user-zjarlin",
+                "label": "drive-default",
+                "created_at": "2026-05-10T00:00:00Z"
+              },
+              "trusted_api_keys": [
+                {
+                  "api_key": "aio_live_other",
+                  "key_prefix": "other",
+                  "owner_user_id": 2,
+                  "owner_username": "lisi",
+                  "owner_nickname": "lisi",
+                  "owner_status": "enabled",
+                  "owner_space_id": "user-lisi",
+                  "label": "shared",
+                  "added_at": "2026-05-10T00:00:00Z"
+                }
+              ]
+            }
+            "#,
+        )?;
+
+        assert_eq!(
+            auth.drive_api_key
+                .as_ref()
+                .expect("drive api key should load")
+                .owner_drive_id,
+            "user-zjarlin"
+        );
+        assert_eq!(auth.trusted_api_keys[0].owner_drive_id, "user-lisi");
+        Ok(())
+    }
+
+    #[test]
     fn save_auth_file_should_round_trip_without_relaxing_permissions() -> anyhow::Result<()> {
         let root = env::temp_dir().join(format!("aio-auth-test-{}", Uuid::new_v4()));
         let path = root.join("auth.json");
@@ -714,6 +846,7 @@ mod tests {
             session_cookie: "cookie-value".to_owned(),
             logged_in_at: Utc::now(),
             expires_at: None,
+            drive_api_key: None,
             trusted_api_keys: Vec::new(),
         };
 

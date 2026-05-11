@@ -22,6 +22,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shlex.workspace = true
 tokio.workspace = true
+toml_edit.workspace = true
 urlencoding.workspace = true
 
 [dev-dependencies]

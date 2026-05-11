@@ -8,14 +8,14 @@
 
 - 一套面向个人知识资产、同步任务和命令化能力的 AIO 平台
 - 一个以 PostgreSQL 为唯一正式持久化源的后台系统
-- 一个同时提供 Rust TUI、Axum REST API、以及同源 CLI 的工作台
+- 一个同时提供 Axum REST API 和同源 CLI 的工作台
 
 这套系统的目标不是只做一个“网页后台”，而是把自己日常要管理的知识库、同步任务、脚本能力、导入导出流程统一收进同一个平台里，让“万事万物都 CLI 化”成为默认交付形态，而不是补充能力。
 
 ### 核心原则
 
 - `all in pg`：正式业务数据全部进入 PostgreSQL，数据库名为 `msc_aio`
-- `axum + ratatui/crossterm`：Axum 负责后端 API 与任务入口，`ratatui + crossterm` 负责本机高性能 TUI
+- `axum + cli`：Axum 负责后端 API 与任务入口，CLI 是本机和 agent 自动化的默认交付面
 - `REST + CLI 同源`：后端写 REST API 的同时，CLI 从同一套操作定义生成，避免手写两套接口
 - `import != source of truth`：文件系统扫描、构建期嵌入、临时内存实现都只作为导入态或开发态，不作为最终数据落点
 - `大功能一模块`：按功能边界拆模块，文件粒度保持在人类可以轻松阅读的范围内
@@ -30,12 +30,12 @@
    暴露 REST API、认证、任务调度入口、OpenAPI 文档以及自动化调用面
 4. CLI 层
    从与 REST 同源的操作定义生成命令，保证后台能力天然可脚本化
-5. Rust TUI 层
-   作为本机管理工作台，用于查看知识资产、同步状态、任务历史、配置与系统上下文；默认直接复用 Rust service layer，不走 HTTP 回环
+5. CLI 扩展层
+   通过宏生成的命令元数据、`skill.sh` 和本机外部 CLI 注册表，把新增能力统一收敛到可脚本化入口
 
 ### 当前状态
 
-- `msc-aio` 已经开始承接 TUI 壳子、多模块场景与知识库可视化
+- `msc-aio` 已经收敛为 REST API + CLI 入口，不再维护 TUI 壳子
 - 技能数据仍有内存实现
 - 知识库已经新增 `az-knowledge` 数据域 crate，可把本机候选知识目录同步进 PostgreSQL `msc_aio`
 - `msc-aio` 的知识页现在会优先从 PG 镜像生成目录，PG 不可用时才退回文件系统快照
@@ -73,23 +73,23 @@ printf '%s\n' 'MSC_AIO_DATABASE_URL=postgresql://postgres:***@127.0.0.1:15432/ms
 cargo run -p az-knowledge --bin knowledge-sync
 ```
 
-`aio tui` 首次启动时如果检测不到 `~/.config/aio/aio.env`，会直接进入内置的 setup wizard；配置完成后会刷新 PostgreSQL 与 MinIO 连通状态。仓库内不再需要 Node、pnpm、TypeScript 或 Tauri。
+仓库内不再维护 TUI、Node、pnpm、TypeScript 或 Tauri 入口；新增操作面默认进入 `aio` CLI。
 
 当前 AIO 常用入口：
 
 ```bash
-cargo run -p aio -- tui
 cargo run -p aio -- serve
 cargo run -p aio -- migrate
 cargo run -p aio -- system docs
+cargo run -p aio -- cli metadata
 ```
 
 其中：
 
-- `aio tui` 是默认主入口，本机工作台直接复用 Rust service layer
 - `aio serve` 保留给外部自动化和 API 客户端
 - `aio migrate` 单独执行数据库迁移
 - `aio system ...` 保留系统治理 CRUD 与文档能力
+- `aio cli ...` 管理命令元数据、`skill.sh` 和本机外部 CLI
 
 更完整的蓝图说明见：
 

@@ -1,5 +1,33 @@
 #![forbid(unsafe_code)]
 
+//! SSH 远程连接客户端。
+//!
+//! 基于 [`ssh2`]（libssh2 Rust 绑定）提供阻塞式的 SSH 会话管理、远程命令执行和 SFTP 文件传输。
+//!
+//! # 核心类型
+//!
+//! - [`SshConfig`] — 连接配置，支持密码和私钥两种认证方式，通过 builder 模式构造
+//! - [`SshSession`] — 已认证的 SSH 会话，提供 `execute_sync`、`execute_stream`、`upload_file`、`download_file` 等操作
+//! - [`SshExecutionResult`] — 命令执行结果，包含 `exit_code`、`stdout`、`stderr`
+//!
+//! # 快速开始
+//!
+//! ```no_run
+//! use az_ssh::{SshConfig, execute_sync};
+//!
+//! # fn example() -> az_ssh::SshResult<()> {
+//! let config = SshConfig::builder("192.168.1.100", "root")
+//!     .password("your-password")
+//!     .build()?;
+//!
+//! let result = execute_sync(&config, "uname -a")?;
+//! if result.is_success() {
+//!     println!("{}", result.stdout);
+//! }
+//! # Ok(())
+//! # }
+//! ```
+
 use ssh2::Session;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
