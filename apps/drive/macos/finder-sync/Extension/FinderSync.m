@@ -619,8 +619,15 @@ static NSImage *AIOBadgeImage(NSString *symbolName, NSString *fallbackName, NSSt
             }
         }];
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSString *badge = failed ? AIOErrorBadgeID : ([command isEqualToString:@"host"] ? AIOHostedBadgeID : @"");
             for (NSURL *url in urls) {
+                NSString *badge = @"";
+                if (failed) {
+                    badge = AIOErrorBadgeID;
+                } else if (AIOPathIsSharedHosted(url.path)) {
+                    badge = AIOSharedBadgeID;
+                } else if (AIOPathIsHosted(url.path)) {
+                    badge = AIOHostedBadgeID;
+                }
                 [[FIFinderSyncController defaultController] setBadgeIdentifier:badge forURL:url];
             }
         });

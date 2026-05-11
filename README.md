@@ -91,6 +91,21 @@ cargo run -p aio -- cli metadata
 - `aio system ...` 保留系统治理 CRUD 与文档能力
 - `aio cli ...` 管理命令元数据、`skill.sh` 和本机外部 CLI
 
+## AIO Drive Git Pool
+
+`AIO Drive` 当前已经落成一个可直接使用的 Git Pool 云盘：
+
+- 默认后端是 Git Pool，不再默认依赖 `PG + MinIO`
+- 当前登录用户的 Drive 归属绑定 API key owner
+- `aio drive host / unhost / ls / sync / queue / conflict / pool` 已经可用
+- Finder 扩展提供右键菜单与状态图标，底层仍调用同一套 CLI
+
+更完整的使用说明见：
+
+- [apps/drive/backend/README.md](apps/drive/backend/README.md)
+- [apps/drive/macos/finder-sync/README.md](apps/drive/macos/finder-sync/README.md)
+- [crates/runtime/az-drive-agent/README.md](crates/runtime/az-drive-agent/README.md)
+
 更完整的蓝图说明见：
 
 - [docs/plans/2026-04-28-msc-aio-blueprint.md](docs/plans/2026-04-28-msc-aio-blueprint.md)
@@ -245,7 +260,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 小鳄鱼文档
 
-仓库已经补了 `xiaoeyu.config.json` 和 README 收录规则，后续可以直接用小鳄鱼把 root README 和 crate README 生成成站点文档。
+仓库现在已经补齐 `xiaoeyu.config.json` 和 README 收录规则，后续可以直接用小鳄鱼把 root README、crate README 和 app README 生成成站点文档。
 
 文档接入说明见：
 
@@ -257,8 +272,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 - 根目录 `README.md`
 - `crates/**/README.md`
+- `apps/**/README.md`
 
-这次新增的 `az-creates` 音乐、Suno、天眼查用法，也会跟着这两个 README 一起被小鳄鱼站点收录。
+这次新增的 `AIO Drive` Git Pool、Finder、同步队列与冲突处理说明，也会跟着这些 README 一起被小鳄鱼站点收录。
 
 默认不会收录：
 

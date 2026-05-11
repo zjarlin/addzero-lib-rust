@@ -1,0 +1,60 @@
+{
+  "source": {
+    "type": "local",
+    "path": "."
+  },
+  "site": {
+    "title": "小鳄鱼",
+    "tagline": "addzero-lib-rust 自动化文档站点",
+    "url": "https://zjarlin.github.io",
+    "baseUrl": "/addzero-lib-rust/",
+    "organizationName": "zjarlin",
+    "projectName": "addzero-lib-rust",
+    "repositoryUrl": "https://github.com/zjarlin/addzero-lib-rust",
+    "editUrl": "https://github.com/zjarlin/addzero-lib-rust/tree/main",
+    "defaultLocale": "zh-Hans",
+    "locales": [
+      "zh-Hans"
+    ],
+    "navbar": {
+      "docsLabel": "文档",
+      "repositoryLabel": "GitHub"
+    }
+  },
+  "collect": {
+    "include": [
+      "README.md",
+      "crates/**/README.md",
+      "apps/**/README.md"
+    ],
+    "exclude": [
+      "docs/**",
+      "**/.git/**",
+      "**/node_modules/**",
+      "**/build/**",
+      "**/target/**"
+    ],
+    "rulesFile": "docs/readme-collection.rules"
+  },
+  "render": {
+    "contentDir": "docs/content",
+    "generatedMetaFile": "docs/.xiaoeyu/site-metadata.json",
+    "stripFirstH1": true,
+    "generateIndex": true,
+    "indexSlug": "/",
+    "sourceNotice": "自动收集自 `{path}`。",
+    "index": {
+      "title": "小鳄鱼",
+      "heading": "小鳄鱼",
+      "description": "addzero-lib-rust 的自动化文档站点，当前重点包含 AIO Drive Git Pool、Finder 集成和 workspace 模块 README。",
+      "featuresTitle": "说明",
+      "features": [
+        "自动收集仓库根 README、crate README 和 app README。",
+        "AIO Drive Git Pool、Finder 和 CLI 用法会直接进入文档站搜索索引。",
+        "可直接配合 GitHub Pages 或自定义域名发布。"
+      ],
+      "emptyMessage": "暂未发现可收集的 README 文档。",
+      "sectionTitle": "模块导航"
+    }
+  }
+}

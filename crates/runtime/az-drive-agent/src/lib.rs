@@ -18,6 +18,7 @@ use az_drive_store::{
     NoopDriveSyncCoordinator,
 };
 use chrono::{DateTime, Utc};
+use fs2::FileExt;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -408,6 +409,16 @@ pub struct LocalStateStore {
     path: PathBuf,
 }
 
+struct LocalStateWriteGuard {
+    file: std::fs::File,
+}
+
+impl Drop for LocalStateWriteGuard {
+    fn drop(&mut self) {
+        let _ = self.file.unlock();
+    }
+}
+
 impl LocalStateStore {
     /// Creates a state store at an explicit path.
     #[must_use]
@@ -434,6 +445,40 @@ impl LocalStateStore {
         &self.path
     }
 
+    fn lock_path(&self) -> PathBuf {
+        let name = self
+            .path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map_or_else(|| "state.json.lock".to_owned(), |name| format!("{name}.lock"));
+        self.path.with_file_name(name)
+    }
+
+    fn acquire_write_lock(&self) -> DriveAgentResult<LocalStateWriteGuard> {
+        let lock_path = self.lock_path();
+        if let Some(parent) = lock_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|source| DriveAgentError::Io {
+                path: parent.to_path_buf(),
+                source,
+            })?;
+        }
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&lock_path)
+            .map_err(|source| DriveAgentError::Io {
+                path: lock_path.clone(),
+                source,
+            })?;
+        file.lock_exclusive().map_err(|source| DriveAgentError::Io {
+            path: lock_path,
+            source,
+        })?;
+        Ok(LocalStateWriteGuard { file })
+    }
+
     /// Loads state, creating a new in-memory document when the file is absent.
     ///
     /// # Errors
@@ -454,7 +499,8 @@ impl LocalStateStore {
         }
     }
 
-    /// Saves state atomically enough for a single local daemon.
+    /// Saves state via side-file replacement so concurrent readers never see a
+    /// truncated JSON document.
     ///
     /// # Errors
     /// Returns [`DriveAgentError`] when parent creation, JSON encoding, or write
@@ -472,7 +518,21 @@ impl LocalStateStore {
             path: self.path.clone(),
             source,
         })?;
-        tokio::fs::write(&self.path, bytes)
+        let tmp_path = self.path.with_file_name(format!(
+            ".{}.{}.tmp",
+            self.path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("state.json"),
+            std::process::id()
+        ));
+        tokio::fs::write(&tmp_path, bytes)
+            .await
+            .map_err(|source| DriveAgentError::Io {
+                path: tmp_path.clone(),
+                source,
+            })?;
+        tokio::fs::rename(&tmp_path, &self.path)
             .await
             .map_err(|source| DriveAgentError::Io {
                 path: self.path.clone(),
@@ -541,6 +601,7 @@ impl DriveAgent {
     /// # Errors
     /// Returns [`DriveAgentError`] when the alias/path is invalid or state save fails.
     pub async fn add_root(&self, alias: &str, path: &str) -> DriveAgentResult<Vec<LocalRootState>> {
+        let _state_lock = self.state_store.acquire_write_lock()?;
         let alias = RootAlias::parse(alias)?;
         let path = normalize_absolute_path(&expand_path_expression(path))?;
         let mut state = self.state_store.load_or_init().await?;
@@ -585,6 +646,7 @@ impl DriveAgent {
         remote_path: Option<&str>,
     ) -> DriveAgentResult<Vec<HostedStatus>> {
         self.sync.prepare_sync().await?;
+        let _state_lock = self.state_store.acquire_write_lock()?;
         let mut state = self.state_store.load_or_init().await?;
         let registry = registry_from_state(&state)?;
         let preferred_alias = root_alias.map(RootAlias::parse).transpose()?;
@@ -661,6 +723,7 @@ impl DriveAgent {
     /// Returns [`DriveAgentError`] when state loading or saving fails.
     pub async fn unhost_path(&self, path: &str) -> DriveAgentResult<usize> {
         self.sync.prepare_sync().await?;
+        let _state_lock = self.state_store.acquire_write_lock()?;
         let requested = normalize_absolute_path(&expand_path_expression(path))?;
         let mut state = self.state_store.load_or_init().await?;
         let registry = registry_from_state(&state)?;
@@ -820,6 +883,7 @@ impl DriveAgent {
         options: PullRemoteOptions,
     ) -> DriveAgentResult<Vec<PullRemoteItem>> {
         self.sync.prepare_sync().await?;
+        let _state_lock = self.state_store.acquire_write_lock()?;
         let mut state = self.state_store.load_or_init().await?;
         let rows = self
             .materialize_remote_entries(&mut state, path, options, RemoteMaterializeMode::All)
@@ -1063,6 +1127,7 @@ impl DriveAgent {
         resolution: ConflictResolution,
     ) -> DriveAgentResult<Option<DriveConflict>> {
         self.sync.prepare_sync().await?;
+        let _state_lock = self.state_store.acquire_write_lock()?;
         let Some(conflict) = self
             .metadata
             .list_conflicts(Some(false))
@@ -1118,6 +1183,7 @@ impl DriveAgent {
         owner_drive_id: &str,
     ) -> DriveAgentResult<u64> {
         self.sync.prepare_sync().await?;
+        let _state_lock = self.state_store.acquire_write_lock()?;
         if legacy_owner_drive_id == owner_drive_id {
             return Ok(0);
         }
@@ -1156,6 +1222,7 @@ impl DriveAgent {
     /// Returns [`DriveAgentError`] when local I/O or remote store operations fail.
     pub async fn sync_once(&self) -> DriveAgentResult<Vec<HostedStatus>> {
         self.sync.prepare_sync().await?;
+        let _state_lock = self.state_store.acquire_write_lock()?;
         let mut state = self.state_store.load_or_init().await?;
         self.materialize_remote_entries(
             &mut state,
@@ -2201,6 +2268,8 @@ mod tests {
     use az_drive_store::DriveSyncTaskStatus;
     use az_drive_store::{InMemoryDriveMetadataStore, InMemoryDriveObjectStore};
     use std::sync::Arc;
+    use std::thread;
+    use std::time::Duration as StdDuration;
     use tempfile::TempDir;
 
     fn agent(
@@ -2257,6 +2326,29 @@ mod tests {
             .expect("file should host");
 
         assert_eq!(statuses[0].remote_path, "main/workspace/docs/a.md");
+    }
+
+    #[test]
+    fn local_state_write_lock_serializes_cross_process_writers() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let store = LocalStateStore::new(temp.path().join("state.json"));
+        let guard = store.acquire_write_lock().expect("first lock should succeed");
+        let store_for_thread = store.clone();
+
+        let worker = thread::spawn(move || {
+            let _guard = store_for_thread
+                .acquire_write_lock()
+                .expect("second lock should succeed after release");
+        });
+
+        thread::sleep(StdDuration::from_millis(150));
+        assert!(
+            !worker.is_finished(),
+            "the second writer must block while the first lock is held"
+        );
+
+        drop(guard);
+        worker.join().expect("worker should finish");
     }
 
     #[tokio::test]

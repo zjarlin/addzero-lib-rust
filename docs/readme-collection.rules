@@ -6,5 +6,5 @@
 # - ! 开头表示重新放行
 # - 规则按顺序匹配，后面的规则可以覆盖前面的规则
 
-# 默认收录 root README 和各 crate README。
-# 如果后面出现内部 crate，可以在这里继续排除。
+# 默认收录 root README、各 crate README，以及 app README。
+# 如果后面出现内部模块、实验模块或不希望公开的 README，可以在这里继续排除。
