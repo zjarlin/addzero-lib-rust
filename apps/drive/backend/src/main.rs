@@ -46,6 +46,12 @@ enum Command {
     /// Manage the Drive storage backend.
     #[command(subcommand)]
     Backend(az_drive_app::cli::DriveBackendCommand),
+    /// Inspect and retry durable sync queue items.
+    #[command(subcommand)]
+    Queue(az_drive_app::cli::DriveQueueCommand),
+    /// Inspect and resolve suspended conflicts.
+    #[command(subcommand)]
+    Conflict(az_drive_app::cli::DriveConflictCommand),
     /// Manage local root aliases.
     Root(RootCommand),
     /// Run PostgreSQL migrations and exit.
@@ -150,6 +156,8 @@ async fn main() -> Result<()> {
         }
         Command::Pool(command) => az_drive_app::cli::run_drive_pool(command).await,
         Command::Backend(command) => az_drive_app::cli::run_drive_backend(command).await,
+        Command::Queue(command) => az_drive_app::cli::run_drive_queue(command).await,
+        Command::Conflict(command) => az_drive_app::cli::run_drive_conflict(command).await,
         Command::Root(root) => match root.command {
             RootSubcommand::List => {
                 let roots = build_agent().await?.list_roots().await?;

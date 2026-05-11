@@ -1,9 +1,12 @@
 use anyhow::Result;
 use az_drive_agent::{
-    HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem, PullRemoteOptions,
-    PullRemoteStatus, TrackedItem, TrackedItemSource, TrackedItemStatus,
+    ConflictResolution, HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem,
+    PullRemoteOptions, PullRemoteStatus, TrackedItem, TrackedItemSource, TrackedItemStatus,
 };
+use az_drive_store::{DriveConflict, DriveSyncQueueItem, DriveSyncTaskStatus};
 use clap::{Args, Subcommand, ValueEnum};
+use std::path::PathBuf;
+use uuid::Uuid;
 
 /// Drive commands embedded by both `az-drive-app` and `aio drive`.
 #[derive(Debug, Subcommand)]
@@ -28,6 +31,12 @@ pub enum DriveCommand {
     /// Manage the Drive storage backend.
     #[command(subcommand)]
     Backend(DriveBackendCommand),
+    /// Inspect and retry durable sync queue items.
+    #[command(subcommand)]
+    Queue(DriveQueueCommand),
+    /// Inspect and resolve suspended conflicts.
+    #[command(subcommand)]
+    Conflict(DriveConflictCommand),
     /// Manage local root aliases.
     #[command(subcommand)]
     Root(DriveRootCommand),
@@ -133,6 +142,68 @@ pub enum DriveBackendCommand {
     MigrateToGitPool,
 }
 
+/// Sync queue subcommands.
+#[derive(Debug, Subcommand)]
+pub enum DriveQueueCommand {
+    /// List durable sync queue items.
+    List(DriveQueueListArgs),
+    /// Move failed items back to pending and run one sync pass.
+    Retry,
+}
+
+/// Conflict subcommands.
+#[derive(Debug, Subcommand)]
+pub enum DriveConflictCommand {
+    /// List unresolved conflicts.
+    List(DriveConflictListArgs),
+    /// Resolve a conflict and clear its suspension.
+    Resolve(DriveConflictResolveArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct DriveQueueListArgs {
+    /// Optional status filter.
+    #[arg(long, value_enum)]
+    pub status: Option<DriveQueueStatusArg>,
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = DriveListFormat::Table)]
+    pub format: DriveListFormat,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum DriveQueueStatusArg {
+    /// Pending queue items.
+    Pending,
+    /// Running queue items.
+    Running,
+    /// Completed queue items.
+    Done,
+    /// Failed queue items.
+    Failed,
+}
+
+#[derive(Debug, Args)]
+pub struct DriveConflictListArgs {
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = DriveListFormat::Table)]
+    pub format: DriveListFormat,
+}
+
+#[derive(Debug, Args)]
+pub struct DriveConflictResolveArgs {
+    /// Conflict id.
+    pub id: Uuid,
+    /// Keep the remote version.
+    #[arg(long, conflicts_with_all = ["keep_local", "merged"])]
+    pub keep_remote: bool,
+    /// Restore the conflict copy and upload it on the next sync.
+    #[arg(long, conflicts_with_all = ["keep_remote", "merged"])]
+    pub keep_local: bool,
+    /// Use a manually merged file and upload it on the next sync.
+    #[arg(long, conflicts_with_all = ["keep_remote", "keep_local"])]
+    pub merged: Option<PathBuf>,
+}
+
 #[derive(Debug, Args)]
 pub struct DrivePoolInitArgs {
     /// Optional control repository remote URL.
@@ -222,6 +293,8 @@ pub async fn run_drive_command(command: DriveCommand) -> Result<()> {
             .map_err(Into::into),
         DriveCommand::Pool(command) => run_drive_pool(command).await,
         DriveCommand::Backend(command) => run_drive_backend(command).await,
+        DriveCommand::Queue(command) => run_drive_queue(command).await,
+        DriveCommand::Conflict(command) => run_drive_conflict(command).await,
         DriveCommand::Root(command) => run_drive_root(command).await,
     }
 }
@@ -417,6 +490,70 @@ pub async fn run_drive_backend(command: DriveBackendCommand) -> Result<()> {
     }
 }
 
+/// Runs `drive queue`.
+///
+/// # Errors
+/// Returns an error when queue metadata cannot be loaded or retried.
+pub async fn run_drive_queue(command: DriveQueueCommand) -> Result<()> {
+    match command {
+        DriveQueueCommand::List(args) => {
+            let items = crate::build_agent()
+                .await?
+                .sync_queue(args.status.map(DriveSyncTaskStatus::from))
+                .await?;
+            match args.format {
+                DriveListFormat::Json => {
+                    println!("{}", serde_json::to_string_pretty(&items)?);
+                    Ok(())
+                }
+                DriveListFormat::Table => print_queue_table(&items),
+            }
+        }
+        DriveQueueCommand::Retry => {
+            let retried = crate::build_agent().await?.retry_sync_queue().await?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({ "retried": retried }))?
+            );
+            Ok(())
+        }
+    }
+}
+
+/// Runs `drive conflict`.
+///
+/// # Errors
+/// Returns an error when conflict metadata or local files cannot be updated.
+pub async fn run_drive_conflict(command: DriveConflictCommand) -> Result<()> {
+    match command {
+        DriveConflictCommand::List(args) => {
+            let items = crate::build_agent().await?.conflicts().await?;
+            match args.format {
+                DriveListFormat::Json => {
+                    println!("{}", serde_json::to_string_pretty(&items)?);
+                    Ok(())
+                }
+                DriveListFormat::Table => print_conflict_table(&items),
+            }
+        }
+        DriveConflictCommand::Resolve(args) => {
+            let resolution = if args.keep_local {
+                ConflictResolution::KeepLocal
+            } else if let Some(path) = args.merged {
+                ConflictResolution::UseMerged(path)
+            } else {
+                ConflictResolution::KeepRemote
+            };
+            let resolved = crate::build_agent()
+                .await?
+                .resolve_conflict(args.id, resolution)
+                .await?;
+            println!("{}", serde_json::to_string_pretty(&resolved)?);
+            Ok(())
+        }
+    }
+}
+
 fn print_tracked_table(items: &[TrackedItem]) -> Result<()> {
     println!("{:<13} {:<10} {:<48} LOCAL", "STATUS", "SOURCE", "PATH");
     for item in items {
@@ -531,6 +668,38 @@ fn print_pool_table(status: &serde_json::Value) -> Result<()> {
     Ok(())
 }
 
+fn print_queue_table(items: &[DriveSyncQueueItem]) -> Result<()> {
+    println!(
+        "{:<8} {:<12} {:<9} {:<48} ERROR",
+        "STATUS", "KIND", "ATTEMPTS", "REMOTE"
+    );
+    for item in items {
+        println!(
+            "{:<8} {:<12} {:<9} {:<48} {}",
+            queue_status_text(item.status),
+            queue_kind_text(item.kind),
+            item.attempts,
+            item.remote_path,
+            item.last_error.as_deref().unwrap_or("-")
+        );
+    }
+    Ok(())
+}
+
+fn print_conflict_table(items: &[DriveConflict]) -> Result<()> {
+    println!(
+        "{:<36} {:<36} {:<16} CONFLICT_COPY",
+        "ID", "ENTRY", "DEVICE"
+    );
+    for item in items {
+        println!(
+            "{:<36} {:<36} {:<16} {}",
+            item.id, item.entry_id, item.device_id, item.conflict_path
+        );
+    }
+    Ok(())
+}
+
 fn parse_size_bytes(raw: &str) -> Result<u64> {
     let value = raw.trim().to_ascii_lowercase();
     let (number, multiplier) = if let Some(number) = value.strip_suffix("gb") {
@@ -552,12 +721,24 @@ fn parse_size_bytes(raw: &str) -> Result<u64> {
     Ok(number.saturating_mul(multiplier))
 }
 
+impl From<DriveQueueStatusArg> for DriveSyncTaskStatus {
+    fn from(value: DriveQueueStatusArg) -> Self {
+        match value {
+            DriveQueueStatusArg::Pending => Self::Pending,
+            DriveQueueStatusArg::Running => Self::Running,
+            DriveQueueStatusArg::Done => Self::Done,
+            DriveQueueStatusArg::Failed => Self::Failed,
+        }
+    }
+}
+
 fn status_text(status: TrackedItemStatus) -> &'static str {
     match status {
         TrackedItemStatus::Tracked => "tracked",
         TrackedItemStatus::MissingLocal => "missing_local",
         TrackedItemStatus::RemoteOnly => "remote_only",
         TrackedItemStatus::Ignored => "ignored",
+        TrackedItemStatus::ConflictSuspended => "conflict_suspended",
         TrackedItemStatus::Root => "root",
     }
 }
@@ -569,6 +750,25 @@ fn source_text(source: TrackedItemSource) -> &'static str {
         TrackedItemSource::Both => "both",
         TrackedItemSource::DbIgnore => "db_ignore",
         TrackedItemSource::Gitignore => "gitignore",
+        TrackedItemSource::Suspended => "suspended",
+    }
+}
+
+fn queue_status_text(status: DriveSyncTaskStatus) -> &'static str {
+    match status {
+        DriveSyncTaskStatus::Pending => "pending",
+        DriveSyncTaskStatus::Running => "running",
+        DriveSyncTaskStatus::Done => "done",
+        DriveSyncTaskStatus::Failed => "failed",
+    }
+}
+
+fn queue_kind_text(kind: az_drive_store::DriveSyncTaskKind) -> &'static str {
+    match kind {
+        az_drive_store::DriveSyncTaskKind::Upload => "upload",
+        az_drive_store::DriveSyncTaskKind::Download => "download",
+        az_drive_store::DriveSyncTaskKind::Materialize => "materialize",
+        az_drive_store::DriveSyncTaskKind::Conflict => "conflict",
     }
 }
 
@@ -578,6 +778,7 @@ fn pull_status_text(status: PullRemoteStatus) -> &'static str {
         PullRemoteStatus::AlreadyCurrent => "already_current",
         PullRemoteStatus::SkippedExisting => "skipped_existing",
         PullRemoteStatus::SkippedIgnored => "skipped_ignored",
+        PullRemoteStatus::SkippedSuspended => "skipped_suspended",
         PullRemoteStatus::SkippedNoVersion => "skipped_no_version",
         PullRemoteStatus::DryRun => "dry_run",
     }

@@ -13,7 +13,8 @@ use az_drive_core::{
 };
 use az_drive_store::{
     DriveConflict, DriveEntry, DriveEntryKind, DriveIgnoredPath, DriveMetadataStore,
-    DriveObjectStore, DriveStoreError, DriveSyncCoordinator, DriveVersion,
+    DriveObjectStore, DriveStoreError, DriveSuspendedPath, DriveSyncCoordinator,
+    DriveSyncQueueItem, DriveSyncTaskKind, DriveSyncTaskStatus, DriveVersion,
     NoopDriveSyncCoordinator,
 };
 use chrono::{DateTime, Utc};
@@ -257,6 +258,8 @@ pub enum TrackedItemStatus {
     RemoteOnly,
     /// Item is excluded by an ignore rule.
     Ignored,
+    /// Automatic sync is suspended until an unresolved conflict is resolved.
+    ConflictSuspended,
     /// Hosted directory root.
     Root,
 }
@@ -275,6 +278,8 @@ pub enum TrackedItemSource {
     DbIgnore,
     /// `.gitignore` or global git ignore rule.
     Gitignore,
+    /// Conflict suspension metadata.
+    Suspended,
 }
 
 /// Options for listing tracked drive paths.
@@ -331,6 +336,8 @@ pub enum PullRemoteStatus {
     SkippedExisting,
     /// The row is ignored by a shared database ignore rule.
     SkippedIgnored,
+    /// The row is suspended by an unresolved conflict.
+    SkippedSuspended,
     /// The row has no downloadable remote version.
     SkippedNoVersion,
     /// The command only reported what would happen.
@@ -367,6 +374,17 @@ pub struct PullRemoteItem {
     pub content_hash: Option<String>,
     /// Whether the local file exists after the operation.
     pub exists: bool,
+}
+
+/// Conflict resolution action.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ConflictResolution {
+    /// Keep the current remote version and only clear the suspension.
+    KeepRemote,
+    /// Restore the local conflict copy and upload it on the next sync.
+    KeepLocal,
+    /// Use a user-provided merged file and upload it on the next sync.
+    UseMerged(PathBuf),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -721,6 +739,7 @@ impl DriveAgent {
             .metadata
             .list_ignored_paths(&self.config.space_id, None, None)
             .await?;
+        let suspended = self.list_visible_suspended_paths().await?;
 
         if options.roots_only {
             return Ok(list_hosted_root_items(
@@ -741,6 +760,7 @@ impl DriveAgent {
                 &state,
                 &registry,
                 &ignored,
+                &suspended,
                 requested.as_deref(),
                 requested_mapping.as_ref(),
             )?;
@@ -753,6 +773,7 @@ impl DriveAgent {
                 entries,
                 &registry,
                 &ignored,
+                &suspended,
                 requested.as_deref(),
                 requested_mapping.as_ref(),
             );
@@ -844,6 +865,16 @@ impl DriveAgent {
             let Some(local_path) = local_path_for_key(&registry, &entry.key) else {
                 continue;
             };
+            if self.metadata.get_suspended_path(entry.id).await?.is_some() {
+                rows.push(pull_item_from_entry(
+                    PullRemoteStatus::SkippedSuspended,
+                    local_path,
+                    &entry,
+                    &registry,
+                    None,
+                ));
+                continue;
+            }
             if mode == RemoteMaterializeMode::UntrackedOnly
                 && state_has_hosted_key_or_path(state, &entry.key, &local_path)
             {
@@ -880,15 +911,59 @@ impl DriveAgent {
                 continue;
             }
 
-            let remote_bytes = self.objects.get_object(&remote.object_key).await?;
-            let status = if local_path.exists() {
-                let local_bytes = read_file(&local_path).await?;
-                if content_hash(&local_bytes) == remote.content_hash {
-                    PullRemoteStatus::AlreadyCurrent
-                } else if options.overwrite {
+            let task_id = self
+                .start_sync_task(
+                    DriveSyncTaskKind::Materialize,
+                    &entry.key,
+                    Some(&local_path),
+                )
+                .await?;
+            let result = async {
+                let remote_bytes = self.objects.get_object(&remote.object_key).await?;
+                let status = if local_path.exists() {
+                    let local_bytes = read_file(&local_path).await?;
+                    if content_hash(&local_bytes) == remote.content_hash {
+                        PullRemoteStatus::AlreadyCurrent
+                    } else if options.overwrite {
+                        write_file(&local_path, &remote_bytes).await?;
+                        PullRemoteStatus::Pulled
+                    } else {
+                        return Ok(None);
+                    }
+                } else {
                     write_file(&local_path, &remote_bytes).await?;
                     PullRemoteStatus::Pulled
-                } else {
+                };
+
+                upsert_hosted_state(
+                    state,
+                    HostedPathState {
+                        local_path: local_path.clone(),
+                        space_id: entry.key.space_id.clone(),
+                        root_alias: entry.key.root_alias.to_string(),
+                        relative_path: entry.key.relative_path.to_string(),
+                        base_version: Some(remote.version),
+                        base_hash: Some(remote.content_hash.clone()),
+                        content_hash: Some(remote.content_hash.clone()),
+                        hosted_at: Utc::now(),
+                        last_synced_at: Some(Utc::now()),
+                    },
+                );
+                Ok(Some(status))
+            };
+            match result.await {
+                Ok(Some(status)) => {
+                    self.finish_sync_task(task_id).await?;
+                    rows.push(pull_item_from_entry(
+                        status,
+                        local_path,
+                        &entry,
+                        &registry,
+                        Some(&remote),
+                    ));
+                }
+                Ok(None) => {
+                    self.finish_sync_task(task_id).await?;
                     rows.push(pull_item_from_entry(
                         PullRemoteStatus::SkippedExisting,
                         local_path,
@@ -896,34 +971,12 @@ impl DriveAgent {
                         &registry,
                         Some(&remote),
                     ));
-                    continue;
                 }
-            } else {
-                write_file(&local_path, &remote_bytes).await?;
-                PullRemoteStatus::Pulled
-            };
-
-            upsert_hosted_state(
-                state,
-                HostedPathState {
-                    local_path: local_path.clone(),
-                    space_id: entry.key.space_id.clone(),
-                    root_alias: entry.key.root_alias.to_string(),
-                    relative_path: entry.key.relative_path.to_string(),
-                    base_version: Some(remote.version),
-                    base_hash: Some(remote.content_hash.clone()),
-                    content_hash: Some(remote.content_hash.clone()),
-                    hosted_at: Utc::now(),
-                    last_synced_at: Some(Utc::now()),
-                },
-            );
-            rows.push(pull_item_from_entry(
-                status,
-                local_path,
-                &entry,
-                &registry,
-                Some(&remote),
-            ));
+                Err(error) => {
+                    self.fail_sync_task(task_id, &error).await?;
+                    return Err(error);
+                }
+            }
         }
 
         rows.sort_by(|left, right| {
@@ -954,6 +1007,17 @@ impl DriveAgent {
         Ok(ignored)
     }
 
+    async fn list_visible_suspended_paths(&self) -> DriveAgentResult<Vec<DriveSuspendedPath>> {
+        let visible = self.config.visible_space_ids();
+        Ok(self
+            .metadata
+            .list_suspended_paths()
+            .await?
+            .into_iter()
+            .filter(|item| visible.contains(&item.space_id))
+            .collect())
+    }
+
     /// Lists unresolved conflicts from the server-side metadata store.
     ///
     /// # Errors
@@ -961,6 +1025,82 @@ impl DriveAgent {
     pub async fn conflicts(&self) -> DriveAgentResult<Vec<DriveConflict>> {
         self.sync.prepare_sync().await?;
         Ok(self.metadata.list_conflicts(Some(false)).await?)
+    }
+
+    /// Lists durable sync queue items.
+    ///
+    /// # Errors
+    /// Returns [`DriveAgentError`] when store access fails.
+    pub async fn sync_queue(
+        &self,
+        status: Option<DriveSyncTaskStatus>,
+    ) -> DriveAgentResult<Vec<DriveSyncQueueItem>> {
+        self.sync.prepare_sync().await?;
+        Ok(self.metadata.list_sync_queue(status).await?)
+    }
+
+    /// Marks failed queue items pending and runs one sync pass.
+    ///
+    /// # Errors
+    /// Returns [`DriveAgentError`] when queue mutation or sync fails.
+    pub async fn retry_sync_queue(&self) -> DriveAgentResult<u64> {
+        self.sync.prepare_sync().await?;
+        let retried = self.metadata.retry_failed_sync_tasks().await?;
+        self.sync.flush_sync().await?;
+        if retried > 0 {
+            self.sync_once().await?;
+        }
+        Ok(retried)
+    }
+
+    /// Resolves a suspended conflict.
+    ///
+    /// # Errors
+    /// Returns [`DriveAgentError`] when metadata, local files, or state writes fail.
+    pub async fn resolve_conflict(
+        &self,
+        conflict_id: Uuid,
+        resolution: ConflictResolution,
+    ) -> DriveAgentResult<Option<DriveConflict>> {
+        self.sync.prepare_sync().await?;
+        let Some(conflict) = self
+            .metadata
+            .list_conflicts(Some(false))
+            .await?
+            .into_iter()
+            .find(|conflict| conflict.id == conflict_id)
+        else {
+            return Ok(None);
+        };
+        let mut state = self.state_store.load_or_init().await?;
+        let registry = registry_from_state(&state)?;
+        let Some(entry) = self.metadata.get_entry_by_id(conflict.entry_id).await? else {
+            return Ok(None);
+        };
+        let Some(local_path) = local_path_for_key(&registry, &entry.key) else {
+            return Ok(None);
+        };
+        match &resolution {
+            ConflictResolution::KeepRemote => {}
+            ConflictResolution::KeepLocal => {
+                let bytes = read_file(Path::new(&conflict.conflict_path)).await?;
+                write_file(&local_path, &bytes).await?;
+            }
+            ConflictResolution::UseMerged(path) => {
+                let path =
+                    normalize_absolute_path(&expand_path_expression(&path.display().to_string()))?;
+                let bytes = read_file(&path).await?;
+                write_file(&local_path, &bytes).await?;
+            }
+        }
+        let resolved = self.metadata.resolve_conflict(conflict_id).await?;
+        self.metadata
+            .delete_suspended_path(conflict.entry_id)
+            .await?;
+        state.conflicts.retain(|item| item.id != conflict_id);
+        self.state_store.save(&state).await?;
+        self.sync.flush_sync().await?;
+        Ok(resolved)
     }
 
     /// Migrates legacy `main` state into the current login owner's Drive id.
@@ -1046,6 +1186,49 @@ impl DriveAgent {
             self.sync_once().await?;
             tokio::time::sleep(self.config.poll_interval).await;
         }
+    }
+
+    async fn start_sync_task(
+        &self,
+        kind: DriveSyncTaskKind,
+        key: &EntryKey,
+        local_path: Option<&Path>,
+    ) -> DriveAgentResult<Uuid> {
+        let now = Utc::now();
+        let item = DriveSyncQueueItem {
+            id: Uuid::new_v4(),
+            kind,
+            status: DriveSyncTaskStatus::Pending,
+            space_id: key.space_id.clone(),
+            root_alias: key.root_alias.clone(),
+            relative_path: key.relative_path.clone(),
+            local_path: local_path.map(|path| path.display().to_string()),
+            remote_path: key.remote_path(),
+            attempts: 0,
+            last_error: None,
+            created_at: now,
+            updated_at: now,
+        };
+        let id = item.id;
+        self.metadata.enqueue_sync_task(item).await?;
+        self.metadata
+            .update_sync_task(id, DriveSyncTaskStatus::Running, None)
+            .await?;
+        Ok(id)
+    }
+
+    async fn finish_sync_task(&self, id: Uuid) -> DriveAgentResult<()> {
+        self.metadata
+            .update_sync_task(id, DriveSyncTaskStatus::Done, None)
+            .await?;
+        Ok(())
+    }
+
+    async fn fail_sync_task(&self, id: Uuid, error: &DriveAgentError) -> DriveAgentResult<()> {
+        self.metadata
+            .update_sync_task(id, DriveSyncTaskStatus::Failed, Some(&error.to_string()))
+            .await?;
+        Ok(())
     }
 
     async fn host_file(
@@ -1139,9 +1322,13 @@ impl DriveAgent {
             .metadata
             .upsert_entry(&key, DriveEntryKind::File)
             .await?;
+        if self.metadata.get_suspended_path(entry.id).await?.is_some() {
+            return Ok(());
+        }
         let latest = self.metadata.latest_version(entry.id).await?;
         let local_bytes = read_file(&hosted.local_path).await?;
         let local_hash = content_hash(&local_bytes);
+        let remote_version = latest.as_ref().map(|version| version.version);
 
         if let Some(remote) = &latest
             && hosted.content_hash.as_deref() == Some(&local_hash)
@@ -1149,20 +1336,69 @@ impl DriveAgent {
                 .base_version
                 .is_some_and(|base| remote.version > base)
         {
-            let remote_bytes = self.objects.get_object(&remote.object_key).await?;
-            write_file(&hosted.local_path, &remote_bytes).await?;
+            let task_id = self
+                .start_sync_task(DriveSyncTaskKind::Download, &key, Some(&hosted.local_path))
+                .await?;
+            let result = async {
+                let remote_bytes = self.objects.get_object(&remote.object_key).await?;
+                write_file(&hosted.local_path, &remote_bytes).await
+            };
+            if let Err(error) = result.await {
+                self.fail_sync_task(task_id, &error).await?;
+                return Err(error);
+            }
             hosted.base_version = Some(remote.version);
             hosted.base_hash = Some(remote.content_hash.clone());
             hosted.content_hash = Some(remote.content_hash.clone());
             hosted.last_synced_at = Some(Utc::now());
+            self.finish_sync_task(task_id).await?;
             return Ok(());
         }
 
         if hosted.content_hash.as_deref() == Some(&local_hash) {
+            let object_key = object_key_for_hash(&local_hash);
+            let needs_version_repair = latest
+                .as_ref()
+                .is_none_or(|remote| remote.content_hash != local_hash);
+            if !self.objects.object_exists(&object_key).await? || needs_version_repair {
+                let task_id = self
+                    .start_sync_task(DriveSyncTaskKind::Upload, &key, Some(&hosted.local_path))
+                    .await?;
+                let version = DriveVersion {
+                    id: Uuid::new_v4(),
+                    entry_id: entry.id,
+                    version: remote_version.unwrap_or(0).saturating_add(1),
+                    content_hash: local_hash.clone(),
+                    object_key: object_key.clone(),
+                    size_bytes: local_bytes.len() as u64,
+                    device_id: self.config.device_id.clone(),
+                    modified_at: Utc::now(),
+                };
+                let result = async {
+                    if !self.objects.object_exists(&object_key).await? {
+                        self.objects.put_object(&object_key, &local_bytes).await?;
+                    }
+                    if needs_version_repair {
+                        self.metadata.insert_version(version).await?;
+                    }
+                    Ok::<(), DriveStoreError>(())
+                };
+                if let Err(error) = result.await {
+                    let error = DriveAgentError::from(error);
+                    self.fail_sync_task(task_id, &error).await?;
+                    return Err(error);
+                }
+                if needs_version_repair {
+                    hosted.base_version = Some(remote_version.unwrap_or(0).saturating_add(1));
+                    hosted.base_hash = Some(local_hash.clone());
+                    hosted.content_hash = Some(local_hash);
+                    hosted.last_synced_at = Some(Utc::now());
+                }
+                self.finish_sync_task(task_id).await?;
+            }
             return Ok(());
         }
 
-        let remote_version = latest.as_ref().map(|version| version.version);
         let remote_hash = latest.as_ref().map(|version| version.content_hash.as_str());
         match decide_local_change(
             hosted.base_version,
@@ -1182,31 +1418,55 @@ impl DriveAgent {
                 }
             }
             ChangeDecision::UploadNewVersion => {
+                let task_id = self
+                    .start_sync_task(DriveSyncTaskKind::Upload, &key, Some(&hosted.local_path))
+                    .await?;
                 let object_key = object_key_for_hash(&local_hash);
-                if !self.objects.object_exists(&object_key).await? {
-                    self.objects.put_object(&object_key, &local_bytes).await?;
-                }
                 let next_version = remote_version.unwrap_or(0).saturating_add(1);
                 let version = DriveVersion {
                     id: Uuid::new_v4(),
                     entry_id: entry.id,
                     version: next_version,
                     content_hash: local_hash.clone(),
-                    object_key,
+                    object_key: object_key.clone(),
                     size_bytes: local_bytes.len() as u64,
                     device_id: self.config.device_id.clone(),
                     modified_at: Utc::now(),
                 };
-                self.metadata.insert_version(version).await?;
+                let result = async {
+                    if !self.objects.object_exists(&object_key).await? {
+                        self.objects.put_object(&object_key, &local_bytes).await?;
+                    }
+                    self.metadata.insert_version(version).await
+                };
+                if let Err(error) = result.await {
+                    let error = DriveAgentError::from(error);
+                    self.fail_sync_task(task_id, &error).await?;
+                    return Err(error);
+                }
                 hosted.base_version = Some(next_version);
                 hosted.base_hash = Some(local_hash.clone());
                 hosted.content_hash = Some(local_hash);
                 hosted.last_synced_at = Some(Utc::now());
+                self.finish_sync_task(task_id).await?;
             }
             ChangeDecision::Conflict => {
                 if let Some(remote) = latest {
-                    self.try_merge_or_write_conflict(state, hosted, entry.id, remote, &local_bytes)
+                    let task_id = self
+                        .start_sync_task(
+                            DriveSyncTaskKind::Conflict,
+                            &key,
+                            Some(&hosted.local_path),
+                        )
                         .await?;
+                    let result = self
+                        .try_merge_or_write_conflict(state, hosted, entry.id, remote, &local_bytes)
+                        .await;
+                    if let Err(error) = result {
+                        self.fail_sync_task(task_id, &error).await?;
+                        return Err(error);
+                    }
+                    self.finish_sync_task(task_id).await?;
                 }
             }
             ChangeDecision::LockedByOther { .. } => {}
@@ -1237,6 +1497,11 @@ impl DriveAgent {
                     mapping.relative_path.clone(),
                 );
                 if is_key_ignored(&key, &ignored) {
+                    continue;
+                }
+                if let Some(entry) = self.metadata.get_entry(&key).await?
+                    && self.metadata.get_suspended_path(entry.id).await?.is_some()
+                {
                     continue;
                 }
                 if let Err(error) = self.host_file(state, mapping).await {
@@ -1348,6 +1613,21 @@ impl DriveAgent {
                 created_at: now,
             })
             .await?;
+        if let Some(entry) = self.metadata.get_entry_by_id(request.entry_id).await? {
+            self.metadata
+                .upsert_suspended_path(DriveSuspendedPath {
+                    id: Uuid::new_v4(),
+                    entry_id: request.entry_id,
+                    space_id: entry.key.space_id,
+                    root_alias: entry.key.root_alias,
+                    relative_path: entry.key.relative_path,
+                    reason: "conflict".to_owned(),
+                    conflict_id: Some(conflict.id),
+                    created_at: now,
+                    updated_at: now,
+                })
+                .await?;
+        }
         state.conflicts.push(LocalConflictState {
             id: conflict.id,
             conflict_path,
@@ -1441,6 +1721,7 @@ fn insert_local_tracked_items(
     state: &LocalState,
     registry: &RootRegistry,
     ignored: &[DriveIgnoredPath],
+    suspended: &[DriveSuspendedPath],
     requested: Option<&Path>,
     requested_mapping: Option<&az_drive_core::HostPathMapping>,
 ) -> DriveAgentResult<()> {
@@ -1451,7 +1732,9 @@ fn insert_local_tracked_items(
         if is_key_ignored(&key, ignored) {
             continue;
         }
-        let status = if hosted.local_path.exists() {
+        let status = if is_key_suspended(&key, suspended) {
+            TrackedItemStatus::ConflictSuspended
+        } else if hosted.local_path.exists() {
             TrackedItemStatus::Tracked
         } else {
             TrackedItemStatus::MissingLocal
@@ -1489,7 +1772,11 @@ fn insert_local_tracked_items(
                 continue;
             }
             let item = tracked_item_from_key(
-                TrackedItemStatus::Tracked,
+                if is_key_suspended(&key, suspended) {
+                    TrackedItemStatus::ConflictSuspended
+                } else {
+                    TrackedItemStatus::Tracked
+                },
                 TrackedItemSource::Local,
                 Some(file),
                 &key,
@@ -1511,6 +1798,7 @@ fn insert_remote_tracked_items(
     entries: Vec<DriveEntry>,
     registry: &RootRegistry,
     ignored: &[DriveIgnoredPath],
+    suspended: &[DriveSuspendedPath],
     requested: Option<&Path>,
     requested_mapping: Option<&az_drive_core::HostPathMapping>,
 ) {
@@ -1521,6 +1809,9 @@ fn insert_remote_tracked_items(
         let remote_path = entry.key.remote_path();
         if let Some(existing) = rows.get_mut(&remote_path) {
             existing.source = TrackedItemSource::Both;
+            if is_key_suspended(&entry.key, suspended) {
+                existing.status = TrackedItemStatus::ConflictSuspended;
+            }
             existing.base_version = existing.base_version.or(Some(entry.latest_version));
             if existing.content_hash.is_none() {
                 existing.content_hash.clone_from(&entry.latest_hash);
@@ -1529,8 +1820,16 @@ fn insert_remote_tracked_items(
         }
 
         let item = tracked_item_from_key(
-            TrackedItemStatus::RemoteOnly,
-            TrackedItemSource::Remote,
+            if is_key_suspended(&entry.key, suspended) {
+                TrackedItemStatus::ConflictSuspended
+            } else {
+                TrackedItemStatus::RemoteOnly
+            },
+            if is_key_suspended(&entry.key, suspended) {
+                TrackedItemSource::Suspended
+            } else {
+                TrackedItemSource::Remote
+            },
             None,
             &entry.key,
             Some(entry.latest_version),
@@ -1763,6 +2062,14 @@ fn is_key_ignored(key: &EntryKey, ignored: &[DriveIgnoredPath]) -> bool {
     })
 }
 
+fn is_key_suspended(key: &EntryKey, suspended: &[DriveSuspendedPath]) -> bool {
+    suspended.iter().any(|item| {
+        item.space_id == key.space_id
+            && item.root_alias == key.root_alias
+            && item.relative_path == key.relative_path
+    })
+}
+
 fn relative_matches_prefix(candidate: &str, prefix: &str) -> bool {
     prefix.is_empty() || candidate == prefix || candidate.starts_with(&format!("{prefix}/"))
 }
@@ -1891,6 +2198,7 @@ mod tests {
         PullRemoteStatus, TrackedItemSource, TrackedItemStatus, display_path_for_key,
     };
     use az_drive_core::{EntryKey, RelativePath, RootAlias, RootRegistry};
+    use az_drive_store::DriveSyncTaskStatus;
     use az_drive_store::{InMemoryDriveMetadataStore, InMemoryDriveObjectStore};
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -2344,8 +2652,40 @@ mod tests {
         tokio::fs::write(&file_b, b"from-b").await.expect("edit b");
         agent_b.sync_once().await.expect("b sync");
         let conflicts = agent_b.conflicts().await.expect("conflicts should load");
+        let listed = agent_b
+            .list_tracked(None, ListTrackedOptions::default())
+            .await
+            .expect("tracked items should load");
+        let queue = agent_b
+            .sync_queue(Some(DriveSyncTaskStatus::Done))
+            .await
+            .expect("queue should load");
 
         assert_eq!(conflicts.len(), 1);
+        assert!(
+            listed
+                .iter()
+                .any(|item| item.status == TrackedItemStatus::ConflictSuspended)
+        );
+        assert!(
+            queue
+                .iter()
+                .any(|item| item.kind == super::DriveSyncTaskKind::Conflict)
+        );
+
+        agent_b
+            .resolve_conflict(conflicts[0].id, super::ConflictResolution::KeepRemote)
+            .await
+            .expect("conflict should resolve");
+        let listed_after_resolve = agent_b
+            .list_tracked(None, ListTrackedOptions::default())
+            .await
+            .expect("tracked items should reload");
+        assert!(
+            listed_after_resolve
+                .iter()
+                .all(|item| item.status != TrackedItemStatus::ConflictSuspended)
+        );
     }
 
     #[tokio::test]

@@ -1,3 +1,19 @@
+//! Docker 命令行转 Compose 配置转换工具。
+//!
+//! 将 `docker run` 命令行字符串解析为结构化的 [`DockerRunCommand`]，
+//! 并可生成对应的 Docker Compose v3.8 YAML 配置。
+//!
+//! # 核心类型
+//!
+//! - [`DockerRunCommand`] — 解析后的 Docker Run 命令结构，包含镜像、端口、环境变量等字段。
+//! - [`DockerComposeConverter`] — 转换器，提供一行式 API 将命令字符串直接转为 YAML。
+//!
+//! # 主要功能
+//!
+//! - 支持多种参数格式（`-p 8080:80`、`-p8080:80`、`--publish=8080:80`）
+//! - 通过 `shlex` 正确处理 shell 引号与转义
+//! - 未知的 `--key=value` 选项会被归入 `other_options` 字段
+
 use std::collections::BTreeMap;
 use thiserror::Error;
 

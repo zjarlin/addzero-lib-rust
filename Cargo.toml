@@ -7,8 +7,7 @@ members = [
     "crates/config/*",
     "crates/core/*",
     "crates/data/*",
-    "crates/music/*",
-    "crates/network/*",
+        "crates/network/*",
     "crates/runtime/*",
     "crates/storage/*",
     "crates/text/*",
@@ -87,7 +86,7 @@ az-drive-webdav = { version = "=2026.5.10", path = "crates/network/az-drive-webd
 az-kiro-auth-support = { version = "=2026.5.10", path = "crates/api/az-kiro-auth-support" }
 az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
 az-minio = { version = "=2026.5.10", path = "crates/storage/az-minio" }
-az-music = { version = "=2026.5.10", path = "crates/music/az-music" }
+az-music = { version = "=2026.5.10", path = "crates/network/az-music" }
 az-persistence = { version = "=2026.5.10", path = "crates/data/az-persistence" }
 az-plugin-contract = { version = "=2026.5.10", path = "crates/runtime/az-plugin-contract" }
 az-plugin-macros = { version = "=2026.5.10", path = "crates/runtime/az-plugin-macros" }

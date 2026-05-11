@@ -12,7 +12,8 @@ use uuid::Uuid;
 
 use crate::{
     DriveConflict, DriveEntry, DriveEntryKind, DriveIgnoredPath, DriveLock, DriveMetadataStore,
-    DriveObjectStore, DriveStoreError, DriveStoreResult, DriveSyncCoordinator, DriveVersion,
+    DriveObjectStore, DriveStoreError, DriveStoreResult, DriveSuspendedPath, DriveSyncCoordinator,
+    DriveSyncQueueItem, DriveSyncTaskStatus, DriveVersion,
 };
 
 pub const DEFAULT_GIT_POOL_LIMIT_BYTES: u64 = 8 * 1024 * 1024 * 1024;
@@ -86,6 +87,16 @@ struct IgnoredRecord {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 struct ConflictRecord {
     conflict: DriveConflict,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct SyncQueueRecord {
+    item: DriveSyncQueueItem,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct SuspendedRecord {
+    suspension: DriveSuspendedPath,
 }
 
 #[derive(Clone, Debug)]
@@ -200,6 +211,8 @@ impl GitPoolDriveStore {
             self.control_path().join("versions"),
             self.control_path().join("ignored"),
             self.control_path().join("conflicts"),
+            self.control_path().join("sync-queue"),
+            self.control_path().join("suspended"),
         ] {
             fs::create_dir_all(&dir).map_err(|err| io_error("init_failed", err))?;
         }
@@ -292,6 +305,18 @@ impl GitPoolDriveStore {
         self.control_path()
             .join("conflicts")
             .join(format!("{id}.json"))
+    }
+
+    fn sync_queue_path(&self, id: Uuid) -> PathBuf {
+        self.control_path()
+            .join("sync-queue")
+            .join(format!("{id}.json"))
+    }
+
+    fn suspended_path(&self, entry_id: Uuid) -> PathBuf {
+        self.control_path()
+            .join("suspended")
+            .join(format!("{entry_id}.json"))
     }
 
     fn pool_entry_path(&self, pool_name: &str, id: Uuid) -> PathBuf {
@@ -773,6 +798,126 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(conflicts)
     }
 
+    async fn resolve_conflict(&self, conflict_id: Uuid) -> DriveStoreResult<Option<DriveConflict>> {
+        let path = self.conflict_path(conflict_id);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let mut record: ConflictRecord = read_json(&path)?;
+        record.conflict.resolved = true;
+        write_json(&path, &record)?;
+        Ok(Some(record.conflict))
+    }
+
+    async fn enqueue_sync_task(
+        &self,
+        item: DriveSyncQueueItem,
+    ) -> DriveStoreResult<DriveSyncQueueItem> {
+        write_json(
+            &self.sync_queue_path(item.id),
+            &SyncQueueRecord { item: item.clone() },
+        )?;
+        Ok(item)
+    }
+
+    async fn update_sync_task(
+        &self,
+        id: Uuid,
+        status: DriveSyncTaskStatus,
+        last_error: Option<&str>,
+    ) -> DriveStoreResult<Option<DriveSyncQueueItem>> {
+        let path = self.sync_queue_path(id);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let mut record: SyncQueueRecord = read_json(&path)?;
+        record.item.status = status;
+        record.item.updated_at = Utc::now();
+        record.item.last_error = last_error.map(str::to_owned);
+        if matches!(status, DriveSyncTaskStatus::Running) {
+            record.item.attempts = record.item.attempts.saturating_add(1);
+        }
+        write_json(&path, &record)?;
+        Ok(Some(record.item))
+    }
+
+    async fn list_sync_queue(
+        &self,
+        status: Option<DriveSyncTaskStatus>,
+    ) -> DriveStoreResult<Vec<DriveSyncQueueItem>> {
+        let mut items = Vec::new();
+        for path in json_files(&self.control_path().join("sync-queue"))? {
+            let record: SyncQueueRecord = read_json(&path)?;
+            if status.is_none_or(|status| record.item.status == status) {
+                items.push(record.item);
+            }
+        }
+        items.sort_by(|left, right| left.created_at.cmp(&right.created_at));
+        Ok(items)
+    }
+
+    async fn retry_failed_sync_tasks(&self) -> DriveStoreResult<u64> {
+        let mut count = 0;
+        for path in json_files(&self.control_path().join("sync-queue"))? {
+            let mut record: SyncQueueRecord = read_json(&path)?;
+            if record.item.status == DriveSyncTaskStatus::Failed {
+                record.item.status = DriveSyncTaskStatus::Pending;
+                record.item.last_error = None;
+                record.item.updated_at = Utc::now();
+                write_json(&path, &record)?;
+                count += 1;
+            }
+        }
+        Ok(count)
+    }
+
+    async fn upsert_suspended_path(
+        &self,
+        suspension: DriveSuspendedPath,
+    ) -> DriveStoreResult<DriveSuspendedPath> {
+        write_json(
+            &self.suspended_path(suspension.entry_id),
+            &SuspendedRecord {
+                suspension: suspension.clone(),
+            },
+        )?;
+        Ok(suspension)
+    }
+
+    async fn get_suspended_path(
+        &self,
+        entry_id: Uuid,
+    ) -> DriveStoreResult<Option<DriveSuspendedPath>> {
+        let path = self.suspended_path(entry_id);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let record: SuspendedRecord = read_json(&path)?;
+        Ok(Some(record.suspension))
+    }
+
+    async fn list_suspended_paths(&self) -> DriveStoreResult<Vec<DriveSuspendedPath>> {
+        let mut items = Vec::new();
+        for path in json_files(&self.control_path().join("suspended"))? {
+            let record: SuspendedRecord = read_json(&path)?;
+            items.push(record.suspension);
+        }
+        items.sort_by(|left, right| {
+            left.space_id
+                .cmp(&right.space_id)
+                .then_with(|| left.root_alias.cmp(&right.root_alias))
+                .then_with(|| left.relative_path.cmp(&right.relative_path))
+        });
+        Ok(items)
+    }
+
+    async fn delete_suspended_path(&self, entry_id: Uuid) -> DriveStoreResult<bool> {
+        let path = self.suspended_path(entry_id);
+        let existed = path.exists();
+        remove_file_if_exists(&path)?;
+        Ok(existed)
+    }
+
     async fn acquire_lock(&self, lock: DriveLock) -> DriveStoreResult<DriveLock> {
         Ok(lock)
     }
@@ -885,12 +1030,17 @@ fn ensure_remote(path: &Path, remote: &str) -> DriveStoreResult<()> {
 }
 
 fn configure_repo_identity(path: &Path) -> DriveStoreResult<()> {
-    run_git(
-        path,
-        ["config", "user.email", "aio-drive@local"],
-        "init_failed",
-    )?;
-    run_git(path, ["config", "user.name", "AIO Drive"], "init_failed")
+    if run_git_allow_failure(path, ["config", "--get", "user.email"]).is_err() {
+        run_git(
+            path,
+            ["config", "user.email", "aio-drive@local"],
+            "init_failed",
+        )?;
+    }
+    if run_git_allow_failure(path, ["config", "--get", "user.name"]).is_err() {
+        run_git(path, ["config", "user.name", "AIO Drive"], "init_failed")?;
+    }
+    Ok(())
 }
 
 fn ensure_local_bare_remote(remote: &str) -> DriveStoreResult<()> {

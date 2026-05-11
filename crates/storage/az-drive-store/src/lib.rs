@@ -174,6 +174,86 @@ pub struct DriveConflict {
     pub created_at: DateTime<Utc>,
 }
 
+/// Durable sync task kind used for queue diagnostics and retry.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DriveSyncTaskKind {
+    /// Upload local bytes as a new remote version.
+    Upload,
+    /// Download remote bytes to a tracked local path.
+    Download,
+    /// Materialize a remote-only entry on this device.
+    Materialize,
+    /// Conflict processing task.
+    Conflict,
+}
+
+/// Durable sync task status.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DriveSyncTaskStatus {
+    /// Task has been discovered but not completed.
+    Pending,
+    /// Task is currently being processed by a sync cycle.
+    Running,
+    /// Task completed successfully.
+    Done,
+    /// Task failed and can be retried.
+    Failed,
+}
+
+/// Queue item persisted for sync diagnostics and retry intent.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DriveSyncQueueItem {
+    /// Queue item id.
+    pub id: Uuid,
+    /// Task kind.
+    pub kind: DriveSyncTaskKind,
+    /// Current task status.
+    pub status: DriveSyncTaskStatus,
+    /// Owner Drive namespace.
+    pub space_id: String,
+    /// Cross-device root alias.
+    pub root_alias: RootAlias,
+    /// Path relative to the logical root.
+    pub relative_path: RelativePath,
+    /// Device-local path associated with the task when known.
+    pub local_path: Option<String>,
+    /// Remote path for display and diagnostics.
+    pub remote_path: String,
+    /// Number of attempts.
+    pub attempts: u32,
+    /// Last error message for failed tasks.
+    pub last_error: Option<String>,
+    /// Creation timestamp.
+    pub created_at: DateTime<Utc>,
+    /// Last update timestamp.
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Remote path suspended from automatic sync until its conflict is resolved.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DriveSuspendedPath {
+    /// Suspension id.
+    pub id: Uuid,
+    /// Suspended entry id.
+    pub entry_id: Uuid,
+    /// Owner Drive namespace.
+    pub space_id: String,
+    /// Cross-device root alias.
+    pub root_alias: RootAlias,
+    /// Path relative to the logical root.
+    pub relative_path: RelativePath,
+    /// Stable reason such as `conflict`.
+    pub reason: String,
+    /// Conflict id that caused the suspension when available.
+    pub conflict_id: Option<Uuid>,
+    /// Creation timestamp.
+    pub created_at: DateTime<Utc>,
+    /// Last update timestamp.
+    pub updated_at: DateTime<Utc>,
+}
+
 /// Shared metadata rule that excludes a remote path from automatic hosting.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DriveIgnoredPath {
@@ -260,6 +340,71 @@ pub trait DriveMetadataStore: Send + Sync {
     /// Lists unresolved conflicts.
     async fn list_conflicts(&self, resolved: Option<bool>) -> DriveStoreResult<Vec<DriveConflict>>;
 
+    /// Marks a conflict resolved.
+    async fn resolve_conflict(
+        &self,
+        _conflict_id: Uuid,
+    ) -> DriveStoreResult<Option<DriveConflict>> {
+        Ok(None)
+    }
+
+    /// Enqueues a sync task.
+    async fn enqueue_sync_task(
+        &self,
+        item: DriveSyncQueueItem,
+    ) -> DriveStoreResult<DriveSyncQueueItem> {
+        Ok(item)
+    }
+
+    /// Updates a sync task status.
+    async fn update_sync_task(
+        &self,
+        _id: Uuid,
+        _status: DriveSyncTaskStatus,
+        _last_error: Option<&str>,
+    ) -> DriveStoreResult<Option<DriveSyncQueueItem>> {
+        Ok(None)
+    }
+
+    /// Lists queued sync tasks.
+    async fn list_sync_queue(
+        &self,
+        _status: Option<DriveSyncTaskStatus>,
+    ) -> DriveStoreResult<Vec<DriveSyncQueueItem>> {
+        Ok(Vec::new())
+    }
+
+    /// Moves failed queue items back to pending.
+    async fn retry_failed_sync_tasks(&self) -> DriveStoreResult<u64> {
+        Ok(0)
+    }
+
+    /// Creates or refreshes a suspended path.
+    async fn upsert_suspended_path(
+        &self,
+        suspension: DriveSuspendedPath,
+    ) -> DriveStoreResult<DriveSuspendedPath> {
+        Ok(suspension)
+    }
+
+    /// Returns a suspension by entry id.
+    async fn get_suspended_path(
+        &self,
+        _entry_id: Uuid,
+    ) -> DriveStoreResult<Option<DriveSuspendedPath>> {
+        Ok(None)
+    }
+
+    /// Lists suspended paths.
+    async fn list_suspended_paths(&self) -> DriveStoreResult<Vec<DriveSuspendedPath>> {
+        Ok(Vec::new())
+    }
+
+    /// Removes a suspended path by entry id.
+    async fn delete_suspended_path(&self, _entry_id: Uuid) -> DriveStoreResult<bool> {
+        Ok(false)
+    }
+
     /// Acquires or replaces an expired lock.
     async fn acquire_lock(&self, lock: DriveLock) -> DriveStoreResult<DriveLock>;
 
@@ -326,6 +471,8 @@ struct InMemoryState {
     versions: BTreeMap<Uuid, Vec<DriveVersion>>,
     locks: HashMap<Uuid, DriveLock>,
     conflicts: Vec<DriveConflict>,
+    sync_queue: BTreeMap<Uuid, DriveSyncQueueItem>,
+    suspended_by_entry: BTreeMap<Uuid, DriveSuspendedPath>,
 }
 
 impl InMemoryDriveMetadataStore {
@@ -605,6 +752,112 @@ impl DriveMetadataStore for InMemoryDriveMetadataStore {
             .filter(|conflict| resolved.is_none_or(|value| conflict.resolved == value))
             .cloned()
             .collect())
+    }
+
+    async fn resolve_conflict(&self, conflict_id: Uuid) -> DriveStoreResult<Option<DriveConflict>> {
+        let mut state = self.state()?;
+        let Some(conflict) = state
+            .conflicts
+            .iter_mut()
+            .find(|conflict| conflict.id == conflict_id)
+        else {
+            return Ok(None);
+        };
+        conflict.resolved = true;
+        Ok(Some(conflict.clone()))
+    }
+
+    async fn enqueue_sync_task(
+        &self,
+        item: DriveSyncQueueItem,
+    ) -> DriveStoreResult<DriveSyncQueueItem> {
+        self.state()?.sync_queue.insert(item.id, item.clone());
+        Ok(item)
+    }
+
+    async fn update_sync_task(
+        &self,
+        id: Uuid,
+        status: DriveSyncTaskStatus,
+        last_error: Option<&str>,
+    ) -> DriveStoreResult<Option<DriveSyncQueueItem>> {
+        let mut state = self.state()?;
+        let Some(item) = state.sync_queue.get_mut(&id) else {
+            return Ok(None);
+        };
+        item.status = status;
+        item.updated_at = Utc::now();
+        item.last_error = last_error.map(str::to_owned);
+        if matches!(status, DriveSyncTaskStatus::Running) {
+            item.attempts = item.attempts.saturating_add(1);
+        }
+        Ok(Some(item.clone()))
+    }
+
+    async fn list_sync_queue(
+        &self,
+        status: Option<DriveSyncTaskStatus>,
+    ) -> DriveStoreResult<Vec<DriveSyncQueueItem>> {
+        let mut items = self
+            .state()?
+            .sync_queue
+            .values()
+            .filter(|item| status.is_none_or(|status| item.status == status))
+            .cloned()
+            .collect::<Vec<_>>();
+        items.sort_by(|left, right| left.created_at.cmp(&right.created_at));
+        Ok(items)
+    }
+
+    async fn retry_failed_sync_tasks(&self) -> DriveStoreResult<u64> {
+        let mut state = self.state()?;
+        let mut count = 0;
+        for item in state.sync_queue.values_mut() {
+            if item.status == DriveSyncTaskStatus::Failed {
+                item.status = DriveSyncTaskStatus::Pending;
+                item.last_error = None;
+                item.updated_at = Utc::now();
+                count += 1;
+            }
+        }
+        Ok(count)
+    }
+
+    async fn upsert_suspended_path(
+        &self,
+        suspension: DriveSuspendedPath,
+    ) -> DriveStoreResult<DriveSuspendedPath> {
+        self.state()?
+            .suspended_by_entry
+            .insert(suspension.entry_id, suspension.clone());
+        Ok(suspension)
+    }
+
+    async fn get_suspended_path(
+        &self,
+        entry_id: Uuid,
+    ) -> DriveStoreResult<Option<DriveSuspendedPath>> {
+        Ok(self.state()?.suspended_by_entry.get(&entry_id).cloned())
+    }
+
+    async fn list_suspended_paths(&self) -> DriveStoreResult<Vec<DriveSuspendedPath>> {
+        let mut items = self
+            .state()?
+            .suspended_by_entry
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        items.sort_by(|left, right| {
+            left.space_id
+                .cmp(&right.space_id)
+                .then_with(|| left.root_alias.cmp(&right.root_alias))
+                .then_with(|| left.relative_path.cmp(&right.relative_path))
+        });
+        Ok(items)
+    }
+
+    async fn delete_suspended_path(&self, entry_id: Uuid) -> DriveStoreResult<bool> {
+        Ok(self.state()?.suspended_by_entry.remove(&entry_id).is_some())
     }
 
     async fn acquire_lock(&self, lock: DriveLock) -> DriveStoreResult<DriveLock> {

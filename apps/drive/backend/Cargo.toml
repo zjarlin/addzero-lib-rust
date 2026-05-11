@@ -24,6 +24,7 @@ shlex.workspace = true
 tokio.workspace = true
 toml_edit.workspace = true
 urlencoding.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
