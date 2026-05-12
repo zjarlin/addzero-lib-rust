@@ -281,7 +281,9 @@ impl OpenAiApiRegAutomation {
         }
 
         // SMS phone verification
-        let sms_res = reg_options.sms_token.as_deref()
+        let sms_res = reg_options
+            .sms_token
+            .as_deref()
             .and_then(|token| buy_sms_number(token, reg_options).ok());
         let sms_phone = sms_res.as_ref().map(|(p, _)| p.clone());
         let sms_order_id = sms_res.map(|(_, id)| id);

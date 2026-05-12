@@ -29,3 +29,5 @@ pub use types::{
     ClashConfig, ClashError, ClashResult, DEFAULT_MIXED_PORT, DEFAULT_SPEEDTEST_CONCURRENCY,
     DEFAULT_SPEEDTEST_TIMEOUT, ProxyGroup, ProxyNode, ProxyType, SpeedTestResult,
 };
+
+pub use residential::{ResidentialProxy, ResidentialProxyConfig};

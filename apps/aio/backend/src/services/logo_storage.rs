@@ -1,7 +1,11 @@
 use std::rc::Rc;
 
 #[cfg(not(target_arch = "wasm32"))]
-use az_minio::MinioClient;
+use std::{
+    fs,
+    path::{Component, Path, PathBuf},
+};
+
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -9,7 +13,7 @@ use thiserror::Error;
 
 pub use super::LocalBoxFuture;
 
-pub const LOGO_PREVIEW_BASE_URL: &str = "https://minio-api.addzero.site";
+pub const LOGO_PREVIEW_BASE_URL: &str = "/api/admin/storage/logo";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LogoUploadRequest {
@@ -86,9 +90,7 @@ struct NativeLogoStorage;
 #[cfg(not(target_arch = "wasm32"))]
 impl NativeLogoStorage {
     fn upload_logo_blocking(input: LogoUploadRequest) -> LogoStorageResult<StoredLogoDto> {
-        let backend = MinioBackend::from_env()
-            .map_err(|reason| LogoStorageError::new(format!("MinIO / S3 存储未配置：{reason}")))?;
-        backend.upload_logo_blocking(input)
+        LocalLogoBackend::open()?.upload_logo_blocking(input)
     }
 }
 
@@ -107,44 +109,38 @@ impl LogoStorageApi for NativeLogoStorage {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-struct MinioBackend {
-    client: MinioClient,
-    bucket: String,
+struct LocalLogoBackend {
+    config_root: PathBuf,
     backend_label: String,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl MinioBackend {
-    fn from_env() -> Result<Self, String> {
-        let environment = super::minio_files::minio_environment_from_env()?;
+impl LocalLogoBackend {
+    fn open() -> LogoStorageResult<Self> {
+        let config_root = config_root()?;
+        fs::create_dir_all(config_root.join("branding/logos"))
+            .map_err(|err| LogoStorageError::new(format!("创建本地 logo 目录失败：{err}")))?;
         Ok(Self {
-            client: environment.client,
-            bucket: environment.bucket,
-            backend_label: environment.backend_label,
+            backend_label: format!("local fs · {}", config_root.display()),
+            config_root,
         })
     }
 
     fn upload_logo_blocking(&self, input: LogoUploadRequest) -> LogoStorageResult<StoredLogoDto> {
         validate_logo(&input)?;
-        self.client
-            .ensure_bucket(&self.bucket)
-            .map_err(|err| LogoStorageError::new(format!("创建 bucket 失败：{err}")))?;
-
-        let content_type = normalized_content_type(input.content_type.as_deref());
-        let object_key = build_object_key(&input.file_name);
-
-        self.client
-            .put_object_bytes(
-                &self.bucket,
-                &object_key,
-                &input.bytes,
-                Some(content_type.as_str()),
-            )
-            .map_err(|err| LogoStorageError::new(format!("上传 logo 到 MinIO 失败：{err}")))?;
+        let content_type = normalized_content_type(input.content_type.as_deref(), &input.file_name);
+        let relative_path = build_object_key(&input.file_name);
+        let target_path = self.config_root.join(&relative_path);
+        if let Some(parent) = target_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|err| LogoStorageError::new(format!("创建 logo 父目录失败：{err}")))?;
+        }
+        fs::write(&target_path, &input.bytes)
+            .map_err(|err| LogoStorageError::new(format!("写入 logo 文件失败：{err}")))?;
 
         Ok(StoredLogoDto {
-            object_key: object_key.clone(),
-            relative_path: build_relative_path(&self.bucket, &object_key),
+            object_key: relative_path.clone(),
+            relative_path,
             file_name: input.file_name,
             content_type,
             backend_label: self.backend_label.clone(),
@@ -162,20 +158,23 @@ fn validate_logo(input: &LogoUploadRequest) -> LogoStorageResult<()> {
         return Err(LogoStorageError::new("Logo 文件请控制在 4MB 以内"));
     }
 
-    if let Some(content_type) = input.content_type.as_deref() {
-        if !content_type.starts_with("image/") {
-            return Err(LogoStorageError::new("Logo 只接受图片文件"));
-        }
+    if let Some(content_type) = input.content_type.as_deref()
+        && !content_type.starts_with("image/")
+    {
+        return Err(LogoStorageError::new("Logo 只接受图片文件"));
     }
 
     Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn normalized_content_type(content_type: Option<&str>) -> String {
+fn normalized_content_type(content_type: Option<&str>, file_name: &str) -> String {
     match content_type {
         Some(value) if value.starts_with("image/") => value.to_string(),
-        _ => "image/png".to_string(),
+        _ => mime_guess::from_path(file_name)
+            .first_raw()
+            .unwrap_or("image/png")
+            .to_string(),
     }
 }
 
@@ -205,15 +204,6 @@ pub fn build_preview_url(relative_path: &str) -> String {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn build_relative_path(bucket: &str, object_key: &str) -> String {
-    format!(
-        "{}/{}",
-        bucket.trim_matches('/'),
-        object_key.trim_start_matches('/')
-    )
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn sanitize_segment(raw: &str) -> String {
     raw.chars()
         .filter(|ch| ch.is_ascii_alphanumeric())
@@ -222,8 +212,51 @@ fn sanitize_segment(raw: &str) -> String {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn config_root() -> LogoStorageResult<PathBuf> {
+    let env_path = az_persistence::local_env_path()
+        .ok_or_else(|| LogoStorageError::new("无法定位 ~/.config/aio 目录"))?;
+    env_path
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| LogoStorageError::new("无法定位 ~/.config/aio 目录"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn sanitize_relative_path(relative_path: &str) -> LogoStorageResult<PathBuf> {
+    let path = Path::new(relative_path);
+    if path.is_absolute() {
+        return Err(LogoStorageError::new("logo 路径不能是绝对路径"));
+    }
+    let mut sanitized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Normal(part) => sanitized.push(part),
+            _ => return Err(LogoStorageError::new("logo 路径包含非法路径段")),
+        }
+    }
+    if sanitized.as_os_str().is_empty() {
+        return Err(LogoStorageError::new("logo 路径不能为空"));
+    }
+    Ok(sanitized)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn upload_logo_on_server(input: LogoUploadRequest) -> LogoStorageResult<StoredLogoDto> {
     NativeLogoStorage::upload_logo_blocking(input)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn read_logo_on_server(relative_path: &str) -> LogoStorageResult<(String, Vec<u8>)> {
+    let root = config_root()?;
+    let relative_path = sanitize_relative_path(relative_path)?;
+    let path = root.join(&relative_path);
+    let bytes = fs::read(&path)
+        .map_err(|err| LogoStorageError::new(format!("读取本地 logo 失败：{err}")))?;
+    let content_type = mime_guess::from_path(&path)
+        .first_raw()
+        .unwrap_or("application/octet-stream")
+        .to_string();
+    Ok((content_type, bytes))
 }
 
 mod base64_bytes {
@@ -250,21 +283,14 @@ mod base64_bytes {
 
 #[cfg(test)]
 mod tests {
-    use super::{LogoUploadRequest, build_preview_url, build_relative_path};
+    use super::LogoUploadRequest;
+    use super::build_preview_url;
 
     #[test]
-    fn relative_path_should_include_bucket_and_object_key() {
-        assert_eq!(
-            build_relative_path("branding", "logos/logo-1.png"),
-            "branding/logos/logo-1.png"
-        );
-    }
-
-    #[test]
-    fn preview_url_should_use_public_minio_domain() {
+    fn preview_url_should_use_local_logo_route() {
         assert_eq!(
             build_preview_url("branding/logos/logo-1.png"),
-            "https://minio-api.addzero.site/branding/logos/logo-1.png"
+            "/api/admin/storage/logo/branding/logos/logo-1.png"
         );
     }
 

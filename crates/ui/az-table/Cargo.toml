@@ -1,0 +1,20 @@
+[package]
+name = "az-table"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Data-driven Dioxus table component built on top of az-* table primitives."
+
+[dependencies]
+az-dioxus-components.workspace = true
+dioxus.workspace = true
+
+[dev-dependencies]
+dioxus-ssr.workspace = true
+
+[lints]
+workspace = true

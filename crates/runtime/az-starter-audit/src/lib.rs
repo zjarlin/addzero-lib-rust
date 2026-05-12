@@ -1,3 +1,8 @@
+//! 审计中心系统插件启动器。
+//!
+//! 通过 `az_plugin_macros::az_starter` 宏自动注册为系统插件，
+//! 提供审计日志页面，记录插件安装、实例创建与权限变更等事件。
+
 use az_plugin_contract::{
     BoardSchema, MetricCard, PageSchema, PluginDescriptor, PluginKind, PluginMenuContribution,
     PluginPage, RecordGroup, RecordItem,

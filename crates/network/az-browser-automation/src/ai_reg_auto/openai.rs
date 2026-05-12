@@ -1,8 +1,8 @@
 //! OpenAI login and sign-up page automation.
 
 use crate::BrowserAutomationResult;
-use crate::{BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions};
 use crate::FingerprintProfile;
+use crate::{BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions};
 use az_sms::SmsProvider;
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
 use headless_chrome::Tab;
@@ -457,7 +457,23 @@ impl OpenAiAuthAutomation {
 
         if auth_options.flow == OpenAiAuthFlow::SignUp {
             eprintln!("[DEBUG] attempting to click submit button...");
-        let _ = click_button_by_text(tab, &["Sign up", "Create account", "注册", "Create", "Get started", "Don\'t have", "sign up", "Create", "Get started", "Start", "Register", "Don\'t have"]);
+            let _ = click_button_by_text(
+                tab,
+                &[
+                    "Sign up",
+                    "Create account",
+                    "注册",
+                    "Create",
+                    "Get started",
+                    "Don\'t have",
+                    "sign up",
+                    "Create",
+                    "Get started",
+                    "Start",
+                    "Register",
+                    "Don\'t have",
+                ],
+            );
             thread::sleep(auth_options.step_delay);
         }
 
@@ -1240,34 +1256,109 @@ impl OpenAiRegAutomation {
     ) -> BrowserAutomationResult<(OpenAiAuthResult, Option<String>, Option<u64>)> {
         thread::sleep(auth_options.step_delay);
 
-            // Clear stale session first
-            let _ = dismiss_session_ended(tab);
-            thread::sleep(auth_options.step_delay);
-            random_jitter();
+        // Clear stale session first
+        let _ = dismiss_session_ended(tab);
+        thread::sleep(auth_options.step_delay);
+        random_jitter();
 
-            // Click "Sign up" / "Create account" if on the login page.
-            eprintln!("[DEBUG] attempting to click submit button...");
-        let _ = click_button_by_text(tab, &["Sign up", "Create account", "注册", "Create", "Get started", "Don\\'t have"]);
-            thread::sleep(auth_options.step_delay);
-            random_jitter();
+        // Click "Sign up" / "Create account" if on the login page.
+        eprintln!("[DEBUG] attempting to click submit button...");
+        let _ = click_button_by_text(
+            tab,
+            &[
+                "Sign up",
+                "Create account",
+                "注册",
+                "Create",
+                "Get started",
+                "Don\\'t have",
+            ],
+        );
+        thread::sleep(auth_options.step_delay);
+        random_jitter();
 
-            let mut state = read_state(tab)?;
+        let mut state = read_state(tab)?;
+        if state.is_authenticated() {
+            let r = result(
+                OpenAiAuthStage::Authenticated,
+                state,
+                "OpenAI already authenticated",
+            );
+            return Ok((r, None, None));
+        }
+
+        // ── fill email ──
+        let email = auth_options.email.as_deref().unwrap_or("");
+        if !fill_first_visible(tab, EMAIL_SELECTORS, email)? {
+            let r = result(
+                OpenAiAuthStage::AwaitingUserAction,
+                state,
+                "email input not found",
+            );
+            return Ok((r, None, None));
+        }
+        if !click_continue(tab)? {
+            let r = result(
+                OpenAiAuthStage::AwaitingUserAction,
+                state,
+                "submit after email not found",
+            );
+            return Ok((r, None, None));
+        }
+        random_jitter();
+
+        state = wait_for_state(tab, Duration::from_secs(25), |s| {
+            s.is_authenticated() || s.has_password_input || s.has_verification || s.has_captcha
+        })?;
+
+        if state.is_authenticated() {
+            let r = result(
+                OpenAiAuthStage::Authenticated,
+                state,
+                "authenticated after email",
+            );
+            return Ok((r, None, None));
+        }
+        if state.has_captcha {
+            let r = result(
+                OpenAiAuthStage::CaptchaRequired,
+                state,
+                "captcha after email",
+            );
+            return Ok((r, None, None));
+        }
+
+        // ── email verification code ──
+        if state.has_verification && !state.has_password_input {
+            state =
+                Self::handle_email_verification(tab, provider, mailbox, auth_options.step_delay)?;
             if state.is_authenticated() {
                 let r = result(
                     OpenAiAuthStage::Authenticated,
                     state,
-                    "OpenAI already authenticated",
+                    "authenticated after email verification",
                 );
                 return Ok((r, None, None));
             }
 
-            // ── fill email ──
-            let email = auth_options.email.as_deref().unwrap_or("");
-            if !fill_first_visible(tab, EMAIL_SELECTORS, email)? {
+            if state.has_captcha {
+                let r = result(
+                    OpenAiAuthStage::CaptchaRequired,
+                    state,
+                    "captcha after email verification",
+                );
+                return Ok((r, None, None));
+            }
+        }
+
+        // ── fill password ──
+        if state.has_password_input {
+            let password = auth_options.password.as_deref().unwrap_or("");
+            if !fill_first_visible(tab, PASSWORD_SELECTORS, password)? {
                 let r = result(
                     OpenAiAuthStage::AwaitingUserAction,
                     state,
-                    "email input not found",
+                    "password input visible but could not be filled",
                 );
                 return Ok((r, None, None));
             }
@@ -1275,21 +1366,21 @@ impl OpenAiRegAutomation {
                 let r = result(
                     OpenAiAuthStage::AwaitingUserAction,
                     state,
-                    "submit after email not found",
+                    "submit after password not found",
                 );
                 return Ok((r, None, None));
             }
             random_jitter();
 
             state = wait_for_state(tab, Duration::from_secs(25), |s| {
-                s.is_authenticated() || s.has_password_input || s.has_verification || s.has_captcha
+                s.is_authenticated() || s.has_verification || s.has_captcha || s.has_onboarding
             })?;
 
             if state.is_authenticated() {
                 let r = result(
                     OpenAiAuthStage::Authenticated,
                     state,
-                    "authenticated after email",
+                    "authenticated after password",
                 );
                 return Ok((r, None, None));
             }
@@ -1297,82 +1388,38 @@ impl OpenAiRegAutomation {
                 let r = result(
                     OpenAiAuthStage::CaptchaRequired,
                     state,
-                    "captcha after email",
+                    "captcha after password",
                 );
                 return Ok((r, None, None));
             }
+        }
 
-            // ── email verification code ──
-            if state.has_verification && !state.has_password_input {
-                state = Self::handle_email_verification(
-                    tab,
-                    provider,
-                    mailbox,
-                    auth_options.step_delay,
-                )?;
-                if state.is_authenticated() {
-                    let r = result(
-                        OpenAiAuthStage::Authenticated,
-                        state,
-                        "authenticated after email verification",
-                    );
-                    return Ok((r, None, None));
-                }
+        // ── terms rejected ──
+        if state.has_terms_rejected {
+            let r = result(
+                OpenAiAuthStage::TermsRejected,
+                state,
+                "OpenAI rejected registration based on Terms of Service",
+            );
+            return Ok((r, None, None));
+        }
 
-                if state.has_captcha {
-                    let r = result(
-                        OpenAiAuthStage::CaptchaRequired,
-                        state,
-                        "captcha after email verification",
-                    );
-                    return Ok((r, None, None));
-                }
+        // ── onboarding (About You: name + age) ──
+        eprintln!(
+            "[DEBUG] has_onboarding={} has_password_input={} has_verification={} url={}",
+            state.has_onboarding, state.has_password_input, state.has_verification, state.url
+        );
+        if state.has_onboarding {
+            random_jitter();
+            state = Self::handle_onboarding(tab, auth_options.step_delay)?;
+            if state.is_authenticated() {
+                let r = result(
+                    OpenAiAuthStage::Authenticated,
+                    state,
+                    "authenticated after onboarding",
+                );
+                return Ok((r, None, None));
             }
-
-            // ── fill password ──
-            if state.has_password_input {
-                let password = auth_options.password.as_deref().unwrap_or("");
-                if !fill_first_visible(tab, PASSWORD_SELECTORS, password)? {
-                    let r = result(
-                        OpenAiAuthStage::AwaitingUserAction,
-                        state,
-                        "password input visible but could not be filled",
-                    );
-                    return Ok((r, None, None));
-                }
-                if !click_continue(tab)? {
-                    let r = result(
-                        OpenAiAuthStage::AwaitingUserAction,
-                        state,
-                        "submit after password not found",
-                    );
-                    return Ok((r, None, None));
-                }
-                random_jitter();
-
-                state = wait_for_state(tab, Duration::from_secs(25), |s| {
-                    s.is_authenticated() || s.has_verification || s.has_captcha || s.has_onboarding
-                })?;
-
-                if state.is_authenticated() {
-                    let r = result(
-                        OpenAiAuthStage::Authenticated,
-                        state,
-                        "authenticated after password",
-                    );
-                    return Ok((r, None, None));
-                }
-                if state.has_captcha {
-                    let r = result(
-                        OpenAiAuthStage::CaptchaRequired,
-                        state,
-                        "captcha after password",
-                    );
-                    return Ok((r, None, None));
-                }
-            }
-
-            // ── terms rejected ──
             if state.has_terms_rejected {
                 let r = result(
                     OpenAiAuthStage::TermsRejected,
@@ -1381,81 +1428,58 @@ impl OpenAiRegAutomation {
                 );
                 return Ok((r, None, None));
             }
+        }
 
-            // ── onboarding (About You: name + age) ──
-            eprintln!("[DEBUG] has_onboarding={} has_password_input={} has_verification={} url={}", state.has_onboarding, state.has_password_input, state.has_verification, state.url);
-            if state.has_onboarding {
-                random_jitter();
-                state = Self::handle_onboarding(tab, auth_options.step_delay)?;
-                if state.is_authenticated() {
-                    let r = result(
-                        OpenAiAuthStage::Authenticated,
-                        state,
-                        "authenticated after onboarding",
-                    );
-                    return Ok((r, None, None));
-                }
-                if state.has_terms_rejected {
-                    let r = result(
-                        OpenAiAuthStage::TermsRejected,
-                        state,
-                        "OpenAI rejected registration based on Terms of Service",
-                    );
-                    return Ok((r, None, None));
-                }
+        // ── phone verification via SMS ──
+        if state.has_verification {
+            random_jitter();
+            // Try email verification first (poll temp_mail)
+            state =
+                Self::handle_email_verification(tab, provider, mailbox, auth_options.step_delay)?;
+            if state.is_authenticated() {
+                let r = result(
+                    OpenAiAuthStage::Authenticated,
+                    state,
+                    "authenticated after post-password email verification",
+                );
+                return Ok((r, None, None));
             }
 
-            // ── phone verification via SMS ──
-            if state.has_verification {
-                random_jitter();
-                // Try email verification first (poll temp_mail)
-                state = Self::handle_email_verification(
-                    tab, provider, mailbox, auth_options.step_delay,
-                )?;
-                if state.is_authenticated() {
-                    let r = result(
-                        OpenAiAuthStage::Authenticated,
-                        state,
-                        "authenticated after post-password email verification",
-                    );
-                    return Ok((r, None, None));
-                }
-
-                if !state.has_verification {
-                    // Email verification resolved, try phone next
-                }
-
-                let (sms_phone, sms_order_id) =
-                    Self::handle_phone_verification(tab, reg_options, auth_options.step_delay)?;
-
-                // Wait a moment for the final state
-                state = wait_for_state(tab, Duration::from_secs(15), |s| {
-                    s.is_authenticated() || s.has_captcha
-                })?;
-
-                let r = if state.is_authenticated() {
-                    result(
-                        OpenAiAuthStage::Authenticated,
-                        state,
-                        "authenticated after phone verification",
-                    )
-                } else {
-                    result(
-                        OpenAiAuthStage::VerificationRequired,
-                        state,
-                        "phone verification submitted; final state unknown",
-                    )
-                };
-                return Ok((r, sms_phone, sms_order_id));
+            if !state.has_verification {
+                // Email verification resolved, try phone next
             }
 
-            // Fallback
-            let r = result(
-                OpenAiAuthStage::PasswordSubmitted,
-                state,
-                "flow ended without clear signal",
-            );
-            Ok((r, None, None))
+            let (sms_phone, sms_order_id) =
+                Self::handle_phone_verification(tab, reg_options, auth_options.step_delay)?;
+
+            // Wait a moment for the final state
+            state = wait_for_state(tab, Duration::from_secs(15), |s| {
+                s.is_authenticated() || s.has_captcha
+            })?;
+
+            let r = if state.is_authenticated() {
+                result(
+                    OpenAiAuthStage::Authenticated,
+                    state,
+                    "authenticated after phone verification",
+                )
+            } else {
+                result(
+                    OpenAiAuthStage::VerificationRequired,
+                    state,
+                    "phone verification submitted; final state unknown",
+                )
+            };
+            return Ok((r, sms_phone, sms_order_id));
+        }
+
+        // Fallback
+        let r = result(
+            OpenAiAuthStage::PasswordSubmitted,
+            state,
+            "flow ended without clear signal",
+        );
+        Ok((r, None, None))
     }
 
     /// Fills name and age on the "About You" onboarding page.
@@ -1467,7 +1491,7 @@ impl OpenAiRegAutomation {
     ) -> BrowserAutomationResult<AuthPageState> {
         eprintln!("[DEBUG] handle_onboarding entered");
         // Fill name + age (first two visible textboxes in DOM order)
-                let name = random_full_name();
+        let name = random_full_name();
         let age = random_age();
         eprintln!("[DEBUG] filling: name={} age={}", name, age);
         Self::fill_all_textboxes(tab, &[&name, &age.to_string()])?;
@@ -1510,10 +1534,7 @@ impl OpenAiRegAutomation {
 
     /// Fills ALL visible textboxes on the page in DOM order.
     /// Uses execCommand for React Aria compatibility.
-    fn fill_all_textboxes(
-        tab: &Arc<Tab>,
-        values: &[&str],
-    ) -> BrowserAutomationResult<bool> {
+    fn fill_all_textboxes(tab: &Arc<Tab>, values: &[&str]) -> BrowserAutomationResult<bool> {
         let js_values = js_value(values)?;
         let script = format!(
             r#"
@@ -1974,49 +1995,235 @@ fn random_ascii_string(len: usize) -> String {
 
 fn random_full_name() -> String {
     let first_names = [
-        "James", "Mary", "Robert", "Patricia", "John", "Jennifer", "Michael", "Linda",
-        "David", "Elizabeth", "William", "Barbara", "Richard", "Susan", "Joseph", "Jessica",
-        "Thomas", "Sarah", "Christopher", "Karen", "Charles", "Lisa", "Daniel", "Nancy",
-        "Matthew", "Betty", "Anthony", "Margaret", "Mark", "Sandra", "Donald", "Ashley",
-        "Steven", "Dorothy", "Paul", "Kimberly", "Andrew", "Emily", "Joshua", "Donna",
-        "Kenneth", "Michelle", "Kevin", "Carol", "Brian", "Amanda", "George", "Melissa",
-        "Timothy", "Deborah", "Ronald", "Stephanie", "Edward", "Rebecca", "Jason", "Sharon",
-        "Jeffrey", "Laura", "Ryan", "Cynthia", "Jacob", "Kathleen", "Gary", "Amy",
-        "Nicholas", "Angela", "Eric", "Shirley", "Jonathan", "Anna", "Stephen", "Brenda",
-        "Larry", "Pamela", "Justin", "Emma", "Scott", "Nicole", "Brandon", "Helen",
-        "Benjamin", "Samantha", "Samuel", "Katherine", "Raymond", "Christine", "Gregory",
-        "Debra", "Frank", "Rachel", "Alexander", "Carolyn", "Patrick", "Janet",
-        "Jack", "Catherine", "Dennis", "Maria", "Jerry", "Heather", "Tyler", "Diane",
+        "James",
+        "Mary",
+        "Robert",
+        "Patricia",
+        "John",
+        "Jennifer",
+        "Michael",
+        "Linda",
+        "David",
+        "Elizabeth",
+        "William",
+        "Barbara",
+        "Richard",
+        "Susan",
+        "Joseph",
+        "Jessica",
+        "Thomas",
+        "Sarah",
+        "Christopher",
+        "Karen",
+        "Charles",
+        "Lisa",
+        "Daniel",
+        "Nancy",
+        "Matthew",
+        "Betty",
+        "Anthony",
+        "Margaret",
+        "Mark",
+        "Sandra",
+        "Donald",
+        "Ashley",
+        "Steven",
+        "Dorothy",
+        "Paul",
+        "Kimberly",
+        "Andrew",
+        "Emily",
+        "Joshua",
+        "Donna",
+        "Kenneth",
+        "Michelle",
+        "Kevin",
+        "Carol",
+        "Brian",
+        "Amanda",
+        "George",
+        "Melissa",
+        "Timothy",
+        "Deborah",
+        "Ronald",
+        "Stephanie",
+        "Edward",
+        "Rebecca",
+        "Jason",
+        "Sharon",
+        "Jeffrey",
+        "Laura",
+        "Ryan",
+        "Cynthia",
+        "Jacob",
+        "Kathleen",
+        "Gary",
+        "Amy",
+        "Nicholas",
+        "Angela",
+        "Eric",
+        "Shirley",
+        "Jonathan",
+        "Anna",
+        "Stephen",
+        "Brenda",
+        "Larry",
+        "Pamela",
+        "Justin",
+        "Emma",
+        "Scott",
+        "Nicole",
+        "Brandon",
+        "Helen",
+        "Benjamin",
+        "Samantha",
+        "Samuel",
+        "Katherine",
+        "Raymond",
+        "Christine",
+        "Gregory",
+        "Debra",
+        "Frank",
+        "Rachel",
+        "Alexander",
+        "Carolyn",
+        "Patrick",
+        "Janet",
+        "Jack",
+        "Catherine",
+        "Dennis",
+        "Maria",
+        "Jerry",
+        "Heather",
+        "Tyler",
+        "Diane",
     ];
     let last_names = [
-        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
-        "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson",
-        "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson",
-        "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
-        "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen",
-        "Hill", "Flores", "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera",
-        "Campbell", "Mitchell", "Carter", "Roberts", "Gomez", "Phillips", "Evans",
-        "Turner", "Diaz", "Parker", "Cruz", "Edwards", "Collins", "Reyes", "Stewart",
-        "Morris", "Morales", "Murphy", "Cook", "Rogers", "Gutierrez", "Ortiz", "Morgan",
-        "Cooper", "Peterson", "Bailey", "Reed", "Kelly", "Howard", "Ramos", "Kim",
-        "Cox", "Ward", "Richardson", "Watson", "Brooks", "Chavez", "Wood", "James",
-        "Bennett", "Gray", "Mendoza", "Ruiz", "Hughes", "Price", "Alvarez", "Castillo",
+        "Smith",
+        "Johnson",
+        "Williams",
+        "Brown",
+        "Jones",
+        "Garcia",
+        "Miller",
+        "Davis",
+        "Rodriguez",
+        "Martinez",
+        "Hernandez",
+        "Lopez",
+        "Gonzalez",
+        "Wilson",
+        "Anderson",
+        "Thomas",
+        "Taylor",
+        "Moore",
+        "Jackson",
+        "Martin",
+        "Lee",
+        "Perez",
+        "Thompson",
+        "White",
+        "Harris",
+        "Sanchez",
+        "Clark",
+        "Ramirez",
+        "Lewis",
+        "Robinson",
+        "Walker",
+        "Young",
+        "Allen",
+        "King",
+        "Wright",
+        "Scott",
+        "Torres",
+        "Nguyen",
+        "Hill",
+        "Flores",
+        "Green",
+        "Adams",
+        "Nelson",
+        "Baker",
+        "Hall",
+        "Rivera",
+        "Campbell",
+        "Mitchell",
+        "Carter",
+        "Roberts",
+        "Gomez",
+        "Phillips",
+        "Evans",
+        "Turner",
+        "Diaz",
+        "Parker",
+        "Cruz",
+        "Edwards",
+        "Collins",
+        "Reyes",
+        "Stewart",
+        "Morris",
+        "Morales",
+        "Murphy",
+        "Cook",
+        "Rogers",
+        "Gutierrez",
+        "Ortiz",
+        "Morgan",
+        "Cooper",
+        "Peterson",
+        "Bailey",
+        "Reed",
+        "Kelly",
+        "Howard",
+        "Ramos",
+        "Kim",
+        "Cox",
+        "Ward",
+        "Richardson",
+        "Watson",
+        "Brooks",
+        "Chavez",
+        "Wood",
+        "James",
+        "Bennett",
+        "Gray",
+        "Mendoza",
+        "Ruiz",
+        "Hughes",
+        "Price",
+        "Alvarez",
+        "Castillo",
     ];
     let mut state = random_seed();
-    let fi = ((state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407)) >> 33) as usize % first_names.len();
-    state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-    let li = ((state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407)) >> 33) as usize % last_names.len();
+    let fi = ((state
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407))
+        >> 33) as usize
+        % first_names.len();
+    state = state
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
+    let li = ((state
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407))
+        >> 33) as usize
+        % last_names.len();
     format!("{} {}", first_names[fi], last_names[li])
 }
 
 fn random_age() -> u8 {
     let mut state = random_seed();
-    state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    state = state
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
     // Ages 18-55, weighted toward 22-40
     let raw = ((state >> 33) as usize) % 100;
-    if raw < 50 { (22 + (raw % 19)) as u8 }
-    else if raw < 80 { (18 + (raw % 5)) as u8 }
-    else { (40 + (raw % 16)) as u8 }
+    if raw < 50 {
+        (22 + (raw % 19)) as u8
+    } else if raw < 80 {
+        (18 + (raw % 5)) as u8
+    } else {
+        (40 + (raw % 16)) as u8
+    }
 }
 
 fn random_seed() -> u64 {

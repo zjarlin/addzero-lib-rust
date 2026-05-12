@@ -1,3 +1,21 @@
+//! `az-starter-identity` —— 用户中心系统插件。
+//!
+//! 本 crate 实现了 addzero 系统级「用户中心」插件，负责用户、角色与开发环境默认登录管理。
+//! 通过 [`PluginStarter`] trait 向插件注册中心声明自身身份、菜单入口与页面结构，
+//! 使宿主壳子无需硬编码即可自动发现并挂载用户管理页面。
+//!
+//! ## 主要能力
+//!
+//! - 以表格形式暴露用户列表（用户名、角色、状态、登录源）
+//! - 默认内置 `admin`（管理员）与 `luna`（审核员）两个示例用户
+//! - 开发环境默认使用 `admin/admin` 本地登录；生产环境通过环境变量配置真实登录
+//! - 注册到「系统插件」菜单分区，挂载「用户管理」入口页
+//!
+//! ## 关键类型
+//!
+//! - [`IdentityStarter`] —— 实现 [`PluginStarter`] 的内部结构体，定义插件描述符与页面 schema
+//! - `register_identity()` —— 由 `#[az_starter]` 宏标记的注册入口函数
+
 use az_plugin_contract::{
     PageSchema, PluginDescriptor, PluginKind, PluginMenuContribution, PluginPage, TableRow,
     TableSchema,

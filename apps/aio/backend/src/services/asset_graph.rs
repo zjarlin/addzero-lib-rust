@@ -4,8 +4,6 @@ use std::rc::Rc;
 use tokio::sync::OnceCell;
 
 #[cfg(not(target_arch = "wasm32"))]
-use az_minio::ObjectInfo;
-#[cfg(not(target_arch = "wasm32"))]
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
@@ -421,36 +419,18 @@ async fn sync_package_inventory(
     pool: &sqlx::postgres::PgPool,
     warnings: &mut Vec<String>,
 ) -> AssetGraphResult<usize> {
-    let scan_result = tokio::task::spawn_blocking(move || {
-        let environment = match super::minio_files::minio_environment_from_env() {
-            Ok(environment) => environment,
-            Err(reason) => return Err(format!("MinIO 安装包索引未配置：{reason}")),
-        };
-        if let Err(err) = environment.client.ensure_bucket(&environment.bucket) {
-            return Err(format!(
-                "初始化 MinIO bucket `{}` 失败：{err}",
-                environment.bucket
-            ));
-        }
-        let objects = environment
-            .client
-            .list_objects(&environment.bucket, None, true)
-            .map_err(|err| format!("读取 MinIO bucket `{}` 对象失败：{err}", environment.bucket))?;
-        Ok((environment.bucket, objects))
-    })
-    .await
-    .map_err(|err| AssetGraphError::new(format!("MinIO 安装包索引任务失败：{err}")))?;
+    let removed = sqlx::query("DELETE FROM admin_asset_items WHERE id LIKE 'package-minio-%'")
+        .execute(pool)
+        .await
+        .map_err(query_error)?
+        .rows_affected();
+    if removed > 0 {
+        warnings.push(format!("已清理 {removed} 条旧对象存储安装包索引记录。"));
+    }
 
-    let (bucket, objects) = match scan_result {
-        Ok(result) => result,
-        Err(message) => {
-            warnings.push(message);
-            return Ok(0);
-        }
-    };
-    let mut packages = objects
-        .into_iter()
-        .filter_map(|object| package_record_from_object_info(&bucket, object))
+    let mut packages = crate::package_catalog::PACKAGE_ASSETS
+        .iter()
+        .map(package_record_from_catalog)
         .collect::<Vec<_>>();
     packages.sort_by(|left, right| {
         left.title
@@ -458,10 +438,7 @@ async fn sync_package_inventory(
             .then(left.relative_path.cmp(&right.relative_path))
     });
     if packages.is_empty() {
-        warnings.push(format!(
-            "MinIO bucket `{}` 中还没有可识别的二进制对象。",
-            bucket
-        ));
+        warnings.push("静态 package catalog 里还没有可索引的安装包条目。".to_string());
     }
 
     let mut indexed = 0usize;
@@ -807,7 +784,7 @@ fn software_category(name: &str) -> Option<&'static str> {
         .any(|needle| lower.contains(needle))
     {
         Some("浏览器")
-    } else if ["docker", "postgres", "redis", "minio"]
+    } else if ["docker", "postgres", "redis"]
         .iter()
         .any(|needle| lower.contains(needle))
     {
@@ -823,68 +800,49 @@ fn software_category(name: &str) -> Option<&'static str> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn package_record_from_object_info(bucket: &str, object: ObjectInfo) -> Option<AssetRecordInput> {
-    let object_key = object.object_name;
-    if object_key.is_empty() || object_key.ends_with('/') {
-        return None;
-    }
-
-    let format = binary_package_format(&object_key, object.content_type.as_deref())?;
-    let file_name = Path::new(&object_key)
-        .file_name()
-        .map(|value| value.to_string_lossy().to_string())
-        .unwrap_or_else(|| "installer".to_string());
-    let relative_path = build_relative_path(bucket, &object_key);
-
-    Some(AssetRecordInput {
-        id: format!("package-minio-{}", blake3_hex(relative_path.as_bytes())),
+fn package_record_from_catalog(asset: &crate::package_catalog::PackageAsset) -> AssetRecordInput {
+    let channel = crate::package_catalog::package_channel(asset.channel_slug);
+    let detail = format!(
+        "{} · {} · {}",
+        asset.platform, asset.version, asset.install_target
+    );
+    AssetRecordInput {
+        id: format!("package-catalog-{}", asset.slug),
         kind: AssetKindDto::Package,
-        title: file_name.clone(),
-        detail: format!("/{}", relative_path),
-        source: format!("MinIO · bucket `{bucket}`"),
+        title: asset.package_name.to_string(),
+        detail,
+        source: asset.source.to_string(),
         local_path: None,
-        relative_path: Some(relative_path.clone()),
-        download_url: Some(build_download_url(&relative_path)),
-        content_hash: None,
-        hash_algorithm: None,
-        size_bytes: Some(object.size),
+        relative_path: None,
+        download_url: None,
+        content_hash: Some(blake3_hex(
+            format!("{}:{}:{}", asset.slug, asset.version, asset.package_name).as_bytes(),
+        )),
+        hash_algorithm: Some("blake3-catalog".to_string()),
+        size_bytes: None,
         tags: vec![
             "安装包".to_string(),
-            format,
-            root_label_for_object_key(&object_key),
+            asset.format.to_string(),
+            asset.platform.to_string(),
+            asset.status.to_string(),
+            channel
+                .map(|value| value.title.to_string())
+                .unwrap_or_else(|| asset.channel_slug.to_string()),
         ],
         raw: serde_json::json!({
-            "file_name": file_name,
-            "object_key": object_key,
-            "content_type": object.content_type,
-            "last_modified": object.last_modified,
-            "size_bytes": object.size,
+            "slug": asset.slug,
+            "software_title": asset.software_title,
+            "channel_slug": asset.channel_slug,
+            "version": asset.version,
+            "platform": asset.platform,
+            "format": asset.format,
+            "status": asset.status,
+            "install_target": asset.install_target,
+            "checksum_state": asset.checksum_state,
+            "relation": asset.relation,
+            "note": asset.note,
         }),
-    })
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn build_package_object_key(prefix: &str, hash: &str, file_name: &str) -> String {
-    format!(
-        "{}/blake3/{}/{}",
-        prefix.trim_matches('/'),
-        hash,
-        sanitize_file_name(file_name)
-    )
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn build_relative_path(bucket: &str, object_key: &str) -> String {
-    format!(
-        "{}/{}",
-        bucket.trim_matches('/'),
-        object_key.trim_start_matches('/')
-    )
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn build_download_url(relative_path: &str) -> String {
-    super::logo_storage::build_preview_url(relative_path)
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -900,63 +858,6 @@ fn blake3_hex(bytes: &[u8]) -> String {
     blake3::hash(bytes).to_hex().to_string()
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn binary_package_format(object_key: &str, content_type: Option<&str>) -> Option<String> {
-    let lower = object_key.to_ascii_lowercase();
-    for (suffix, label) in [
-        (".tar.gz", "tar.gz"),
-        (".tgz", "tgz"),
-        (".dmg", "dmg"),
-        (".pkg", "pkg"),
-        (".zip", "zip"),
-        (".appimage", "appimage"),
-        (".exe", "exe"),
-        (".msi", "msi"),
-        (".deb", "deb"),
-        (".rpm", "rpm"),
-        (".apk", "apk"),
-        (".bin", "bin"),
-    ] {
-        if lower.ends_with(suffix) {
-            return Some(label.to_string());
-        }
-    }
-
-    is_extensionless_binary_object(&lower, content_type).then(|| "binary".to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn is_extensionless_binary_object(object_key: &str, content_type: Option<&str>) -> bool {
-    let file_name = object_key.rsplit('/').next().unwrap_or(object_key);
-    if file_name.is_empty() || file_name.contains('.') {
-        return false;
-    }
-
-    matches!(
-        content_type,
-        Some(
-            "application/octet-stream"
-                | "binary/octet-stream"
-                | "application/x-mach-binary"
-                | "application/x-msdownload"
-                | "application/x-executable"
-        )
-    ) || object_key.starts_with("cli/")
-        || object_key.starts_with("bin/")
-        || object_key.starts_with("binaries/")
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn root_label_for_object_key(object_key: &str) -> String {
-    object_key
-        .split('/')
-        .next()
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-        .unwrap_or_else(|| super::minio_files::AIO_BUCKET_NAME.to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn normalized_tags(kind: AssetKindDto, raw: &[String]) -> Vec<String> {
     let mut tags = BTreeSet::new();
     tags.insert(kind.label().to_string());
@@ -1001,17 +902,6 @@ fn truncate_chars(text: &str, limit: usize) -> String {
     result
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn sanitize_file_name(raw: &str) -> String {
-    raw.chars()
-        .map(|ch| match ch {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-' | '_' => ch,
-            _ => '-',
-        })
-        .collect()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn slugify(value: &str) -> String {
     let mut slug = String::new();
     let mut last_dash = false;
@@ -1050,43 +940,18 @@ fn query_error(err: sqlx::Error) -> AssetGraphError {
 
 #[cfg(test)]
 mod tests {
-    use az_minio::ObjectInfo;
-
-    use super::{binary_package_format, package_record_from_object_info};
+    use super::package_record_from_catalog;
 
     #[test]
-    fn binary_package_format_should_accept_extensionless_cli_binary() {
-        assert_eq!(
-            binary_package_format(
-                "cli/darwin/rustup-init-aarch64-apple-darwin",
-                Some("application/octet-stream")
-            ),
-            Some("binary".to_string())
-        );
-    }
+    fn package_record_from_catalog_should_use_static_catalog_source() {
+        let asset = crate::package_catalog::package_asset("cursor-macos")
+            .expect("catalog asset should exist");
+        let record = package_record_from_catalog(asset);
 
-    #[test]
-    fn package_record_from_object_info_should_use_bucket_scoped_relative_path() {
-        let record = package_record_from_object_info(
-            "msc-aio",
-            ObjectInfo {
-                object_name: "installers/mac/cursor.dmg".to_string(),
-                size: 42,
-                etag: None,
-                last_modified: Some("2026-05-02T08:00:00Z".to_string()),
-                content_type: Some("application/x-apple-diskimage".to_string()),
-            },
-        )
-        .expect("record should be created");
-
-        assert_eq!(
-            record.relative_path.as_deref(),
-            Some("msc-aio/installers/mac/cursor.dmg")
-        );
-        assert_eq!(
-            record.download_url.as_deref(),
-            Some("https://minio-api.addzero.site/msc-aio/installers/mac/cursor.dmg")
-        );
+        assert_eq!(record.id, "package-catalog-cursor-macos");
+        assert_eq!(record.relative_path, None);
+        assert_eq!(record.download_url, None);
+        assert!(record.tags.iter().any(|tag| tag == "安装包"));
     }
 }
 

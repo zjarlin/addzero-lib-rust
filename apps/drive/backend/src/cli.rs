@@ -209,6 +209,24 @@ pub struct DrivePoolInitArgs {
     /// Optional control repository remote URL.
     #[arg(long)]
     pub control_remote: Option<String>,
+    /// Optional local directory that will auto-create bare pool repos on demand.
+    #[arg(long)]
+    pub auto_pool_root: Option<PathBuf>,
+    /// Prefix used for auto-created pool names, for example `auto`.
+    #[arg(long)]
+    pub auto_pool_prefix: Option<String>,
+    /// Object storage backend: `git-pool` or `gitdb`.
+    #[arg(long)]
+    pub object_backend: Option<String>,
+    /// Root directory for GitDB-sharded object storage.
+    #[arg(long)]
+    pub gitdb_object_root: Option<PathBuf>,
+    /// Prefix used for GitDB shard names, for example `shard`.
+    #[arg(long)]
+    pub gitdb_object_shard_prefix: Option<String>,
+    /// Soft shard size limit for GitDB objects, for example 8gb or 512mb.
+    #[arg(long)]
+    pub gitdb_object_max_shard_size: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -251,7 +269,7 @@ pub struct DrivePoolListArgs {
 
 #[derive(Debug, Args)]
 pub struct DriveBackendUseArgs {
-    /// Backend name: git-pool or pg-minio.
+    /// Backend name. Only `git-pool` is supported.
     pub backend: String,
 }
 
@@ -416,7 +434,18 @@ pub async fn run_drive_root(command: DriveRootCommand) -> Result<()> {
 pub async fn run_drive_pool(command: DrivePoolCommand) -> Result<()> {
     match command {
         DrivePoolCommand::Init(args) => {
-            let status = crate::init_git_pool_backend(args.control_remote.as_deref())?;
+            let status = crate::init_git_pool_backend(
+                args.control_remote.as_deref(),
+                args.auto_pool_root,
+                args.auto_pool_prefix.as_deref(),
+                args.object_backend.as_deref(),
+                args.gitdb_object_root,
+                args.gitdb_object_shard_prefix.as_deref(),
+                args.gitdb_object_max_shard_size
+                    .as_deref()
+                    .map(parse_size_bytes)
+                    .transpose()?,
+            )?;
             println!("{}", serde_json::to_string_pretty(&status)?);
             Ok(())
         }

@@ -17,6 +17,7 @@ use crate::{
 };
 
 pub const DEFAULT_GIT_POOL_LIMIT_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+pub const DEFAULT_AUTO_GIT_POOL_PREFIX: &str = "auto";
 const SCHEMA_VERSION: u32 = 1;
 const CONTROL_DIR: &str = "control";
 const POOLS_DIR: &str = "pools";
@@ -30,6 +31,10 @@ pub struct GitPoolConfig {
     pub control_remote: Option<String>,
     #[serde(default = "default_pool_limit_bytes")]
     pub default_pool_limit_bytes: u64,
+    #[serde(default)]
+    pub auto_pool_root: Option<PathBuf>,
+    #[serde(default = "default_auto_pool_prefix")]
+    pub auto_pool_prefix: String,
 }
 
 impl GitPoolConfig {
@@ -40,6 +45,8 @@ impl GitPoolConfig {
             owner_drive_id: owner_drive_id.into(),
             control_remote: None,
             default_pool_limit_bytes: DEFAULT_GIT_POOL_LIMIT_BYTES,
+            auto_pool_root: None,
+            auto_pool_prefix: default_auto_pool_prefix(),
         }
     }
 }
@@ -196,6 +203,8 @@ impl GitPoolDriveStore {
             "root": self.config.root.clone(),
             "control": self.control_path(),
             "owner_drive_id": self.config.owner_drive_id.clone(),
+            "auto_pool_root": self.config.auto_pool_root.clone(),
+            "auto_pool_prefix": self.config.auto_pool_prefix.clone(),
             "pools": self.list_pools()?,
             "mounts": self.list_mounts()?,
         }))
@@ -407,14 +416,57 @@ impl GitPoolDriveStore {
     }
 
     fn select_writable_pool(&self, bytes_len: u64) -> DriveStoreResult<GitPoolRepoConfig> {
-        self.list_pools()?
+        let pools = self.list_pools()?;
+        if let Some(pool) = pools
             .into_iter()
             .filter(|pool| !pool.readonly)
             .find(|pool| pool.used_bytes.saturating_add(bytes_len) <= pool.max_size_bytes)
-            .ok_or_else(|| git_pool_error(
-                "no_writable_pool_capacity",
-                "没有可写 Git pool 或所有 pool 已超过容量阈值；请运行 aio drive pool add 增加仓库，或未来接入 git-annex",
-            ))
+        {
+            return Ok(pool);
+        }
+        if let Some(pool) = self.try_auto_expand_pool(bytes_len)? {
+            return Ok(pool);
+        }
+        Err(git_pool_error(
+            "no_writable_pool_capacity",
+            "没有可写 Git pool 或所有 pool 已超过容量阈值；请运行 aio drive pool add 增加仓库，或配置 auto_pool_root 自动扩容",
+        ))
+    }
+
+    fn try_auto_expand_pool(&self, bytes_len: u64) -> DriveStoreResult<Option<GitPoolRepoConfig>> {
+        let Some(root) = &self.config.auto_pool_root else {
+            return Ok(None);
+        };
+        let name = self.next_auto_pool_name()?;
+        let remote_url = root.join(format!("{name}.git"));
+        let remote_url = remote_url.to_string_lossy().into_owned();
+        let max_size_bytes = self.config.default_pool_limit_bytes.max(bytes_len);
+        Ok(Some(self.init_pool(
+            &name,
+            &remote_url,
+            Some(max_size_bytes),
+        )?))
+    }
+
+    fn next_auto_pool_name(&self) -> DriveStoreResult<String> {
+        let prefix = self.config.auto_pool_prefix.trim();
+        let prefix = if prefix.is_empty() {
+            DEFAULT_AUTO_GIT_POOL_PREFIX
+        } else {
+            prefix
+        };
+        for index in 1..=99_999_u32 {
+            let name = format!("{prefix}-{index:04}");
+            if self.pool_config_path(&name).exists() || self.mount_config_path(&name).exists() {
+                continue;
+            }
+            validate_pool_name(&name)?;
+            return Ok(name);
+        }
+        Err(git_pool_error(
+            "init_failed",
+            "自动扩容 pool 编号已耗尽，请调整 auto_pool_prefix 或清理旧 pool",
+        ))
     }
 
     fn pool_containing_object(
@@ -737,18 +789,8 @@ impl DriveMetadataStore for GitPoolDriveStore {
         let mut record = self
             .load_control_entry_record_by_id(version.entry_id)?
             .ok_or_else(|| DriveStoreError::EntryNotFound(version.entry_id.to_string()))?;
-        let pool_name = self
-            .pool_containing_object(&version.object_key, false)?
-            .ok_or_else(|| {
-                git_pool_error(
-                    "object_missing",
-                    format!(
-                        "object {} was not stored in a writable pool",
-                        version.object_key
-                    ),
-                )
-            })?;
-        record.pool_name = Some(pool_name.clone());
+        let pool_name = self.pool_containing_object(&version.object_key, false)?;
+        record.pool_name = pool_name.clone();
         record.entry.latest_version = version.version;
         record.entry.latest_hash = Some(version.content_hash.clone());
         record.entry.deleted = false;
@@ -760,10 +802,12 @@ impl DriveMetadataStore for GitPoolDriveStore {
             &self.version_path(version.entry_id, version.version),
             &version_record,
         )?;
-        write_json(
-            &self.pool_version_path(&pool_name, version.entry_id, version.version),
-            &version_record,
-        )?;
+        if let Some(pool_name) = pool_name {
+            write_json(
+                &self.pool_version_path(&pool_name, version.entry_id, version.version),
+                &version_record,
+            )?;
+        }
         self.save_entry_record(record)?;
         Ok(version)
     }
@@ -1305,9 +1349,13 @@ fn default_pool_limit_bytes() -> u64 {
     DEFAULT_GIT_POOL_LIMIT_BYTES
 }
 
+fn default_auto_pool_prefix() -> String {
+    DEFAULT_AUTO_GIT_POOL_PREFIX.to_owned()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{GitPoolConfig, GitPoolDriveStore};
+    use super::{DEFAULT_AUTO_GIT_POOL_PREFIX, GitPoolConfig, GitPoolDriveStore};
     use crate::{DriveEntryKind, DriveMetadataStore, DriveObjectStore, DriveVersion};
     use az_drive_core::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
     use chrono::Utc;
@@ -1375,6 +1423,74 @@ mod tests {
 
         let error = result.expect_err("oversized object should fail");
         assert!(error.to_string().contains("no_writable_pool_capacity"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn git_pool_metadata_can_record_versions_without_content_pool()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let store = GitPoolDriveStore::open(GitPoolConfig::new(
+            temp.path().join("drive"),
+            "user-zjarlin",
+        ))?;
+        let key = EntryKey::new(
+            "user-zjarlin",
+            RootAlias::parse("home")?,
+            RelativePath::parse(".agents/skills/demo/SKILL.md")?,
+        );
+        let entry = store.upsert_entry(&key, DriveEntryKind::File).await?;
+
+        store
+            .insert_version(DriveVersion {
+                id: Uuid::new_v4(),
+                entry_id: entry.id,
+                version: 1,
+                content_hash: "hash-demo".to_owned(),
+                object_key: "objects/sha256/demo".to_owned(),
+                size_bytes: 4,
+                device_id: "device-a".to_owned(),
+                modified_at: Utc::now(),
+            })
+            .await?;
+
+        let latest = store
+            .latest_version(entry.id)
+            .await?
+            .expect("latest version should exist");
+        assert_eq!(latest.object_key, "objects/sha256/demo");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn git_pool_store_auto_expands_when_capacity_is_exhausted()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        let mut config = GitPoolConfig::new(temp.path().join("drive"), "user-zjarlin");
+        config.auto_pool_root = Some(temp.path().join("auto-pools"));
+        config.default_pool_limit_bytes = 4;
+        let store = GitPoolDriveStore::open(config)?;
+        let pool_remote = temp.path().join("pool.git");
+        store.init_pool("main", &pool_remote.to_string_lossy(), Some(1))?;
+
+        store
+            .put_object("objects/sha256/demo", b"too large")
+            .await?;
+
+        let pools = store.list_pools()?;
+        assert_eq!(pools.len(), 2);
+        let pool = pools
+            .iter()
+            .find(|pool| pool.name == format!("{DEFAULT_AUTO_GIT_POOL_PREFIX}-0001"))
+            .expect("auto-created pool should exist");
+        assert_eq!(pool.used_bytes, "too large".len() as u64);
+        assert_eq!(pool.max_size_bytes, "too large".len() as u64);
+        assert!(
+            temp.path()
+                .join("auto-pools")
+                .join(format!("{DEFAULT_AUTO_GIT_POOL_PREFIX}-0001.git"))
+                .exists()
+        );
         Ok(())
     }
 }

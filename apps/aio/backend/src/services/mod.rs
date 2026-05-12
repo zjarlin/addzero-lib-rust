@@ -19,7 +19,6 @@ pub mod knowledge_entries;
 pub mod knowledge_graph;
 pub mod logo_storage;
 pub mod menu_system;
-pub mod minio_files;
 pub mod platform_config;
 pub mod skills;
 pub mod software_catalog;
@@ -71,16 +70,8 @@ pub use logo_storage::{
 pub use menu_system::{
     CreateMenuRequest, Menu, MenuService, MenuTreeNode, Permission, UpdateMenuRequest,
 };
-pub use minio_files::{
-    SharedMinioFilesApi, StorageBrowseRequestDto, StorageBrowseResultDto, StorageCreateFolderDto,
-    StorageCreateFolderResultDto, StorageDeleteFolderDto, StorageDeleteObjectDto,
-    StorageDeleteResultDto, StorageFileDto, StorageFolderDto, StorageShareRequestDto,
-    StorageShareResultDto, StorageUploadFileDto, StorageUploadRequestDto, StorageUploadResultDto,
-    default_minio_files_api,
-};
 pub use platform_config::{
-    MinioConfigDto, MinioConfigUpdateDto, PlatformConfigDto, PlatformConfigSaveResultDto,
-    PostgresConfigDto, PostgresConfigUpdateDto,
+    PlatformConfigDto, PlatformConfigSaveResultDto, PostgresConfigDto, PostgresConfigUpdateDto,
 };
 pub use skills::{
     SharedSkillsApi, SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto, default_skills_api,

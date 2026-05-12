@@ -1,0 +1,4 @@
+interface:
+  display_name: "GetDesign Styles"
+  short_description: "Use Tesla or Cal.com style guidance."
+  default_prompt: "Use $getdesign-brand-styles to apply either Tesla-inspired showroom minimalism or Cal.com-inspired neutral SaaS styling."

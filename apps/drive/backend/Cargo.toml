@@ -16,7 +16,6 @@ az-drive-agent.workspace = true
 az-drive-core.workspace = true
 az-drive-store.workspace = true
 az-drive-webdav.workspace = true
-az-rustfs.workspace = true
 clap = { version = "4.5.38", features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

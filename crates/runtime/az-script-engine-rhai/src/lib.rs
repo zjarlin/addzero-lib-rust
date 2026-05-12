@@ -1,4 +1,15 @@
-//! `az-script-engine` 契约的 Rhai 实现。
+//! [`az_script_engine::ScriptEngine`] trait 的 Rhai 实现。
+//!
+//! 基于 [Rhai](https://rhai.rs) 脚本引擎，提供同步和异步脚本执行能力。
+//! 支持变量注入、`print`/`debug` 输出捕获，以及执行结果的 JSON 序列化。
+//!
+//! ## 核心类型
+//!
+//! - [`RhaiEngine`]：实现 [`ScriptEngine`] trait，封装 Rhai 引擎实例。
+//!
+//! ## 安全约束
+//!
+//! 引擎默认设置最大操作数（100 万次）和最大模块数（32），防止脚本失控。
 
 use az_script_engine::script::{ScriptEngine, ScriptFuture, ScriptInput, ScriptLang, ScriptOutput};
 use rhai::{Dynamic, Engine, Scope};

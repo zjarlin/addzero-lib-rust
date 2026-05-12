@@ -10,7 +10,7 @@ use axum::{
     Json, Router,
     extract::{Path, Query},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header, header::SET_COOKIE},
-    response::{IntoResponse, Redirect, Response},
+    response::{IntoResponse, Response},
     routing::{get, post, put},
 };
 use once_cell::sync::Lazy;
@@ -34,15 +34,11 @@ use crate::services::{
     ChatRequestDto, ChatResponseDto, CloudflareTunnelStatusDto, FilterOptions,
     KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto, KnowledgeFeedDto,
     KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto,
-    KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest, MinioConfigUpdateDto,
-    PlatformConfigDto, PlatformConfigSaveResultDto, PostgresConfigUpdateDto,
-    ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto, SkillUpsertDto,
-    StartVibeCodingRequestDto, StartVibeCodingResponseDto, StorageBrowseRequestDto,
-    StorageBrowseResultDto, StorageCreateFolderDto, StorageCreateFolderResultDto,
-    StorageDeleteFolderDto, StorageDeleteObjectDto, StorageDeleteResultDto, StorageShareRequestDto,
-    StorageShareResultDto, StorageUploadRequestDto, StorageUploadResultDto, StoredLogoDto,
-    SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
-    TerminalSessionSnapshotDto,
+    KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest, PlatformConfigDto,
+    PlatformConfigSaveResultDto, PostgresConfigUpdateDto, ResolveKnowledgeExceptionInput, SkillDto,
+    SkillSourceDto, SkillUpsertDto, StartVibeCodingRequestDto, StartVibeCodingResponseDto,
+    StoredLogoDto, SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto,
+    TerminalSessionListDto, TerminalSessionSnapshotDto,
     download_station::{FileIndex, ScanStats, ShareLink},
     menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
 };
@@ -439,19 +435,7 @@ pub async fn run_api_server() -> Result<()> {
             get(get_session_permissions),
         )
         .route("/api/admin/storage/logo", post(upload_logo))
-        .route("/api/admin/storage/files/browse", post(browse_files))
-        .route("/api/admin/storage/files/upload", post(upload_files))
-        .route("/api/admin/storage/files/folders", post(create_folder))
-        .route(
-            "/api/admin/storage/files/folders/delete",
-            post(delete_folder),
-        )
-        .route("/api/admin/storage/files/share", post(share_file))
-        .route("/api/admin/storage/files/delete", post(delete_file))
-        .route(
-            "/api/admin/storage/files/download/{token}",
-            get(download_file),
-        )
+        .route("/api/admin/storage/logo/{path:path}", get(get_logo_preview))
         .route("/api/admin/assets/sync", post(sync_assets))
         .route("/api/admin/assets/graph", get(load_asset_graph))
         .route(
@@ -465,10 +449,6 @@ pub async fn run_api_server() -> Result<()> {
         .route(
             "/api/admin/settings/platform-config/postgres",
             post(save_platform_postgres_config),
-        )
-        .route(
-            "/api/admin/settings/platform-config/minio",
-            post(save_platform_minio_config),
         )
         .route("/api/skills", get(list_skills))
         .route("/api/skills/status", get(skill_status))
@@ -815,18 +795,6 @@ async fn save_platform_postgres_config(
     Ok(Json(result))
 }
 
-async fn save_platform_minio_config(
-    headers: HeaderMap,
-    Json(input): Json<MinioConfigUpdateDto>,
-) -> ApiResult<Json<PlatformConfigSaveResultDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let result = crate::services::platform_config::save_minio_config_on_server(input)
-        .await
-        .map_err(ApiError::bad_request)?;
-    Ok(Json(result))
-}
-
 async fn upload_logo(
     headers: HeaderMap,
     Json(input): Json<LogoUploadRequest>,
@@ -842,106 +810,21 @@ async fn upload_logo(
     Ok(Json(stored))
 }
 
-async fn browse_files(
-    headers: HeaderMap,
-    Json(input): Json<StorageBrowseRequestDto>,
-) -> ApiResult<Json<StorageBrowseResultDto>> {
+async fn get_logo_preview(headers: HeaderMap, Path(path): Path<String>) -> ApiResult<Response> {
     let backend = services().await;
     ensure_auth(&backend.admin_auth, &headers)?;
-    let explorer = tokio::task::spawn_blocking(move || {
-        crate::services::minio_files::browse_files_on_server(input)
+    let (content_type, bytes) = tokio::task::spawn_blocking(move || {
+        crate::services::logo_storage::read_logo_on_server(&path)
     })
     .await
-    .map_err(|err| ApiError::internal(format!("文件浏览任务失败：{err}")))?
+    .map_err(|err| ApiError::internal(format!("logo 读取任务失败：{err}")))?
     .map_err(|err| ApiError::bad_request(err.to_string()))?;
-    Ok(Json(explorer))
-}
-
-async fn upload_files(
-    headers: HeaderMap,
-    Json(input): Json<StorageUploadRequestDto>,
-) -> ApiResult<Json<StorageUploadResultDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let report = tokio::task::spawn_blocking(move || {
-        crate::services::minio_files::upload_files_on_server(input)
-    })
-    .await
-    .map_err(|err| ApiError::internal(format!("文件上传任务失败：{err}")))?
-    .map_err(|err| ApiError::bad_request(err.to_string()))?;
-    Ok(Json(report))
-}
-
-async fn create_folder(
-    headers: HeaderMap,
-    Json(input): Json<StorageCreateFolderDto>,
-) -> ApiResult<Json<StorageCreateFolderResultDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let result = tokio::task::spawn_blocking(move || {
-        crate::services::minio_files::create_folder_on_server(input)
-    })
-    .await
-    .map_err(|err| ApiError::internal(format!("创建目录任务失败：{err}")))?
-    .map_err(|err| ApiError::bad_request(err.to_string()))?;
-    Ok(Json(result))
-}
-
-async fn share_file(
-    headers: HeaderMap,
-    Json(input): Json<StorageShareRequestDto>,
-) -> ApiResult<Json<StorageShareResultDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let result = tokio::task::spawn_blocking(move || {
-        crate::services::minio_files::share_file_on_server(input)
-    })
-    .await
-    .map_err(|err| ApiError::internal(format!("分享链接生成任务失败：{err}")))?
-    .map_err(|err| ApiError::bad_request(err.to_string()))?;
-    Ok(Json(result))
-}
-
-async fn delete_file(
-    headers: HeaderMap,
-    Json(input): Json<StorageDeleteObjectDto>,
-) -> ApiResult<Json<StorageDeleteResultDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let result = tokio::task::spawn_blocking(move || {
-        crate::services::minio_files::delete_file_on_server(input)
-    })
-    .await
-    .map_err(|err| ApiError::internal(format!("删除文件任务失败：{err}")))?
-    .map_err(|err| ApiError::bad_request(err.to_string()))?;
-    Ok(Json(result))
-}
-
-async fn delete_folder(
-    headers: HeaderMap,
-    Json(input): Json<StorageDeleteFolderDto>,
-) -> ApiResult<Json<StorageDeleteResultDto>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let result = tokio::task::spawn_blocking(move || {
-        crate::services::minio_files::delete_folder_on_server(input)
-    })
-    .await
-    .map_err(|err| ApiError::internal(format!("删除目录任务失败：{err}")))?
-    .map_err(|err| ApiError::bad_request(err.to_string()))?;
-    Ok(Json(result))
-}
-
-async fn download_file(headers: HeaderMap, Path(token): Path<String>) -> ApiResult<Redirect> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-    let url = tokio::task::spawn_blocking(move || {
-        crate::services::minio_files::presign_download_url_on_server(&token)
-    })
-    .await
-    .map_err(|err| ApiError::internal(format!("生成下载链接任务失败：{err}")))?
-    .map_err(|err| ApiError::bad_request(err.to_string()))?;
-    Ok(Redirect::temporary(&url))
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", content_type)
+        .body(axum::body::Body::from(bytes))
+        .map_err(|err| ApiError::internal(format!("logo 响应构造失败：{err}")))?;
+    Ok(response)
 }
 
 async fn list_skills(headers: HeaderMap) -> ApiResult<Json<Vec<SkillDto>>> {

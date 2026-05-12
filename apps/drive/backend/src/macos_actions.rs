@@ -15,7 +15,7 @@ const UNHOST_MENU_LABEL: &str = "AIO Drive 取消托管";
 pub struct MacosActionsInstallResult {
     workflows: Vec<PathBuf>,
     scripts: Vec<PathBuf>,
-    env_paths: Vec<PathBuf>,
+    config_paths: Vec<PathBuf>,
     enabled_context_menu: bool,
     refreshed_services_cache: bool,
     note: String,
@@ -57,7 +57,7 @@ pub fn install() -> Result<MacosActionsInstallResult> {
     Ok(MacosActionsInstallResult {
         workflows: vec![host_workflow, unhost_workflow],
         scripts: vec![host_script, unhost_script],
-        env_paths: crate::drive_env_paths(),
+        config_paths: crate::drive_config_paths(),
         enabled_context_menu: enabled_host && enabled_unhost,
         refreshed_services_cache: refreshed,
         note: "Finder 右键入口已请求加入右键菜单和“快速操作”；如果未立即出现，请重新打开 Finder 右键菜单或重启 Finder。"
@@ -74,29 +74,14 @@ set -u
 
 BIN={binary}
 LOG="{log}"
-ENV_PRIMARY="${{AZ_DRIVE_ENV:-}}"
-ENV_AIO="${{HOME}}/.config/aio/aio.env"
-ENV_AIO_DRIVE="${{HOME}}/.config/aio/drive.env"
-ENV_XDG_LEGACY="${{HOME}}/.config/az-drive/drive.env"
-
-load_env_file() {{
-  local file="$1"
-  if [[ -n "$file" && -f "$file" ]]; then
-    set -a
-    source "$file"
-    set +a
-  fi
-}}
+DRIVE_TOML="${{HOME}}/.config/aio/drive.toml"
+AUTH_JSON="${{HOME}}/.config/aio/auth.json"
 
 notify() {{
   /usr/bin/osascript -e "display notification \"$1\" with title \"AIO Drive\"" >/dev/null 2>&1 || true
 }}
 
 mkdir -p "${{HOME}}/Library/Logs"
-load_env_file "$ENV_PRIMARY"
-load_env_file "$ENV_AIO"
-load_env_file "$ENV_AIO_DRIVE"
-load_env_file "$ENV_XDG_LEGACY"
 
 {{
   echo "[$(/bin/date -u '+%Y-%m-%dT%H:%M:%SZ')] {label}: $# item(s)"
@@ -107,8 +92,8 @@ if [[ $# -eq 0 ]]; then
   exit 0
 fi
 
-if [[ -z "${{AZ_DRIVE_DATABASE_URL:-${{MSC_AIO_DATABASE_URL:-${{DATABASE_URL:-}}}}}}" || -z "${{AZ_DRIVE_MINIO_ENDPOINT:-${{AIO_MINIO_ENDPOINT:-}}}}" || -z "${{AZ_DRIVE_MINIO_ACCESS_KEY:-${{AIO_MINIO_ACCESS_KEY:-}}}}" || -z "${{AZ_DRIVE_MINIO_SECRET_KEY:-${{AIO_MINIO_SECRET_KEY:-}}}}" ]]; then
-  echo "missing drive env; checked: $ENV_PRIMARY $ENV_AIO $ENV_AIO_DRIVE $ENV_XDG_LEGACY" >> "$LOG"
+if [[ ! -f "$DRIVE_TOML" || ! -f "$AUTH_JSON" ]]; then
+  echo "missing drive config; checked: $DRIVE_TOML $AUTH_JSON" >> "$LOG"
   notify "未配置 AIO Drive，无法执行{label}"
   exit 2
 fi

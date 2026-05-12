@@ -31,7 +31,6 @@ az-ai-agent.workspace = true
 az-ai-chat.workspace = true
 az-assets.workspace = true
 az-knowledge.workspace = true
-az-minio.workspace = true
 az-persistence.workspace = true
 az-skills.workspace = true
 az-rustfs.workspace = true

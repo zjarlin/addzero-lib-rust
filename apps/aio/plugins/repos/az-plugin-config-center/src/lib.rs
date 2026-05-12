@@ -14,7 +14,7 @@ pub fn managed_shell_root() -> &'static str {
 
 /// Returns the source workbook path used to seed metadata for the current profile.
 pub fn metadata_workbook_path() -> &'static str {
-    "MinIO Archive/biz_dotfiles.xlsx"
+    "Archive/biz_dotfiles.xlsx"
 }
 
 #[cfg(target_arch = "wasm32")]

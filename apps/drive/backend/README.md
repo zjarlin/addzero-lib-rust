@@ -9,6 +9,8 @@
 - 默认直接复用系统 `git`
 - 可用 GitHub、Gitea、NAS bare repo、本地 bare repo 作为远端
 
+旧版 `PG + MinIO` Drive 后端已经删除。`aio drive` / `az-drive-app` 只保留 Git Pool。
+
 对用户暴露的主入口是 `aio drive ...`。Finder 右键菜单和状态图标只是这个 CLI 的图形外壳。
 
 ## 现在的模型
@@ -55,6 +57,37 @@ aio drive pool init --control-remote <control-repo-url>
 aio drive pool add main <pool-repo-url>
 aio drive backend status
 ```
+
+如果希望 pool 容量打满后自动扩容到新的本地 bare repo：
+
+```bash
+aio drive pool init \
+  --control-remote <control-repo-url> \
+  --auto-pool-root ~/.aio/drive-auto-pools \
+  --auto-pool-prefix auto
+aio drive pool add main <pool-repo-url> --max-size 8gb
+```
+
+开启后，当现有可写 pool 的 `used_bytes + 新对象大小` 超过 `max_size_bytes`，Drive 会在
+`auto_pool_root` 下自动创建类似 `auto-0001.git`、`auto-0002.git` 的 bare repo，并把新对象写入新仓库。
+
+如果希望对象字节逐步迁移到 `gitdb` 的多 repo shard，而控制仓和同步队列还留在当前 Drive 元数据层：
+
+```bash
+aio drive pool init \
+  --control-remote <control-repo-url> \
+  --object-backend gitdb \
+  --gitdb-object-root ~/.aio/drive-gitdb-objects \
+  --gitdb-object-max-shard-size 8gb \
+  --gitdb-object-shard-prefix shard
+aio drive backend status
+```
+
+这条路径下：
+
+- 新对象会进入 `gitdb` 管理的 `shard-0001`、`shard-0002` 等 Git repo
+- `git_pool` 的内容池可以逐步停止新增
+- Drive 元数据、冲突、挂起项、同步队列仍保留在当前控制仓，方便渐进迁移
 
 托管与查看：
 
@@ -137,4 +170,3 @@ macOS Finder 扩展位于：
 
 - 文档内容做成静态站
 - tunnel 只代理你自己的静态入口
-

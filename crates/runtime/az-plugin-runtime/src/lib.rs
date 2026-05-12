@@ -1,3 +1,41 @@
+//! `az-plugin-runtime` 的职责：管理 AddZero 插件系统的完整生命周期，包括插件包发现、校验、安装、实例化及市场快照。
+//!
+//! # 核心类型
+//!
+//! - [`PluginRuntime`] — 运行时主入口，统一管理插件目录（catalog）、已安装插件（installed）和运行时实例（instances）
+//! - [`CatalogPlugin`] — 目录中的可用插件包，持有清单与包路径
+//! - [`InstalledPlugin`] — 已安装的插件，持有清单与安装目录
+//! - [`RuntimeError`] — 运行时所有可恢复错误的枚举定义
+//!
+//! # 包操作函数
+//!
+//! - [`read_manifest_from_package`] — 从 `.azplugin` 压缩包中读取 `plugin.toml` 清单
+//! - [`validate_package`] — 通过 `checksums.sha256` 校验包内文件完整性
+//! - [`unpack_package`] — 将插件包解压到目标目录（含路径逃逸防护）
+//! - [`create_package_from_dir`] — 从源目录打包为 `.azplugin` 压缩包（开发态使用）
+//!
+//! # 关键能力
+//!
+//! - 目录扫描与自动刷新（`.azplugin` 扩展名）
+//! - 安装前 SHA256 完整性校验
+//! - 安全解压（防止 Zip Slip 路径逃逸）
+//! - 基于 slug 的插件实例创建与冲突检测
+//! - 插件市场快照聚合（安装状态、标签、实例计数）
+//! - 开发态快速打包（`ensure_dev_package`）
+//!
+//! # 依赖关系
+//!
+//! | 用途 | crate |
+//! |------|-------|
+//! | 插件契约类型 | [`az_plugin_contract`] |
+//! | 时间戳 | `chrono` |
+//! | 序列化 | `serde` |
+//! | SHA256 哈希 | `sha2` |
+//! | 错误派生 | `thiserror` |
+//! | TOML 解析 | `toml_edit` |
+//! | 唯一标识 | `uuid` |
+//! | ZIP 压缩包 | `zip` |
+
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,

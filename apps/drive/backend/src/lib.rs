@@ -5,9 +5,8 @@
 use anyhow::Context;
 use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalState, LocalStateStore};
 use az_drive_store::{
-    DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator, GitPoolConfig, GitPoolDriveStore,
-    GitPoolRepoConfig, InMemoryDriveMetadataStore, InMemoryDriveObjectStore,
-    NoopDriveSyncCoordinator, PgDriveMetadataStore, S3DriveObjectStore,
+    DEFAULT_AUTO_GIT_POOL_PREFIX, DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator,
+    GitDbObjectStore, GitDbObjectStoreConfig, GitPoolConfig, GitPoolDriveStore, GitPoolRepoConfig,
 };
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -18,7 +17,6 @@ use std::sync::Arc;
 use toml_edit::{DocumentMut, value};
 
 pub mod cli;
-pub mod setup;
 
 #[cfg(target_os = "macos")]
 pub mod macos_actions;
@@ -37,6 +35,17 @@ pub fn default_git_pool_root() -> PathBuf {
         .map(PathBuf::from)
         .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".aio/drive-git-pool")))
         .unwrap_or_else(|| PathBuf::from(".aio/drive-git-pool"))
+}
+
+/// Default root for GitDB-sharded object storage.
+#[must_use]
+pub fn default_gitdb_object_root() -> PathBuf {
+    config_value("AIO_DRIVE_GITDB_OBJECT_ROOT")
+        .map(PathBuf::from)
+        .or_else(|| {
+            env::var_os("HOME").map(|home| PathBuf::from(home).join(".aio/drive-gitdb-objects"))
+        })
+        .unwrap_or_else(|| PathBuf::from(".aio/drive-gitdb-objects"))
 }
 
 /// Default server bind address for the standalone WebDAV service.
@@ -118,19 +127,10 @@ pub fn default_auto_materialize_space_ids(primary_owner_drive_id: &str) -> Vec<S
     drives
 }
 
-/// Default object bucket for drive bytes.
-#[must_use]
-pub fn default_bucket() -> String {
-    config_value("AZ_DRIVE_BUCKET")
-        .or_else(|| config_value("AIO_DRIVE_BUCKET"))
-        .unwrap_or_else(|| "aio-drive".to_owned())
-}
-
 /// Builds a drive agent using the same configuration sources as the CLI.
 ///
 /// # Errors
-/// Returns an error when local state, PostgreSQL, migrations, or object store
-/// initialization fails.
+/// Returns an error when local state or Git Pool initialization fails.
 pub async fn build_agent() -> anyhow::Result<DriveAgent> {
     build_agent_and_migrate()
         .await
@@ -174,63 +174,24 @@ async fn build_agent_and_migrate() -> anyhow::Result<(DriveAgent, u64)> {
 /// Builds configured metadata and object stores.
 ///
 /// # Errors
-/// Returns an error when configured PostgreSQL or S3-compatible storage cannot
-/// be initialized.
+/// Returns an error when Drive metadata or object storage cannot be initialized.
 pub async fn build_stores() -> anyhow::Result<DriveStores> {
-    match current_drive_backend()? {
-        DriveBackend::GitPool => build_git_pool_stores(),
-        DriveBackend::PgMinio => build_pg_minio_stores().await,
-    }
-}
-
-async fn build_pg_minio_stores() -> anyhow::Result<DriveStores> {
-    let metadata: Arc<dyn DriveMetadataStore> = if let Some(database_url) = database_url() {
-        let store = PgDriveMetadataStore::connect(&database_url)
-            .await
-            .context("failed to connect drive postgres metadata store")?;
-        store
-            .run_migrations()
-            .await
-            .context("failed to run drive postgres migrations")?;
-        Arc::new(store)
-    } else {
-        eprintln!(
-            "AZ_DRIVE_DATABASE_URL/MSC_AIO_DATABASE_URL/DATABASE_URL not set; using non-persistent metadata store"
-        );
-        Arc::new(InMemoryDriveMetadataStore::new())
-    };
-
-    let objects: Arc<dyn DriveObjectStore> = if let Some(config) = s3_config() {
-        let bucket = default_bucket();
-        let store = tokio::task::spawn_blocking(move || {
-            let client = az_rustfs::create_storage_client(config);
-            S3DriveObjectStore::new(client, bucket)
-        })
-        .await
-        .context("S3 object store initialization task failed")?
-        .context("failed to initialize S3 object store")?;
-        Arc::new(store)
-    } else {
-        eprintln!("AZ_DRIVE_MINIO_*/AIO_MINIO_* not set; using non-persistent object store");
-        Arc::new(InMemoryDriveObjectStore::new())
-    };
-
-    Ok((metadata, objects, Arc::new(NoopDriveSyncCoordinator)))
+    build_git_pool_stores()
 }
 
 fn build_git_pool_stores() -> anyhow::Result<DriveStores> {
     let config = current_git_pool_config()?;
     let store = Arc::new(GitPoolDriveStore::open(config)?);
     let metadata: Arc<dyn DriveMetadataStore> = store.clone();
-    let objects: Arc<dyn DriveObjectStore> = store.clone();
+    let objects: Arc<dyn DriveObjectStore> = match current_object_backend_config()? {
+        DriveObjectBackendConfig::GitPool => store.clone(),
+        DriveObjectBackendConfig::GitDb(config) => Arc::new(GitDbObjectStore::open(config)?),
+    };
     let sync: Arc<dyn DriveSyncCoordinator> = store;
     Ok((metadata, objects, sync))
 }
 
 fn git_pool_mounted_owner_drive_ids() -> Vec<String> {
-    if current_drive_backend().ok() != Some(DriveBackend::GitPool) {
-        return Vec::new();
-    }
     let Ok(config) = current_git_pool_config() else {
         return Vec::new();
     };
@@ -253,7 +214,15 @@ fn git_pool_mounted_owner_drive_ids() -> Vec<String> {
 /// # Errors
 /// Returns an error when config cannot be written or the Git control repo cannot
 /// be initialized.
-pub fn init_git_pool_backend(control_remote: Option<&str>) -> anyhow::Result<serde_json::Value> {
+pub fn init_git_pool_backend(
+    control_remote: Option<&str>,
+    auto_pool_root: Option<PathBuf>,
+    auto_pool_prefix: Option<&str>,
+    object_backend: Option<&str>,
+    gitdb_object_root: Option<PathBuf>,
+    gitdb_object_shard_prefix: Option<&str>,
+    gitdb_object_max_shard_size_bytes: Option<u64>,
+) -> anyhow::Result<serde_json::Value> {
     let mut config = current_drive_config()?;
     config.backend = "git_pool".to_owned();
     config
@@ -262,9 +231,31 @@ pub fn init_git_pool_backend(control_remote: Option<&str>) -> anyhow::Result<ser
     config.control_remote = control_remote
         .map(str::to_owned)
         .or_else(|| config.control_remote.clone());
+    config.auto_pool_root = auto_pool_root.or(config.auto_pool_root);
+    if let Some(prefix) = auto_pool_prefix
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        config.auto_pool_prefix = prefix.to_owned();
+    }
+    if let Some(backend) = object_backend
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        config.object_backend = normalize_object_backend_name(backend)?;
+    }
+    config.gitdb_object_root = gitdb_object_root.or(config.gitdb_object_root);
+    if let Some(prefix) = gitdb_object_shard_prefix
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        config.gitdb_object_shard_prefix = prefix.to_owned();
+    }
+    if let Some(limit) = gitdb_object_max_shard_size_bytes {
+        config.gitdb_object_max_shard_size_bytes = limit;
+    }
     save_drive_config(&config)?;
-    let store = GitPoolDriveStore::open(current_git_pool_config()?)?;
-    Ok(store.backend_status()?)
+    drive_backend_status()
 }
 
 /// Adds a writable Git pool repo.
@@ -313,29 +304,29 @@ pub fn git_pool_backend_status() -> anyhow::Result<serde_json::Value> {
     Ok(store.backend_status()?)
 }
 
-/// Returns the selected Drive backend status without forcing legacy backends
-/// through the Git Pool path.
+/// Returns current Drive backend status.
 ///
 /// # Errors
 /// Returns an error when Git Pool metadata cannot be read.
 pub fn drive_backend_status() -> anyhow::Result<serde_json::Value> {
-    let config = current_drive_config()?;
-    if config.backend == "git_pool" {
-        return git_pool_backend_status();
+    let mut status = git_pool_backend_status()?;
+    match current_object_backend_config()? {
+        DriveObjectBackendConfig::GitPool => {
+            status["object_backend"] = serde_json::json!("git_pool");
+        }
+        DriveObjectBackendConfig::GitDb(config) => {
+            let store = GitDbObjectStore::open(config)?;
+            status["object_backend"] = serde_json::json!("gitdb");
+            status["object_store"] = store.backend_status()?;
+        }
     }
-    Ok(serde_json::json!({
-        "backend": config.backend,
-        "git_pool_root": config.git_pool_root.unwrap_or_else(default_git_pool_root),
-        "default_pool_limit_bytes": config.default_pool_limit_bytes,
-        "postgres_configured": database_url().is_some(),
-        "object_store_configured": s3_config().is_some(),
-    }))
+    Ok(status)
 }
 
 /// Persists the drive backend selector.
 ///
 /// # Errors
-/// Returns an error when config cannot be written.
+/// Returns an error when config cannot be written or the requested backend is unsupported.
 pub fn use_drive_backend(backend: &str) -> anyhow::Result<()> {
     let mut config = current_drive_config()?;
     config.backend = normalize_backend_name(backend)?;
@@ -393,25 +384,18 @@ async fn migrate_state_paths(
     Ok(statuses)
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DriveBackend {
-    GitPool,
-    PgMinio,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DriveTomlConfig {
     backend: String,
     git_pool_root: Option<PathBuf>,
     control_remote: Option<String>,
     default_pool_limit_bytes: u64,
-}
-
-fn current_drive_backend() -> anyhow::Result<DriveBackend> {
-    match current_drive_config()?.backend.as_str() {
-        "pg_minio" => Ok(DriveBackend::PgMinio),
-        _ => Ok(DriveBackend::GitPool),
-    }
+    auto_pool_root: Option<PathBuf>,
+    auto_pool_prefix: String,
+    object_backend: String,
+    gitdb_object_root: Option<PathBuf>,
+    gitdb_object_shard_prefix: String,
+    gitdb_object_max_shard_size_bytes: u64,
 }
 
 fn current_git_pool_config() -> anyhow::Result<GitPoolConfig> {
@@ -421,7 +405,28 @@ fn current_git_pool_config() -> anyhow::Result<GitPoolConfig> {
         owner_drive_id: default_owner_drive_id(),
         control_remote: config.control_remote,
         default_pool_limit_bytes: config.default_pool_limit_bytes,
+        auto_pool_root: config.auto_pool_root,
+        auto_pool_prefix: config.auto_pool_prefix,
     })
+}
+
+enum DriveObjectBackendConfig {
+    GitPool,
+    GitDb(GitDbObjectStoreConfig),
+}
+
+fn current_object_backend_config() -> anyhow::Result<DriveObjectBackendConfig> {
+    let config = current_drive_config()?;
+    match config.object_backend.as_str() {
+        "gitdb" => Ok(DriveObjectBackendConfig::GitDb(GitDbObjectStoreConfig {
+            root: config
+                .gitdb_object_root
+                .unwrap_or_else(default_gitdb_object_root),
+            max_shard_size_bytes: config.gitdb_object_max_shard_size_bytes,
+            shard_prefix: config.gitdb_object_shard_prefix,
+        })),
+        _ => Ok(DriveObjectBackendConfig::GitPool),
+    }
 }
 
 fn current_drive_config() -> anyhow::Result<DriveTomlConfig> {
@@ -442,7 +447,7 @@ fn current_drive_config() -> anyhow::Result<DriveTomlConfig> {
         .and_then(toml_edit::Item::as_str)
         .filter(|value| !value.trim().is_empty())
     {
-        config.backend = normalize_backend_name(backend)?;
+        config.backend = normalize_persisted_backend_name(backend);
     }
     if let Some(root) = doc
         .get("git_pool_root")
@@ -465,6 +470,51 @@ fn current_drive_config() -> anyhow::Result<DriveTomlConfig> {
     {
         config.default_pool_limit_bytes = limit;
     }
+    if let Some(root) = doc
+        .get("auto_pool_root")
+        .and_then(toml_edit::Item::as_str)
+        .filter(|value| !value.trim().is_empty())
+    {
+        config.auto_pool_root = Some(expand_home_path(root));
+    }
+    if let Some(prefix) = doc
+        .get("auto_pool_prefix")
+        .and_then(toml_edit::Item::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        config.auto_pool_prefix = prefix.to_owned();
+    }
+    if let Some(backend) = doc
+        .get("object_backend")
+        .and_then(toml_edit::Item::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        config.object_backend = normalize_persisted_object_backend_name(backend);
+    }
+    if let Some(root) = doc
+        .get("gitdb_object_root")
+        .and_then(toml_edit::Item::as_str)
+        .filter(|value| !value.trim().is_empty())
+    {
+        config.gitdb_object_root = Some(expand_home_path(root));
+    }
+    if let Some(prefix) = doc
+        .get("gitdb_object_shard_prefix")
+        .and_then(toml_edit::Item::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        config.gitdb_object_shard_prefix = prefix.to_owned();
+    }
+    if let Some(limit) = doc
+        .get("gitdb_object_max_shard_size_bytes")
+        .and_then(toml_edit::Item::as_integer)
+        .and_then(|value| u64::try_from(value).ok())
+    {
+        config.gitdb_object_max_shard_size_bytes = limit;
+    }
     Ok(config)
 }
 
@@ -486,6 +536,21 @@ fn save_drive_config(config: &DriveTomlConfig) -> anyhow::Result<()> {
         doc["control_remote"] = value(remote.as_str());
     }
     doc["default_pool_limit_bytes"] = value(config.default_pool_limit_bytes as i64);
+    if let Some(root) = &config.auto_pool_root {
+        doc["auto_pool_root"] = value(path_to_config_string(root.clone()));
+    }
+    if config.auto_pool_prefix != DEFAULT_AUTO_GIT_POOL_PREFIX {
+        doc["auto_pool_prefix"] = value(config.auto_pool_prefix.as_str());
+    }
+    doc["object_backend"] = value(config.object_backend.as_str());
+    if let Some(root) = &config.gitdb_object_root {
+        doc["gitdb_object_root"] = value(path_to_config_string(root.clone()));
+    }
+    if config.gitdb_object_shard_prefix != az_drive_store::DEFAULT_BLOB_SHARD_PREFIX {
+        doc["gitdb_object_shard_prefix"] = value(config.gitdb_object_shard_prefix.as_str());
+    }
+    doc["gitdb_object_max_shard_size_bytes"] =
+        value(config.gitdb_object_max_shard_size_bytes as i64);
     fs::write(&path, doc.to_string())
         .with_context(|| format!("写入 Drive 配置失败: {}", path.display()))
 }
@@ -496,14 +561,45 @@ fn default_drive_toml_config() -> DriveTomlConfig {
         git_pool_root: Some(default_git_pool_root()),
         control_remote: None,
         default_pool_limit_bytes: az_drive_store::DEFAULT_GIT_POOL_LIMIT_BYTES,
+        auto_pool_root: None,
+        auto_pool_prefix: DEFAULT_AUTO_GIT_POOL_PREFIX.to_owned(),
+        object_backend: "git_pool".to_owned(),
+        gitdb_object_root: Some(default_gitdb_object_root()),
+        gitdb_object_shard_prefix: az_drive_store::DEFAULT_BLOB_SHARD_PREFIX.to_owned(),
+        gitdb_object_max_shard_size_bytes: az_drive_store::DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES,
     }
 }
 
 fn normalize_backend_name(value: &str) -> anyhow::Result<String> {
     match value.trim().replace('-', "_").as_str() {
         "git_pool" => Ok("git_pool".to_owned()),
-        "pg_minio" | "pg" | "postgres_minio" => Ok("pg_minio".to_owned()),
+        "pg_minio" | "pg" | "postgres_minio" => {
+            anyhow::bail!("Drive 旧版 pg/minio 后端已删除，只支持 git_pool")
+        }
         other => anyhow::bail!("不支持的 Drive backend: {other}"),
+    }
+}
+
+fn normalize_persisted_backend_name(value: &str) -> String {
+    match value.trim().replace('-', "_").as_str() {
+        "pg_minio" | "pg" | "postgres_minio" => "git_pool".to_owned(),
+        "" => "git_pool".to_owned(),
+        other => other.to_owned(),
+    }
+}
+
+fn normalize_object_backend_name(value: &str) -> anyhow::Result<String> {
+    match value.trim().replace('-', "_").as_str() {
+        "git_pool" => Ok("git_pool".to_owned()),
+        "gitdb" => Ok("gitdb".to_owned()),
+        other => anyhow::bail!("不支持的 Drive object backend: {other}"),
+    }
+}
+
+fn normalize_persisted_object_backend_name(value: &str) -> String {
+    match value.trim().replace('-', "_").as_str() {
+        "gitdb" => "gitdb".to_owned(),
+        _ => "git_pool".to_owned(),
     }
 }
 
@@ -548,50 +644,15 @@ pub fn config_value(key: &str) -> Option<String> {
         .or_else(|| drive_env_values().remove(key))
 }
 
-/// Returns the configured PostgreSQL URL, if present.
+/// Returns candidate config file locations used by the CLI and Finder actions.
 #[must_use]
-pub fn database_url() -> Option<String> {
-    setup::current_database_url().filter(|value| !value.trim().is_empty())
-}
-
-/// Returns the configured S3-compatible object-store client config, if present.
-#[must_use]
-pub fn s3_config() -> Option<az_rustfs::S3ClientConfig> {
-    let endpoint = setup::current_minio_endpoint()?;
-    let access_key = setup::current_minio_access_key()?;
-    let secret_key = setup::current_minio_secret_key()?;
-    let region = setup::current_minio_region();
-    Some(
-        az_rustfs::S3ClientConfig::new(endpoint, access_key, secret_key)
-            .with_region(region)
-            .with_path_style_access(true),
-    )
-}
-
-/// Returns candidate env file locations used by the CLI and Finder actions.
-#[must_use]
-pub fn drive_env_paths() -> Vec<PathBuf> {
+pub fn drive_config_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    if let Some(path) = env::var_os("AZ_DRIVE_ENV") {
-        paths.push(PathBuf::from(path));
-    }
     if let Some(dir) = aio_config_dir() {
-        paths.push(dir.join("aio.env"));
-        paths.push(dir.join("drive.env"));
-    }
-    if let Some(home) = env::var_os("HOME") {
-        let home = PathBuf::from(home);
-        paths.push(home.join(".config").join("az-drive").join("drive.env"));
+        paths.push(dir.join("drive.toml"));
+        paths.push(dir.join("auth.json"));
     }
     paths
-}
-
-/// Returns the canonical env file path written by `setup`.
-#[must_use]
-pub fn drive_env_write_path() -> Option<PathBuf> {
-    env::var_os("AZ_DRIVE_ENV")
-        .map(PathBuf::from)
-        .or_else(|| aio_config_dir().map(|dir| dir.join("aio.env")))
 }
 
 /// Returns the AIO config directory used by the headless drive.
@@ -651,7 +712,7 @@ fn push_unique_drive(drives: &mut Vec<String>, drive: String) {
 
 fn drive_env_values() -> BTreeMap<String, String> {
     let mut values = BTreeMap::new();
-    for path in drive_env_paths() {
+    for path in legacy_drive_env_paths() {
         let Ok(content) = fs::read_to_string(path) else {
             continue;
         };
@@ -672,4 +733,20 @@ fn drive_env_values() -> BTreeMap<String, String> {
         }
     }
     values
+}
+
+fn legacy_drive_env_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if let Some(path) = env::var_os("AZ_DRIVE_ENV") {
+        paths.push(PathBuf::from(path));
+    }
+    if let Some(dir) = aio_config_dir() {
+        paths.push(dir.join("aio.env"));
+        paths.push(dir.join("drive.env"));
+    }
+    if let Some(home) = env::var_os("HOME") {
+        let home = PathBuf::from(home);
+        paths.push(home.join(".config").join("az-drive").join("drive.env"));
+    }
+    paths
 }

@@ -61,6 +61,14 @@ pub enum ClashError {
     /// No speed test result completed successfully.
     #[error("no successful speed test result")]
     NoSuccessfulSpeedTest,
+
+    /// Could not locate a Clash/Mihomo binary on the system.
+    #[error("could not find Clash/Mihomo binary; set CLASH_BINARY env var")]
+    ClashBinaryNotFound,
+
+    /// Clash process management error.
+    #[error("clash process error: {0}")]
+    ClashProcess(String),
 }
 
 /// Supported proxy node types.

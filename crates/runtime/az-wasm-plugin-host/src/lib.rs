@@ -1,4 +1,22 @@
-//! 基于 Wasmtime 的 `az-wasm-plugin-api` 插件极简宿主。
+//! 基于 Wasmtime 的 WASM 插件宿主实现。
+//!
+//! 本 crate 实现了 `az-wasm-plugin-api` 中定义的 [`PluginRegistry`] trait，
+//! 使用 [Wasmtime](https://wasmtime.dev/) 引擎加载和管理 `.azplugin` WASM 插件。
+//!
+//! ## 主要功能
+//!
+//! - **WASM 实例管理**：通过 Wasmtime 编译、实例化 WASM 模块，并维护 `Store` / `Instance` 生命周期
+//! - **生命周期钩子**：自动调用插件导出的 `aio_on_load`、`aio_on_enable`、`aio_on_disable`、`aio_on_unload` 函数
+//! - **内置插件支持**：以 `builtin:` 开头的入口点标记内置插件，无需提供 WASM 字节码
+//! - **线程安全注册表**：基于 `RwLock<BTreeMap<Uuid, RuntimePlugin>>` 的内存注册表，支持并发读写
+//!
+//! ## 核心类型
+//!
+//! - [`RuntimePluginRegistry`]：[`PluginRegistry`] trait 的唯一公开实现
+//!
+//! ## 扩展点约定
+//!
+//! 插件导出的生命周期函数签名为 `() -> i32`，返回 0 表示成功，非零表示失败。
 
 use az_wasm_plugin_api::{PluginError, PluginHandle, PluginManifest, PluginRegistry, PluginState};
 use std::collections::BTreeMap;

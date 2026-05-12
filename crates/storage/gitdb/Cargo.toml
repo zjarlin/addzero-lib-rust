@@ -1,0 +1,28 @@
+[package]
+name = "gitdb"
+version = "0.1.0"
+edition = "2021"
+description = "A Git-backed SQL document database"
+license = "MIT"
+repository = "https://github.com/qeqqe/gitdb"
+keywords = ["database", "git", "sql", "document-store"]
+categories = ["database", "command-line-utilities"]
+
+[[bin]]
+name = "gitdb"
+path = "src/main.rs"
+
+[lib]
+name = "gitdb"
+path = "src/lib.rs"
+
+[dependencies]
+git2 = "0.20.2"
+serde = { version = "1.0.228", features = ["derive"] }
+ulid = "1.2.1"
+thiserror = "2.0.17"
+serde_json = "1.0.145"
+chrono = { version = "0.4.42", features = ["serde"] }
+tempfile = "3.23.0"
+parking_lot = "0.12.5"
+sqlparser = "0.55"

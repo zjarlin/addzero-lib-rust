@@ -7,10 +7,12 @@ members = [
     "crates/config/*",
     "crates/core/*",
     "crates/data/*",
-        "crates/network/*",
+    "crates/network/*",
     "crates/runtime/*",
     "crates/storage/*",
     "crates/text/*",
+    "crates/ui/az-table",
+    "crates/ui/az-dioxus-components",
 ]
 exclude = [
     "crates/runtime/az-admin-domain-audit",
@@ -33,6 +35,8 @@ automod = "1.0.16"
 base64 = "0.22.1"
 chrono = { version = "0.4.42", features = ["clock"] }
 deunicode = "1.6.2"
+dioxus = { version = "0.7.9", default-features = false, features = ["macro", "html", "signals"] }
+dioxus-ssr = "0.7.9"
 dirs = "6"
 hmac = "0.12.1"
 inventory = "0.3.21"
@@ -78,6 +82,7 @@ az-ai-chat = { version = "=2026.5.10", path = "crates/api/az-ai-chat" }
 az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
 az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
 az-context = { version = "=2026.5.10", path = "crates/core/az-context" }
+az-dioxus-components = { version = "=2026.5.10", path = "crates/ui/az-dioxus-components" }
 az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }
 az-drive-agent = { version = "=2026.5.10", path = "crates/runtime/az-drive-agent" }
 az-drive-core = { version = "=2026.5.10", path = "crates/storage/az-drive-core" }
@@ -85,7 +90,6 @@ az-drive-store = { version = "=2026.5.10", path = "crates/storage/az-drive-store
 az-drive-webdav = { version = "=2026.5.10", path = "crates/network/az-drive-webdav" }
 az-kiro-auth-support = { version = "=2026.5.10", path = "crates/api/az-kiro-auth-support" }
 az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
-az-minio = { version = "=2026.5.10", path = "crates/storage/az-minio" }
 az-music = { version = "=2026.5.10", path = "crates/network/az-music" }
 az-persistence = { version = "=2026.5.10", path = "crates/data/az-persistence" }
 az-plugin-contract = { version = "=2026.5.10", path = "crates/runtime/az-plugin-contract" }

@@ -198,7 +198,7 @@ summary = "插件提供配置中心页面和生命周期入口；真正读取配
 
 [[descriptor.pages.schema.fields]]
 label = "正式持久化"
-value = "PostgreSQL 保存项目、环境、键、版本和审计；MinIO 可保存导入源和导出快照。"
+value = "PostgreSQL 保存项目、环境、键、版本和审计；导入源和导出快照改走 Git 发布归档或本地文件。"
 readonly = true
 
 [[descriptor.pages.schema.fields]]

@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use axum::{Router, routing::get};
 use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalStateStore};
-use az_drive_store::PgDriveMetadataStore;
 use az_drive_webdav::{DriveWebdavState, drive_webdav_router};
 use clap::{Args, Parser, Subcommand};
 use std::io::{self, Write};
@@ -22,10 +21,6 @@ struct Cli {
 enum Command {
     /// Start the center WebDAV service.
     Serve(ServeArgs),
-    /// Detect local Docker PostgreSQL/MinIO containers.
-    Detect,
-    /// Interactive setup for PostgreSQL/MinIO config.
-    Setup,
     /// Start an interactive headless drive REPL.
     Repl,
     /// Run the local realtime polling daemon.
@@ -54,8 +49,6 @@ enum Command {
     Conflict(az_drive_app::cli::DriveConflictCommand),
     /// Manage local root aliases.
     Root(RootCommand),
-    /// Run PostgreSQL migrations and exit.
-    Migrate,
     /// Install macOS Finder Quick Actions for host/unhost.
     InstallMacosActions,
 }
@@ -119,15 +112,6 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Serve(args) => serve(args).await,
-        Command::Detect => {
-            let detection = az_drive_app::setup::detect_docker();
-            println!("{}", az_drive_app::setup::format_detection(&detection));
-            print_json(&detection)
-        }
-        Command::Setup => {
-            let result = az_drive_app::setup::interactive_setup().await?;
-            print_json(&result)
-        }
         Command::Repl => run_repl().await,
         Command::Daemon => build_agent()
             .await?
@@ -171,14 +155,6 @@ async fn main() -> Result<()> {
                 print_json(&roots)
             }
         },
-        Command::Migrate => {
-            let Some(database_url) = az_drive_app::database_url() else {
-                anyhow::bail!("AZ_DRIVE_DATABASE_URL or DATABASE_URL is required for migrate");
-            };
-            let store = PgDriveMetadataStore::connect(&database_url).await?;
-            store.run_migrations().await?;
-            print_json(&serde_json::json!({ "migrated": true }))
-        }
         Command::InstallMacosActions => install_macos_actions(),
     }
 }
@@ -277,25 +253,6 @@ async fn run_repl_command(parts: &[String]) -> Result<ReplAction> {
             print_repl_help();
             Ok(ReplAction::Continue)
         }
-        "detect" => {
-            let detection = az_drive_app::setup::detect_docker();
-            println!("{}", az_drive_app::setup::format_detection(&detection));
-            Ok(ReplAction::Continue)
-        }
-        "setup" => {
-            let result = az_drive_app::setup::interactive_setup().await?;
-            print_json(&result)?;
-            Ok(ReplAction::Continue)
-        }
-        "show" => {
-            print_json(&az_drive_app::setup::current_config_view())?;
-            Ok(ReplAction::Continue)
-        }
-        "test" => {
-            let result = az_drive_app::setup::test_current_config().await;
-            print_json(&result)?;
-            Ok(ReplAction::Continue)
-        }
         "root" => {
             run_repl_root_command(parts).await?;
             Ok(ReplAction::Continue)
@@ -361,10 +318,6 @@ fn required_arg<'a>(parts: &'a [String], index: usize, usage: &str) -> Result<&'
 fn print_repl_help() {
     println!(
         r#"可用命令:
-  detect                         检测本机 Docker PostgreSQL/MinIO
-  setup                          交互式写入 ~/.config/aio/aio.env
-  show                           查看当前配置，隐藏 secret
-  test                           测试 PostgreSQL migration 和 MinIO bucket
   root list                      查看本机 root alias
   root add <alias> <path>        添加 root alias，例如 root add workspace ~/workspace
   host <path>                    托管文件或目录

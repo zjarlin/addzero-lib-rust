@@ -1,3 +1,27 @@
+//! 组织中心系统插件，维护部门结构、团队归属与责任人信息。
+//!
+//! 本 crate 作为 addzero 系统插件体系中的「组织中心」入口，
+//! 通过 [`az_plugin_macros::az_starter`] 宏自动向全局插件注册中心注册自身，
+//! 提供组织架构（部门树、上级关系、负责人、成员）的表格化管理页面。
+//!
+//! ## 核心功能
+//!
+//! - **部门管理页面**：以表格方式展示部门名称、上级部门、负责人与成员数
+//! - **系统菜单贡献**：注册到「系统插件」分区，菜单项「部门管理」，排序权重 20
+//! - **RBAC 基础维度**：组织树与责任域作为权限模型的基础数据维度
+//! - **跨平台兼容**：兼容 web 与 desktop 两种运行环境
+//!
+//! ## 关键类型
+//!
+//! - [`OrganizationStarter`] — 实现 [`az_plugin_registry::PluginStarter`] 的插件描述结构体
+//! - [`register_organization`] — `#[az_starter]` 标记的注册入口函数
+//!
+//! ## 用法
+//!
+//! 通常不直接调用本 crate 的公开接口；宿主应用通过
+//! [`az_system_starters::link_all`] 统一链接所有系统 starter，
+//! 由插件注册中心在运行时发现并组装菜单与页面。
+
 use az_plugin_contract::{
     PageSchema, PluginDescriptor, PluginKind, PluginMenuContribution, PluginPage, TableRow,
     TableSchema,

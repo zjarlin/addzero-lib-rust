@@ -1,3 +1,20 @@
+//! `az-starter-dictionary` —— 字典中心系统插件。
+//!
+//! 本 crate 实现了 addzero 系统级「字典中心」插件，负责统一维护系统枚举与值域。
+//! 通过 [`PluginStarter`] trait 向插件注册中心声明自身身份、菜单入口与页面结构，
+//! 使宿主壳子无需硬编码即可自动发现并挂载字典管理页面。
+//!
+//! ## 主要能力
+//!
+//! - 以表格形式暴露字典项列表（字典编码、值、显示名、用途）
+//! - 默认内置 `note_type` 字典，区分智能体工作台（`flash`）与 Skill（`skill`）两种类型
+//! - 注册到「系统插件」菜单分区，挂载「字典管理」入口页
+//!
+//! ## 关键类型
+//!
+//! - [`DictionaryStarter`] —— 实现 [`PluginStarter`] 的内部结构体，定义插件描述符与页面 schema
+//! - `register_dictionary()` —— 由 `#[az_starter]` 宏标记的注册入口函数
+
 use az_plugin_contract::{
     PageSchema, PluginDescriptor, PluginKind, PluginMenuContribution, PluginPage, TableRow,
     TableSchema,

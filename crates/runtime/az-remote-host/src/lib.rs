@@ -1,3 +1,24 @@
+//! # az-remote-host
+//!
+//! 远程控制宿主端的平台抽象层，负责检测当前操作系统平台、生成设备描述符并提供平台特定的权限提示。
+//!
+//! ## 核心职责
+//!
+//! - [`HostPlatformAdapter`] trait：为不同操作系统实现宿主端设备描述和权限提示的统一接口。
+//! - [`MockHostPlatformAdapter`]：开箱即用的默认实现，可直接用于测试或快速集成。
+//! - [`current_platform`]：运行时平台检测函数，支持 macOS、Windows、Linux (X11/Wayland) 及浏览器环境。
+//! - [`HostError`] / [`HostResult`]：统一的错误类型与结果别名。
+//!
+//! ## 设备描述
+//!
+//! 通过 [`az_remote_model::DeviceDescriptor`] 填充宿主设备的唯一标识、平台类型、角色（Host）、
+//! 在线状态和完整会话能力，供远控信令层直接使用。
+//!
+//! ## 平台感知
+//!
+//! 在 Linux 环境下，会读取 `XDG_SESSION_TYPE` 环境变量区分 Wayland 与 X11；
+//! Wayland 首版仅保证受限兼容，[`MockHostPlatformAdapter`] 会自动附加相应备注和权限提示。
+
 #![forbid(unsafe_code)]
 
 use az_remote_model::{

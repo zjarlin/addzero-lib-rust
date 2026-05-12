@@ -1,3 +1,22 @@
+//! # az-plugin-registry
+//!
+//! 插件注册中心：统一管理系统插件与业务插件的描述符、实例及运行时导航。
+//!
+//! ## 核心类型
+//!
+//! - [`PluginStarter`] — 插件启动器 trait，各插件实现此 trait 并通过 [`inventory`] 自动注册。
+//! - [`StarterRegistration`] — 启动器注册项，包含构造函数指针，供 inventory 在编译期收集。
+//! - [`PluginRegistry`] — 注册中心主体，维护系统插件、业务插件与插件实例三组数据。
+//!
+//! ## 主要功能
+//!
+//! - **编译期自动收集**：通过 [`inventory::collect!`] 宏自动收集所有 [`StarterRegistration`]，无需手动维护插件列表。
+//! - **双轨插件管理**：系统插件（System）与业务插件（Business）分轨存储，互不干扰。
+//! - **实例管理**：业务插件可拥有多个实例（`PluginInstance`），按 slug 唯一标识。
+//! - **市场条目聚合**：`marketplace_entries()` 将两类插件统一转换为 [`MarketplaceEntry`] 列表。
+//! - **导航生成**：`plugin_navigation()` 自动生成按「系统插件」和「业务应用」分组的导航结构。
+//! - **页面解析**：`resolve_system_page()` / `resolve_instance_page()` 根据插件 ID 和页面 ID 解析出完整的 [`ResolvedPage`]。
+
 use std::collections::BTreeMap;
 
 use az_plugin_contract::{

@@ -1,3 +1,15 @@
+//! 插件系统的核心契约层，定义插件宿主与插件之间共享的所有数据模型。
+//!
+//! 本 crate 不包含任何业务逻辑，仅提供可序列化的类型定义，用于：
+//! - 插件描述符（[`PluginDescriptor`]）：声明插件的元信息、能力、页面和菜单贡献
+//! - UI 页面模式（[`PageSchema`]）：支持表格、表单、详情、看板、Markdown、图谱等多种页面形态
+//! - 导航与 Shell 快照（[`ShellSnapshot`]）：为前端 Shell 提供当前用户、导航树和统计信息
+//! - 插件市场（[`MarketplaceSnapshot`]）：展示可用插件及其安装状态
+//! - 插件实例（[`PluginInstance`]）：已安装插件的运行时实例及其配置
+//! - 运行时概览（[`RuntimeOverview`]）：内核的全局状态摘要
+//!
+//! 所有类型均派生了 `Clone`、`Debug`、`Serialize`、`Deserialize`，可直接用于 JSON 传输。
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 

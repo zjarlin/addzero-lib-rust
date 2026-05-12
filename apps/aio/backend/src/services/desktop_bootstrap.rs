@@ -12,7 +12,7 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteConnection},
 };
 
-use super::platform_config::{MinioConfigUpdateDto, PlatformConfigDto, PostgresConfigUpdateDto};
+use super::platform_config::{PlatformConfigDto, PostgresConfigUpdateDto};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BootstrapStatusDto {
@@ -40,7 +40,6 @@ pub struct BootstrapDatabaseSaveResultDto {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BootstrapPlatformSetupDto {
     pub postgres: Option<PostgresConfigUpdateDto>,
-    pub minio: Option<MinioConfigUpdateDto>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,8 +59,9 @@ pub async fn bootstrap_status_on_server() -> Result<BootstrapStatusDto, String> 
             database_configured: false,
             database_reachable: false,
             config_path: config_path_display,
-            message: "首次启动先生成 ~/.config/aio/aio.env。可以接 PostgreSQL / MinIO，也可以先使用本机 SQLite。"
-                .to_string(),
+            message:
+                "首次启动先生成 ~/.config/aio/aio.env。可以接 PostgreSQL，也可以先使用本机 SQLite。"
+                    .to_string(),
         });
     };
 
@@ -104,6 +104,7 @@ pub async fn save_database_url_on_server(
         .map_err(|err| format!("PostgreSQL 连接测试失败：{err}"))?;
 
     let path = write_local_database_url(database_url)?;
+    let _ = super::platform_config::cleanup_legacy_object_storage_config_on_server()?;
     Ok(BootstrapDatabaseSaveResultDto {
         database_configured: true,
         database_reachable: true,
@@ -121,12 +122,8 @@ pub async fn save_platform_setup_on_server(
         super::platform_config::save_postgres_config_on_server(postgres).await?;
         messages.push("PostgreSQL 已保存");
     }
-    if let Some(minio) = input.minio {
-        super::platform_config::save_minio_config_on_server(minio).await?;
-        messages.push("MinIO 已保存");
-    }
     if messages.is_empty() {
-        return Err("至少需要保存 PostgreSQL 或 MinIO 中的一项配置。".to_string());
+        return Err("至少需要保存 PostgreSQL 配置。".to_string());
     }
 
     let config = super::platform_config::load_platform_config_on_server().await?;
@@ -152,6 +149,7 @@ pub async fn save_local_sqlite_on_server() -> Result<BootstrapDatabaseSaveResult
         .map_err(|err| format!("初始化本机 SQLite 失败：{err}"))?;
 
     let path = write_local_database_url(&database_url)?;
+    let _ = super::platform_config::cleanup_legacy_object_storage_config_on_server()?;
     Ok(BootstrapDatabaseSaveResultDto {
         database_configured: true,
         database_reachable: true,
