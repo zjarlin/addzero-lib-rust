@@ -1,0 +1,251 @@
+name: Release AIO Drive
+
+on:
+  push:
+    tags:
+      - 'aio-drive-*'
+      - 'aio-drive-v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing or new release tag, e.g. aio-drive-v0.1.0'
+        required: true
+      title:
+        description: 'Optional release title override'
+        required: false
+      draft:
+        description: 'Create draft release'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      title: ${{ steps.meta.outputs.title }}
+      draft: ${{ steps.meta.outputs.draft }}
+    steps:
+      - name: Derive release metadata
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+            TITLE="${{ github.event.inputs.title }}"
+            DRAFT="${{ github.event.inputs.draft }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            TITLE=""
+            DRAFT="false"
+          fi
+          if [[ -z "$TAG" ]]; then
+            echo "tag is required" >&2
+            exit 1
+          fi
+          if [[ -z "$TITLE" ]]; then
+            if [[ "$TAG" == aio-drive-v* ]]; then
+              TITLE="AIO Drive ${TAG#aio-drive-v}"
+            elif [[ "$TAG" == aio-drive-* ]]; then
+              TITLE="AIO Drive ${TAG#aio-drive-}"
+            else
+              TITLE="AIO Drive ${TAG}"
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+          echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          TITLE: ${{ steps.meta.outputs.title }}
+          DRAFT: ${{ steps.meta.outputs.draft }}
+        shell: bash
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            if [[ "${DRAFT}" == "true" ]]; then
+              gh release edit "${TAG}" --title "${TITLE}" --draft
+            else
+              gh release edit "${TAG}" --title "${TITLE}" --draft=false
+            fi
+          else
+            gh release create "${TAG}" \
+              --title "${TITLE}" \
+              --notes-file docs/release/aio-drive.md \
+              --target "${GITHUB_SHA}" \
+              $( [[ "${DRAFT}" == "true" ]] && echo "--draft" )
+          fi
+
+  build-macos:
+    needs: prepare-release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        run: cargo build -p aio -p az-drive-app --release
+
+      - name: Package Finder app dmg
+        run: apps/drive/macos/finder-sync/package-release.sh
+
+      - name: Create macOS CLI archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCH="$(uname -m)"
+          if [[ "$ARCH" == "arm64" ]]; then
+            ARCH="aarch64"
+          fi
+          STAGE_DIR="target/release-assets/aio-macos-${ARCH}"
+          rm -rf "$STAGE_DIR"
+          mkdir -p "$STAGE_DIR"
+          cp target/release/aio "$STAGE_DIR/"
+          cp target/release/az-drive-app "$STAGE_DIR/"
+          cat > "$STAGE_DIR/README.txt" <<'TXT'
+AIO Drive CLI for macOS
+
+- aio: main user-facing CLI
+- az-drive-app: standalone drive/WebDAV binary
+- Finder integration is shipped separately as a dmg asset
+TXT
+          tar -czf "target/release-assets/aio-macos-${ARCH}.tar.gz" -C target/release-assets "aio-macos-${ARCH}"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aio-drive-macos
+          path: |
+            target/aio-drive-release/*.dmg
+            target/release-assets/*.tar.gz
+
+      - name: Upload assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        shell: bash
+        run: gh release upload "${TAG}" target/aio-drive-release/*.dmg target/release-assets/*.tar.gz --clobber
+
+  build-linux:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        run: cargo build -p aio -p az-drive-app --release
+
+      - name: Create Linux CLI archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCH="$(uname -m)"
+          if [[ "$ARCH" == "x86_64" ]]; then
+            ARCH="x86_64"
+          elif [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+            ARCH="aarch64"
+          fi
+          STAGE_DIR="target/release-assets/aio-linux-${ARCH}"
+          rm -rf "$STAGE_DIR"
+          mkdir -p "$STAGE_DIR"
+          cp target/release/aio "$STAGE_DIR/"
+          cp target/release/az-drive-app "$STAGE_DIR/"
+          cat > "$STAGE_DIR/README.txt" <<'TXT'
+AIO Drive CLI for Linux
+
+- aio: main user-facing CLI
+- az-drive-app: standalone drive/WebDAV binary
+- Linux release currently ships CLI/daemon only
+TXT
+          tar -czf "target/release-assets/aio-linux-${ARCH}.tar.gz" -C target/release-assets "aio-linux-${ARCH}"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aio-drive-linux
+          path: target/release-assets/*.tar.gz
+
+      - name: Upload assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        shell: bash
+        run: gh release upload "${TAG}" target/release-assets/*.tar.gz --clobber
+
+  build-windows:
+    needs: prepare-release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        shell: pwsh
+        run: cargo build -p aio -p az-drive-app --release
+
+      - name: Create Windows CLI archive
+        shell: pwsh
+        run: |
+          $arch = $env:PROCESSOR_ARCHITECTURE
+          if ($arch -eq "AMD64") { $arch = "x86_64" }
+          if ($arch -eq "ARM64") { $arch = "aarch64" }
+          $stageDir = "target/release-assets/aio-windows-$arch"
+          if (Test-Path $stageDir) { Remove-Item $stageDir -Recurse -Force }
+          New-Item -ItemType Directory -Path $stageDir | Out-Null
+          Copy-Item "target/release/aio.exe" "$stageDir/aio.exe"
+          Copy-Item "target/release/az-drive-app.exe" "$stageDir/az-drive-app.exe"
+          Set-Content -Path "$stageDir/README.txt" -Value @'
+AIO Drive CLI for Windows
+
+- aio.exe: main user-facing CLI
+- az-drive-app.exe: standalone drive/WebDAV binary
+- Windows release currently ships CLI/daemon only
+'@
+          Compress-Archive -Path "$stageDir/*" -DestinationPath "target/release-assets/aio-windows-$arch.zip" -Force
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aio-drive-windows
+          path: target/release-assets/*.zip
+
+      - name: Upload assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem "target/release-assets/*.zip"
+          if ($assets.Count -eq 0) {
+            throw "No Windows release archive found in target/release-assets"
+          }
+          $paths = $assets | ForEach-Object { $_.FullName }
+          gh release upload $env:TAG $paths --clobber
