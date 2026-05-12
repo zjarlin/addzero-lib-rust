@@ -28,10 +28,12 @@ cat > "$STAGE_DIR/README.txt" <<'TXT'
 AIO Drive Finder for macOS
 
 1. Drag "AIO Drive Finder.app" into Applications.
-2. Open the app once if macOS asks for confirmation.
-3. Finder Sync may require enabling the extension in System Settings.
-4. The bundled app contains az-drive-app for Finder integration.
-5. The aio CLI is released separately as a tar.gz asset.
+2. Open "AIO Drive Finder.app" once to install Finder integration.
+3. The app will register the Finder extension, install Quick Actions, and restart Finder.
+4. If Finder still has no "AIO Drive 托管", open the app again and click "打开扩展设置".
+5. Full Disk Access does not pop up automatically on macOS. For protected paths, open the app again and click "打开完全磁盘访问".
+6. The bundled app contains az-drive-app for Finder integration.
+7. The aio CLI is released separately as a tar.gz asset.
 TXT
 
 hdiutil create \

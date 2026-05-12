@@ -38,7 +38,15 @@ apps/drive/macos/finder-sync/install.sh
 - 重新签名
 - 安装到 `/Applications/AIO Drive Finder.app`
 - 重新注册 Finder 扩展
+- 安装 Finder Quick Actions 作为右键兜底入口
 - 重启 Finder
+
+如果是下载 `.dmg` 安装：
+
+- 先把 `AIO Drive Finder.app` 拖进 `Applications`
+- 再手动打开一次 app
+- app 会自动注册 Finder 扩展、安装 Quick Actions，并给出系统设置引导
+- 完全磁盘访问不会自动弹窗，托管受保护路径时需要手动去系统设置里添加
 
 ## 调试
 

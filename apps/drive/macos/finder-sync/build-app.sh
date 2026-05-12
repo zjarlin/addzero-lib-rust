@@ -10,7 +10,6 @@ APP_EXECUTABLE="AIODriveFinder"
 EXTENSION_NAME="AIODriveFinderSync"
 EXTENSION_ID="site.addzero.drive.findersync"
 EXTENSION_DIR="$APP_DIR/Contents/PlugIns/$EXTENSION_NAME.appex"
-APP_ENTITLEMENTS="$BUILD_DIR/app.entitlements"
 EXTENSION_ENTITLEMENTS="$BUILD_DIR/extension.entitlements"
 APP_ICON_NAME="AIO Drive Finder"
 APP_ICONSET="$BUILD_DIR/AppIcon.iconset"
@@ -175,7 +174,6 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
   <key>CFBundleVersion</key><string>$BUILD_VERSION</string>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
-  <key>LSUIElement</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict>
 </plist>
@@ -231,17 +229,6 @@ xcrun clang \
 
 cp "$DRIVE_BINARY" "$APP_DIR/Contents/MacOS/az-drive-app"
 
-cat > "$APP_ENTITLEMENTS" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>com.apple.security.app-sandbox</key><true/>
-  <key>com.apple.security.files.user-selected.read-write</key><true/>
-</dict>
-</plist>
-PLIST
-
 cat > "$EXTENSION_ENTITLEMENTS" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -268,6 +255,6 @@ PLIST
 
 /usr/bin/codesign --force --sign - --entitlements "$EXTENSION_ENTITLEMENTS" "$EXTENSION_DIR" >/dev/null
 /usr/bin/codesign --force --sign - "$APP_DIR/Contents/MacOS/az-drive-app" >/dev/null
-/usr/bin/codesign --force --sign - --entitlements "$APP_ENTITLEMENTS" "$APP_DIR" >/dev/null
+/usr/bin/codesign --force --sign - "$APP_DIR" >/dev/null
 
 echo "Built $APP_DIR"
