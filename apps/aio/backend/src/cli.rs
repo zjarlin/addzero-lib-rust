@@ -147,6 +147,9 @@ pub struct LoginArgs {
     /// AIO 后台地址，默认读取 AIO_SERVER_URL/AIO_API_URL/AIO_API_BIND 或 http://127.0.0.1:8787
     #[arg(long)]
     pub server: Option<String>,
+    /// 直接复用当前机器的 gh 登录态，生成本机 Drive 登录态
+    #[arg(long)]
+    pub use_gh: bool,
     /// 登录用户名，默认读取 AIO_USERNAME/AIO_ADMIN_USERNAME 或 admin
     #[arg(long)]
     pub username: Option<String>,

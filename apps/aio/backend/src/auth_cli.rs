@@ -161,6 +161,10 @@ pub async fn run_reg_command(args: RegArgs) -> anyhow::Result<()> {
 /// Returns an error when credentials cannot be resolved, the server rejects
 /// them, or the local auth file cannot be written.
 pub async fn run_login_command(args: LoginArgs) -> anyhow::Result<()> {
+    if args.use_gh {
+        return run_login_with_gh(args).await;
+    }
+
     let server_url = resolve_server_url(args.server.as_deref())?;
     let username = resolve_username(args.username.as_deref());
     let password = resolve_password(&args)?;
@@ -219,6 +223,63 @@ pub async fn run_login_command(args: LoginArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn run_login_with_gh(args: LoginArgs) -> anyhow::Result<()> {
+    let login = gh_cli_output(["api", "user", "--jq", ".login"])
+        .context("读取 gh 当前登录用户失败；请先运行 gh auth login")?;
+    let username = if let Some(explicit) = args.username.as_deref() {
+        let explicit = explicit.trim();
+        if explicit.is_empty() {
+            bail!("--username 不能为空");
+        }
+        if explicit != login {
+            bail!("--use-gh 模式下 --username 必须与 gh 当前登录用户一致: {login}");
+        }
+        explicit.to_owned()
+    } else {
+        login
+    };
+    let token = gh_cli_output(["auth", "token"])
+        .context("读取 gh token 失败；请先确认 gh auth status 可用")?;
+    if token.trim().is_empty() {
+        bail!("gh 没有返回可用 token");
+    }
+
+    let owner_drive_id = owner_drive_id_for_username(&username);
+    let now = Utc::now();
+    let auth = StoredAioAuth {
+        server_url: "gh://github.com".to_owned(),
+        username: username.clone(),
+        session_cookie: format!("gh:{username}"),
+        logged_in_at: now,
+        expires_at: None,
+        drive_api_key: Some(StoredDriveApiKey {
+            api_key: token.clone(),
+            key_prefix: token.chars().take(18).collect(),
+            owner_user_id: 0,
+            owner_username: username.clone(),
+            owner_nickname: username.clone(),
+            owner_status: "enabled".to_owned(),
+            owner_drive_id: owner_drive_id.clone(),
+            label: "gh-auth".to_owned(),
+            created_at: now,
+        }),
+        trusted_api_keys: load_auth_file()
+            .ok()
+            .flatten()
+            .map(|existing| existing.trusted_api_keys)
+            .unwrap_or_default(),
+    };
+    save_auth_file(&auth)?;
+    let migrated = migrate_legacy_drive_after_login(&auth).await?;
+
+    print_auth_summary("已通过 gh 登录态写入本机 Drive 登录态", &auth);
+    println!("GH_USER {}", username);
+    if migrated > 0 {
+        println!("DRIVE_MIGRATED {migrated}");
+    }
+    Ok(())
+}
+
 /// Runs `aio logout`.
 ///
 /// # Errors
@@ -255,6 +316,12 @@ pub async fn run_whoami_command(args: AuthServerArgs) -> anyhow::Result<()> {
     let auth = load_auth_file()?.context("未登录: 请先运行 aio login")?;
     if auth.is_expired() {
         bail!("登录态已过期: 请重新运行 aio login");
+    }
+
+    if auth.server_url.starts_with("gh://") {
+        print_auth_summary("已登录", &auth);
+        println!("MODE    github-cli");
+        return Ok(());
     }
 
     let server_url = args
@@ -622,6 +689,25 @@ fn non_empty_env(key: &str) -> Option<String> {
         .ok()
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
+}
+
+fn gh_cli_output<const N: usize>(args: [&str; N]) -> anyhow::Result<String> {
+    let output = std::process::Command::new("gh")
+        .args(args)
+        .output()
+        .context("调用 gh 命令失败")?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        if stderr.is_empty() {
+            bail!("gh 命令失败: exit {}", output.status);
+        }
+        bail!("gh 命令失败: {stderr}");
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    if stdout.is_empty() {
+        bail!("gh 命令没有返回内容");
+    }
+    Ok(stdout)
 }
 
 fn aio_config_dir() -> Option<PathBuf> {

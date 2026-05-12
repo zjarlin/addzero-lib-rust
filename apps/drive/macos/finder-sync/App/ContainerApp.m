@@ -126,9 +126,31 @@ static BOOL AIORestartFinder(NSMutableArray<NSString *> *notes) {
 }
 
 static void AIOOpenFullDiskAccessSettings(void) {
-    NSURL *url = [NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"];
-    if (url != nil) {
-        [NSWorkspace.sharedWorkspace openURL:url];
+    NSArray<NSString *> *urls = @[
+        @"x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension",
+        @"x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+    ];
+    for (NSString *candidate in urls) {
+        NSURL *url = [NSURL URLWithString:candidate];
+        if (url != nil && [NSWorkspace.sharedWorkspace openURL:url]) {
+            break;
+        }
+    }
+}
+
+static void AIOOpenExtensionsSettings(void) {
+    NSArray<NSString *> *urls = @[
+        @"x-apple.systempreferences:com.apple.LoginItems-Settings.extension",
+        @"x-apple.systempreferences:com.apple.ExtensionsPreferences"
+    ];
+    for (NSString *candidate in urls) {
+        NSURL *url = [NSURL URLWithString:candidate];
+        if (url != nil && [NSWorkspace.sharedWorkspace openURL:url]) {
+            return;
+        }
+    }
+    if (@available(macOS 10.14, *)) {
+        [FIFinderSyncController showExtensionManagementInterface];
     }
 }
 
@@ -161,8 +183,8 @@ static NSString *AIOInstallLocationNote(void) {
     }
 
     NSMutableArray<NSString *> *instructions = [NSMutableArray array];
-    [instructions addObject:@"如果 Finder 里还没有 “AIO Drive 托管”，先点“打开扩展设置”，确认 AIO Drive Finder 已启用。"];
-    [instructions addObject:@"macOS 不会自动弹完全磁盘访问授权；如果你要托管受保护路径，点“打开完全磁盘访问”后手动把 AIO Drive Finder 加进去。"];
+    [instructions addObject:@"如果 Finder 里还没有 “AIO Drive 托管”，先点“打开扩展设置”；系统会打开设置页，你需要手动确认 AIO Drive Finder 已启用。"];
+    [instructions addObject:@"macOS 不会自动弹完全磁盘访问授权；点“打开完全磁盘访问”后会打开‘隐私与安全性’，你需要手动把 AIO Drive Finder 加进去。"];
     [instructions addObject:@"然后回 Finder 里重新右键文件或目录测试。"];
 
     NSAlert *alert = [NSAlert new];
@@ -187,11 +209,11 @@ static NSString *AIOInstallLocationNote(void) {
 
     NSModalResponse response = [alert runModal];
     if (response == NSAlertFirstButtonReturn) {
-        if (@available(macOS 10.14, *)) {
-            [FIFinderSyncController showExtensionManagementInterface];
-        }
+        AIOOpenExtensionsSettings();
+        [NSThread sleepForTimeInterval:1.0];
     } else if (response == NSAlertSecondButtonReturn) {
         AIOOpenFullDiskAccessSettings();
+        [NSThread sleepForTimeInterval:1.0];
     }
 
     [NSApp terminate:nil];
