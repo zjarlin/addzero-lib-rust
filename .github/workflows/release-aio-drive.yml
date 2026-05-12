@@ -117,13 +117,13 @@ jobs:
           mkdir -p "$STAGE_DIR"
           cp target/release/aio "$STAGE_DIR/"
           cp target/release/az-drive-app "$STAGE_DIR/"
-          cat > "$STAGE_DIR/README.txt" <<'TXT'
-AIO Drive CLI for macOS
-
-- aio: main user-facing CLI
-- az-drive-app: standalone drive/WebDAV binary
-- Finder integration is shipped separately as a dmg asset
-TXT
+          printf '%s\n' \
+            'AIO Drive CLI for macOS' \
+            '' \
+            '- aio: main user-facing CLI' \
+            '- az-drive-app: standalone drive/WebDAV binary' \
+            '- Finder integration is shipped separately as a dmg asset' \
+            > "$STAGE_DIR/README.txt"
           tar -czf "target/release-assets/aio-macos-${ARCH}.tar.gz" -C target/release-assets "aio-macos-${ARCH}"
 
       - name: Upload workflow artifacts
@@ -172,13 +172,13 @@ TXT
           mkdir -p "$STAGE_DIR"
           cp target/release/aio "$STAGE_DIR/"
           cp target/release/az-drive-app "$STAGE_DIR/"
-          cat > "$STAGE_DIR/README.txt" <<'TXT'
-AIO Drive CLI for Linux
-
-- aio: main user-facing CLI
-- az-drive-app: standalone drive/WebDAV binary
-- Linux release currently ships CLI/daemon only
-TXT
+          printf '%s\n' \
+            'AIO Drive CLI for Linux' \
+            '' \
+            '- aio: main user-facing CLI' \
+            '- az-drive-app: standalone drive/WebDAV binary' \
+            '- Linux release currently ships CLI/daemon only' \
+            > "$STAGE_DIR/README.txt"
           tar -czf "target/release-assets/aio-linux-${ARCH}.tar.gz" -C target/release-assets "aio-linux-${ARCH}"
 
       - name: Upload workflow artifacts
@@ -222,13 +222,13 @@ TXT
           New-Item -ItemType Directory -Path $stageDir | Out-Null
           Copy-Item "target/release/aio.exe" "$stageDir/aio.exe"
           Copy-Item "target/release/az-drive-app.exe" "$stageDir/az-drive-app.exe"
-          Set-Content -Path "$stageDir/README.txt" -Value @'
-AIO Drive CLI for Windows
-
-- aio.exe: main user-facing CLI
-- az-drive-app.exe: standalone drive/WebDAV binary
-- Windows release currently ships CLI/daemon only
-'@
+          Set-Content -Path "$stageDir/README.txt" -Value @(
+            'AIO Drive CLI for Windows',
+            '',
+            '- aio.exe: main user-facing CLI',
+            '- az-drive-app.exe: standalone drive/WebDAV binary',
+            '- Windows release currently ships CLI/daemon only'
+          )
           Compress-Archive -Path "$stageDir/*" -DestinationPath "target/release-assets/aio-windows-$arch.zip" -Force
 
       - name: Upload workflow artifacts
