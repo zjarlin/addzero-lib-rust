@@ -1,7 +1,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    aio::server::run_api_server().await
+    aio::server::run_api_server(aio::server::ApiServerOptions::default()).await
 }
 
 #[cfg(target_arch = "wasm32")]

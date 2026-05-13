@@ -48,9 +48,12 @@ fn run() -> anyhow::Result<()> {
         Command::Drive(drive_command) => {
             runtime.block_on(az_drive_app::cli::run_drive_command(drive_command))?;
         }
-        Command::Serve => {
+        Command::Serve(args) => {
             println!("aio backend API server starting...");
-            runtime.block_on(aio::server::run_api_server())?;
+            runtime.block_on(aio::server::run_api_server(aio::server::ApiServerOptions {
+                bind: args.bind,
+                desktop_token: args.desktop_token,
+            }))?;
         }
     };
     Ok(())

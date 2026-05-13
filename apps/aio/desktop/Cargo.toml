@@ -1,0 +1,22 @@
+[package]
+name = "aio-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+az-aio-client.workspace = true
+az-config-center-contract.workspace = true
+gpui.workspace = true
+gpui-component.workspace = true
+rust-i18n.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

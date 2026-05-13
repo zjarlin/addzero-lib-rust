@@ -12,8 +12,11 @@ use tokio::process::Command;
 
 use crate::{
     cli::{
-        AioCliCommand, AioCliSkillCommand, CliOutputFormat, ExternalCliAddArgs,
-        ExternalCliListArgs, ExternalCliRemoveArgs, ExternalCliRunArgs,
+        AioCliCommand, AioCliComponentCommand, AioCliSkillCommand, CliOutputFormat,
+        ExternalCliAddArgs, ExternalCliListArgs, ExternalCliRemoveArgs, ExternalCliRunArgs,
+        ShellComponentBuildArgs, ShellComponentConfigArgs, ShellComponentGetArgs,
+        ShellComponentKindArg, ShellComponentListArgs, ShellComponentRemoveArgs,
+        ShellComponentSetArgs, ShellComponentUpsertArgs,
     },
     cli_metadata::{AIO_COMMANDS, render_metadata_table, render_skill_md, render_skill_sh},
 };
@@ -53,6 +56,9 @@ pub async fn run_aio_cli_command(command: AioCliCommand) -> anyhow::Result<()> {
         AioCliCommand::Skill(AioCliSkillCommand::Print) => {
             print!("{}", render_skill_sh());
         }
+        AioCliCommand::Component(command) => {
+            run_shell_component_command(command)?;
+        }
         AioCliCommand::Add(args) => {
             let definition = add_external_cli(args)?;
             println!(
@@ -76,6 +82,19 @@ pub async fn run_aio_cli_command(command: AioCliCommand) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_shell_component_command(command: AioCliComponentCommand) -> anyhow::Result<()> {
+    match command {
+        AioCliComponentCommand::List(args) => print_shell_component_list(args)?,
+        AioCliComponentCommand::Get(args) => print_shell_component_detail(args)?,
+        AioCliComponentCommand::Upsert(args) => upsert_shell_component(args)?,
+        AioCliComponentCommand::Set(args) => patch_shell_component(args)?,
+        AioCliComponentCommand::Remove(args) => remove_shell_component(args)?,
+        AioCliComponentCommand::Config(args) => update_shell_component_config(args)?,
+        AioCliComponentCommand::Build(args) => build_shell_components(args)?,
+    }
+    Ok(())
+}
+
 fn print_metadata(format: CliOutputFormat) -> anyhow::Result<()> {
     match format {
         CliOutputFormat::Table => print!("{}", render_metadata_table()),
@@ -84,6 +103,147 @@ fn print_metadata(format: CliOutputFormat) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+fn print_shell_component_list(args: ShellComponentListArgs) -> anyhow::Result<()> {
+    let registry = crate::services::shell_components::load_shell_component_registry_on_server()
+        .map_err(anyhow::Error::msg)?;
+    match args.format {
+        CliOutputFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(&registry)?);
+        }
+        CliOutputFormat::Table => {
+            println!("CONFIG  {}", registry.config_path);
+            println!("OUTPUT  {}", registry.build.resolved_output_path);
+            println!();
+            println!("NAME               KIND       ENABLED  OUTPUT   SUMMARY");
+            for component in registry.components {
+                println!(
+                    "{:<18} {:<10} {:<8} {:<8} {}",
+                    component.name,
+                    shell_component_kind_label(component.kind),
+                    yes_no(component.enabled),
+                    yes_no(component.render_to_output),
+                    component.summary
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn print_shell_component_detail(args: ShellComponentGetArgs) -> anyhow::Result<()> {
+    let component = crate::services::shell_components::get_shell_component_on_server(&args.name)
+        .map_err(anyhow::Error::msg)?;
+    let Some(component) = component else {
+        bail!("shell component `{}` does not exist", args.name);
+    };
+    println!("{}", serde_json::to_string_pretty(&component)?);
+    Ok(())
+}
+
+fn upsert_shell_component(args: ShellComponentUpsertArgs) -> anyhow::Result<()> {
+    let saved = crate::services::shell_components::upsert_shell_component_on_server(
+        crate::services::ShellComponentUpsert {
+            name: args.name,
+            kind: shell_component_kind_from_arg(args.kind),
+            summary: args.summary,
+            enabled: args.enabled,
+            render_to_output: args.render_to_output,
+            export_value: args.value,
+            alias_command: args.command,
+            body: args.body,
+        },
+    )
+    .map_err(anyhow::Error::msg)?;
+    println!(
+        "已保存 shell 组件 `{}` [{}] enabled={} output={}",
+        saved.name,
+        shell_component_kind_label(saved.kind),
+        yes_no(saved.enabled),
+        yes_no(saved.render_to_output)
+    );
+    Ok(())
+}
+
+fn patch_shell_component(args: ShellComponentSetArgs) -> anyhow::Result<()> {
+    let saved = crate::services::shell_components::patch_shell_component_on_server(
+        crate::services::ShellComponentPatch {
+            name: args.name,
+            summary: args.summary,
+            enabled: args.enabled,
+            render_to_output: args.render_to_output,
+        },
+    )
+    .map_err(anyhow::Error::msg)?;
+    println!(
+        "已更新 shell 组件 `{}`: enabled={} output={}",
+        saved.name,
+        yes_no(saved.enabled),
+        yes_no(saved.render_to_output)
+    );
+    Ok(())
+}
+
+fn remove_shell_component(args: ShellComponentRemoveArgs) -> anyhow::Result<()> {
+    let removed = crate::services::shell_components::remove_shell_component_on_server(&args.name)
+        .map_err(anyhow::Error::msg)?;
+    println!("已移除 shell 组件 `{}`", removed.name);
+    Ok(())
+}
+
+fn update_shell_component_config(args: ShellComponentConfigArgs) -> anyhow::Result<()> {
+    let registry = crate::services::shell_components::save_shell_component_config_on_server(
+        crate::services::ShellComponentConfigUpdate {
+            output_path: args.output,
+        },
+    )
+    .map_err(anyhow::Error::msg)?;
+    println!("输出文件已更新为: {}", registry.build.resolved_output_path);
+    Ok(())
+}
+
+fn build_shell_components(args: ShellComponentBuildArgs) -> anyhow::Result<()> {
+    let result = crate::services::shell_components::build_shell_components_on_server(
+        crate::services::ShellComponentBuildRequest {
+            output_path: args.output,
+            write: !args.stdout,
+        },
+    )
+    .map_err(anyhow::Error::msg)?;
+    if args.stdout {
+        print!("{}", result.content);
+    } else {
+        println!(
+            "已生成 {} (included {}/{})",
+            result.output_path, result.included_components, result.total_components
+        );
+    }
+    Ok(())
+}
+
+fn shell_component_kind_from_arg(
+    kind: ShellComponentKindArg,
+) -> crate::services::ShellComponentKind {
+    match kind {
+        ShellComponentKindArg::Export => crate::services::ShellComponentKind::Export,
+        ShellComponentKindArg::Alias => crate::services::ShellComponentKind::Alias,
+        ShellComponentKindArg::Function => crate::services::ShellComponentKind::Function,
+        ShellComponentKindArg::Snippet => crate::services::ShellComponentKind::Snippet,
+    }
+}
+
+fn shell_component_kind_label(kind: crate::services::ShellComponentKind) -> &'static str {
+    match kind {
+        crate::services::ShellComponentKind::Export => "export",
+        crate::services::ShellComponentKind::Alias => "alias",
+        crate::services::ShellComponentKind::Function => "function",
+        crate::services::ShellComponentKind::Snippet => "snippet",
+    }
+}
+
+fn yes_no(value: bool) -> &'static str {
+    if value { "yes" } else { "no" }
 }
 
 fn add_external_cli(args: ExternalCliAddArgs) -> anyhow::Result<ExternalCliDefinition> {
