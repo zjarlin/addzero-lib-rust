@@ -64,7 +64,7 @@ cargo test -p az-dioxus-components --test az_card
 
 ## 预览 GUI
 
-生成真实可打开的预览页面：
+生成真实可打开的纯表格预览页面，不混入其他壳子。当前示例直接接 `adui-dioxus::Table`：
 
 ```bash
 cargo run -p az-dioxus-components --example preview

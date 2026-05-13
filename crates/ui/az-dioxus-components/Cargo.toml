@@ -13,7 +13,9 @@ description = "Composable Dioxus UI primitives with az-* naming."
 dioxus.workspace = true
 
 [dev-dependencies]
+adui-dioxus = { path = "../../../vendor/adui-dioxus" }
 dioxus-ssr.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

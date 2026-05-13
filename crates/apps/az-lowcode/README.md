@@ -7,7 +7,8 @@
 - **三层数据模型**：`LayoutSchema`（布局）→ `ComponentNode`（组件节点）→ `EventBindingRecord`（事件绑定），所有类型支持 serde JSON / PG JSONB 双向序列化
 - **CSS Grid 编译引擎**：将布局树转化为完整 CSS 字符串，支持断点响应式媒体查询
 - **无状态画布编辑器**：提供组件放置、属性更新、删除、移动、重挂载等操作，内置网格碰撞检测
-- **组件类型注册表**：内置 button、input、text、container、table、form、image、divider 共 8 种组件，支持 JSON Schema 属性校验与运行时渲染
+- **组件类型注册表**：内置 button、input、text、container、table、form、image、divider、az-edge 共 9 种组件，支持 JSON Schema 属性校验与运行时渲染
+- **az-edge 执行卡片**：支持 curl、python、rhai、ts 四种运行变体，可声明输入输出参数，模板支持 `{{param}}` 占位符，并可生成完整 REST 接口契约
 - **事件系统**：7 种内置 handler（noop / navigate / show_message / set_state / emit_event / http_call / rhai_script），支持自定义扩展，dispatch 带超时保护
 - **Rhai 脚本引擎**：嵌入式沙箱执行，含操作数限制、字符串/数组大小限制、语法验证
 - **PostgreSQL CRUD**：`LayoutRepository` trait 定义布局读写接口，`PgLayoutRepo` 提供 PG 实现骨架

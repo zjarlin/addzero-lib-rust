@@ -10,7 +10,7 @@
 //! | `schema`    | 三层数据模型：`LayoutSchema` → `ComponentNode` → `EventBindingRecord` |
 //! | `grid`      | CSS Grid 编译引擎，将布局树转化为带断点响应式的 CSS 字符串 |
 //! | `editor`    | 无状态画布编辑器，提供放置、更新、删除、移动、重挂载节点等操作 |
-//! | `registry`  | 组件类型注册表，内置 8 种基础组件（button/input/text/container/table/form/image/divider） |
+//! | `registry`  | 组件类型注册表，内置 9 种基础组件（button/input/text/container/table/form/image/divider/az-edge） |
 //! | `events`    | 事件系统，7 种内置 handler（noop/navigate/show_message/set_state/emit_event/http_call/rhai_script） |
 //! | `scripting` | 嵌入式 Rhai 脚本引擎，带沙箱限制与语法验证 |
 //! | `repo`      | PostgreSQL 布局 CRUD（`LayoutRepository` trait + `PgLayoutRepo`） |
@@ -19,6 +19,7 @@
 //! | `render`    | 渲染管线，将布局树输出为预览 HTML（骨架，待完善） |
 //! | `state`     | Axum 共享状态，聚合 PG 连接池、组件注册表、脚本引擎、Handler 注册表 |
 
+pub mod edge;
 pub mod editor;
 pub mod events;
 pub mod grid;
@@ -32,6 +33,10 @@ pub mod state;
 pub mod template;
 
 // Re-export core schema types
+pub use edge::{
+    AzEdgeError, AzEdgeHttpMethod, AzEdgeParam, AzEdgeParamType, AzEdgeRestContract, AzEdgeSpec,
+    AzEdgeVariant,
+};
 pub use grid::{DEFAULT_COLUMNS, GridEngine, compile_css};
 pub use schema::{
     Breakpoint, ComponentDefRecord, ComponentNode, EventBindingRecord, GridArea, GridDefinition,

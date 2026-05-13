@@ -8,6 +8,7 @@ use axum::{
 };
 use uuid::Uuid;
 
+use crate::edge::AzEdgeSpec;
 use crate::editor::{EditorError, LayoutEditor};
 use crate::events::EventContext;
 use crate::schema::GridArea;
@@ -437,6 +438,24 @@ async fn delete_template(_state: State<LowcodeState>, _id: Path<Uuid>) -> impl I
 }
 
 // ---------------------------------------------------------------------------
+// Az-edge REST contract generation
+// ---------------------------------------------------------------------------
+
+/// POST /api/lowcode/edge/rest-contract — generate a REST interface contract
+/// from an `az-edge` card specification.
+async fn generate_edge_rest_contract(
+    axum::extract::Json(spec): axum::extract::Json<AzEdgeSpec>,
+) -> impl IntoResponse {
+    match spec.rest_contract() {
+        Ok(contract) => (StatusCode::OK, axum::Json(serde_json::json!(contract))),
+        Err(error) => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            axum::Json(serde_json::json!({ "error": error.to_string() })),
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Component registry (#77 — implemented)
 // ---------------------------------------------------------------------------
 
@@ -534,6 +553,10 @@ pub fn lowcode_router(state: LowcodeState) -> Router {
         .route("/api/lowcode/event", post(handle_event))
         .route("/api/lowcode/script/validate", post(validate_script))
         .route(
+            "/api/lowcode/edge/rest-contract",
+            post(generate_edge_rest_contract),
+        )
+        .route(
             "/api/lowcode/template",
             post(create_template).get(list_templates),
         )
@@ -548,4 +571,82 @@ pub fn lowcode_router(state: LowcodeState) -> Router {
             get(list_components).post(register_component),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn generate_edge_rest_contract_should_return_schema_json() {
+        let response = generate_edge_rest_contract(axum::Json(AzEdgeSpec {
+            title: "Weather bridge".into(),
+            variant: crate::edge::AzEdgeVariant::Curl,
+            method: crate::edge::AzEdgeHttpMethod::Post,
+            path: "/api/edge/weather".into(),
+            template: "curl https://api.example.com/weather?q={{city}}".into(),
+            inputs: vec![crate::edge::AzEdgeParam {
+                name: "city".into(),
+                ty: crate::edge::AzEdgeParamType::String,
+                required: true,
+                description: None,
+                default_value: None,
+            }],
+            outputs: vec![crate::edge::AzEdgeParam {
+                name: "temperature".into(),
+                ty: crate::edge::AzEdgeParamType::Number,
+                required: true,
+                description: None,
+                default_value: None,
+            }],
+            timeout_secs: Some(10),
+        }))
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(json["path"], "/api/edge/weather");
+        assert_eq!(json["method"], "POST");
+        assert_eq!(json["variant"], "curl");
+        assert_eq!(
+            json["request_schema"]["required"],
+            serde_json::json!(["city"])
+        );
+    }
+
+    #[tokio::test]
+    async fn generate_edge_rest_contract_should_reject_unknown_placeholder() {
+        let response = generate_edge_rest_contract(axum::Json(AzEdgeSpec {
+            title: "Broken bridge".into(),
+            variant: crate::edge::AzEdgeVariant::Python,
+            method: crate::edge::AzEdgeHttpMethod::Post,
+            path: "/api/edge/broken".into(),
+            template: "print({{missing}})".into(),
+            inputs: vec![],
+            outputs: vec![],
+            timeout_secs: None,
+        }))
+        .await
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert!(
+            json["error"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("unknown template placeholder")
+        );
+    }
 }

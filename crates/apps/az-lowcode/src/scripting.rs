@@ -232,7 +232,7 @@ mod tests {
     fn test_engine_platform_functions_registered() {
         let engine = ScriptEngine::new();
         // log() should not panic or error
-        engine.execute(r#"log("hello")"#).unwrap();
+        let _ = engine.execute(r#"log("hello")"#).unwrap();
     }
 
     #[test]
@@ -303,7 +303,7 @@ mod tests {
     #[test]
     fn test_set_prop_does_not_error() {
         let engine = ScriptEngine::new();
-        engine
+        let _ = engine
             .execute(r#"set_prop("root/0", "label", "hello")"#)
             .unwrap();
     }
@@ -320,13 +320,13 @@ mod tests {
     #[test]
     fn test_show_toast_does_not_error() {
         let engine = ScriptEngine::new();
-        engine.execute(r#"show_toast("hello", "info")"#).unwrap();
+        let _ = engine.execute(r#"show_toast("hello", "info")"#).unwrap();
     }
 
     #[test]
     fn test_navigate_does_not_error() {
         let engine = ScriptEngine::new();
-        engine.execute(r#"navigate("/dashboard")"#).unwrap();
+        let _ = engine.execute(r#"navigate("/dashboard")"#).unwrap();
     }
 
     #[test]

@@ -82,6 +82,7 @@ cargo run -p aio -- serve
 cargo run -p aio -- migrate
 cargo run -p aio -- system docs
 cargo run -p aio -- cli metadata
+cargo run -p aio-front
 ```
 
 其中：
@@ -90,6 +91,7 @@ cargo run -p aio -- cli metadata
 - `aio migrate` 单独执行数据库迁移
 - `aio system ...` 保留系统治理 CRUD 与文档能力
 - `aio cli ...` 管理命令元数据、`skill.sh` 和本机外部 CLI
+- `aio-front` 生成一张基于 `adui-dioxus` 的 AIO 后台前端原型页
 
 ## AIO Drive Git Pool
 

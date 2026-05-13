@@ -1,14 +1,15 @@
 //! Component registry — runtime type registration, props validation, and rendering.
 //!
 //! Manages `ComponentEntry` objects that pair a JSON Schema definition with a
-//! renderer closure. Ships with 8 built-in component types (button, input, text,
-//! container, table, form, image, divider).
+//! renderer closure. Ships with built-in component types including basic form
+//! elements, layout containers, data table, media, and `az-edge`.
 
 use std::collections::HashMap;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::edge::{AzEdgeParamType, AzEdgeVariant};
 use crate::schema::{ComponentDefRecord, ComponentNode};
 
 // ---------------------------------------------------------------------------
@@ -229,7 +230,7 @@ impl ComponentRegistry {
         Ok((entry.renderer)(node))
     }
 
-    /// Create a registry pre-loaded with the 8 built-in component types.
+    /// Create a registry pre-loaded with the built-in component types.
     pub fn with_builtins() -> Self {
         let mut reg = Self::new();
         register_builtins(&mut reg);
@@ -287,7 +288,7 @@ fn escape_attr(input: &str) -> String {
     escape_html(input)
 }
 
-/// Register the 8 built-in component types.
+/// Register the built-in component types.
 fn register_builtins(reg: &mut ComponentRegistry) {
     // ---- button ----
     reg.register(ComponentEntry {
@@ -529,6 +530,267 @@ fn register_builtins(reg: &mut ComponentRegistry) {
             )
         }),
     });
+
+    // ---- az-edge ----
+    reg.register(ComponentEntry {
+        type_key: "az-edge".into(),
+        category: "edge".into(),
+        props_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "title":    { "type": "string" },
+                "variant":  { "type": "string", "enum": ["curl", "python", "rhai", "ts"] },
+                "method":   { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+                "path":     { "type": "string" },
+                "template": { "type": "string" },
+                "inputs":   { "type": "array" },
+                "outputs":  { "type": "array" },
+                "timeout_secs": { "type": "integer" }
+            },
+            "required": ["title", "variant", "method", "path", "template"]
+        }),
+        renderer: Box::new(|node| render_az_edge_card(&node.props)),
+    });
+}
+
+fn render_az_edge_card(props: &serde_json::Value) -> String {
+    let title = str_prop(props, "title", "az-edge");
+    let variant = parse_edge_variant(str_prop(props, "variant", "rhai").as_str());
+    let method = str_prop(props, "method", "POST");
+    let path = str_prop(props, "path", "/api/edge");
+    let template = str_prop(props, "template", "");
+    let timeout_secs = props
+        .get("timeout_secs")
+        .and_then(|value| value.as_u64())
+        .map(|value| value.to_string())
+        .unwrap_or_default();
+    let inputs = parse_edge_params(props, "inputs");
+    let outputs = parse_edge_params(props, "outputs");
+
+    format!(
+        r#"<section class="lc-az-edge-card lc-az-edge-card--{variant}" data-runtime="{variant}">
+<div class="lc-az-edge-card__summary">
+  <span class="lc-az-edge-card__summary-title">az-edge</span>
+  <span class="lc-az-edge-card__summary-route">{method} {path}</span>
+</div>
+<div class="lc-az-edge-card__form">
+  <div class="lc-az-edge-card__header">
+    <input class="lc-az-edge-card__title-input" name="title" value="{title}" placeholder="Node title" />
+    <select class="lc-az-edge-card__runtime-select" name="variant">{runtime_options}</select>
+  </div>
+  <div class="lc-az-edge-card__meta">
+    <label class="lc-az-edge-card__field">
+      <span>Method</span>
+      <select name="method">{method_options}</select>
+    </label>
+    <label class="lc-az-edge-card__field lc-az-edge-card__field--path">
+      <span>Path</span>
+      <input name="path" value="{path}" placeholder="/api/edge/name" />
+    </label>
+    <label class="lc-az-edge-card__field lc-az-edge-card__field--timeout">
+      <span>Timeout</span>
+      <input type="number" min="0" step="1" name="timeout_secs" value="{timeout_secs}" placeholder="0" />
+    </label>
+  </div>
+  <label class="lc-az-edge-card__field lc-az-edge-card__field--template">
+    <span>Template</span>
+    <textarea name="template" spellcheck="false" placeholder="curl https://api.example.com?q={{{{city}}}}">{template}</textarea>
+  </label>
+  <div class="lc-az-edge-card__io">
+    <section class="lc-az-edge-card__param-block" data-param-scope="inputs">
+      <div class="lc-az-edge-card__param-header">
+        <span>Inputs</span>
+        <button type="button" class="lc-az-edge-card__param-add" data-add-row="inputs">Add</button>
+      </div>
+      <div class="lc-az-edge-card__param-list">{input_rows}</div>
+    </section>
+    <section class="lc-az-edge-card__param-block" data-param-scope="outputs">
+      <div class="lc-az-edge-card__param-header">
+        <span>Outputs</span>
+        <button type="button" class="lc-az-edge-card__param-add" data-add-row="outputs">Add</button>
+      </div>
+      <div class="lc-az-edge-card__param-list">{output_rows}</div>
+    </section>
+  </div>
+</div>
+</section>"#,
+        variant = variant.as_str(),
+        title = escape_attr(&title),
+        method = escape_html(&method),
+        path = escape_html(&path),
+        timeout_secs = escape_attr(&timeout_secs),
+        template = escape_html(&template),
+        runtime_options = render_runtime_options(variant),
+        method_options = render_method_options(&method),
+        input_rows = render_param_rows("inputs", &inputs),
+        output_rows = render_param_rows("outputs", &outputs),
+    )
+}
+
+#[derive(Clone)]
+struct EdgeParamDraft {
+    name: String,
+    ty: AzEdgeParamType,
+    required: bool,
+    default_value: String,
+    description: String,
+}
+
+impl EdgeParamDraft {
+    fn blank() -> Self {
+        Self {
+            name: String::new(),
+            ty: AzEdgeParamType::String,
+            required: true,
+            default_value: String::new(),
+            description: String::new(),
+        }
+    }
+}
+
+fn parse_edge_variant(value: &str) -> AzEdgeVariant {
+    match value {
+        "curl" => AzEdgeVariant::Curl,
+        "python" => AzEdgeVariant::Python,
+        "ts" | "typescript" => AzEdgeVariant::TypeScript,
+        _ => AzEdgeVariant::Rhai,
+    }
+}
+
+fn parse_edge_param_type(value: &str) -> AzEdgeParamType {
+    match value {
+        "number" => AzEdgeParamType::Number,
+        "boolean" => AzEdgeParamType::Boolean,
+        "json" => AzEdgeParamType::Json,
+        _ => AzEdgeParamType::String,
+    }
+}
+
+fn parse_edge_params(props: &serde_json::Value, key: &str) -> Vec<EdgeParamDraft> {
+    props
+        .get(key)
+        .and_then(|value| value.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .map(|item| EdgeParamDraft {
+                    name: item
+                        .get("name")
+                        .and_then(|value| value.as_str())
+                        .unwrap_or_default()
+                        .to_string(),
+                    ty: parse_edge_param_type(
+                        item.get("type")
+                            .and_then(|value| value.as_str())
+                            .unwrap_or("string"),
+                    ),
+                    required: item
+                        .get("required")
+                        .and_then(|value| value.as_bool())
+                        .unwrap_or(true),
+                    default_value: item
+                        .get("default_value")
+                        .map(stringify_json_value)
+                        .unwrap_or_default(),
+                    description: item
+                        .get("description")
+                        .and_then(|value| value.as_str())
+                        .unwrap_or_default()
+                        .to_string(),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn render_runtime_options(selected: AzEdgeVariant) -> String {
+    [
+        ("curl", "curl", selected == AzEdgeVariant::Curl),
+        ("python", "python", selected == AzEdgeVariant::Python),
+        ("rhai", "rhai", selected == AzEdgeVariant::Rhai),
+        ("ts", "ts", selected == AzEdgeVariant::TypeScript),
+    ]
+    .into_iter()
+    .map(|(value, label, is_selected)| {
+        let selected_attr = if is_selected { " selected" } else { "" };
+        format!(r#"<option value="{value}"{selected_attr}>{label}</option>"#)
+    })
+    .collect::<Vec<_>>()
+    .join("")
+}
+
+fn render_method_options(selected: &str) -> String {
+    ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        .into_iter()
+        .map(|method| {
+            let selected_attr = if method == selected { " selected" } else { "" };
+            format!(r#"<option value="{method}"{selected_attr}>{method}</option>"#)
+        })
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+fn render_param_rows(scope: &str, params: &[EdgeParamDraft]) -> String {
+    let rows = if params.is_empty() {
+        vec![EdgeParamDraft::blank()]
+    } else {
+        params.to_vec()
+    };
+
+    rows.into_iter()
+        .enumerate()
+        .map(|(index, param)| render_param_row(scope, index, &param))
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+fn render_param_row(scope: &str, index: usize, param: &EdgeParamDraft) -> String {
+    let required_attr = if param.required { " checked" } else { "" };
+    format!(
+        r#"<div class="lc-az-edge-card__param-row" data-param-scope="{scope}">
+  <div class="lc-az-edge-card__param-main">
+    <input data-field="name" name="{scope}[{index}][name]" value="{name}" placeholder="name" />
+    <select data-field="type" name="{scope}[{index}][type]">{type_options}</select>
+    <input data-field="default" name="{scope}[{index}][default_value]" value="{default_value}" placeholder="default" />
+    <label class="lc-az-edge-card__required">
+      <input data-field="required" type="checkbox" name="{scope}[{index}][required]"{required_attr} />
+      <span>required</span>
+    </label>
+    <button type="button" class="lc-az-edge-card__param-remove" data-remove-row>Remove</button>
+  </div>
+  <input class="lc-az-edge-card__param-description" data-field="description" name="{scope}[{index}][description]" value="{description}" placeholder="description" />
+</div>"#,
+        name = escape_attr(&param.name),
+        default_value = escape_attr(&param.default_value),
+        description = escape_attr(&param.description),
+        type_options = render_param_type_options(param.ty),
+    )
+}
+
+fn render_param_type_options(selected: AzEdgeParamType) -> String {
+    [
+        ("string", "string", selected == AzEdgeParamType::String),
+        ("number", "number", selected == AzEdgeParamType::Number),
+        ("boolean", "boolean", selected == AzEdgeParamType::Boolean),
+        ("json", "json", selected == AzEdgeParamType::Json),
+    ]
+    .into_iter()
+    .map(|(value, label, is_selected)| {
+        let selected_attr = if is_selected { " selected" } else { "" };
+        format!(r#"<option value="{value}"{selected_attr}>{label}</option>"#)
+    })
+    .collect::<Vec<_>>()
+    .join("")
+}
+
+fn stringify_json_value(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::String(value) => value.clone(),
+        serde_json::Value::Bool(value) => value.to_string(),
+        serde_json::Value::Number(value) => value.to_string(),
+        serde_json::Value::Array(_) | serde_json::Value::Object(_) => value.to_string(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -555,9 +817,9 @@ mod tests {
     }
 
     #[test]
-    fn test_with_builtins_has_8_components() {
+    fn test_with_builtins_has_9_components() {
         let reg = ComponentRegistry::with_builtins();
-        assert_eq!(reg.list().len(), 8);
+        assert_eq!(reg.list().len(), 9);
     }
 
     #[test]
@@ -599,6 +861,8 @@ mod tests {
         assert_eq!(basics.len(), 4);
         let layouts = reg.list_by_category("layout");
         assert_eq!(layouts.len(), 2); // container, form
+        let edges = reg.list_by_category("edge");
+        assert_eq!(edges.len(), 1); // az-edge
     }
 
     #[test]
@@ -734,6 +998,31 @@ mod tests {
     }
 
     #[test]
+    fn test_render_az_edge_card() {
+        let reg = ComponentRegistry::with_builtins();
+        let node = make_node(
+            "az-edge",
+            serde_json::json!({
+                "title": "Weather bridge",
+                "variant": "curl",
+                "method": "POST",
+                "path": "/api/edge/weather",
+                "template": "curl https://api.example.com/weather?q={{city}}",
+                "inputs": [{ "name": "city", "type": "string" }],
+                "outputs": [{ "name": "temperature", "type": "number" }]
+            }),
+        );
+        let html = reg.render(&node).unwrap();
+        assert!(html.contains("lc-az-edge-card"));
+        assert!(html.contains("Weather bridge"));
+        assert!(html.contains("data-runtime=\"curl\""));
+        assert!(html.contains("/api/edge/weather"));
+        assert!(html.contains("<textarea"));
+        assert!(html.contains("name=\"template\""));
+        assert!(html.contains("data-add-row=\"inputs\""));
+    }
+
+    #[test]
     fn test_render_unknown_type() {
         let reg = ComponentRegistry::with_builtins();
         let node = make_node("nonexistent", serde_json::json!({}));
@@ -748,6 +1037,7 @@ mod tests {
         assert!(cats.contains(&"layout".into()));
         assert!(cats.contains(&"data".into()));
         assert!(cats.contains(&"media".into()));
+        assert!(cats.contains(&"edge".into()));
     }
 
     #[test]
