@@ -36,7 +36,6 @@
 //! send_with_config(&config, &message).unwrap();
 //! ```
 use lettre::message::header::ContentType;
-use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::transport::smtp::client::{Tls, TlsParameters};

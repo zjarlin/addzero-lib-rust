@@ -450,7 +450,10 @@ impl LocalStateStore {
             .path
             .file_name()
             .and_then(|name| name.to_str())
-            .map_or_else(|| "state.json.lock".to_owned(), |name| format!("{name}.lock"));
+            .map_or_else(
+                || "state.json.lock".to_owned(),
+                |name| format!("{name}.lock"),
+            );
         self.path.with_file_name(name)
     }
 
@@ -472,10 +475,11 @@ impl LocalStateStore {
                 path: lock_path.clone(),
                 source,
             })?;
-        file.lock_exclusive().map_err(|source| DriveAgentError::Io {
-            path: lock_path,
-            source,
-        })?;
+        file.lock_exclusive()
+            .map_err(|source| DriveAgentError::Io {
+                path: lock_path,
+                source,
+            })?;
         Ok(LocalStateWriteGuard { file })
     }
 
@@ -2332,7 +2336,9 @@ mod tests {
     fn local_state_write_lock_serializes_cross_process_writers() {
         let temp = TempDir::new().expect("temp dir should exist");
         let store = LocalStateStore::new(temp.path().join("state.json"));
-        let guard = store.acquire_write_lock().expect("first lock should succeed");
+        let guard = store
+            .acquire_write_lock()
+            .expect("first lock should succeed");
         let store_for_thread = store.clone();
 
         let worker = thread::spawn(move || {

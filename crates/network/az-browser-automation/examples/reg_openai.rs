@@ -13,8 +13,8 @@
 
 use az_browser_automation::ai_reg_auto::openai::*;
 use az_browser_automation::{
-    BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions,
-    BrowserMode, CdpEndpoint, normalize_cdp_http_url,
+    BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions, BrowserMode, CdpEndpoint,
+    normalize_cdp_http_url,
 };
 use az_sms::SmsProvider;
 use headless_chrome::Tab;
@@ -68,7 +68,9 @@ fn eval_str(tab: &Arc<Tab>, js: &str) -> Result<String, BrowserAutomationError> 
 
 /// Read current page state (mirrors `read_state` in openai.rs).
 fn page_state(tab: &Arc<Tab>) -> Result<AuthPageState, BrowserAutomationError> {
-    let value = eval(tab, r#"
+    let value = eval(
+        tab,
+        r#"
         (() => {
             const visible = (el) => {
                 const style = window.getComputedStyle(el);
@@ -97,9 +99,9 @@ fn page_state(tab: &Arc<Tab>) -> Result<AuthPageState, BrowserAutomationError> {
                 hasPasswordInput: hasPwd, hasVerification: hasVerify, hasCaptcha: hasCaptcha,
                 hasOnboarding: hasOnboarding, hasTermsRejected: hasRejected };
         })()
-    "#)?;
-    serde_json::from_value(value)
-        .map_err(|e| BrowserAutomationError::Browser(e.to_string()))
+    "#,
+    )?;
+    serde_json::from_value(value).map_err(|e| BrowserAutomationError::Browser(e.to_string()))
 }
 
 /// Click a button whose text matches one of the given labels.
@@ -138,7 +140,11 @@ fn click_first_visible(tab: &Arc<Tab>, selectors: &[&str]) -> Result<bool, Brows
 }
 
 /// Fill the first visible input matching selectors.
-fn fill_input(tab: &Arc<Tab>, selectors: &[&str], value: &str) -> Result<bool, BrowserAutomationError> {
+fn fill_input(
+    tab: &Arc<Tab>,
+    selectors: &[&str],
+    value: &str,
+) -> Result<bool, BrowserAutomationError> {
     let sels = serde_json::to_string(selectors).unwrap();
     let val = serde_json::to_string(value).unwrap();
     let js = format!(
@@ -270,35 +276,104 @@ fn wait_state(
 
 fn random_jitter() {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos() as u64;
-    let secs = (seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407) >> 33) as u64 % 60 + 3;
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64;
+    let secs = (seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407)
+        >> 33) as u64
+        % 60
+        + 3;
     thread::sleep(Duration::from_secs(secs));
 }
 
 fn random_string(len: usize) -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
     let chars: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$";
     let mut state = seed as u64;
     (0..len)
         .map(|_| {
-            state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             chars[(state >> 33) as usize % chars.len()] as char
         })
         .collect()
 }
 
 fn random_full_name() -> String {
-    let first = ["James","Mary","Robert","Patricia","John","Jennifer","Michael","Linda",
-        "David","Elizabeth","William","Barbara","Richard","Susan","Joseph","Jessica",
-        "Thomas","Sarah","Christopher","Karen","Charles","Lisa","Daniel","Nancy"];
-    let last = ["Smith","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis",
-        "Rodriguez","Martinez","Hernandez","Lopez","Gonzalez","Wilson","Anderson",
-        "Thomas","Taylor","Moore","Jackson","Martin","Lee","Perez","Thompson"];
+    let first = [
+        "James",
+        "Mary",
+        "Robert",
+        "Patricia",
+        "John",
+        "Jennifer",
+        "Michael",
+        "Linda",
+        "David",
+        "Elizabeth",
+        "William",
+        "Barbara",
+        "Richard",
+        "Susan",
+        "Joseph",
+        "Jessica",
+        "Thomas",
+        "Sarah",
+        "Christopher",
+        "Karen",
+        "Charles",
+        "Lisa",
+        "Daniel",
+        "Nancy",
+    ];
+    let last = [
+        "Smith",
+        "Johnson",
+        "Williams",
+        "Brown",
+        "Jones",
+        "Garcia",
+        "Miller",
+        "Davis",
+        "Rodriguez",
+        "Martinez",
+        "Hernandez",
+        "Lopez",
+        "Gonzalez",
+        "Wilson",
+        "Anderson",
+        "Thomas",
+        "Taylor",
+        "Moore",
+        "Jackson",
+        "Martin",
+        "Lee",
+        "Perez",
+        "Thompson",
+    ];
     use std::time::{SystemTime, UNIX_EPOCH};
-    let seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos() as u64;
-    let fi = (seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407) >> 33) as usize % first.len();
-    let li = (seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407) >> 33) as usize % last.len();
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64;
+    let fi = (seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407)
+        >> 33) as usize
+        % first.len();
+    let li = (seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407)
+        >> 33) as usize
+        % last.len();
     format!("{} {}", first[fi], last[li])
 }
 
@@ -376,10 +451,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         random_jitter();
 
         // ── Dismiss stale session ──
-        let body = eval_str(tab, "document.body ? document.body.innerText.slice(0,500) : ''")?;
-        if body.to_lowercase().contains("session ended")
-            || body.contains("会话已结束")
-        {
+        let body = eval_str(
+            tab,
+            "document.body ? document.body.innerText.slice(0,500) : ''",
+        )?;
+        if body.to_lowercase().contains("session ended") || body.contains("会话已结束") {
             println!("[关闭会话过期提示]");
             let _ = click_button(tab, &["Log in", "Login", "登录"]);
             thread::sleep(Duration::from_millis(1500));
@@ -399,7 +475,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // ── Fill email ──
         // Diagnostic: dump page state
-        let body_snippet = eval(tab, "document.body ? document.body.innerText.slice(0,800) : 'no body'")?;
+        let body_snippet = eval(
+            tab,
+            "document.body ? document.body.innerText.slice(0,800) : 'no body'",
+        )?;
         println!("[诊断] body={:?}", body_snippet);
         let input_count = eval(tab, "document.querySelectorAll('input').length")?;
         println!("[诊断] input_count={:?}", input_count);
@@ -421,7 +500,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("[填入邮箱] {email}");
 
         // Submit the form containing the email input (avoids misclicking Google/Apple buttons)
-        let submitted = eval_bool(tab, r#"
+        let submitted = eval_bool(
+            tab,
+            r#"
             (() => {
                 const inputs = [...document.querySelectorAll('input')];
                 const emailInput = inputs.find(el => {
@@ -436,7 +517,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 emailInput.dispatchEvent(new KeyboardEvent('keypress', {bubbles:true, key:'Enter', code:'Enter', keyCode:13}));
                 return true;
             })()
-        "#)?;
+        "#,
+        )?;
         if !submitted {
             // Fallback to button click
             if !click_button(tab, &["Continue", "Next", "继续"])? {
@@ -449,10 +531,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         random_jitter();
 
         state = wait_state(tab, Duration::from_secs(30), |s| {
-            s.is_authenticated() || s.has_password_input || s.has_verification || s.has_captcha || s.has_terms_rejected
+            s.is_authenticated()
+                || s.has_password_input
+                || s.has_verification
+                || s.has_captcha
+                || s.has_terms_rejected
         })?;
-        println!("[邮箱提交后] url={} verify={} pwd={} captcha={} rejected={}",
-            state.url, state.has_verification, state.has_password_input, state.has_captcha, state.has_terms_rejected);
+        println!(
+            "[邮箱提交后] url={} verify={} pwd={} captcha={} rejected={}",
+            state.url,
+            state.has_verification,
+            state.has_password_input,
+            state.has_captcha,
+            state.has_terms_rejected
+        );
 
         if state.has_terms_rejected {
             println!("❌ 被风控拒绝（使用条款）");
@@ -485,10 +577,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("[提交验证码]");
 
             state = wait_state(tab, Duration::from_secs(25), |s| {
-                s.is_authenticated() || s.has_password_input || s.has_captcha || s.has_terms_rejected
+                s.is_authenticated()
+                    || s.has_password_input
+                    || s.has_captcha
+                    || s.has_terms_rejected
             })?;
-            println!("[验证码后] url={} pwd={} rejected={}",
-                state.url, state.has_password_input, state.has_terms_rejected);
+            println!(
+                "[验证码后] url={} pwd={} rejected={}",
+                state.url, state.has_password_input, state.has_terms_rejected
+            );
 
             if state.has_terms_rejected {
                 println!("❌ 被风控拒绝（验证码阶段）");
@@ -510,10 +607,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             random_jitter();
 
             state = wait_state(tab, Duration::from_secs(30), |s| {
-                s.is_authenticated() || s.has_verification || s.has_captcha || s.has_onboarding || s.has_terms_rejected
+                s.is_authenticated()
+                    || s.has_verification
+                    || s.has_captcha
+                    || s.has_onboarding
+                    || s.has_terms_rejected
             })?;
-            println!("[密码后] url={} onboard={} verify={} rejected={}",
-                state.url, state.has_onboarding, state.has_verification, state.has_terms_rejected);
+            println!(
+                "[密码后] url={} onboard={} verify={} rejected={}",
+                state.url, state.has_onboarding, state.has_verification, state.has_terms_rejected
+            );
 
             if state.has_terms_rejected {
                 println!("❌ 被风控拒绝（密码阶段）");
@@ -534,15 +637,30 @@ fn main() -> Result<(), Box<dyn Error>> {
             fill_textboxes(tab, &[&name, &age])?;
             thread::sleep(Duration::from_secs(2));
 
-            let _ = click_button(tab, &["Complete account creation", "Create account", "Finish",
-                "Continue", "Next", "Submit", "完成帐户创建", "完成"]);
+            let _ = click_button(
+                tab,
+                &[
+                    "Complete account creation",
+                    "Create account",
+                    "Finish",
+                    "Continue",
+                    "Next",
+                    "Submit",
+                    "完成帐户创建",
+                    "完成",
+                ],
+            );
             thread::sleep(Duration::from_secs(3));
 
             state = wait_state(tab, Duration::from_secs(20), |s| {
                 s.is_authenticated() || s.has_captcha || s.has_terms_rejected
             })?;
-            println!("[onboarding后] url={} authenticated={} rejected={}",
-                state.url, state.is_authenticated(), state.has_terms_rejected);
+            println!(
+                "[onboarding后] url={} authenticated={} rejected={}",
+                state.url,
+                state.is_authenticated(),
+                state.has_terms_rejected
+            );
 
             if state.has_terms_rejected {
                 println!("❌ 被风控拒绝（onboarding阶段）");
@@ -565,7 +683,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .map_err(|e| BrowserAutomationError::Browser(e.to_string()))?;
                     let request = az_sms::SmsActivationRequest::new("usa", "any", "openai")
                         .map_err(|e| BrowserAutomationError::Browser(e.to_string()))?;
-                    let order: az_sms::SmsOrder = client.buy_activation_number(request).await
+                    let order: az_sms::SmsOrder = client
+                        .buy_activation_number(request)
+                        .await
                         .map_err(|e| BrowserAutomationError::Browser(e.to_string()))?;
                     Ok::<_, BrowserAutomationError>((order.phone, order.id))
                 })?;
@@ -580,17 +700,19 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let code: Option<String> = rt.block_on(async {
                     let client = az_sms::FivesimClient::from_token(token).ok()?;
                     let options = az_sms::WaitForSmsOptions::new(
-                        Duration::from_secs(180), Duration::from_secs(5)).ok()?;
+                        Duration::from_secs(180),
+                        Duration::from_secs(5),
+                    )
+                    .ok()?;
                     match client.wait_for_sms(order_id, options).await {
                         Ok(order) => {
                             if let Some(code) = order.sms.first().and_then(|m| m.code.clone()) {
                                 return Some(code);
                             }
-                            order.sms.first()
-                                .and_then(|m| {
-                                    let re = regex::Regex::new(r"\b(\d{4,8})\b").ok()?;
-                                    re.captures(&m.text).map(|c| c[1].to_owned())
-                                })
+                            order.sms.first().and_then(|m| {
+                                let re = regex::Regex::new(r"\b(\d{4,8})\b").ok()?;
+                                re.captures(&m.text).map(|c| c[1].to_owned())
+                            })
                         }
                         Err(_) => None,
                     }
