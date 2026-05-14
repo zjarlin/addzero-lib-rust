@@ -30,7 +30,7 @@ aio_command_metadata! {
     ("whoami", "查看当前登录用户", "aio whoami"),
     ("key", "管理 API key 和融合授权", "aio key list"),
     ("drive", "托管、同步和查看 Drive 文件", "aio drive ls --format json"),
-    ("cli", "管理 CLI 元数据、skill.sh 和外部 CLI", "aio cli list"),
+    ("cli", "管理 CLI 元数据、skill.sh、shell 组件和外部 CLI", "aio cli component list"),
     ("serve", "启动 AIO API 服务", "aio serve"),
     ("migrate", "运行数据库迁移", "aio migrate"),
     ("status", "打印当前架构状态", "aio status"),
@@ -55,7 +55,7 @@ pub fn render_skill_sh() -> String {
         );
     }
     help.push_str(
-        "\n外部 CLI：\n  aio cli add NAME --command \"program [args]\" [--arg value] [--env KEY=VALUE]\n  aio cli list\n  aio cli run NAME -- ARGS...\n  aio cli remove NAME\n",
+        "\nShell 组件：\n  aio cli component list\n  aio cli component upsert NAME --kind export --value VALUE\n  aio cli component set NAME --enabled false\n  aio cli component build\n\n外部 CLI：\n  aio cli add NAME --command \"program [args]\" [--arg value] [--env KEY=VALUE]\n  aio cli list\n  aio cli run NAME -- ARGS...\n  aio cli remove NAME\n",
     );
 
     format!(
@@ -125,7 +125,7 @@ Generated command metadata:
         );
     }
     body.push_str(
-        "\nExternal CLIs are managed with `aio cli add`, `aio cli list`, `aio cli run`, and `aio cli remove`.\n",
+        "\nShell components are managed with `aio cli component list`, `upsert`, `set`, and `build`. External CLIs are managed with `aio cli add`, `aio cli list`, `aio cli run`, and `aio cli remove`.\n",
     );
     body
 }

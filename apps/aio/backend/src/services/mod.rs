@@ -20,6 +20,7 @@ pub mod knowledge_graph;
 pub mod logo_storage;
 pub mod menu_system;
 pub mod platform_config;
+pub mod shell_components;
 pub mod skills;
 pub mod software_catalog;
 pub mod system_management;
@@ -35,6 +36,11 @@ pub use asset_graph::{
     AssetSyncReportDto, SharedAssetGraphApi, default_asset_graph_api,
 };
 pub use auth::{SharedAuthApi, default_auth_api};
+pub use az_config_center_contract::{
+    ShellComponent, ShellComponentBuildConfig, ShellComponentBuildRequest,
+    ShellComponentBuildResult, ShellComponentConfigUpdate, ShellComponentKind, ShellComponentPatch,
+    ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
+};
 pub use branding_settings::{
     BrandingLogoSource, BrandingSettingsDto, BrandingSettingsUpdate, SharedBrandingSettingsApi,
     default_branding_settings_api,
@@ -72,6 +78,13 @@ pub use menu_system::{
 };
 pub use platform_config::{
     PlatformConfigDto, PlatformConfigSaveResultDto, PostgresConfigDto, PostgresConfigUpdateDto,
+};
+pub use shell_components::{
+    build_shell_components_on_server, current_shell_component_output_config,
+    current_shell_component_registry_path, get_shell_component_on_server,
+    load_shell_component_registry_on_server, patch_shell_component_on_server,
+    remove_shell_component_on_server, save_shell_component_config_on_server,
+    upsert_shell_component_on_server,
 };
 pub use skills::{
     SharedSkillsApi, SkillDto, SkillSourceDto, SkillUpsertDto, SyncReportDto, default_skills_api,

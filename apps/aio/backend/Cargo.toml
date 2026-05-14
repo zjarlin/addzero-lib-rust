@@ -8,6 +8,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+az-config-center-contract.workspace = true
+az-shell-components.workspace = true
 az-sandbox.workspace = true
 az-script-engine.workspace = true
 az-script-engine-rhai.workspace = true

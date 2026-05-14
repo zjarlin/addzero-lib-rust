@@ -21,11 +21,11 @@ pub enum Command {
     #[command(about = "管理 API key 和本机融合源")]
     #[command(subcommand, alias = "apikey")]
     Key(KeyCommand),
-    #[command(about = "管理 AIO CLI 元数据、skill.sh 和外部 CLI")]
+    #[command(about = "管理 AIO CLI 元数据、shell 组件、skill.sh 和外部 CLI")]
     #[command(subcommand)]
     Cli(AioCliCommand),
     #[command(about = "启动 API 后端服务")]
-    Serve,
+    Serve(ServeArgs),
     #[command(about = "AIO Drive 文件托管命令")]
     #[command(subcommand)]
     Drive(az_drive_app::cli::DriveCommand),
@@ -50,6 +50,9 @@ pub enum AioCliCommand {
     #[command(about = "安装或打印面向 agent 的 skill.sh")]
     #[command(subcommand)]
     Skill(AioCliSkillCommand),
+    #[command(about = "管理 shell 组件与 ~/.add_fn 构建")]
+    #[command(subcommand)]
+    Component(AioCliComponentCommand),
     #[command(about = "添加一个本机外部 CLI")]
     Add(ExternalCliAddArgs),
     #[command(about = "列出本机外部 CLI")]
@@ -72,6 +75,100 @@ pub enum AioCliSkillCommand {
     Install(CliSkillInstallArgs),
     #[command(about = "打印将要安装的 skill.sh")]
     Print,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum ShellComponentKindArg {
+    Export,
+    Alias,
+    Function,
+    Snippet,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum AioCliComponentCommand {
+    #[command(about = "列出 shell 组件")]
+    List(ShellComponentListArgs),
+    #[command(about = "查看一个 shell 组件")]
+    Get(ShellComponentGetArgs),
+    #[command(about = "创建或覆盖一个 shell 组件")]
+    Upsert(ShellComponentUpsertArgs),
+    #[command(about = "更新 shell 组件的启用和输出状态")]
+    Set(ShellComponentSetArgs),
+    #[command(about = "移除一个 shell 组件")]
+    Remove(ShellComponentRemoveArgs),
+    #[command(about = "更新 ~/.add_fn 输出配置")]
+    Config(ShellComponentConfigArgs),
+    #[command(about = "预览或生成 ~/.add_fn")]
+    Build(ShellComponentBuildArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ShellComponentListArgs {
+    #[arg(long, value_enum, default_value_t = CliOutputFormat::Table)]
+    pub format: CliOutputFormat,
+}
+
+#[derive(Debug, Args)]
+pub struct ShellComponentGetArgs {
+    pub name: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ShellComponentUpsertArgs {
+    pub name: String,
+    #[arg(long, value_enum)]
+    pub kind: ShellComponentKindArg,
+    #[arg(long, default_value = "")]
+    pub summary: String,
+    #[arg(long, default_value_t = true)]
+    pub enabled: bool,
+    #[arg(long = "render-to-output", default_value_t = true)]
+    pub render_to_output: bool,
+    #[arg(long)]
+    pub value: Option<String>,
+    #[arg(long)]
+    pub command: Option<String>,
+    #[arg(long)]
+    pub body: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct ShellComponentSetArgs {
+    pub name: String,
+    #[arg(long)]
+    pub summary: Option<String>,
+    #[arg(long)]
+    pub enabled: Option<bool>,
+    #[arg(long = "render-to-output")]
+    pub render_to_output: Option<bool>,
+}
+
+#[derive(Debug, Args)]
+pub struct ShellComponentRemoveArgs {
+    pub name: String,
+}
+
+#[derive(Debug, Args)]
+pub struct ShellComponentConfigArgs {
+    #[arg(long)]
+    pub output: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct ShellComponentBuildArgs {
+    #[arg(long)]
+    pub output: Option<String>,
+    #[arg(long)]
+    pub stdout: bool,
+}
+
+#[derive(Debug, Args, Clone, Default)]
+pub struct ServeArgs {
+    #[arg(long)]
+    pub bind: Option<String>,
+    #[arg(long = "desktop-token")]
+    pub desktop_token: Option<String>,
 }
 
 #[derive(Debug, Args)]

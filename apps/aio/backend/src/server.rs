@@ -8,7 +8,7 @@ use std::{collections::BTreeMap, env, fs};
 use anyhow::Result;
 use axum::{
     Json, Router,
-    extract::{Path, Query},
+    extract::{Path, Query, State},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header, header::SET_COOKIE},
     response::{IntoResponse, Response},
     routing::{get, post, put},
@@ -21,6 +21,11 @@ use az_agent_runtime_contract::{LoginRequest, SessionUser};
 use az_cli_market_contract::{
     CliMarketCatalog, CliMarketEntry, CliMarketInstallRequest, CliMarketInstallResult,
     CliSimpleMetadata,
+};
+use az_config_center_contract::{
+    DESKTOP_SESSION_TOKEN_HEADER, DesktopBackendStatus, ShellComponent, ShellComponentBuildRequest,
+    ShellComponentBuildResult, ShellComponentConfigUpdate, ShellComponentPatch,
+    ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
 };
 use az_script_engine::script::ScriptEngine;
 use az_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
@@ -57,6 +62,18 @@ pub struct BackendServices {
 
 static SERVICES: OnceCell<BackendServices> = OnceCell::const_new();
 static ADMIN_AUTH: Lazy<AdminSessionService> = Lazy::new(AdminSessionService::from_env);
+
+#[derive(Clone, Debug, Default)]
+pub struct ApiServerOptions {
+    pub bind: Option<String>,
+    pub desktop_token: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct ServerState {
+    bind: String,
+    desktop_token: Option<String>,
+}
 
 pub(crate) fn admin_auth() -> &'static AdminSessionService {
     &ADMIN_AUTH
@@ -412,10 +429,17 @@ mod migration_tests {
     }
 }
 
-pub async fn run_api_server() -> Result<()> {
-    let bind = std::env::var("AIO_API_BIND").unwrap_or_else(|_| "127.0.0.1:8787".into());
+pub async fn run_api_server(options: ApiServerOptions) -> Result<()> {
+    let bind = options
+        .bind
+        .or_else(|| std::env::var("AIO_API_BIND").ok())
+        .unwrap_or_else(|| "127.0.0.1:8787".into());
     let address: SocketAddr = bind.parse()?;
     let listener = tokio::net::TcpListener::bind(address).await?;
+    let state = ServerState {
+        bind: listener.local_addr()?.to_string(),
+        desktop_token: options.desktop_token,
+    };
     let router = Router::new()
         .route("/api/bootstrap/status", get(get_bootstrap_status))
         .route("/api/bootstrap/database", post(save_bootstrap_database))
@@ -450,6 +474,17 @@ pub async fn run_api_server() -> Result<()> {
             "/api/admin/settings/platform-config/postgres",
             post(save_platform_postgres_config),
         )
+        .route("/api/desktop/status", get(get_desktop_status))
+        .route("/api/shell-components", get(list_shell_components))
+        .route("/api/shell-components/{name}", get(get_shell_component))
+        .route("/api/shell-components/upsert", post(upsert_shell_component))
+        .route("/api/shell-components/patch", post(patch_shell_component))
+        .route("/api/shell-components/remove", post(remove_shell_component))
+        .route(
+            "/api/shell-components/config",
+            post(save_shell_component_config),
+        )
+        .route("/api/shell-components/build", post(build_shell_components))
         .route("/api/skills", get(list_skills))
         .route("/api/skills/status", get(skill_status))
         .route("/api/skills/sync", post(sync_skills))
@@ -611,6 +646,7 @@ pub async fn run_api_server() -> Result<()> {
             "/api/engine/rhai/eval-env",
             post(rhai_handlers::eval_rhai_env),
         )
+        .with_state(state)
         .layer(cors_layer());
 
     axum::serve(listener, router).await?;
@@ -629,7 +665,10 @@ fn cors_layer() -> CorsLayer {
             Method::DELETE,
             Method::OPTIONS,
         ])
-        .allow_headers([header::CONTENT_TYPE])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::HeaderName::from_static(DESKTOP_SESSION_TOKEN_HEADER),
+        ])
         .allow_credentials(true)
 }
 
@@ -795,6 +834,101 @@ async fn save_platform_postgres_config(
     Ok(Json(result))
 }
 
+async fn get_desktop_status(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<DesktopBackendStatus>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let build = crate::services::shell_components::current_shell_component_output_config()
+        .map_err(ApiError::bad_request)?;
+    let registry_path = crate::services::shell_components::current_shell_component_registry_path()
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(DesktopBackendStatus {
+        ok: true,
+        bind: state.bind,
+        desktop_mode: state.desktop_token.is_some(),
+        shell_registry_path: registry_path.display().to_string(),
+        output_path: build.output_path,
+        resolved_output_path: build.resolved_output_path,
+    }))
+}
+
+async fn list_shell_components(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<ShellComponentRegistry>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let registry = crate::services::shell_components::load_shell_component_registry_on_server()
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(registry))
+}
+
+async fn get_shell_component(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+) -> ApiResult<Json<Option<ShellComponent>>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let component = crate::services::shell_components::get_shell_component_on_server(&name)
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(component))
+}
+
+async fn upsert_shell_component(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<ShellComponentUpsert>,
+) -> ApiResult<Json<ShellComponent>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let component = crate::services::shell_components::upsert_shell_component_on_server(input)
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(component))
+}
+
+async fn patch_shell_component(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<ShellComponentPatch>,
+) -> ApiResult<Json<ShellComponent>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let component = crate::services::shell_components::patch_shell_component_on_server(input)
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(component))
+}
+
+async fn remove_shell_component(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<ShellComponentRemove>,
+) -> ApiResult<Json<ShellComponent>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let component =
+        crate::services::shell_components::remove_shell_component_on_server(&input.name)
+            .map_err(ApiError::bad_request)?;
+    Ok(Json(component))
+}
+
+async fn save_shell_component_config(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<ShellComponentConfigUpdate>,
+) -> ApiResult<Json<ShellComponentRegistry>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let registry = crate::services::shell_components::save_shell_component_config_on_server(input)
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(registry))
+}
+
+async fn build_shell_components(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<ShellComponentBuildRequest>,
+) -> ApiResult<Json<ShellComponentBuildResult>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let result = crate::services::shell_components::build_shell_components_on_server(input)
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
 async fn upload_logo(
     headers: HeaderMap,
     Json(input): Json<LogoUploadRequest>,
@@ -1686,6 +1820,27 @@ fn ensure_auth(auth: &AdminSessionService, headers: &HeaderMap) -> ApiResult<()>
         return Err(ApiError::unauthorized("需要先登录后台"));
     }
     Ok(())
+}
+
+fn ensure_desktop_or_admin_auth(
+    auth: &AdminSessionService,
+    state: &ServerState,
+    headers: &HeaderMap,
+) -> ApiResult<()> {
+    if auth.current_user(headers).is_some() || desktop_token_matches(state, headers) {
+        return Ok(());
+    }
+    Err(ApiError::unauthorized("需要后台登录态或桌面嵌入令牌"))
+}
+
+fn desktop_token_matches(state: &ServerState, headers: &HeaderMap) -> bool {
+    let Some(expected) = state.desktop_token.as_deref() else {
+        return false;
+    };
+    headers
+        .get(DESKTOP_SESSION_TOKEN_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|provided| provided == expected)
 }
 
 fn skill_to_dto(skill: az_skills::Skill) -> SkillDto {

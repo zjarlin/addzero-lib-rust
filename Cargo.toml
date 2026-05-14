@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "apps/*/backend",
     "apps/*/front",
+    "apps/aio/desktop",
     "crates/api/*",
     "crates/apps/*",
     "crates/config/*",
@@ -53,6 +54,7 @@ regex = "1.12.2"
 reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "cookies", "json", "multipart", "rustls-tls"] }
 ring = "0.17.14"
 rumqttc = "0.25.1"
+rust-i18n = "3.1.5"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 serde_yaml = "0.9.34"
@@ -75,13 +77,18 @@ sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "s
 sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio-rustls", "sqlx-postgres", "sqlx-sqlite", "with-chrono", "with-json", "with-uuid"] }
 sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio-rustls", "sqlx-postgres", "sqlx-sqlite"] }
 futures-util = "0.3.31"
+gitdb = { git = "https://github.com/qeqqe/gitdb.git", rev = "04c99a159d193273be8a6d9d1186756d20bff43a" }
 quinn = { version = "0.11.9", default-features = false, features = ["runtime-tokio", "rustls"] }
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
+gpui = { version = "0.2.2", features = ["runtime_shaders"] }
+gpui-component = "0.5.1"
 az-agent-runtime-contract = { version = "=2026.5.10", path = "crates/data/az-agent-runtime-contract" }
 az-ai-agent = { version = "=2026.5.10", path = "crates/runtime/az-ai-agent" }
 az-ai-chat = { version = "=2026.5.10", path = "crates/api/az-ai-chat" }
+az-aio-client = { version = "=2026.5.10", path = "crates/api/az-aio-client" }
 az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
 az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
+az-config-center-contract = { version = "=2026.5.10", path = "crates/api/az-config-center-contract" }
 az-context = { version = "=2026.5.10", path = "crates/core/az-context" }
 az-dioxus-components = { version = "=2026.5.10", path = "crates/ui/az-dioxus-components" }
 az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }
@@ -106,6 +113,7 @@ az-script-engine = { version = "=2026.5.10", path = "crates/runtime/az-script-en
 az-script-engine-rhai = { version = "=2026.5.10", path = "crates/runtime/az-script-engine-rhai" }
 az-skills = { version = "=2026.5.10", path = "crates/data/az-skills" }
 az-software-catalog = { version = "=2026.5.10", path = "crates/data/az-software-catalog" }
+az-shell-components = { version = "=2026.5.10", path = "crates/runtime/az-shell-components" }
 az-starter-audit = { version = "=2026.5.10", path = "crates/runtime/az-starter-audit" }
 az-starter-dictionary = { version = "=2026.5.10", path = "crates/runtime/az-starter-dictionary" }
 az-starter-identity = { version = "=2026.5.10", path = "crates/runtime/az-starter-identity" }
