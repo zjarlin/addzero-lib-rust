@@ -1,0 +1,27 @@
+[package]
+name = "toasty-driver-gitdb"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "GitDB driver for Toasty ORM"
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+gitdb = { path = "../gitdb" }
+serde_json.workspace = true
+thiserror.workspace = true
+toasty-core = "0.6.0"
+toasty-sql = "0.6.0"
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true
