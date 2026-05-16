@@ -15,7 +15,7 @@ pub(crate) use crate::storage::types::{BlobId, RowKey};
 /// a db row with metadata and user data
 ///
 /// The internal format stored in Git:
-/// ```
+/// ```json
 /// {
 ///   "_pk": "abc123",
 ///   "_version": 1,

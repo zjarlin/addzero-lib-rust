@@ -1,501 +1,321 @@
-# GitDB
+# gitdb
 
-> **A Git backed document database That Absolutely Nobody Asked For**
+`gitdb` 是一个 Git-backed SQL 文档数据库 crate，同时提供库 API、`gitdb` CLI、连接池和一个多 Git repo 分片对象存储。
 
-[![Tests](https://img.shields.io/badge/tests-134%20passing-brightgreen.svg)]()
+它适合需要可审计、本地优先、低写入量的数据或对象存储场景：每次 SQL 写入会落成 Git commit，对象存储的每次 put/delete 也会在对应 shard repo 中提交。
 
----
+## 功能
 
-## What Is This?
+- **SQL 数据库**：支持 `CREATE TABLE`、`DROP TABLE`、`INSERT`、`SELECT`、`UPDATE`、`DELETE`、`BEGIN`、`COMMIT`、`ROLLBACK`、`SHOW TABLES`、`DESCRIBE`
+- **Git 存储**：表是 Git tree，行是 JSON blob，写入会产生 commit
+- **库 API**：通过 `gitdb::db::Database` 直接执行 SQL
+- **CLI/REPL**：`cargo run -p gitdb -- ...` 可直接打开交互式 SQL 终端
+- **连接池**：`ConnectionPool` 提供有界连接复用
+- **分片对象存储**：`ShardedBlobStore` 将对象写入多个 Git repo shard，超过软容量后自动创建新 shard
 
-GitDB is a fully-functional SQL database that stores all its data in a Git repository. Every INSERT is a commit. Every table is a directory. Your entire database history is preserved forever in `.git/`.
+## 作为 workspace crate 使用
 
-**Why would anyone build this?** Great question. I don't have a good answer either.
+在本仓库内直接依赖本地 crate。路径按调用方 crate 的位置调整，例如 `crates/storage/az-drive-store` 当前使用：
 
-**Should you use this in production?** Absolutely! why not ( ͡° ͜ʖ ͡°).
+```toml
+[dependencies]
+gitdb = { path = "../gitdb" }
+```
 
-> Demo - https://github.com/qeqqe/chat-app-with-gitdb
-
-## Features
-
-- **Full SQL Support** - CREATE, INSERT, SELECT, UPDATE, DELETE, the whole demn shebang
-- **Git-Native Storage** - Every mutation is a commit, every table is a tree
-- **ACID Transactions** - BEGIN, COMMIT, ROLLBACK with proper isolation
-- **Built-in Version History** - It's git ofc..
-- **Query Planning** - Cost-based optimizer because we're not savages
-- **Interactive REPL** - Pretty terminal interface for your hacking pleasure
-- **Connection Pooling** - For when you need to pretend this is enterprise-ready
-
----
-
-## Installation
-
-### As a CLI Tool (install globally)
+如果从 workspace 根目录运行 CLI：
 
 ```bash
-# clone this
-git clone https://github.com/qeqqe/gitdb.git
-cd gitdb
-
-# install globally
-cargo install --path .
-
-# check if it works
-gitdb --version
+cargo run -p gitdb -- --help
+cargo run -p gitdb -- ./tmp/my-gitdb
+cargo run -p gitdb -- -d ./tmp/my-gitdb -e "SHOW TABLES"
 ```
 
-### As a Library in Your Project
+## CLI 用法
 
-Add this to your `Cargo.toml` (will be added to crates.io soon):
+```bash
+# 使用默认数据库目录 .gitdb 打开 REPL
+cargo run -p gitdb
 
-```toml
-[dependencies]
-gitdb = { git = "https://github.com/qeqqe/gitdb.git" }
+# 指定数据库目录
+cargo run -p gitdb -- ./data/gitdb
+cargo run -p gitdb -- -d ./data/gitdb
+
+# 执行单条 SQL 后退出
+cargo run -p gitdb -- -d ./data/gitdb -e "CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT)"
+cargo run -p gitdb -- -d ./data/gitdb -e "INSERT INTO users (id, name) VALUES ('1', 'Alice')"
+cargo run -p gitdb -- -d ./data/gitdb -e "SELECT * FROM users"
+
+# 打印 SQL 和执行结果日志
+cargo run -p gitdb -- -d ./data/gitdb -v -e "SHOW TABLES"
 ```
 
-Or if you want to use a local path:
+CLI 参数：
 
-```toml
-[dependencies]
-gitdb = { path = "../path/to/gitdb" }
+| 参数 | 说明 |
+|---|---|
+| `-d, --database PATH` | 数据库目录，默认 `.gitdb` |
+| `-e, --execute SQL` | 执行单条 SQL 后退出 |
+| `-v, --verbose` | 输出 SQL 和结果调试日志 |
+| `-h, --help` | 显示帮助 |
+| `--version` | 显示版本 |
+
+REPL 内置命令：
+
+| 命令 | 说明 |
+|---|---|
+| `.help`, `.h`, `.?` | 显示帮助 |
+| `.quit`, `.exit`, `.q` | 退出 |
+| `.tables`, `.dt` | 列出表 |
+| `.schema <table>`, `.describe <table>`, `.d <table>` | 查看表结构 |
+| `.stats` | 查看统计信息 |
+| `.history` | 查看当前 REPL 输入历史 |
+| `.explain <sql>` | 输出查询计划 |
+| `.timing` | 开关耗时显示 |
+| `.clear` | 清屏 |
+
+## 库 API
+
+### 打开数据库并执行 SQL
+
+```rust
+use gitdb::db::{Database, DatabaseError};
+use gitdb::executor::QueryResult;
+
+fn main() -> Result<(), DatabaseError> {
+    let mut db = Database::open("./data/gitdb")?;
+
+    db.execute("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT, age INTEGER)")?;
+    db.execute("INSERT INTO users (id, name, age) VALUES ('1', 'Alice', 30)")?;
+
+    let result = db.execute("SELECT id, name FROM users WHERE age >= 18 ORDER BY name ASC LIMIT 10")?;
+    if let QueryResult::Select(rows) = result {
+        for row in rows.iter() {
+            println!("{row:?}");
+        }
+    }
+
+    Ok(())
+}
 ```
 
-Then in your Rust code:
+### 使用配置
+
+```rust
+use gitdb::db::{Database, DatabaseConfig};
+
+fn main() -> Result<(), gitdb::db::DatabaseError> {
+    let config = DatabaseConfig::new("./data/gitdb")
+        .create_if_missing(true)
+        .verbose(false)
+        .auto_commit(true);
+
+    let mut db = Database::open_with_config(config)?;
+    db.execute("SHOW TABLES")?;
+
+    Ok(())
+}
+```
+
+`DatabaseConfig` 主要字段：
+
+| 字段 | 默认值 | 说明 |
+|---|---:|---|
+| `path` | `.gitdb` | GitDB repository 路径 |
+| `create_if_missing` | `true` | 目录不存在时初始化 Git repo |
+| `enable_planner` | `true` | 启用查询计划/explain |
+| `verbose` | `false` | 输出调试日志 |
+| `auto_commit` | `true` | 自动提交写入 |
+
+### 批量执行
 
 ```rust
 use gitdb::db::Database;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut db = Database::open("./my_database")?;
-    db.execute("CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT)")?;
-    db.execute("INSERT INTO users (id, name) VALUES ('1', 'Alice')")?;
-    
-    let result = db.execute("SELECT * FROM users")?;
-    println!("{:?}", result);
+fn main() -> Result<(), gitdb::db::DatabaseError> {
+    let mut db = Database::open("./data/gitdb")?;
+    let results = db.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT);
+        INSERT INTO users (id, name) VALUES ('1', 'Alice');
+        SELECT * FROM users;
+        "#,
+    )?;
+
+    println!("{} statements executed", results.len());
     Ok(())
 }
 ```
 
-### Build from Source (without installing)
+### 事务
 
-```bash
-git clone https://github.com/qeqqe/gitdb.git
-cd gitdb
-cargo build --release
-./target/release/gitdb --help
+```rust
+use gitdb::db::Database;
+
+fn main() -> Result<(), gitdb::db::DatabaseError> {
+    let mut db = Database::open("./data/gitdb")?;
+
+    db.execute("BEGIN")?;
+    db.execute("INSERT INTO users (id, name) VALUES ('2', 'Bob')")?;
+    db.execute("COMMIT")?;
+
+    db.transaction(|tx_db| {
+        tx_db.execute("INSERT INTO users (id, name) VALUES ('3', 'Carol')")?;
+        Ok(())
+    })?;
+
+    Ok(())
+}
 ```
 
----
+### 元数据和历史
 
-## CLI Usage
+```rust
+use gitdb::db::Database;
 
-### Basic Commands
+fn main() -> Result<(), gitdb::db::DatabaseError> {
+    let db = Database::open("./data/gitdb")?;
 
-```bash
-# start the interactive REPL (default database: .gitdb)
-gitdb
+    let tables = db.tables()?;
+    let stats = db.stats();
+    let history = db.history(Some(20))?;
+    let current_snapshot = db.snapshot("manual checkpoint")?;
 
-# Use a specific database directory
-gitdb mydb
-gitdb -d /path/to/my/database
-
-# Run a single query and exit
-gitdb -e "SELECT * FROM users"
-gitdb -d mydb -e "INSERT INTO users (id, name) VALUES ('1', 'Bob')"
-
-# verbose mode (see what's happening under the hood)
-gitdb -v
-
-# help
-gitdb --help
-
-# version
-gitdb --version
+    println!("tables={tables:?}, rows={}, commits={}", stats.total_rows, history.len());
+    println!("current commit: {current_snapshot}");
+    Ok(())
+}
 ```
 
-### CLI Flags Reference
+### 连接池
 
-| Flag | Long Form | Description |
-|------|-----------|-------------|
-| `-d` | `--database PATH` | Path to database directory (default: `.gitdb`) |
-| `-e` | `--execute SQL` | Execute SQL statement and exit |
-| `-v` | `--verbose` | Enable verbose output |
-| `-h` | `--help` | Show help message |
-| | `--version` | Show version |
+```rust
+use gitdb::db::{ConnectionPool, DatabaseConfig};
 
----
+fn main() -> Result<(), gitdb::db::DatabaseError> {
+    let config = DatabaseConfig::new("./data/gitdb");
+    let pool = ConnectionPool::new(config, 4)?;
 
-## REPL Commands
+    let mut connection = pool.get()?;
+    connection.execute("SHOW TABLES")?;
 
-Once you're in the REPL, you've got these commands at your disposal:
-
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `.help` | `.h`, `.?` | Show help message |
-| `.quit` | `.exit`, `.q` | Get the hell out |
-| `.tables` | `.dt` | List all tables |
-| `.schema <table>` | `.describe`, `.d` | Show table schema |
-| `.stats` | | Show database statistics |
-| `.history` | | Show command history |
-| `.explain <sql>` | | Show query execution plan |
-| `.timing` | | Toggle timing display |
-| `.clear` | | Clear the screen |
-
-### REPL Example Session
-
-```
-╔═══════════════════════════════════════════════════════════════╗
-║                        GitDB v0.1.0                           ║
-║            A Git-backed Document Database                     ║
-╠═══════════════════════════════════════════════════════════════╣
-║   Type .help for commands, or enter SQL statements            ║
-╚═══════════════════════════════════════════════════════════════╝
-
-gitdb> CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT, email TEXT);
-Created table 'users'
-Time: 12.345ms
-
-gitdb> INSERT INTO users (id, name, email) VALUES ('1', 'Alice', 'alice@example.com');
-1 row(s) modified
-Time: 8.234ms
-
-gitdb> SELECT * FROM users;
-id | name  | email
----+-------+------------------
-1  | Alice | alice@example.com
-(1 rows)
-Time: 2.456ms
-
-gitdb> .tables
-Tables:
-  users
-
-gitdb> .schema users
-Table: users
-Primary Key: id
-
-Columns:
-Name                 Type            Nullable
--------------------- --------------- ----------
-id                   Text            NO
-name                 Text            YES
-email                Text            YES
-
-gitdb> .quit
-Goodbye!
+    println!("opened={}, idle={}", pool.created(), pool.available());
+    Ok(())
+}
 ```
 
----
+`ConnectionPool::get()` 在达到 `max_connections` 且没有空闲连接时会返回错误；连接在 drop 时归还到池。
 
-## SQL Reference
+## SQL 支持范围
 
-### Supported SQL Statements
+### DDL
 
-#### CREATE TABLE
 ```sql
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    name TEXT,
+    name TEXT NOT NULL,
     age INTEGER,
     active BOOLEAN
 );
-```
 
-Supported data types: `TEXT`, `INTEGER`, `REAL`, `BOOLEAN`, `BLOB`
-
-#### DROP TABLE
-```sql
 DROP TABLE users;
+DROP TABLE IF EXISTS users;
 ```
 
-#### INSERT
+支持的数据类型：
+
+| SQL 类型 | 内部类型 |
+|---|---|
+| `TEXT`, `VARCHAR`, `CHAR`, `STRING` | Text |
+| `INT`, `INTEGER`, `BIGINT`, `SMALLINT`, `TINYINT` | Integer |
+| `FLOAT`, `REAL`, `DOUBLE`, `DECIMAL`, `NUMERIC` | Float |
+| `BOOLEAN`, `BOOL` | Boolean |
+| `JSON`, `JSONB` | Json |
+| `TIMESTAMP`, `DATETIME`, `DATE` | Timestamp |
+| `UUID` | Uuid |
+
+支持的列约束：`PRIMARY KEY`、`NOT NULL`、`UNIQUE`、`DEFAULT <expr>`。
+
+### DML
+
 ```sql
--- single row
 INSERT INTO users (id, name, age) VALUES ('1', 'Alice', 30);
+INSERT INTO users (id, name, age) VALUES ('2', 'Bob', 25), ('3', 'Carol', 28);
 
--- the basics, nothing fancy
-INSERT INTO products (sku, name, price) VALUES ('ABC123', 'Widget', 19.99);
-```
-
-#### SELECT
-```sql
--- Select all columns
 SELECT * FROM users;
+SELECT id, name FROM users WHERE age > 18 ORDER BY name ASC LIMIT 10 OFFSET 5;
 
--- Select specific columns
-SELECT name, email FROM users;
-
--- With WHERE clause
-SELECT * FROM users WHERE age > 21;
-
--- With ORDER BY
-SELECT * FROM users ORDER BY name ASC;
-
--- With LIMIT
-SELECT * FROM users LIMIT 10;
-
--- Complex conditions
-SELECT * FROM users WHERE age > 21 AND active = true;
-```
-
-#### UPDATE
-```sql
-UPDATE users SET name = 'Bob' WHERE id = '1';
-UPDATE products SET price = 29.99 WHERE sku = 'ABC123';
-```
-
-#### DELETE
-```sql
+UPDATE users SET name = 'Alicia' WHERE id = '1';
 DELETE FROM users WHERE id = '1';
-DELETE FROM products WHERE price < 10;
 ```
 
-#### Transactions
-```sql
-BEGIN;
-INSERT INTO accounts (id, balance) VALUES ('1', 1000);
-INSERT INTO accounts (id, balance) VALUES ('2', 500);
-COMMIT;
+表达式支持比较、`AND`/`OR`、一元 `NOT`/`+`/`-`、`IS NULL`、`IS NOT NULL`、`IN`、`BETWEEN`、`LIKE`、基础算术和函数表达式解析。
 
--- Or roll it back if shit goes wrong
-BEGIN;
-UPDATE accounts SET balance = balance - 100 WHERE id = '1';
-ROLLBACK;  -- Nope, nevermind
-```
+当前限制：
 
----
+- `SELECT` 只支持单表查询，不支持 join、subquery、group by、聚合执行
+- `INSERT ... SELECT` 不支持
+- 一次 `Database::execute()` 只接受一条语句；多语句使用 `execute_batch()`
+- 主键行 key 当前按字符串读取，主键值建议使用 `TEXT`
 
-## Rust API Usage
+## 分片对象存储
 
-### Basic Usage
+`ShardedBlobStore` 是独立于 SQL 路径的对象存储能力，用于把较大的二进制对象按 key 放进多个 Git repo shard。
 
 ```rust
-use GitDB::db::{Database, DatabaseConfig};
+use gitdb::blob_store::{BlobStoreConfig, ShardedBlobStore};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Open or create a database
-    let mut db = Database::open("./my_database")?;
-    
-    // Create a table
-    db.execute("CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT)")?;
-    
-    // Insert some data
-    db.execute("INSERT INTO users (id, name) VALUES ('1', 'Alice')")?;
-    db.execute("INSERT INTO users (id, name) VALUES ('2', 'Bob')")?;
-    
-    // Query that shit
-    let result = db.execute("SELECT * FROM users WHERE name = 'Alice'")?;
-    println!("{:?}", result);
-    
+fn main() -> Result<(), gitdb::storage::StorageError> {
+    let mut config = BlobStoreConfig::new("./data/gitdb-objects".into());
+    config.max_shard_size_bytes = 8 * 1024 * 1024 * 1024;
+    config.shard_prefix = "shard".to_owned();
+
+    let store = ShardedBlobStore::open(config)?;
+
+    store.put("objects/sha256/ab/cdef", b"hello")?;
+    assert!(store.exists("objects/sha256/ab/cdef")?);
+    assert_eq!(store.get("objects/sha256/ab/cdef")?, b"hello");
+    store.delete("objects/sha256/ab/cdef")?;
+
+    let shards = store.list_shards()?;
+    println!("{shards:?}");
     Ok(())
 }
 ```
 
-### With Configuration
+对象 key 必须是相对路径，不能是空字符串、绝对路径或包含 `..`。目录结构大致如下：
 
-```rust
-use GitDB::db::{Database, DatabaseConfig};
-
-let config = DatabaseConfig::new("./my_database")
-    .create_if_missing(true)
-    .verbose(true)
-    .auto_commit(true);
-
-let mut db = Database::open_with_config(config)?;
+```text
+root/
+  control/
+    index/
+    shards/
+  shards/
+    shard-0001/.git/
+    shard-0002/.git/
 ```
 
-### Batch Execution
+`max_shard_size_bytes` 是软限制；当当前 shard 容量不足时，新对象会写入新 shard。
 
-```rust
-// Execute multiple statements at once
-let results = db.execute_batch(r#"
-    CREATE TABLE products (sku TEXT PRIMARY KEY, name TEXT, price REAL);
-    INSERT INTO products (sku, name, price) VALUES ('A1', 'Widget', 9.99);
-    INSERT INTO products (sku, name, price) VALUES ('A2', 'Gadget', 19.99);
-    SELECT * FROM products;
-"#)?;
+## 适用边界
+
+适合：
+
+- 本地可审计的小型数据集
+- 低并发、低写入量的元数据存储
+- 需要 Git commit 历史追踪的数据变更
+- AIO Drive 这类需要 Git repo shard 保存对象字节的场景
+
+不适合：
+
+- 高频写入或大规模 OLTP
+- 复杂 SQL 分析查询
+- 多进程强一致写入
+- 替代 PostgreSQL 作为正式业务数据源
+
+## 验证
+
+```bash
+cargo test -p gitdb
+cargo run -p gitdb -- -d ./tmp/gitdb-readme -e "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT)"
+cargo run -p gitdb -- -d ./tmp/gitdb-readme -e "SHOW TABLES"
 ```
-
-### Query Planning & Explain
-
-```rust
-// See what the query planner is thinking
-let plan = db.explain("SELECT * FROM users WHERE id = '1'")?;
-println!("{}", plan);
-```
-
-### Database Statistics
-
-```rust
-let stats = db.stats();
-println!("Tables: {}", stats.tables);
-println!("Total Rows: {}", stats.total_rows);
-println!("Active Transactions: {}", stats.active_transactions);
-```
-
-### Table Operations
-
-```rust
-// List all tables
-let tables = db.tables()?;
-
-// Check if table exists
-if db.table_exists("users") {
-    println!("Users table exists!");
-}
-
-// Get table schema
-if let Some(schema) = db.table_schema("users")? {
-    println!("Table: {}", schema.name);
-    for col in &schema.columns {
-        println!("  {} {:?}", col.name, col.data_type);
-    }
-}
-```
-
-### Transaction API
-
-```rust
-// Manual transaction control
-db.execute("BEGIN")?;
-db.execute("INSERT INTO users (id, name) VALUES ('3', 'Charlie')")?;
-db.execute("COMMIT")?;
-
-// Or use the closure-based API
-db.transaction(|db| {
-    db.execute("INSERT INTO users (id, name) VALUES ('4', 'Dave')")?;
-    db.execute("INSERT INTO users (id, name) VALUES ('5', 'Eve')")?;
-    Ok(())
-})?;
-```
-
-### Version History
-
-```rust
-// Get commit history (it's Git, baby!)
-let history = db.history(Some(10))?;  // Last 10 commits
-for commit in history {
-    println!("{}: {} ({})", commit.id, commit.message, commit.timestamp);
-}
-
-// create a snapshot
-let snapshot_id = db.snapshot("Before the big migration")?;
-```
-
-### Connection Pooling
-
-```rust
-use GitDB::db::{ConnectionPool, DatabaseConfig};
-
-// create a pool with max 10 connections
-let pool = ConnectionPool::new(DatabaseConfig::new("./mydb"), 10)?;
-
-// get a connection
-let mut conn = pool.get()?;
-conn.execute("SELECT * FROM users")?;
-
-// connection automatically returns to pool when dropped
-```
-
----
-
-## Architecture
-
-if for some weird reason you're curious about this dumpster fire:
-
-```
-src/
-├── storage/          # Git integration layer
-│   ├── repository.rs # GitRepository wrapper
-│   ├── tree.rs       # Tree operations (tables/rows)
-│   ├── commit.rs     # Commit operations
-│   ├── refs.rs       # Branch/ref management
-│   ├── blob.rs       # Blob serialization
-│   └── types.rs      # Core types (RowKey, TableName, etc.)
-├── transaction/      # ACID transaction support
-│   ├── manager.rs    # Transaction lifecycle
-│   ├── context.rs    # Transaction state (typestate pattern)
-│   └── isolation.rs  # Isolation levels
-├── catalog/          # Schema management
-│   ├── schema.rs     # TableSchema, ColumnDef
-│   └── catalog.rs    # Schema storage in _schema/
-├── sql/              # SQL parsing
-│   ├── parser.rs     # sqlparser integration
-│   ├── ast.rs        # Our AST types
-│   └── types.rs      # SQL types
-├── executor/         # Query execution
-│   ├── executor.rs   # QueryExecutor
-│   ├── operators.rs  # Volcano-model operators
-│   └── eval.rs       # Expression evaluation
-├── planner/          # Query planning
-│   ├── logical.rs    # Logical plan
-│   ├── physical.rs   # Physical plan
-│   ├── optimizer.rs  # Cost-based optimizer
-│   └── planner.rs    # Plan generation
-├── db/               # High-level API
-│   ├── api.rs        # Database struct
-│   ├── connection.rs # Connection pooling
-│   └── repl.rs       # Interactive REPL
-└── main.rs           # CLI entry point
-```
-
----
-
-## How It Actually Works
-
-1. **Tables are directories** - Each table is a directory under the Git tree
-2. **Rows are JSON blobs** - Each row is a JSON file named by its primary key
-3. **Mutations are commits** - Every INSERT/UPDATE/DELETE creates a Git commit
-4. **Schemas live in `_schema/`** - Table definitions stored as JSON
-5. **Transactions use branches** - Each transaction gets its own branch, merged on commit
-
-So when you do:
-```sql
-INSERT INTO users (id, name) VALUES ('1', 'Alice');
-```
-
-GitDB literally creates a commit with:
-- Tree: `users/1.json` containing `{"id": "1", "name": "Alice"}`
-- Message: `INSERT INTO users`
-
-It's beautifully stupid.
-
----
-
-## Performance
-
-It's very fast (only like 50x-60x (maybe more) times slower then pgsql):
-
-| Operation | Performance |
-|-----------|-------------|
-| SELECT | Actually pretty fast |
-| INSERT | One Git commit per row, so... yeah |
-| UPDATE | Same shit |
-| Bulk operations | Pain |
-| vs. PostgreSQL | lmao |
-
----
-
-## Contributing
-
-1. Fork it
-2. Create your feature branch (`git checkout -b feature/even-more-cursed`)
-3. Write some tests (we're not animals)
-4. Commit your changes (`git commit -am 'Add some cursed feature'`)
-5. Push to the branch (`git push origin feature/even-more-cursed`)
-6. Create a Pull Request
-
----
-
-## Acknowledgments
-
-- The Git maintainers, for creating a data structure we were never meant to abuse this way
-- The Rust community, for making this cursed project actually reliable
-
----
-> Note: While playing around with it i accidentally messed up and messed up the whole repo, this the new repo with all the commits squashed that i made in previous one.
----
-
-<p align="center">
-  <i>Built with 🦀 and questionable life choices</i>
-</p>
