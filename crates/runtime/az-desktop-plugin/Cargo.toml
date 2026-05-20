@@ -1,0 +1,19 @@
+[package]
+name = "az-desktop-plugin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+az-assets.workspace = true
+az-drive-agent.workspace = true
+az-drive-store.workspace = true
+az-software-catalog.workspace = true
+gpui.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

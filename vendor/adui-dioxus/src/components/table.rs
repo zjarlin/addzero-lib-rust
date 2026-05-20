@@ -924,7 +924,10 @@ mod tests {
     #[test]
     fn get_cell_text_from_number() {
         let mut row = serde_json::Map::new();
-        row.insert("age".to_string(), Value::Number(serde_json::Number::from(25)));
+        row.insert(
+            "age".to_string(),
+            Value::Number(serde_json::Number::from(25)),
+        );
         let row_value = Value::Object(row);
         assert_eq!(get_cell_text(&row_value, "age"), "25");
     }

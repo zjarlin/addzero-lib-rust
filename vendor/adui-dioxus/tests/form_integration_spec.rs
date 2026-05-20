@@ -5,9 +5,8 @@
 
 // CheckboxProps and CheckboxGroupProps are tested through structure tests
 use adui_dioxus::components::form::{
-    ControlSize, FeedbackIcons, FormFinishEvent, FormFinishFailedEvent, FormHandle,
-    FormLayout, FormRule, FormValues, LabelAlign, RequiredMark, ScrollToFirstErrorConfig,
-    ValuesChangeEvent,
+    ControlSize, FeedbackIcons, FormFinishEvent, FormFinishFailedEvent, FormHandle, FormLayout,
+    FormRule, FormValues, LabelAlign, RequiredMark, ScrollToFirstErrorConfig, ValuesChangeEvent,
 };
 use adui_dioxus::components::input::InputProps;
 use adui_dioxus::components::select::{SelectMode, SelectPlacement, SelectProps};
@@ -44,12 +43,12 @@ fn form_handle_structure() {
     // Test that FormHandle type exists and can be used
     // Note: FormHandle::new() requires Dioxus runtime, so we test the type structure
     assert!(std::mem::size_of::<FormHandle>() > 0);
-    
+
     // Test FormValues and FormErrors types
     let mut values = FormValues::new();
     values.insert("test".to_string(), Value::String("value".to_string()));
     assert_eq!(values.len(), 1);
-    
+
     let mut errors = std::collections::HashMap::new();
     errors.insert("test".to_string(), "error".to_string());
     assert_eq!(errors.len(), 1);
@@ -129,7 +128,10 @@ fn form_values_change_event_creation() {
     changed_values.insert("username".to_string(), Value::String("new".to_string()));
     let mut all_values = FormValues::new();
     all_values.insert("username".to_string(), Value::String("new".to_string()));
-    all_values.insert("email".to_string(), Value::String("test@example.com".to_string()));
+    all_values.insert(
+        "email".to_string(),
+        Value::String("test@example.com".to_string()),
+    );
 
     let event = ValuesChangeEvent {
         changed_values,
@@ -359,4 +361,3 @@ fn form_layout_integration() {
     assert_ne!(FormLayout::Horizontal, FormLayout::Vertical);
     assert_ne!(FormLayout::Vertical, FormLayout::Inline);
 }
-

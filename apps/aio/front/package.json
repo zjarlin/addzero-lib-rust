@@ -1,0 +1,31 @@
+{
+  "name": "@addzero/aio-front",
+  "version": "2026.5.10",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "tauri": "tauri",
+    "desktop:dev": "cd ../desktop && tauri dev",
+    "desktop:build": "cd ../desktop && tauri build"
+  },
+  "dependencies": {
+    "@jetbrains/ring-ui-built": "7.0.107",
+    "@tauri-apps/api": "2.11.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-router-dom": "7.15.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@tauri-apps/cli": "2.11.2",
+    "@vitejs/plugin-react": "latest",
+    "typescript": "6.0.3",
+    "vite": "8.0.13",
+    "vitest": "latest"
+  }
+}

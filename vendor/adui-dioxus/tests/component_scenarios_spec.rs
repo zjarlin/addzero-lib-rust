@@ -195,8 +195,8 @@ fn component_composition_scenario() {
 #[test]
 fn theme_and_config_scenario() {
     // Test theme and config working together
-    use adui_dioxus::{Theme, ThemeMode};
     use adui_dioxus::components::config_provider::{ComponentSize, ConfigContextValue};
+    use adui_dioxus::{Theme, ThemeMode};
 
     let theme = Theme::light();
     let config = ConfigContextValue {
@@ -209,4 +209,3 @@ fn theme_and_config_scenario() {
     assert_eq!(config.size, ComponentSize::Large);
     assert_eq!(config.disabled, false);
 }
-

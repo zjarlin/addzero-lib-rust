@@ -14,8 +14,13 @@ az-sandbox.workspace = true
 az-script-engine.workspace = true
 az-script-engine-rhai.workspace = true
 az-agent-runtime-contract.workspace = true
+az-aio-plugin-config-center.workspace = true
+az-aio-plugin-edge-gateway.workspace = true
+az-aio-plugin-software-center.workspace = true
 az-cli-market-contract.workspace = true
+az-drive-agent.workspace = true
 az-drive-app = { path = "../../drive/backend" }
+az-drive-store.workspace = true
 az-software-catalog.workspace = true
 automod.workspace = true
 base64.workspace = true

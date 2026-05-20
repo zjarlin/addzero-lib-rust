@@ -5,6 +5,7 @@ use std::pin::Pin;
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
 pub mod ai_chat;
+pub mod aio_desktop_contract;
 pub mod asset_graph;
 pub mod auth;
 pub mod branding_settings;
@@ -30,6 +31,10 @@ pub mod vibe_coding;
 pub use ai_chat::{
     AiProviderConfigDto, AiProviderConfigUpsertDto, AiProviderKindDto, ChatMessageDto,
     ChatRequestDto, ChatResponseDto,
+};
+pub use aio_desktop_contract::{
+    ActionResultDto, ConfigLocalStatusDto, DrivePathRequestDto, DriveSnapshotDto,
+    ProviderTestRequestDto, ProviderTestResultDto,
 };
 pub use asset_graph::{
     AssetGraphDto, AssetGraphEdgeDto, AssetGraphItemDto, AssetGraphTagDto, AssetKindDto,

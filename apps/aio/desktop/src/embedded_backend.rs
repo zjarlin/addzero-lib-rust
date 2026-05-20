@@ -44,6 +44,7 @@ enum BackendLaunchSpec {
 #[derive(Debug)]
 pub struct DesktopRuntime {
     _backend: EmbeddedBackendProcess,
+    #[allow(dead_code)]
     client: AioClient,
     base_url: String,
     desktop_token: String,
@@ -79,10 +80,12 @@ impl DesktopRuntime {
         })
     }
 
+    #[allow(dead_code)]
     pub fn client(&self) -> &AioClient {
         &self.client
     }
 
+    #[allow(dead_code)]
     pub fn client_clone(&self) -> AioClient {
         self.client.clone()
     }

@@ -1,0 +1,15 @@
+[package]
+name = "az-aio-plugin-drive-center"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+az-desktop-plugin.workspace = true
+az-desktop-plugin-registry.workspace = true
+gpui.workspace = true
+
+[lints]
+workspace = true

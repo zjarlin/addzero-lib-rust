@@ -281,4 +281,3 @@ fn core_components_clone_and_copy() {
     let input_size2 = input_size1; // Copy
     assert_eq!(input_size1, input_size2);
 }
-

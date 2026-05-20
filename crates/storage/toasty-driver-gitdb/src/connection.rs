@@ -234,9 +234,8 @@ impl Connection for GitDbConnection {
 
     async fn applied_migrations(&mut self) -> Result<Vec<AppliedMigration>> {
         self.ensure_migrations_table()?;
-        let result = self.execute_sql(format!(
-            "SELECT id FROM {MIGRATIONS_TABLE} ORDER BY id ASC"
-        ))?;
+        let result =
+            self.execute_sql(format!("SELECT id FROM {MIGRATIONS_TABLE} ORDER BY id ASC"))?;
 
         let WorkerQueryResult::Rows { rows, .. } = result else {
             return Err(toasty_core::Error::invalid_result(
@@ -305,7 +304,9 @@ enum WorkerQueryResult {
 fn convert_query_result(result: QueryResult) -> WorkerQueryResult {
     match result {
         QueryResult::Modified { rows_affected } => WorkerQueryResult::Count(rows_affected as u64),
-        QueryResult::Success { .. } | QueryResult::Transaction { .. } => WorkerQueryResult::Count(0),
+        QueryResult::Success { .. } | QueryResult::Transaction { .. } => {
+            WorkerQueryResult::Count(0)
+        }
         QueryResult::Select(result_set) => WorkerQueryResult::Rows {
             columns: result_set.columns,
             rows: result_set.rows,
@@ -322,7 +323,10 @@ fn lower_sql_statement(
     inline_indexed_params(&sql, &params).map_err(map_local_error)
 }
 
-fn map_worker_result(result: WorkerQueryResult, ret: Option<&[stmt::Type]>) -> Result<ExecResponse> {
+fn map_worker_result(
+    result: WorkerQueryResult,
+    ret: Option<&[stmt::Type]>,
+) -> Result<ExecResponse> {
     match result {
         WorkerQueryResult::Count(count) => Ok(ExecResponse::count(count)),
         WorkerQueryResult::Rows { columns, rows } => {
@@ -345,7 +349,9 @@ fn map_worker_result(result: WorkerQueryResult, ret: Option<&[stmt::Type]>) -> R
                 .map(|row| row_to_value_record(row, &columns, ret_tys))
                 .collect::<Result<Vec<_>>>()?;
 
-            Ok(ExecResponse::value_stream(stmt::ValueStream::from_vec(values)))
+            Ok(ExecResponse::value_stream(stmt::ValueStream::from_vec(
+                values,
+            )))
         }
     }
 }
@@ -391,11 +397,11 @@ fn storage_type_sql(ty: &db::Type) -> Result<&'static str> {
             Ok("TIMESTAMP")
         }
         db::Type::List(_) => Ok("JSON"),
-        db::Type::Blob | db::Type::Binary(_) | db::Type::Custom(_) => Err(
-            toasty_core::Error::unsupported_feature(format!(
+        db::Type::Blob | db::Type::Binary(_) | db::Type::Custom(_) => {
+            Err(toasty_core::Error::unsupported_feature(format!(
                 "gitdb schema push does not support storage type `{ty:?}`"
-            )),
-        ),
+            )))
+        }
     }
 }
 
@@ -422,7 +428,9 @@ fn map_driver_error(error: impl std::error::Error + Send + Sync + 'static) -> to
 
 fn map_local_error(error: GitDbDriverError) -> toasty_core::Error {
     match error {
-        GitDbDriverError::UnsupportedValue(message) => toasty_core::Error::unsupported_feature(message),
+        GitDbDriverError::UnsupportedValue(message) => {
+            toasty_core::Error::unsupported_feature(message)
+        }
         GitDbDriverError::InvalidResult(message) => toasty_core::Error::invalid_result(message),
     }
 }

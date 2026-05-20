@@ -1,28 +1,13 @@
-# aio-front
+# AIO Front
 
-基于 `adui-dioxus` 的 AIO 前端原型。
+React + TypeScript + Vite frontend for AIO.
 
-当前先落一张 `资产文件` 工作台页：
-
-- 顶部主轴 domain axis
-- 左侧模块树
-- 中间资产表格
-- 右侧上下文面板
-
-运行：
+This package is the only AIO web UI and is also embedded by the Tauri desktop shell in `apps/aio/desktop`.
 
 ```bash
-cargo run -p aio-front
+npm install
+npm run typecheck
+npm run build
 ```
 
-输出：
-
-```text
-target/aio-front/index.html
-```
-
-测试：
-
-```bash
-cargo test -p aio-front
-```
+The frontend talks to `apps/aio/backend` over HTTP. In Tauri mode, the desktop shell injects the backend base URL and desktop session token through the `runtime_info` command.

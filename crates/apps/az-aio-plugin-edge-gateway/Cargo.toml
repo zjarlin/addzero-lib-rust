@@ -1,0 +1,22 @@
+[package]
+name = "az-aio-plugin-edge-gateway"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+az-desktop-plugin.workspace = true
+az-desktop-plugin-registry.workspace = true
+gpui.workspace = true
+handlebars.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_json_path.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

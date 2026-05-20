@@ -1,0 +1,21 @@
+[package]
+name = "az-oauth2"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Provider-neutral OAuth2 PKCE, loopback, token, refresh, and device-flow helpers"
+
+[dependencies]
+base64.workspace = true
+reqwest.workspace = true
+ring.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+urlencoding.workspace = true
+
+[lints]
+workspace = true

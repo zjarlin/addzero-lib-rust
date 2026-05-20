@@ -180,4 +180,3 @@ fn menu_navigation_integration() {
     let inline_menu = MenuMode::Inline;
     assert_ne!(horizontal_menu, inline_menu);
 }
-

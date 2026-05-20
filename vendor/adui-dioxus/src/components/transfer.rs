@@ -748,9 +748,12 @@ mod tests {
 
     #[test]
     fn default_filter_with_description_preference() {
-        let item = TransferItem::new("1", "Title")
-            .with_description("Description text");
-        assert!(default_filter("description", &item, TransferDirection::Left));
+        let item = TransferItem::new("1", "Title").with_description("Description text");
+        assert!(default_filter(
+            "description",
+            &item,
+            TransferDirection::Left
+        ));
         assert!(default_filter("title", &item, TransferDirection::Left));
     }
 

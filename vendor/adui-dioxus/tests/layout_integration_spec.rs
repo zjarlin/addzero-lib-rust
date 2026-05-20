@@ -8,8 +8,8 @@ use adui_dioxus::components::flex::{
     FlexAlign, FlexComponent, FlexDirection, FlexGap, FlexJustify, FlexOrientation, FlexWrap,
 };
 use adui_dioxus::components::grid::{
-    ColResponsive, ColSize, GridBreakpoint, ResponsiveGutter, ResponsiveValue, RowAlign,
-    RowGutter, RowJustify,
+    ColResponsive, ColSize, GridBreakpoint, ResponsiveGutter, ResponsiveValue, RowAlign, RowGutter,
+    RowJustify,
 };
 use adui_dioxus::components::layout::{LayoutProps, SiderProps, SiderTheme};
 
@@ -357,7 +357,7 @@ fn flex_system_integration() {
 fn responsive_system_integration() {
     // Test that responsive values work across different components
     use adui_dioxus::components::grid::ColResponsive;
-    
+
     let responsive_value = ResponsiveValue {
         xs: Some(12.0),
         sm: Some(8.0),
@@ -378,7 +378,7 @@ fn responsive_system_integration() {
         }),
         ..ColResponsive::default()
     };
-    
+
     let gutter = ResponsiveGutter {
         horizontal: responsive_value,
         vertical: None,
@@ -387,4 +387,3 @@ fn responsive_system_integration() {
     assert_eq!(col_responsive.xs.as_ref().unwrap().span, Some(12));
     assert_eq!(gutter.horizontal.xs, Some(12.0));
 }
-

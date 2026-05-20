@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "apps/*/backend",
-    "apps/*/front",
     "apps/aio/desktop",
     "crates/api/*",
     "crates/apps/*",
@@ -40,6 +39,7 @@ deunicode = "1.6.2"
 dioxus = { version = "0.7.9", default-features = false, features = ["macro", "html", "signals"] }
 dioxus-ssr = "0.7.9"
 dirs = "6"
+handlebars = "6.4.1"
 hmac = "0.12.1"
 inventory = "0.3.21"
 lettre = "0.11.19"
@@ -57,6 +57,7 @@ rumqttc = "0.25.1"
 rust-i18n = "3.1.5"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
+serde_json_path = "0.7.2"
 serde_yaml = "0.9.34"
 sha2 = "0.10.9"
 shaku = "0.6.2"
@@ -86,19 +87,28 @@ az-agent-runtime-contract = { version = "=2026.5.10", path = "crates/data/az-age
 az-ai-agent = { version = "=2026.5.10", path = "crates/runtime/az-ai-agent" }
 az-ai-chat = { version = "=2026.5.10", path = "crates/api/az-ai-chat" }
 az-aio-client = { version = "=2026.5.10", path = "crates/api/az-aio-client" }
+az-aio-plugin-asset-hub = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-asset-hub" }
+az-aio-plugin-config-center = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-config-center" }
+az-aio-plugin-drive-center = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-drive-center" }
+az-aio-plugin-edge-gateway = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-edge-gateway" }
+az-aio-plugin-software-center = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-software-center" }
 az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
 az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
 az-config-center-contract = { version = "=2026.5.10", path = "crates/api/az-config-center-contract" }
 az-context = { version = "=2026.5.10", path = "crates/core/az-context" }
 az-dioxus-components = { version = "=2026.5.10", path = "crates/ui/az-dioxus-components" }
 az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }
+az-desktop-plugin = { version = "=2026.5.10", path = "crates/runtime/az-desktop-plugin" }
+az-desktop-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/az-desktop-plugin-registry" }
 az-drive-agent = { version = "=2026.5.10", path = "crates/runtime/az-drive-agent" }
 az-drive-core = { version = "=2026.5.10", path = "crates/storage/az-drive-core" }
 az-drive-store = { version = "=2026.5.10", path = "crates/storage/az-drive-store" }
 az-drive-webdav = { version = "=2026.5.10", path = "crates/network/az-drive-webdav" }
+az-gmail-code = { version = "=2026.5.10", path = "crates/network/az-gmail-code" }
 az-kiro-auth-support = { version = "=2026.5.10", path = "crates/api/az-kiro-auth-support" }
 az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
 az-music = { version = "=2026.5.10", path = "crates/network/az-music" }
+az-oauth2 = { version = "=2026.5.10", path = "crates/api/az-oauth2" }
 az-persistence = { version = "=2026.5.10", path = "crates/data/az-persistence" }
 az-plugin-contract = { version = "=2026.5.10", path = "crates/runtime/az-plugin-contract" }
 az-plugin-macros = { version = "=2026.5.10", path = "crates/runtime/az-plugin-macros" }

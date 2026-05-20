@@ -1,0 +1,191 @@
+:root {
+  color: #d7dbe0;
+  background: #13171c;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #13171c;
+  color: #d7dbe0;
+}
+
+button {
+  font: inherit;
+}
+
+.appShell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.topbar h1 {
+  margin: 4px 0 8px;
+  font-size: 24px;
+}
+
+.topbar p,
+.summaryCard p,
+.navItem small {
+  margin: 0;
+  color: #8f98a3;
+}
+
+.eyebrow,
+.branchLabel,
+.summaryTitle {
+  text-transform: uppercase;
+  letter-spacing: 0;
+  font-size: 12px;
+  color: #7e8894;
+}
+
+.domainTabs,
+.toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.workbench {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 320px;
+  gap: 12px;
+}
+
+.navRail,
+.contentPane,
+.summaryRail,
+.panel {
+  background: #1b2128;
+  border: 1px solid #252d37;
+  border-radius: 8px;
+}
+
+.navRail,
+.summaryRail {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.branchGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.navItem {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: #151a20;
+  color: inherit;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navItem.active {
+  border-color: #4d89ff;
+  background: #18243a;
+}
+
+.contentPane {
+  padding: 12px;
+  overflow: auto;
+}
+
+.pageGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.panel {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.metric,
+.metricText {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.jsonBlock {
+  margin: 0;
+  padding: 12px;
+  background: #10151b;
+  border-radius: 6px;
+  border: 1px solid #252d37;
+  color: #cfd6de;
+  overflow: auto;
+}
+
+.summaryCard {
+  padding: 12px;
+  background: #151a20;
+  border: 1px solid #252d37;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .workbench {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .summaryRail {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 800px) {
+  .topbar,
+  .workbench {
+    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+  }
+}

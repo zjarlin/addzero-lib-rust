@@ -25,18 +25,19 @@
 //! - FloatButton, BackTop, Popover, Menu, Segmented
 
 use adui_dioxus::{
-    App, Avatar, BackTop, Badge, Button, ButtonType, Card, Checkbox, CheckboxGroup,
-    Col, ColResponsive, ColSize, components::carousel::{Carousel, CarouselEffect, CarouselItem},
+    App, Avatar, BackTop, Badge, Button, ButtonType, Card, Checkbox, CheckboxGroup, Col,
+    ColResponsive, ColSize, Content, Descriptions, DescriptionsItem, Divider, Drawer,
+    DrawerPlacement, Empty, EmptyImage, Footer, Header, Icon, IconKind, Layout, Menu, MenuItemNode,
+    MenuMode, Pagination, Paragraph, Popconfirm, Progress, Radio, RadioGroup, Row, Search, Space,
+    SpaceDirection, SpaceSize, Statistic, StepItem, Steps, StepsDirection, TabItem, Tabs, Tag,
+    TagColor, Text, TextType, ThemeProvider, Title, TitleLevel,
+    components::carousel::{Carousel, CarouselEffect, CarouselItem},
     components::image::{Image, ImagePreviewGroup, ImagePreviewItem},
     components::input_number::InputNumber,
     components::rate::Rate,
     components::segmented::{Segmented, SegmentedOption},
     components::slider::{Slider, SliderValue},
-    Content, Descriptions, DescriptionsItem, Divider, Drawer, DrawerPlacement, Empty, EmptyImage,
-    Footer, Header, Icon, IconKind, Layout, Menu, MenuItemNode, MenuMode, Pagination, Paragraph,
-    Popconfirm, Progress, Radio, RadioGroup, Row, Search, Space, SpaceDirection, SpaceSize,
-    Statistic, Steps, StepItem, StepsDirection, TabItem, Tabs, Tag, TagColor,
-    Text, TextType, ThemeProvider, Title, TitleLevel, use_message, use_notification,
+    use_message, use_notification,
 };
 use dioxus::prelude::*;
 use serde_json::json;
@@ -95,9 +96,15 @@ struct CartItem {
 fn generate_mock_pets() -> Vec<Pet> {
     let mut pets = Vec::new();
     let categories = vec!["狗", "猫", "鸟", "鱼", "兔子"];
-    let brands = vec!["PetLove", "HappyPaws", "FurryFriends", "PetParadise", "AnimalKingdom"];
+    let brands = vec![
+        "PetLove",
+        "HappyPaws",
+        "FurryFriends",
+        "PetParadise",
+        "AnimalKingdom",
+    ];
     let tags_pool = vec!["新品", "热销", "折扣", "推荐", "限量"];
-    
+
     for i in 1..=30 {
         let i_u32 = i as u32;
         let category = categories[(i_u32 - 1) as usize % categories.len()];
@@ -112,14 +119,14 @@ fn generate_mock_pets() -> Vec<Pet> {
         if i_u32 % 5 == 0 {
             tags.push("折扣".to_string());
         }
-        
+
         let price = 50.0 + (i as f64 * 25.5);
         let original_price = if i_u32 % 5 == 0 {
             Some(price * 1.3)
         } else {
             None
         };
-        
+
         let mut reviews = Vec::new();
         for j in 1..=5 {
             reviews.push(Review {
@@ -130,13 +137,23 @@ fn generate_mock_pets() -> Vec<Pet> {
                 date: format!("2024-01-{}", j),
             });
         }
-        
+
         let mut specifications = HashMap::new();
         specifications.insert("品种".to_string(), format!("{}品种{}", category, i));
         specifications.insert("年龄".to_string(), format!("{}个月", 3 + (i_u32 % 12)));
-        specifications.insert("性别".to_string(), if i_u32 % 2 == 0 { "公".to_string() } else { "母".to_string() });
-        specifications.insert("颜色".to_string(), vec!["棕色", "白色", "黑色", "灰色", "花色"][(i_u32 - 1) as usize % 5].to_string());
-        
+        specifications.insert(
+            "性别".to_string(),
+            if i_u32 % 2 == 0 {
+                "公".to_string()
+            } else {
+                "母".to_string()
+            },
+        );
+        specifications.insert(
+            "颜色".to_string(),
+            vec!["棕色", "白色", "黑色", "灰色", "花色"][(i_u32 - 1) as usize % 5].to_string(),
+        );
+
         pets.push(Pet {
             id: i_u32,
             name: format!("{}宠物{}", category, i),
@@ -152,7 +169,10 @@ fn generate_mock_pets() -> Vec<Pet> {
                 format!("https://picsum.photos/800/600?random={}", i * 10 + 2),
                 format!("https://picsum.photos/800/600?random={}", i * 10 + 3),
             ],
-            description: format!("这是一只非常可爱的{}，性格温顺，适合家庭饲养。具有优良的血统和健康证明。", category),
+            description: format!(
+                "这是一只非常可爱的{}，性格温顺，适合家庭饲养。具有优良的血统和健康证明。",
+                category
+            ),
             brand: brand.to_string(),
             tags,
             stock: 10 + (i_u32 % 20),
@@ -174,17 +194,18 @@ fn PetShopDemo() -> Element {
     let selected_pet = use_signal(|| None::<Pet>);
     let mut current_page_num = use_signal(|| 1u32);
     let page_size = use_signal(|| 12u32);
-    
+
     let message = use_message();
     let notification = use_notification();
-    
+
     // 筛选后的商品列表
     let filtered_pets = use_memo(move || {
         let pets_list = pets.read();
         let category = selected_category.read();
         let query = search_query.read();
-        
-        pets_list.iter()
+
+        pets_list
+            .iter()
             .filter(|pet| {
                 if let Some(ref cat) = *category {
                     if pet.category != *cat {
@@ -192,9 +213,10 @@ fn PetShopDemo() -> Element {
                     }
                 }
                 if !query.is_empty() {
-                    if !pet.name.contains(query.as_str()) && 
-                       !pet.description.contains(query.as_str()) &&
-                       !pet.brand.contains(query.as_str()) {
+                    if !pet.name.contains(query.as_str())
+                        && !pet.description.contains(query.as_str())
+                        && !pet.brand.contains(query.as_str())
+                    {
                         return false;
                     }
                 }
@@ -203,20 +225,23 @@ fn PetShopDemo() -> Element {
             .cloned()
             .collect::<Vec<_>>()
     });
-    
+
     // 分页后的商品
     let paginated_pets = use_memo(move || {
         let filtered = filtered_pets();
         let start = ((*current_page_num.read() - 1) * *page_size.read()) as usize;
         let end = (start + *page_size.read() as usize).min(filtered.len());
-        filtered.iter().skip(start).take(end - start).cloned().collect::<Vec<_>>()
+        filtered
+            .iter()
+            .skip(start)
+            .take(end - start)
+            .cloned()
+            .collect::<Vec<_>>()
     });
-    
+
     // 购物车商品数量
-    let cart_count = use_memo(move || {
-        cart.read().iter().map(|item| item.quantity).sum::<u32>()
-    });
-    
+    let cart_count = use_memo(move || cart.read().iter().map(|item| item.quantity).sum::<u32>());
+
     rsx! {
         Layout {
             style: "min-height: 100vh; background: #f7f7f8;",
@@ -243,7 +268,7 @@ fn PetShopDemo() -> Element {
                             "Pet Shop"
                         }
                     }
-                    
+
                     // 搜索框
                     div {
                         style: "flex: 1; max-width: 600px; margin: 0 24px;",
@@ -266,7 +291,7 @@ fn PetShopDemo() -> Element {
                             },
                         }
                     }
-                    
+
                     // 导航菜单和购物车
                     div {
                         style: "display: flex; align-items: center; gap: 20px;",
@@ -308,7 +333,7 @@ fn PetShopDemo() -> Element {
                     }
                 }
             }
-            
+
             Content {
                 style: "min-height: calc(100vh - 64px - 80px); background: #f7f7f8;",
                 if *current_page.read() == "home" {
@@ -441,7 +466,7 @@ fn PetShopDemo() -> Element {
                     }
                 }
             }
-            
+
             Footer {
                 style: "text-align: center; padding: 32px 24px; background: #ffffff; border-top: 1px solid rgba(0, 0, 0, 0.06); color: #8e8ea0; margin-top: 64px;",
                 div {
@@ -450,7 +475,7 @@ fn PetShopDemo() -> Element {
                 }
             }
         }
-        
+
         // 筛选抽屉
         FilterDrawer {
             open: *filter_drawer_open.read(),
@@ -459,7 +484,7 @@ fn PetShopDemo() -> Element {
                 move |_| open.set(false)
             },
         }
-        
+
         // 返回顶部按钮
         BackTop {}
     }
@@ -484,20 +509,23 @@ struct HomePageProps {
 #[component]
 fn HomePage(props: HomePageProps) -> Element {
     let categories = vec!["全部", "狗", "猫", "鸟", "鱼", "兔子"];
-    let category_options = categories.iter().map(|cat| {
-        SegmentedOption {
+    let category_options = categories
+        .iter()
+        .map(|cat| SegmentedOption {
             label: cat.to_string(),
             value: cat.to_string(),
             icon: None,
             tooltip: None,
             disabled: false,
-        }
-    }).collect::<Vec<_>>();
-    
-    let selected_cat_value = props.selected_category.as_ref()
+        })
+        .collect::<Vec<_>>();
+
+    let selected_cat_value = props
+        .selected_category
+        .as_ref()
         .map(|s| s.clone())
         .unwrap_or_else(|| "全部".to_string());
-    
+
     rsx! {
         div {
             style: "max-width: 1200px; margin: 0 auto; padding: 40px 24px;",
@@ -515,7 +543,7 @@ fn HomePage(props: HomePageProps) -> Element {
                     effect: CarouselEffect::Fade,
                 }
             }
-            
+
             // 分类导航
             div {
                 style: "margin-bottom: 40px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;",
@@ -544,7 +572,7 @@ fn HomePage(props: HomePageProps) -> Element {
                     "筛选"
                 }
             }
-            
+
             // 商品网格
             if props.pets.is_empty() {
                 Empty {
@@ -587,7 +615,7 @@ fn HomePage(props: HomePageProps) -> Element {
                         })
                     }
                 }
-                
+
                 // 分页
                 if props.total > props.page_size {
                     div {
@@ -733,11 +761,14 @@ fn ProductDetailPage(props: ProductDetailPageProps) -> Element {
     let quantity = use_signal(|| 1u32);
     let preview_visible = use_signal(|| false);
     let mut preview_current = use_signal(|| 0usize);
-    
-    let preview_items: Vec<ImagePreviewItem> = props.pet.images.iter()
+
+    let preview_items: Vec<ImagePreviewItem> = props
+        .pet
+        .images
+        .iter()
         .map(|url| ImagePreviewItem::new(url.clone()).with_alt(props.pet.name.clone()))
         .collect();
-    
+
     rsx! {
         div {
             style: "max-width: 1200px; margin: 0 auto; padding: 40px 24px; background: #f7f7f8; min-height: calc(100vh - 64px - 80px);",
@@ -751,7 +782,7 @@ fn ProductDetailPage(props: ProductDetailPageProps) -> Element {
                     "返回"
                 }
             }
-            
+
             Row {
                 gutter: Some(24.0),
                 Col {
@@ -924,7 +955,7 @@ fn ProductDetailPage(props: ProductDetailPageProps) -> Element {
                     }
                 }
             }
-            
+
             // 商品详情标签页
             div {
                 style: "margin-top: 48px;",
@@ -990,7 +1021,7 @@ fn ProductDetailPage(props: ProductDetailPageProps) -> Element {
                     ],
                 }
             }
-            
+
             // 图片预览组
             ImagePreviewGroup {
                 items: preview_items,
@@ -1020,14 +1051,14 @@ struct ShoppingCartPageProps {
 
 #[component]
 fn ShoppingCartPage(props: ShoppingCartPageProps) -> Element {
-    let total_price = props.cart.iter()
+    let total_price = props
+        .cart
+        .iter()
         .map(|item| item.pet.price * item.quantity as f64)
         .sum::<f64>();
-    
-    let total_count = props.cart.iter()
-        .map(|item| item.quantity)
-        .sum::<u32>();
-    
+
+    let total_count = props.cart.iter().map(|item| item.quantity).sum::<u32>();
+
     if props.cart.is_empty() {
         return rsx! {
             div {
@@ -1039,7 +1070,7 @@ fn ShoppingCartPage(props: ShoppingCartPageProps) -> Element {
             }
         };
     }
-    
+
     rsx! {
         div {
             style: "max-width: 1200px; margin: 0 auto; padding: 40px 24px; background: #f7f7f8; min-height: calc(100vh - 64px - 80px);",
@@ -1048,7 +1079,7 @@ fn ShoppingCartPage(props: ShoppingCartPageProps) -> Element {
                 style: "margin-bottom: 32px; font-weight: 500; color: #202123; font-size: 24px;",
                 "购物车"
             }
-            
+
             Row {
                 gutter: Some(24.0),
                 Col {
@@ -1192,18 +1223,20 @@ fn CheckoutPage(props: CheckoutPageProps) -> Element {
     let current_step = use_signal(|| 0u32);
     let delivery_method = use_signal(|| Some("standard".to_string()));
     let payment_method = use_signal(|| Some("alipay".to_string()));
-    
-    let total_price = props.cart.iter()
+
+    let total_price = props
+        .cart
+        .iter()
         .map(|item| item.pet.price * item.quantity as f64)
         .sum::<f64>();
-    
+
     let steps = vec![
         StepItem::new("confirm", rsx!("确认订单")),
         StepItem::new("delivery", rsx!("选择配送")),
         StepItem::new("payment", rsx!("支付方式")),
         StepItem::new("complete", rsx!("完成")),
     ];
-    
+
     rsx! {
         div {
             style: "max-width: 900px; margin: 0 auto; padding: 40px 24px; background: #f7f7f8; min-height: calc(100vh - 64px - 80px);",
@@ -1212,13 +1245,13 @@ fn CheckoutPage(props: CheckoutPageProps) -> Element {
                 style: "margin-bottom: 40px; font-weight: 500; color: #202123; font-size: 24px;",
                 "结算"
             }
-            
+
             Steps {
                 current: Some(*current_step.read() as usize),
                 items: steps,
                 direction: StepsDirection::Horizontal,
             }
-            
+
             div {
                 style: "margin: 32px 0;",
                 if *current_step.read() == 0 {
@@ -1419,9 +1452,15 @@ fn FilterDrawer(props: FilterDrawerProps) -> Element {
     let price_range = use_signal(|| vec![0.0, 1000.0]);
     let selected_brands = use_signal(|| Vec::<String>::new());
     let min_rating = use_signal(|| None::<f64>);
-    
-    let brands = vec!["PetLove", "HappyPaws", "FurryFriends", "PetParadise", "AnimalKingdom"];
-    
+
+    let brands = vec![
+        "PetLove",
+        "HappyPaws",
+        "FurryFriends",
+        "PetParadise",
+        "AnimalKingdom",
+    ];
+
     rsx! {
         Drawer {
             open: props.open,
@@ -1461,9 +1500,9 @@ fn FilterDrawer(props: FilterDrawerProps) -> Element {
                             }
                         }
                     }
-                    
+
                     Divider {}
-                    
+
                     div {
                         style: "display: flex; flex-direction: column; gap: 12px;",
                         Text {
@@ -1484,9 +1523,9 @@ fn FilterDrawer(props: FilterDrawerProps) -> Element {
                             }
                         }
                     }
-                    
+
                     Divider {}
-                    
+
                     div {
                         style: "display: flex; flex-direction: column; gap: 12px;",
                         Text {
@@ -1501,7 +1540,7 @@ fn FilterDrawer(props: FilterDrawerProps) -> Element {
                             },
                         }
                     }
-                    
+
                     div {
                         style: "display: flex; gap: 8px; margin-top: 24px;",
                         div {
@@ -1535,4 +1574,3 @@ fn FilterDrawer(props: FilterDrawerProps) -> Element {
         }
     }
 }
-

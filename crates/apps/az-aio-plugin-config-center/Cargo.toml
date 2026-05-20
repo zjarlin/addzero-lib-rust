@@ -1,0 +1,22 @@
+[package]
+name = "az-aio-plugin-config-center"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+az-ai-agent.workspace = true
+az-assets.workspace = true
+az-desktop-plugin.workspace = true
+az-desktop-plugin-registry.workspace = true
+gpui.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

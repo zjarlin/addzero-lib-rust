@@ -1,45 +1,42 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cmp::Reverse, collections::BTreeMap, sync::Arc};
 
 use anyhow::Result;
-use az_config_center_contract::{
-    DEFAULT_SHELL_OUTPUT_PATH, ShellComponentBuildRequest, ShellComponentBuildResult,
-    ShellComponentKind, ShellComponentPatch, ShellComponentRegistry, ShellComponentUpsert,
+use az_desktop_plugin::{
+    DesktopBranchRegistration, DesktopEvent, DesktopExecContext, DesktopHostRegistry,
+    DesktopInitContext, DesktopPageRegistration, DesktopPageRole, DesktopPlugin,
+    DesktopRenderLayer, DesktopShellSnapshot, DesktopViewContext, EventPropagation,
 };
+use az_desktop_plugin_registry::load_plugins;
 use gpui::{
-    App, Application, Bounds, Context, Entity, IntoElement, Render, SharedString, Subscription,
-    Window, WindowBounds, WindowOptions, div, prelude::*, px, size,
+    App, Application, Bounds, Context, IntoElement, Render, SharedString, Window, WindowBounds,
+    WindowOptions, div, prelude::*, px, rgb, size,
 };
 use gpui_component::{
     ActiveTheme as _, Root, Selectable as _, Theme, ThemeMode,
     button::{Button, ButtonVariants as _},
-    input::{Input, InputEvent, InputState},
-    switch::Switch,
+    scroll::ScrollableElement as _,
 };
-use rust_i18n::t;
 
-use crate::{DEFAULT_LOCALE, embedded_backend::DesktopRuntime};
+use crate::host_services::InProcessHostServices;
+
+const DASHBOARD_ROUTE: &str = "/";
 
 pub fn run() -> Result<()> {
-    let runtime = DesktopRuntime::start()?;
-    let runtime = Rc::new(RefCell::new(Some(runtime)));
+    let services = Arc::new(InProcessHostServices::new()?);
 
     Application::new().run(move |cx: &mut App| {
         gpui_component::init(cx);
         Theme::change(ThemeMode::Light, None, cx);
-        rust_i18n::set_locale(DEFAULT_LOCALE);
-        let runtime = runtime.clone();
-        let bounds = Bounds::centered(None, size(px(1440.), px(920.)), cx);
+        let services = services.clone();
+        let bounds = Bounds::centered(None, size(px(1520.), px(960.)), cx);
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
                 ..Default::default()
             },
             move |window, cx| {
-                let runtime = runtime
-                    .borrow_mut()
-                    .take()
-                    .expect("desktop runtime should only initialize once");
-                let view = cx.new(|cx| ConfigCenterApp::new(runtime, window, cx));
+                let services = services.clone();
+                let view = cx.new(|cx| DesktopHostApp::new(services, window, cx));
                 cx.new(|cx| Root::new(view, window, cx))
             },
         )
@@ -50,813 +47,560 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
-struct ConfigCenterApp {
-    runtime: DesktopRuntime,
-    locale: AppLocale,
-    registry: ShellComponentRegistry,
-    draft: ShellComponentUpsert,
-    selected_name: Option<String>,
-    preview_result: Option<ShellComponentBuildResult>,
+struct DesktopHostApp {
+    services: Arc<InProcessHostServices>,
+    registry: DesktopHostRegistry,
+    plugins: Vec<Box<DesktopPlugin>>,
+    plugin_indices: BTreeMap<String, usize>,
+    current_route: String,
+    selected_entity: Option<String>,
     notice: String,
-    name_input: Entity<InputState>,
-    summary_input: Entity<InputState>,
-    value_input: Entity<InputState>,
-    command_input: Entity<InputState>,
-    body_input: Entity<InputState>,
-    output_path_input: Entity<InputState>,
-    preview_input: Entity<InputState>,
-    subscriptions: Vec<Subscription>,
 }
 
-impl ConfigCenterApp {
-    fn new(runtime: DesktopRuntime, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let name_input = cx.new(|cx| InputState::new(window, cx));
-        let summary_input = cx.new(|cx| InputState::new(window, cx));
-        let value_input = cx.new(|cx| InputState::new(window, cx));
-        let command_input = cx.new(|cx| InputState::new(window, cx));
-        let body_input = cx.new(|cx| InputState::new(window, cx).multi_line(true));
-        let output_path_input =
-            cx.new(|cx| InputState::new(window, cx).default_value(DEFAULT_SHELL_OUTPUT_PATH));
-        let preview_input = cx.new(|cx| InputState::new(window, cx).multi_line(true));
+impl DesktopHostApp {
+    fn new(
+        services: Arc<InProcessHostServices>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let mut plugins = load_plugins();
+        let mut init_ctx = DesktopInitContext::new();
+        for plugin in &mut plugins {
+            init_ctx.set_current_plugin(plugin.name());
+            plugin.setup(&mut init_ctx);
+        }
+        let registry = DesktopHostRegistry::from(init_ctx.into_contributions());
+        let plugin_indices = plugins
+            .iter()
+            .enumerate()
+            .map(|(index, plugin)| (plugin.name().to_string(), index))
+            .collect::<BTreeMap<_, _>>();
 
         let mut app = Self {
-            runtime,
-            locale: AppLocale::default(),
-            registry: ShellComponentRegistry::default(),
-            draft: blank_draft(),
-            selected_name: None,
-            preview_result: None,
-            notice: String::new(),
-            name_input,
-            summary_input,
-            value_input,
-            command_input,
-            body_input,
-            output_path_input,
-            preview_input,
-            subscriptions: Vec::new(),
+            services,
+            registry,
+            plugins,
+            plugin_indices,
+            current_route: DASHBOARD_ROUTE.to_string(),
+            selected_entity: None,
+            notice: "AIO desktop plugin host ready.".to_string(),
         };
-        app.install_input_subscriptions(cx);
-        app.reload_registry(window, cx);
+        app.dispatch_event(DesktopEvent::Startup, cx);
+        app.dispatch_event(DesktopEvent::RefreshRequested { route: None }, cx);
         app
     }
 
-    fn install_input_subscriptions(&mut self, cx: &mut Context<Self>) {
-        self.subscriptions.push(cx.subscribe(
-            &self.name_input,
-            |this, input, event: &InputEvent, cx| {
-                if matches!(event, InputEvent::Change) {
-                    this.draft.name = input.read(cx).value().to_string();
-                    cx.notify();
-                }
-            },
-        ));
-        self.subscriptions.push(cx.subscribe(
-            &self.summary_input,
-            |this, input, event: &InputEvent, cx| {
-                if matches!(event, InputEvent::Change) {
-                    this.draft.summary = input.read(cx).value().to_string();
-                    cx.notify();
-                }
-            },
-        ));
-        self.subscriptions.push(cx.subscribe(
-            &self.value_input,
-            |this, input, event: &InputEvent, cx| {
-                if matches!(event, InputEvent::Change) {
-                    this.draft.export_value = into_optional_string(input.read(cx).value());
-                    cx.notify();
-                }
-            },
-        ));
-        self.subscriptions.push(cx.subscribe(
-            &self.command_input,
-            |this, input, event: &InputEvent, cx| {
-                if matches!(event, InputEvent::Change) {
-                    this.draft.alias_command = into_optional_string(input.read(cx).value());
-                    cx.notify();
-                }
-            },
-        ));
-        self.subscriptions.push(cx.subscribe(
-            &self.body_input,
-            |this, input, event: &InputEvent, cx| {
-                if matches!(event, InputEvent::Change) {
-                    this.draft.body = into_optional_string(input.read(cx).value());
-                    cx.notify();
-                }
-            },
-        ));
-    }
-
-    fn reload_registry(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        match self.runtime.client().list_shell_components() {
-            Ok(registry) => {
-                let selected_name = self
-                    .selected_name
-                    .clone()
-                    .filter(|name| {
-                        registry
-                            .components
-                            .iter()
-                            .any(|component| component.name == *name)
-                    })
-                    .or_else(|| {
-                        registry
-                            .components
-                            .first()
-                            .map(|component| component.name.clone())
-                    });
-                let output_path = registry.build.output_path.clone();
-                self.registry = registry;
-                self.notice = t!(
-                    "notice.connected",
-                    base_url = self.runtime.base_url().to_string()
-                )
-                .to_string();
-                self.set_input_value(&self.output_path_input, output_path, window, cx);
-                if let Some(selected_name) = selected_name {
-                    self.select_component(selected_name, window, cx);
-                } else {
-                    self.reset_draft(window, cx);
-                }
-            }
-            Err(err) => {
-                self.notice = err.to_string();
-            }
+    fn shell_snapshot(&self) -> DesktopShellSnapshot {
+        let page = self.registry.page_for_route(&self.current_route);
+        DesktopShellSnapshot {
+            current_route: self.current_route.clone(),
+            current_domain_id: page.map(|page| page.domain_id.clone()),
+            current_page_id: page.map(|page| page.id.clone()),
+            selected_entity: self.selected_entity.clone(),
+            notice: (!self.notice.trim().is_empty()).then(|| self.notice.clone()),
         }
     }
 
-    fn select_component(&mut self, name: String, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(component) = self
-            .registry
-            .components
-            .iter()
-            .find(|component| component.name == name)
-            .cloned()
-        else {
+    fn navigate_to(&mut self, route: impl Into<String>, cx: &mut Context<Self>) {
+        let route = route.into();
+        if self.current_route == route {
+            self.dispatch_event(
+                DesktopEvent::RefreshRequested {
+                    route: Some(route.clone()),
+                },
+                cx,
+            );
             return;
+        }
+
+        self.current_route = route.clone();
+        self.dispatch_event(DesktopEvent::RouteChanged { route }, cx);
+    }
+
+    fn dispatch_event(&mut self, event: DesktopEvent, cx: &mut Context<Self>) {
+        let event_route = match &event {
+            DesktopEvent::ActionInvoked { route, .. } => Some(route.clone()),
+            DesktopEvent::RefreshRequested { route } => route.clone(),
+            DesktopEvent::RouteChanged { route } => Some(route.clone()),
+            DesktopEvent::SelectionChanged { route, .. } => Some(route.clone()),
+            _ => Some(self.current_route.clone()),
         };
-        self.selected_name = Some(component.name.clone());
-        self.draft = ShellComponentUpsert {
-            name: component.name.clone(),
-            kind: component.kind,
-            summary: component.summary.clone(),
-            enabled: component.enabled,
-            render_to_output: component.render_to_output,
-            export_value: component.export_value.clone(),
-            alias_command: component.alias_command.clone(),
-            body: component.body.clone(),
-        };
-        self.sync_editor_inputs(window, cx);
-        self.set_preview_text(component.preview, window, cx);
-        cx.notify();
-    }
+        let targets = self.event_targets(event_route.as_deref());
+        let services: Arc<dyn az_desktop_plugin::DesktopHostServices> = self.services.clone();
+        let shell = self.shell_snapshot();
+        let (exec_ctx, feedback) = DesktopExecContext::new(services, shell);
 
-    fn reset_draft(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.selected_name = None;
-        self.draft = blank_draft();
-        self.sync_editor_inputs(window, cx);
-        self.set_preview_text(String::new(), window, cx);
-        cx.notify();
-    }
-
-    fn sync_editor_inputs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.set_input_value(&self.name_input, self.draft.name.clone(), window, cx);
-        self.set_input_value(&self.summary_input, self.draft.summary.clone(), window, cx);
-        self.set_input_value(
-            &self.value_input,
-            self.draft.export_value.clone().unwrap_or_default(),
-            window,
-            cx,
-        );
-        self.set_input_value(
-            &self.command_input,
-            self.draft.alias_command.clone().unwrap_or_default(),
-            window,
-            cx,
-        );
-        self.set_input_value(
-            &self.body_input,
-            self.draft.body.clone().unwrap_or_default(),
-            window,
-            cx,
-        );
-    }
-
-    fn set_input_value(
-        &self,
-        input: &Entity<InputState>,
-        value: impl Into<SharedString>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let value = value.into();
-        input.update(cx, |state, cx| state.set_value(value.clone(), window, cx));
-    }
-
-    fn set_preview_text(&self, value: String, window: &mut Window, cx: &mut Context<Self>) {
-        self.preview_input
-            .update(cx, |state, cx| state.set_value(value, window, cx));
-    }
-
-    fn save_component(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        match self.runtime.client().upsert_shell_component(&self.draft) {
-            Ok(component) => {
-                self.notice =
-                    t!("notice.component_saved", name = component.name.as_str()).to_string();
-                self.selected_name = Some(component.name.clone());
-                self.reload_registry(window, cx);
-                self.select_component(component.name, window, cx);
-            }
-            Err(err) => {
-                self.notice = err.to_string();
+        for index in targets {
+            let mut ctx = exec_ctx.clone();
+            let propagation = self.plugins[index].on_event(&event, &mut ctx);
+            if propagation == EventPropagation::Stop {
+                break;
             }
         }
+
+        let feedback = feedback.borrow().clone();
+        if let Some(notice) = feedback.notice {
+            self.notice = notice;
+        }
+        if let Some(selected_entity) = feedback.selected_entity {
+            self.selected_entity = selected_entity;
+        }
+        if let Some(route) = feedback.route_override {
+            self.navigate_to(route, cx);
+            return;
+        }
+        if feedback.refresh_requested {
+            self.dispatch_event(
+                DesktopEvent::RefreshRequested {
+                    route: Some(self.current_route.clone()),
+                },
+                cx,
+            );
+            return;
+        }
+        cx.notify();
     }
 
-    fn delete_selected(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(name) = self.selected_name.clone() else {
-            self.notice = t!("notice.select_before_delete").to_string();
-            return;
-        };
-        match self
-            .runtime
-            .client()
-            .remove_shell_component(&az_config_center_contract::ShellComponentRemove { name })
+    fn event_targets(&self, route: Option<&str>) -> Vec<usize> {
+        let mut targets = Vec::new();
+        if let Some(route) = route {
+            let owners = self
+                .registry
+                .plugins_for_route(route, DesktopPageRole::Owner);
+            for plugin_name in owners {
+                self.push_plugin_target(&plugin_name, &mut targets);
+            }
+
+            let contributors = self
+                .registry
+                .plugins_for_route(route, DesktopPageRole::Contributor);
+            for plugin_name in contributors {
+                self.push_plugin_target(&plugin_name, &mut targets);
+            }
+        }
+
+        for (name, index) in &self.plugin_indices {
+            if !targets.contains(index)
+                && self.plugins[*index].render_layer() == DesktopRenderLayer::Overlay
+            {
+                let _ = name;
+                targets.push(*index);
+            }
+        }
+
+        targets.sort_by_key(|index| Reverse(self.plugins[*index].priority()));
+        targets
+    }
+
+    fn push_plugin_target(&self, plugin_name: &str, targets: &mut Vec<usize>) {
+        if let Some(index) = self.plugin_indices.get(plugin_name).copied()
+            && !targets.contains(&index)
         {
-            Ok(component) => {
-                self.notice =
-                    t!("notice.component_removed", name = component.name.as_str()).to_string();
-                self.reload_registry(window, cx);
-            }
-            Err(err) => {
-                self.notice = err.to_string();
-            }
+            targets.push(index);
         }
     }
 
-    fn save_output_path(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        let output_path = self.output_path_input.read(cx).value().to_string();
-        match self.runtime.client().save_shell_component_config(
-            &az_config_center_contract::ShellComponentConfigUpdate {
-                output_path: Some(output_path.clone()),
-            },
-        ) {
-            Ok(registry) => {
-                self.registry = registry;
-                self.notice = t!("notice.output_path_saved", path = output_path.trim()).to_string();
-            }
-            Err(err) => {
-                self.notice = err.to_string();
-            }
-        }
-    }
-
-    fn preview_build(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.run_build(false, window, cx);
-    }
-
-    fn apply_build(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.run_build(true, window, cx);
-    }
-
-    fn run_build(&mut self, write: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let output_path = self.output_path_input.read(cx).value().to_string();
-        match self
-            .runtime
-            .client()
-            .build_shell_components(&ShellComponentBuildRequest {
-                output_path: into_optional_string(output_path.into()),
-                write,
-            }) {
-            Ok(result) => {
-                self.notice = if write {
-                    t!("notice.output_applied", path = result.output_path.as_str()).to_string()
-                } else {
-                    t!(
-                        "notice.preview_ready",
-                        count = result.included_components.to_string()
-                    )
-                    .to_string()
-                };
-                self.preview_result = Some(result.clone());
-                self.set_preview_text(result.content.clone(), window, cx);
-            }
-            Err(err) => {
-                self.notice = err.to_string();
-            }
-        }
-    }
-
-    fn patch_flags(
-        &mut self,
-        enabled: Option<bool>,
-        render_to_output: Option<bool>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if let Some(value) = enabled {
-            self.draft.enabled = value;
-        }
-        if let Some(value) = render_to_output {
-            self.draft.render_to_output = value;
-        }
-
-        let Some(name) = self.selected_name.clone() else {
-            cx.notify();
-            return;
+    fn render_topbar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = cx.theme().clone();
+        let dashboard_button = if self.current_route == DASHBOARD_ROUTE {
+            Button::new("dashboard-route")
+                .label("Dashboard")
+                .selected(true)
+                .primary()
+        } else {
+            Button::new("dashboard-route")
+                .label("Dashboard")
+                .selected(false)
+                .ghost()
         };
-
-        match self
-            .runtime
-            .client()
-            .patch_shell_component(&ShellComponentPatch {
-                name,
-                summary: None,
-                enabled,
-                render_to_output,
-            }) {
-            Ok(component) => {
-                self.notice = t!(
-                    "notice.component_flags_updated",
-                    name = component.name.as_str()
-                )
-                .to_string();
-                self.reload_registry(window, cx);
-                self.select_component(component.name, window, cx);
-            }
-            Err(err) => {
-                self.notice = err.to_string();
-            }
-        }
-    }
-
-    fn switch_locale(&mut self, locale: AppLocale, cx: &mut Context<Self>) {
-        self.locale = locale;
-        rust_i18n::set_locale(locale.code());
-        self.notice = t!("notice.locale_switched", language = locale.native_name()).to_string();
-        cx.notify();
-    }
-
-    fn render_locale_picker(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
-            .gap_2()
-            .children(AppLocale::ALL.into_iter().map(|locale| {
-                let is_selected = self.locale == locale;
-                Button::new(("locale", locale.id()))
-                    .label(locale.native_name())
-                    .selected(is_selected)
-                    .when(is_selected, |button| button.primary())
-                    .when(!is_selected, |button| button.ghost())
-                    .on_click(cx.listener(move |this, _, _, cx| this.switch_locale(locale, cx)))
+            .items_center()
+            .gap_3()
+            .px_4()
+            .py_3()
+            .border_b_1()
+            .border_color(theme.border)
+            .bg(theme.background)
+            .child(dashboard_button.on_click(
+                cx.listener(|this, _, _, cx| this.navigate_to(DASHBOARD_ROUTE.to_string(), cx)),
+            ))
+            .children(self.registry.domains().iter().map(|domain| {
+                let active = self
+                    .registry
+                    .domain_for_route(&self.current_route)
+                    .is_some_and(|current| current.id == domain.id);
+                let route = domain.default_route.clone();
+                let button = if active {
+                    Button::new(SharedString::from(format!("domain-{}", domain.id)))
+                        .label(domain.label.clone())
+                        .selected(true)
+                        .primary()
+                } else {
+                    Button::new(SharedString::from(format!("domain-{}", domain.id)))
+                        .label(domain.label.clone())
+                        .selected(false)
+                        .ghost()
+                };
+                button.on_click(
+                    cx.listener(move |this, _, _, cx| this.navigate_to(route.clone(), cx)),
+                )
             }))
     }
 
-    fn render_toolbar(&self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_toolbar(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
+        let page_title = self
+            .registry
+            .page_for_route(&self.current_route)
+            .map(|page| page.title.clone())
+            .unwrap_or_else(|| "Host Dashboard".to_string());
+        let page_subtitle = self
+            .registry
+            .page_for_route(&self.current_route)
+            .map(|page| page.subtitle.clone())
+            .unwrap_or_else(|| "Plugin summary cards and route hub".to_string());
+
         div()
             .flex()
-            .gap_3()
             .items_center()
+            .justify_between()
             .px_4()
             .py_3()
             .border_b_1()
             .border_color(theme.border)
             .bg(theme.background)
             .child(
-                div()
-                    .text_sm()
-                    .text_color(theme.muted_foreground)
-                    .child(t!("toolbar.language").to_string()),
-            )
-            .child(self.render_locale_picker(cx))
-            .child(
-                div()
-                    .w(px(96.))
-                    .text_sm()
-                    .text_color(theme.muted_foreground)
-                    .child(t!("toolbar.output_path").to_string()),
-            )
-            .child(Input::new(&self.output_path_input).w_full())
-            .child(
-                Button::new("save-output-path")
-                    .label(t!("toolbar.save_path").to_string())
-                    .on_click(cx.listener(|this, _, window, cx| this.save_output_path(window, cx))),
+                div().flex().flex_col().gap_1().child(page_title).child(
+                    div()
+                        .text_sm()
+                        .text_color(theme.muted_foreground)
+                        .child(page_subtitle),
+                ),
             )
             .child(
-                Button::new("preview-build")
-                    .label(t!("toolbar.preview").to_string())
-                    .primary()
-                    .on_click(cx.listener(|this, _, window, cx| this.preview_build(window, cx))),
-            )
-            .child(
-                Button::new("apply-build")
-                    .label(t!("toolbar.apply_output").to_string())
-                    .success()
-                    .on_click(cx.listener(|this, _, window, cx| this.apply_build(window, cx))),
+                div().flex().gap_2().children(
+                    self.registry
+                        .toolbar_actions_for_route(&self.current_route)
+                        .into_iter()
+                        .map(|action| {
+                            let action_id = action.action_id.clone();
+                            let route = self.current_route.clone();
+                            let button = Button::new(SharedString::from(format!(
+                                "toolbar-action-{action_id}"
+                            )))
+                            .label(action.label.clone())
+                            .selected(false);
+                            let button = if action.primary {
+                                button.primary()
+                            } else {
+                                button.ghost()
+                            };
+                            button.on_click(cx.listener(move |this, _, _, cx| {
+                                this.dispatch_event(
+                                    DesktopEvent::ActionInvoked {
+                                        route: route.clone(),
+                                        action_id: action_id.clone(),
+                                    },
+                                    cx,
+                                )
+                            }))
+                        }),
+                ),
             )
     }
 
-    fn render_component_list(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
-        let selected_name = self.selected_name.clone();
+        let domain_id = self
+            .registry
+            .domain_for_route(&self.current_route)
+            .map(|domain| domain.id.clone());
+
         div()
             .w(px(300.))
             .h_full()
             .flex()
             .flex_col()
+            .gap_3()
+            .p_4()
             .border_r_1()
             .border_color(theme.border)
             .bg(theme.sidebar)
             .child(
                 div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .px_4()
-                    .py_3()
-                    .border_b_1()
-                    .border_color(theme.sidebar_border)
-                    .child(t!("list.title").to_string())
-                    .child(
-                        div()
-                            .flex()
-                            .gap_2()
-                            .child(
-                                Button::new("new-component")
-                                    .label(t!("list.new").to_string())
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.reset_draft(window, cx)
-                                    })),
-                            )
-                            .child(
-                                Button::new("refresh-components")
-                                    .label(t!("list.refresh").to_string())
-                                    .ghost()
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.reload_registry(window, cx)
-                                    })),
-                            ),
-                    ),
+                    .text_sm()
+                    .text_color(theme.muted_foreground)
+                    .child("Context Tree"),
+            )
+            .when_some(domain_id.clone(), |sidebar, domain_id| {
+                sidebar.children(
+                    self.registry
+                        .root_branches_for_domain(&domain_id)
+                        .into_iter()
+                        .map(|branch| self.render_branch(branch, 0, cx)),
+                )
+            })
+            .when_some(domain_id, |sidebar, domain_id| {
+                let top_pages = self.registry.root_pages_for_domain(&domain_id);
+                sidebar.children(
+                    top_pages
+                        .into_iter()
+                        .map(|page| self.render_page_button(page, 0, cx)),
+                )
+            })
+    }
+
+    fn render_branch(
+        &self,
+        branch: &DesktopBranchRegistration,
+        depth: usize,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        div()
+            .flex()
+            .flex_col()
+            .gap_1()
+            .child(
+                div()
+                    .pl(px((depth as f32) * 12.0))
+                    .text_sm()
+                    .text_color(rgb(0x475467))
+                    .child(branch.label.clone()),
             )
             .children(
                 self.registry
-                    .components
-                    .iter()
-                    .enumerate()
-                    .map(|(index, component)| {
-                        let is_selected = selected_name.as_ref() == Some(&component.name);
-                        let name = component.name.clone();
-                        let subtitle = t!(
-                            "component.subtitle",
-                            kind = kind_label(component.kind),
-                            enabled = component_enabled_label(component.enabled),
-                            render = render_output_label(component.render_to_output)
-                        )
-                        .to_string();
-                        Button::new(("component", index))
-                            .ghost()
-                            .selected(is_selected)
-                            .w_full()
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                this.select_component(name.clone(), window, cx)
-                            }))
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .items_start()
-                                    .w_full()
-                                    .py_2()
-                                    .child(component.name.clone())
-                                    .child(
-                                        div()
-                                            .text_sm()
-                                            .text_color(theme.muted_foreground)
-                                            .child(subtitle),
-                                    ),
-                            )
-                    }),
+                    .pages_for_branch(&branch.id)
+                    .into_iter()
+                    .map(|page| self.render_page_button(page, depth + 1, cx)),
             )
+            .children(
+                self.registry
+                    .child_branches(&branch.id)
+                    .into_iter()
+                    .map(|child| self.render_branch(child, depth + 1, cx)),
+            )
+            .into_any_element()
     }
 
-    fn render_kind_picker(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .flex()
-            .gap_2()
-            .children(ShellComponentKind::ALL.into_iter().map(|kind| {
-                let is_selected = self.draft.kind == kind;
-                Button::new(kind.code())
-                    .label(kind_label(kind))
-                    .selected(is_selected)
-                    .when(is_selected, |button| button.primary())
-                    .when(!is_selected, |button| button.ghost())
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.draft.kind = kind;
-                        cx.notify();
-                    }))
-            }))
-    }
-
-    fn render_editor(&self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme().clone();
-        div()
-            .flex_1()
-            .h_full()
-            .flex()
-            .flex_col()
-            .bg(theme.background)
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .px_4()
-                    .py_3()
-                    .border_b_1()
-                    .border_color(theme.border)
-                    .child(t!("editor.title").to_string())
-                    .child(
-                        div()
-                            .flex()
-                            .gap_2()
-                            .child(
-                                Button::new("save-component")
-                                    .label(t!("editor.save").to_string())
-                                    .primary()
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.save_component(window, cx)
-                                    })),
-                            )
-                            .child(
-                                Button::new("delete-component")
-                                    .label(t!("editor.delete").to_string())
-                                    .danger()
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.delete_selected(window, cx)
-                                    })),
-                            ),
-                    ),
-            )
+    fn render_page_button(
+        &self,
+        page: &DesktopPageRegistration,
+        depth: usize,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        let route = page.route.clone();
+        let active = self.current_route == route;
+        Button::new(SharedString::from(format!("route-{route}")))
+            .w_full()
+            .ghost()
+            .selected(active)
+            .on_click(cx.listener(move |this, _, _, cx| this.navigate_to(route.clone(), cx)))
             .child(
                 div()
                     .flex()
                     .flex_col()
-                    .gap_3()
-                    .p_4()
-                    .child(field_row(
-                        t!("field.name").to_string(),
-                        Input::new(&self.name_input).w_full(),
-                    ))
-                    .child(field_row(
-                        t!("field.summary").to_string(),
-                        Input::new(&self.summary_input).w_full(),
-                    ))
-                    .child(field_row(
-                        t!("field.kind").to_string(),
-                        self.render_kind_picker(cx),
-                    ))
+                    .items_start()
+                    .pl(px((depth as f32) * 12.0))
+                    .py_2()
+                    .child(page.title.clone())
                     .child(
                         div()
-                            .flex()
-                            .gap_4()
-                            .items_center()
-                            .child(
-                                Switch::new("enabled-switch")
-                                    .checked(self.draft.enabled)
-                                    .label(t!("field.enabled").to_string())
-                                    .on_click(cx.listener(|this, checked: &bool, window, cx| {
-                                        this.patch_flags(Some(*checked), None, window, cx)
-                                    })),
-                            )
-                            .child(
-                                Switch::new("render-switch")
-                                    .checked(self.draft.render_to_output)
-                                    .label(t!("field.render_to_output").to_string())
-                                    .on_click(cx.listener(|this, checked: &bool, window, cx| {
-                                        this.patch_flags(None, Some(*checked), window, cx)
-                                    })),
-                            ),
-                    )
-                    .when(
-                        matches!(self.draft.kind, ShellComponentKind::Export),
-                        |this| {
-                            this.child(field_row(
-                                t!("field.export_value").to_string(),
-                                Input::new(&self.value_input).w_full(),
-                            ))
-                        },
-                    )
-                    .when(
-                        matches!(self.draft.kind, ShellComponentKind::Alias),
-                        |this| {
-                            this.child(field_row(
-                                t!("field.alias_command").to_string(),
-                                Input::new(&self.command_input).w_full(),
-                            ))
-                        },
-                    )
-                    .when(
-                        matches!(
-                            self.draft.kind,
-                            ShellComponentKind::Function | ShellComponentKind::Snippet
-                        ),
-                        |this| {
-                            this.child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .gap_2()
-                                    .child(
-                                        div()
-                                            .text_sm()
-                                            .text_color(theme.muted_foreground)
-                                            .child(t!("field.body").to_string()),
-                                    )
-                                    .child(
-                                        div()
-                                            .h(px(320.))
-                                            .child(Input::new(&self.body_input).h_full().w_full()),
-                                    ),
-                            )
-                        },
+                            .text_xs()
+                            .text_color(rgb(0x667085))
+                            .child(page.subtitle.clone()),
                     ),
             )
+            .into_any_element()
     }
 
-    fn render_preview(&self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme().clone();
+    fn render_dashboard(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
-            .w(px(480.))
-            .h_full()
+            .size_full()
+            .p_6()
             .flex()
             .flex_col()
-            .border_l_1()
-            .border_color(theme.border)
-            .bg(theme.background)
+            .gap_4()
             .child(
                 div()
                     .flex()
-                    .items_center()
-                    .justify_between()
-                    .px_4()
-                    .py_3()
-                    .border_b_1()
-                    .border_color(theme.border)
-                    .child(t!("preview.title").to_string())
+                    .flex_col()
+                    .gap_1()
+                    .child(div().text_xl().child("AIO Desktop"))
                     .child(
-                        div().text_sm().text_color(theme.muted_foreground).child(
-                            self.preview_result
-                                .as_ref()
-                                .map(|result| {
-                                    t!(
-                                        "preview.summary",
-                                        included = result.included_components.to_string(),
-                                        total = result.total_components.to_string()
-                                    )
-                                    .to_string()
-                                })
-                                .unwrap_or_else(|| t!("preview.empty").to_string()),
-                        ),
+                        div()
+                            .text_sm()
+                            .text_color(rgb(0x475467))
+                            .child("Host dashboard powered by plugin summary cards."),
                     ),
             )
-            .child(
-                div().flex_1().p_4().child(
-                    Input::new(&self.preview_input)
-                        .h_full()
-                        .w_full()
-                        .disabled(true)
-                        .selected(true),
-                ),
-            )
-            .child(
-                div()
-                    .px_4()
-                    .py_3()
-                    .border_t_1()
-                    .border_color(theme.border)
-                    .text_sm()
-                    .text_color(theme.muted_foreground)
-                    .child(self.notice.clone()),
-            )
+            .children(self.registry.summary_cards().iter().map(|card| {
+                let route = card.route.clone();
+                Button::new(SharedString::from(format!("summary-card-{}", card.card_id)))
+                    .w_full()
+                    .ghost()
+                    .on_click(
+                        cx.listener(move |this, _, _, cx| this.navigate_to(route.clone(), cx)),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .items_start()
+                            .gap_1()
+                            .w_full()
+                            .py_3()
+                            .child(card.title.clone())
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .text_color(rgb(0x475467))
+                                    .child(card.summary.clone()),
+                            )
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(rgb(0x667085))
+                                    .child(card.plugin_name.clone()),
+                            ),
+                    )
+            }))
     }
 }
 
-impl Render for ConfigCenterApp {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+impl Render for DesktopHostApp {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
+        let mut main_ctx = DesktopViewContext {
+            shell: self.shell_snapshot(),
+        };
+        let mut inspector_ctx = main_ctx.clone();
+        let mut overlay_ctx = main_ctx.clone();
+
+        let mut main_elements = self
+            .registry
+            .plugins_for_render_layer(
+                &self.current_route,
+                DesktopRenderLayer::Main,
+                &self.plugins,
+                &self.plugin_indices,
+            )
+            .into_iter()
+            .filter_map(|index| self.plugins[index].render(&mut main_ctx))
+            .collect::<Vec<_>>();
+
+        let inspector_elements = self
+            .registry
+            .plugins_for_render_layer(
+                &self.current_route,
+                DesktopRenderLayer::Inspector,
+                &self.plugins,
+                &self.plugin_indices,
+            )
+            .into_iter()
+            .filter_map(|index| self.plugins[index].render(&mut inspector_ctx))
+            .collect::<Vec<_>>();
+
+        let overlay_elements = self
+            .registry
+            .plugins_for_render_layer(
+                &self.current_route,
+                DesktopRenderLayer::Overlay,
+                &self.plugins,
+                &self.plugin_indices,
+            )
+            .into_iter()
+            .filter_map(|index| self.plugins[index].render(&mut overlay_ctx))
+            .collect::<Vec<_>>();
+
+        if self.current_route == DASHBOARD_ROUTE {
+            main_elements = vec![self.render_dashboard(cx).into_any_element()];
+        }
+
+        let page = self.registry.page_for_route(&self.current_route);
+
         div()
             .size_full()
             .bg(theme.background)
             .text_color(theme.foreground)
             .flex()
             .flex_col()
-            .child(self.render_toolbar(window, cx))
+            .child(self.render_topbar(cx))
+            .child(self.render_toolbar(cx))
             .child(
                 div()
                     .flex_1()
                     .size_full()
                     .flex()
-                    .child(self.render_component_list(cx))
-                    .child(self.render_editor(window, cx))
-                    .child(self.render_preview(window, cx)),
+                    .child(self.render_sidebar(cx))
+                    .child(
+                        div()
+                            .flex_1()
+                            .h_full()
+                            .overflow_y_scrollbar()
+                            .children(main_elements),
+                    )
+                    .child(
+                        div()
+                            .w(px(320.))
+                            .h_full()
+                            .flex()
+                            .flex_col()
+                            .gap_3()
+                            .p_4()
+                            .border_l_1()
+                            .border_color(theme.border)
+                            .bg(theme.background)
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .text_color(theme.muted_foreground)
+                                    .child("Inspector"),
+                            )
+                            .child(div().text_sm().child(format!(
+                                "Route: {}",
+                                if self.current_route == DASHBOARD_ROUTE {
+                                    "/"
+                                } else {
+                                    &self.current_route
+                                }
+                            )))
+                            .when_some(page, |panel, page| {
+                                panel.child(
+                                    div()
+                                        .text_sm()
+                                        .text_color(theme.muted_foreground)
+                                        .child(page.subtitle.clone()),
+                                )
+                            })
+                            .when_some(self.selected_entity.clone(), |panel, entity| {
+                                panel.child(
+                                    div()
+                                        .text_sm()
+                                        .text_color(theme.muted_foreground)
+                                        .child(format!("Selected: {entity}")),
+                                )
+                            })
+                            .children(inspector_elements),
+                    ),
             )
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-enum AppLocale {
-    #[default]
-    ZhCn,
-    En,
-}
-
-impl AppLocale {
-    const ALL: [Self; 2] = [Self::ZhCn, Self::En];
-
-    fn code(self) -> &'static str {
-        match self {
-            Self::ZhCn => "zh-CN",
-            Self::En => "en",
-        }
-    }
-
-    fn native_name(self) -> &'static str {
-        match self {
-            Self::ZhCn => "中文",
-            Self::En => "English",
-        }
-    }
-
-    fn id(self) -> u32 {
-        match self {
-            Self::ZhCn => 0,
-            Self::En => 1,
-        }
-    }
-}
-
-fn blank_draft() -> ShellComponentUpsert {
-    ShellComponentUpsert {
-        name: String::new(),
-        kind: ShellComponentKind::Snippet,
-        summary: String::new(),
-        enabled: true,
-        render_to_output: true,
-        export_value: None,
-        alias_command: None,
-        body: None,
-    }
-}
-
-fn field_row(label: impl Into<String>, element: impl IntoElement) -> impl IntoElement {
-    div()
-        .flex()
-        .items_center()
-        .gap_3()
-        .child(
-            div()
-                .w(px(120.))
-                .text_sm()
-                .text_color(gpui::rgb(0x667085))
-                .child(label.into()),
-        )
-        .child(div().flex_1().child(element))
-}
-
-fn into_optional_string(value: SharedString) -> Option<String> {
-    let value = value.to_string();
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
-    }
-}
-
-fn kind_label(kind: ShellComponentKind) -> String {
-    match kind {
-        ShellComponentKind::Export => t!("kind.export").to_string(),
-        ShellComponentKind::Alias => t!("kind.alias").to_string(),
-        ShellComponentKind::Function => t!("kind.function").to_string(),
-        ShellComponentKind::Snippet => t!("kind.snippet").to_string(),
-    }
-}
-
-fn component_enabled_label(enabled: bool) -> String {
-    if enabled {
-        t!("component.enabled").to_string()
-    } else {
-        t!("component.disabled").to_string()
-    }
-}
-
-fn render_output_label(render_to_output: bool) -> String {
-    if render_to_output {
-        t!("component.render_on").to_string()
-    } else {
-        t!("component.render_off").to_string()
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .px_4()
+                    .py_3()
+                    .border_t_1()
+                    .border_color(theme.border)
+                    .bg(theme.background)
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(theme.muted_foreground)
+                            .child(self.notice.clone()),
+                    )
+                    .children(overlay_elements),
+            )
     }
 }

@@ -36,16 +36,22 @@ use crate::services::{
     AiProviderConfigDto, AiProviderConfigUpsertDto, AssetGraphDto, AssetSyncReportDto,
     BootstrapDatabaseSaveResultDto, BootstrapDatabaseSetupDto, BootstrapPlatformSaveResultDto,
     BootstrapPlatformSetupDto, BootstrapStatusDto, BrandingSettingsDto, BrandingSettingsUpdate,
-    ChatRequestDto, ChatResponseDto, CloudflareTunnelStatusDto, FilterOptions,
-    KnowledgeEntryDeleteDto, KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto, KnowledgeFeedDto,
+    ChatRequestDto, ChatResponseDto, CloudflareTunnelStatusDto, ConfigLocalStatusDto,
+    DrivePathRequestDto, DriveSnapshotDto, FilterOptions, KnowledgeEntryDeleteDto,
+    KnowledgeEntryUpsertDto, KnowledgeExceptionCardDto, KnowledgeFeedDto,
     KnowledgeMaintenanceReportDto, KnowledgeNodeDetailDto, KnowledgeNodeSummaryDto,
     KnowledgeNoteDto, KnowledgeSourceRefDto, LogoUploadRequest, PlatformConfigDto,
-    PlatformConfigSaveResultDto, PostgresConfigUpdateDto, ResolveKnowledgeExceptionInput, SkillDto,
-    SkillSourceDto, SkillUpsertDto, StartVibeCodingRequestDto, StartVibeCodingResponseDto,
-    StoredLogoDto, SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto,
-    TerminalSessionListDto, TerminalSessionSnapshotDto,
+    PlatformConfigSaveResultDto, PostgresConfigUpdateDto, ProviderTestRequestDto,
+    ProviderTestResultDto, ResolveKnowledgeExceptionInput, SkillDto, SkillSourceDto,
+    SkillUpsertDto, StartVibeCodingRequestDto, StartVibeCodingResponseDto, StoredLogoDto,
+    SyncReportDto, TerminalSessionCreateDto, TerminalSessionInputDto, TerminalSessionListDto,
+    TerminalSessionSnapshotDto,
     download_station::{FileIndex, ScanStats, ShareLink},
     menu_system::{CreateMenuRequest, Menu, MenuTreeNode, Permission, UpdateMenuRequest},
+    software_catalog::{
+        SoftwareCatalogDto, SoftwareDraftInput, SoftwareEntryDto, SoftwareEntryInput,
+        SoftwareMetadataDto, SoftwareMetadataFetchInput,
+    },
 };
 
 use self::auth::AdminSessionService;
@@ -475,6 +481,41 @@ pub async fn run_api_server(options: ApiServerOptions) -> Result<()> {
             post(save_platform_postgres_config),
         )
         .route("/api/desktop/status", get(get_desktop_status))
+        .route("/api/aio/drive/snapshot", get(aio_drive_snapshot))
+        .route("/api/aio/drive/host", post(aio_drive_host))
+        .route("/api/aio/drive/unhost", post(aio_drive_unhost))
+        .route("/api/aio/drive/sync", post(aio_drive_sync))
+        .route("/api/aio/drive/retry-queue", post(aio_drive_retry_queue))
+        .route("/api/aio/drive/queue", get(aio_drive_queue))
+        .route("/api/aio/drive/conflicts", get(aio_drive_conflicts))
+        .route("/api/aio/drive/tracked-roots", get(aio_drive_tracked_roots))
+        .route("/api/aio/gateway/example", get(aio_gateway_example))
+        .route("/api/aio/gateway/run", post(aio_gateway_run))
+        .route("/api/aio/software/installers", get(aio_software_installers))
+        .route(
+            "/api/aio/software/installers/organize",
+            post(aio_software_organize_installers),
+        )
+        .route("/api/aio/config-local/status", get(aio_config_local_status))
+        .route(
+            "/api/aio/config-local/import-env-providers",
+            post(aio_config_import_env_providers),
+        )
+        .route(
+            "/api/aio/config-local/providers/test",
+            post(aio_config_test_provider),
+        )
+        .route("/api/software-catalog", get(software_catalog))
+        .route(
+            "/api/software-catalog/upsert",
+            post(software_catalog_upsert),
+        )
+        .route(
+            "/api/software-catalog/{id}",
+            axum::routing::delete(software_catalog_delete),
+        )
+        .route("/api/software-catalog/fetch", post(software_catalog_fetch))
+        .route("/api/software-catalog/draft", post(software_catalog_draft))
         .route("/api/shell-components", get(list_shell_components))
         .route("/api/shell-components/{name}", get(get_shell_component))
         .route("/api/shell-components/upsert", post(upsert_shell_component))
@@ -684,6 +725,14 @@ fn is_allowed_admin_origin(origin: &HeaderValue) -> bool {
                 .strip_prefix(prefix)
                 .is_some_and(is_valid_local_dev_port)
         })
+        || matches!(
+            origin,
+            "tauri://localhost"
+                | "http://tauri.localhost"
+                | "https://tauri.localhost"
+                | "http://localhost"
+                | "http://127.0.0.1"
+        )
 }
 
 fn is_valid_local_dev_port(port: &str) -> bool {
@@ -783,18 +832,24 @@ async fn get_branding_settings(headers: HeaderMap) -> ApiResult<Json<BrandingSet
     Ok(Json(settings))
 }
 
-async fn sync_assets(headers: HeaderMap) -> ApiResult<Json<AssetSyncReportDto>> {
+async fn sync_assets(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<AssetSyncReportDto>> {
     let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
+    ensure_desktop_or_admin_auth(&backend.admin_auth, &state, &headers)?;
     let report = crate::services::asset_graph::sync_assets_on_server()
         .await
         .map_err(|err| ApiError::bad_request(err.to_string()))?;
     Ok(Json(report))
 }
 
-async fn load_asset_graph(headers: HeaderMap) -> ApiResult<Json<AssetGraphDto>> {
+async fn load_asset_graph(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<AssetGraphDto>> {
     let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
+    ensure_desktop_or_admin_auth(&backend.admin_auth, &state, &headers)?;
     let graph = crate::services::asset_graph::load_asset_graph_on_server()
         .await
         .map_err(|err| ApiError::bad_request(err.to_string()))?;
@@ -851,6 +906,263 @@ async fn get_desktop_status(
         output_path: build.output_path,
         resolved_output_path: build.resolved_output_path,
     }))
+}
+
+async fn aio_drive_snapshot(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<DriveSnapshotDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let snapshot = crate::services::aio_desktop_contract::load_drive_snapshot_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(snapshot))
+}
+
+async fn aio_drive_host(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<DrivePathRequestDto>,
+) -> ApiResult<Json<crate::services::ActionResultDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let result = crate::services::aio_desktop_contract::drive_host_path_on_server(input.path)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn aio_drive_unhost(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<DrivePathRequestDto>,
+) -> ApiResult<Json<crate::services::ActionResultDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let result = crate::services::aio_desktop_contract::drive_unhost_path_on_server(input.path)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn aio_drive_sync(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<crate::services::ActionResultDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let result = crate::services::aio_desktop_contract::drive_sync_once_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn aio_drive_retry_queue(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<crate::services::ActionResultDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let result = crate::services::aio_desktop_contract::drive_retry_queue_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn aio_drive_queue(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<az_drive_store::DriveSyncQueueItem>>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let queue = crate::services::aio_desktop_contract::drive_queue_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(queue))
+}
+
+async fn aio_drive_conflicts(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<az_drive_store::DriveConflict>>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let conflicts = crate::services::aio_desktop_contract::drive_conflicts_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(conflicts))
+}
+
+async fn aio_drive_tracked_roots(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<az_drive_agent::TrackedItem>>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let tracked = crate::services::aio_desktop_contract::drive_tracked_roots_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(tracked))
+}
+
+async fn aio_gateway_example(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<az_aio_plugin_edge_gateway::gateway_runtime_types::GatewayRunRequest>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    Ok(Json(
+        crate::services::aio_desktop_contract::gateway_example_plan(),
+    ))
+}
+
+async fn aio_gateway_run(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<az_aio_plugin_edge_gateway::gateway_runtime_types::GatewayRunRequest>,
+) -> ApiResult<Json<az_aio_plugin_edge_gateway::gateway_runtime_types::GatewayRunResult>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let result = crate::services::aio_desktop_contract::run_gateway_plan_on_server(input)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn aio_software_installers(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<az_aio_plugin_software_center::installer_scanner::InstallerPackage>>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let installers = crate::services::aio_desktop_contract::scan_installers_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(installers))
+}
+
+async fn aio_software_organize_installers(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<az_aio_plugin_software_center::installer_scanner::InstallerPackage>>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let installers = crate::services::aio_desktop_contract::organize_installers_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(installers))
+}
+
+async fn aio_config_local_status(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<ConfigLocalStatusDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let status = crate::services::aio_desktop_contract::load_config_local_status_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(status))
+}
+
+async fn aio_config_import_env_providers(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<crate::services::ActionResultDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let result = crate::services::aio_desktop_contract::import_env_providers_on_server()
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn aio_config_test_provider(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<ProviderTestRequestDto>,
+) -> ApiResult<Json<ProviderTestResultDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let result = crate::services::aio_desktop_contract::test_provider_on_server(input.provider)
+        .await
+        .map_err(ApiError::bad_request)?;
+    Ok(Json(result))
+}
+
+async fn software_catalog(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+) -> ApiResult<Json<SoftwareCatalogDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let backend = services().await;
+    let service = backend
+        .software_catalog
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("software catalog backend unavailable"))?;
+    let catalog = service
+        .catalog()
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(catalog))
+}
+
+async fn software_catalog_upsert(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<SoftwareEntryInput>,
+) -> ApiResult<Json<SoftwareEntryDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let backend = services().await;
+    let service = backend
+        .software_catalog
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("software catalog backend unavailable"))?;
+    let entry = service
+        .save_entry(input)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(entry))
+}
+
+async fn software_catalog_delete(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> ApiResult<StatusCode> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let backend = services().await;
+    let service = backend
+        .software_catalog
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("software catalog backend unavailable"))?;
+    service
+        .delete_entry(&id)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn software_catalog_fetch(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<SoftwareMetadataFetchInput>,
+) -> ApiResult<Json<SoftwareMetadataDto>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let backend = services().await;
+    let service = backend
+        .software_catalog
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("software catalog backend unavailable"))?;
+    let metadata = service
+        .fetch_metadata(input)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(metadata))
+}
+
+async fn software_catalog_draft(
+    State(state): State<ServerState>,
+    headers: HeaderMap,
+    Json(input): Json<SoftwareDraftInput>,
+) -> ApiResult<Json<SoftwareEntryInput>> {
+    ensure_desktop_or_admin_auth(admin_auth(), &state, &headers)?;
+    let backend = services().await;
+    let service = backend
+        .software_catalog
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("software catalog backend unavailable"))?;
+    let draft = service
+        .build_draft(input)
+        .await
+        .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    Ok(Json(draft))
 }
 
 async fn list_shell_components(

@@ -1,5 +1,5 @@
-use adui_dioxus::{Theme, ThemeMode, theme::ThemeTokens};
 use adui_dioxus::components::config_provider::{ComponentSize, ConfigContextValue};
+use adui_dioxus::{Theme, ThemeMode, theme::ThemeTokens};
 
 #[test]
 fn default_theme_modes_resolve() {
