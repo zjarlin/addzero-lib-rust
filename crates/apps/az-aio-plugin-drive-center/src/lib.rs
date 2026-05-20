@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![doc = include_str!("../README.md")]
 
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopHostServices, DesktopInitContext, DesktopPlugin,

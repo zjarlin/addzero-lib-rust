@@ -1,5 +1,6 @@
 [package]
 name = "az-aio-plugin-config-center"
+description = "桌面端配置中心插件：Dotfiles 监控、设备配对、XDG 路径、AI 提供商配置与连通性测试"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

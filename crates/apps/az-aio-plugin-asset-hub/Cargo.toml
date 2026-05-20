@@ -1,5 +1,6 @@
 [package]
 name = "az-aio-plugin-asset-hub"
+description = "桌面端资产管理插件：资产浏览、Skill 扫描入库、Compose 种子及 subtype 元数据面板"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

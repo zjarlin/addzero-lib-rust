@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![doc = include_str!("../README.md")]
 
 pub mod dotfiles_monitor;
 pub mod dotfiles_monitor_diff;
