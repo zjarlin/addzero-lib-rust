@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+description = "独立网盘的元数据与对象存储抽象：DriveMetadataStore、DriveObjectStore 及同步协调器"
 
 [lints]
 workspace = true
