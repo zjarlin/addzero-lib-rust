@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![doc = include_str!("../README.md")]
 
 use std::{cell::RefCell, cmp::Reverse, collections::BTreeMap, rc::Rc, sync::Arc};
 

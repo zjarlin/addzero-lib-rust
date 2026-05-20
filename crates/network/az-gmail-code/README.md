@@ -1,18 +1,18 @@
 # az-gmail-code
 
-Authorized Gmail API client for reading verification codes from Gmail mailboxes owned by the caller.
+通过 Gmail API 从调用者拥有的邮箱中读取验证码。
 
-This crate is not a bypass or third-party "receive SMS/code" service. It expects a Gmail OAuth access token for a mailbox the caller controls, then searches messages through the Gmail API and extracts short numeric verification codes from message bodies.
+本 crate 不是绕过验证的第三方"接码"服务。它需要一个调用者控制的 Gmail OAuth 访问令牌，通过 Gmail API 搜索邮件，并从邮件正文中提取短数字验证码。
 
-## Coordinate
+## 坐标
 
-Workspace crate:
+Workspace crate：
 
 ```toml
 az-gmail-code = { workspace = true }
 ```
 
-## Example
+## 示例
 
 ```rust,no_run
 use az_gmail_code::{GmailCodeClient, GmailCodeQuery};
@@ -34,15 +34,15 @@ if let Some(code) = code {
 # }
 ```
 
-## Runtime Constraints
+## 运行时约束
 
-- Requires Gmail API OAuth access to the target mailbox.
-- Uses Gmail's `users.messages.list` and `users.messages.get` endpoints.
-- Keep OAuth scopes as narrow as the workflow allows, normally `https://www.googleapis.com/auth/gmail.readonly`.
+- 需要目标邮箱的 Gmail API OAuth 访问权限。
+- 使用 Gmail 的 `users.messages.list` 和 `users.messages.get` 端点。
+- OAuth 作用域应尽可能窄，通常使用 `https://www.googleapis.com/auth/gmail.readonly`。
 
-## Getting a Gmail OAuth Access Token
+## 获取 Gmail OAuth 访问令牌
 
-OAuth is implemented separately in `az-oauth2` because it is not Gmail-specific.
+OAuth 在 `az-oauth2` 中独立实现，因为它不局限于 Gmail。
 
 ```rust,no_run
 use az_oauth2::{
@@ -74,3 +74,13 @@ let gmail = az_gmail_code::GmailCodeClient::new(token.require_access_token()?)?;
 # Ok(())
 # }
 ```
+
+## 依赖的 crates
+
+- `az-oauth2` — OAuth2 授权码和设备流程
+- `base64` — 邮件正文 Base64 解码
+- `regex` — 从邮件中提取验证码正则
+- `reqwest` — 调用 Gmail REST API
+- `serde` / `serde_json` — Gmail API JSON 响应反序列化
+- `thiserror` — 错误类型派生
+- `urlencoding` — Gmail 查询参数编码

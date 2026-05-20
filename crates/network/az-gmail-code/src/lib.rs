@@ -1,33 +1,5 @@
 #![forbid(unsafe_code)]
-//! Authorized Gmail API helpers for extracting verification codes from owned mailboxes.
-//!
-//! This crate wraps the Gmail `users.messages.list` and `users.messages.get` endpoints
-//! for the narrow use case of reading one-time verification codes from a mailbox the
-//! caller controls. Callers supply an OAuth access token; this crate does not perform
-//! login, account creation, or unauthorized mailbox access. Use `az-oauth2` for the
-//! standard OAuth2 authorization-code or device-flow steps.
-//!
-//! # Example
-//!
-//! ```no_run
-//! use az_gmail_code::{GmailCodeClient, GmailCodeQuery};
-//!
-//! # fn example() -> az_gmail_code::GmailCodeResult<()> {
-//! let client = GmailCodeClient::new("ya29.access-token")?;
-//! let code = client.find_latest_code(
-//!     GmailCodeQuery::new()
-//!         .from("security@example.com")
-//!         .subject("verification")
-//!         .newer_than("10m")
-//!         .unread(true),
-//! )?;
-//!
-//! if let Some(code) = code {
-//!     println!("{} from {}", code.code, code.message_id);
-//! }
-//! # Ok(())
-//! # }
-//! ```
+#![doc = include_str!("../README.md")]
 
 mod client;
 mod config;
