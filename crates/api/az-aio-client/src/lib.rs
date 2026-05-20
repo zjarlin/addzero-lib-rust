@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
 use az_config_center_contract::{

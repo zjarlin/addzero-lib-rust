@@ -1,9 +1,5 @@
+#![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
-//! Provider-neutral OAuth2 helpers for installed apps, CLI tools, and device flows.
-//!
-//! The crate intentionally keeps OAuth mechanics separate from product-specific
-//! clients. For Gmail verification-code reading, use [`GoogleOAuth2`] to obtain
-//! a `gmail.readonly` access token, then pass that token to `az-gmail-code`.
 
 mod client;
 mod config;
