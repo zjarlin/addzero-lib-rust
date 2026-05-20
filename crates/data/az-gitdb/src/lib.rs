@@ -1,17 +1,4 @@
-//! Multi-repository pooling for [`gitdb`].
-//!
-//! This crate wraps the upstream Git-backed SQL database with explicit node
-//! configuration, bounded per-node connection pools, and load-balancing
-//! strategies across multiple Git repositories.
-//!
-//! # Consistency boundary
-//!
-//! `az-gitdb` does not replicate data between Git repositories. Load balancing
-//! assumes the configured repositories are equivalent replicas, or that the
-//! caller deliberately treats them as independent shards. Use
-//! [`GitDbCluster::broadcast_execute`] for schema setup or other statements
-//! that must be applied to every node.
-
+#![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
 mod classify;
