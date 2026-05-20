@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+description = "AIO Desktop 后端 HTTP 客户端：Shell 组件注册表与桌面状态 API 的同步调用封装"
 
 [dependencies]
 az-config-center-contract.workspace = true

@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+description = "AIO Desktop 配置中心契约层：Shell 组件类型、注册表、构建结果及桌面后端状态的数据类型定义"
 
 [dependencies]
 serde.workspace = true
