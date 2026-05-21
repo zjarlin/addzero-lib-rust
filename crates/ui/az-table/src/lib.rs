@@ -1,6 +1,10 @@
 #![allow(non_snake_case)]
 #![deny(missing_docs)]
-#![doc = include_str!("../README.md")]
+//! Data-driven Dioxus table component with `az-*` naming conventions.
+//!
+//! [`AzTable`] wraps the lower-level semantic table primitives from
+//! `az-dioxus-components` so callers can render a complete table from columns
+//! and rows without hand-writing the head/body/cell tree each time.
 
 use az_dioxus_components::az_table::{
     AzTable as PrimitiveAzTable, AzTableBody, AzTableCaption, AzTableCell as PrimitiveAzTableCell,

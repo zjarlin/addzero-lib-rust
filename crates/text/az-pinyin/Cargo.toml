@@ -5,7 +5,6 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Chinese pinyin utilities: hanzi-to-pinyin conversion, initial letter extraction, and identifier sanitization"
 
 [dependencies]
 pinyin.workspace = true

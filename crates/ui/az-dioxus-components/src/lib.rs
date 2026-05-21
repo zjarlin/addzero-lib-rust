@@ -1,4 +1,8 @@
-#![doc = include_str!("../README.md")]
+//! Dioxus UI primitives with consistent `Az*` component names and `az-*` CSS hooks.
+//!
+//! The crate starts with card and table primitives so admin/workbench surfaces can
+//! share the same semantic markup and styling contracts without hardcoding ad hoc
+//! classes in each app.
 #![deny(missing_docs)]
 
 mod class_name;

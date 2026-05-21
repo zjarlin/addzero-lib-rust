@@ -1,5 +1,3 @@
-#![doc = include_str!("../README.md")]
-
 use pinyin::{Pinyin, ToPinyin, ToPinyinMulti};
 use regex::Regex;
 use std::sync::OnceLock;
