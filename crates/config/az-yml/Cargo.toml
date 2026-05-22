@@ -1,5 +1,6 @@
 [package]
 name = "az-yml"
+description = "YAML 配置文件的加载、路径查询与值提取工具库，面向 Spring Boot 风格配置约定。"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

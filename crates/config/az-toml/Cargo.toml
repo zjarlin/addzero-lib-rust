@@ -1,5 +1,6 @@
 [package]
 name = "az-toml"
+description = "Gradle 风格 Version Catalog TOML 文件的解析、构建、序列化与合并工具库。"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

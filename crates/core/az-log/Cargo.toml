@@ -1,5 +1,6 @@
 [package]
 name = "az-log"
+description = "基于类型的日志目标生成工具，为 log crate 提供按 Rust 类型自动映射日志目标的能力。"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

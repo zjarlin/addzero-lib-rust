@@ -1,5 +1,6 @@
 [package]
 name = "az-curl"
+description = "将 curl 命令字符串解析为结构化的 HTTP 请求表示，并支持直接执行。"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
