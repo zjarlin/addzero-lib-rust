@@ -1,5 +1,6 @@
 [package]
 name = "az-json"
+description = "为 serde_json 扩展实用 JSON 工具函数的便捷辅助库，支持点路径查询、类型安全提取、深度合并、展平以及美化打印。"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

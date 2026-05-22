@@ -1,5 +1,6 @@
 [package]
 name = "az-common"
+description = "通用日期与时间工具集，基于 chrono 提供本地化日期转换、工作日计算与时间范围工具。"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
