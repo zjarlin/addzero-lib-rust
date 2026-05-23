@@ -5,6 +5,7 @@ export interface AioToolbarAction {
   label: string;
   tooltip: string;
   order: number;
+  icon: string;
   primary?: boolean;
 }
 
@@ -13,6 +14,7 @@ export interface AioDomain {
   label: string;
   order: number;
   defaultRoute: string;
+  icon: string;
 }
 
 export interface AioBranch {
@@ -21,6 +23,7 @@ export interface AioBranch {
   parentId?: string;
   label: string;
   order: number;
+  icon: string;
 }
 
 export interface AioPage {
@@ -31,6 +34,8 @@ export interface AioPage {
   subtitle: string;
   route: string;
   order: number;
+  icon: string;
+  pinned?: boolean;
   toolbarActions: AioToolbarAction[];
 }
 

@@ -1,4 +1,4 @@
-import Button from "@jetbrains/ring-ui-built/components/button/button";
+import {Icon} from "./Icon";
 import type {AioToolbarAction} from "../types";
 
 interface ToolbarProps {
@@ -11,16 +11,17 @@ export function Toolbar({actions, busy, onAction}: ToolbarProps) {
   return (
     <div className="toolbar">
       {[...actions].sort((left, right) => left.order - right.order).map(action => (
-        <Button
+        <button
           key={action.id}
+          className={action.primary ? "toolbarButton primary" : "toolbarButton"}
           title={action.tooltip}
-          primary={action.primary}
-          loader={busy === action.id}
           disabled={Boolean(busy)}
           onClick={() => onAction(action.id)}
+          type="button"
         >
+          {busy === action.id ? <span className="buttonSpinner" /> : <Icon name={action.icon} />}
           {action.label}
-        </Button>
+        </button>
       ))}
     </div>
   );

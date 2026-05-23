@@ -1,8 +1,6 @@
-import "@jetbrains/ring-ui-built/components/style.css";
 import "./styles.css";
 import {StrictMode} from "react";
 import {createRoot} from "react-dom/client";
-import {BrowserRouter} from "react-router-dom";
 import App from "./App";
 import {loadRuntimeInfo} from "./api/client";
 
@@ -14,9 +12,7 @@ void loadRuntimeInfo().finally(() => {
 
   createRoot(root).render(
     <StrictMode>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <App />
     </StrictMode>
   );
 });
