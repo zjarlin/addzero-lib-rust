@@ -24,11 +24,34 @@
 //! | `CliImportFormat`   | 导入文件格式         |
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use macro_rules_attribute::apply;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+// 将高频契约派生收成浅层 item 包装宏。
+macro_rules! derive_error {
+    ($item:item) => {
+        #[derive(Clone, Debug, Error, PartialEq, Eq)]
+        $item
+    };
+}
+
+macro_rules! derive_snake_case_serde_enum_default {
+    ($item:item) => {
+        #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+        #[serde(rename_all = "snake_case")]
+        $item
+    };
+}
+
+macro_rules! derive_serde_struct_default {
+    ($item:item) => {
+        #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+        $item
+    };
+}
+
+#[apply(derive_snake_case_serde_enum_default)]
 pub enum CliMarketStatus {
     #[default]
     Draft,
@@ -55,8 +78,7 @@ impl CliMarketStatus {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(derive_snake_case_serde_enum_default)]
 pub enum CliMarketSourceType {
     #[default]
     Manual,
@@ -65,8 +87,7 @@ pub enum CliMarketSourceType {
     SyncExternal,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(derive_snake_case_serde_enum_default)]
 pub enum CliEntryKind {
     #[default]
     Cli,
@@ -75,8 +96,7 @@ pub enum CliEntryKind {
     Bundle,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(derive_snake_case_serde_enum_default)]
 pub enum CliLocale {
     #[default]
     #[serde(rename = "zh-CN")]
@@ -96,8 +116,7 @@ impl CliLocale {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(derive_snake_case_serde_enum_default)]
 pub enum CliPlatform {
     Macos,
     Windows,
@@ -119,8 +138,7 @@ impl CliPlatform {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(derive_snake_case_serde_enum_default)]
 pub enum CliInstallerKind {
     Brew,
     Bun,
@@ -162,23 +180,21 @@ impl CliInstallerKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(derive_snake_case_serde_enum_default)]
 pub enum CliImportFormat {
     #[default]
     Json,
     Xlsx,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(derive_snake_case_serde_enum_default)]
 pub enum CliImportMode {
     #[default]
     Native,
     RegistryCompat,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliLocaleText {
     pub locale: CliLocale,
     pub display_name: String,
@@ -190,7 +206,7 @@ pub struct CliLocaleText {
     pub install_command: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliInstallMethod {
     pub id: Option<String>,
     pub platform: CliPlatform,
@@ -201,7 +217,7 @@ pub struct CliInstallMethod {
     pub priority: i32,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliDocRef {
     pub id: Option<String>,
     pub locale: CliLocale,
@@ -212,7 +228,7 @@ pub struct CliDocRef {
     pub summary: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketEntry {
     pub id: String,
     pub slug: String,
@@ -235,7 +251,7 @@ pub struct CliMarketEntry {
     pub updated_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketEntryUpsert {
     pub id: Option<String>,
     pub slug: String,
@@ -256,7 +272,7 @@ pub struct CliMarketEntryUpsert {
     pub raw: serde_json::Value,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketSummary {
     pub total_entries: usize,
     pub published_entries: usize,
@@ -264,14 +280,14 @@ pub struct CliMarketSummary {
     pub categories: usize,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketCatalog {
     pub schema_version: String,
     pub summary: CliMarketSummary,
     pub entries: Vec<CliMarketEntry>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketImportRequest {
     pub format: CliImportFormat,
     pub mode: CliImportMode,
@@ -288,7 +304,7 @@ impl CliMarketImportRequest {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketImportRowReport {
     pub row_index: usize,
     pub slug: String,
@@ -297,7 +313,7 @@ pub struct CliMarketImportRowReport {
     pub market_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketImportReport {
     pub job_id: String,
     pub format: CliImportFormat,
@@ -308,7 +324,7 @@ pub struct CliMarketImportReport {
     pub rows: Vec<CliMarketImportRowReport>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketImportJob {
     pub id: String,
     pub file_name: String,
@@ -322,31 +338,31 @@ pub struct CliMarketImportJob {
     pub created_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketImportJobDetail {
     pub job: CliMarketImportJob,
     pub rows: Vec<CliMarketImportRowReport>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketExportRequest {
     pub only_published: bool,
     pub locale: Option<CliLocale>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketExportArtifact {
     pub file_name: String,
     pub content_type: String,
     pub bytes_base64: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketInstallRequest {
     pub method_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketInstallResult {
     pub entry_id: String,
     pub slug: String,
@@ -362,7 +378,7 @@ pub struct CliMarketInstallResult {
     pub finished_at: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliMarketInstallHistoryItem {
     pub id: String,
     pub entry_id: String,
@@ -378,7 +394,7 @@ pub struct CliMarketInstallHistoryItem {
     pub created_at: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct CliRegistryCompatEntry {
     pub name: String,
     pub display_name: String,
@@ -390,7 +406,7 @@ pub struct CliRegistryCompatEntry {
     pub category: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 #[serde(deny_unknown_fields)]
 pub struct CliSimpleMetadata {
     pub name: String,
@@ -403,7 +419,7 @@ pub struct CliSimpleMetadata {
     pub category: String,
 }
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[apply(derive_error)]
 pub enum CliMarketContractError {
     #[error("{0}")]
     Message(String),

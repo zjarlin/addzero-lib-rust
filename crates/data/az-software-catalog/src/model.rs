@@ -1,10 +1,40 @@
 use std::{collections::BTreeSet, fmt};
 
+use macro_rules_attribute::apply;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+// 将高频数据模型派生收成浅层 item 包装宏。
+macro_rules! derive_error {
+    ($item:item) => {
+        #[derive(Clone, Debug, Error, PartialEq, Eq)]
+        $item
+    };
+}
+
+macro_rules! derive_serde_enum_ord {
+    ($item:item) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+        $item
+    };
+}
+
+macro_rules! derive_serde_struct {
+    ($item:item) => {
+        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+        $item
+    };
+}
+
+macro_rules! derive_serde_struct_default {
+    ($item:item) => {
+        #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+        $item
+    };
+}
+
+#[apply(derive_serde_enum_ord)]
 pub enum SoftwarePlatform {
     Macos,
     Windows,
@@ -40,7 +70,7 @@ impl SoftwarePlatform {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[apply(derive_serde_enum_ord)]
 pub enum InstallerKind {
     Brew,
     Bun,
@@ -105,7 +135,7 @@ impl InstallerKind {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct)]
 pub struct SoftwareInstallMethodDto {
     pub id: String,
     pub platform: SoftwarePlatform,
@@ -117,7 +147,7 @@ pub struct SoftwareInstallMethodDto {
     pub note: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct)]
 pub struct SoftwareEntryDto {
     pub id: String,
     pub slug: String,
@@ -131,13 +161,13 @@ pub struct SoftwareEntryDto {
     pub methods: Vec<SoftwareInstallMethodDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct)]
 pub struct SoftwareCatalogDto {
     pub host_platform: SoftwarePlatform,
     pub items: Vec<SoftwareEntryDto>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct SoftwareEntryInput {
     pub id: Option<String>,
     pub slug: String,
@@ -151,12 +181,12 @@ pub struct SoftwareEntryInput {
     pub methods: Vec<SoftwareInstallMethodDto>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct SoftwareMetadataFetchInput {
     pub homepage_url: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct SoftwareMetadataDto {
     pub title: String,
     pub summary: String,
@@ -164,13 +194,13 @@ pub struct SoftwareMetadataDto {
     pub icon_url: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(derive_serde_struct_default)]
 pub struct SoftwareDraftInput {
     pub homepage_url: String,
     pub preferred_platforms: Vec<SoftwarePlatform>,
 }
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[apply(derive_error)]
 pub enum SoftwareCatalogError {
     #[error("connect software catalog persistence: {0}")]
     Persistence(String),
