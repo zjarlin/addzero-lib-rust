@@ -37,6 +37,7 @@
 - **plain_eq** — 纯内存结构体/枚举的 `Clone` + `Debug` + `Eq` + `PartialEq`
 - **plain_clone** — 纯内存句柄/配置壳子的 `Clone`
 - **plain_clone_debug** — 纯内存句柄/配置壳子的 `Clone` + `Debug`
+- **plain_clone_debug_display** — 在 `plain_clone_debug` 基础上增加 `Display`
 - **plain_eq_no_debug** — 在 `plain_eq` 基础上去掉生成的 `Debug`
 - **plain_eq_hash** — 在 `plain_eq` 基础上增加 `Hash`
 - **plain_eq_hash_display** — 在 `plain_eq_hash` 基础上增加 `Display`
@@ -152,5 +153,5 @@ enum Priority {
 - `macro_rules_attribute` — 将宏作为 derive 属性应用到类型定义
 - `serde` — serde 相关 alias 的 derive 和辅助属性
 - `thiserror` — `error_eq`
-- `derive_more` — `from_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
+- `derive_more` — `from_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
 - `strum` — `serde_code*` / `serde_code*_enum`

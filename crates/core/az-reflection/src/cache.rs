@@ -4,25 +4,16 @@ use std::num::NonZeroUsize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, error_eq, plain_clone_debug};
 
 /// Errors that can occur when constructing or operating on an [`ExpiringCache`].
-#[derive(Debug)]
+#[apply(error_eq)]
 pub enum CacheError {
     /// A poisoned mutex was encountered; the cache could not be locked.
     /// This happens when another thread panicked while holding the lock.
+    #[error("cache mutex is poisoned")]
     Poisoned,
 }
-
-impl std::fmt::Display for CacheError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CacheError::Poisoned => write!(f, "cache mutex is poisoned"),
-        }
-    }
-}
-
-impl std::error::Error for CacheError {}
 
 #[apply(plain_clone_debug)]
 struct CacheEntry<V> {
@@ -174,6 +165,11 @@ where
 mod tests {
     use super::*;
     use std::num::NonZeroUsize;
+
+    #[test]
+    fn cache_error_display_stays_stable() {
+        assert_eq!(CacheError::Poisoned.to_string(), "cache mutex is poisoned");
+    }
 
     #[test]
     fn test_compute_if_absent_inserts_and_returns() {

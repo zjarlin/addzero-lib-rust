@@ -9,7 +9,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use az_derive_aliases::{apply, plain_clone, plain_clone_debug};
+use az_derive_aliases::{apply, plain_clone, plain_clone_debug, plain_clone_debug_display};
 use git2::Repository;
 use parking_lot::RwLock;
 
@@ -565,22 +565,15 @@ pub struct TreeSnapshot {
 }
 
 /// Statistics about the repository.
-#[apply(plain_clone_debug)]
+#[apply(plain_clone_debug_display)]
+#[display(
+    "Repository Statistics:\n  Tables: {table_count}\n  Total Rows: {total_rows}\n  Branches: {branch_count}\n  Active Transactions: {active_transactions}\n"
+)]
 pub struct RepositoryStats {
     pub table_count: usize,
     pub total_rows: usize,
     pub branch_count: usize,
     pub active_transactions: usize,
-}
-
-impl std::fmt::Display for RepositoryStats {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Repository Statistics:")?;
-        writeln!(f, "  Tables: {}", self.table_count)?;
-        writeln!(f, "  Total Rows: {}", self.total_rows)?;
-        writeln!(f, "  Branches: {}", self.branch_count)?;
-        writeln!(f, "  Active Transactions: {}", self.active_transactions)
-    }
 }
 
 #[cfg(test)]
@@ -810,6 +803,21 @@ mod tests {
         let stats = repo.stats(head).unwrap();
         assert_eq!(stats.table_count, 1);
         assert_eq!(stats.total_rows, 1);
+    }
+
+    #[test]
+    fn test_repository_stats_display() {
+        let stats = RepositoryStats {
+            table_count: 1,
+            total_rows: 2,
+            branch_count: 3,
+            active_transactions: 4,
+        };
+
+        assert_eq!(
+            stats.to_string(),
+            "Repository Statistics:\n  Tables: 1\n  Total Rows: 2\n  Branches: 3\n  Active Transactions: 4\n"
+        );
     }
 
     #[test]

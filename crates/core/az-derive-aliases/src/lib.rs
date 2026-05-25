@@ -242,6 +242,14 @@ macro_rules! plain_clone_debug {
     };
 }
 
+/// Plain structural type with `Clone`, `Debug`, and `Display`.
+#[macro_export]
+macro_rules! plain_clone_debug_display {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Clone, Debug, ::derive_more::Display), $item);
+    };
+}
+
 /// Plain structural type with `Clone`, `Eq`, and `PartialEq` but no generated `Debug`.
 #[macro_export]
 macro_rules! plain_eq_no_debug {
