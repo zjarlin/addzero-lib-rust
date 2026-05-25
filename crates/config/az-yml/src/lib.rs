@@ -20,9 +20,8 @@
 //!
 //! [`DatabaseConfig`] 的 [`std::fmt::Debug`] 实现会对 `jdbc_password` 字段脱敏（`***REDACTED***`）。
 use az_derive_aliases::{
-    apply, error, plain_default_copy_eq, plain_eq, plain_eq_no_debug, plain_partial_eq,
+    apply, error, plain_default_copy_eq, plain_eq, plain_eq_redacted, plain_partial_eq,
 };
-use derive_more::Debug;
 use serde::de::DeserializeOwned;
 use serde_yaml::Value;
 use std::env;
@@ -325,8 +324,7 @@ impl SpringYaml {
     }
 }
 
-#[apply(plain_eq_no_debug)]
-#[derive(Debug)]
+#[apply(plain_eq_redacted)]
 pub struct DatabaseConfig {
     pub jdbc_url: String,
     pub jdbc_username: Option<String>,

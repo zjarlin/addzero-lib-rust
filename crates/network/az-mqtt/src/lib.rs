@@ -46,9 +46,8 @@
 #![forbid(unsafe_code)]
 
 use az_derive_aliases::{
-    apply, error, impl_from_match, plain_copy_eq, plain_eq, plain_eq_no_debug,
+    apply, error, impl_from_match, plain_copy_eq, plain_eq, plain_eq_redacted,
 };
-use derive_more::Debug;
 use rumqttc::{
     Client, ClientError, Connection, Event, LastWill, MqttOptions, Packet, QoS, RecvTimeoutError,
     SubscribeFilter, Transport,
@@ -205,8 +204,7 @@ impl MqttSubscription {
     }
 }
 
-#[apply(plain_eq_no_debug)]
-#[derive(Debug)]
+#[apply(plain_eq_redacted)]
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,

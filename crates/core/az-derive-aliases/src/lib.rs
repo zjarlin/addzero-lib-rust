@@ -305,6 +305,24 @@ macro_rules! serde_eq_no_debug {
     };
 }
 
+/// Serde-friendly data type with equality traits and redacted `Debug`.
+#[macro_export]
+macro_rules! serde_eq_redacted {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                ::derive_more::Debug,
+                PartialEq,
+                Eq,
+                ::serde::Serialize,
+                ::serde::Deserialize
+            ),
+            $item
+        );
+    };
+}
+
 /// Plain structural type with `Clone`, `Debug`, `Eq`, and `PartialEq`.
 #[macro_export]
 macro_rules! plain_eq {
@@ -390,6 +408,22 @@ macro_rules! plain_clone_debug_display {
 macro_rules! plain_eq_no_debug {
     ($item:item) => {
         $crate::__az_derive_aliases_derive!((Clone, Eq, PartialEq), $item);
+    };
+}
+
+/// Plain structural type with equality traits and redacted `Debug`.
+#[macro_export]
+macro_rules! plain_eq_redacted {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Clone, ::derive_more::Debug, Eq, PartialEq), $item);
+    };
+}
+
+/// Plain structural type with `Clone` and redacted `Debug`.
+#[macro_export]
+macro_rules! plain_clone_redacted {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Clone, ::derive_more::Debug), $item);
     };
 }
 

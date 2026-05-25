@@ -1,11 +1,9 @@
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 
-use az_derive_aliases::{apply, plain_eq, plain_eq_no_debug};
-use derive_more::Debug;
+use az_derive_aliases::{apply, plain_eq, plain_eq_redacted};
 
-#[apply(plain_eq_no_debug)]
-#[derive(Debug)]
+#[apply(plain_eq_redacted)]
 pub struct S3ClientConfig {
     pub endpoint: String,
     #[debug(skip)]
@@ -58,8 +56,7 @@ pub struct PresignedUrl {
     pub expiration: SystemTime,
 }
 
-#[apply(plain_eq_no_debug)]
-#[derive(Debug)]
+#[apply(plain_eq_redacted)]
 pub struct RustfsConfig {
     pub endpoint: String,
     #[debug(skip)]

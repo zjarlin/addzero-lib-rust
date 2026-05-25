@@ -39,8 +39,8 @@
 #![forbid(unsafe_code)]
 
 use az_derive_aliases::{
-    apply, deserialize_debug, error, plain_clone, plain_clone_debug, plain_default_copy_eq,
-    plain_eq, serde_eq, serde_eq_default, serde_partial_eq_default,
+    apply, deserialize_debug, error, plain_clone_debug, plain_clone_redacted,
+    plain_default_copy_eq, plain_eq, serde_eq, serde_eq_default, serde_partial_eq_default,
 };
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
@@ -50,7 +50,6 @@ use reqwest::header::{
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::fmt;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -655,20 +654,11 @@ pub struct SongWithLyric {
     pub lyric: LyricResponse,
 }
 
-#[apply(plain_clone)]
+#[apply(plain_clone_redacted)]
 pub struct SunoApi {
+    #[debug(skip)]
     api_token: String,
     http: HttpApiClient,
-}
-
-impl fmt::Debug for SunoApi {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("SunoApi")
-            .field("api_token", &"***")
-            .field("http", &self.http)
-            .finish()
-    }
 }
 
 impl SunoApi {
@@ -1132,7 +1122,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn suno_api_debug_masks_api_token() {
+    fn suno_api_debug_omits_api_token() {
         let config = ApiConfig::builder("https://example.com")
             .build()
             .expect("config should build");
@@ -1140,7 +1130,8 @@ mod tests {
 
         let debug = format!("{api:?}");
 
-        assert!(debug.contains("api_token: \"***\""));
+        assert!(debug.contains("SunoApi"));
+        assert!(debug.contains("http"));
         assert!(!debug.contains("suno-token"));
     }
 }

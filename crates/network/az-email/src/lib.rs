@@ -35,8 +35,7 @@
 //!
 //! send_with_config(&config, &message).unwrap();
 //! ```
-use az_derive_aliases::{apply, error, plain_clone_debug, plain_default_eq, plain_eq_no_debug};
-use derive_more::Debug;
+use az_derive_aliases::{apply, error, plain_clone_debug, plain_default_eq, plain_eq_redacted};
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
@@ -74,8 +73,7 @@ pub enum EmailError {
     MissingDefaultSender,
 }
 
-#[apply(plain_eq_no_debug)]
-#[derive(Debug)]
+#[apply(plain_eq_redacted)]
 pub struct EmailConfig {
     pub host: String,
     pub port: u16,

@@ -54,12 +54,11 @@
 //! ```
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, error, serde_eq, serde_eq_copy, serde_eq_no_debug};
+use az_derive_aliases::{apply, error, serde_eq, serde_eq_copy, serde_eq_redacted};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, FileTransferEnvelope, RemoteInputEvent, SessionGrant,
     SessionRequest, VideoFrameEnvelope,
 };
-use derive_more::Debug;
 
 pub type ProtocolResult<T> = Result<T, ProtocolError>;
 
@@ -78,8 +77,7 @@ pub enum StreamKind {
     File,
 }
 
-#[apply(serde_eq_no_debug)]
-#[derive(Debug)]
+#[apply(serde_eq_redacted)]
 pub struct DeviceHello {
     pub device: DeviceDescriptor,
     #[debug(skip)]

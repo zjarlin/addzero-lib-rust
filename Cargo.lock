@@ -1538,6 +1538,7 @@ name = "az-music"
 version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
+ "derive_more 2.1.1",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

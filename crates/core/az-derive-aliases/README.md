@@ -15,6 +15,7 @@
 - **deserialize_partial_eq** — 用于不能 `Eq` 的只读响应/输入类型
 - **from_copy_eq_display** — 在 `from_copy_eq` 基础上增加 `Display`
 - **serde_eq_no_debug** — 带 serde + 相等 trait 但保留自定义 `Debug` 的类型
+- **serde_eq_redacted** — 带 serde + 相等 trait 的 redacted `Debug` 类型，适合 `derive_more::Debug` + `#[debug(skip)]`
 - **error** — 带 `thiserror` + `Debug` 的基础库错误类型
 - **error_eq** — 带 `thiserror` + 常用相等/调试 trait 的错误类型
 - **impl_from_match!** — 用显式 pattern 映射快速生成 `From` 实现
@@ -59,11 +60,13 @@
 - **plain_default** — 纯内存状态/缓存的 `Default`
 - **plain_debug** — 纯内存结果/会话/标记类型的 `Debug`
 - **plain_clone_debug** — 纯内存句柄/配置壳子的 `Clone` + `Debug`
+- **plain_clone_redacted** — 纯内存句柄/客户端的 `Clone` + redacted `Debug`
 - **plain_default_debug** — 纯内存状态/缓存的 `Debug` + `Default`
 - **plain_default_clone** — 纯内存句柄/状态的 `Clone` + `Default`
 - **plain_default_clone_debug** — 纯内存句柄/状态的 `Clone` + `Debug` + `Default`
 - **plain_clone_debug_display** — 在 `plain_clone_debug` 基础上增加 `Display`
 - **plain_eq_no_debug** — 在 `plain_eq` 基础上去掉生成的 `Debug`
+- **plain_eq_redacted** — 带相等 trait 且使用 `derive_more::Debug` + `#[debug(skip)]` 脱敏的纯内存类型
 - **plain_eq_hash** — 在 `plain_eq` 基础上增加 `Hash`
 - **plain_eq_hash_display** — 在 `plain_eq_hash` 基础上增加 `Display`
 - **plain_partial_eq** — 纯内存结构体/枚举的 `Clone` + `Debug` + `PartialEq`
@@ -197,7 +200,7 @@ enum Priority {
 - `macro_rules_attribute` — 将宏作为 derive 属性应用到类型定义
 - `serde` — serde 相关 alias 的 derive 和辅助属性
 - `thiserror` — `error` / `error_eq`
-- `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_copy_eq_display` / `from_display` / `serde_eq_copy_display` / `serde_partial_eq_display` / `serde_code_display*` / `plain_code_display_enum` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
+- `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_copy_eq_display` / `from_display` / `serde_eq_copy_display` / `serde_partial_eq_display` / `serde_code_display*` / `plain_code_display_enum` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_clone_redacted` / `plain_eq_redacted` / `serde_eq_redacted` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
 - `clap` — `clap_parser` / `clap_args` / `clap_subcommand` / `clap_value_enum` / `clap_code_enum`
 - `strum` — `serde_code*` / `serde_code*_enum` / `serde_kebab_code*` / `serde_code_display*` / `plain_code_display_enum`
 - `sea_orm` — `seaorm_entity_model*` / `seaorm_relation`
