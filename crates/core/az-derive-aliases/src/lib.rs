@@ -808,6 +808,59 @@ macro_rules! serde_code_enum {
     };
 }
 
+/// Code-backed enum usable as both a Clap `ValueEnum` and a serde/string code enum.
+#[macro_export]
+macro_rules! clap_code_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                PartialEq,
+                Eq,
+                ::core::hash::Hash,
+                ::serde::Serialize,
+                ::serde::Deserialize,
+                ::strum::Display,
+                ::strum::EnumString,
+                ::strum::IntoStaticStr,
+                ::strum::VariantArray,
+                ::clap::ValueEnum
+            ),
+            #[serde(rename_all = "snake_case")]
+            #[strum(serialize_all = "snake_case")]
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        );
+
+        impl $name {
+            pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
+
+            #[must_use]
+            pub fn as_str(self) -> &'static str {
+                self.into()
+            }
+
+            #[must_use]
+            pub fn code(self) -> &'static str {
+                self.as_str()
+            }
+
+            pub fn from_code(value: &str) -> Option<Self> {
+                value.parse().ok()
+            }
+        }
+    };
+}
+
 /// Code-backed data type with snake_case serde, string conversion, `Default`, and hash derives.
 #[macro_export]
 macro_rules! serde_code_default {

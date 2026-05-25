@@ -43,6 +43,20 @@ fn cloudflare_context_builds_api_config_and_requests() -> Result<(), Box<dyn Err
 }
 
 #[test]
+fn provider_kind_serializes_as_stable_code() -> Result<(), Box<dyn Error>> {
+    assert_eq!(
+        serde_json::to_string(&TempMailProviderKind::Cloudflare)?,
+        "\"cloudflare\""
+    );
+    assert_eq!(
+        serde_json::from_str::<TempMailProviderKind>("\"mail_tm\"")?,
+        TempMailProviderKind::MailTm
+    );
+    assert_eq!(TempMailProviderKind::Emailnator.as_str(), "emailnator");
+    Ok(())
+}
+
+#[test]
 fn temp_mail_create_address_and_list_parsed_mail_use_cloudflare_worker_paths()
 -> Result<(), Box<dyn Error>> {
     let server = TestServer::spawn(vec![

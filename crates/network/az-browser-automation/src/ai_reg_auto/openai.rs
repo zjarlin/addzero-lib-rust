@@ -3,7 +3,7 @@
 use crate::BrowserAutomationResult;
 use crate::{BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions};
 use az_derive_aliases::{
-    apply, deserialize_eq, plain_copy_eq, plain_copy_eq_hash, plain_default_copy_eq, plain_eq,
+    apply, deserialize_eq, plain_copy_eq_hash, plain_default_copy_eq, plain_eq, serde_code_enum,
 };
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
@@ -24,7 +24,7 @@ fn random_jitter() {
 }
 
 /// OpenAI authorization flow mode.
-#[apply(plain_copy_eq)]
+#[apply(serde_code_enum)]
 pub enum OpenAiAuthFlow {
     /// Open the login flow.
     Login,
@@ -33,7 +33,7 @@ pub enum OpenAiAuthFlow {
 }
 
 /// Current stage reached by [`OpenAiAuthAutomation`].
-#[apply(plain_copy_eq)]
+#[apply(serde_code_enum)]
 pub enum OpenAiAuthStage {
     /// The authorization page was opened, but no credential input was requested.
     Opened,
@@ -116,7 +116,7 @@ impl OpenAiRecordingStep {
 }
 
 /// Result status for one manual recording step.
-#[apply(plain_copy_eq)]
+#[apply(serde_code_enum)]
 pub enum OpenAiRecordingStepStatus {
     /// The target for the step was found and clicked, or the page was ready.
     Completed,
@@ -2317,6 +2317,24 @@ mod tests {
         assert_eq!(
             OpenAiRecordingStep::from_id("step2"),
             Some(OpenAiRecordingStep::ClickLogin)
+        );
+    }
+
+    #[test]
+    fn auth_state_enums_round_trip_through_serde() {
+        assert_eq!(
+            serde_json::to_string(&OpenAiAuthFlow::SignUp).expect("serialize flow"),
+            "\"sign_up\""
+        );
+        assert_eq!(
+            serde_json::from_str::<OpenAiAuthStage>("\"authenticated\"")
+                .expect("deserialize stage"),
+            OpenAiAuthStage::Authenticated
+        );
+        assert_eq!(
+            serde_json::to_string(&OpenAiRecordingStepStatus::MissingTarget)
+                .expect("serialize step status"),
+            "\"missing_target\""
         );
     }
 }

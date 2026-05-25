@@ -1,23 +1,13 @@
 use anyhow::Result;
-use az_derive_aliases::{apply, clap_value_enum, plain_eq};
+use az_derive_aliases::{apply, clap_code_enum, plain_eq};
 
 use super::NovelFetchConfig;
 
-#[apply(clap_value_enum)]
+#[apply(clap_code_enum)]
 pub enum NovelPreset {
     Biqukan,
     Xbqg,
     Custom,
-}
-
-impl NovelPreset {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Biqukan => "biqukan",
-            Self::Xbqg => "xbqg",
-            Self::Custom => "custom",
-        }
-    }
 }
 
 #[apply(plain_eq)]
@@ -166,6 +156,15 @@ mod tests {
         assert_eq!(resolved.chapter_link_selectors, vec!["a[href]"]);
         assert_eq!(resolved.content_selectors, vec!["article", "#reader"]);
         assert_eq!(resolved.chapter_title_selectors, vec![".chapter-title"]);
+    }
+
+    #[test]
+    fn preset_codes_round_trip_through_serde() {
+        let json = serde_json::to_string(&NovelPreset::Xbqg).expect("serialize preset");
+        assert_eq!(json, "\"xbqg\"");
+        let preset: NovelPreset = serde_json::from_str("\"custom\"").expect("deserialize preset");
+        assert_eq!(preset, NovelPreset::Custom);
+        assert_eq!(NovelPreset::Biqukan.as_str(), "biqukan");
     }
 
     fn sample_config(preset: NovelPreset) -> NovelFetchConfig {

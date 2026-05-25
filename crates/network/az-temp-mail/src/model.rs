@@ -1,11 +1,11 @@
 use az_derive_aliases::{
-    apply, deserialize_eq, deserialize_partial_eq, plain_copy_eq, plain_copy_eq_hash, plain_eq,
+    apply, deserialize_eq, deserialize_partial_eq, plain_copy_eq, plain_eq, serde_code_enum,
     serde_partial_eq, serialize_eq,
 };
 use serde_json::Value;
 
 /// Supported concrete temporary email providers.
-#[apply(plain_copy_eq_hash)]
+#[apply(serde_code_enum)]
 pub enum TempMailProviderKind {
     /// Self-hosted Cloudflare Worker from `dreamhunter2333/cloudflare_temp_email`.
     Cloudflare,

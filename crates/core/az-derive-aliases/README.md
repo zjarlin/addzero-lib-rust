@@ -37,6 +37,7 @@
 - **serde_partial_eq_default** — 在 `serde_partial_eq` 基础上增加 `Default`
 - **serde_code** — 带 serde（snake_case）+ strum 字符串转换/`Display` + `Hash` 的代码类型
 - **serde_code_enum** — 在 `serde_code` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
+- **clap_code_enum** — 在 `serde_code_enum` 基础上增加 Clap `ValueEnum`
 - **serde_code_default** — 在 `serde_code` 基础上增加 `Default`
 - **serde_code_default_enum** — 在 `serde_code_default` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **serde_code_ord** — 在 `serde_code` 基础上增加 `Ord`/`PartialOrd`
@@ -94,7 +95,7 @@ az-derive-aliases = { path = "../az-derive-aliases" }       # workspace 内部�
 调用侧不需要直接依赖 `macro_rules_attribute`，可以使用本 crate 重新导出的 `apply`。
 使用某个 alias 时，调用侧仍应显式声明该 alias 实际派生到的 crates，例如 `serde`、`thiserror`、`strum` 或 `derive_more`。
 SeaORM 相关 alias 仍要求调用侧引入 `sea_orm::entity::prelude::*`，以便 `DeriveEntityModel`、`DeriveRelation` 和 `EnumIter` 在展开后保持可见。
-Clap 相关 alias 仍要求调用侧引入 `clap` 的 derive 入口，通常通过该 crate 自身的 `clap` 依赖即可满足。
+Clap 相关 alias 仍要求调用侧引入 `clap` 的 derive 入口，通常通过该 crate 自身的 `clap` 依赖即可满足；`clap_code_enum` 还需要 `strum`。
 
 ## 用法
 
@@ -188,6 +189,6 @@ enum Priority {
 - `serde` — serde 相关 alias 的 derive 和辅助属性
 - `thiserror` — `error` / `error_eq`
 - `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
-- `clap` — `clap_parser` / `clap_args` / `clap_subcommand` / `clap_value_enum`
+- `clap` — `clap_parser` / `clap_args` / `clap_subcommand` / `clap_value_enum` / `clap_code_enum`
 - `strum` — `serde_code*` / `serde_code*_enum`
 - `sea_orm` — `seaorm_entity_model*` / `seaorm_relation`
