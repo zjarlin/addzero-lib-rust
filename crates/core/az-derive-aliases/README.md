@@ -48,7 +48,10 @@
 - **serde_kebab_code_enum** — 在 `serde_kebab_code` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **serde_code_ord_display** — 带 serde（snake_case）+ `derive_more::Display` + `Ord`/`PartialOrd` 的代码类型
 - **serde_code_ord_display_enum** — 在 `serde_code_ord_display` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
+- **serde_code_default_ord_display** — 在 `serde_code_ord_display` 基础上增加 `Default`
+- **serde_code_default_ord_display_enum** — 在 `serde_code_default_ord_display` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **plain_code_enum** — 不带 serde 的 code 枚举，通过 `strum` 提供 `ALL` / `as_str()` / `code()` / `from_code()`
+- **plain_code_display_no_default_enum** — 不带 serde 且不需要 `Default` 的 code/display 枚举，通过 `strum` 提供 `ALL` / `as_str()` / `code()` / `from_code()`
 - **plain_code_display_enum** — 不带 serde 的 code/display 枚举，通过 `strum` 提供 `ALL` / `as_str()` / `code()` / `from_code()`
 - **clap_code_enum** — 在 `serde_code_enum` 基础上增加 Clap `ValueEnum`
 - **serde_code_default** — 在 `serde_code` 基础上增加 `Default`
@@ -94,7 +97,7 @@
 - **seaorm_relation** — SeaORM relation 常用的 `Copy` + `Clone` + `Debug` + `EnumIter` + `DeriveRelation`
 
 所有宏设计为配合 [`macro_rules_attribute::apply`](https://docs.rs/macro_rules_attribute) 使用，保持 `#[serde(...)]` 和 `#[strum(...)]` 等辅助属性对编译器和 IDE 可见。
-`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。`serde_code*` 同时派生 `strum::Display`，所以需要拥有字符串 code 时可以直接调用 `to_string()`；如果展示名必须不同于 wire code，使用 `serde_code_display*` 并继续通过 `#[display(...)]` 标注展示值。`serde_kebab_code*` 是同一套语义的 kebab-case 变体，不带 serde 的场景则用 `plain_code_display_enum`。
+`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。`serde_code*` 同时派生 `strum::Display`，所以需要拥有字符串 code 时可以直接调用 `to_string()`；如果展示名必须不同于 wire code，使用 `serde_code_display*` 并继续通过 `#[display(...)]` 标注展示值。需要同时具备 `Default`、`Ord` 和自定义展示名时，用 `serde_code_default_ord_display*`。`serde_kebab_code*` 是同一套语义的 kebab-case 变体，不带 serde 的场景则用 `plain_code_display_enum`。
 
 ## 安装
 
@@ -203,7 +206,7 @@ enum Priority {
 - `macro_rules_attribute` — 将宏作为 derive 属性应用到类型定义
 - `serde` — serde 相关 alias 的 derive 和辅助属性
 - `thiserror` — `error` / `error_eq`
-- `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_copy_eq_display` / `from_display` / `serde_eq_copy_display` / `serde_partial_eq_display` / `serde_code_display*` / `serde_code_ord_display*` / `plain_code_display_enum` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_clone_redacted` / `plain_eq_redacted` / `serde_eq_redacted` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
+- `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_copy_eq_display` / `from_display` / `serde_eq_copy_display` / `serde_partial_eq_display` / `serde_code_display*` / `serde_code_ord_display*` / `serde_code_default_ord_display*` / `plain_code_display_no_default_enum` / `plain_code_display_enum` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_clone_redacted` / `plain_eq_redacted` / `serde_eq_redacted` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
 - `clap` — `clap_parser` / `clap_args` / `clap_subcommand` / `clap_value_enum` / `clap_code_enum`
 - `strum` — `serde_code*` / `serde_code*_enum` / `serde_kebab_code*` / `serde_code_display*` / `plain_code_enum` / `plain_code_display_enum`
 - `sea_orm` — `seaorm_entity_model*` / `seaorm_relation`

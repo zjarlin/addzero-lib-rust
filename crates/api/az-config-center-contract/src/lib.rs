@@ -1,38 +1,26 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, serde_code_default_enum, serde_eq_default};
+use az_derive_aliases::{apply, serde_code_default_ord_display_enum, serde_eq_default};
 
 pub const DEFAULT_SHELL_OUTPUT_PATH: &str = "~/.add_fn";
 pub const DESKTOP_SESSION_TOKEN_HEADER: &str = "x-aio-desktop-token";
 
-#[apply(serde_code_default_enum)]
+#[apply(serde_code_default_ord_display_enum)]
 pub enum ShellComponentKind {
+    #[strum(serialize = "export")]
+    #[display("exports")]
     Export,
+    #[strum(serialize = "alias")]
+    #[display("aliases")]
     Alias,
+    #[strum(serialize = "function")]
+    #[display("functions")]
     Function,
     #[default]
+    #[strum(serialize = "snippet")]
+    #[display("snippets")]
     Snippet,
-}
-
-impl ShellComponentKind {
-    pub fn section_title(self) -> &'static str {
-        match self {
-            Self::Export => "exports",
-            Self::Alias => "aliases",
-            Self::Function => "functions",
-            Self::Snippet => "snippets",
-        }
-    }
-
-    pub fn sort_key(self) -> u8 {
-        match self {
-            Self::Export => 0,
-            Self::Alias => 1,
-            Self::Function => 2,
-            Self::Snippet => 3,
-        }
-    }
 }
 
 #[apply(serde_eq_default)]
@@ -130,6 +118,8 @@ mod tests {
             ShellComponentKind::from_code("function"),
             Some(ShellComponentKind::Function)
         );
+        assert_eq!(ShellComponentKind::Export.to_string(), "exports");
+        assert!(ShellComponentKind::Export < ShellComponentKind::Alias);
         assert_eq!(
             serde_json::to_string(&ShellComponentKind::Snippet)
                 .expect("shell component kind should serialize"),

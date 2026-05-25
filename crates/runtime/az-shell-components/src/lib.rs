@@ -169,7 +169,7 @@ pub fn build_output(
             continue;
         }
         content.push('\n');
-        content.push_str(&format!("# {}\n", kind.section_title()));
+        content.push_str(&format!("# {}\n", kind.to_string()));
         for item in section_items {
             content.push('\n');
             content.push_str(&item);
@@ -240,8 +240,7 @@ fn included_components(components: &[ShellComponent]) -> Vec<ShellComponent> {
         .collect::<Vec<_>>();
     items.sort_by(|left, right| {
         left.kind
-            .sort_key()
-            .cmp(&right.kind.sort_key())
+            .cmp(&right.kind)
             .then_with(|| left.name.cmp(&right.name))
     });
     items

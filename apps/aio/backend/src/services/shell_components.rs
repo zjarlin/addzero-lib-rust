@@ -235,8 +235,7 @@ fn registry_to_contract(
         .collect::<Result<Vec<_>, _>>()?;
     components.sort_by(|left, right| {
         left.kind
-            .sort_key()
-            .cmp(&right.kind.sort_key())
+            .cmp(&right.kind)
             .then_with(|| left.name.cmp(&right.name))
     });
     Ok(ShellComponentRegistry {

@@ -3,7 +3,8 @@
 use crate::BrowserAutomationResult;
 use crate::{BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions};
 use az_derive_aliases::{
-    apply, deserialize_eq, plain_copy_eq_hash, plain_default_copy_eq, plain_eq, serde_code_enum,
+    apply, deserialize_eq, plain_code_display_no_default_enum, plain_default_copy_eq, plain_eq,
+    serde_code_enum,
 };
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
@@ -58,35 +59,33 @@ pub enum OpenAiAuthStage {
 }
 
 /// Step identifiers for manual OpenAI entry-flow recording.
-#[apply(plain_copy_eq_hash)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum OpenAiRecordingStep {
     /// Step 1: open the OpenAI entry page.
+    #[strum(serialize = "step1")]
+    #[display("Open entry page")]
     OpenEntryPage,
     /// Step 2: click the `Log in` entry point.
+    #[strum(serialize = "step2")]
+    #[display("Click Log in")]
     ClickLogin,
     /// Step 3: click the `Sign up` / `Create account` entry from the login page.
+    #[strum(serialize = "step3")]
+    #[display("Click Sign up")]
     ClickSignUp,
 }
 
 impl OpenAiRecordingStep {
     /// Returns the stable step id used by manual recording helpers.
     #[must_use]
-    pub const fn id(self) -> &'static str {
-        match self {
-            Self::OpenEntryPage => "step1",
-            Self::ClickLogin => "step2",
-            Self::ClickSignUp => "step3",
-        }
+    pub fn id(self) -> &'static str {
+        self.code()
     }
 
     /// Returns a short human-readable step title.
     #[must_use]
-    pub const fn title(self) -> &'static str {
-        match self {
-            Self::OpenEntryPage => "Open entry page",
-            Self::ClickLogin => "Click Log in",
-            Self::ClickSignUp => "Click Sign up",
-        }
+    pub fn title(self) -> String {
+        self.to_string()
     }
 
     /// Returns the intended manual recording action.
@@ -106,12 +105,11 @@ impl OpenAiRecordingStep {
     /// Parses `step1`, `step2`, or `step3`.
     #[must_use]
     pub fn from_id(id: &str) -> Option<Self> {
-        match id.trim().to_ascii_lowercase().as_str() {
-            "step1" => Some(Self::OpenEntryPage),
-            "step2" => Some(Self::ClickLogin),
-            "step3" => Some(Self::ClickSignUp),
-            _ => None,
-        }
+        let trimmed = id.trim();
+        Self::from_code(trimmed).or_else(|| {
+            let lowered = trimmed.to_ascii_lowercase();
+            Self::from_code(&lowered)
+        })
     }
 }
 

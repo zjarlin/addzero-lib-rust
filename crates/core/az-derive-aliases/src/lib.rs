@@ -1090,6 +1090,39 @@ macro_rules! plain_code_enum {
     };
 }
 
+/// Plain code-backed enum with custom `Display`, explicit string conversion, and variant list.
+#[macro_export]
+macro_rules! plain_code_display_no_default_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                PartialEq,
+                Eq,
+                ::core::hash::Hash,
+                ::derive_more::Display,
+                ::strum::EnumString,
+                ::strum::IntoStaticStr,
+                ::strum::VariantArray
+            ),
+            #[strum(serialize_all = "snake_case")]
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        );
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
+    };
+}
+
 /// Code-backed enum usable as both a Clap `ValueEnum` and a serde/string code enum.
 #[macro_export]
 macro_rules! clap_code_enum {
@@ -1202,6 +1235,35 @@ macro_rules! serde_code_ord {
     };
 }
 
+/// Ordered code-backed data type with snake_case serde, `Default`, custom `Display`, and hash derives.
+#[macro_export]
+macro_rules! serde_code_default_ord_display {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                Default,
+                PartialEq,
+                Eq,
+                ::core::hash::Hash,
+                PartialOrd,
+                Ord,
+                ::serde::Serialize,
+                ::serde::Deserialize,
+                ::derive_more::Display,
+                ::strum::EnumString,
+                ::strum::IntoStaticStr,
+                ::strum::VariantArray
+            ),
+            #[serde(rename_all = "snake_case")]
+            #[strum(serialize_all = "snake_case")]
+            $item
+        );
+    };
+}
+
 /// Ordered code-backed data type with custom `Display` and hash derives.
 #[macro_export]
 macro_rules! serde_code_ord_display {
@@ -1227,6 +1289,26 @@ macro_rules! serde_code_ord_display {
             #[strum(serialize_all = "snake_case")]
             $item
         );
+    };
+}
+
+/// Ordered code-backed enum with snake_case serde, `Default`, custom `Display`, variant list, and `code` helpers.
+#[macro_export]
+macro_rules! serde_code_default_ord_display_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::serde_code_default_ord_display! {
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
     };
 }
 
