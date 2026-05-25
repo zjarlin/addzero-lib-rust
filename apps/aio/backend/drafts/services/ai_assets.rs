@@ -1,13 +1,14 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
-use az_derive_aliases::{apply, error_eq, serde_eq_default_copy, serde_eq_default_copy_ord};
+use az_derive_aliases::{
+    apply, error_eq, impl_from_match, serde_code_default_enum, serde_code_default_ord_enum,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
-#[apply(serde_eq_default_copy)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_default_enum)]
 pub enum AiAssetKindDto {
     Capture,
     #[default]
@@ -18,16 +19,6 @@ pub enum AiAssetKindDto {
 }
 
 impl AiAssetKindDto {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Capture => "capture",
-            Self::Note => "note",
-            Self::Skill => "skill",
-            Self::Software => "software",
-            Self::Package => "package",
-        }
-    }
-
     pub fn label(self) -> &'static str {
         match self {
             Self::Capture => "采集",
@@ -37,54 +28,25 @@ impl AiAssetKindDto {
             Self::Package => "安装包",
         }
     }
-
-    pub fn from_query(value: &str) -> Option<Self> {
-        Some(match value {
-            "capture" => Self::Capture,
-            "note" => Self::Note,
-            "skill" => Self::Skill,
-            "software" => Self::Software,
-            "package" => Self::Package,
-            _ => return None,
-        })
-    }
 }
 
-#[apply(serde_eq_default_copy_ord)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_default_ord_enum)]
 pub enum AiProviderKindDto {
     #[default]
+    #[serde(rename = "openai")]
+    #[strum(serialize = "openai")]
     OpenAi,
     Anthropic,
     Gemini,
 }
 
 impl AiProviderKindDto {
-    pub const ALL: [Self; 3] = [Self::OpenAi, Self::Anthropic, Self::Gemini];
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::OpenAi => "openai",
-            Self::Anthropic => "anthropic",
-            Self::Gemini => "gemini",
-        }
-    }
-
     pub fn label(self) -> &'static str {
         match self {
             Self::OpenAi => "OpenAI",
             Self::Anthropic => "Anthropic",
             Self::Gemini => "Gemini",
         }
-    }
-
-    pub fn from_query(value: &str) -> Option<Self> {
-        Some(match value {
-            "openai" => Self::OpenAi,
-            "anthropic" => Self::Anthropic,
-            "gemini" => Self::Gemini,
-            _ => return None,
-        })
     }
 }
 
@@ -499,7 +461,8 @@ pub async fn list_model_providers_on_server() -> anyhow::Result<Vec<AiModelProvi
         .collect::<BTreeMap<_, _>>();
 
     Ok(AiProviderKindDto::ALL
-        .into_iter()
+        .iter()
+        .copied()
         .map(|provider| {
             by_kind
                 .remove(&provider)
@@ -847,52 +810,36 @@ fn parse_uuid(id: &str) -> anyhow::Result<uuid::Uuid> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<AiAssetKindDto> for az_assets::AssetKind {
-    fn from(value: AiAssetKindDto) -> Self {
-        match value {
-            AiAssetKindDto::Capture => Self::Capture,
-            AiAssetKindDto::Note => Self::Note,
-            AiAssetKindDto::Skill => Self::Skill,
-            AiAssetKindDto::Software => Self::Software,
-            AiAssetKindDto::Package => Self::Package,
-        }
-    }
-}
+impl_from_match!(AiAssetKindDto => az_assets::AssetKind {
+    AiAssetKindDto::Capture => Self::Capture,
+    AiAssetKindDto::Note => Self::Note,
+    AiAssetKindDto::Skill => Self::Skill,
+    AiAssetKindDto::Software => Self::Software,
+    AiAssetKindDto::Package => Self::Package,
+});
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<az_assets::AssetKind> for AiAssetKindDto {
-    fn from(value: az_assets::AssetKind) -> Self {
-        match value {
-            az_assets::AssetKind::Capture => Self::Capture,
-            az_assets::AssetKind::Note => Self::Note,
-            az_assets::AssetKind::Skill => Self::Skill,
-            az_assets::AssetKind::Software => Self::Software,
-            az_assets::AssetKind::Package => Self::Package,
-        }
-    }
-}
+impl_from_match!(az_assets::AssetKind => AiAssetKindDto {
+    az_assets::AssetKind::Capture => Self::Capture,
+    az_assets::AssetKind::Note => Self::Note,
+    az_assets::AssetKind::Skill => Self::Skill,
+    az_assets::AssetKind::Software => Self::Software,
+    az_assets::AssetKind::Package => Self::Package,
+});
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<AiProviderKindDto> for az_assets::AiProviderKind {
-    fn from(value: AiProviderKindDto) -> Self {
-        match value {
-            AiProviderKindDto::OpenAi => Self::OpenAi,
-            AiProviderKindDto::Anthropic => Self::Anthropic,
-            AiProviderKindDto::Gemini => Self::Gemini,
-        }
-    }
-}
+impl_from_match!(AiProviderKindDto => az_assets::AiProviderKind {
+    AiProviderKindDto::OpenAi => Self::OpenAi,
+    AiProviderKindDto::Anthropic => Self::Anthropic,
+    AiProviderKindDto::Gemini => Self::Gemini,
+});
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<az_assets::AiProviderKind> for AiProviderKindDto {
-    fn from(value: az_assets::AiProviderKind) -> Self {
-        match value {
-            az_assets::AiProviderKind::OpenAi => Self::OpenAi,
-            az_assets::AiProviderKind::Anthropic => Self::Anthropic,
-            az_assets::AiProviderKind::Gemini => Self::Gemini,
-        }
-    }
-}
+impl_from_match!(az_assets::AiProviderKind => AiProviderKindDto {
+    az_assets::AiProviderKind::OpenAi => Self::OpenAi,
+    az_assets::AiProviderKind::Anthropic => Self::Anthropic,
+    az_assets::AiProviderKind::Gemini => Self::Gemini,
+});
 
 #[cfg(not(target_arch = "wasm32"))]
 impl From<az_assets::Asset> for AiAssetDto {
