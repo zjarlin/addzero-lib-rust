@@ -19,11 +19,27 @@ macro_rules! deserialize_debug {
     };
 }
 
+/// Deserializable response/input type with clone support and debug formatting.
+#[macro_export]
+macro_rules! deserialize_clone_debug {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Clone, Debug, ::serde::Deserialize), $item);
+    };
+}
+
 /// Serializable request/output type with debug formatting.
 #[macro_export]
 macro_rules! serialize_debug {
     ($item:item) => {
         $crate::__az_derive_aliases_derive!((Debug, ::serde::Serialize), $item);
+    };
+}
+
+/// Serializable request/output type with clone support and debug formatting.
+#[macro_export]
+macro_rules! serialize_clone_debug {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Clone, Debug, ::serde::Serialize), $item);
     };
 }
 

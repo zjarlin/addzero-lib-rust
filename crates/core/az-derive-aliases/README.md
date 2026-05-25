@@ -5,7 +5,9 @@
 ## 功能
 
 - **deserialize_debug** — 带 `Debug` + `Deserialize` 的只读响应/输入类型
+- **deserialize_clone_debug** — 带 `Clone` + `Debug` + `Deserialize` 的只读响应/输入类型
 - **serialize_debug** — 带 `Debug` + `Serialize` 的只写请求/输出类型
+- **serialize_clone_debug** — 带 `Clone` + `Debug` + `Serialize` 的只写请求/输出类型
 - **serialize_eq** — 带 `Serialize` + 相等/调试 trait 的只写请求/输出类型
 - **serialize_partial_eq** — 用于不能 `Eq` 的只写请求/输出类型
 - **deserialize_eq** — 带 `Deserialize` + 相等/调试 trait 的只读响应/输入类型

@@ -1,22 +1,22 @@
+use az_derive_aliases::{apply, serialize_clone_debug};
 use az_reflection::*;
-use serde::Serialize;
 use serde_json::json;
 use std::num::NonZeroUsize;
 use std::thread;
 use std::time::Duration;
 
-#[derive(Debug, Clone, Serialize)]
+#[apply(serialize_clone_debug)]
 struct Address {
     street: String,
     zip_code: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[apply(serialize_clone_debug)]
 struct Role {
     code: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[apply(serialize_clone_debug)]
 struct User {
     id: Option<u64>,
     name: String,

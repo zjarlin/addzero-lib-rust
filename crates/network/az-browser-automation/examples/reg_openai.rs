@@ -16,6 +16,7 @@ use az_browser_automation::{
     BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions, BrowserMode, CdpEndpoint,
     normalize_cdp_http_url,
 };
+use az_derive_aliases::{apply, deserialize_clone_debug};
 use az_sms::SmsProvider;
 use headless_chrome::Tab;
 use headless_chrome::protocol::cdp::Runtime;
@@ -389,7 +390,7 @@ fn prompt(msg: &str) -> String {
 // Auth page state (mirrors AuthPageState in openai.rs)
 // ═══════════════════════════════════════════════════════════════════════
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[apply(deserialize_clone_debug)]
 #[serde(rename_all = "camelCase")]
 struct AuthPageState {
     url: String,
