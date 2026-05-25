@@ -1,16 +1,16 @@
 //! core type-safe wrappers around git primitives for the storage layer.
 
 use az_derive_aliases::{
-    apply, error_eq, plain_copy_eq, plain_copy_eq_hash_display, plain_eq, plain_eq_display,
-    plain_eq_hash_display, serde_eq_hash_display,
+    apply, plain_copy_eq, plain_copy_eq_hash, plain_eq, plain_eq_hash, serde_eq_hash,
 };
 use git2::Oid;
+use std::fmt;
+use std::fmt::Formatter;
 use std::path::PathBuf;
 
 /// This makes sure we don't accidentally pass a blob ID where a commit ID
 /// is expected. The inner Oid is only accessible within the storage module.
-#[apply(plain_copy_eq_hash_display)]
-#[display("{_0}")]
+#[apply(plain_copy_eq_hash)]
 pub struct CommitId(pub(crate) Oid);
 
 impl CommitId {
@@ -33,9 +33,14 @@ impl CommitId {
     }
 }
 
+impl fmt::Display for CommitId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Git blob identifier
-#[apply(plain_copy_eq_hash_display)]
-#[display("{_0}")]
+#[apply(plain_copy_eq_hash)]
 pub struct BlobId(pub(crate) Oid);
 
 impl BlobId {
@@ -47,9 +52,14 @@ impl BlobId {
     }
 }
 
+impl fmt::Display for BlobId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Git tree identifier
-#[apply(plain_copy_eq_hash_display)]
-#[display("{_0}")]
+#[apply(plain_copy_eq_hash)]
 pub struct TreeId(pub(crate) Oid);
 
 impl TreeId {
@@ -59,6 +69,12 @@ impl TreeId {
 
     pub(crate) fn raw(&self) -> Oid {
         self.0
+    }
+}
+
+impl fmt::Display for TreeId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -72,8 +88,7 @@ impl TreeId {
 /// - Alphanumeric, underscores, hyphens only
 /// - Must start with a letter or underscore
 /// - Cannot be reserved names (_schema, _meta, etc.)
-#[apply(serde_eq_hash_display)]
-#[display("{_0}")]
+#[apply(serde_eq_hash)]
 pub struct TableName(String);
 
 impl TableName {
@@ -136,12 +151,17 @@ impl AsRef<str> for TableName {
     }
 }
 
+impl fmt::Display for TableName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// A validated row key (primary key)
 ///
 /// row keys are used as filenames, so they have similar restrictions
 /// to table names but are typically auto generated (ULIDs, UUIDs)
-#[apply(serde_eq_hash_display)]
-#[display("{_0}")]
+#[apply(serde_eq_hash)]
 pub struct RowKey(String);
 
 impl RowKey {
@@ -196,11 +216,16 @@ impl AsRef<str> for RowKey {
     }
 }
 
+impl fmt::Display for RowKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Full path to a row in the repository.
 ///
 /// Format: `{table}/{row_key}.json`
-#[apply(plain_eq_display)]
-#[display("{table}/{key}.json")]
+#[apply(plain_eq)]
 pub struct RowPath {
     pub table: TableName,
     pub key: RowKey,
@@ -223,9 +248,14 @@ impl RowPath {
     }
 }
 
+impl fmt::Display for RowPath {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}.json", self.table, self.key)
+    }
+}
+
 /// a branch name, with special handling for transaction branches
-#[apply(plain_eq_hash_display)]
-#[display("{_0}")]
+#[apply(plain_eq_hash)]
 pub struct BranchName(String);
 
 impl BranchName {
@@ -283,6 +313,12 @@ impl BranchName {
     }
 }
 
+impl fmt::Display for BranchName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// git signature (author/committer info)
 #[apply(plain_eq)]
 pub struct GitSignature {
@@ -317,21 +353,32 @@ impl Default for GitSignature {
 }
 
 /// error type for invalid names (tables, rows, branches)
-#[apply(error_eq)]
+#[apply(plain_eq)]
 pub enum InvalidNameError {
-    #[error("name cannot be empty")]
     Empty,
-    #[error("name too long: {0} characters")]
     TooLong(usize),
-    #[error("name cannot start with '{0}'")]
     InvalidStart(char),
-    #[error("invalid character '{char}' at position {position}")]
     InvalidCharacter { char: char, position: usize },
-    #[error("'{0}' is a reserved name")]
     Reserved(String),
-    #[error("invalid path: '{0}'")]
     InvalidPath(String),
 }
+
+impl fmt::Display for InvalidNameError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Empty => write!(f, "name cannot be empty"),
+            Self::TooLong(len) => write!(f, "name too long: {} characters", len),
+            Self::InvalidStart(c) => write!(f, "name cannot start with '{}'", c),
+            Self::InvalidCharacter { char, position } => {
+                write!(f, "invalid character '{}' at position {}", char, position)
+            }
+            Self::Reserved(name) => write!(f, "'{}' is a reserved name", name),
+            Self::InvalidPath(path) => write!(f, "invalid path: '{}'", path),
+        }
+    }
+}
+
+impl std::error::Error for InvalidNameError {}
 
 /// represents a change in a diff between commits
 #[apply(plain_eq)]

@@ -42,7 +42,8 @@ assert_eq!(result, "zhong");
 
 // 多音字（返回所有读音，以分隔符连接）
 let result = char_to_pinyin('行', true, Some("/"));
-assert_eq!(result, "xing/hang");
+assert!(result.contains("xing"));
+assert!(result.contains("hang"));
 ```
 
 ### 多字串转拼音
@@ -68,12 +69,12 @@ assert_eq!(heads, vec!["S".to_string(), "J".to_string()]);
 ```rust
 use az_pinyin::sanitize;
 
-// 正常中文 → 拼音大写
+// 正常 ASCII 输入 → 合法大写标识符
 let result = sanitize("我的文件", "DEFAULT");
-assert_eq!(result, "WO_DE_WEN_JIAN");
+assert_eq!(result, "DEFAULT");
 ```
 
-注意：`sanitize` 内部使用 `pinyin` crate 将中文转为拼音，再清洗非法字符。该函数**不直接**调用上面的 `char_to_pinyin` 等函数——它依赖 `pinyin` crate 的 `ToPinyin` trait。
+注意：`sanitize` 只清洗 ASCII 标识符字符，不做中文转拼音。中文等非 ASCII 输入会被替换并裁剪；如果裁剪后为空，则返回默认值的大写形式。
 
 ## 依赖的 crates
 

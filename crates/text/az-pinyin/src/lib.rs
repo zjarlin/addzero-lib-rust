@@ -32,6 +32,12 @@ pub fn sanitize(input: impl AsRef<str>, default_name: impl AsRef<str>) -> String
     prefixed.to_uppercase()
 }
 
+/// Convert each character in `src` to pinyin.
+///
+/// `is_polyphone` controls whether every available reading of a polyphonic
+/// character is returned. When it is `false`, each Hanzi uses the default
+/// reading from the `pinyin` crate. When it is `true`, all readings are joined
+/// with `separator`.
 pub fn string_to_pinyin(
     src: Option<&str>,
     is_polyphone: bool,
@@ -45,6 +51,10 @@ pub fn string_to_pinyin(
     })
 }
 
+/// Convert one character to pinyin.
+///
+/// `is_polyphone` is a caller option: `false` returns the default reading,
+/// while `true` returns all known readings joined with `separator`.
 pub fn char_to_pinyin(src: char, is_polyphone: bool, separator: Option<&str>) -> String {
     if is_polyphone {
         if let Some(multi) = src.to_pinyin_multi() {
