@@ -1,6 +1,6 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use az_derive_aliases::{apply, clap_args, clap_parser, clap_subcommand, clap_value_enum};
 
-#[derive(Debug, Parser)]
+#[apply(clap_parser)]
 #[command(name = "aio")]
 #[command(about = "AIO backend API server", long_about = None)]
 pub struct Cli {
@@ -8,7 +8,7 @@ pub struct Cli {
     pub command: Option<Command>,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum Command {
     #[command(about = "注册 AIO 用户到本机配置的系统用户表")]
     Reg(RegArgs),
@@ -37,13 +37,13 @@ pub enum Command {
     System(SystemCli),
 }
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[apply(clap_value_enum)]
 pub enum CliOutputFormat {
     Table,
     Json,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum AioCliCommand {
     #[command(about = "输出 AIO 内置 CLI 命令元数据")]
     Metadata(CliMetadataArgs),
@@ -63,13 +63,13 @@ pub enum AioCliCommand {
     Run(ExternalCliRunArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct CliMetadataArgs {
     #[arg(long, value_enum, default_value_t = CliOutputFormat::Table)]
     pub format: CliOutputFormat,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum AioCliSkillCommand {
     #[command(about = "写入 ~/.agents/skills/aio-cli/skill.sh")]
     Install(CliSkillInstallArgs),
@@ -77,7 +77,7 @@ pub enum AioCliSkillCommand {
     Print,
 }
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[apply(clap_value_enum)]
 pub enum ShellComponentKindArg {
     Export,
     Alias,
@@ -85,7 +85,7 @@ pub enum ShellComponentKindArg {
     Snippet,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum AioCliComponentCommand {
     #[command(about = "列出 shell 组件")]
     List(ShellComponentListArgs),
@@ -103,18 +103,18 @@ pub enum AioCliComponentCommand {
     Build(ShellComponentBuildArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ShellComponentListArgs {
     #[arg(long, value_enum, default_value_t = CliOutputFormat::Table)]
     pub format: CliOutputFormat,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ShellComponentGetArgs {
     pub name: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ShellComponentUpsertArgs {
     pub name: String,
     #[arg(long, value_enum)]
@@ -133,7 +133,7 @@ pub struct ShellComponentUpsertArgs {
     pub body: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ShellComponentSetArgs {
     pub name: String,
     #[arg(long)]
@@ -144,18 +144,18 @@ pub struct ShellComponentSetArgs {
     pub render_to_output: Option<bool>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ShellComponentRemoveArgs {
     pub name: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ShellComponentConfigArgs {
     #[arg(long)]
     pub output: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ShellComponentBuildArgs {
     #[arg(long)]
     pub output: Option<String>,
@@ -163,7 +163,7 @@ pub struct ShellComponentBuildArgs {
     pub stdout: bool,
 }
 
-#[derive(Debug, Args, Clone, Default)]
+#[derive(Debug, clap::Args, Clone, Default)]
 pub struct ServeArgs {
     #[arg(long)]
     pub bind: Option<String>,
@@ -171,7 +171,7 @@ pub struct ServeArgs {
     pub desktop_token: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct CliSkillInstallArgs {
     #[arg(long)]
     pub root: Option<String>,
@@ -179,7 +179,7 @@ pub struct CliSkillInstallArgs {
     pub path: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ExternalCliAddArgs {
     pub name: String,
     #[arg(long)]
@@ -196,25 +196,25 @@ pub struct ExternalCliAddArgs {
     pub replace: bool,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ExternalCliListArgs {
     #[arg(long, value_enum, default_value_t = CliOutputFormat::Table)]
     pub format: CliOutputFormat,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ExternalCliRemoveArgs {
     pub name: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct ExternalCliRunArgs {
     pub name: String,
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct RegArgs {
     /// 注册用户名
     #[arg(long)]
@@ -239,7 +239,7 @@ pub struct RegArgs {
     pub admin: bool,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct LoginArgs {
     /// AIO 后台地址，默认读取 AIO_SERVER_URL/AIO_API_URL/AIO_API_BIND 或 http://127.0.0.1:8787
     #[arg(long)]
@@ -258,14 +258,14 @@ pub struct LoginArgs {
     pub password_stdin: bool,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct AuthServerArgs {
     /// 覆盖登录态中的 AIO 后台地址
     #[arg(long)]
     pub server: Option<String>,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum KeyCommand {
     /// 为当前登录用户创建 API key
     Create(KeyCreateArgs),
@@ -281,20 +281,20 @@ pub enum KeyCommand {
     List,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct KeyCreateArgs {
     /// API key 标签
     #[arg(long, default_value = "")]
     pub label: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct KeyValueArgs {
     /// API key 原文
     pub api_key: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct KeyAddArgs {
     /// API key 原文
     pub api_key: String,
@@ -303,19 +303,19 @@ pub struct KeyAddArgs {
     pub label: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct KeySelectorArgs {
     /// API key 前缀或 owner 用户名
     pub selector: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct SystemCli {
     #[command(subcommand)]
     pub command: SystemSubcommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum SystemSubcommand {
     /// 输出系统治理模块的提示词、渐进式披露和 CLI 示例
     Docs(SystemDocsArgs),
@@ -333,13 +333,13 @@ pub enum SystemSubcommand {
     DictItem(DictItemCli),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct SystemDocsArgs {
     #[arg(long)]
     pub module: Option<SystemModuleKind>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+#[apply(clap_value_enum)]
 pub enum SystemModuleKind {
     Users,
     Roles,
@@ -349,13 +349,13 @@ pub enum SystemModuleKind {
     Security,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct UserCli {
     #[command(subcommand)]
     pub command: UserSubcommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum UserSubcommand {
     List,
     Get(IdArgs),
@@ -366,13 +366,13 @@ pub enum UserSubcommand {
     EffectiveMenus(IdArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct RoleCli {
     #[command(subcommand)]
     pub command: RoleSubcommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum RoleSubcommand {
     List,
     Get(IdArgs),
@@ -382,13 +382,13 @@ pub enum RoleSubcommand {
     AuthorizeMenus(RoleAuthorizeMenusArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct MenuCli {
     #[command(subcommand)]
     pub command: MenuSubcommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum MenuSubcommand {
     List,
     Create(MenuCreateArgs),
@@ -396,13 +396,13 @@ pub enum MenuSubcommand {
     Delete(IdArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DepartmentCli {
     #[command(subcommand)]
     pub command: DepartmentSubcommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum DepartmentSubcommand {
     List,
     Create(DepartmentCreateArgs),
@@ -410,13 +410,13 @@ pub enum DepartmentSubcommand {
     Delete(IdArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DictGroupCli {
     #[command(subcommand)]
     pub command: DictGroupSubcommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum DictGroupSubcommand {
     List,
     Create(DictGroupCreateArgs),
@@ -424,13 +424,13 @@ pub enum DictGroupSubcommand {
     Delete(IdArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DictItemCli {
     #[command(subcommand)]
     pub command: DictItemSubcommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum DictItemSubcommand {
     List(GroupIdArgs),
     Create(DictItemCreateArgs),
@@ -438,19 +438,19 @@ pub enum DictItemSubcommand {
     Delete(IdArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct IdArgs {
     #[arg(long)]
     pub id: i32,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct GroupIdArgs {
     #[arg(long)]
     pub group_id: i32,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct UserCreateArgs {
     #[arg(long)]
     pub username: String,
@@ -464,7 +464,7 @@ pub struct UserCreateArgs {
     pub role_ids: Vec<i32>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct UserUpdateArgs {
     #[arg(long)]
     pub id: i32,
@@ -478,7 +478,7 @@ pub struct UserUpdateArgs {
     pub password: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct UserAuthorizeRolesArgs {
     #[arg(long)]
     pub id: i32,
@@ -486,7 +486,7 @@ pub struct UserAuthorizeRolesArgs {
     pub role_ids: Vec<i32>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct RoleCreateArgs {
     #[arg(long)]
     pub name: String,
@@ -496,7 +496,7 @@ pub struct RoleCreateArgs {
     pub menu_ids: Vec<i32>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct RoleUpdateArgs {
     #[arg(long)]
     pub id: i32,
@@ -506,7 +506,7 @@ pub struct RoleUpdateArgs {
     pub description: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct RoleAuthorizeMenusArgs {
     #[arg(long)]
     pub id: i32,
@@ -514,7 +514,7 @@ pub struct RoleAuthorizeMenusArgs {
     pub menu_ids: Vec<i32>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct MenuCreateArgs {
     #[arg(long)]
     pub name: String,
@@ -534,7 +534,7 @@ pub struct MenuCreateArgs {
     pub menu_type: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct MenuUpdateArgs {
     #[arg(long)]
     pub id: i32,
@@ -556,7 +556,7 @@ pub struct MenuUpdateArgs {
     pub menu_type: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DepartmentCreateArgs {
     #[arg(long)]
     pub name: String,
@@ -566,7 +566,7 @@ pub struct DepartmentCreateArgs {
     pub sort_order: i32,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DepartmentUpdateArgs {
     #[arg(long)]
     pub id: i32,
@@ -578,7 +578,7 @@ pub struct DepartmentUpdateArgs {
     pub sort_order: i32,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DictGroupCreateArgs {
     #[arg(long)]
     pub name: String,
@@ -586,7 +586,7 @@ pub struct DictGroupCreateArgs {
     pub description: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DictGroupUpdateArgs {
     #[arg(long)]
     pub id: i32,
@@ -596,7 +596,7 @@ pub struct DictGroupUpdateArgs {
     pub description: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DictItemCreateArgs {
     #[arg(long)]
     pub group_id: i32,
@@ -608,7 +608,7 @@ pub struct DictItemCreateArgs {
     pub sort_order: i32,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DictItemUpdateArgs {
     #[arg(long)]
     pub id: i32,

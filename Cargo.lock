@@ -1290,6 +1290,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "axum",
+ "az-derive-aliases",
  "az-drive-agent",
  "az-drive-core",
  "az-drive-store",

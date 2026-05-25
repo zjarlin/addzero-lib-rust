@@ -1,15 +1,15 @@
 use anyhow::Result;
+use az_derive_aliases::{apply, clap_args, clap_subcommand, clap_value_enum};
 use az_drive_agent::{
     ConflictResolution, HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem,
     PullRemoteOptions, PullRemoteStatus, TrackedItem, TrackedItemSource, TrackedItemStatus,
 };
 use az_drive_store::{DriveConflict, DriveSyncQueueItem, DriveSyncTaskStatus};
-use clap::{Args, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use uuid::Uuid;
 
 /// Drive commands embedded by both `az-drive-app` and `aio drive`.
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum DriveCommand {
     /// Host a local file or directory.
     Host(DriveHostArgs),
@@ -43,7 +43,7 @@ pub enum DriveCommand {
 }
 
 /// Arguments for `drive host`.
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DriveHostArgs {
     /// Local file or directory path.
     pub path: String,
@@ -56,21 +56,21 @@ pub struct DriveHostArgs {
 }
 
 /// Arguments for a command that takes one local path.
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DrivePathArgs {
     /// Local path.
     pub path: String,
 }
 
 /// Arguments for `drive status`.
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DriveStatusArgs {
     /// Optional local path filter.
     pub path: Option<String>,
 }
 
 /// Arguments for `drive ls`.
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DriveLsArgs {
     /// Optional local path filter.
     pub path: Option<String>,
@@ -92,7 +92,7 @@ pub struct DriveLsArgs {
 }
 
 /// Arguments for the compatibility remote materialization command.
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DrivePullArgs {
     /// Optional local path filter, for example ~/.agents/skills.
     pub path: Option<String>,
@@ -108,7 +108,7 @@ pub struct DrivePullArgs {
 }
 
 /// Root alias subcommands.
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum DriveRootCommand {
     /// List local logical roots.
     List,
@@ -117,7 +117,7 @@ pub enum DriveRootCommand {
 }
 
 /// Git Pool subcommands.
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum DrivePoolCommand {
     /// Initialize the local Git Pool backend.
     Init(DrivePoolInitArgs),
@@ -132,7 +132,7 @@ pub enum DrivePoolCommand {
 }
 
 /// Drive backend subcommands.
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum DriveBackendCommand {
     /// Show current backend status.
     Status,
@@ -143,7 +143,7 @@ pub enum DriveBackendCommand {
 }
 
 /// Sync queue subcommands.
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum DriveQueueCommand {
     /// List durable sync queue items.
     List(DriveQueueListArgs),
@@ -152,7 +152,7 @@ pub enum DriveQueueCommand {
 }
 
 /// Conflict subcommands.
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 pub enum DriveConflictCommand {
     /// List unresolved conflicts.
     List(DriveConflictListArgs),
@@ -160,7 +160,7 @@ pub enum DriveConflictCommand {
     Resolve(DriveConflictResolveArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DriveQueueListArgs {
     /// Optional status filter.
     #[arg(long, value_enum)]
@@ -170,7 +170,7 @@ pub struct DriveQueueListArgs {
     pub format: DriveListFormat,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+#[apply(clap_value_enum)]
 pub enum DriveQueueStatusArg {
     /// Pending queue items.
     Pending,
@@ -182,14 +182,14 @@ pub enum DriveQueueStatusArg {
     Failed,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DriveConflictListArgs {
     /// Output format.
     #[arg(long, value_enum, default_value_t = DriveListFormat::Table)]
     pub format: DriveListFormat,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DriveConflictResolveArgs {
     /// Conflict id.
     pub id: Uuid,
@@ -204,7 +204,7 @@ pub struct DriveConflictResolveArgs {
     pub merged: Option<PathBuf>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DrivePoolInitArgs {
     /// Optional control repository remote URL.
     #[arg(long)]
@@ -229,7 +229,7 @@ pub struct DrivePoolInitArgs {
     pub gitdb_object_max_shard_size: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DrivePoolAddArgs {
     /// Pool name.
     pub name: String,
@@ -240,7 +240,7 @@ pub struct DrivePoolAddArgs {
     pub max_size: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DrivePoolMountArgs {
     /// Local mount name.
     pub name: String,
@@ -254,27 +254,27 @@ pub struct DrivePoolMountArgs {
     pub readonly: bool,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DrivePoolUnmountArgs {
     /// Local mount name.
     pub name: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DrivePoolListArgs {
     /// Output format.
     #[arg(long, value_enum, default_value_t = DriveListFormat::Table)]
     pub format: DriveListFormat,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DriveBackendUseArgs {
     /// Backend name. Only `git-pool` is supported.
     pub backend: String,
 }
 
 /// Arguments for `drive root add`.
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 pub struct DriveRootAddArgs {
     /// Root alias such as home, workspace, or library.
     pub alias: String,
@@ -284,7 +284,7 @@ pub struct DriveRootAddArgs {
 }
 
 /// Output format for `drive ls`.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+#[apply(clap_value_enum)]
 pub enum DriveListFormat {
     /// Human-readable table.
     Table,

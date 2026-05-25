@@ -1,15 +1,16 @@
 use anyhow::{Context, Result};
 use axum::{Router, routing::get};
+use az_derive_aliases::{apply, clap_args, clap_parser, clap_subcommand};
 use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalStateStore};
 use az_drive_webdav::{DriveWebdavState, drive_webdav_router};
-use clap::{Args, Parser, Subcommand};
+use clap::Parser;
 use std::io::{self, Write};
 use std::net::SocketAddr;
 
 #[cfg(target_os = "macos")]
 use az_drive_app::macos_actions;
 
-#[derive(Debug, Parser)]
+#[apply(clap_parser)]
 #[command(name = "az-drive-app")]
 #[command(about = "Standalone headless realtime WebDAV drive")]
 struct Cli {
@@ -17,7 +18,7 @@ struct Cli {
     command: Command,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 enum Command {
     /// Start the center WebDAV service.
     Serve(ServeArgs),
@@ -53,14 +54,14 @@ enum Command {
     InstallMacosActions,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct ServeArgs {
     /// Bind address, for example 0.0.0.0:8788.
     #[arg(long)]
     bind: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct HostArgs {
     /// Local file or directory path.
     path: String,
@@ -72,25 +73,25 @@ struct HostArgs {
     remote: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct PathArgs {
     /// Local file or directory path.
     path: String,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct StatusArgs {
     /// Optional local path filter.
     path: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct RootCommand {
     #[command(subcommand)]
     command: RootSubcommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 enum RootSubcommand {
     /// List local logical roots.
     List,
@@ -98,7 +99,7 @@ enum RootSubcommand {
     Add(RootAddArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct RootAddArgs {
     /// Root alias such as home or workspace.
     alias: String,
