@@ -1179,14 +1179,12 @@ dependencies = [
 name = "az-curl"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "base64 0.22.1",
  "regex",
  "reqwest 0.12.28",
- "serde",
- "serde_json",
  "shlex",
- "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 

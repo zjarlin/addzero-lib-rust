@@ -15,7 +15,7 @@ fn parses_complex_post_command() {
           --data-raw '{"pageIndex":0,"pageSize":96,"sorts":[{"name":"createTime","order":"desc"}],"terms":[]}'
     "#;
 
-    let result = CurlParser::parse(command);
+    let result = parse_curl(command);
     let parsed = result.expect("curl should parse");
 
     assert_eq!(parsed.method, Method::POST);
@@ -42,7 +42,7 @@ fn parses_complex_post_command() {
 fn parses_auth_query_and_form_data() {
     let command = "curl --url https://example.com/api/v1/users/42/orders/a1b2c3d4e5?userId=42&page=2 -u demo:secret -F 'name=alice' -F 'type=premium'";
 
-    let parsed = CurlParser::parse(command).expect("curl should parse");
+    let parsed = parse_curl(command).expect("curl should parse");
 
     assert_eq!(parsed.method, Method::POST);
     assert_eq!(
@@ -72,59 +72,6 @@ fn parses_auth_query_and_form_data() {
 }
 
 #[test]
-fn mutates_query_parameters_by_convention() {
-    let updated = modify_existing_query_params(
-        "https://example.com/api/users?id=42&page=3&status=ok&name=alice",
-    )
-    .expect("query params should mutate");
-
-    assert!(updated.contains("id=invalid_id_123"));
-    assert!(updated.contains("page=-1"));
-    assert!(updated.contains("status=invalid_status"));
-    assert!(updated.contains("name=modified_alice"));
-}
-
-#[test]
-fn generates_rules_and_mutates_json_payload() {
-    let payload = r#"{"name":"alice","age":18,"active":true,"items":[{"count":2}]}"#;
-
-    let rules = generate_mutation_rules(payload).expect("rules should generate");
-    let updated = mutate_payload(payload, &rules).expect("payload should mutate");
-
-    assert_eq!(rules.get("name"), Some(&MutationRule::Number));
-    assert_eq!(rules.get("age"), Some(&MutationRule::String));
-    assert!(updated.contains("\"name\": 0"));
-    assert!(updated.contains("\"age\": \"mutated_string\""));
-    assert!(updated.contains("\"active\": null"));
-    assert!(updated.contains("\"count\": \"mutated_string\""));
-}
-
-#[test]
-fn mutation_rule_uses_snake_case_wire_codes() {
-    assert_eq!(
-        serde_json::to_string(&MutationRule::String).expect("mutation rule should serialize"),
-        "\"string\""
-    );
-    assert_eq!(
-        serde_json::from_str::<MutationRule>("\"number\"")
-            .expect("mutation rule should deserialize"),
-        MutationRule::Number
-    );
-}
-
-#[test]
-fn update_payload_works_for_curl_command() {
-    let command = r#"curl https://example.com/api -H 'content-type: application/json' -d '{"name":"alice","age":18}'"#;
-
-    let updated = update_payload(command)
-        .expect("payload mutation should succeed")
-        .expect("payload should exist");
-
-    assert!(updated.contains("\"name\": 0"));
-    assert!(updated.contains("\"age\": \"mutated_string\""));
-}
-
-#[test]
 fn executor_sends_request_to_local_server() {
     let (url, join_handle) = spawn_http_server("ok");
     let command = format!(
@@ -143,7 +90,35 @@ fn executor_sends_request_to_local_server() {
     assert!(request.contains("{\"hello\":\"world\"}"));
 }
 
+#[test]
+fn executor_returns_unauthorized_response_body() {
+    let response_body = r#"{"message":"用户未登录","result":{"text":"用户未登录","value":"expired"},"status":401,"code":"unauthorized","timestamp":1779679276215}"#;
+    let (url, join_handle) = spawn_http_server_with_status(401, response_body);
+    let command = format!(
+        "curl -X POST '{url}/api/device-product/_query' -H 'content-type: application/json' --data-raw '{{\"pageIndex\":0,\"pageSize\":96,\"sorts\":[{{\"name\":\"createTime\",\"order\":\"desc\"}}],\"terms\":[]}}'"
+    );
+
+    let response = CurlExecutor::new()
+        .execute(command)
+        .expect("401 response should still return a body");
+    let _request = join_handle.join().expect("server thread should join");
+
+    assert_eq!(response.status, 401);
+    // 401 JSON must stay available as the response body, not be replaced by the request payload.
+    assert_eq!(
+        response.text().expect("response body should be utf-8"),
+        response_body
+    );
+}
+
 fn spawn_http_server(body: &'static str) -> (String, thread::JoinHandle<String>) {
+    spawn_http_server_with_status(200, body)
+}
+
+fn spawn_http_server_with_status(
+    status: u16,
+    body: &'static str,
+) -> (String, thread::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
     let address = listener.local_addr().expect("address should exist");
 
@@ -179,7 +154,7 @@ fn spawn_http_server(body: &'static str) -> (String, thread::JoinHandle<String>)
         }
 
         let response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n{}",
+            "HTTP/1.1 {status} OK\r\nContent-Length: {}\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n{}",
             body.len(),
             body
         );
