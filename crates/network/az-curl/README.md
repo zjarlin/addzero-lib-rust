@@ -10,7 +10,7 @@
 - 提取 URL 中的路径参数和查询参数
 - 通过 `curl!` 宏在编译期解析 curl 命令
 - 使用 `execute_curl` 同步执行 curl 命令
-- 公开返回值使用 `anyhow::Result`，具体错误来源保留为结构化 `CurlError`
+- 使用结构化 `CurlError`，不在库 API 暴露 `anyhow`
 
 ## 安装
 

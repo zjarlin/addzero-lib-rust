@@ -1,8 +1,74 @@
-use az_curl::execute_curl;
+use az_curl::{execute_curl, parse_curl};
+use reqwest::Method;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
 use std::time::Duration;
+
+#[test]
+fn parses_complex_post_command() {
+    let command = r#"
+        curl 'https://demo.jetlinks.cn/api/device-product/_query' \
+          -H 'accept: application/json, text/plain, */*' \
+          -H 'content-type: application/json' \
+          -H 'x-access-token: token-123' \
+          --data-raw '{"pageIndex":0,"pageSize":96,"sorts":[{"name":"createTime","order":"desc"}],"terms":[]}'
+    "#;
+
+    let parsed = parse_curl(command).expect("curl should parse");
+
+    assert_eq!(parsed.method, Method::POST);
+    assert_eq!(
+        parsed.url,
+        "https://demo.jetlinks.cn/api/device-product/_query"
+    );
+    assert_eq!(
+        parsed.header("accept"),
+        Some("application/json, text/plain, */*")
+    );
+    assert_eq!(parsed.header("x-access-token"), Some("token-123"));
+    assert_eq!(parsed.inferred_content_type(), Some("application/json"));
+    assert!(
+        parsed
+            .body
+            .as_deref()
+            .expect("body should exist")
+            .contains("\"pageIndex\":0")
+    );
+}
+
+#[test]
+fn parses_auth_query_and_form_data() {
+    let command = "curl --url https://example.com/api/v1/users/42/orders/a1b2c3d4e5?userId=42&page=2 -u demo:secret -F 'name=alice' -F 'type=premium'";
+
+    let parsed = parse_curl(command).expect("curl should parse");
+
+    assert_eq!(parsed.method, Method::POST);
+    assert_eq!(
+        parsed.query_params.get("userId").map(String::as_str),
+        Some("42")
+    );
+    assert_eq!(
+        parsed.query_params.get("page").map(String::as_str),
+        Some("2")
+    );
+    assert_eq!(
+        parsed.path_params,
+        vec!["42".to_owned(), "a1b2c3d4e5".to_owned()]
+    );
+    assert_eq!(
+        parsed.form_params.get("name").map(String::as_str),
+        Some("alice")
+    );
+    assert_eq!(parsed.inferred_content_type(), Some("multipart/form-data"));
+    assert!(
+        parsed
+            .authorization
+            .as_deref()
+            .expect("authorization should exist")
+            .starts_with("Basic ")
+    );
+}
 
 #[test]
 fn execute_curl_sends_request_to_local_server() {
@@ -22,7 +88,7 @@ fn execute_curl_sends_request_to_local_server() {
 }
 
 #[test]
-fn executor_returns_unauthorized_response_body() {
+fn execute_curl_returns_unauthorized_response_body() {
     let response_body = r#"{"message":"用户未登录","result":{"text":"用户未登录","value":"expired"},"status":401,"code":"unauthorized","timestamp":1779679276215}"#;
     let (url, join_handle) = spawn_http_server_with_status(401, response_body);
     let command = format!(
@@ -38,6 +104,15 @@ fn executor_returns_unauthorized_response_body() {
         response.text().expect("response body should be utf-8"),
         response_body
     );
+}
+
+#[test]
+fn parse_reports_missing_flag_values_as_structured_errors() {
+    let error = parse_curl("curl --header")
+        .expect_err("missing header value should fail")
+        .to_string();
+
+    assert_eq!(error, "flag `--header` requires a value");
 }
 
 fn spawn_http_server(body: &'static str) -> (String, thread::JoinHandle<String>) {

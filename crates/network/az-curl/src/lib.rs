@@ -1,7 +1,7 @@
 //! 将 curl 命令字符串解析为结构化 HTTP 请求，并支持直接执行。
 //!
 //! `az-curl` 的公开面保持很窄：[`parse_curl`] 负责解析，[`execute_curl`]
-//! 负责执行。公开返回值使用 `anyhow::Result`，具体错误来源保留为 [`CurlError`]。
+//! 负责执行。库错误使用结构化 [`CurlError`]，不向外暴露 `anyhow::Error`。
 //!
 //! # 示例
 //!
