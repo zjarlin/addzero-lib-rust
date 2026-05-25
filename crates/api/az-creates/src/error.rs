@@ -1,4 +1,4 @@
-use az_derive_aliases::{apply, error};
+use az_derive_aliases::{apply, error, impl_from_match};
 use reqwest::header::{InvalidHeaderName, InvalidHeaderValue};
 
 pub type CreatesResult<T> = Result<T, CreatesError>;
@@ -39,24 +39,14 @@ pub enum CreatesError {
     InvalidResponse(String),
 }
 
-impl From<az_music::MusicError> for CreatesError {
-    fn from(value: az_music::MusicError) -> Self {
-        match value {
-            az_music::MusicError::InvalidConfig(message) => Self::InvalidConfig(message),
-            az_music::MusicError::InvalidBaseUrl(url) => Self::InvalidBaseUrl(url),
-            az_music::MusicError::InvalidPath(path) => Self::InvalidPath(path),
-            az_music::MusicError::InvalidHeaderName { name, source } => {
-                Self::InvalidHeaderName { name, source }
-            }
-            az_music::MusicError::InvalidHeaderValue { name, source } => {
-                Self::InvalidHeaderValue { name, source }
-            }
-            az_music::MusicError::Transport(error) => Self::Transport(error),
-            az_music::MusicError::Json(error) => Self::Json(error),
-            az_music::MusicError::HttpStatus { url, status, body } => {
-                Self::HttpStatus { url, status, body }
-            }
-            az_music::MusicError::InvalidResponse(message) => Self::InvalidResponse(message),
-        }
-    }
-}
+impl_from_match!(az_music::MusicError => CreatesError {
+    az_music::MusicError::InvalidConfig(message) => Self::InvalidConfig(message),
+    az_music::MusicError::InvalidBaseUrl(url) => Self::InvalidBaseUrl(url),
+    az_music::MusicError::InvalidPath(path) => Self::InvalidPath(path),
+    az_music::MusicError::InvalidHeaderName { name, source } => Self::InvalidHeaderName { name, source },
+    az_music::MusicError::InvalidHeaderValue { name, source } => Self::InvalidHeaderValue { name, source },
+    az_music::MusicError::Transport(error) => Self::Transport(error),
+    az_music::MusicError::Json(error) => Self::Json(error),
+    az_music::MusicError::HttpStatus { url, status, body } => Self::HttpStatus { url, status, body },
+    az_music::MusicError::InvalidResponse(message) => Self::InvalidResponse(message),
+});

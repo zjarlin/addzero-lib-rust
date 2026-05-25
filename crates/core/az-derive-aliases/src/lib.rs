@@ -125,6 +125,20 @@ macro_rules! error {
     };
 }
 
+/// Implements `From` by matching explicit source patterns to target expressions.
+#[macro_export]
+macro_rules! impl_from_match {
+    ($source:ty => $target:ty { $($pattern:pat => $expr:expr),+ $(,)? }) => {
+        impl From<$source> for $target {
+            fn from(value: $source) -> Self {
+                match value {
+                    $($pattern => $expr,)+
+                }
+            }
+        }
+    };
+}
+
 /// Serde-friendly data type with equality and debug traits.
 #[macro_export]
 macro_rules! serde_eq {
