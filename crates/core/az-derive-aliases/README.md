@@ -59,6 +59,10 @@
 - **plain_eq_display** — 在 `plain_eq` 基础上增加 `Display`
 - **plain_default_copy_eq** — 在 `plain_copy_eq` 基础上增加 `Default`
 - **plain_default_copy_eq_display** — 在 `plain_default_copy_eq` 基础上增加 `Display`
+- **clap_parser** — Clap `Parser` 结构体常用的 `Debug` + `Parser`
+- **clap_args** — Clap `Args` 结构体常用的 `Debug` + `Args`
+- **clap_subcommand** — Clap `Subcommand` 枚举常用的 `Debug` + `Subcommand`
+- **clap_value_enum** — Clap `ValueEnum` 常用的 `Debug` + `Clone` + `Copy` + `PartialEq` + `Eq`
 - **seaorm_entity_model** — SeaORM 实体模型常用的 `Clone` + `Debug` + `PartialEq` + `DeriveEntityModel`
 - **seaorm_entity_model_eq** — 在 `seaorm_entity_model` 基础上额外增加 `Eq`
 - **seaorm_relation** — SeaORM relation 常用的 `Copy` + `Clone` + `Debug` + `EnumIter` + `DeriveRelation`
@@ -80,6 +84,7 @@ az-derive-aliases = { path = "../az-derive-aliases" }       # workspace 内部�
 调用侧不需要直接依赖 `macro_rules_attribute`，可以使用本 crate 重新导出的 `apply`。
 使用某个 alias 时，调用侧仍应显式声明该 alias 实际派生到的 crates，例如 `serde`、`thiserror`、`strum` 或 `derive_more`。
 SeaORM 相关 alias 仍要求调用侧引入 `sea_orm::entity::prelude::*`，以便 `DeriveEntityModel`、`DeriveRelation` 和 `EnumIter` 在展开后保持可见。
+Clap 相关 alias 仍要求调用侧引入 `clap` 的 derive 入口，通常通过该 crate 自身的 `clap` 依赖即可满足。
 
 ## 用法
 
@@ -173,5 +178,6 @@ enum Priority {
 - `serde` — serde 相关 alias 的 derive 和辅助属性
 - `thiserror` — `error` / `error_eq`
 - `derive_more` — `from_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
+- `clap` — `clap_parser` / `clap_args` / `clap_subcommand` / `clap_value_enum`
 - `strum` — `serde_code*` / `serde_code*_enum`
 - `sea_orm` — `seaorm_entity_model*` / `seaorm_relation`

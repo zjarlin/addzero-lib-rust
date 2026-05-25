@@ -2,14 +2,15 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
-use clap::{Args, Parser, Subcommand};
+use az_derive_aliases::{apply, clap_args, clap_parser, clap_subcommand};
+use clap::Parser;
 use reqwest::Url;
 
 use crate::novel::{NovelFetchConfig, NovelPreset, run_fetch};
 use crate::pipeline::{PipelineConfig, TtsMode, run_pipeline};
 use crate::web_text::{DownloadConfig, run_download};
 
-#[derive(Debug, Parser)]
+#[apply(clap_parser)]
 #[command(
     name = "addzdero-cli",
     version,
@@ -20,7 +21,7 @@ pub struct Cli {
     command: Command,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 enum Command {
     /// Download a chapter-list novel using built-in site presets or custom selectors.
     Novel(NovelArgs),
@@ -30,7 +31,7 @@ enum Command {
     WebText(WebTextArgs),
 }
 
-#[derive(Debug, Parser)]
+#[apply(clap_parser)]
 struct Novel2VideoArgs {
     /// Input plain-text novel file.
     #[arg(long)]
@@ -74,19 +75,19 @@ struct Novel2VideoArgs {
     bgm: Option<PathBuf>,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct NovelArgs {
     #[command(subcommand)]
     command: NovelCommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 enum NovelCommand {
     /// Download a TOC page and all matching chapter pages into a single text file.
     Fetch(NovelFetchArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct NovelFetchArgs {
     /// TOC page that lists all chapter links.
     #[arg(long = "toc-url")]
@@ -142,19 +143,19 @@ struct NovelFetchArgs {
     ignore_robots: bool,
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct WebTextArgs {
     #[command(subcommand)]
     command: WebTextCommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[apply(clap_subcommand)]
 enum WebTextCommand {
     /// Follow chapter-style pagination and save extracted text to a local file.
     Fetch(WebTextFetchArgs),
 }
 
-#[derive(Debug, Args)]
+#[apply(clap_args)]
 struct WebTextFetchArgs {
     /// First page to download.
     #[arg(long)]

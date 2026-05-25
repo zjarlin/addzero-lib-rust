@@ -40,6 +40,7 @@ derive_more = { version = "2.1.1", features = ["display", "from"] }
 dioxus = { version = "0.7.9", default-features = false, features = ["macro", "html", "signals"] }
 dioxus-ssr = "0.7.9"
 dirs = "6"
+clap = { version = "4.5.48", features = ["derive"] }
 handlebars = "6.4.1"
 hmac = "0.12.1"
 inventory = "0.3.21"

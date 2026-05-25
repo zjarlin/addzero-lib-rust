@@ -21,7 +21,7 @@ npm-package = "addzdero-cli"
 [dependencies]
 az-derive-aliases.workspace = true
 anyhow.workspace = true
-clap = { version = "4.5.48", features = ["derive"] }
+clap.workspace = true
 encoding_rs = "0.8.35"
 regex.workspace = true
 reqwest.workspace = true

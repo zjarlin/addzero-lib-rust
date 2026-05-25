@@ -458,6 +458,41 @@ macro_rules! plain_default_copy_eq_display {
     };
 }
 
+/// Clap parser type with `Debug` and `Parser`.
+#[macro_export]
+macro_rules! clap_parser {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Debug, ::clap::Parser), $item);
+    };
+}
+
+/// Clap args type with `Debug` and `Args`.
+#[macro_export]
+macro_rules! clap_args {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Debug, ::clap::Args), $item);
+    };
+}
+
+/// Clap subcommand type with `Debug` and `Subcommand`.
+#[macro_export]
+macro_rules! clap_subcommand {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Debug, ::clap::Subcommand), $item);
+    };
+}
+
+/// Clap value enum with `Debug`, `Clone`, `Copy`, and equality traits.
+#[macro_export]
+macro_rules! clap_value_enum {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (Debug, Clone, Copy, PartialEq, Eq, ::clap::ValueEnum),
+            $item
+        );
+    };
+}
+
 /// SeaORM entity model with `Clone`, `Debug`, and `PartialEq`.
 #[macro_export]
 macro_rules! seaorm_entity_model {

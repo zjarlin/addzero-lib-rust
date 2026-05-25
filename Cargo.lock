@@ -1193,6 +1193,7 @@ dependencies = [
 name = "az-derive-aliases"
 version = "2026.5.10"
 dependencies = [
+ "clap",
  "derive_more 2.1.1",
  "macro_rules_attribute",
  "serde",
