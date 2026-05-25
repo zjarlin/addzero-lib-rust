@@ -15,7 +15,6 @@
 - **serde_eq_no_debug** — 带 serde + 相等 trait 但保留自定义 `Debug` 的类型
 - **error** — 带 `thiserror` + `Debug` 的基础库错误类型
 - **error_eq** — 带 `thiserror` + 常用相等/调试 trait 的错误类型
-- **impl_from_match!** — 用显式 pattern 映射快速生成 `From` 实现
 - **from_eq** — 带 `derive_more::From` + `PartialEq` 的轻量转换枚举
 - **from_display** — 带 `derive_more::From` + `Display` 的轻量值枚举
 - **serde_eq** — 带 serde + 相等/调试 trait 的数据类型

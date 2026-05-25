@@ -1,6 +1,6 @@
 //! SQL parsing errors.
 
-use az_derive_aliases::{apply, error_eq, impl_from_match};
+use az_derive_aliases::{apply, error_eq};
 
 /// Result type for parsing operations.
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -33,6 +33,8 @@ pub enum ParseError {
     MultipleStatements,
 }
 
-impl_from_match!(sqlparser::parser::ParserError => ParseError {
-    value => ParseError::Syntax(value.to_string()),
-});
+impl From<sqlparser::parser::ParserError> for ParseError {
+    fn from(e: sqlparser::parser::ParserError) -> Self {
+        ParseError::Syntax(e.to_string())
+    }
+}
