@@ -1,3 +1,4 @@
+use crate::unsupported::BlockedCapability;
 use az_derive_aliases::{apply, error};
 use reqwest::header::{InvalidHeaderName, InvalidHeaderValue};
 
@@ -56,6 +57,6 @@ pub enum CodexAuthSupportError {
     #[error("crypto random generation failed")]
     Crypto,
     /// The requested capability belongs to the intentionally unsupported automation flow.
-    #[error("unsupported capability: {0}")]
-    UnsupportedCapability(&'static str),
+    #[error("unsupported capability: {capability}")]
+    UnsupportedCapability { capability: BlockedCapability },
 }

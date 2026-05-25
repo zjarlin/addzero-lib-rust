@@ -1,3 +1,4 @@
+use crate::unsupported::BlockedCapability;
 use az_derive_aliases::{apply, error};
 
 /// Crate-local result type for Kiro auth support operations.
@@ -38,6 +39,6 @@ pub enum KiroAuthSupportError {
     #[error("crypto random generation failed")]
     Crypto,
     /// The requested capability belongs to an intentionally unsupported automation flow.
-    #[error("unsupported capability: {0}")]
-    UnsupportedCapability(&'static str),
+    #[error("unsupported capability: {capability}")]
+    UnsupportedCapability { capability: BlockedCapability },
 }

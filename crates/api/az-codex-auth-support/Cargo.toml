@@ -11,6 +11,7 @@ description = "Auditable DuckMail and Codex auth-file helpers"
 az-derive-aliases.workspace = true
 base64.workspace = true
 chrono.workspace = true
+derive_more.workspace = true
 regex.workspace = true
 reqwest.workspace = true
 ring.workspace = true

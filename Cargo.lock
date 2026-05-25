@@ -1127,6 +1127,7 @@ dependencies = [
  "az-derive-aliases",
  "base64 0.22.1",
  "chrono",
+ "derive_more 2.1.1",
  "regex",
  "reqwest 0.12.28",
  "ring",

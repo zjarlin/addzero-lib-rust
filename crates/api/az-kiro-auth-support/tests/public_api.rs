@@ -102,11 +102,15 @@ fn verification_code_parser_matches_email_html() {
 
 #[test]
 fn unsupported_capabilities_return_explicit_error() {
+    assert_eq!(
+        BlockedCapability::AutomatedKiroRegistration.to_string(),
+        "automated_kiro_registration"
+    );
     let error = unsupported_capability(BlockedCapability::AutomatedKiroRegistration)
         .expect_err("capability should be blocked")
         .to_string();
 
-    assert!(error.contains("automated_kiro_registration"));
+    assert_eq!(error, "unsupported capability: automated_kiro_registration");
 }
 
 #[apply(plain_clone_debug)]

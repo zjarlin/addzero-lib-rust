@@ -304,12 +304,14 @@ mod tests {
     #[test]
     fn code_enums_keep_storage_values() {
         assert_eq!(SoftwarePlatform::Macos.code(), "macos");
+        assert_eq!(SoftwarePlatform::Macos.label(), "macOS");
         assert_eq!(
             SoftwarePlatform::from_code("linux"),
             Some(SoftwarePlatform::Linux)
         );
 
         assert_eq!(InstallerKind::DirectPackage.code(), "package");
+        assert_eq!(InstallerKind::DirectPackage.label(), "安装包");
         assert_eq!(
             InstallerKind::from_code("package"),
             Some(InstallerKind::DirectPackage)
