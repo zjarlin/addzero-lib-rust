@@ -4,7 +4,7 @@ use crate::grizzlysms::{GrizzlySmsClient, GrizzlySmsConfig};
 use crate::model::{
     SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsOrder, WaitForSmsOptions,
 };
-use az_derive_aliases::{apply, plain_default_copy_eq, plain_eq, serde_code_enum};
+use az_derive_aliases::{apply, from_plain_eq, plain_default_copy_eq, serde_code_enum};
 use std::time::Instant;
 
 /// Built-in SMS provider identifiers.
@@ -19,7 +19,7 @@ pub enum SmsProviderKind {
 }
 
 /// Configuration for one built-in SMS provider.
-#[apply(plain_eq)]
+#[apply(from_plain_eq)]
 pub enum SmsProviderConfig {
     /// 5sim v1 API config.
     Fivesim(FivesimConfig),
@@ -35,18 +35,6 @@ impl SmsProviderConfig {
             Self::Fivesim(_) => SmsProviderKind::Fivesim,
             Self::GrizzlySms(_) => SmsProviderKind::GrizzlySms,
         }
-    }
-}
-
-impl From<FivesimConfig> for SmsProviderConfig {
-    fn from(value: FivesimConfig) -> Self {
-        Self::Fivesim(value)
-    }
-}
-
-impl From<GrizzlySmsConfig> for SmsProviderConfig {
-    fn from(value: GrizzlySmsConfig) -> Self {
-        Self::GrizzlySms(value)
     }
 }
 

@@ -2,13 +2,13 @@
 
 use std::collections::BTreeMap;
 use std::error::Error;
-use std::fmt;
 use std::sync::Arc;
 
 mod notify_spi {
-    use super::{Arc, BTreeMap, Error, fmt};
+    use super::{Arc, BTreeMap};
+    use az_derive_aliases::{apply, error_eq, plain_clone_debug, plain_default};
 
-    #[derive(Debug, Clone)]
+    #[apply(plain_clone_debug)]
     pub struct NotifyRequest {
         pub target: String,
         pub title: String,
@@ -29,24 +29,13 @@ mod notify_spi {
         }
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[apply(error_eq)]
     pub enum NotifyError {
+        #[error("notification body must not be empty")]
         EmptyBody,
+        #[error("provider `{0}` is not registered")]
         ProviderNotFound(String),
     }
-
-    impl fmt::Display for NotifyError {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            match self {
-                Self::EmptyBody => write!(f, "notification body must not be empty"),
-                Self::ProviderNotFound(provider) => {
-                    write!(f, "provider `{provider}` is not registered")
-                }
-            }
-        }
-    }
-
-    impl Error for NotifyError {}
 
     pub trait MessageSenderSpi: Send + Sync {
         fn send(&self, request: &NotifyRequest) -> Result<(), NotifyError>;
@@ -57,7 +46,7 @@ mod notify_spi {
         fn create(&self) -> Arc<dyn MessageSenderSpi>;
     }
 
-    #[derive(Default)]
+    #[apply(plain_default)]
     pub struct MessageSenderRegistry {
         factories: BTreeMap<String, Arc<dyn MessageSenderFactorySpi>>,
     }

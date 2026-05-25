@@ -5,12 +5,12 @@ use axum::{
     extract::Path,
     http::{HeaderMap, StatusCode},
 };
+use az_derive_aliases::{apply, deserialize_debug};
 use az_script_engine::script::ScriptEngine;
-use serde::Deserialize;
 
 use crate::server::{ApiError, ApiResult, ensure_auth, services};
 
-#[derive(Deserialize)]
+#[apply(deserialize_debug)]
 pub struct SaveScriptRequest {
     pub name: String,
     pub source: String,

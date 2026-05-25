@@ -1,5 +1,5 @@
 use crate::model::SmsOrderStatus;
-use az_derive_aliases::{apply, error, plain_copy_eq};
+use az_derive_aliases::{apply, error, from_copy_eq};
 
 /// Result alias for SMS provider operations.
 pub type SmsResult<T> = Result<T, SmsError>;
@@ -70,7 +70,7 @@ pub enum SmsError {
 
 /// Optional provider HTTP status displayed without leaking formatting logic into
 /// error construction sites.
-#[apply(plain_copy_eq)]
+#[apply(from_copy_eq)]
 pub struct ProviderStatus(pub Option<u16>);
 
 impl std::fmt::Display for ProviderStatus {
@@ -79,11 +79,5 @@ impl std::fmt::Display for ProviderStatus {
             Some(status) => write!(formatter, " HTTP {status}"),
             None => Ok(()),
         }
-    }
-}
-
-impl From<Option<u16>> for ProviderStatus {
-    fn from(value: Option<u16>) -> Self {
-        Self(value)
     }
 }

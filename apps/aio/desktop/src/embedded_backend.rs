@@ -9,12 +9,13 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use az_aio_client::AioClient;
+use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 use uuid::Uuid;
 
 const DEFAULT_STARTUP_TIMEOUT: Duration = Duration::from_secs(90);
 const DEFAULT_READY_POLL_INTERVAL: Duration = Duration::from_millis(150);
 
-#[derive(Clone, Debug)]
+#[apply(plain_clone_debug)]
 pub struct DesktopRuntimeOptions {
     pub backend_bin: Option<PathBuf>,
     pub bind: Option<String>,
@@ -23,25 +24,13 @@ pub struct DesktopRuntimeOptions {
     pub startup_timeout: Duration,
 }
 
-impl Default for DesktopRuntimeOptions {
-    fn default() -> Self {
-        Self {
-            backend_bin: None,
-            bind: None,
-            desktop_token: None,
-            extra_env: Vec::new(),
-            startup_timeout: DEFAULT_STARTUP_TIMEOUT,
-        }
-    }
-}
-
-#[derive(Debug)]
+#[apply(plain_debug)]
 enum BackendLaunchSpec {
     Binary(PathBuf),
     CargoWorkspace(PathBuf),
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct DesktopRuntime {
     _backend: EmbeddedBackendProcess,
     #[allow(dead_code)]
@@ -99,7 +88,7 @@ impl DesktopRuntime {
     }
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 struct EmbeddedBackendProcess {
     child: Child,
 }
@@ -370,5 +359,16 @@ mod tests {
             anyhow::bail!("cargo build -p aio --bin aio failed with {status}");
         }
         Ok(workspace_root.join("target/debug/aio"))
+    }
+}
+impl Default for DesktopRuntimeOptions {
+    fn default() -> Self {
+        Self {
+            backend_bin: None,
+            bind: None,
+            desktop_token: None,
+            extra_env: Vec::new(),
+            startup_timeout: DEFAULT_STARTUP_TIMEOUT,
+        }
     }
 }

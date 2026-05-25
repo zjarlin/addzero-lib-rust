@@ -2,7 +2,7 @@
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
 
-use az_derive_aliases::{apply, plain_default_copy_eq, plain_default_eq, plain_eq};
+use az_derive_aliases::{apply, dioxus_props, plain_default_copy_eq, plain_default_eq, plain_eq};
 use az_dioxus_components::az_table::{
     AzTable as PrimitiveAzTable, AzTableBody, AzTableCaption, AzTableCell as PrimitiveAzTableCell,
     AzTableHead, AzTableHeaderCell, AzTableRow as PrimitiveAzTableRow,
@@ -87,7 +87,7 @@ pub struct AzTableRow {
 }
 
 /// Props for [`AzTable`].
-#[derive(Props, Clone, PartialEq)]
+#[apply(dioxus_props)]
 pub struct AzTableProps {
     /// Column definitions.
     pub columns: Vec<AzTableColumn>,

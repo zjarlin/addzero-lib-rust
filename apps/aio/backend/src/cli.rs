@@ -1,4 +1,6 @@
-use az_derive_aliases::{apply, clap_args, clap_parser, clap_subcommand, clap_value_enum};
+use az_derive_aliases::{
+    apply, clap_args, clap_args_default_clone, clap_parser, clap_subcommand, clap_value_enum,
+};
 
 #[apply(clap_parser)]
 #[command(name = "aio")]
@@ -163,7 +165,7 @@ pub struct ShellComponentBuildArgs {
     pub stdout: bool,
 }
 
-#[derive(Debug, clap::Args, Clone, Default)]
+#[apply(clap_args_default_clone)]
 pub struct ServeArgs {
     #[arg(long)]
     pub bind: Option<String>,

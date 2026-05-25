@@ -45,7 +45,9 @@
 //! ```
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, error, plain_copy_eq, plain_eq, plain_eq_no_debug};
+use az_derive_aliases::{
+    apply, error, impl_from_match, plain_copy_eq, plain_eq, plain_eq_no_debug,
+};
 use rumqttc::{
     Client, ClientError, Connection, Event, LastWill, MqttOptions, Packet, QoS, RecvTimeoutError,
     SubscribeFilter, Transport,
@@ -95,25 +97,17 @@ pub enum MqttQoS {
     ExactlyOnce,
 }
 
-impl From<MqttQoS> for QoS {
-    fn from(value: MqttQoS) -> Self {
-        match value {
-            MqttQoS::AtMostOnce => QoS::AtMostOnce,
-            MqttQoS::AtLeastOnce => QoS::AtLeastOnce,
-            MqttQoS::ExactlyOnce => QoS::ExactlyOnce,
-        }
-    }
-}
+impl_from_match!(MqttQoS => QoS {
+    MqttQoS::AtMostOnce => Self::AtMostOnce,
+    MqttQoS::AtLeastOnce => Self::AtLeastOnce,
+    MqttQoS::ExactlyOnce => Self::ExactlyOnce,
+});
 
-impl From<QoS> for MqttQoS {
-    fn from(value: QoS) -> Self {
-        match value {
-            QoS::AtMostOnce => MqttQoS::AtMostOnce,
-            QoS::AtLeastOnce => MqttQoS::AtLeastOnce,
-            QoS::ExactlyOnce => MqttQoS::ExactlyOnce,
-        }
-    }
-}
+impl_from_match!(QoS => MqttQoS {
+    QoS::AtMostOnce => Self::AtMostOnce,
+    QoS::AtLeastOnce => Self::AtLeastOnce,
+    QoS::ExactlyOnce => Self::ExactlyOnce,
+});
 
 #[apply(plain_eq)]
 pub struct MqttMessage {

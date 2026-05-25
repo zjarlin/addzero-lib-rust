@@ -3,12 +3,12 @@
 //! Standalone headless drive app support utilities.
 
 use anyhow::Context;
+use az_derive_aliases::{apply, deserialize_debug, plain_eq};
 use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalState, LocalStateStore};
 use az_drive_store::{
     DEFAULT_AUTO_GIT_POOL_PREFIX, DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator,
     GitDbObjectStore, GitDbObjectStoreConfig, GitPoolConfig, GitPoolDriveStore, GitPoolRepoConfig,
 };
-use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
@@ -384,7 +384,7 @@ async fn migrate_state_paths(
     Ok(statuses)
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 struct DriveTomlConfig {
     backend: String,
     git_pool_root: Option<PathBuf>,
@@ -664,7 +664,7 @@ pub fn aio_config_dir() -> Option<PathBuf> {
         .map(|config| config.join("aio"))
 }
 
-#[derive(Deserialize)]
+#[apply(deserialize_debug)]
 struct AuthFile {
     username: String,
     #[serde(default)]
@@ -686,13 +686,13 @@ impl AuthFile {
     }
 }
 
-#[derive(Deserialize)]
+#[apply(deserialize_debug)]
 struct DriveApiKeyFile {
     #[serde(alias = "owner_space_id")]
     owner_drive_id: String,
 }
 
-#[derive(Deserialize)]
+#[apply(deserialize_debug)]
 struct TrustedApiKeyFile {
     #[serde(alias = "owner_space_id")]
     owner_drive_id: String,

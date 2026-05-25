@@ -30,9 +30,11 @@
 
 use std::sync::Arc;
 
+use az_derive_aliases::{apply, plain_copy_eq};
+
 type Predicate<T> = Arc<dyn Fn(&T) -> bool + 'static>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 enum Junction {
     And,
     Or,

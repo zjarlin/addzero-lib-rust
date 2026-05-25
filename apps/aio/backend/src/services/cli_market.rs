@@ -16,7 +16,7 @@ use az_cli_market_contract::{
     CliMarketSourceType, CliMarketStatus, CliMarketSummary, CliPlatform, CliRegistryCompatEntry,
     CliSimpleMetadata,
 };
-use az_derive_aliases::{apply, error_eq, serde_eq_default};
+use az_derive_aliases::{apply, error_eq, plain_clone, serde_eq_default};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
 #[cfg(not(target_arch = "wasm32"))]
@@ -232,7 +232,7 @@ impl CliMarketApi for BrowserCliMarketApi {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone)]
+#[apply(plain_clone)]
 struct EmbeddedCliMarketApi;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -313,7 +313,7 @@ const CLI_MARKET_SCHEMA_SQL: &str =
     include_str!("../server/migrations/0002_clianything_market.sql");
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct CliMarketService {
     pg: Option<CliMarketRepo>,
 }
@@ -448,7 +448,7 @@ impl CliMarketService {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone)]
+#[apply(plain_clone)]
 struct CliMarketRepo {
     pool: PgPool,
 }

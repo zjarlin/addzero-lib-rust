@@ -7,9 +7,6 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-
-[dev-dependencies]
 az-derive-aliases.workspace = true
-
 [lints]
 workspace = true

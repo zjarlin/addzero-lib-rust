@@ -1,5 +1,5 @@
 use anyhow::Result;
-use az_derive_aliases::{apply, clap_args, clap_subcommand, clap_value_enum};
+use az_derive_aliases::{apply, clap_args, clap_subcommand, clap_value_enum, impl_from_match};
 use az_drive_agent::{
     ConflictResolution, HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem,
     PullRemoteOptions, PullRemoteStatus, TrackedItem, TrackedItemSource, TrackedItemStatus,
@@ -750,16 +750,12 @@ fn parse_size_bytes(raw: &str) -> Result<u64> {
     Ok(number.saturating_mul(multiplier))
 }
 
-impl From<DriveQueueStatusArg> for DriveSyncTaskStatus {
-    fn from(value: DriveQueueStatusArg) -> Self {
-        match value {
-            DriveQueueStatusArg::Pending => Self::Pending,
-            DriveQueueStatusArg::Running => Self::Running,
-            DriveQueueStatusArg::Done => Self::Done,
-            DriveQueueStatusArg::Failed => Self::Failed,
-        }
-    }
-}
+impl_from_match!(DriveQueueStatusArg => DriveSyncTaskStatus {
+    DriveQueueStatusArg::Pending => Self::Pending,
+    DriveQueueStatusArg::Running => Self::Running,
+    DriveQueueStatusArg::Done => Self::Done,
+    DriveQueueStatusArg::Failed => Self::Failed,
+});
 
 fn status_text(status: TrackedItemStatus) -> &'static str {
     match status {

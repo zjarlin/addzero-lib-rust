@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
+use az_derive_aliases::{apply, plain_clone};
 
 use crate::{
     dotfiles_monitor_diff::{changed_ranges, first_overlap, snippet},
@@ -181,7 +182,7 @@ struct ScanContext {
     targets: Vec<TargetRoot>,
 }
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 struct TargetRoot {
     id: String,
     name: String,

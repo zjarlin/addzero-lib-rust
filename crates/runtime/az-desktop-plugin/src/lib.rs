@@ -666,6 +666,7 @@ pub trait DesktopHostServices: Send + Sync {
 
 #[cfg(test)]
 mod tests {
+    use az_derive_aliases::{apply, plain_default};
     use std::sync::Arc;
 
     use super::{
@@ -677,7 +678,7 @@ mod tests {
     };
     use uuid::Uuid;
 
-    #[derive(Default)]
+    #[apply(plain_default)]
     struct FakeServices;
 
     impl DesktopHostServices for FakeServices {

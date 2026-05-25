@@ -100,6 +100,28 @@ macro_rules! from_eq {
     };
 }
 
+/// Lightweight conversion type with `derive_more::From` and full equality.
+#[macro_export]
+macro_rules! from_plain_eq {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (Clone, Debug, ::derive_more::From, PartialEq, Eq),
+            $item
+        );
+    };
+}
+
+/// Lightweight `Copy` conversion type with `derive_more::From` and full equality.
+#[macro_export]
+macro_rules! from_copy_eq {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (Clone, Copy, Debug, ::derive_more::From, PartialEq, Eq),
+            $item
+        );
+    };
+}
+
 /// Lightweight conversion/value type with `derive_more::From` and `Display`.
 #[macro_export]
 macro_rules! from_display {
@@ -250,6 +272,22 @@ macro_rules! serde_eq_hash_ord_display {
     };
 }
 
+/// SQLx row-mapped type with `FromRow`.
+#[macro_export]
+macro_rules! sqlx_from_row {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((::sqlx::FromRow), $item);
+    };
+}
+
+/// Shaku component type with `Component`.
+#[macro_export]
+macro_rules! shaku_component {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Component), $item);
+    };
+}
+
 /// Serde-friendly data type with equality traits and no generated `Debug`.
 #[macro_export]
 macro_rules! serde_eq_no_debug {
@@ -280,6 +318,14 @@ macro_rules! plain_eq {
 macro_rules! plain_clone {
     ($item:item) => {
         $crate::__az_derive_aliases_derive!((Clone), $item);
+    };
+}
+
+/// Plain structural type with `Clone` and `Copy`.
+#[macro_export]
+macro_rules! plain_copy {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Clone, Copy), $item);
     };
 }
 
@@ -501,11 +547,27 @@ macro_rules! clap_args {
     };
 }
 
+/// Clap args type with `Debug`, `Args`, `Clone`, and `Default`.
+#[macro_export]
+macro_rules! clap_args_default_clone {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Debug, ::clap::Args, Clone, Default), $item);
+    };
+}
+
 /// Clap subcommand type with `Debug` and `Subcommand`.
 #[macro_export]
 macro_rules! clap_subcommand {
     ($item:item) => {
         $crate::__az_derive_aliases_derive!((Debug, ::clap::Subcommand), $item);
+    };
+}
+
+/// Dioxus props type with `Clone` and `PartialEq`.
+#[macro_export]
+macro_rules! dioxus_props {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((::dioxus::prelude::Props, Clone, PartialEq), $item);
     };
 }
 

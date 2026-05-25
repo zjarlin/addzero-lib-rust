@@ -12,6 +12,9 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[dependencies]
+az-derive-aliases = { path = "../../../../../crates/core/az-derive-aliases" }
+
 [profile.release]
 codegen-units = 1
 lto = true

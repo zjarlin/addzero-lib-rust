@@ -25,9 +25,10 @@ pub fn build_fivesim_provider(token: &str) -> BrowserAutomationResult<BoxSmsProv
 #[cfg(test)]
 mod tests {
     use super::*;
+    use az_derive_aliases::{apply, plain_default};
     use az_sms::provider::{BoxSmsProvider, SmsProviderKind};
 
-    #[derive(Default)]
+    #[apply(plain_default)]
     struct InspectingFactory;
 
     impl SmsProviderFactory for InspectingFactory {

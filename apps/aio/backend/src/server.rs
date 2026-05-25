@@ -27,10 +27,9 @@ use az_config_center_contract::{
     ShellComponentBuildResult, ShellComponentConfigUpdate, ShellComponentPatch,
     ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
 };
-use az_derive_aliases::{apply, plain_clone_debug, plain_default_clone_debug};
+use az_derive_aliases::{apply, deserialize_debug, plain_clone_debug, plain_default_clone_debug};
 use az_script_engine::script::ScriptEngine;
 use az_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
-use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::services::{
@@ -1918,7 +1917,7 @@ async fn sys_delete_dict_group(headers: HeaderMap, Path(id): Path<i32>) -> ApiRe
 
 // ─── Dict Item Handlers ─────────────────────────────────────────────────────
 
-#[derive(serde::Deserialize)]
+#[apply(deserialize_debug)]
 struct GroupIdQuery {
     group_id: i32,
 }
@@ -1971,7 +1970,7 @@ async fn sys_delete_dict_item(headers: HeaderMap, Path(id): Path<i32>) -> ApiRes
 
 // ─── Download Station Handlers ─────────────────────────────────────────────────────
 
-#[derive(serde::Deserialize)]
+#[apply(deserialize_debug)]
 struct ScanRequest {
     directories: Vec<String>,
 }
@@ -2024,7 +2023,7 @@ async fn ds_get_stats(headers: HeaderMap) -> ApiResult<Json<ScanStats>> {
     Ok(Json(result))
 }
 
-#[derive(serde::Deserialize)]
+#[apply(deserialize_debug)]
 struct CreateShareRequest {
     source: String,
     path: String,
@@ -2238,7 +2237,7 @@ impl IntoResponse for ApiError {
 
 // ─── Script Engine Handlers ─────────────────────────────────────────────
 
-#[derive(Deserialize)]
+#[apply(deserialize_debug)]
 pub struct RunRhaiRequest {
     source: String,
     #[serde(default)]

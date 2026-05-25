@@ -21,7 +21,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use az_derive_aliases::{apply, error, plain_clone, plain_default_eq, plain_eq};
+use az_derive_aliases::{apply, error, plain_clone, plain_default_eq, plain_eq, shaku_component};
 use az_plugin_contract::{
     ActorSnapshot, MarketplaceEntry, MarketplaceSnapshot, PluginCounts, PluginDescriptor,
     PluginInstance, PluginKind, ResolvedPage, RuntimeOverview, ShellSnapshot,
@@ -244,7 +244,7 @@ trait KernelServicesProvider: Interface {
     fn services(&self) -> KernelServices;
 }
 
-#[derive(Component)]
+#[apply(shaku_component)]
 #[shaku(interface = KernelServicesProvider)]
 struct DefaultKernelServicesProvider;
 

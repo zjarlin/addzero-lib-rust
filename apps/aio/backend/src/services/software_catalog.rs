@@ -1,5 +1,7 @@
 use std::rc::Rc;
 
+use az_derive_aliases::{apply, plain_clone};
+
 #[cfg(target_arch = "wasm32")]
 use az_software_catalog::SoftwareCatalogError;
 #[cfg(not(target_arch = "wasm32"))]
@@ -102,7 +104,7 @@ impl SoftwareCatalogApi for BrowserSoftwareCatalogApi {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone)]
+#[apply(plain_clone)]
 struct EmbeddedSoftwareCatalogApi;
 
 #[cfg(not(target_arch = "wasm32"))]

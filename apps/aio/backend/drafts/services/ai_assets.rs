@@ -2,8 +2,8 @@ use std::{future::Future, pin::Pin, rc::Rc};
 
 use az_derive_aliases::{
     apply, error_eq, impl_from_match, serde_code_default_enum, serde_code_default_ord_enum,
+    serde_eq_default, serde_partial_eq_default,
 };
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
@@ -50,7 +50,7 @@ impl AiProviderKindDto {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct AiAssetDto {
     pub id: String,
     pub kind: AiAssetKindDto,
@@ -64,7 +64,7 @@ pub struct AiAssetDto {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct AiAssetUpsertDto {
     pub id: Option<String>,
     pub kind: AiAssetKindDto,
@@ -75,28 +75,28 @@ pub struct AiAssetUpsertDto {
     pub metadata: Value,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct SuggestedEdgeDto {
     pub target_title: String,
     pub relation: String,
     pub confidence: u8,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct AiCaptureRequestDto {
     pub raw_content: String,
     pub target_kind: AiAssetKindDto,
     pub prompt_button_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct AiCaptureResponseDto {
     pub capture_asset: AiAssetDto,
     pub generated_asset: AiAssetDto,
     pub suggested_edges: Vec<SuggestedEdgeDto>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AiModelProviderDto {
     pub provider: AiProviderKindDto,
     pub label: String,
@@ -106,7 +106,7 @@ pub struct AiModelProviderDto {
     pub updated_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AiModelProviderUpsertDto {
     pub provider: AiProviderKindDto,
     pub default_model: String,
@@ -114,14 +114,14 @@ pub struct AiModelProviderUpsertDto {
     pub api_key: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AiProviderTestDto {
     pub provider: AiProviderKindDto,
     pub ok: bool,
     pub message: String,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AiPromptButtonDto {
     pub id: String,
     pub label: String,
@@ -133,7 +133,7 @@ pub struct AiPromptButtonDto {
     pub updated_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AiPromptButtonUpsertDto {
     pub id: Option<String>,
     pub label: String,

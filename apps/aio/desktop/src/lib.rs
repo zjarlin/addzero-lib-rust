@@ -5,16 +5,16 @@ mod embedded_backend;
 use std::{path::PathBuf, process::Command, sync::Arc};
 
 use anyhow::Context;
+use az_derive_aliases::{apply, plain_clone, serialize_clone_debug};
 use embedded_backend::DesktopRuntime;
-use serde::Serialize;
 use tauri::{Manager, State};
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 struct RuntimeState {
     runtime: Arc<DesktopRuntime>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[apply(serialize_clone_debug)]
 #[serde(rename_all = "camelCase")]
 struct RuntimeInfo {
     base_url: String,

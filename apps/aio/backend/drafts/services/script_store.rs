@@ -1,8 +1,9 @@
 use once_cell::sync::OnceCell;
-use serde::Serialize;
-use sqlx::{FromRow, postgres::PgPoolOptions};
+use az_derive_aliases::{apply, serialize_eq, sqlx_from_row};
+use sqlx::postgres::PgPoolOptions;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, FromRow)]
+#[apply(serialize_eq)]
+#[apply(sqlx_from_row)]
 pub struct StoredScriptDto {
     pub name: String,
     pub source: String,

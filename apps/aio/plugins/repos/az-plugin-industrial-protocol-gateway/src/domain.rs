@@ -1,9 +1,10 @@
 //! Domain model for gateway endpoint and route declarations.
 
 use core::fmt;
+use az_derive_aliases::{apply, plain_copy_eq};
 
 /// Industrial or integration protocol handled by the gateway.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 pub enum Protocol {
     /// Modbus RTU over serial field buses.
     ModbusRtu,
@@ -31,7 +32,7 @@ impl fmt::Display for Protocol {
 }
 
 /// Runtime role of a gateway endpoint.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 pub enum EndpointRole {
     /// Data enters the gateway from this endpoint.
     Source,
@@ -42,7 +43,7 @@ pub enum EndpointRole {
 }
 
 /// A declared protocol endpoint.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 pub struct Endpoint {
     pub id: &'static str,
     pub label: &'static str,
@@ -52,7 +53,7 @@ pub struct Endpoint {
 }
 
 /// A conversion route between two declared endpoints.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 pub struct ConversionRoute {
     pub id: &'static str,
     pub label: &'static str,
@@ -63,7 +64,7 @@ pub struct ConversionRoute {
 }
 
 /// Complete static gateway profile contributed by this plugin.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 pub struct GatewayProfile<'a> {
     pub endpoints: &'a [Endpoint],
     pub routes: &'a [ConversionRoute],
@@ -113,7 +114,7 @@ impl GatewayProfile<'_> {
 }
 
 /// Validation failure for a gateway profile.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 pub enum GatewayProfileError {
     EmptyEndpointId,
     EmptyRouteId,

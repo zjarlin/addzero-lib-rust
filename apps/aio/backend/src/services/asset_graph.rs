@@ -10,7 +10,9 @@ use std::{
     time::Duration,
 };
 
-use az_derive_aliases::{apply, error_eq, plain_clone_debug, serde_code_enum, serde_eq_default};
+use az_derive_aliases::{
+    apply, error_eq, plain_clone, plain_clone_debug, serde_code_enum, serde_eq_default,
+};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
 
@@ -159,7 +161,7 @@ impl AssetGraphApi for EmbeddedAssetGraphApi {
 const ASSET_SCHEMA_SQL: &str = include_str!("../server/migrations/0003_admin_asset_graph.sql");
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct AssetRecordInput {
     pub id: String,
     pub kind: AssetKindDto,

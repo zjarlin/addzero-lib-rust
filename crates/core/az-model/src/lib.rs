@@ -9,7 +9,7 @@
 //! - [`Pageable`] — 分页请求参数
 //! - [`PageResult`] — 分页响应容器
 
-use az_derive_aliases::{apply, serde_eq};
+use az_derive_aliases::{apply, plain_debug, serde_eq};
 use chrono::{DateTime, Utc};
 
 /// An entity with a primary key of type `Id`.
@@ -183,7 +183,7 @@ mod tests {
         }
     }
 
-    #[derive(Debug)]
+    #[apply(plain_debug)]
     struct Query {
         page: usize,
         page_size: usize,

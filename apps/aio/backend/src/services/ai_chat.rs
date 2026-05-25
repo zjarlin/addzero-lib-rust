@@ -1,12 +1,14 @@
 use std::collections::BTreeMap;
 
-use az_derive_aliases::{apply, impl_from_match, serde_code_default_ord_enum, serde_eq_default};
+use az_derive_aliases::{
+    apply, deserialize_debug, impl_from_match, serde_code_default_ord_enum, serde_eq_default,
+    serialize_debug,
+};
 use rig::{
     client::CompletionClient,
     completion::{AssistantContent, CompletionError, Message},
     providers::{anthropic, gemini},
 };
-use serde::{Deserialize, Serialize};
 
 #[apply(serde_code_default_ord_enum)]
 pub enum AiProviderKindDto {
@@ -250,30 +252,30 @@ async fn send_openai_compatible_chat(
     secret: az_assets::AssetProviderSecret,
     messages: Vec<Message>,
 ) -> Result<ChatResponseDto, String> {
-    #[derive(Serialize)]
+    #[apply(serialize_debug)]
     struct OpenAiRequest<'a> {
         model: &'a str,
         messages: Vec<OpenAiMessage<'a>>,
     }
 
-    #[derive(Serialize)]
+    #[apply(serialize_debug)]
     struct OpenAiMessage<'a> {
         role: &'a str,
         content: &'a str,
     }
 
-    #[derive(Deserialize)]
+    #[apply(deserialize_debug)]
     struct OpenAiResponse {
         model: Option<String>,
         choices: Vec<OpenAiChoice>,
     }
 
-    #[derive(Deserialize)]
+    #[apply(deserialize_debug)]
     struct OpenAiChoice {
         message: OpenAiChoiceMessage,
     }
 
-    #[derive(Deserialize)]
+    #[apply(deserialize_debug)]
     struct OpenAiChoiceMessage {
         content: String,
     }

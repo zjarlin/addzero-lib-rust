@@ -24,6 +24,10 @@
 - **serde_eq_hash_display** — 在 `serde_eq_hash` 基础上增加 `Display`
 - **serde_eq_hash_ord** — 在 `serde_eq_hash` 基础上增加 `Ord`/`PartialOrd`
 - **serde_eq_hash_ord_display** — 在 `serde_eq_hash_ord` 基础上增加 `Display`
+- **sqlx_from_row** — SQLx 查询结果行映射的 `FromRow`
+- **shaku_component** — Shaku DI 组件类型的 `Component`
+- **from_plain_eq** — 单字段包装枚举/值对象常用的 `From` + `Clone` + `Debug` + `PartialEq` + `Eq`
+- **from_copy_eq** — 单字段 `Copy` 包装类型常用的 `From` + `Clone` + `Copy` + `Debug` + `PartialEq` + `Eq`
 - **serde_eq_copy** — 在 `serde_eq` 基础上增加 `Copy`
 - **serde_eq_copy_display** — 在 `serde_eq_copy` 基础上增加 `Display`
 - **serde_eq_default_copy** — 在 `serde_eq_copy` 基础上增加 `Default` 和 `Hash`
@@ -41,6 +45,7 @@
 - **serde_code_default_ord_enum** — 在 `serde_code_default_ord` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **plain_eq** — 纯内存结构体/枚举的 `Clone` + `Debug` + `Eq` + `PartialEq`
 - **plain_clone** — 纯内存句柄/配置壳子的 `Clone`
+- **plain_copy** — 纯内存只读值对象的 `Clone` + `Copy`
 - **plain_default** — 纯内存状态/缓存的 `Default`
 - **plain_debug** — 纯内存结果/会话/标记类型的 `Debug`
 - **plain_clone_debug** — 纯内存句柄/配置壳子的 `Clone` + `Debug`
@@ -64,8 +69,10 @@
 - **plain_default_copy_eq_display** — 在 `plain_default_copy_eq` 基础上增加 `Display`
 - **clap_parser** — Clap `Parser` 结构体常用的 `Debug` + `Parser`
 - **clap_args** — Clap `Args` 结构体常用的 `Debug` + `Args`
+- **clap_args_default_clone** — 在 `clap_args` 基础上增加 `Clone` + `Default`
 - **clap_subcommand** — Clap `Subcommand` 枚举常用的 `Debug` + `Subcommand`
 - **clap_value_enum** — Clap `ValueEnum` 常用的 `Debug` + `Clone` + `Copy` + `PartialEq` + `Eq`
+- **dioxus_props** — Dioxus `Props` 结构体常用的 `Clone` + `PartialEq`
 - **seaorm_entity_model** — SeaORM 实体模型常用的 `Clone` + `Debug` + `PartialEq` + `DeriveEntityModel`
 - **seaorm_entity_model_eq** — 在 `seaorm_entity_model` 基础上额外增加 `Eq`
 - **seaorm_relation** — SeaORM relation 常用的 `Copy` + `Clone` + `Debug` + `EnumIter` + `DeriveRelation`
@@ -180,7 +187,7 @@ enum Priority {
 - `macro_rules_attribute` — 将宏作为 derive 属性应用到类型定义
 - `serde` — serde 相关 alias 的 derive 和辅助属性
 - `thiserror` — `error` / `error_eq`
-- `derive_more` — `from_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
+- `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
 - `clap` — `clap_parser` / `clap_args` / `clap_subcommand` / `clap_value_enum`
 - `strum` — `serde_code*` / `serde_code*_enum`
 - `sea_orm` — `seaorm_entity_model*` / `seaorm_relation`

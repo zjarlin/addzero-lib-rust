@@ -1,10 +1,10 @@
-use az_derive_aliases::{apply, serde_eq};
+use az_derive_aliases::{apply, serde_eq, sqlx_from_row};
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool, Row};
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 #[apply(serde_eq)]
-#[derive(FromRow)]
+#[apply(sqlx_from_row)]
 pub struct Menu {
     pub id: Uuid,
     pub route_path: String,
@@ -47,7 +47,7 @@ pub struct UpdateMenuRequest {
 }
 
 #[apply(serde_eq)]
-#[derive(FromRow)]
+#[apply(sqlx_from_row)]
 pub struct Permission {
     pub id: Uuid,
     pub name: String,

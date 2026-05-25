@@ -52,11 +52,12 @@ macro_rules! register_desktop_plugin {
 
 #[cfg(test)]
 mod tests {
+    use az_derive_aliases::{apply, plain_default};
     use az_desktop_plugin::{DesktopInitContext, DesktopRenderLayer, Plugin};
 
     use super::load_plugins;
 
-    #[derive(Default)]
+    #[apply(plain_default)]
     struct AlphaPlugin;
 
     impl
@@ -77,7 +78,7 @@ mod tests {
         }
     }
 
-    #[derive(Default)]
+    #[apply(plain_default)]
     struct BetaPlugin;
 
     impl

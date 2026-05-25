@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use serde::Serialize;
+use az_derive_aliases::{apply, serialize_debug};
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
@@ -11,7 +11,7 @@ const UNHOST_WORKFLOW_NAME: &str = "AIO Drive 取消托管.workflow";
 const HOST_MENU_LABEL: &str = "AIO Drive 托管";
 const UNHOST_MENU_LABEL: &str = "AIO Drive 取消托管";
 
-#[derive(Debug, Serialize)]
+#[apply(serialize_debug)]
 pub struct MacosActionsInstallResult {
     workflows: Vec<PathBuf>,
     scripts: Vec<PathBuf>,

@@ -3,10 +3,11 @@ use std::io;
 use std::path::PathBuf;
 
 use adui_dioxus::{ColumnAlign, Table, TableColumn, ThemeProvider};
+use az_derive_aliases::{apply, plain_copy};
 use dioxus::prelude::*;
 use serde_json::{Value, json};
 
-#[derive(Clone, Copy)]
+#[apply(plain_copy)]
 struct RuntimeRow {
     node: &'static str,
     runtime: &'static str,

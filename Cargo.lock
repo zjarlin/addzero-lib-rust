@@ -153,6 +153,7 @@ dependencies = [
  "anyhow",
  "az-aio-client",
  "az-config-center-contract",
+ "az-derive-aliases",
  "rfd",
  "serde",
  "serde_json",
@@ -1124,7 +1125,9 @@ dependencies = [
 name = "az-common"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "chrono",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1220,6 +1223,7 @@ dependencies = [
 name = "az-desktop-plugin-registry"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-desktop-plugin",
  "inventory",
 ]
@@ -1252,6 +1256,7 @@ name = "az-dioxus-components"
 version = "2026.5.10"
 dependencies = [
  "adui-dioxus",
+ "az-derive-aliases",
  "dioxus",
  "dioxus-ssr",
  "serde_json",
@@ -1808,6 +1813,7 @@ dependencies = [
  "async-trait",
  "automod",
  "az-derive-aliases",
+ "derive_more 2.1.1",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
