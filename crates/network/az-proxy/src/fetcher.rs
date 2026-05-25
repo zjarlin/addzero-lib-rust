@@ -1,5 +1,5 @@
 use crate::parser::parse_subscription;
-use crate::types::{ClashResult, ProxyNode};
+use crate::types::{ProxyResult, ProxyNode};
 use az_derive_aliases::{apply, plain_eq};
 use reqwest::header::CONTENT_TYPE;
 
@@ -16,9 +16,9 @@ pub struct FetchedSubscription {
 ///
 /// # Errors
 ///
-/// Returns [`crate::ClashError::Http`] when the request fails, the response
+/// Returns [`crate::types::ProxyError::Http`] when the request fails, the response
 /// status is not successful, or the response body cannot be decoded as text.
-pub async fn fetch_subscription(url: &str) -> ClashResult<FetchedSubscription> {
+pub async fn fetch_subscription(url: &str) -> ProxyResult<FetchedSubscription> {
     let response = reqwest::Client::new()
         .get(url)
         .send()
@@ -36,7 +36,7 @@ pub async fn fetch_subscription(url: &str) -> ClashResult<FetchedSubscription> {
         url,
         content_type = content_type.as_deref().unwrap_or(""),
         bytes = body.len(),
-        "fetched clash subscription"
+        "fetched proxy subscription"
     );
 
     Ok(FetchedSubscription { body, content_type })
@@ -51,7 +51,7 @@ pub async fn fetch_subscription(url: &str) -> ClashResult<FetchedSubscription> {
 ///
 /// Returns an error when fetching fails or the response does not contain any
 /// usable supported proxy nodes.
-pub async fn fetch_and_parse(url: &str) -> ClashResult<Vec<ProxyNode>> {
+pub async fn fetch_and_parse(url: &str) -> ProxyResult<Vec<ProxyNode>> {
     let fetched = fetch_subscription(url).await?;
     parse_subscription(&fetched.body, fetched.content_type.as_deref())
 }

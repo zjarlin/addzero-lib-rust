@@ -1,4 +1,4 @@
-use az_curl::parse_curl;
+use az_curl::parse::parse_curl;
 use reqwest::Method;
 
 #[test]
@@ -12,5 +12,18 @@ fn parses_complex_post_command() {
     "#;
 
     let parsed = parse_curl(command).expect("curl should parse");
-    print!("")
+
+    assert_eq!(parsed.method, Method::POST);
+    assert_eq!(
+        parsed.url,
+        "https://demo.jetlinks.cn/api/device-product/_query"
+    );
+    assert_eq!(parsed.header("x-access-token"), Some("token-123"));
+    assert_eq!(parsed.inferred_content_type(), Some("application/json"));
+    assert!(
+        parsed
+            .body
+            .as_deref()
+            .is_some_and(|body| body.contains("pageIndex"))
+    );
 }

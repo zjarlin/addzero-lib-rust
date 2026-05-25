@@ -1,6 +1,6 @@
 # az-sms
 
-`az-sms` 是一个可复用的短信服务 crate，当前内置 5sim v1 API client。
+`az-sms` 是一个可复用的短信服务 crate，当前内置 5sim v1 和 Grizzly SMS API client。
 
 它只封装通用 SMS provider 能力：
 
@@ -20,14 +20,14 @@
 
 ```toml
 [dependencies]
-az-sms = { path = "../../api/az-sms" }
+az-sms = { path = "../../network/az-sms" }
 ```
 
 从仓库外部引用当前本地 checkout：
 
 ```toml
 [dependencies]
-az-sms = { path = "/Users/zjarlin/IdeaProjects/zjarlin/addzero-lib-rust/crates/api/az-sms" }
+az-sms = { path = "/Users/zjarlin/IdeaProjects/zjarlin/addzero-lib-rust/crates/network/az-sms" }
 ```
 
 ## 准备 5sim Token
@@ -54,11 +54,11 @@ curl "https://5sim.net/v1/user/profile" \
 
 ## 查询 Profile
 
-```rust
-use az_sms::FivesimClient;
+```rust,no_run
+use az_sms::fivesim::FivesimClient;
 
 #[tokio::main]
-async fn main() -> az_sms::SmsResult<()> {
+async fn main() -> az_sms::error::SmsResult<()> {
     let token = std::env::var("FIVESIM_TOKEN")
         .expect("FIVESIM_TOKEN is required");
 
@@ -73,11 +73,13 @@ async fn main() -> az_sms::SmsResult<()> {
 
 ## 购买一次性号码并等待短信
 
-```rust
-use az_sms::{FivesimClient, SmsActivationRequest, SmsProvider};
+```rust,no_run
+use az_sms::fivesim::FivesimClient;
+use az_sms::model::SmsActivationRequest;
+use az_sms::provider::SmsProvider;
 
 #[tokio::main]
-async fn main() -> az_sms::SmsResult<()> {
+async fn main() -> az_sms::error::SmsResult<()> {
     let token = std::env::var("FIVESIM_TOKEN")
         .expect("FIVESIM_TOKEN is required");
 
@@ -116,11 +118,13 @@ async fn main() -> az_sms::SmsResult<()> {
 
 ## 购买托管号码
 
-```rust
-use az_sms::{FivesimClient, SmsHostingRequest, SmsProvider};
+```rust,no_run
+use az_sms::fivesim::FivesimClient;
+use az_sms::model::SmsHostingRequest;
+use az_sms::provider::SmsProvider;
 
 #[tokio::main]
-async fn main() -> az_sms::SmsResult<()> {
+async fn main() -> az_sms::error::SmsResult<()> {
     let token = std::env::var("FIVESIM_TOKEN")
         .expect("FIVESIM_TOKEN is required");
 
@@ -141,11 +145,11 @@ async fn main() -> az_sms::SmsResult<()> {
 
 ## 自定义配置
 
-```rust
-use az_sms::{FivesimClient, FivesimConfig};
+```rust,no_run
+use az_sms::fivesim::{FivesimClient, FivesimConfig};
 use std::time::Duration;
 
-fn build_client(token: String) -> az_sms::SmsResult<FivesimClient> {
+fn build_client(token: String) -> az_sms::error::SmsResult<FivesimClient> {
     let config = FivesimConfig::builder(token)
         .request_timeout(Duration::from_secs(60))
         .connect_timeout(Duration::from_secs(10))
@@ -163,6 +167,32 @@ https://5sim.net/v1/
 ```
 
 只有在测试代理、私有网关或 5sim API 版本迁移时才需要覆盖 `base_url`。
+
+## Grizzly SMS
+
+Grizzly SMS 使用 `api_key` 查询参数，API 形状兼容 sms-activate。一次性号码用同一个 `SmsProvider` trait：
+
+```rust,no_run
+use az_sms::grizzlysms::GrizzlySmsClient;
+use az_sms::model::SmsActivationRequest;
+use az_sms::provider::SmsProvider;
+
+#[tokio::main]
+async fn main() -> az_sms::error::SmsResult<()> {
+    let api_key = std::env::var("GRIZZLYSMS_API_KEY")
+        .expect("GRIZZLYSMS_API_KEY is required");
+
+    let client = GrizzlySmsClient::from_api_key(api_key)?;
+    let request = SmsActivationRequest::new("12", "any", "tg")?;
+    let order = client.buy_activation_number(request).await?;
+
+    println!("order id: {}", order.id);
+    println!("phone: {}", order.phone);
+    Ok(())
+}
+```
+
+Grizzly SMS 官方文档当前没有公开托管/租号 inbox API，因此 `buy_hosting_number` 和 `inbox` 会返回 `SmsError::UnsupportedOperation`。
 
 ## Live Test
 
@@ -185,15 +215,17 @@ cargo test -p az-sms --test live_fivesim -- --ignored
 
 常用类型：
 
-- `FivesimClient`
-- `FivesimConfig`
-- `SmsProvider`
-- `SmsActivationRequest`
-- `SmsHostingRequest`
-- `SmsOrder`
-- `SmsMessage`
-- `WaitForSmsOptions`
-- `SmsError`
-- `SmsResult`
+- `az_sms::fivesim::FivesimClient`
+- `az_sms::fivesim::FivesimConfig`
+- `az_sms::grizzlysms::GrizzlySmsClient`
+- `az_sms::grizzlysms::GrizzlySmsConfig`
+- `az_sms::provider::SmsProvider`
+- `az_sms::model::SmsActivationRequest`
+- `az_sms::model::SmsHostingRequest`
+- `az_sms::model::SmsOrder`
+- `az_sms::model::SmsMessage`
+- `az_sms::model::WaitForSmsOptions`
+- `az_sms::error::SmsError`
+- `az_sms::error::SmsResult`
 
 `SmsProvider` 是通用 trait，后续接入其他短信服务商时应实现这个 trait，而不是让调用方直接绑定某个供应商。

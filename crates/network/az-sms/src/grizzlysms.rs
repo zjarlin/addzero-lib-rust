@@ -1,3 +1,5 @@
-automod::dir!("src/grizzlysms");
+automod::dir!(pub "src/grizzlysms");
 
-pub use client::{GrizzlySmsClient, GrizzlySmsConfig, GrizzlySmsConfigBuilder};
+pub type GrizzlySmsClient = client::GrizzlySmsClient;
+pub type GrizzlySmsConfig = client::GrizzlySmsConfig;
+pub type GrizzlySmsConfigBuilder = client::GrizzlySmsConfigBuilder;

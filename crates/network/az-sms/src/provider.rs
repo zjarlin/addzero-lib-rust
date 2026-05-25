@@ -1,6 +1,6 @@
-use crate::{
-    SmsActivationRequest, SmsError, SmsHostingRequest, SmsInbox, SmsOrder, SmsResult,
-    WaitForSmsOptions,
+use crate::error::{SmsError, SmsResult};
+use crate::model::{
+    SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsOrder, WaitForSmsOptions,
 };
 use std::time::Instant;
 

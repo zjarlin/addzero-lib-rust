@@ -1,5 +1,5 @@
 use crate::parser::decode_base64_text;
-use crate::types::{ClashError, ClashResult, ProxyNode, ProxyType};
+use crate::types::{ProxyError, ProxyResult, ProxyNode, ProxyType};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serde_yaml::{Mapping, Number, Value};
@@ -15,12 +15,12 @@ use url::Url;
 ///
 /// Returns an error when the scheme is unsupported or the URI does not contain
 /// enough data to build a Clash-compatible proxy entry.
-pub fn parse_proxy_uri(input: &str) -> ClashResult<ProxyNode> {
+pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
     let input = input.trim();
     let scheme = input
         .split_once("://")
         .map(|(scheme, _)| scheme.to_ascii_lowercase())
-        .ok_or_else(|| ClashError::InvalidUri(input.to_owned()))?;
+        .ok_or_else(|| ProxyError::InvalidUri(input.to_owned()))?;
 
     match scheme.as_str() {
         "ss" => parse_ss_uri(input),
@@ -30,7 +30,7 @@ pub fn parse_proxy_uri(input: &str) -> ClashResult<ProxyNode> {
         "hysteria2" | "hy2" => parse_url_like_uri(input, ProxyType::Hysteria2),
         "tuic" => parse_url_like_uri(input, ProxyType::Tuic),
         "wireguard" => parse_url_like_uri(input, ProxyType::Wireguard),
-        _ => Err(ClashError::UnsupportedProxyType(scheme)),
+        _ => Err(ProxyError::UnsupportedProxyType(scheme)),
     }
 }
 
@@ -42,7 +42,7 @@ pub fn parse_proxy_uri(input: &str) -> ClashResult<ProxyNode> {
 ///
 /// Returns an error when a supported URI line is malformed, or when no usable
 /// proxy nodes are found.
-pub fn parse_uri_lines(input: &str) -> ClashResult<Vec<ProxyNode>> {
+pub fn parse_uri_lines(input: &str) -> ProxyResult<Vec<ProxyNode>> {
     let mut nodes = Vec::new();
     for line in input.lines().map(str::trim).filter(|line| !line.is_empty()) {
         if !has_supported_scheme(line) {
@@ -53,7 +53,7 @@ pub fn parse_uri_lines(input: &str) -> ClashResult<Vec<ProxyNode>> {
     }
 
     if nodes.is_empty() {
-        return Err(ClashError::NoUsableNodes);
+        return Err(ProxyError::NoUsableNodes);
     }
 
     Ok(nodes)
@@ -66,13 +66,13 @@ fn has_supported_scheme(line: &str) -> bool {
     )
 }
 
-fn parse_url_like_uri(input: &str, node_type: ProxyType) -> ClashResult<ProxyNode> {
+fn parse_url_like_uri(input: &str, node_type: ProxyType) -> ProxyResult<ProxyNode> {
     let url = Url::parse(input)?;
     let server = url
         .host_str()
-        .ok_or(ClashError::MissingField("server"))?
+        .ok_or(ProxyError::MissingField("server"))?
         .to_owned();
-    let port = url.port().ok_or(ClashError::MissingField("port"))?;
+    let port = url.port().ok_or(ProxyError::MissingField("port"))?;
     let query = query_pairs(&url);
     let name = decoded_fragment(&url).unwrap_or_else(|| server.clone());
     let raw = raw_from_url_like(&url, node_type, &name, &server, port, &query);
@@ -80,17 +80,17 @@ fn parse_url_like_uri(input: &str, node_type: ProxyType) -> ClashResult<ProxyNod
     Ok(ProxyNode::new(name, node_type, server, port, raw))
 }
 
-fn parse_vmess_uri(input: &str) -> ClashResult<ProxyNode> {
+fn parse_vmess_uri(input: &str) -> ProxyResult<ProxyNode> {
     let payload = input
         .strip_prefix("vmess://")
-        .ok_or_else(|| ClashError::InvalidUri(input.to_owned()))?;
+        .ok_or_else(|| ProxyError::InvalidUri(input.to_owned()))?;
     let decoded = decode_base64_text(payload).ok_or_else(|| {
-        ClashError::InvalidUri("vmess payload is not valid base64 text".to_owned())
+        ProxyError::InvalidUri("vmess payload is not valid base64 text".to_owned())
     })?;
     let json: JsonValue = serde_json::from_str(decoded.trim())?;
 
     let server = json_str(&json, "add")
-        .ok_or(ClashError::MissingField("add"))?
+        .ok_or(ProxyError::MissingField("add"))?
         .to_owned();
     let port = json_port(&json, "port")?;
     let name = json_str(&json, "ps").unwrap_or(&server).to_owned();
@@ -105,26 +105,26 @@ fn parse_vmess_uri(input: &str) -> ClashResult<ProxyNode> {
     ))
 }
 
-fn parse_ss_uri(input: &str) -> ClashResult<ProxyNode> {
+fn parse_ss_uri(input: &str) -> ProxyResult<ProxyNode> {
     let payload = input
         .strip_prefix("ss://")
-        .ok_or_else(|| ClashError::InvalidUri(input.to_owned()))?;
+        .ok_or_else(|| ProxyError::InvalidUri(input.to_owned()))?;
     let (without_fragment, fragment) = split_once(payload, '#');
     let (main, query) = split_once(without_fragment, '?');
     let decoded_main = if main.contains('@') {
         main.to_owned()
     } else {
         decode_base64_text(main)
-            .ok_or_else(|| ClashError::InvalidUri("ss payload is not valid base64".to_owned()))?
+            .ok_or_else(|| ProxyError::InvalidUri("ss payload is not valid base64".to_owned()))?
     };
 
     let (userinfo, server_port) = decoded_main
         .rsplit_once('@')
-        .ok_or_else(|| ClashError::InvalidUri("ss uri is missing user info".to_owned()))?;
+        .ok_or_else(|| ProxyError::InvalidUri("ss uri is missing user info".to_owned()))?;
     let userinfo = decode_ss_userinfo(userinfo)?;
     let (cipher, password) = userinfo
         .split_once(':')
-        .ok_or_else(|| ClashError::InvalidUri("ss user info is missing cipher".to_owned()))?;
+        .ok_or_else(|| ProxyError::InvalidUri("ss user info is missing cipher".to_owned()))?;
     let (server, port) = parse_server_port(server_port)?;
     let name = fragment
         .filter(|value| !value.is_empty())
@@ -377,36 +377,36 @@ fn split_once(input: &str, delimiter: char) -> (&str, Option<&str>) {
         .map_or((input, None), |(left, right)| (left, Some(right)))
 }
 
-fn decode_ss_userinfo(input: &str) -> ClashResult<String> {
+fn decode_ss_userinfo(input: &str) -> ProxyResult<String> {
     let decoded = decode_component(input);
     if decoded.contains(':') {
         return Ok(decoded);
     }
 
     decode_base64_text(input).ok_or_else(|| {
-        ClashError::InvalidUri("ss user info is not method:password or base64".to_owned())
+        ProxyError::InvalidUri("ss user info is not method:password or base64".to_owned())
     })
 }
 
-fn parse_server_port(input: &str) -> ClashResult<(String, u16)> {
+fn parse_server_port(input: &str) -> ProxyResult<(String, u16)> {
     let (server, port) = if let Some(rest) = input.strip_prefix('[') {
         let (server, rest) = rest
             .split_once(']')
-            .ok_or_else(|| ClashError::InvalidUri("invalid bracketed ipv6 host".to_owned()))?;
+            .ok_or_else(|| ProxyError::InvalidUri("invalid bracketed ipv6 host".to_owned()))?;
         let port = rest
             .strip_prefix(':')
-            .ok_or_else(|| ClashError::InvalidUri("missing port after ipv6 host".to_owned()))?;
+            .ok_or_else(|| ProxyError::InvalidUri("missing port after ipv6 host".to_owned()))?;
         (server.to_owned(), port)
     } else {
         let (server, port) = input
             .rsplit_once(':')
-            .ok_or_else(|| ClashError::InvalidUri("missing server port separator".to_owned()))?;
+            .ok_or_else(|| ProxyError::InvalidUri("missing server port separator".to_owned()))?;
         (server.to_owned(), port)
     };
 
     let port = port
         .parse::<u16>()
-        .map_err(|_| ClashError::InvalidPort(port.to_owned()))?;
+        .map_err(|_| ProxyError::InvalidPort(port.to_owned()))?;
     Ok((server, port))
 }
 
@@ -414,11 +414,11 @@ fn json_str<'a>(json: &'a JsonValue, key: &str) -> Option<&'a str> {
     json.get(key).and_then(JsonValue::as_str)
 }
 
-fn json_port(json: &JsonValue, key: &'static str) -> ClashResult<u16> {
-    let value = json.get(key).ok_or(ClashError::MissingField(key))?;
+fn json_port(json: &JsonValue, key: &'static str) -> ProxyResult<u16> {
+    let value = json.get(key).ok_or(ProxyError::MissingField(key))?;
     let port = json_value_as_u64(value)
-        .ok_or_else(|| ClashError::InvalidPort(format_json_value(value)))?;
-    u16::try_from(port).map_err(|_| ClashError::InvalidPort(port.to_string()))
+        .ok_or_else(|| ProxyError::InvalidPort(format_json_value(value)))?;
+    u16::try_from(port).map_err(|_| ProxyError::InvalidPort(port.to_string()))
 }
 
 fn json_value_as_u64(value: &JsonValue) -> Option<u64> {
@@ -429,61 +429,4 @@ fn json_value_as_u64(value: &JsonValue) -> Option<u64> {
 
 fn format_json_value<T: Serialize>(value: T) -> String {
     serde_json::to_string(&value).unwrap_or_else(|_| "<unprintable>".to_owned())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use base64::Engine;
-
-    #[test]
-    fn parse_proxy_uri_should_parse_vless_uri() {
-        let node = parse_proxy_uri(
-            "vless://00000000-0000-0000-0000-000000000000@example.com:443?type=ws&encryption=none&host=cdn.example.com&path=%2Fedge&security=tls&sni=sni.example.com#%F0%9F%87%AD%F0%9F%87%B0%20香港节点",
-        )
-        .unwrap();
-
-        assert_eq!(node.node_type, ProxyType::Vless);
-        assert_eq!(node.server, "example.com");
-        assert_eq!(node.port, 443);
-        assert_eq!(node.country.as_deref(), Some("HK"));
-    }
-
-    #[test]
-    fn parse_proxy_uri_should_parse_vmess_uri() {
-        let json = r#"{
-            "v": "2",
-            "ps": "US VMess",
-            "add": "vmess.example.com",
-            "port": "443",
-            "id": "00000000-0000-0000-0000-000000000000",
-            "aid": "0",
-            "scy": "auto",
-            "net": "ws",
-            "host": "cdn.example.com",
-            "path": "/ws",
-            "tls": "tls",
-            "sni": "sni.example.com"
-        }"#;
-        let uri = format!(
-            "vmess://{}",
-            base64::engine::general_purpose::STANDARD.encode(json)
-        );
-
-        let node = parse_proxy_uri(&uri).unwrap();
-
-        assert_eq!(node.node_type, ProxyType::Vmess);
-        assert_eq!(node.server, "vmess.example.com");
-    }
-
-    #[test]
-    fn parse_proxy_uri_should_parse_ss_uri() {
-        let userinfo = base64::engine::general_purpose::STANDARD.encode("aes-128-gcm:secret");
-        let uri = format!("ss://{userinfo}@ss.example.com:8388#Japan");
-
-        let node = parse_proxy_uri(&uri).unwrap();
-
-        assert_eq!(node.node_type, ProxyType::Ss);
-        assert_eq!(node.port, 8388);
-    }
 }

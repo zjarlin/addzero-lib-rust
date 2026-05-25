@@ -2,21 +2,18 @@ use az_derive_aliases::{apply, error, serde_code, serde_eq, serde_partial_eq};
 use serde_yaml::Value;
 use std::time::Duration;
 
-/// Default Clash mixed HTTP/SOCKS listen port used by [`crate::select_fastest`].
-pub const DEFAULT_MIXED_PORT: u16 = 7890;
-
 /// Default maximum number of concurrent TCP latency checks.
 pub const DEFAULT_SPEEDTEST_CONCURRENCY: usize = 10;
 
 /// Default per-node TCP connection timeout.
 pub const DEFAULT_SPEEDTEST_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Result alias used by all fallible `az-clash` operations.
-pub type ClashResult<T> = Result<T, ClashError>;
+/// Result alias used by all fallible `az-proxy` operations.
+pub type ProxyResult<T> = Result<T, ProxyError>;
 
 /// Errors returned by subscription fetching, parsing, selection, and config generation.
 #[apply(error)]
-pub enum ClashError {
+pub enum ProxyError {
     /// The HTTP request failed or returned an unsuccessful status.
     #[error("http request failed: {0}")]
     Http(#[from] reqwest::Error),
@@ -161,69 +158,6 @@ pub struct SpeedTestResult {
     pub error_msg: Option<String>,
 }
 
-/// A minimal Clash config document generated for a selected node.
-#[apply(serde_partial_eq)]
-pub struct ClashConfig {
-    /// Mixed HTTP/SOCKS listen port.
-    #[serde(rename = "mixed-port")]
-    pub mixed_port: u16,
-    /// Whether Clash should listen on LAN interfaces.
-    #[serde(rename = "allow-lan")]
-    pub allow_lan: bool,
-    /// Clash routing mode.
-    pub mode: String,
-    /// Clash log level.
-    #[serde(rename = "log-level")]
-    pub log_level: String,
-    /// Proxy definitions included in the generated config.
-    pub proxies: Vec<Value>,
-    /// Proxy groups included in the generated config.
-    #[serde(rename = "proxy-groups")]
-    pub proxy_groups: Vec<ProxyGroup>,
-    /// Clash routing rules.
-    pub rules: Vec<String>,
-}
-
-impl ClashConfig {
-    /// Builds a minimal rule-mode Clash config containing exactly one proxy node.
-    pub fn minimal(mixed_port: u16, proxy: Value, proxy_name: impl Into<String>) -> Self {
-        let proxy_name = proxy_name.into();
-        Self {
-            mixed_port,
-            allow_lan: false,
-            mode: "rule".to_owned(),
-            log_level: "info".to_owned(),
-            proxies: vec![proxy],
-            proxy_groups: vec![ProxyGroup {
-                name: "PROXY".to_owned(),
-                group_type: "select".to_owned(),
-                proxies: vec![proxy_name],
-            }],
-            rules: vec![
-                "DOMAIN-SUFFIX,local,DIRECT".to_owned(),
-                "IP-CIDR,127.0.0.0/8,DIRECT".to_owned(),
-                "IP-CIDR,10.0.0.0/8,DIRECT".to_owned(),
-                "IP-CIDR,172.16.0.0/12,DIRECT".to_owned(),
-                "IP-CIDR,192.168.0.0/16,DIRECT".to_owned(),
-                "GEOIP,CN,DIRECT".to_owned(),
-                "MATCH,PROXY".to_owned(),
-            ],
-        }
-    }
-}
-
-/// A Clash proxy group entry.
-#[apply(serde_eq)]
-pub struct ProxyGroup {
-    /// Proxy group name.
-    pub name: String,
-    /// Clash group type such as `select`.
-    #[serde(rename = "type")]
-    pub group_type: String,
-    /// Names of proxies that belong to this group.
-    pub proxies: Vec<String>,
-}
-
 pub(crate) fn country_from_node_name(name: &str) -> Option<String> {
     country_from_flag(name).or_else(|| country_from_keywords(name))
 }
@@ -287,32 +221,4 @@ fn country_from_keywords(name: &str) -> Option<String> {
     KEYWORDS
         .iter()
         .find_map(|(needle, country)| lowercase.contains(needle).then(|| (*country).to_owned()))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::ProxyType;
-
-    #[test]
-    fn proxy_type_uses_clash_wire_codes() {
-        assert_eq!(ProxyType::Ss.as_clash_str(), "ss");
-        assert_eq!(ProxyType::Hysteria2.as_clash_str(), "hysteria2");
-        assert_eq!(
-            ProxyType::from_clash_type("shadowsocks"),
-            Some(ProxyType::Ss)
-        );
-        assert_eq!(
-            ProxyType::from_clash_type("hy2"),
-            Some(ProxyType::Hysteria2)
-        );
-        assert_eq!(ProxyType::from_clash_type("VMESS"), Some(ProxyType::Vmess));
-    }
-
-    #[test]
-    fn proxy_type_serializes_as_snake_case_code() {
-        assert_eq!(
-            serde_json::to_string(&ProxyType::Wireguard).expect("proxy type should serialize"),
-            "\"wireguard\""
-        );
-    }
 }

@@ -1,6 +1,6 @@
-# az-clash
+# az-proxy
 
-Clash 订阅解析、代理节点测试和最小配置生成。
+代理订阅解析、节点测速和 Clash/Mihomo 最小配置生成。Clash 是 `az_proxy::clash` 下的一个模块，不再作为整个 crate 的名字。
 
 ## 功能
 
@@ -16,28 +16,39 @@ Clash 订阅解析、代理节点测试和最小配置生成。
 
 ```toml
 [dependencies]
-az-clash = { path = "../az-clash" }       # workspace 内部引用
+az-proxy = { path = "../az-proxy" }       # workspace 内部引用
 # 或发布后：
-# az-clash = "0.1"                        # crates.io 引用
+# az-proxy = "0.1"                        # crates.io 引用
 ```
 
 ## 用法
 
-```rust
-use az_clash::select_fastest;
+```rust,no_run
+use az_proxy::clash::select_fastest;
 
+# async fn run() -> az_proxy::types::ProxyResult<()> {
 // 从订阅 URL 获取、解析、测速并生成最优配置
 let config = select_fastest("https://example.com/sub", 10).await?;
 println!("{config}");
+# Ok(())
+# }
 ```
 
-```rust
-use az_clash::{fetch_and_parse, batch_speed_test, generate_clash_config};
+```rust,no_run
+use az_proxy::clash::generate_clash_config;
+use az_proxy::fetcher::fetch_and_parse;
+use az_proxy::selector::select_fastest_node;
+use az_proxy::speedtest::batch_speed_test;
+use az_proxy::types::DEFAULT_SPEEDTEST_TIMEOUT;
 
+# async fn run() -> az_proxy::types::ProxyResult<()> {
 // 分步操作
 let nodes = fetch_and_parse("https://example.com/sub").await?;
-let results = batch_speed_test(&nodes, 10).await;
-let config = generate_clash_config(&results);
+let results = batch_speed_test(&nodes, 10, DEFAULT_SPEEDTEST_TIMEOUT).await;
+let selected = select_fastest_node(&nodes, &results)?;
+let config = generate_clash_config(selected, 7890)?;
+# Ok(())
+# }
 ```
 
 ## 依赖的 crates

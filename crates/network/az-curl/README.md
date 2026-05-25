@@ -12,10 +12,9 @@
 - 支持常见的 curl 标志（`-X`、`-H`、`-d`、`-b`、`-F`、`-u`、`--data-raw` 等）
 - 自动推断 Content-Type（JSON / multipart 表单）
 - 提取 URL 中的路径参数和查询参数
-- 通过 `curl!` 宏简化 `parse_curl` 调用
 - 使用 `execute_curl` 同步执行 curl 命令
 - 响应同时保留原始 `body: Vec<u8>` 和便于调试器查看的 `text: Option<String>`
-- 公开返回值使用 `CurlResult<T>`，具体错误来源保留为结构化 `CurlError`
+- 公开返回值使用 `error::CurlResult<T>`，具体错误来源保留为结构化 `error::CurlError`
 
 ## 安装
 
@@ -31,9 +30,9 @@ az-curl = { path = "../az-curl" }         # workspace 内部引用
 ## 用法
 
 ```rust
-use az_curl::parse_curl;
+use az_curl::parse::parse_curl;
 
-# fn main() -> az_curl::CurlResult<()> {
+# fn main() -> az_curl::error::CurlResult<()> {
 let parsed = parse_curl(r#"curl -X POST -H "Content-Type: application/json" -d '{"key":"value"}' https://api.example.com/data"#)?;
 assert_eq!(parsed.method.as_str(), "POST");
 assert_eq!(parsed.url, "https://api.example.com/data");
@@ -42,25 +41,15 @@ assert_eq!(parsed.url, "https://api.example.com/data");
 ```
 
 ```rust,no_run
-use az_curl::execute_curl;
+use az_curl::execute::execute_curl;
 
-# fn main() -> az_curl::CurlResult<()> {
+# fn main() -> az_curl::error::CurlResult<()> {
 let response = execute_curl(r#"curl -H "Accept: application/json" https://api.example.com"#)?;
 println!("{}", response.text()?);
 
 if let Some(text) = response.text.as_deref() {
     println!("debug-visible response body: {text}");
 }
-# Ok(())
-# }
-```
-
-```rust
-use az_curl::curl;
-
-# fn main() -> az_curl::CurlResult<()> {
-let parsed = curl!(r#"curl https://example.com"#)?;
-assert_eq!(parsed.url, "https://example.com");
 # Ok(())
 # }
 ```

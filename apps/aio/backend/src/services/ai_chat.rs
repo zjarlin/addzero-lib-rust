@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use az_derive_aliases::{apply, serde_code_default_ord_enum, serde_eq_default};
+use az_derive_aliases::{apply, impl_from_match, serde_code_default_ord_enum, serde_eq_default};
 use rig::{
     client::CompletionClient,
     completion::{AssistantContent, CompletionError, Message},
@@ -429,25 +429,17 @@ fn default_provider_config(provider: AiProviderKindDto) -> AiProviderConfigDto {
     }
 }
 
-impl From<AiProviderKindDto> for az_assets::AiProviderKind {
-    fn from(value: AiProviderKindDto) -> Self {
-        match value {
-            AiProviderKindDto::OpenAi => Self::OpenAi,
-            AiProviderKindDto::Anthropic => Self::Anthropic,
-            AiProviderKindDto::Gemini => Self::Gemini,
-        }
-    }
-}
+impl_from_match!(AiProviderKindDto => az_assets::AiProviderKind {
+    AiProviderKindDto::OpenAi => Self::OpenAi,
+    AiProviderKindDto::Anthropic => Self::Anthropic,
+    AiProviderKindDto::Gemini => Self::Gemini,
+});
 
-impl From<az_assets::AiProviderKind> for AiProviderKindDto {
-    fn from(value: az_assets::AiProviderKind) -> Self {
-        match value {
-            az_assets::AiProviderKind::OpenAi => Self::OpenAi,
-            az_assets::AiProviderKind::Anthropic => Self::Anthropic,
-            az_assets::AiProviderKind::Gemini => Self::Gemini,
-        }
-    }
-}
+impl_from_match!(az_assets::AiProviderKind => AiProviderKindDto {
+    az_assets::AiProviderKind::OpenAi => Self::OpenAi,
+    az_assets::AiProviderKind::Anthropic => Self::Anthropic,
+    az_assets::AiProviderKind::Gemini => Self::Gemini,
+});
 
 impl From<az_assets::AiModelProvider> for AiProviderConfigDto {
     fn from(value: az_assets::AiModelProvider) -> Self {

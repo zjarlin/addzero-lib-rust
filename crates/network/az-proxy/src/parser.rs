@@ -1,12 +1,35 @@
 //! Subscription parser dispatch for Clash YAML, direct URI lists, and base64 URI lists.
 
-use crate::types::{ClashError, ClashResult, ProxyNode};
+use crate::clash::parse_clash_yaml;
+use crate::types::{ProxyError, ProxyNode, ProxyResult};
 use base64::Engine;
 
-automod::dir!("src/parser");
+automod::dir!(pub "src/parser");
 
-pub use clash_yaml::parse_clash_yaml;
-pub use uri::{parse_proxy_uri, parse_uri_lines};
+/// Parses a single supported proxy URI into a proxy node.
+///
+/// Supported URI schemes include `ss`, `vmess`, `vless`, `trojan`,
+/// `hysteria2`, `hy2`, `tuic`, and `wireguard`.
+///
+/// # Errors
+///
+/// Returns an error when the scheme is unsupported or the URI does not contain
+/// enough data to build a Clash-compatible proxy entry.
+pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
+    uri::parse_proxy_uri(input)
+}
+
+/// Parses newline-separated proxy URI subscriptions.
+///
+/// Empty lines and lines without a supported URI scheme are ignored.
+///
+/// # Errors
+///
+/// Returns an error when a supported URI line is malformed, or when no usable
+/// proxy nodes are found.
+pub fn parse_uri_lines(input: &str) -> ProxyResult<Vec<ProxyNode>> {
+    uri::parse_uri_lines(input)
+}
 
 /// Parses subscription text into supported proxy nodes.
 ///
@@ -17,10 +40,10 @@ pub use uri::{parse_proxy_uri, parse_uri_lines};
 ///
 /// Returns an error when the body is empty, has invalid YAML for an apparent
 /// YAML subscription, has invalid URI data, or contains no usable proxy nodes.
-pub fn parse_subscription(body: &str, content_type: Option<&str>) -> ClashResult<Vec<ProxyNode>> {
+pub fn parse_subscription(body: &str, content_type: Option<&str>) -> ProxyResult<Vec<ProxyNode>> {
     let trimmed = body.trim();
     if trimmed.is_empty() {
-        return Err(ClashError::NoUsableNodes);
+        return Err(ProxyError::NoUsableNodes);
     }
 
     if looks_like_clash_yaml(trimmed, content_type) {
@@ -44,7 +67,7 @@ pub fn parse_subscription(body: &str, content_type: Option<&str>) -> ClashResult
         return yaml_result;
     }
 
-    Err(ClashError::NoUsableNodes)
+    Err(ProxyError::NoUsableNodes)
 }
 
 fn looks_like_clash_yaml(body: &str, content_type: Option<&str>) -> bool {
@@ -88,21 +111,4 @@ pub(crate) fn decode_base64_text(input: &str) -> Option<String> {
             .ok()
             .and_then(|bytes| String::from_utf8(bytes).ok())
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use base64::Engine;
-
-    #[test]
-    fn parse_subscription_should_parse_base64_uri_lines() {
-        let body = base64::engine::general_purpose::STANDARD.encode(
-            "vless://00000000-0000-0000-0000-000000000000@example.com:443?type=ws&security=tls#Test",
-        );
-
-        let nodes = parse_subscription(&body, None).unwrap();
-
-        assert_eq!(nodes.len(), 1);
-    }
 }

@@ -1,17 +1,22 @@
-use az_clash::{
-    ClashResult, batch_speed_test, fetch_and_parse, generate_clash_config, select_fastest_node,
-};
+use az_proxy::clash::generate_clash_config;
+use az_proxy::fetcher::fetch_and_parse;
+use az_proxy::selector::select_fastest_node;
+use az_proxy::speedtest::batch_speed_test;
+use az_proxy::types::ProxyResult;
 use std::time::Duration;
 
-const SUBSCRIPTION_URL: &str = "https://dash.pqjc.site/api/v1/pq/b21996144d42b3fa6565c15c7fd18415";
-
 #[tokio::test]
-async fn live_subscription_should_fetch_test_and_generate_config() -> ClashResult<()> {
-    let base_nodes = fetch_and_parse(SUBSCRIPTION_URL).await?;
+#[ignore = "requires a live proxy subscription URL in AZ_PROXY_LIVE_SUBSCRIPTION_URL"]
+async fn live_subscription_should_fetch_test_and_generate_config() -> ProxyResult<()> {
+    let subscription_url = std::env::var("AZ_PROXY_LIVE_SUBSCRIPTION_URL")
+        .expect("AZ_PROXY_LIVE_SUBSCRIPTION_URL is required");
+    let subscription_url = subscription_url.as_str();
+
+    let base_nodes = fetch_and_parse(subscription_url).await?;
     println!("base subscription nodes: {}", base_nodes.len());
     assert!(!base_nodes.is_empty());
 
-    let clash_url = format!("{SUBSCRIPTION_URL}?flag=clash");
+    let clash_url = format!("{subscription_url}?flag=clash");
     let yaml_nodes = fetch_and_parse(&clash_url).await?;
     println!("clash yaml subscription nodes: {}", yaml_nodes.len());
     assert!(!yaml_nodes.is_empty());

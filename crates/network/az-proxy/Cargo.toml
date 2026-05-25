@@ -1,5 +1,5 @@
 [package]
-name = "az-clash"
+name = "az-proxy"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

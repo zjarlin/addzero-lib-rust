@@ -1,7 +1,12 @@
-use crate::{
-    SmsActivationRequest, SmsError, SmsHostingRequest, SmsInbox, SmsOrder, SmsProfile, SmsProvider,
-    SmsResult, error::ProviderStatus,
+use crate::error::{SmsError, SmsResult};
+use crate::http::{
+    build_client, default_user_agent, ensure_non_blank, ensure_non_zero_duration,
+    looks_like_provider_message, provider_error,
 };
+use crate::model::{
+    SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsOrder, SmsProfile,
+};
+use crate::provider::SmsProvider;
 use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use reqwest::Url;
 use reqwest::header::ACCEPT;
@@ -39,26 +44,10 @@ impl FivesimConfig {
 
     /// Validate local config invariants.
     pub fn validate(&self) -> SmsResult<()> {
-        if self.api_token.trim().is_empty() {
-            return Err(SmsError::InvalidConfig(
-                "api_token cannot be blank".to_owned(),
-            ));
-        }
-        if self.base_url.trim().is_empty() {
-            return Err(SmsError::InvalidConfig(
-                "base_url cannot be blank".to_owned(),
-            ));
-        }
-        if self.connect_timeout.is_zero() {
-            return Err(SmsError::InvalidConfig(
-                "connect_timeout cannot be zero".to_owned(),
-            ));
-        }
-        if self.request_timeout.is_zero() {
-            return Err(SmsError::InvalidConfig(
-                "request_timeout cannot be zero".to_owned(),
-            ));
-        }
+        ensure_non_blank("api_token", &self.api_token)?;
+        ensure_non_blank("base_url", &self.base_url)?;
+        ensure_non_zero_duration("connect_timeout", self.connect_timeout)?;
+        ensure_non_zero_duration("request_timeout", self.request_timeout)?;
         Ok(())
     }
 }
@@ -138,15 +127,12 @@ impl FivesimClient {
         let base_url = Url::parse(&config.base_url)
             .map_err(|_| SmsError::InvalidBaseUrl(config.base_url.clone()))?;
 
-        let mut builder = reqwest::Client::builder()
-            .connect_timeout(config.connect_timeout)
-            .timeout(config.request_timeout);
-        if let Some(user_agent) = config.user_agent {
-            builder = builder.user_agent(user_agent);
-        }
-
         Ok(Self {
-            client: builder.build()?,
+            client: build_client(
+                config.connect_timeout,
+                config.request_timeout,
+                config.user_agent,
+            )?,
             base_url,
             api_token: config.api_token,
         })
@@ -297,81 +283,4 @@ impl SmsProvider for FivesimClient {
 
 fn bool_query_value(value: bool) -> &'static str {
     if value { "true" } else { "false" }
-}
-
-fn provider_error(status: Option<u16>, body: String) -> SmsError {
-    SmsError::ProviderError {
-        status: ProviderStatus(status),
-        message: body.trim().to_owned(),
-    }
-}
-
-fn looks_like_provider_message(body: &str) -> bool {
-    let trimmed = body.trim();
-    !trimmed.is_empty()
-        && !trimmed.starts_with('{')
-        && !trimmed.starts_with('[')
-        && trimmed.len() <= 256
-}
-
-fn default_user_agent() -> String {
-    concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")).to_owned()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn client() -> FivesimClient {
-        FivesimClient::new(
-            FivesimConfig::builder("token")
-                .base_url("https://example.test/v1/")
-                .build()
-                .unwrap(),
-        )
-        .unwrap()
-    }
-
-    #[test]
-    fn config_rejects_blank_token() {
-        let err = FivesimConfig::builder(" ").build().unwrap_err();
-        assert!(err.to_string().contains("api_token cannot be blank"));
-    }
-
-    #[test]
-    fn endpoint_preserves_v1_base_path() {
-        let url = client().endpoint(&["user", "check", "42"]).unwrap();
-        assert_eq!(url.as_str(), "https://example.test/v1/user/check/42");
-    }
-
-    #[test]
-    fn activation_url_adds_only_requested_query_options() {
-        let request = SmsActivationRequest::new("usa", "any", "telegram")
-            .unwrap()
-            .reuse(true)
-            .voice(false);
-        let url = client().activation_url(&request).unwrap();
-
-        assert_eq!(
-            url.as_str(),
-            "https://example.test/v1/user/buy/activation/usa/any/telegram?reuse=true&voice=false"
-        );
-    }
-
-    #[test]
-    fn hosting_url_matches_provider_path() {
-        let request = SmsHostingRequest::new("usa", "any", "3hours").unwrap();
-        let url = client().hosting_url(&request).unwrap();
-
-        assert_eq!(
-            url.as_str(),
-            "https://example.test/v1/user/buy/hosting/usa/any/3hours"
-        );
-    }
-
-    #[test]
-    fn provider_plain_text_errors_are_detected() {
-        assert!(looks_like_provider_message("no free phones"));
-        assert!(!looks_like_provider_message(r#"{"id":1}"#));
-    }
 }

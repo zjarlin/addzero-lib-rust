@@ -17,7 +17,7 @@ use az_browser_automation::{
     normalize_cdp_http_url,
 };
 use az_derive_aliases::{apply, deserialize_clone_debug};
-use az_sms::SmsProvider;
+use az_sms::provider::SmsProvider;
 use headless_chrome::Tab;
 use headless_chrome::protocol::cdp::Runtime;
 use serde_json::Value;
@@ -680,11 +680,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let rt = tokio::runtime::Runtime::new()
                     .map_err(|e| BrowserAutomationError::Browser(e.to_string()))?;
                 let (sms_phone, order_id): (String, u64) = rt.block_on(async {
-                    let client = az_sms::FivesimClient::from_token(token)
+                    let client = az_sms::fivesim::FivesimClient::from_token(token)
                         .map_err(|e| BrowserAutomationError::Browser(e.to_string()))?;
-                    let request = az_sms::SmsActivationRequest::new("usa", "any", "openai")
+                    let request = az_sms::model::SmsActivationRequest::new("usa", "any", "openai")
                         .map_err(|e| BrowserAutomationError::Browser(e.to_string()))?;
-                    let order: az_sms::SmsOrder = client
+                    let order: az_sms::model::SmsOrder = client
                         .buy_activation_number(request)
                         .await
                         .map_err(|e| BrowserAutomationError::Browser(e.to_string()))?;
@@ -699,8 +699,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 // Poll 5sim for SMS code
                 let code: Option<String> = rt.block_on(async {
-                    let client = az_sms::FivesimClient::from_token(token).ok()?;
-                    let options = az_sms::WaitForSmsOptions::new(
+                    let client = az_sms::fivesim::FivesimClient::from_token(token).ok()?;
+                    let options = az_sms::model::WaitForSmsOptions::new(
                         Duration::from_secs(180),
                         Duration::from_secs(5),
                     )

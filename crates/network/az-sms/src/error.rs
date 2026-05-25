@@ -1,4 +1,4 @@
-use crate::SmsOrderStatus;
+use crate::model::SmsOrderStatus;
 use az_derive_aliases::{apply, error, plain_copy_eq};
 
 /// Result alias for SMS provider operations.
@@ -40,6 +40,15 @@ pub enum SmsError {
         message: String,
     },
 
+    /// The selected provider does not expose this operation through its API.
+    #[error("{provider} does not support {operation}")]
+    UnsupportedOperation {
+        /// Provider name.
+        provider: &'static str,
+        /// Unsupported operation name.
+        operation: &'static str,
+    },
+
     /// Waiting for an SMS exceeded the requested timeout.
     #[error("timed out waiting for SMS on order {order_id} after {timeout_secs}s")]
     Timeout {
@@ -76,25 +85,5 @@ impl std::fmt::Display for ProviderStatus {
 impl From<Option<u16>> for ProviderStatus {
     fn from(value: Option<u16>) -> Self {
         Self(value)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn provider_status_formats_only_when_present() {
-        let err = SmsError::ProviderError {
-            status: ProviderStatus(Some(400)),
-            message: "bad country".to_owned(),
-        };
-        assert_eq!(err.to_string(), "provider error HTTP 400: bad country");
-
-        let err = SmsError::ProviderError {
-            status: ProviderStatus(None),
-            message: "no free phones".to_owned(),
-        };
-        assert_eq!(err.to_string(), "provider error: no free phones");
     }
 }

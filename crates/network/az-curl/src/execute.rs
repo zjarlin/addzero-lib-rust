@@ -1,6 +1,6 @@
 use crate::error::{CurlError, CurlResult};
 use crate::model::ParsedCurl;
-use crate::parse_curl;
+use crate::parse::parse_curl;
 use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use reqwest::blocking::multipart::Form;
 use std::borrow::Cow;
