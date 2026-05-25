@@ -237,10 +237,7 @@ impl Catalog {
             .list_rows(&table_name, head)
             .map_err(|e| SchemaError::Storage(e.to_string()))?;
 
-        Ok(rows
-            .into_iter()
-            .map(|key| key.as_str().to_string())
-            .collect())
+        Ok(rows.into_iter().map(|key| key.to_string()).collect())
     }
 
     /// Validate a row against a table's schema.

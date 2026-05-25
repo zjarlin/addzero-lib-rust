@@ -122,7 +122,7 @@ struct RowJson {
 /// uses BTreeMap for consistent key ordering (important for git deduplication)
 pub fn serialize_row(row: &Row) -> StorageResult<Vec<u8>> {
     let json = RowJson {
-        pk: row.key.as_str().to_string(),
+        pk: row.key.to_string(),
         version: row.version,
         created_at: row.created_at.clone(),
         updated_at: row.updated_at.clone(),
