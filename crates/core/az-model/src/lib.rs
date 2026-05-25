@@ -137,10 +137,11 @@ impl<T> PageResult<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use az_derive_aliases::{apply, plain_clone_debug};
 
     // --- Test types ---
 
-    #[derive(Debug, Clone)]
+    #[apply(plain_clone_debug)]
     struct User {
         id: u64,
         name: String,
