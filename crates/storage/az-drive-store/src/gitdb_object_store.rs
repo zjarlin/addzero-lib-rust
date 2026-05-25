@@ -104,7 +104,7 @@ fn default_gitdb_shard_prefix() -> String {
 }
 
 fn map_gitdb_error(err: gitdb::storage::StorageError) -> DriveStoreError {
-    DriveStoreError::ObjectStorage(err.to_string())
+    DriveStoreError::GitDbObjectStorage(err.to_string())
 }
 
 fn map_gitdb_object_error(err: gitdb::storage::StorageError, object_key: &str) -> DriveStoreError {

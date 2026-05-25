@@ -49,9 +49,12 @@ pub enum DriveStoreError {
     /// PostgreSQL operation failed.
     #[error("postgres drive store error: {0}")]
     Sqlx(#[from] sqlx::Error),
-    /// Object storage operation failed.
+    /// RustFS/S3-compatible object storage operation failed.
     #[error("object storage error: {0}")]
-    ObjectStorage(String),
+    ObjectStorage(#[from] StorageError),
+    /// GitDB object storage operation failed.
+    #[error("gitdb object storage error: {0}")]
+    GitDbObjectStorage(String),
     /// Git pool operation failed with a concrete failure phase.
     #[error("git pool {phase}: {message}")]
     GitPool {
@@ -66,12 +69,6 @@ pub enum DriveStoreError {
     /// Version values exceeded the supported PostgreSQL range.
     #[error("version value is outside supported range: {0}")]
     VersionOutOfRange(u64),
-}
-
-impl From<StorageError> for DriveStoreError {
-    fn from(value: StorageError) -> Self {
-        Self::ObjectStorage(value.to_string())
-    }
 }
 
 /// File-system entry kind tracked by drive metadata.
@@ -937,11 +934,12 @@ fn ignored_order(left: &DriveIgnoredPath, right: &DriveIgnoredPath) -> std::cmp:
 #[cfg(test)]
 mod tests {
     use super::{
-        DriveEntryKind, DriveMetadataStore, DriveObjectStore, DriveVersion,
+        DriveEntryKind, DriveMetadataStore, DriveObjectStore, DriveStoreError, DriveVersion,
         InMemoryDriveMetadataStore, InMemoryDriveObjectStore,
     };
     use az_drive_core::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
     use chrono::Utc;
+    use std::error::Error as _;
     use uuid::Uuid;
 
     fn key() -> EntryKey {
@@ -950,6 +948,16 @@ mod tests {
             RootAlias::parse("workspace").expect("alias should parse"),
             RelativePath::parse("docs/a.md").expect("path should parse"),
         )
+    }
+
+    #[test]
+    fn object_storage_error_preserves_source_chain() {
+        let err = DriveStoreError::from(az_rustfs::StorageError::Backend("offline".to_owned()));
+        let source = err
+            .source()
+            .expect("object storage error should preserve source");
+
+        assert_eq!(source.to_string(), "storage backend error: offline");
     }
 
     #[tokio::test]
