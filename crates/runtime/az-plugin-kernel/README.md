@@ -5,7 +5,7 @@
 ## 功能
 
 - `PlatformKernel`：统一管理插件的安装、实例创建、目录刷新和页面解析
-- 基于 `shaku` 的依赖注入：`AuthProvider`、`RbacService`、`DictionaryService`、`AuditService`、`StorageService` 五大服务接口
+- 基于 `shaku` 的默认服务组合根：统一构造 `AuthProvider`、`RbacService`、`DictionaryService`、`AuditService`、`StorageService` 五大服务接口
 - 开发模式默认实现：`DevAuthProvider`（admin/admin）、`AllowAllRbacService`（全权限放行）
 - `ShellSnapshot` 聚合：从注册表和运行时中组合当前用户的导航树、插件计数和认证模式
 - `MarketplaceSnapshot` 聚合：合并系统插件与已安装业务插件，按名称排序

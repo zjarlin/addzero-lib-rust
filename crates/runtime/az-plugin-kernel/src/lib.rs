@@ -6,7 +6,7 @@
 //! - 市场数据聚合：合并系统插件与业务插件，生成 [`MarketplaceSnapshot`]
 //! - 页面解析：根据 `plugin_id` + `page_id` 或 `instance_slug` + `page_id` 解析页面
 //!
-//! 服务注入基于 `shaku` 框架，预置五个核心服务接口：
+//! 默认服务聚合由 `shaku` 组合根构造，预置五个核心服务接口：
 //! - [`AuthProvider`]：当前用户身份与认证模式
 //! - [`RbacService`]：权限校验
 //! - [`DictionaryService`]：字典数据（笔记类型等）
@@ -28,6 +28,7 @@ use az_plugin_contract::{
 };
 use az_plugin_registry::{PluginRegistry, load_system_descriptors};
 use az_plugin_runtime::{PluginRuntime, RuntimeError};
+use shaku::{Component, HasComponent, Interface, module};
 
 pub type KernelResult<T> = Result<T, KernelError>;
 
@@ -158,8 +159,8 @@ pub struct KernelServices {
     storage: Arc<dyn StorageService>,
 }
 
-impl Default for KernelServices {
-    fn default() -> Self {
+impl KernelServices {
+    fn development_defaults() -> Self {
         Self {
             auth: Arc::new(DevAuthProvider::default()),
             rbac: Arc::new(AllowAllRbacService),
@@ -167,6 +168,12 @@ impl Default for KernelServices {
             audit: Arc::new(NoopAuditService),
             storage: Arc::new(LocalStorageService::default()),
         }
+    }
+}
+
+impl Default for KernelServices {
+    fn default() -> Self {
+        default_kernel_services()
     }
 }
 
@@ -231,6 +238,33 @@ impl KernelServices {
         self.storage = service;
         self
     }
+}
+
+trait KernelServicesProvider: Interface {
+    fn services(&self) -> KernelServices;
+}
+
+#[derive(Component)]
+#[shaku(interface = KernelServicesProvider)]
+struct DefaultKernelServicesProvider;
+
+impl KernelServicesProvider for DefaultKernelServicesProvider {
+    fn services(&self) -> KernelServices {
+        KernelServices::development_defaults()
+    }
+}
+
+module! {
+    KernelServicesModule {
+        components = [DefaultKernelServicesProvider],
+        providers = []
+    }
+}
+
+fn default_kernel_services() -> KernelServices {
+    let module = KernelServicesModule::builder().build();
+    let provider: &dyn KernelServicesProvider = module.resolve_ref();
+    provider.services()
 }
 
 pub struct PlatformKernel {
@@ -446,10 +480,13 @@ fn collect_tags(entries: &[MarketplaceEntry]) -> Vec<String> {
 mod tests {
     use std::{
         fs,
+        sync::Arc,
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::PlatformKernel;
+    use az_plugin_contract::ActorSnapshot;
+
+    use super::{AuthProvider, KernelServices, PlatformKernel};
 
     #[test]
     fn kernel_should_build_default_shell_snapshot() {
@@ -480,6 +517,39 @@ mod tests {
 
         assert_eq!(overview.package_root, package_root.display().to_string());
         fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn with_services_should_override_default_composition_root() {
+        let root = unique_temp_root("custom-services");
+        let services = KernelServices::default().with_auth_provider(Arc::new(TestAuthProvider));
+        let kernel =
+            PlatformKernel::with_services(root.join("catalog"), root.join("packages"), services)
+                .expect("kernel should initialize with custom services");
+
+        let snapshot = kernel
+            .shell_snapshot()
+            .expect("custom auth provider should produce a shell snapshot");
+
+        assert_eq!(snapshot.actor.username, "tester");
+        assert_eq!(snapshot.dev_auth_mode, "test");
+        fs::remove_dir_all(root).ok();
+    }
+
+    struct TestAuthProvider;
+
+    impl AuthProvider for TestAuthProvider {
+        fn actor(&self) -> ActorSnapshot {
+            ActorSnapshot {
+                username: "tester".to_string(),
+                display_name: "Test User".to_string(),
+                roles: vec!["qa".to_string()],
+            }
+        }
+
+        fn dev_auth_mode(&self) -> String {
+            "test".to_string()
+        }
     }
 
     fn unique_temp_root(label: &str) -> std::path::PathBuf {
