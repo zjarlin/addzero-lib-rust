@@ -29,7 +29,7 @@
 - **serde_eq_default** — 在 `serde_eq` 基础上增加 `Default`
 - **serde_partial_eq** — 用于包含 `f32`/`f64` 或动态 JSON 等不能 `Eq` 的 serde 数据类型
 - **serde_partial_eq_default** — 在 `serde_partial_eq` 基础上增加 `Default`
-- **serde_code** — 带 serde（snake_case）+ strum 字符串转换 + `Hash` 的代码类型
+- **serde_code** — 带 serde（snake_case）+ strum 字符串转换/`Display` + `Hash` 的代码类型
 - **serde_code_enum** — 在 `serde_code` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **serde_code_default** — 在 `serde_code` 基础上增加 `Default`
 - **serde_code_default_enum** — 在 `serde_code_default` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
@@ -60,7 +60,7 @@
 - **plain_default_copy_eq_display** — 在 `plain_default_copy_eq` 基础上增加 `Display`
 
 所有宏设计为配合 [`macro_rules_attribute::apply`](https://docs.rs/macro_rules_attribute) 使用，保持 `#[serde(...)]` 和 `#[strum(...)]` 等辅助属性对编译器和 IDE 可见。
-`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。
+`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。`serde_code*` 同时派生 `strum::Display`，所以需要拥有字符串 code 时可以直接调用 `to_string()`。
 
 ## 安装
 
@@ -131,6 +131,8 @@ enum Status {
     Inactive,
     Pending,
 }
+
+assert_eq!(Status::Active.to_string(), "active");
 
 // 带 serde + 字符串转换 + 常用 code helper 的枚举代码
 #[apply(serde_code_default_enum)]

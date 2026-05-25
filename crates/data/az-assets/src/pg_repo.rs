@@ -45,7 +45,7 @@ impl PgRepo {
         let id = input.id.unwrap_or_else(Uuid::new_v4);
         let active = asset::ActiveModel {
             id: Set(id),
-            kind: Set(input.kind.as_str().to_string()),
+            kind: Set(input.kind.to_string()),
             title: Set(input.title.clone()),
             body: Set(input.body.clone()),
             tags: Set(input.tags.clone()),
@@ -168,7 +168,7 @@ impl PgRepo {
             None => ("default".to_string(), None, false),
         };
         let active = ai_model_provider::ActiveModel {
-            provider: Set(input.provider.as_str().to_string()),
+            provider: Set(input.provider.to_string()),
             base_url: Set(input.base_url.clone()),
             default_model: Set(input.default_model.clone()),
             enabled: Set(input.enabled),
@@ -197,7 +197,7 @@ impl PgRepo {
             .await
             .context("upsert ai model provider")?;
 
-        ai_model_provider::Entity::find_by_id(input.provider.as_str().to_string())
+        ai_model_provider::Entity::find_by_id(input.provider.to_string())
             .one(&self.db)
             .await
             .context("reload provider after upsert")?
@@ -209,7 +209,7 @@ impl PgRepo {
         &self,
         provider: AiProviderKind,
     ) -> Result<Option<(AiModelProvider, EncryptedSecret)>> {
-        let row = ai_model_provider::Entity::find_by_id(provider.as_str().to_string())
+        let row = ai_model_provider::Entity::find_by_id(provider.to_string())
             .filter(ai_model_provider::Column::Enabled.eq(true))
             .filter(ai_model_provider::Column::EncryptedApiKey.is_not_null())
             .one(&self.db)
@@ -228,7 +228,7 @@ impl PgRepo {
         &self,
         provider: AiProviderKind,
     ) -> Result<Option<EncryptedSecret>> {
-        let row = ai_model_provider::Entity::find_by_id(provider.as_str().to_string())
+        let row = ai_model_provider::Entity::find_by_id(provider.to_string())
             .filter(ai_model_provider::Column::EncryptedApiKey.is_not_null())
             .one(&self.db)
             .await
@@ -257,9 +257,9 @@ impl PgRepo {
         let active = ai_prompt_button::ActiveModel {
             id: Set(id),
             label: Set(input.label.clone()),
-            target_kind: Set(input.target_kind.as_str().to_string()),
+            target_kind: Set(input.target_kind.to_string()),
             prompt_template: Set(input.prompt_template.clone()),
-            provider: Set(input.provider.as_str().to_string()),
+            provider: Set(input.provider.to_string()),
             model: Set(input.model.clone()),
             enabled: Set(input.enabled),
             created_at: NotSet,

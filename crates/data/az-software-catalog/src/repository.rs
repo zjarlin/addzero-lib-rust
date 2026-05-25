@@ -199,8 +199,8 @@ impl SoftwareCatalogRepository {
             let active = software_install_method::ActiveModel {
                 id: Set(parse_uuid(&method.id)?),
                 software_id: Set(software_id),
-                platform: Set(method.platform.code().to_string()),
-                installer_kind: Set(method.kind.code().to_string()),
+                platform: Set(method.platform.to_string()),
+                installer_kind: Set(method.kind.to_string()),
                 label: Set(method.label.clone()),
                 package_id: Set(method.package_id.clone()),
                 asset_item_id: Set(method.asset_item_id.clone()),

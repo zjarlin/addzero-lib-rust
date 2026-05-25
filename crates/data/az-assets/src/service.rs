@@ -224,10 +224,9 @@ impl AssetService {
             api_key_configured: secret.is_some(),
             updated_at: now,
         };
-        store.providers.insert(
-            provider.provider.as_str().to_string(),
-            (provider.clone(), secret),
-        );
+        store
+            .providers
+            .insert(provider.provider.to_string(), (provider.clone(), secret));
         Ok(provider)
     }
 

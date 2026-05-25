@@ -595,6 +595,7 @@ macro_rules! serde_code {
                 ::core::hash::Hash,
                 ::serde::Serialize,
                 ::serde::Deserialize,
+                ::strum::Display,
                 ::strum::EnumString,
                 ::strum::IntoStaticStr,
                 ::strum::VariantArray
@@ -657,6 +658,7 @@ macro_rules! serde_code_default {
                 ::core::hash::Hash,
                 ::serde::Serialize,
                 ::serde::Deserialize,
+                ::strum::Display,
                 ::strum::EnumString,
                 ::strum::IntoStaticStr,
                 ::strum::VariantArray
@@ -720,6 +722,7 @@ macro_rules! serde_code_ord {
                 Ord,
                 ::serde::Serialize,
                 ::serde::Deserialize,
+                ::strum::Display,
                 ::strum::EnumString,
                 ::strum::IntoStaticStr,
                 ::strum::VariantArray
@@ -784,6 +787,7 @@ macro_rules! serde_code_default_ord {
                 Ord,
                 ::serde::Serialize,
                 ::serde::Deserialize,
+                ::strum::Display,
                 ::strum::EnumString,
                 ::strum::IntoStaticStr,
                 ::strum::VariantArray
