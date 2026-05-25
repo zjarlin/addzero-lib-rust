@@ -148,7 +148,7 @@ impl LinearProgrammingProblem {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct LinearProgrammingSolution {
     pub point: Vec<f64>,
     pub value: f64,

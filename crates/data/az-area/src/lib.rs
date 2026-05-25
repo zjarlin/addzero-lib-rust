@@ -23,7 +23,7 @@
 
 use std::cmp::Ordering;
 
-use az_derive_aliases::{apply, plain_eq};
+use az_derive_aliases::{apply, plain_default_copy_eq, plain_eq};
 
 pub trait AreaNode: Sized {
     fn children(&self) -> &[Self];
@@ -45,7 +45,7 @@ macro_rules! impl_area_node {
     };
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[apply(plain_default_copy_eq)]
 pub struct AreaOps;
 
 impl AreaOps {

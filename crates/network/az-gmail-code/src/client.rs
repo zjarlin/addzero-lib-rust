@@ -165,6 +165,7 @@ fn extract_code_from_message(
 mod tests {
     use super::GmailCodeClient;
     use crate::{GmailCodeConfig, GmailCodeQuery};
+    use az_derive_aliases::{apply, plain_clone_debug};
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use std::io::{Read, Write};
@@ -263,7 +264,7 @@ mod tests {
         URL_SAFE_NO_PAD.encode(value.as_bytes())
     }
 
-    #[derive(Debug, Clone)]
+    #[apply(plain_clone_debug)]
     struct MockResponse {
         status: u16,
         content_type: &'static str,

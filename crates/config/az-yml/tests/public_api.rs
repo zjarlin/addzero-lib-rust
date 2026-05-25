@@ -1,20 +1,20 @@
+use az_derive_aliases::{apply, deserialize_eq};
 use az_yml::*;
-use serde::Deserialize;
 use serde_yaml::Value;
 use std::fs;
 use tempfile::TempDir;
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[apply(deserialize_eq)]
 struct AppConfig {
     spring: SpringSection,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[apply(deserialize_eq)]
 struct SpringSection {
     application: ApplicationSection,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[apply(deserialize_eq)]
 struct ApplicationSection {
     name: String,
 }

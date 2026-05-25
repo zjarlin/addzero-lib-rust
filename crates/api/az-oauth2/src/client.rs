@@ -344,6 +344,7 @@ mod tests {
         AuthorizationCodeOptions, OAuth2Config, OAuth2DeviceTokenPoll, OAuth2TokenResponse,
         PkcePair,
     };
+    use az_derive_aliases::{apply, plain_clone_debug};
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread::{self, JoinHandle};
@@ -512,13 +513,13 @@ mod tests {
         }
     }
 
-    #[derive(Debug, Clone)]
+    #[apply(plain_clone_debug)]
     struct CapturedRequest {
         path: String,
         body: String,
     }
 
-    #[derive(Debug, Clone)]
+    #[apply(plain_clone_debug)]
     struct TestResponse {
         status: u16,
         content_type: &'static str,
