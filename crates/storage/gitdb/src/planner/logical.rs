@@ -6,55 +6,43 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use az_derive_aliases::{apply, plain_copy_eq, plain_eq_hash, plain_partial_eq};
+use az_derive_aliases::{
+    apply, plain_copy_eq, plain_copy_eq_display, plain_eq_hash, plain_partial_eq,
+};
 
 // Re-export Expr from sql for use in plans.
 pub use crate::sql::Expr;
 
 /// Join types supported by the planner.
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum JoinType {
+    #[display("INNER")]
     Inner,
+    #[display("LEFT")]
     Left,
+    #[display("RIGHT")]
     Right,
+    #[display("FULL")]
     Full,
+    #[display("CROSS")]
     Cross,
 }
 
-impl fmt::Display for JoinType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            JoinType::Inner => write!(f, "INNER"),
-            JoinType::Left => write!(f, "LEFT"),
-            JoinType::Right => write!(f, "RIGHT"),
-            JoinType::Full => write!(f, "FULL"),
-            JoinType::Cross => write!(f, "CROSS"),
-        }
-    }
-}
-
 /// Aggregate function types.
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum AggregateFunction {
+    #[display("COUNT")]
     Count,
+    #[display("SUM")]
     Sum,
+    #[display("AVG")]
     Avg,
+    #[display("MIN")]
     Min,
+    #[display("MAX")]
     Max,
+    #[display("COUNT_DISTINCT")]
     CountDistinct,
-}
-
-impl fmt::Display for AggregateFunction {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AggregateFunction::Count => write!(f, "COUNT"),
-            AggregateFunction::Sum => write!(f, "SUM"),
-            AggregateFunction::Avg => write!(f, "AVG"),
-            AggregateFunction::Min => write!(f, "MIN"),
-            AggregateFunction::Max => write!(f, "MAX"),
-            AggregateFunction::CountDistinct => write!(f, "COUNT_DISTINCT"),
-        }
-    }
 }
 
 /// Sort direction.

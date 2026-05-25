@@ -3,13 +3,10 @@
 //! GitDB supports two isolation levels:
 //! - ReadCommitted: Reads see the latest committed state of main
 //! - RepeatableRead: Reads see the state at transaction start (snapshot isolation)
-
-use std::fmt;
-
-use az_derive_aliases::{apply, plain_default_copy_eq};
+use az_derive_aliases::{apply, plain_default_copy_eq_display};
 
 /// Transaction isolation level.
-#[apply(plain_default_copy_eq)]
+#[apply(plain_default_copy_eq_display)]
 pub enum IsolationLevel {
     /// Read Committed isolation.
     ///
@@ -25,6 +22,7 @@ pub enum IsolationLevel {
     /// - Non-repeatable reads possible
     /// - May see partial effects of other transactions
     #[default]
+    #[display("READ COMMITTED")]
     ReadCommitted,
 
     /// Repeatable Read isolation (Snapshot Isolation).
@@ -40,6 +38,7 @@ pub enum IsolationLevel {
     /// Cons:
     /// - May operate on stale data
     /// - Higher chance of conflict at commit time
+    #[display("REPEATABLE READ")]
     RepeatableRead,
 }
 
@@ -56,15 +55,6 @@ impl IsolationLevel {
             IsolationLevel::RepeatableRead => {
                 "All reads see a consistent snapshot from transaction start"
             }
-        }
-    }
-}
-
-impl fmt::Display for IsolationLevel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            IsolationLevel::ReadCommitted => write!(f, "READ COMMITTED"),
-            IsolationLevel::RepeatableRead => write!(f, "REPEATABLE READ"),
         }
     }
 }

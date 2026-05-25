@@ -2,26 +2,33 @@
 
 use std::fmt;
 
-use az_derive_aliases::{apply, serde_eq_copy, serde_partial_eq};
+use az_derive_aliases::{apply, serde_eq_copy_display, serde_partial_eq};
 use serde_json::Value;
 
 /// SQL-like data types supported by GitDB.
-#[apply(serde_eq_copy)]
+#[apply(serde_eq_copy_display)]
 #[serde(rename_all = "lowercase")]
 pub enum DataType {
     /// Text/string data (VARCHAR in SQL).
+    #[display("TEXT")]
     Text,
     /// Integer numbers (BIGINT in SQL).
+    #[display("INTEGER")]
     Integer,
     /// Floating point numbers (DOUBLE in SQL).
+    #[display("REAL")]
     Float,
     /// Boolean values.
+    #[display("BOOLEAN")]
     Boolean,
     /// JSON objects or arrays.
+    #[display("JSON")]
     Json,
     /// Timestamps (stored as ISO 8601 strings).
+    #[display("TIMESTAMP")]
     Timestamp,
     /// UUIDs (stored as strings).
+    #[display("UUID")]
     Uuid,
 }
 
@@ -58,12 +65,6 @@ impl DataType {
             DataType::Timestamp => "TIMESTAMP",
             DataType::Uuid => "UUID",
         }
-    }
-}
-
-impl fmt::Display for DataType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.sql_name())
     }
 }
 

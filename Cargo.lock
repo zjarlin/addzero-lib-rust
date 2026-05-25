@@ -1455,6 +1455,7 @@ name = "az-kiro-auth-support"
 version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
+ "derive_more 2.1.1",
  "regex",
  "reqwest 0.12.28",
  "ring",

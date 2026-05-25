@@ -9,6 +9,7 @@ description = "Auditable Kiro AWS Builder ID device-flow helpers"
 
 [dependencies]
 az-derive-aliases.workspace = true
+derive_more.workspace = true
 regex.workspace = true
 reqwest.workspace = true
 ring.workspace = true

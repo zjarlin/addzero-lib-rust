@@ -41,13 +41,16 @@
 - **plain_eq_hash** — 在 `plain_eq` 基础上增加 `Hash`
 - **plain_eq_hash_display** — 在 `plain_eq_hash` 基础上增加 `Display`
 - **plain_partial_eq** — 纯内存结构体/枚举的 `Clone` + `Debug` + `PartialEq`
+- **plain_partial_eq_display** — 在 `plain_partial_eq` 基础上增加 `Display`
 - **plain_default_eq** — 在 `plain_eq` 基础上增加 `Default`
 - **plain_default_partial_eq** — 在 `plain_partial_eq` 基础上增加 `Default`
 - **plain_copy_eq** — 在 `plain_eq` 基础上增加 `Copy`
+- **plain_copy_eq_display** — 在 `plain_copy_eq` 基础上增加 `Display`
 - **plain_copy_eq_hash** — 在 `plain_copy_eq` 基础上增加 `Hash`
 - **plain_copy_eq_hash_display** — 在 `plain_copy_eq_hash` 基础上增加 `Display`
 - **plain_eq_display** — 在 `plain_eq` 基础上增加 `Display`
 - **plain_default_copy_eq** — 在 `plain_copy_eq` 基础上增加 `Default`
+- **plain_default_copy_eq_display** — 在 `plain_default_copy_eq` 基础上增加 `Display`
 
 所有宏设计为配合 [`macro_rules_attribute::apply`](https://docs.rs/macro_rules_attribute) 使用，保持 `#[serde(...)]` 和 `#[strum(...)]` 等辅助属性对编译器和 IDE 可见。
 `serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。
@@ -149,5 +152,5 @@ enum Priority {
 - `macro_rules_attribute` — 将宏作为 derive 属性应用到类型定义
 - `serde` — serde 相关 alias 的 derive 和辅助属性
 - `thiserror` — `error_eq`
-- `derive_more` — `from_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_copy_eq_hash_display`
+- `derive_more` — `from_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
 - `strum` — `serde_code*` / `serde_code*_enum`

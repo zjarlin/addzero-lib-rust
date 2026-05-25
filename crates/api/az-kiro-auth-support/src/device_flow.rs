@@ -1,12 +1,11 @@
 use crate::http::HttpClient;
 use crate::{KiroAuthSupportError, KiroAuthSupportResult, KiroOidcConfig};
 use az_derive_aliases::{
-    apply, plain_clone_debug, plain_eq, plain_partial_eq, serde_eq_default, serde_eq_default_copy,
-    serde_partial_eq_default, serialize_eq,
+    apply, plain_clone_debug, plain_eq, plain_partial_eq, plain_partial_eq_display,
+    serde_eq_default, serde_eq_default_copy, serde_partial_eq_default, serialize_eq,
 };
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fmt;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -341,30 +340,23 @@ impl KiroDeviceFlowClient {
 }
 
 /// Non-blocking session status used by [`KiroDeviceFlowManager`].
-#[apply(plain_partial_eq)]
+#[apply(plain_partial_eq_display)]
 pub enum KiroDeviceFlowSessionStatus {
     /// Polling is active.
+    #[display("pending")]
     Pending,
     /// Token exchange completed.
+    #[display("success")]
     Success(KiroTokenResponse),
     /// Device code expired or local timeout elapsed.
+    #[display("expired")]
     Expired(String),
     /// Provider or transport error.
+    #[display("error")]
     Error(String),
     /// Polling was canceled locally.
+    #[display("canceled")]
     Canceled,
-}
-
-impl fmt::Display for KiroDeviceFlowSessionStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Pending => f.write_str("pending"),
-            Self::Success(_) => f.write_str("success"),
-            Self::Expired(_) => f.write_str("expired"),
-            Self::Error(_) => f.write_str("error"),
-            Self::Canceled => f.write_str("canceled"),
-        }
-    }
 }
 
 /// Snapshot returned by [`KiroDeviceFlowManager::get_status`].
@@ -578,7 +570,7 @@ fn lock_error<T>(_error: T) -> KiroAuthSupportError {
 
 #[cfg(test)]
 mod tests {
-    use super::{KiroDeviceFlowClient, KiroLoginType, KiroTokenPoll, map_token_response};
+    use super::{map_token_response, KiroDeviceFlowClient, KiroLoginType, KiroTokenPoll};
     use crate::KiroOidcConfig;
     use std::time::Duration;
 
