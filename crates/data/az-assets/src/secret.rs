@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, anyhow};
-use az_derive_aliases::{apply, serde_eq};
+use az_derive_aliases::{apply, plain_clone, serde_eq};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use ring::{
     aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey},
@@ -13,7 +13,7 @@ pub struct EncryptedSecret {
     pub ciphertext: String,
 }
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct SecretCipher {
     key_id: String,
     key: LessSafeKey,

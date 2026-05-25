@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use az_derive_aliases::{apply, plain_clone};
 use chrono::{DateTime, Utc};
 use sqlx::Row;
 use sqlx::postgres::{PgPool, PgPoolOptions};
@@ -10,7 +11,7 @@ use crate::types::{Skill, SkillSource, SkillUpsert};
 const SCHEMA_SQL: &str = include_str!("../migrations/0001_init.sql");
 
 /// Postgres repository for the `skills` table.
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct PgRepo {
     pool: PgPool,
 }

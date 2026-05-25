@@ -1,3 +1,4 @@
+use az_derive_aliases::{apply, plain_clone};
 use az_persistence::PersistenceContext;
 
 use crate::{
@@ -10,7 +11,7 @@ use crate::{
     repository::SoftwareCatalogRepository,
 };
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct SoftwareCatalogService {
     repository: SoftwareCatalogRepository,
 }

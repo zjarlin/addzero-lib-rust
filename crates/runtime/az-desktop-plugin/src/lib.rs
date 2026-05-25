@@ -7,7 +7,7 @@ use az_assets::{
     AiModelProvider, AiModelProviderUpsert, AiProviderKind, Asset, AssetGraph, AssetKind,
     AssetUpsert,
 };
-use az_derive_aliases::{apply, plain_copy_eq, plain_default_eq, plain_eq};
+use az_derive_aliases::{apply, plain_clone, plain_copy_eq, plain_default_eq, plain_eq};
 use az_drive_agent::{
     HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem, TrackedItem,
 };
@@ -550,7 +550,7 @@ pub struct DesktopExecFeedback {
     pub route_override: Option<String>,
 }
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct DesktopExecContext {
     pub services: Arc<dyn DesktopHostServices>,
     pub shell: DesktopShellSnapshot,

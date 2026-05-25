@@ -11,7 +11,7 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::any;
-use az_derive_aliases::{apply, error};
+use az_derive_aliases::{apply, error, plain_clone};
 use az_drive_core::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
 use az_drive_store::{
     DriveEntry, DriveEntryKind, DriveLock, DriveMetadataStore, DriveObjectStore, DriveStoreError,
@@ -46,7 +46,7 @@ pub enum DriveWebdavError {
 }
 
 /// Shared state for WebDAV routes.
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct DriveWebdavState {
     metadata: Arc<dyn DriveMetadataStore>,
     objects: Arc<dyn DriveObjectStore>,

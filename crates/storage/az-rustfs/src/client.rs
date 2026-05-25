@@ -1,7 +1,7 @@
 use crate::progress::{InMemoryUploadProgressStorage, PartInfo};
 use crate::types::{ObjectMetadata, PresignedUrl, S3ClientConfig};
 use az_derive_aliases::{
-    apply, error, plain_clone_debug, plain_default_clone_debug, plain_default_debug,
+    apply, error, plain_clone, plain_clone_debug, plain_default_clone_debug, plain_default_debug,
 };
 use base64::Engine as _;
 use chrono::Utc;
@@ -143,7 +143,7 @@ pub trait S3StorageClientFactory: Send + Sync {
     fn create_default_client(&self) -> Arc<dyn S3StorageClient>;
 }
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct DefaultS3StorageClientFactory {
     default_config: Arc<dyn Fn() -> S3ClientConfig + Send + Sync>,
 }

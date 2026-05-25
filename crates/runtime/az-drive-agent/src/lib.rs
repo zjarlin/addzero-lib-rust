@@ -7,8 +7,8 @@
 //! 无需手动的 Git 式人工干预。
 
 use az_derive_aliases::{
-    apply, error, plain_clone_debug, plain_copy_eq, plain_default_copy_eq, plain_eq, serde_eq,
-    serde_eq_copy,
+    apply, error, plain_clone, plain_clone_debug, plain_copy_eq, plain_default_copy_eq, plain_eq,
+    serde_eq, serde_eq_copy,
 };
 use az_drive_core::{
     ChangeDecision, EntryKey, RelativePath, RootAlias, RootRegistry, conflict_file_name,
@@ -548,7 +548,7 @@ impl LocalStateStore {
 }
 
 /// Headless realtime drive agent.
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct DriveAgent {
     metadata: Arc<dyn DriveMetadataStore>,
     objects: Arc<dyn DriveObjectStore>,

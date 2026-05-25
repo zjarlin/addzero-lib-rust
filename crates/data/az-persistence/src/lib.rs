@@ -27,7 +27,7 @@ use std::{
     time::Duration,
 };
 
-use az_derive_aliases::{apply, error};
+use az_derive_aliases::{apply, error, plain_clone};
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbErr};
 use sea_orm_migration::prelude::*;
 
@@ -37,7 +37,7 @@ static WORKSPACE_MIGRATIONS_DONE: AtomicBool = AtomicBool::new(false);
 static WORKSPACE_MIGRATION_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Shared database context for workspace services.
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct PersistenceContext {
     database_url: String,
     db: DatabaseConnection,
