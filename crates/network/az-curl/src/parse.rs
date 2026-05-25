@@ -1,7 +1,7 @@
 use crate::builder::CurlBuilder;
 use crate::error::{CurlError, CurlResult};
 use crate::model::ParsedCurl;
-use crate::parse_support::{parse_method, split_form_field, split_header};
+use crate::parse_support::{next_flag_value, parse_method, split_form_field, split_header};
 use crate::util::normalize_command;
 use reqwest::Method;
 
@@ -28,9 +28,7 @@ pub fn parse_curl(command: impl AsRef<str>) -> CurlResult<ParsedCurl> {
     while let Some(token) = iter.next() {
         match token.as_str() {
             "-X" | "--request" => {
-                let value = iter
-                    .next()
-                    .ok_or(CurlError::MissingFlagValue("--request"))?;
+                let value = next_flag_value(&mut iter, "--request")?;
                 explicit_method = Some(parse_method(&value)?);
             }
             "-I" | "--head" => {
@@ -38,30 +36,30 @@ pub fn parse_curl(command: impl AsRef<str>) -> CurlResult<ParsedCurl> {
                 explicit_method = Some(Method::HEAD);
             }
             "-H" | "--header" => {
-                let value = iter.next().ok_or(CurlError::MissingFlagValue("--header"))?;
+                let value = next_flag_value(&mut iter, "--header")?;
                 let (name, header_value) = split_header(&value)?;
                 builder = builder.header(name, header_value);
             }
             "-b" | "--cookie" => {
-                let value = iter.next().ok_or(CurlError::MissingFlagValue("--cookie"))?;
+                let value = next_flag_value(&mut iter, "--cookie")?;
                 builder = builder.header("cookie", value);
             }
             "-u" | "--user" => {
-                let value = iter.next().ok_or(CurlError::MissingFlagValue("--user"))?;
+                let value = next_flag_value(&mut iter, "--user")?;
                 let (user, password) = value.split_once(':').unwrap_or((value.as_str(), ""));
                 builder = builder.basic_auth(user, password);
             }
             "-d" | "--data" | "--data-raw" | "--data-binary" | "--data-urlencode" => {
-                let value = iter.next().ok_or(CurlError::MissingFlagValue("--data"))?;
+                let value = next_flag_value(&mut iter, "--data")?;
                 pending_data.push(value);
             }
             "-F" | "--form" => {
-                let value = iter.next().ok_or(CurlError::MissingFlagValue("--form"))?;
+                let value = next_flag_value(&mut iter, "--form")?;
                 let (name, form_value) = split_form_field(&value)?;
                 builder = builder.form_field(name, form_value);
             }
             "--url" => {
-                let value = iter.next().ok_or(CurlError::MissingFlagValue("--url"))?;
+                let value = next_flag_value(&mut iter, "--url")?;
                 builder.url = value;
             }
             "--compressed" | "--location" | "-L" | "--silent" | "-s" | "--insecure" | "-k"

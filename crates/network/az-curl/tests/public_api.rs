@@ -111,6 +111,15 @@ fn executor_returns_unauthorized_response_body() {
     );
 }
 
+#[test]
+fn parse_reports_missing_flag_values_as_structured_errors() {
+    let error = parse_curl("curl --header")
+        .expect_err("missing header value should fail")
+        .to_string();
+
+    assert_eq!(error, "flag `--header` requires a value");
+}
+
 fn spawn_http_server(body: &'static str) -> (String, thread::JoinHandle<String>) {
     spawn_http_server_with_status(200, body)
 }
