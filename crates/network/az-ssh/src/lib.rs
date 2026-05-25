@@ -28,7 +28,7 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, error, plain_eq};
+use az_derive_aliases::{apply, error, plain_eq, plain_eq_no_debug};
 use ssh2::Session;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -77,7 +77,7 @@ pub enum SshError {
 
 pub type SshResult<T> = Result<T, SshError>;
 
-#[derive(Clone, PartialEq, Eq)]
+#[apply(plain_eq_no_debug)]
 pub struct SshConfig {
     pub host: String,
     pub port: u16,
