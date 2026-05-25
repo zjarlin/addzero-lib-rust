@@ -25,3 +25,4 @@ target
 
 dist
 out
+crates/storage/gitdb/data/gitdb
