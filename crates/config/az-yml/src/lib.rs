@@ -22,6 +22,7 @@
 use az_derive_aliases::{
     apply, error, plain_default_copy_eq, plain_eq, plain_eq_no_debug, plain_partial_eq,
 };
+use derive_more::Debug;
 use serde::de::DeserializeOwned;
 use serde_yaml::Value;
 use std::env;
@@ -325,25 +326,12 @@ impl SpringYaml {
 }
 
 #[apply(plain_eq_no_debug)]
+#[derive(Debug)]
 pub struct DatabaseConfig {
     pub jdbc_url: String,
     pub jdbc_username: Option<String>,
+    #[debug(skip)]
     pub jdbc_password: Option<String>,
-}
-
-impl std::fmt::Debug for DatabaseConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        const REDACTED: &str = "***REDACTED***";
-
-        f.debug_struct("DatabaseConfig")
-            .field("jdbc_url", &self.jdbc_url)
-            .field("jdbc_username", &self.jdbc_username)
-            .field(
-                "jdbc_password",
-                &self.jdbc_password.as_ref().map(|_| REDACTED),
-            )
-            .finish()
-    }
 }
 
 #[apply(plain_default_copy_eq)]
@@ -621,7 +609,7 @@ mod debug_redaction_tests {
     use super::DatabaseConfig;
 
     #[test]
-    fn database_config_debug_redacts_password() {
+    fn database_config_debug_does_not_leak_password() {
         let x = "demo";
 
         let string = x.to_owned();
@@ -632,7 +620,7 @@ mod debug_redaction_tests {
         };
 
         let output = format!("{config:?}");
-        assert!(output.contains("***REDACTED***"));
+        assert!(output.contains("jdbc:postgresql://localhost/app"));
         assert!(!output.contains("super-secret"));
     }
 }

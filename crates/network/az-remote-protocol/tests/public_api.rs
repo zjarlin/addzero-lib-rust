@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 #[test]
 fn control_frame_round_trips_as_json() {
-    let frame = ControlFrame::Hello(DeviceHello {
+    let hello = DeviceHello {
         device: DeviceDescriptor {
             device_id: Uuid::new_v4(),
             device_name: "demo-host".into(),
@@ -19,7 +19,13 @@ fn control_frame_round_trips_as_json() {
             notes: None,
         },
         relay_token: "token-1".into(),
-    });
+    };
+
+    let debug = format!("{hello:?}");
+    assert!(debug.contains("demo-host"));
+    assert!(!debug.contains("token-1"));
+
+    let frame = ControlFrame::Hello(hello);
 
     let decoded =
         ControlFrame::from_json_bytes(&frame.to_json_bytes().expect("encode")).expect("decode");

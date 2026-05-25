@@ -1,17 +1,18 @@
 //! Proxy configuration for isolated browser sessions.
 
 use crate::{BrowserAutomationError, BrowserAutomationResult};
-use az_derive_aliases::{apply, serde_eq, serde_eq_copy};
+use az_derive_aliases::{apply, serde_code_enum, serde_eq};
 use std::fs;
 use std::path::Path;
-use std::str::FromStr;
 
 /// Proxy protocol supported by Chrome launch arguments.
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum ProxyType {
     /// HTTP proxy.
+    #[strum(serialize = "http", serialize = "https")]
     Http,
     /// SOCKS5 proxy.
+    #[strum(serialize = "socks5", serialize = "socks")]
     Socks5,
 }
 
@@ -22,18 +23,6 @@ impl ProxyType {
         match self {
             Self::Http => "http",
             Self::Socks5 => "socks5",
-        }
-    }
-}
-
-impl FromStr for ProxyType {
-    type Err = String;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "http" | "https" => Ok(Self::Http),
-            "socks5" | "socks" => Ok(Self::Socks5),
-            other => Err(format!("unsupported proxy scheme `{other}`")),
         }
     }
 }
@@ -91,7 +80,7 @@ impl ProxyConfig {
             .ok_or_else(|| invalid_proxy_url(original, "missing scheme separator `://`"))?;
         let proxy_type = scheme
             .parse::<ProxyType>()
-            .map_err(|message| invalid_proxy_url(original, message))?;
+            .map_err(|message| invalid_proxy_url(original, message.to_string()))?;
         let authority = rest.split('/').next().unwrap_or_default();
 
         if authority.is_empty() {

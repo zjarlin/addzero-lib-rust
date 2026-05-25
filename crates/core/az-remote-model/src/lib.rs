@@ -20,7 +20,7 @@
 //! [`RemotePlatform`] 支持 macOS、Windows、Linux (X11/Wayland)、Browser；
 //! [`DeviceRole`] 区分 Host（被控端）与 Viewer（控制端）。
 
-use az_derive_aliases::{apply, serde_eq, serde_eq_copy, serde_eq_copy_display};
+use az_derive_aliases::{apply, serde_code_display_enum, serde_eq, serde_eq_copy};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -28,7 +28,7 @@ pub type DeviceId = Uuid;
 pub type SessionId = Uuid;
 pub type TransferId = Uuid;
 
-#[apply(serde_eq_copy_display)]
+#[apply(serde_code_display_enum)]
 pub enum RemotePlatform {
     #[display("macOS")]
     MacOs,

@@ -1,6 +1,6 @@
 use crate::{CodexAuthSupportError, CodexAuthSupportResult};
 use az_derive_aliases::{apply, plain_eq_no_debug};
-use std::fmt;
+use derive_more::Debug;
 use std::time::Duration;
 
 const DEFAULT_DUCKMAIL_BASE_URL: &str = "https://api.duckmail.sbs";
@@ -14,27 +14,14 @@ const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 /// Both are transmitted with `Authorization: Bearer ...`, matching DuckMail's
 /// documented API behavior.
 #[apply(plain_eq_no_debug)]
+#[derive(Debug)]
 pub struct DuckMailConfig {
     pub base_url: String,
+    #[debug(skip)]
     pub auth_token: Option<String>,
     pub user_agent: Option<String>,
     pub connect_timeout: Duration,
     pub request_timeout: Duration,
-}
-
-impl fmt::Debug for DuckMailConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DuckMailConfig")
-            .field("base_url", &self.base_url)
-            .field(
-                "auth_token",
-                &self.auth_token.as_ref().map(|_| "***REDACTED***"),
-            )
-            .field("user_agent", &self.user_agent)
-            .field("connect_timeout", &self.connect_timeout)
-            .field("request_timeout", &self.request_timeout)
-            .finish()
-    }
 }
 
 impl Default for DuckMailConfig {
@@ -122,26 +109,35 @@ impl DuckMailConfig {
 
 /// Configuration for uploading generated auth JSON files to a CLIProxyAPI management endpoint.
 #[apply(plain_eq_no_debug)]
+#[derive(Debug)]
 pub struct CpaUploadConfig {
     pub upload_url: String,
+    #[debug(skip)]
     pub bearer_token: Option<String>,
     pub user_agent: Option<String>,
     pub connect_timeout: Duration,
     pub request_timeout: Duration,
 }
 
-impl fmt::Debug for CpaUploadConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CpaUploadConfig")
-            .field("upload_url", &self.upload_url)
-            .field(
-                "bearer_token",
-                &self.bearer_token.as_ref().map(|_| "***REDACTED***"),
-            )
-            .field("user_agent", &self.user_agent)
-            .field("connect_timeout", &self.connect_timeout)
-            .field("request_timeout", &self.request_timeout)
-            .finish()
+#[cfg(test)]
+mod tests {
+    use super::{CpaUploadConfig, DuckMailConfig};
+
+    #[test]
+    fn duckmail_config_debug_skips_token() {
+        let output = format!("{:?}", DuckMailConfig::default().auth_token("dk_test"));
+        assert!(!output.contains("dk_test"));
+        assert!(output.contains("base_url"));
+    }
+
+    #[test]
+    fn cpa_upload_config_debug_skips_token() {
+        let output = format!(
+            "{:?}",
+            CpaUploadConfig::builder("https://example.invalid").bearer_token("abc123")
+        );
+        assert!(!output.contains("abc123"));
+        assert!(output.contains("upload_url"));
     }
 }
 

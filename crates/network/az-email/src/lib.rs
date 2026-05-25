@@ -36,6 +36,7 @@
 //! send_with_config(&config, &message).unwrap();
 //! ```
 use az_derive_aliases::{apply, error, plain_clone_debug, plain_default_eq, plain_eq_no_debug};
+use derive_more::Debug;
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
@@ -74,30 +75,16 @@ pub enum EmailError {
 }
 
 #[apply(plain_eq_no_debug)]
+#[derive(Debug)]
 pub struct EmailConfig {
     pub host: String,
     pub port: u16,
     pub username: String,
+    #[debug(skip)]
     pub password: String,
     pub protocol: String,
     pub enable_ssl: bool,
     pub enable_tls: bool,
-}
-
-impl std::fmt::Debug for EmailConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        const REDACTED: &str = "***REDACTED***";
-
-        f.debug_struct("EmailConfig")
-            .field("host", &self.host)
-            .field("port", &self.port)
-            .field("username", &self.username)
-            .field("password", &REDACTED)
-            .field("protocol", &self.protocol)
-            .field("enable_ssl", &self.enable_ssl)
-            .field("enable_tls", &self.enable_tls)
-            .finish()
-    }
 }
 
 impl EmailConfig {
@@ -435,13 +422,13 @@ mod debug_redaction_tests {
     use super::EmailConfig;
 
     #[test]
-    fn email_config_debug_redacts_password() {
+    fn email_config_debug_does_not_leak_password() {
         let config = EmailConfig::builder("smtp.example.com", "mailer", "top-secret")
             .build()
             .expect("email config should build");
 
         let output = format!("{config:?}");
-        assert!(output.contains("***REDACTED***"));
+        assert!(output.contains("smtp.example.com"));
         assert!(!output.contains("top-secret"));
     }
 }

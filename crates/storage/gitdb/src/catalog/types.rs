@@ -2,12 +2,11 @@
 
 use std::fmt;
 
-use az_derive_aliases::{apply, serde_eq_copy_display, serde_partial_eq};
+use az_derive_aliases::{apply, serde_code_display_enum, serde_partial_eq};
 use serde_json::Value;
 
 /// SQL-like data types supported by GitDB.
-#[apply(serde_eq_copy_display)]
-#[serde(rename_all = "lowercase")]
+#[apply(serde_code_display_enum)]
 pub enum DataType {
     /// Text/string data (VARCHAR in SQL).
     #[display("TEXT")]
@@ -107,12 +106,6 @@ impl Constraint {
     }
 }
 
-impl fmt::Display for Constraint {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.sql_name())
-    }
-}
-
 /// Full column definition including name, type, and constraints.
 #[apply(serde_partial_eq)]
 pub struct ColumnDef {
@@ -194,6 +187,18 @@ impl ColumnDef {
     }
 }
 
+impl fmt::Display for Constraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Constraint::NotNull => write!(f, "NOT NULL"),
+            Constraint::Unique => write!(f, "UNIQUE"),
+            Constraint::PrimaryKey => write!(f, "PRIMARY KEY"),
+            Constraint::Default(v) => write!(f, "DEFAULT {}", v),
+            Constraint::Check(expr) => write!(f, "CHECK ({})", expr),
+        }
+    }
+}
+
 impl fmt::Display for ColumnDef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} {}", self.name, self.data_type)?;
@@ -226,6 +231,16 @@ mod tests {
 
         assert!(DataType::Json.matches(&json!({"key": "value"})));
         assert!(DataType::Json.matches(&json!([1, 2, 3])));
+    }
+
+    #[test]
+    fn data_type_code_and_sql_display_are_separate() {
+        assert_eq!(DataType::Text.code(), "text");
+        assert_eq!(DataType::Text.to_string(), "TEXT");
+        assert_eq!(
+            serde_json::to_string(&DataType::Timestamp).expect("serialize"),
+            "\"timestamp\""
+        );
     }
 
     #[test]

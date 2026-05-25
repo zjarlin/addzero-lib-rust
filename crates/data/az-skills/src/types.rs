@@ -1,11 +1,10 @@
-use az_derive_aliases::{apply, serde_eq, serde_eq_copy, serde_eq_default};
+use az_derive_aliases::{apply, serde_code_enum, serde_eq, serde_eq_default};
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 /// Where a particular skill record is currently observed to live.
-#[apply(serde_eq_copy)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_enum)]
 pub enum SkillSource {
     Postgres,
     FileSystem,
@@ -103,5 +102,17 @@ pub fn skill_from_upsert(input: SkillUpsert, source: SkillSource) -> Skill {
         content_hash,
         updated_at: Utc::now(),
         source,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SkillSource;
+
+    #[test]
+    fn skill_source_codes_follow_wire_values() {
+        assert_eq!(SkillSource::Postgres.code(), "postgres");
+        assert_eq!(SkillSource::FileSystem.code(), "file_system");
+        assert_eq!(SkillSource::from_code("both"), Some(SkillSource::Both));
     }
 }

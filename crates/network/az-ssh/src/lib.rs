@@ -29,6 +29,7 @@
 //! ```
 
 use az_derive_aliases::{apply, error, plain_eq, plain_eq_no_debug};
+use derive_more::Debug;
 use ssh2::Session;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -78,38 +79,19 @@ pub enum SshError {
 pub type SshResult<T> = Result<T, SshError>;
 
 #[apply(plain_eq_no_debug)]
+#[derive(Debug)]
 pub struct SshConfig {
     pub host: String,
     pub port: u16,
     pub username: String,
+    #[debug(skip)]
     pub password: Option<String>,
+    #[debug(skip)]
     pub private_key_path: Option<String>,
+    #[debug(skip)]
     pub private_key_passphrase: Option<String>,
     pub connect_timeout_ms: u32,
     pub read_timeout_ms: u32,
-}
-
-impl std::fmt::Debug for SshConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        const REDACTED: &str = "***REDACTED***";
-
-        f.debug_struct("SshConfig")
-            .field("host", &self.host)
-            .field("port", &self.port)
-            .field("username", &self.username)
-            .field("password", &self.password.as_ref().map(|_| REDACTED))
-            .field(
-                "private_key_path",
-                &self.private_key_path.as_ref().map(|_| REDACTED),
-            )
-            .field(
-                "private_key_passphrase",
-                &self.private_key_passphrase.as_ref().map(|_| REDACTED),
-            )
-            .field("connect_timeout_ms", &self.connect_timeout_ms)
-            .field("read_timeout_ms", &self.read_timeout_ms)
-            .finish()
-    }
 }
 
 impl SshConfig {
@@ -734,7 +716,7 @@ mod debug_redaction_tests {
     use super::SshConfig;
 
     #[test]
-    fn ssh_config_debug_redacts_credentials() {
+    fn ssh_config_debug_does_not_leak_credentials() {
         let config = SshConfig::builder("example.com", "alice")
             .password("secret-password")
             .private_key_path("/tmp/id_rsa")
@@ -743,7 +725,7 @@ mod debug_redaction_tests {
             .expect("ssh config should build");
 
         let output = format!("{config:?}");
-        assert!(output.contains("***REDACTED***"));
+        assert!(output.contains("example.com"));
         assert!(!output.contains("secret-password"));
         assert!(!output.contains("/tmp/id_rsa"));
         assert!(!output.contains("ssh-phrase-secret"));
@@ -772,8 +754,7 @@ mod tests {
 
         let debug = format!("{config:?}");
 
-        assert!(debug.contains("password: Some(\"***REDACTED***\")"));
-        assert!(debug.contains("private_key_passphrase: Some(\"***REDACTED***\")"));
+        assert!(debug.contains("example.com"));
         assert!(!debug.contains("super-secret"));
         assert!(!debug.contains("key-passphrase"));
     }

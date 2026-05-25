@@ -648,6 +648,25 @@ macro_rules! serde_eq_copy_display {
     };
 }
 
+/// `Copy` value wrapper with `derive_more::From`, debug, equality, and `Display`.
+#[macro_export]
+macro_rules! from_copy_eq_display {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                ::derive_more::From,
+                ::derive_more::Display,
+                PartialEq,
+                Eq
+            ),
+            $item
+        );
+    };
+}
+
 /// Serde-friendly small data type with equality, debug, `Copy`, `Default`, and hash traits.
 #[macro_export]
 macro_rules! serde_eq_default_copy {
@@ -746,6 +765,24 @@ macro_rules! serde_partial_eq_default {
     };
 }
 
+/// Serde-friendly data type with partial equality, debug, and `Display`.
+#[macro_export]
+macro_rules! serde_partial_eq_display {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Debug,
+                PartialEq,
+                ::serde::Serialize,
+                ::serde::Deserialize,
+                ::derive_more::Display
+            ),
+            $item
+        );
+    };
+}
+
 /// Code-backed data type with snake_case serde, string conversion, and hash derives.
 #[macro_export]
 macro_rules! serde_code {
@@ -772,22 +809,10 @@ macro_rules! serde_code {
     };
 }
 
-/// Code-backed enum with snake_case serde, string conversion, variant list, and `code` helpers.
+#[doc(hidden)]
 #[macro_export]
-macro_rules! serde_code_enum {
-    (
-        $(#[$meta:meta])*
-        $vis:vis enum $name:ident {
-            $($body:tt)*
-        }
-    ) => {
-        $crate::serde_code! {
-            $(#[$meta])*
-            $vis enum $name {
-                $($body)*
-            }
-        }
-
+macro_rules! __az_derive_aliases_code_enum_impl {
+    ($name:ident) => {
         impl $name {
             pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
 
@@ -805,6 +830,198 @@ macro_rules! serde_code_enum {
                 value.parse().ok()
             }
         }
+    };
+}
+
+/// Code-backed data type with kebab-case serde, string conversion, and hash derives.
+#[macro_export]
+macro_rules! serde_kebab_code {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                PartialEq,
+                Eq,
+                ::core::hash::Hash,
+                ::serde::Serialize,
+                ::serde::Deserialize,
+                ::strum::Display,
+                ::strum::EnumString,
+                ::strum::IntoStaticStr,
+                ::strum::VariantArray
+            ),
+            #[serde(rename_all = "kebab-case")]
+            #[strum(serialize_all = "kebab-case")]
+            $item
+        );
+    };
+}
+
+/// Code-backed data type with lowercase serde, string conversion, and hash derives.
+#[macro_export]
+macro_rules! serde_lower_code {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                PartialEq,
+                Eq,
+                ::core::hash::Hash,
+                ::serde::Serialize,
+                ::serde::Deserialize,
+                ::strum::Display,
+                ::strum::EnumString,
+                ::strum::IntoStaticStr,
+                ::strum::VariantArray
+            ),
+            #[serde(rename_all = "lowercase")]
+            #[strum(serialize_all = "lowercase")]
+            $item
+        );
+    };
+}
+
+/// Code-backed data type with snake_case serde, custom `Display`, and hash derives.
+#[macro_export]
+macro_rules! serde_code_display {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                PartialEq,
+                Eq,
+                ::core::hash::Hash,
+                ::serde::Serialize,
+                ::serde::Deserialize,
+                ::derive_more::Display,
+                ::strum::EnumString,
+                ::strum::IntoStaticStr,
+                ::strum::VariantArray
+            ),
+            #[serde(rename_all = "snake_case")]
+            #[strum(serialize_all = "snake_case")]
+            $item
+        );
+    };
+}
+
+/// Code-backed enum with lowercase serde, string conversion, variant list, and `code` helpers.
+#[macro_export]
+macro_rules! serde_lower_code_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::serde_lower_code! {
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
+    };
+}
+
+/// Code-backed enum with snake_case serde, string conversion, variant list, and `code` helpers.
+#[macro_export]
+macro_rules! serde_code_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::serde_code! {
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
+    };
+}
+
+/// Code-backed enum with kebab-case serde, string conversion, variant list, and `code` helpers.
+#[macro_export]
+macro_rules! serde_kebab_code_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::serde_kebab_code! {
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
+    };
+}
+
+/// Code-backed enum with snake_case serde, custom `Display`, variant list, and `code` helpers.
+#[macro_export]
+macro_rules! serde_code_display_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::serde_code_display! {
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
+    };
+}
+
+/// Plain code-backed enum with snake_case string conversion, custom `Display`, and variant list.
+#[macro_export]
+macro_rules! plain_code_display_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                Default,
+                PartialEq,
+                Eq,
+                ::core::hash::Hash,
+                ::derive_more::Display,
+                ::strum::EnumString,
+                ::strum::IntoStaticStr,
+                ::strum::VariantArray
+            ),
+            #[strum(serialize_all = "snake_case")]
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        );
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
     };
 }
 
@@ -841,23 +1058,7 @@ macro_rules! clap_code_enum {
             }
         );
 
-        impl $name {
-            pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
-
-            #[must_use]
-            pub fn as_str(self) -> &'static str {
-                self.into()
-            }
-
-            #[must_use]
-            pub fn code(self) -> &'static str {
-                self.as_str()
-            }
-
-            pub fn from_code(value: &str) -> Option<Self> {
-                value.parse().ok()
-            }
-        }
+        $crate::__az_derive_aliases_code_enum_impl!($name);
     };
 }
 
@@ -904,23 +1105,7 @@ macro_rules! serde_code_default_enum {
             }
         }
 
-        impl $name {
-            pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
-
-            #[must_use]
-            pub fn as_str(self) -> &'static str {
-                self.into()
-            }
-
-            #[must_use]
-            pub fn code(self) -> &'static str {
-                self.as_str()
-            }
-
-            pub fn from_code(value: &str) -> Option<Self> {
-                value.parse().ok()
-            }
-        }
+        $crate::__az_derive_aliases_code_enum_impl!($name);
     };
 }
 
@@ -968,23 +1153,7 @@ macro_rules! serde_code_ord_enum {
             }
         }
 
-        impl $name {
-            pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
-
-            #[must_use]
-            pub fn as_str(self) -> &'static str {
-                self.into()
-            }
-
-            #[must_use]
-            pub fn code(self) -> &'static str {
-                self.as_str()
-            }
-
-            pub fn from_code(value: &str) -> Option<Self> {
-                value.parse().ok()
-            }
-        }
+        $crate::__az_derive_aliases_code_enum_impl!($name);
     };
 }
 
@@ -1033,22 +1202,6 @@ macro_rules! serde_code_default_ord_enum {
             }
         }
 
-        impl $name {
-            pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
-
-            #[must_use]
-            pub fn as_str(self) -> &'static str {
-                self.into()
-            }
-
-            #[must_use]
-            pub fn code(self) -> &'static str {
-                self.as_str()
-            }
-
-            pub fn from_code(value: &str) -> Option<Self> {
-                value.parse().ok()
-            }
-        }
+        $crate::__az_derive_aliases_code_enum_impl!($name);
     };
 }

@@ -2,28 +2,18 @@ use std::collections::BTreeMap;
 use std::time::SystemTime;
 
 use az_derive_aliases::{apply, plain_eq, plain_eq_no_debug};
+use derive_more::Debug;
 
 #[apply(plain_eq_no_debug)]
+#[derive(Debug)]
 pub struct S3ClientConfig {
     pub endpoint: String,
+    #[debug(skip)]
     pub access_key: String,
+    #[debug(skip)]
     pub secret_key: String,
     pub region: String,
     pub path_style_access: bool,
-}
-
-impl std::fmt::Debug for S3ClientConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        const REDACTED: &str = "***REDACTED***";
-
-        f.debug_struct("S3ClientConfig")
-            .field("endpoint", &self.endpoint)
-            .field("access_key", &REDACTED)
-            .field("secret_key", &REDACTED)
-            .field("region", &self.region)
-            .field("path_style_access", &self.path_style_access)
-            .finish()
-    }
 }
 
 impl S3ClientConfig {
@@ -69,24 +59,14 @@ pub struct PresignedUrl {
 }
 
 #[apply(plain_eq_no_debug)]
+#[derive(Debug)]
 pub struct RustfsConfig {
     pub endpoint: String,
+    #[debug(skip)]
     pub access_key: String,
+    #[debug(skip)]
     pub secret_key: String,
     pub region: String,
-}
-
-impl std::fmt::Debug for RustfsConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        const REDACTED: &str = "***REDACTED***";
-
-        f.debug_struct("RustfsConfig")
-            .field("endpoint", &self.endpoint)
-            .field("access_key", &REDACTED)
-            .field("secret_key", &REDACTED)
-            .field("region", &self.region)
-            .finish()
-    }
 }
 
 impl RustfsConfig {
@@ -119,17 +99,17 @@ mod debug_redaction_tests {
     use super::{RustfsConfig, S3ClientConfig};
 
     #[test]
-    fn s3_client_config_debug_redacts_keys() {
+    fn s3_client_config_debug_does_not_leak_keys() {
         let config = S3ClientConfig::new("http://localhost:9000", "rustfsadmin", "rustfs-secret");
 
         let output = format!("{config:?}");
-        assert!(output.contains("***REDACTED***"));
+        assert!(output.contains("http://localhost:9000"));
         assert!(!output.contains("rustfsadmin"));
         assert!(!output.contains("rustfs-secret"));
     }
 
     #[test]
-    fn rustfs_config_debug_redacts_keys() {
+    fn rustfs_config_debug_does_not_leak_keys() {
         let config = RustfsConfig {
             endpoint: "http://localhost:9000".to_owned(),
             access_key: "rustfsadmin".to_owned(),
@@ -138,7 +118,7 @@ mod debug_redaction_tests {
         };
 
         let output = format!("{config:?}");
-        assert!(output.contains("***REDACTED***"));
+        assert!(output.contains("http://localhost:9000"));
         assert!(!output.contains("rustfsadmin"));
         assert!(!output.contains("rustfs-secret"));
     }

@@ -3,10 +3,10 @@
 //! GitDB supports two isolation levels:
 //! - ReadCommitted: Reads see the latest committed state of main
 //! - RepeatableRead: Reads see the state at transaction start (snapshot isolation)
-use az_derive_aliases::{apply, plain_default_copy_eq_display};
+use az_derive_aliases::{apply, plain_code_display_enum};
 
 /// Transaction isolation level.
-#[apply(plain_default_copy_eq_display)]
+#[apply(plain_code_display_enum)]
 pub enum IsolationLevel {
     /// Read Committed isolation.
     ///
@@ -23,6 +23,11 @@ pub enum IsolationLevel {
     /// - May see partial effects of other transactions
     #[default]
     #[display("READ COMMITTED")]
+    #[strum(
+        serialize = "READ COMMITTED",
+        serialize = "READ_COMMITTED",
+        serialize = "READCOMMITTED"
+    )]
     ReadCommitted,
 
     /// Repeatable Read isolation (Snapshot Isolation).
@@ -39,6 +44,12 @@ pub enum IsolationLevel {
     /// - May operate on stale data
     /// - Higher chance of conflict at commit time
     #[display("REPEATABLE READ")]
+    #[strum(
+        serialize = "REPEATABLE READ",
+        serialize = "REPEATABLE_READ",
+        serialize = "REPEATABLEREAD",
+        serialize = "snapshot"
+    )]
     RepeatableRead,
 }
 
@@ -55,23 +66,6 @@ impl IsolationLevel {
             IsolationLevel::RepeatableRead => {
                 "All reads see a consistent snapshot from transaction start"
             }
-        }
-    }
-}
-
-/// Parse isolation level from string (SQL syntax).
-impl std::str::FromStr for IsolationLevel {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_uppercase().as_str() {
-            "READ COMMITTED" | "READ_COMMITTED" | "READCOMMITTED" => {
-                Ok(IsolationLevel::ReadCommitted)
-            }
-            "REPEATABLE READ" | "REPEATABLE_READ" | "REPEATABLEREAD" | "SNAPSHOT" => {
-                Ok(IsolationLevel::RepeatableRead)
-            }
-            _ => Err(format!("unknown isolation level: {}", s)),
         }
     }
 }
@@ -93,6 +87,14 @@ mod tests {
 
     #[test]
     fn test_parse_isolation() {
+        assert_eq!(
+            IsolationLevel::from_code("READ COMMITTED"),
+            Some(IsolationLevel::ReadCommitted)
+        );
+        assert_eq!(
+            IsolationLevel::from_code("snapshot"),
+            Some(IsolationLevel::RepeatableRead)
+        );
         assert_eq!(
             "READ COMMITTED".parse::<IsolationLevel>().unwrap(),
             IsolationLevel::ReadCommitted

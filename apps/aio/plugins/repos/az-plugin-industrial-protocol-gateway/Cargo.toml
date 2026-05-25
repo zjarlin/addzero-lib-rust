@@ -14,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 az-derive-aliases = { path = "../../../../../crates/core/az-derive-aliases" }
+derive_more = { version = "2.1.1", features = ["display"] }
 
 [profile.release]
 codegen-units = 1

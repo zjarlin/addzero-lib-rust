@@ -1190,8 +1190,10 @@ name = "az-ddl-generator"
 version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
+ "derive_more 2.1.1",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1286,6 +1288,7 @@ dependencies = [
  "ignore",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -1367,6 +1370,7 @@ name = "az-email"
 version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
+ "derive_more 2.1.1",
  "lettre",
  "mime_guess",
  "tempfile",
@@ -1454,6 +1458,7 @@ dependencies = [
  "ring",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "uuid",
 ]
@@ -1522,6 +1527,7 @@ name = "az-mqtt"
 version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
+ "derive_more 2.1.1",
  "rumqttc",
  "rustls",
  "thiserror 2.0.18",
@@ -1690,6 +1696,7 @@ dependencies = [
  "derive_more 2.1.1",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "uuid",
 ]
 
@@ -1700,6 +1707,7 @@ dependencies = [
  "az-derive-aliases",
  "az-remote-model",
  "chrono",
+ "derive_more 2.1.1",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -1728,6 +1736,7 @@ dependencies = [
  "az-derive-aliases",
  "base64 0.22.1",
  "chrono",
+ "derive_more 2.1.1",
  "hmac",
  "md5",
  "mime_guess",
@@ -1754,6 +1763,7 @@ dependencies = [
  "az-sandbox",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1803,6 +1813,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "tokio",
  "uuid",
@@ -1855,6 +1866,7 @@ name = "az-ssh"
 version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
+ "derive_more 2.1.1",
  "ssh2",
  "tempfile",
  "thiserror 2.0.18",
@@ -1987,6 +1999,7 @@ dependencies = [
  "az-derive-aliases",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1996,6 +2009,7 @@ dependencies = [
  "az-derive-aliases",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "uuid",
 ]
@@ -2016,6 +2030,7 @@ name = "az-yml"
 version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
+ "derive_more 2.1.1",
  "serde",
  "serde_yaml",
  "tempfile",
@@ -5360,6 +5375,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlparser",
+ "strum 0.28.0",
  "tempfile",
  "thiserror 2.0.18",
  "ulid",

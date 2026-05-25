@@ -8,6 +8,7 @@ authors.workspace = true
 
 [dependencies]
 az-derive-aliases.workspace = true
+derive_more.workspace = true
 lettre.workspace = true
 mime_guess.workspace = true
 thiserror.workspace = true

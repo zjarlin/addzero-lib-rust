@@ -9,7 +9,7 @@ use az_plugin_contract::{
 };
 use az_plugin_runtime::create_package_from_dir;
 use az_derive_aliases::{
-    apply, deserialize_eq, serde_eq, serde_eq_copy, serde_eq_default, serde_partial_eq,
+    apply, deserialize_eq, serde_code_enum, serde_eq, serde_eq_default, serde_partial_eq,
 };
 use chrono::Utc;
 use regex::Regex;
@@ -32,22 +32,11 @@ const MAX_SKILL_SAMPLE_COUNT: usize = 6;
 const MAX_SKILL_OWNERS: usize = 3;
 const MAX_SKILL_REPOS_PER_OWNER: usize = 2;
 
-#[apply(serde_eq_copy)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_enum)]
 pub enum MarketSceneDto {
     Cli,
     Skill,
     Wasm,
-}
-
-impl MarketSceneDto {
-    pub fn code(self) -> &'static str {
-        match self {
-            Self::Cli => "cli",
-            Self::Skill => "skill",
-            Self::Wasm => "wasm",
-        }
-    }
 }
 
 #[apply(serde_partial_eq)]

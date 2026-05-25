@@ -2,7 +2,7 @@ use crate::http::HttpClient;
 use crate::{KiroAuthSupportError, KiroAuthSupportResult, KiroOidcConfig};
 use az_derive_aliases::{
     apply, plain_clone_debug, plain_debug, plain_eq, plain_partial_eq, plain_partial_eq_display,
-    serde_eq_default, serde_eq_default_copy, serde_partial_eq_default, serialize_eq,
+    serde_code_default_enum, serde_eq_default, serde_partial_eq_default, serialize_eq,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -22,7 +22,7 @@ const DEFAULT_SCOPES: &[&str] = &[
 ];
 
 /// Kiro login flavor used to select the AWS Builder ID start URL.
-#[apply(serde_eq_default_copy)]
+#[apply(serde_code_default_enum)]
 pub enum KiroLoginType {
     /// Personal AWS Builder ID.
     #[default]

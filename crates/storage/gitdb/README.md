@@ -82,7 +82,8 @@ use gitdb::db::{Database, DatabaseError};
 use gitdb::executor::QueryResult;
 
 fn main() -> Result<(), DatabaseError> {
-    let mut db = Database::open("./data/gitdb")?;
+    let db_dir = tempfile::tempdir().expect("temp dir");
+    let mut db = Database::open(db_dir.path())?;
 
     db.execute("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT, age INTEGER)")?;
     db.execute("INSERT INTO users (id, name, age) VALUES ('1', 'Alice', 30)")?;
@@ -104,7 +105,8 @@ fn main() -> Result<(), DatabaseError> {
 use gitdb::db::{Database, DatabaseConfig};
 
 fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let config = DatabaseConfig::new("./data/gitdb")
+    let db_dir = tempfile::tempdir().expect("temp dir");
+    let config = DatabaseConfig::new(db_dir.path())
         .create_if_missing(true)
         .verbose(false)
         .auto_commit(true);
@@ -132,7 +134,8 @@ fn main() -> Result<(), gitdb::db::DatabaseError> {
 use gitdb::db::Database;
 
 fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let mut db = Database::open("./data/gitdb")?;
+    let db_dir = tempfile::tempdir().expect("temp dir");
+    let mut db = Database::open(db_dir.path())?;
     let results = db.execute_batch(
         r#"
         CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT);
@@ -150,18 +153,24 @@ fn main() -> Result<(), gitdb::db::DatabaseError> {
 
 ```rust
 use gitdb::db::Database;
+use gitdb::storage::{RowKey, TableName};
+use serde_json::Value;
+use std::collections::BTreeMap;
 
 fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let mut db = Database::open("./data/gitdb")?;
+    let db_dir = tempfile::tempdir().expect("temp dir");
+    let mut db = Database::open(db_dir.path())?;
 
-    db.execute("BEGIN")?;
-    db.execute("INSERT INTO users (id, name) VALUES ('2', 'Bob')")?;
-    db.execute("COMMIT")?;
+    db.execute("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT)")?;
 
-    db.transaction(|tx_db| {
-        tx_db.execute("INSERT INTO users (id, name) VALUES ('3', 'Carol')")?;
-        Ok(())
-    })?;
+    let table = TableName::new("users").unwrap();
+    let key = RowKey::new("2").unwrap();
+    let mut data = BTreeMap::new();
+    data.insert("name".to_string(), Value::String("Bob".to_string()));
+
+    let mut tx = db.begin()?;
+    tx.insert_data(&table, key, data)?;
+    let _committed = tx.commit()?;
 
     Ok(())
 }
@@ -173,7 +182,8 @@ fn main() -> Result<(), gitdb::db::DatabaseError> {
 use gitdb::db::Database;
 
 fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let db = Database::open("./data/gitdb")?;
+    let db_dir = tempfile::tempdir().expect("temp dir");
+    let db = Database::open(db_dir.path())?;
 
     let tables = db.tables()?;
     let stats = db.stats();
@@ -192,7 +202,8 @@ fn main() -> Result<(), gitdb::db::DatabaseError> {
 use gitdb::db::{ConnectionPool, DatabaseConfig};
 
 fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let config = DatabaseConfig::new("./data/gitdb");
+    let db_dir = tempfile::tempdir().expect("temp dir");
+    let config = DatabaseConfig::new(db_dir.path());
     let pool = ConnectionPool::new(config, 4)?;
 
     let mut connection = pool.get()?;
@@ -265,7 +276,8 @@ DELETE FROM users WHERE id = '1';
 use gitdb::blob_store::{BlobStoreConfig, ShardedBlobStore};
 
 fn main() -> Result<(), gitdb::storage::StorageError> {
-    let mut config = BlobStoreConfig::new("./data/gitdb-objects".into());
+    let root = tempfile::tempdir().expect("temp dir");
+    let mut config = BlobStoreConfig::new(root.path().to_path_buf());
     config.max_shard_size_bytes = 8 * 1024 * 1024 * 1024;
     config.shard_prefix = "shard".to_owned();
 

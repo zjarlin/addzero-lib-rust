@@ -32,7 +32,7 @@ pub(crate) fn build_client(
 
 pub(crate) fn provider_error(status: Option<u16>, body: impl AsRef<str>) -> SmsError {
     SmsError::ProviderError {
-        status: ProviderStatus(status),
+        status: ProviderStatus { status },
         message: body.as_ref().trim().to_owned(),
     }
 }

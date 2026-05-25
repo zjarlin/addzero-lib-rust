@@ -20,7 +20,7 @@
 //!
 //! - **JSON 序列化**：所有协议消息通过 `serde_json` 进行二进制序列化/反序列化，
 //!   `ControlFrame::to_json_bytes()` 和 `ControlFrame::from_json_bytes()` 提供便捷的转换方法。
-//! - **安全脱敏**：`DeviceHello` 的 `relay_token` 在 `Debug` 输出中自动掩码。
+//! - **安全脱敏**：`DeviceHello` 的 `relay_token` 在 `Debug` 输出中被省略。
 //! - **禁止 unsafe**：整个 crate 使用 `#![forbid(unsafe_code)]`。
 //! - **共享模型**：设备描述、会话请求/授权、输入事件、剪贴板/文件/视频信封等
 //!   数据类型由 `az-remote-model` crate 统一提供，本 crate 专注于协议帧的组装与解析。
@@ -54,13 +54,12 @@
 //! ```
 #![forbid(unsafe_code)]
 
-use std::fmt;
-
 use az_derive_aliases::{apply, error, serde_eq, serde_eq_copy, serde_eq_no_debug};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, FileTransferEnvelope, RemoteInputEvent, SessionGrant,
     SessionRequest, VideoFrameEnvelope,
 };
+use derive_more::Debug;
 
 pub type ProtocolResult<T> = Result<T, ProtocolError>;
 
@@ -80,19 +79,11 @@ pub enum StreamKind {
 }
 
 #[apply(serde_eq_no_debug)]
+#[derive(Debug)]
 pub struct DeviceHello {
     pub device: DeviceDescriptor,
+    #[debug(skip)]
     pub relay_token: String,
-}
-
-impl fmt::Debug for DeviceHello {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("DeviceHello")
-            .field("device", &self.device)
-            .field("relay_token", &"***")
-            .finish()
-    }
 }
 
 #[apply(serde_eq)]

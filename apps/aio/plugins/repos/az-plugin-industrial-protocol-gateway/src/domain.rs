@@ -1,34 +1,25 @@
 //! Domain model for gateway endpoint and route declarations.
 
-use core::fmt;
-use az_derive_aliases::{apply, plain_copy_eq};
+use az_derive_aliases::{apply, plain_copy_eq, plain_copy_eq_display};
 
 /// Industrial or integration protocol handled by the gateway.
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum Protocol {
     /// Modbus RTU over serial field buses.
+    #[display("Modbus RTU")]
     ModbusRtu,
     /// Modbus TCP over industrial Ethernet.
+    #[display("Modbus TCP")]
     ModbusTcp,
     /// OPC UA northbound or supervisory integration.
+    #[display("OPC UA")]
     OpcUa,
     /// MQTT telemetry publishing and command subscriptions.
+    #[display("MQTT")]
     Mqtt,
     /// HTTP JSON integration for business systems.
+    #[display("HTTP JSON")]
     HttpJson,
-}
-
-impl fmt::Display for Protocol {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = match self {
-            Self::ModbusRtu => "Modbus RTU",
-            Self::ModbusTcp => "Modbus TCP",
-            Self::OpcUa => "OPC UA",
-            Self::Mqtt => "MQTT",
-            Self::HttpJson => "HTTP JSON",
-        };
-        f.write_str(value)
-    }
 }
 
 /// Runtime role of a gateway endpoint.

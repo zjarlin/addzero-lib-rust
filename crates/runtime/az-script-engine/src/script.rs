@@ -1,6 +1,6 @@
 //! Common contracts for embeddable script engines.
 
-use az_derive_aliases::{apply, error_eq, serde_eq, serde_eq_copy};
+use az_derive_aliases::{apply, error_eq, serde_eq, serde_lower_code_enum};
 use az_sandbox::sandbox::SandboxPolicy;
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -9,8 +9,7 @@ use std::pin::Pin;
 // ─── Script Types ───────────────────────────────────────────────────
 
 /// Supported script languages.
-#[apply(serde_eq_copy)]
-#[serde(rename_all = "lowercase")]
+#[apply(serde_lower_code_enum)]
 pub enum ScriptLang {
     Curl,
     Rhai,
@@ -98,4 +97,19 @@ pub enum ScriptError {
 
     #[error("engine error: {0}")]
     Engine(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ScriptLang;
+
+    #[test]
+    fn script_lang_codes_follow_lowercase_wires() {
+        assert_eq!(ScriptLang::TypeScript.code(), "typescript");
+        assert_eq!(ScriptLang::from_code("bash"), Some(ScriptLang::Bash));
+        assert_eq!(
+            serde_json::to_string(&ScriptLang::Python).expect("serialize"),
+            "\"python\""
+        );
+    }
 }

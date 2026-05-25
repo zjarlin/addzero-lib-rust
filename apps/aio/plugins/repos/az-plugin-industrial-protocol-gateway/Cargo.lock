@@ -69,6 +69,7 @@ name = "az-plugin-industrial-protocol-gateway"
 version = "0.1.0"
 dependencies = [
  "az-derive-aliases",
+ "derive_more",
 ]
 
 [[package]]

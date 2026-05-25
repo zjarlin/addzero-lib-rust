@@ -1,5 +1,5 @@
 use crate::model::SmsOrderStatus;
-use az_derive_aliases::{apply, error, from_copy_eq};
+use az_derive_aliases::{apply, error, from_copy_eq_display};
 
 /// Result alias for SMS provider operations.
 pub type SmsResult<T> = Result<T, SmsError>;
@@ -70,14 +70,28 @@ pub enum SmsError {
 
 /// Optional provider HTTP status displayed without leaking formatting logic into
 /// error construction sites.
-#[apply(from_copy_eq)]
-pub struct ProviderStatus(pub Option<u16>);
+#[apply(from_copy_eq_display)]
+#[display(
+    "{}",
+    status.map_or(String::new(), |status| format!(" HTTP {status}"))
+)]
+pub struct ProviderStatus {
+    pub(crate) status: Option<u16>,
+}
 
-impl std::fmt::Display for ProviderStatus {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
-            Some(status) => write!(formatter, " HTTP {status}"),
-            None => Ok(()),
-        }
+#[cfg(test)]
+mod tests {
+    use super::ProviderStatus;
+
+    #[test]
+    fn provider_status_display_keeps_optional_prefix() {
+        assert_eq!(ProviderStatus { status: None }.to_string(), "");
+        assert_eq!(
+            ProviderStatus {
+                status: Some(503)
+            }
+            .to_string(),
+            " HTTP 503"
+        );
     }
 }

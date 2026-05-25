@@ -8,7 +8,7 @@
 
 use az_derive_aliases::{
     apply, error, plain_clone, plain_clone_debug, plain_copy_eq, plain_default_copy_eq, plain_eq,
-    serde_eq, serde_eq_copy,
+    serde_code_enum, serde_eq,
 };
 use az_drive_core::{
     ChangeDecision, EntryKey, RelativePath, RootAlias, RootRegistry, conflict_file_name,
@@ -250,8 +250,7 @@ pub struct HostedStatus {
 }
 
 /// Status category for `drive ls` output.
-#[apply(serde_eq_copy)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_enum)]
 pub enum TrackedItemStatus {
     /// Local item is tracked and currently exists.
     Tracked,
@@ -268,8 +267,7 @@ pub enum TrackedItemStatus {
 }
 
 /// Provenance for a tracked listing row.
-#[apply(serde_eq_copy)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_enum)]
 pub enum TrackedItemSource {
     /// Device-local state or scan.
     Local,
@@ -328,8 +326,7 @@ pub struct TrackedItem {
 }
 
 /// Result status for materializing remote entries onto the current device.
-#[apply(serde_eq_copy)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_enum)]
 pub enum PullRemoteStatus {
     /// Remote bytes were written locally and the file is now hosted.
     Pulled,
@@ -2305,6 +2302,19 @@ mod tests {
                     fused_space_ids.iter().copied().map(str::to_owned),
                 ),
         )
+    }
+
+    #[test]
+    fn drive_listing_status_enums_expose_stable_codes() {
+        assert_eq!(
+            TrackedItemStatus::ConflictSuspended.code(),
+            "conflict_suspended"
+        );
+        assert_eq!(TrackedItemSource::DbIgnore.code(), "db_ignore");
+        assert_eq!(
+            PullRemoteStatus::from_code("skipped_existing"),
+            Some(PullRemoteStatus::SkippedExisting)
+        );
     }
 
     #[tokio::test]

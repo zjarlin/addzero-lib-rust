@@ -32,7 +32,7 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
-use az_derive_aliases::{apply, plain_eq, serde_partial_eq};
+use az_derive_aliases::{apply, error_eq, serde_partial_eq};
 
 /// 通用树节点。
 ///
@@ -50,26 +50,15 @@ pub struct TreeNode<T> {
 }
 
 /// 树构建过程中的错误类型。
-#[apply(plain_eq)]
+#[apply(error_eq)]
 pub enum TreeError<T> {
     /// 检测到涉及给定节点 id 的循环引用。
+    #[error("cycle detected involving node {0:?}")]
     Cycle(T),
     /// 某个节点引用了不存在的 parent_id。
+    #[error("node {0:?} references a missing parent")]
     MissingParent(T),
 }
-
-impl<T: std::fmt::Debug> std::fmt::Display for TreeError<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TreeError::Cycle(id) => write!(f, "cycle detected involving node {:?}", id),
-            TreeError::MissingParent(id) => {
-                write!(f, "node {:?} references a missing parent", id)
-            }
-        }
-    }
-}
-
-impl<T: std::fmt::Debug + Send + Sync> std::error::Error for TreeError<T> {}
 
 /// 从扁平 `(id, parent_id)` 对构建树结构的 trait。
 pub trait TreeBuilder<T> {
@@ -455,6 +444,14 @@ mod tests {
         let items = vec![(1, Some(2)), (2, Some(1))];
         let result = try_build_tree(items);
         assert!(matches!(result, Err(TreeError::Cycle(_))));
+    }
+
+    #[test]
+    fn test_tree_error_display_is_readable() {
+        assert_eq!(
+            TreeError::MissingParent(42).to_string(),
+            "node 42 references a missing parent"
+        );
     }
 
     #[test]

@@ -19,6 +19,7 @@ fs2 = "0.4"
 ignore = "0.4"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+strum.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 uuid.workspace = true

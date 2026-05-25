@@ -19,7 +19,7 @@
 //!
 //! - [`PluginError`]：覆盖未找到、重复加载、权限拒绝、WASM 运行时错误等场景
 
-use az_derive_aliases::{apply, error_eq, serde_eq, serde_eq_copy};
+use az_derive_aliases::{apply, error_eq, serde_eq, serde_kebab_code_enum};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -73,8 +73,7 @@ pub enum ExtensionPoint {
 // ─── Plugin Lifecycle ───────────────────────────────────────────────
 
 /// State of a plugin within the runtime.
-#[apply(serde_eq_copy)]
-#[serde(rename_all = "kebab-case")]
+#[apply(serde_kebab_code_enum)]
 pub enum PluginState {
     /// Plugin is installed but not active.
     Installed,
@@ -164,4 +163,15 @@ pub enum PluginError {
 
     #[error("{0}")]
     Other(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PluginState;
+
+    #[test]
+    fn plugin_state_codes_follow_manifest_values() {
+        assert_eq!(PluginState::Installed.code(), "installed");
+        assert_eq!(PluginState::from_code("active"), Some(PluginState::Active));
+    }
 }

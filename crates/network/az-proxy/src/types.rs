@@ -71,6 +71,7 @@ pub enum ProxyError {
 #[apply(serde_code)]
 pub enum ProxyType {
     /// Shadowsocks proxy node.
+    #[strum(serialize = "ss", serialize = "shadowsocks")]
     Ss,
     /// VMess proxy node.
     Vmess,
@@ -79,6 +80,7 @@ pub enum ProxyType {
     /// Trojan proxy node.
     Trojan,
     /// Hysteria2 or `hy2` proxy node.
+    #[strum(serialize = "hysteria2", serialize = "hy2")]
     Hysteria2,
     /// TUIC proxy node.
     Tuic,
@@ -89,16 +91,20 @@ pub enum ProxyType {
 impl ProxyType {
     /// Returns the Clash YAML `type` string for this proxy type.
     pub fn as_clash_str(self) -> &'static str {
-        self.into()
+        match self {
+            Self::Ss => "ss",
+            Self::Vmess => "vmess",
+            Self::Vless => "vless",
+            Self::Trojan => "trojan",
+            Self::Hysteria2 => "hysteria2",
+            Self::Tuic => "tuic",
+            Self::Wireguard => "wireguard",
+        }
     }
 
     /// Parses a Clash YAML `type` string into a supported proxy type.
     pub fn from_clash_type(value: &str) -> Option<Self> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "shadowsocks" => Some(Self::Ss),
-            "hy2" => Some(Self::Hysteria2),
-            other => other.parse().ok(),
-        }
+        value.trim().to_ascii_lowercase().parse().ok()
     }
 
     /// Parses a URI scheme into a supported proxy type.
