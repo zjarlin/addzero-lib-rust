@@ -458,6 +458,33 @@ macro_rules! plain_default_copy_eq_display {
     };
 }
 
+/// SeaORM entity model with `Clone`, `Debug`, and `PartialEq`.
+#[macro_export]
+macro_rules! seaorm_entity_model {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Clone, Debug, PartialEq, DeriveEntityModel), $item);
+    };
+}
+
+/// SeaORM entity model with `Clone`, `Debug`, `PartialEq`, and `Eq`.
+#[macro_export]
+macro_rules! seaorm_entity_model_eq {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (Clone, Debug, PartialEq, Eq, DeriveEntityModel),
+            $item
+        );
+    };
+}
+
+/// SeaORM relation enum with the standard iterator and debug traits.
+#[macro_export]
+macro_rules! seaorm_relation {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Copy, Clone, Debug, EnumIter, DeriveRelation), $item);
+    };
+}
+
 /// Serde-friendly small data type with equality, debug, and `Copy`.
 #[macro_export]
 macro_rules! serde_eq_copy {

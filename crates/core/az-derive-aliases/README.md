@@ -59,6 +59,9 @@
 - **plain_eq_display** — 在 `plain_eq` 基础上增加 `Display`
 - **plain_default_copy_eq** — 在 `plain_copy_eq` 基础上增加 `Default`
 - **plain_default_copy_eq_display** — 在 `plain_default_copy_eq` 基础上增加 `Display`
+- **seaorm_entity_model** — SeaORM 实体模型常用的 `Clone` + `Debug` + `PartialEq` + `DeriveEntityModel`
+- **seaorm_entity_model_eq** — 在 `seaorm_entity_model` 基础上额外增加 `Eq`
+- **seaorm_relation** — SeaORM relation 常用的 `Copy` + `Clone` + `Debug` + `EnumIter` + `DeriveRelation`
 
 所有宏设计为配合 [`macro_rules_attribute::apply`](https://docs.rs/macro_rules_attribute) 使用，保持 `#[serde(...)]` 和 `#[strum(...)]` 等辅助属性对编译器和 IDE 可见。
 `serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。`serde_code*` 同时派生 `strum::Display`，所以需要拥有字符串 code 时可以直接调用 `to_string()`。
@@ -76,6 +79,7 @@ az-derive-aliases = { path = "../az-derive-aliases" }       # workspace 内部�
 
 调用侧不需要直接依赖 `macro_rules_attribute`，可以使用本 crate 重新导出的 `apply`。
 使用某个 alias 时，调用侧仍应显式声明该 alias 实际派生到的 crates，例如 `serde`、`thiserror`、`strum` 或 `derive_more`。
+SeaORM 相关 alias 仍要求调用侧引入 `sea_orm::entity::prelude::*`，以便 `DeriveEntityModel`、`DeriveRelation` 和 `EnumIter` 在展开后保持可见。
 
 ## 用法
 
@@ -170,3 +174,4 @@ enum Priority {
 - `thiserror` — `error` / `error_eq`
 - `derive_more` — `from_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
 - `strum` — `serde_code*` / `serde_code*_enum`
+- `sea_orm` — `seaorm_entity_model*` / `seaorm_relation`

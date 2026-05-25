@@ -1,8 +1,9 @@
+use az_derive_aliases::{apply, seaorm_entity_model, seaorm_relation};
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+#[apply(seaorm_entity_model)]
 #[sea_orm(table_name = "assets")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
@@ -18,7 +19,7 @@ pub struct Model {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[apply(seaorm_relation)]
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
