@@ -19,7 +19,7 @@
 //! assert_eq!(schema.tables[0].name, "users");
 //! ```
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq};
 
 mod column;
 mod index;
@@ -34,7 +34,7 @@ pub use schema::Schema;
 pub use table::Table;
 
 /// Errors that can occur during schema validation.
-#[derive(Debug, Error, PartialEq)]
+#[apply(error_eq)]
 pub enum ModelError {
     /// The schema name is empty.
     #[error("empty schema name")]

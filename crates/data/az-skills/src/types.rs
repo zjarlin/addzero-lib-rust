@@ -1,10 +1,10 @@
+use az_derive_aliases::{apply, serde_eq, serde_eq_copy, serde_eq_default};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 /// Where a particular skill record is currently observed to live.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 #[serde(rename_all = "snake_case")]
 pub enum SkillSource {
     Postgres,
@@ -24,7 +24,7 @@ impl SkillSource {
 }
 
 /// A skill as it lives in our domain (independent of any single backend).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct Skill {
     pub id: Uuid,
     pub name: String,
@@ -37,7 +37,7 @@ pub struct Skill {
 }
 
 /// Payload for create/update operations.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SkillUpsert {
     pub name: String,
     pub keywords: Vec<String>,
@@ -64,7 +64,7 @@ impl SkillUpsert {
 }
 
 /// Outcome of a sync_all run.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct SyncReport {
     /// PG-only side. Skills that existed in PG but not in fs and were copied
     /// to fs.

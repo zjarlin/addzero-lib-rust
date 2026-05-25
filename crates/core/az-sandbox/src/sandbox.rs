@@ -1,9 +1,9 @@
 //! Sandbox policy types shared by script and plugin runtimes.
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq_default};
 
 /// Permission policy for a sandboxed execution context.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct SandboxPolicy {
     /// Allowed filesystem paths (empty = deny all).
     pub fs_allow: Vec<String>,

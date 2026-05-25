@@ -14,10 +14,10 @@
 //! - 通过 `shlex` 正确处理 shell 引号与转义
 //! - 未知的 `--key=value` 选项会被归入 `other_options` 字段
 
+use az_derive_aliases::{apply, error_eq, plain_eq};
 use std::collections::BTreeMap;
-use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[apply(error_eq)]
 pub enum DockerComposeError {
     #[error("invalid docker run command")]
     InvalidCommandLine,
@@ -25,7 +25,7 @@ pub enum DockerComposeError {
     MissingImage,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct DockerRunCommand {
     pub image: String,
     pub name: Option<String>,

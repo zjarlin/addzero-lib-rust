@@ -15,12 +15,12 @@
 //! # Ok::<(), az_curl::CurlError>(())
 //! ```
 
+use az_derive_aliases::{apply, plain_clone_debug, plain_eq, serde_code};
 use base64::Engine;
 use regex::Regex;
 use reqwest::Method;
 use reqwest::Url;
 use reqwest::blocking::multipart::Form;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -61,14 +61,14 @@ pub enum CurlError {
     Utf8(#[from] std::string::FromUtf8Error),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_code)]
 pub enum MutationRule {
     String,
     Number,
     Null,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct ParsedCurl {
     pub method: Method,
     pub url: String,
@@ -130,7 +130,7 @@ impl ParsedCurl {
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct CurlBuilder {
     method: Option<Method>,
     url: String,
@@ -307,7 +307,7 @@ impl CurlParser {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct CurlResponse {
     pub status: u16,
     pub headers: BTreeMap<String, String>,
@@ -328,7 +328,7 @@ impl CurlResponse {
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct CurlExecutor {
     client: reqwest::blocking::Client,
     pub enable_debug_log: bool,

@@ -1,12 +1,13 @@
 use crate::random::random_bytes;
 use crate::{CodexAuthSupportError, CodexAuthSupportResult};
+use az_derive_aliases::{apply, plain_eq};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use reqwest::Url;
 use sha2::{Digest, Sha256};
 
 /// RFC 7636 PKCE material for an OAuth authorization-code flow.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct PkcePair {
     pub code_verifier: String,
     pub code_challenge: String,

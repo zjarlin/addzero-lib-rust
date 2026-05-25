@@ -7,21 +7,21 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use serde::Serialize;
+use az_derive_aliases::{apply, plain_clone_debug, serialize_debug};
 
 use super::ffmpeg;
 use super::planner::build_plan;
 use super::render::{render_scene_video, stitch_scenes};
 use super::tts::synthesize_scene_audio;
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub enum TtsMode {
     None,
     SystemSay,
     Command(String),
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct PipelineConfig {
     pub input: PathBuf,
     pub output: PathBuf,
@@ -34,7 +34,7 @@ pub struct PipelineConfig {
     pub bgm: Option<PathBuf>,
 }
 
-#[derive(Debug, Serialize)]
+#[apply(serialize_debug)]
 struct RunManifest {
     title: String,
     scene_count: usize,

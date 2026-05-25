@@ -17,13 +17,12 @@
 //! - 自动参数解析，支持默认值与必填校验
 //! - 通过 [`Command`] trait 实现命令扩展
 
-use std::fmt;
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq, from_display, plain_copy_eq, plain_eq, plain_partial_eq};
 
 pub const EXIT_COMMAND: &str = "q";
 pub const HELP_COMMAND: &str = "h";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum ParamType {
     String,
     Int,
@@ -31,11 +30,19 @@ pub enum ParamType {
     Bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(from_display)]
 pub enum ParamValue {
+    #[from(String, &str)]
+    #[display("{_0}")]
     String(String),
+    #[from(i64, i32)]
+    #[display("{_0}")]
     Int(i64),
+    #[from(f64)]
+    #[display("{_0}")]
     Float(f64),
+    #[from(bool)]
+    #[display("{_0}")]
     Bool(bool),
 }
 
@@ -69,54 +76,7 @@ impl ParamValue {
     }
 }
 
-impl fmt::Display for ParamValue {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::String(value) => formatter.write_str(value),
-            Self::Int(value) => write!(formatter, "{value}"),
-            Self::Float(value) => write!(formatter, "{value}"),
-            Self::Bool(value) => write!(formatter, "{value}"),
-        }
-    }
-}
-
-impl From<&str> for ParamValue {
-    fn from(value: &str) -> Self {
-        Self::String(value.to_owned())
-    }
-}
-
-impl From<String> for ParamValue {
-    fn from(value: String) -> Self {
-        Self::String(value)
-    }
-}
-
-impl From<i64> for ParamValue {
-    fn from(value: i64) -> Self {
-        Self::Int(value)
-    }
-}
-
-impl From<i32> for ParamValue {
-    fn from(value: i32) -> Self {
-        Self::Int(i64::from(value))
-    }
-}
-
-impl From<f64> for ParamValue {
-    fn from(value: f64) -> Self {
-        Self::Float(value)
-    }
-}
-
-impl From<bool> for ParamValue {
-    fn from(value: bool) -> Self {
-        Self::Bool(value)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct ParamDef {
     pub name: String,
     pub param_type: ParamType,
@@ -152,7 +112,7 @@ impl ParamDef {
     }
 }
 
-#[derive(Debug, Error, PartialEq)]
+#[apply(error_eq)]
 pub enum ReplError {
     #[error("missing required parameter: {0}")]
     MissingRequiredParameter(String),
@@ -168,7 +128,7 @@ pub enum ReplError {
     InvalidCommandIndex(String),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct ParsedParams(Vec<ParamValue>);
 
 impl ParsedParams {
@@ -231,7 +191,7 @@ pub trait Command {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub enum ReplOutcome {
     Exit,
     Message(String),

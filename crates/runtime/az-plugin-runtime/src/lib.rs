@@ -43,6 +43,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use az_derive_aliases::{apply, plain_clone_debug};
 use az_plugin_contract::{
     MarketplaceEntry, MarketplaceSnapshot, PluginDescriptor, PluginInstance, PluginInstanceConfig,
     PluginPackageManifest, PluginStatus,
@@ -75,13 +76,13 @@ pub enum RuntimeError {
     Toml(#[from] toml_edit::de::Error),
 }
 
-#[derive(Clone, Debug)]
+#[apply(plain_clone_debug)]
 pub struct CatalogPlugin {
     pub manifest: PluginPackageManifest,
     pub package_path: PathBuf,
 }
 
-#[derive(Clone, Debug)]
+#[apply(plain_clone_debug)]
 pub struct InstalledPlugin {
     pub manifest: PluginPackageManifest,
     pub install_dir: PathBuf,

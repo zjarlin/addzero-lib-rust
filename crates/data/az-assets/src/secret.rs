@@ -1,13 +1,13 @@
 use anyhow::{Context, Result, anyhow};
+use az_derive_aliases::{apply, serde_eq};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use ring::{
     aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey},
     rand::{SecureRandom, SystemRandom},
 };
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct EncryptedSecret {
     pub key_id: String,
     pub ciphertext: String,

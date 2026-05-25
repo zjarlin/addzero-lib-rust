@@ -63,11 +63,12 @@ let session = oauth.begin_loopback_authorization(
 )?;
 
 println!("Open: {}", session.authorization_url);
+let pkce = session.pkce.clone();
 let callback = session.wait_for_callback(std::time::Duration::from_secs(300))?;
 let token = oauth.exchange_authorization_code(
     &callback.code,
     &callback.redirect_uri,
-    Some(&session.pkce),
+    Some(&pkce),
 )?;
 
 let gmail = az_gmail_code::GmailCodeClient::new(token.require_access_token()?)?;

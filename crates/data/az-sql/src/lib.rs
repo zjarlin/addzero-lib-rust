@@ -25,7 +25,7 @@
 //! # }
 //! ```
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq, plain_copy_eq};
 
 mod delete;
 mod insert;
@@ -38,7 +38,7 @@ pub use select::SelectQuery;
 pub use update::UpdateQuery;
 
 /// Errors that can occur during query building.
-#[derive(Debug, Error, PartialEq)]
+#[apply(error_eq)]
 pub enum QueryError {
     /// No table specified for the query.
     #[error("no table specified")]
@@ -76,7 +76,7 @@ pub trait Query {
 }
 
 /// Represents a SQL ORDER BY clause direction.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[apply(plain_copy_eq)]
 pub enum SortOrder {
     /// Ascending order.
     Asc,
@@ -85,7 +85,7 @@ pub enum SortOrder {
 }
 
 /// Represents a SQL join type.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[apply(plain_copy_eq)]
 pub enum JoinType {
     /// INNER JOIN.
     Inner,

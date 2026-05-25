@@ -1,4 +1,5 @@
 use crate::*;
+use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use az_temp_mail::{ApiConfig as TempMailApiConfig, NewAddressRequest, PageRequest, TempMailApi};
 use reqwest::Url;
 use reqwest::header::{ACCEPT, CONTENT_TYPE, HOST};
@@ -385,7 +386,9 @@ fn huawei_signature_canonicalizes_query_string() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
+// Testing-only captured request container.
+// Keep the request snapshot comparable without hand-written impls.
 struct CapturedRequest {
     method: String,
     path: String,
@@ -393,7 +396,7 @@ struct CapturedRequest {
     body: String,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct TestResponse {
     status: u16,
     content_type: &'static str,

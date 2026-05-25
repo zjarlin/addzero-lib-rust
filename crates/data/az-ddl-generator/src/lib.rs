@@ -18,7 +18,7 @@
 //! assert!(ddl.contains("users"));
 //! ```
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq};
 
 mod column;
 mod dialect;
@@ -31,7 +31,7 @@ pub use generator::{DdlGenerator, quote_identifier};
 pub use table::Table;
 
 /// Errors that can occur during DDL generation.
-#[derive(Debug, Error, PartialEq)]
+#[apply(error_eq)]
 pub enum DdlError {
     /// The table name is empty or invalid.
     #[error("invalid table name: {0}")]

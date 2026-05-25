@@ -1,5 +1,6 @@
 use crate::progress::{InMemoryUploadProgressStorage, PartInfo};
 use crate::types::{ObjectMetadata, PresignedUrl, S3ClientConfig};
+use az_derive_aliases::{apply, plain_clone_debug};
 use base64::Engine as _;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
@@ -164,13 +165,13 @@ impl S3StorageClientFactory for DefaultS3StorageClientFactory {
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct BlockingS3StorageClient {
     config: S3ClientConfig,
     http: Client,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct RequestTarget {
     url: Url,
     canonical_uri: String,
@@ -1414,7 +1415,7 @@ struct MemoryState {
     next_id: u64,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct MemoryObject {
     bytes: Vec<u8>,
     content_type: Option<String>,
@@ -1423,7 +1424,7 @@ struct MemoryObject {
     last_modified: String,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct MemoryUpload {
     bucket_name: String,
     _object_key: String,

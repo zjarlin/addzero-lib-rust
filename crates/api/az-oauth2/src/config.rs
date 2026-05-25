@@ -1,4 +1,5 @@
 use crate::{OAuth2Error, OAuth2Result, PkcePair};
+use az_derive_aliases::{apply, plain_eq};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -9,7 +10,7 @@ const DEFAULT_LOOPBACK_BIND_ADDR: &str = "127.0.0.1:0";
 const DEFAULT_LOOPBACK_PATH: &str = "/oauth/callback";
 
 /// OAuth2 endpoint and client configuration.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct OAuth2Config {
     /// Authorization endpoint URL.
     pub authorization_url: String,
@@ -87,7 +88,7 @@ impl OAuth2Config {
 }
 
 /// Builder for [`OAuth2Config`].
-#[derive(Debug, Clone)]
+#[apply(plain_eq)]
 pub struct OAuth2ConfigBuilder {
     pub(crate) config: OAuth2Config,
 }
@@ -163,7 +164,7 @@ impl OAuth2ConfigBuilder {
 }
 
 /// Options for one authorization-code request.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct AuthorizationCodeOptions {
     /// Redirect URI for this request. If omitted, the config default is used.
     pub redirect_uri: Option<String>,

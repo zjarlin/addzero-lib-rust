@@ -6,11 +6,13 @@
 use std::collections::HashSet;
 use std::fmt;
 
+use az_derive_aliases::{apply, plain_copy_eq, plain_eq_hash, plain_partial_eq};
+
 // Re-export Expr from sql for use in plans.
 pub use crate::sql::Expr;
 
 /// Join types supported by the planner.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum JoinType {
     Inner,
     Left,
@@ -32,7 +34,7 @@ impl fmt::Display for JoinType {
 }
 
 /// Aggregate function types.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum AggregateFunction {
     Count,
     Sum,
@@ -56,14 +58,14 @@ impl fmt::Display for AggregateFunction {
 }
 
 /// Sort direction.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum SortDirection {
     Ascending,
     Descending,
 }
 
 /// Sort specification.
-#[derive(Debug, Clone)]
+#[apply(plain_partial_eq)]
 pub struct SortSpec {
     pub column: String,
     pub direction: SortDirection,
@@ -71,7 +73,7 @@ pub struct SortSpec {
 }
 
 /// Column reference with optional table alias.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[apply(plain_eq_hash)]
 pub struct ColumnRef {
     pub table: Option<String>,
     pub column: String,
@@ -107,7 +109,7 @@ impl fmt::Display for ColumnRef {
 ///
 /// This is a tree structure representing the logical operations of a query.
 /// Each node transforms its input(s) in some way.
-#[derive(Debug, Clone)]
+#[apply(plain_partial_eq)]
 pub enum LogicalPlan {
     /// Scan a table, returning all rows.
     Scan {
@@ -171,7 +173,7 @@ pub enum LogicalPlan {
 }
 
 /// A column in a projection.
-#[derive(Debug, Clone)]
+#[apply(plain_partial_eq)]
 pub enum ProjectColumn {
     /// All columns from input.
     Star,
@@ -184,7 +186,7 @@ pub enum ProjectColumn {
 }
 
 /// An aggregate expression.
-#[derive(Debug, Clone)]
+#[apply(plain_partial_eq)]
 pub struct AggregateExpr {
     pub function: AggregateFunction,
     pub column: Option<String>,

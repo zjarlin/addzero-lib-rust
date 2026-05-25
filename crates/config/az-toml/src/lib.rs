@@ -20,7 +20,7 @@
 //! | [`LibraryEntry`] | `[libraries]` 条目，包含 group、name 和 version / version.ref |
 //! | [`PluginEntry`] | `[plugins]` 条目，包含插件 id 和 version / version.ref |
 //! | [`BundleEntry`] | `[bundles]` 条目，将多个 library key 打包 |
-use serde::Deserialize;
+use az_derive_aliases::{apply, deserialize_eq, plain_default_eq, plain_eq};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -69,7 +69,7 @@ pub enum TomlCatalogError {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[apply(plain_default_eq)]
 pub struct VersionCatalog {
     pub versions: Vec<VersionEntry>,
     pub libraries: Vec<LibraryEntry>,
@@ -77,7 +77,7 @@ pub struct VersionCatalog {
     pub bundles: Vec<BundleEntry>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct LibraryEntry {
     pub key: String,
     pub group: String,
@@ -86,7 +86,7 @@ pub struct LibraryEntry {
     pub version_ref: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct PluginEntry {
     pub key: String,
     pub id: String,
@@ -94,13 +94,13 @@ pub struct PluginEntry {
     pub version_ref: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct VersionEntry {
     pub version_ref: String,
     pub version: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct BundleEntry {
     pub key: String,
     pub libraries: Vec<String>,
@@ -377,7 +377,7 @@ fn parse_inline_table(content: &str) -> Item {
     document["value"].clone()
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[apply(deserialize_eq)]
 struct RawCatalog {
     #[serde(default)]
     versions: BTreeMap<String, String>,
@@ -389,7 +389,7 @@ struct RawCatalog {
     bundles: BTreeMap<String, Vec<String>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_eq)]
 struct RawLibrary {
     group: String,
     name: String,
@@ -397,14 +397,14 @@ struct RawLibrary {
     version: Option<RawVersionSelector>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_eq)]
 struct RawPlugin {
     id: String,
     #[serde(default)]
     version: Option<RawVersionSelector>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_eq)]
 #[serde(untagged)]
 enum RawVersionSelector {
     Direct(String),

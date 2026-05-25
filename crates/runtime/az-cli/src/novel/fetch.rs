@@ -5,9 +5,9 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use az_derive_aliases::{apply, plain_clone_debug, serialize_debug};
 use reqwest::Url;
 use scraper::{ElementRef, Html, Selector};
-use serde::Serialize;
 
 use crate::web::robots::RobotsPolicy;
 use crate::web::{
@@ -19,7 +19,7 @@ use super::cleanup::clean_body;
 use super::preset::{NovelPreset, ResolvedSelectors, resolve_selectors};
 use super::toc::{ParsedToc, TocParser};
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct NovelFetchConfig {
     pub toc_url: Url,
     pub output: PathBuf,
@@ -36,7 +36,7 @@ pub struct NovelFetchConfig {
     pub ignore_robots: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[apply(serialize_debug)]
 struct NovelManifest {
     toc_url: String,
     book_title: String,
@@ -45,7 +45,7 @@ struct NovelManifest {
     chapters: Vec<ChapterManifest>,
 }
 
-#[derive(Debug, Serialize)]
+#[apply(serialize_debug)]
 struct ChapterManifest {
     index: usize,
     title: String,

@@ -1,0 +1,14 @@
+[package]
+name = "study-sqlx"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[workspace]
+
+[dependencies]
+anyhow = "1.0.99"
+sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "runtime-tokio-rustls", "tls-rustls", "chrono", "uuid"] }
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "1.23.0", features = ["v4"] }

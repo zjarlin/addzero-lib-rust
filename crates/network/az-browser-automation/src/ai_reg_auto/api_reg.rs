@@ -15,6 +15,7 @@
 //! Based on `debug_register.py` from the GPTregister project.
 
 use crate::BrowserAutomationResult;
+use az_derive_aliases::{apply, plain_clone_debug, plain_default_copy_eq, plain_default_eq};
 use az_sms::SmsProvider;
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
 use reqwest::blocking::Client as HttpClient;
@@ -33,20 +34,20 @@ const OPENAI_AUTHORIZE_CONTINUE_URL: &str =
 const OPENAI_REGISTER_URL: &str = "https://auth.openai.com/api/accounts/user/register";
 const OPENAI_VERIFY_EMAIL_URL: &str = "https://auth.openai.com/api/accounts/verify_email";
 
-#[derive(Debug, Clone, Default)]
+#[apply(plain_default_eq)]
 pub struct SyncOptions {
     pub cpa_url: Option<String>,
     pub cpa_key: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct SyncResult {
     pub target: String,
     pub ok: bool,
     pub message: String,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct OpenAiApiRegOptions {
     pub proxy: Option<String>,
     pub password: Option<String>,
@@ -75,7 +76,7 @@ impl Default for OpenAiApiRegOptions {
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct OpenAiApiRegResult {
     pub email: String,
     pub email_password: String,
@@ -90,7 +91,7 @@ pub struct OpenAiApiRegResult {
     pub sync_results: Vec<SyncResult>,
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[apply(plain_default_copy_eq)]
 pub struct OpenAiApiRegAutomation;
 
 impl OpenAiApiRegAutomation {

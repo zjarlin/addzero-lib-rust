@@ -1,15 +1,14 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, error_eq, serde_eq, serde_eq_default};
 #[cfg(not(target_arch = "wasm32"))]
 use sha2::{Digest, Sha256};
-use thiserror::Error;
 #[cfg(not(target_arch = "wasm32"))]
 use uuid::Uuid;
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[apply(error_eq)]
 pub enum SystemManagementError {
     #[error("{0}")]
     Message(String),
@@ -64,7 +63,7 @@ fn verify_password(plain: &str, stored: &str) -> SystemManagementResult<bool> {
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MenuDto {
     pub id: i32,
     pub parent_id: Option<i32>,
@@ -77,7 +76,7 @@ pub struct MenuDto {
     pub menu_type: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MenuUpsertDto {
     pub parent_id: Option<i32>,
     pub name: String,
@@ -89,7 +88,7 @@ pub struct MenuUpsertDto {
     pub menu_type: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct RoleDto {
     pub id: i32,
     pub name: String,
@@ -98,19 +97,19 @@ pub struct RoleDto {
     pub menu_count: i64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct RoleUpsertDto {
     pub name: String,
     pub description: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct RoleWithMenusDto {
     pub role: RoleDto,
     pub menu_ids: Vec<i32>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct UserDto {
     pub id: i32,
     pub username: String,
@@ -118,7 +117,7 @@ pub struct UserDto {
     pub status: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct UserUpsertDto {
     pub username: String,
     pub password: String,
@@ -126,14 +125,14 @@ pub struct UserUpsertDto {
     pub status: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct UserWithRolesDto {
     pub user: UserDto,
     pub role_ids: Vec<i32>,
     pub role_names: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ApiKeyOwnerDto {
     pub user_id: i32,
     pub username: String,
@@ -145,7 +144,7 @@ pub struct ApiKeyOwnerDto {
     pub owner_drive_id: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct CreatedApiKeyDto {
     pub api_key: String,
     pub owner: ApiKeyOwnerDto,
@@ -185,19 +184,19 @@ pub fn drive_space_id_for_username(username: &str) -> String {
     owner_drive_id_for_username(username)
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AuthorizeRoleMenusDto {
     pub menu_ids: Vec<i32>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AuthorizeUserRolesDto {
     pub role_ids: Vec<i32>,
 }
 
 // ─── Department DTOs ────────────────────────────────────────────────────────
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct DepartmentDto {
     pub id: i32,
     pub parent_id: Option<i32>,
@@ -205,7 +204,7 @@ pub struct DepartmentDto {
     pub sort_order: i32,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct DepartmentUpsertDto {
     pub parent_id: Option<i32>,
     pub name: String,
@@ -214,7 +213,7 @@ pub struct DepartmentUpsertDto {
 
 // ─── Dictionary DTOs ────────────────────────────────────────────────────────
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct DictGroupDto {
     pub id: i32,
     pub name: String,
@@ -222,13 +221,13 @@ pub struct DictGroupDto {
     pub item_count: i64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct DictGroupUpsertDto {
     pub name: String,
     pub description: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct DictItemDto {
     pub id: i32,
     pub group_id: i32,
@@ -237,7 +236,7 @@ pub struct DictItemDto {
     pub sort_order: i32,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct DictItemUpsertDto {
     pub group_id: i32,
     pub label: String,

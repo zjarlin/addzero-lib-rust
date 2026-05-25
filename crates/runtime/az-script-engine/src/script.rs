@@ -1,7 +1,7 @@
 //! Common contracts for embeddable script engines.
 
+use az_derive_aliases::{apply, error_eq, serde_eq, serde_eq_copy};
 use az_sandbox::sandbox::SandboxPolicy;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -9,7 +9,7 @@ use std::pin::Pin;
 // ─── Script Types ───────────────────────────────────────────────────
 
 /// Supported script languages.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 #[serde(rename_all = "lowercase")]
 pub enum ScriptLang {
     Curl,
@@ -20,7 +20,7 @@ pub enum ScriptLang {
 }
 
 /// Input to a script execution.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ScriptInput {
     /// The script source code.
     pub source: String,
@@ -35,7 +35,7 @@ pub struct ScriptInput {
 }
 
 /// Output from a script execution.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ScriptOutput {
     /// Exit code (0 = success).
     pub exit_code: i32,
@@ -85,7 +85,7 @@ pub trait ScriptEngineRegistry: Send + Sync {
 
 // ─── Error ──────────────────────────────────────────────────────────
 
-#[derive(Clone, Debug, thiserror::Error)]
+#[apply(error_eq)]
 pub enum ScriptError {
     #[error("unsupported language: {0:?}")]
     UnsupportedLanguage(ScriptLang),

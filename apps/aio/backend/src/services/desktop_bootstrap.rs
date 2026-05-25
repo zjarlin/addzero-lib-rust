@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq, serde_eq_default};
 use sqlx::{
     Connection, Executor,
     postgres::PgConnection,
@@ -14,7 +14,7 @@ use sqlx::{
 
 use super::platform_config::{PlatformConfigDto, PostgresConfigUpdateDto};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct BootstrapStatusDto {
     pub desktop_mode: bool,
     pub setup_required: bool,
@@ -24,12 +24,12 @@ pub struct BootstrapStatusDto {
     pub message: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct BootstrapDatabaseSetupDto {
     pub database_url: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct BootstrapDatabaseSaveResultDto {
     pub database_configured: bool,
     pub database_reachable: bool,
@@ -37,12 +37,12 @@ pub struct BootstrapDatabaseSaveResultDto {
     pub message: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct BootstrapPlatformSetupDto {
     pub postgres: Option<PostgresConfigUpdateDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct BootstrapPlatformSaveResultDto {
     pub config: PlatformConfigDto,
     pub setup_required: bool,

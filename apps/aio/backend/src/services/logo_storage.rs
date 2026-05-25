@@ -6,16 +6,15 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+use az_derive_aliases::{apply, error_eq, serde_eq};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 pub use super::LocalBoxFuture;
 
 pub const LOGO_PREVIEW_BASE_URL: &str = "/api/admin/storage/logo";
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct LogoUploadRequest {
     pub file_name: String,
     pub content_type: Option<String>,
@@ -23,7 +22,7 @@ pub struct LogoUploadRequest {
     pub bytes: Vec<u8>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct StoredLogoDto {
     pub object_key: String,
     pub relative_path: String,
@@ -32,7 +31,7 @@ pub struct StoredLogoDto {
     pub backend_label: String,
 }
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[apply(error_eq)]
 pub enum LogoStorageError {
     #[error("{0}")]
     Message(String),

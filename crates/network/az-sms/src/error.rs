@@ -1,4 +1,5 @@
 use crate::SmsOrderStatus;
+use az_derive_aliases::{apply, plain_copy_eq};
 use thiserror::Error;
 
 /// Result alias for SMS provider operations.
@@ -61,7 +62,7 @@ pub enum SmsError {
 
 /// Optional provider HTTP status displayed without leaking formatting logic into
 /// error construction sites.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct ProviderStatus(pub Option<u16>);
 
 impl std::fmt::Display for ProviderStatus {

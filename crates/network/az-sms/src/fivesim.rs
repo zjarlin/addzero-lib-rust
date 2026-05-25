@@ -2,6 +2,7 @@ use crate::{
     SmsActivationRequest, SmsError, SmsHostingRequest, SmsInbox, SmsOrder, SmsProfile, SmsProvider,
     SmsResult, error::ProviderStatus,
 };
+use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use reqwest::Url;
 use reqwest::header::ACCEPT;
 use serde::de::DeserializeOwned;
@@ -10,7 +11,7 @@ use std::time::Duration;
 const DEFAULT_BASE_URL: &str = "https://5sim.net/v1/";
 
 /// Configuration for the 5sim v1 API client.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct FivesimConfig {
     /// 5sim API token. It is sent as a bearer token.
     pub api_token: String,
@@ -63,7 +64,7 @@ impl FivesimConfig {
 }
 
 /// Builder for [`FivesimConfig`].
-#[derive(Debug, Clone)]
+#[apply(plain_eq)]
 pub struct FivesimConfigBuilder {
     api_token: String,
     base_url: String,
@@ -118,7 +119,7 @@ impl FivesimConfigBuilder {
 }
 
 /// 5sim v1 API client.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct FivesimClient {
     client: reqwest::Client,
     base_url: Url,

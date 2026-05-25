@@ -1,40 +1,9 @@
 use std::{collections::BTreeSet, fmt};
 
-use macro_rules_attribute::apply;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq, serde_code_ord_enum, serde_eq, serde_eq_default};
 use uuid::Uuid;
 
-// 将高频数据模型派生收成浅层 item 包装宏。
-macro_rules! derive_error {
-    ($item:item) => {
-        #[derive(Clone, Debug, Error, PartialEq, Eq)]
-        $item
-    };
-}
-
-macro_rules! derive_serde_enum_ord {
-    ($item:item) => {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-        $item
-    };
-}
-
-macro_rules! derive_serde_struct {
-    ($item:item) => {
-        #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-        $item
-    };
-}
-
-macro_rules! derive_serde_struct_default {
-    ($item:item) => {
-        #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-        $item
-    };
-}
-
-#[apply(derive_serde_enum_ord)]
+#[apply(serde_code_ord_enum)]
 pub enum SoftwarePlatform {
     Macos,
     Windows,
@@ -42,16 +11,6 @@ pub enum SoftwarePlatform {
 }
 
 impl SoftwarePlatform {
-    pub const ALL: [Self; 3] = [Self::Macos, Self::Windows, Self::Linux];
-
-    pub fn code(self) -> &'static str {
-        match self {
-            Self::Macos => "macos",
-            Self::Windows => "windows",
-            Self::Linux => "linux",
-        }
-    }
-
     pub fn label(self) -> &'static str {
         match self {
             Self::Macos => "macOS",
@@ -59,18 +18,9 @@ impl SoftwarePlatform {
             Self::Linux => "Linux",
         }
     }
-
-    pub fn from_code(value: &str) -> Option<Self> {
-        match value {
-            "macos" => Some(Self::Macos),
-            "windows" => Some(Self::Windows),
-            "linux" => Some(Self::Linux),
-            _ => None,
-        }
-    }
 }
 
-#[apply(derive_serde_enum_ord)]
+#[apply(serde_code_ord_enum)]
 pub enum InstallerKind {
     Brew,
     Bun,
@@ -78,35 +28,13 @@ pub enum InstallerKind {
     Scoop,
     Choco,
     Curl,
+    #[serde(rename = "package")]
+    #[strum(serialize = "package")]
     DirectPackage,
     Custom,
 }
 
 impl InstallerKind {
-    pub const ALL: [Self; 8] = [
-        Self::Brew,
-        Self::Bun,
-        Self::Winget,
-        Self::Scoop,
-        Self::Choco,
-        Self::Curl,
-        Self::DirectPackage,
-        Self::Custom,
-    ];
-
-    pub fn code(self) -> &'static str {
-        match self {
-            Self::Brew => "brew",
-            Self::Bun => "bun",
-            Self::Winget => "winget",
-            Self::Scoop => "scoop",
-            Self::Choco => "choco",
-            Self::Curl => "curl",
-            Self::DirectPackage => "package",
-            Self::Custom => "custom",
-        }
-    }
-
     pub fn label(self) -> &'static str {
         match self {
             Self::Brew => "Homebrew",
@@ -119,23 +47,9 @@ impl InstallerKind {
             Self::Custom => "自定义",
         }
     }
-
-    pub fn from_code(value: &str) -> Option<Self> {
-        match value {
-            "brew" => Some(Self::Brew),
-            "bun" => Some(Self::Bun),
-            "winget" => Some(Self::Winget),
-            "scoop" => Some(Self::Scoop),
-            "choco" => Some(Self::Choco),
-            "curl" => Some(Self::Curl),
-            "package" => Some(Self::DirectPackage),
-            "custom" => Some(Self::Custom),
-            _ => None,
-        }
-    }
 }
 
-#[apply(derive_serde_struct)]
+#[apply(serde_eq)]
 pub struct SoftwareInstallMethodDto {
     pub id: String,
     pub platform: SoftwarePlatform,
@@ -147,7 +61,7 @@ pub struct SoftwareInstallMethodDto {
     pub note: String,
 }
 
-#[apply(derive_serde_struct)]
+#[apply(serde_eq)]
 pub struct SoftwareEntryDto {
     pub id: String,
     pub slug: String,
@@ -161,13 +75,13 @@ pub struct SoftwareEntryDto {
     pub methods: Vec<SoftwareInstallMethodDto>,
 }
 
-#[apply(derive_serde_struct)]
+#[apply(serde_eq)]
 pub struct SoftwareCatalogDto {
     pub host_platform: SoftwarePlatform,
     pub items: Vec<SoftwareEntryDto>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct SoftwareEntryInput {
     pub id: Option<String>,
     pub slug: String,
@@ -181,12 +95,12 @@ pub struct SoftwareEntryInput {
     pub methods: Vec<SoftwareInstallMethodDto>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct SoftwareMetadataFetchInput {
     pub homepage_url: String,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct SoftwareMetadataDto {
     pub title: String,
     pub summary: String,
@@ -194,13 +108,13 @@ pub struct SoftwareMetadataDto {
     pub icon_url: String,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct SoftwareDraftInput {
     pub homepage_url: String,
     pub preferred_platforms: Vec<SoftwarePlatform>,
 }
 
-#[apply(derive_error)]
+#[apply(error_eq)]
 pub enum SoftwareCatalogError {
     #[error("connect software catalog persistence: {0}")]
     Persistence(String),
@@ -384,6 +298,26 @@ mod tests {
         assert_eq!(
             platforms,
             vec![SoftwarePlatform::Linux, SoftwarePlatform::Macos]
+        );
+    }
+
+    #[test]
+    fn code_enums_keep_storage_values() {
+        assert_eq!(SoftwarePlatform::Macos.code(), "macos");
+        assert_eq!(
+            SoftwarePlatform::from_code("linux"),
+            Some(SoftwarePlatform::Linux)
+        );
+
+        assert_eq!(InstallerKind::DirectPackage.code(), "package");
+        assert_eq!(
+            InstallerKind::from_code("package"),
+            Some(InstallerKind::DirectPackage)
+        );
+        assert_eq!(
+            serde_json::to_string(&InstallerKind::DirectPackage)
+                .expect("installer kind should serialize"),
+            "\"package\""
         );
     }
 }

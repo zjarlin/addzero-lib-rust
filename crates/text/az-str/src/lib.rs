@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
+use az_derive_aliases::{apply, from_eq, plain_eq};
 use deunicode::deunicode;
 use regex::Regex;
 use std::collections::HashMap;
@@ -25,13 +26,19 @@ pub trait ParentPathExt {
         P: AsRef<Path>;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(from_eq)]
 pub enum FormatArg {
+    #[from(skip)]
     Null,
+    #[from(String, &str)]
     String(String),
+    #[from(i8, i16, i32, i64)]
     Integer(i64),
+    #[from(u8, u16, u32, u64)]
     Unsigned(u64),
+    #[from(f32, f64)]
     Float(f64),
+    #[from(bool)]
     Boolean(bool),
 }
 
@@ -81,57 +88,17 @@ impl FormatArg {
     }
 }
 
-impl From<&str> for FormatArg {
-    fn from(value: &str) -> Self {
-        Self::String(value.to_owned())
+impl From<isize> for FormatArg {
+    fn from(value: isize) -> Self {
+        Self::Integer(value as i64)
     }
 }
 
-impl From<String> for FormatArg {
-    fn from(value: String) -> Self {
-        Self::String(value)
+impl From<usize> for FormatArg {
+    fn from(value: usize) -> Self {
+        Self::Unsigned(value as u64)
     }
 }
-
-impl From<bool> for FormatArg {
-    fn from(value: bool) -> Self {
-        Self::Boolean(value)
-    }
-}
-
-macro_rules! impl_from_signed {
-    ($($ty:ty),* $(,)?) => {
-        $(impl From<$ty> for FormatArg {
-            fn from(value: $ty) -> Self {
-                Self::Integer(value as i64)
-            }
-        })*
-    };
-}
-
-macro_rules! impl_from_unsigned {
-    ($($ty:ty),* $(,)?) => {
-        $(impl From<$ty> for FormatArg {
-            fn from(value: $ty) -> Self {
-                Self::Unsigned(value as u64)
-            }
-        })*
-    };
-}
-
-macro_rules! impl_from_float {
-    ($($ty:ty),* $(,)?) => {
-        $(impl From<$ty> for FormatArg {
-            fn from(value: $ty) -> Self {
-                Self::Float(value as f64)
-            }
-        })*
-    };
-}
-
-impl_from_signed!(i8, i16, i32, i64, isize);
-impl_from_unsigned!(u8, u16, u32, u64, usize);
-impl_from_float!(f32, f64);
 
 pub fn clean_blank(input: Option<&str>) -> String {
     let Some(input) = input else {
@@ -431,7 +398,7 @@ pub fn format_currency_f32(value: f32, decimals: usize) -> String {
     format_currency(value as f64, decimals)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct KmpMatcher {
     pattern: String,
     lps: Vec<usize>,

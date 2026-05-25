@@ -1,12 +1,13 @@
 use crate::util::trim_non_blank;
 use crate::{ApiConfig, TempMailError, TempMailResult};
+use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub(crate) struct HttpApiClient {
     base_url: Url,
     client: Client,

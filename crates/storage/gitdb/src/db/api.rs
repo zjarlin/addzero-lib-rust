@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use az_derive_aliases::{apply, plain_clone_debug};
 use parking_lot::RwLock;
 use thiserror::Error;
 
@@ -54,7 +55,7 @@ pub enum DatabaseError {
 }
 
 /// Database configuration options.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct DatabaseConfig {
     /// Path to the database directory.
     pub path: PathBuf,
@@ -307,7 +308,7 @@ impl Database {
 }
 
 /// Database statistics.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct DatabaseStats {
     /// Number of tables.
     pub tables: usize,
@@ -320,7 +321,7 @@ pub struct DatabaseStats {
 }
 
 /// Information about a commit in history.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct CommitInfo {
     /// Commit ID (SHA).
     pub id: String,

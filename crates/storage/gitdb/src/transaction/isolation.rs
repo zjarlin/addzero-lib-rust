@@ -6,8 +6,10 @@
 
 use std::fmt;
 
+use az_derive_aliases::{apply, plain_default_copy_eq};
+
 /// Transaction isolation level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[apply(plain_default_copy_eq)]
 pub enum IsolationLevel {
     /// Read Committed isolation.
     ///

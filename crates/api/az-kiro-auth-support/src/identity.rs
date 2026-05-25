@@ -1,4 +1,5 @@
 use crate::{KiroAuthSupportError, KiroAuthSupportResult};
+use az_derive_aliases::{apply, plain_copy_eq, plain_default_copy_eq, plain_eq};
 use ring::rand::{SecureRandom, SystemRandom};
 
 const LOWER: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
@@ -166,7 +167,7 @@ const SURNAMES: &[&str] = &[
 ];
 
 /// Gender preference for generated English first names.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[apply(plain_default_copy_eq)]
 pub enum NameGender {
     /// Pick from the male-name pool.
     Male,
@@ -178,7 +179,7 @@ pub enum NameGender {
 }
 
 /// Options for local English name generation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct EnglishNameOptions {
     /// Whether to include a surname.
     pub full_name: bool,
@@ -196,7 +197,7 @@ impl Default for EnglishNameOptions {
 }
 
 /// Generated English name parts.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct EnglishName {
     /// First name.
     pub first_name: String,
@@ -216,7 +217,7 @@ impl EnglishName {
 }
 
 /// Password generation policy matching Kiro/AWS Builder ID complexity needs.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct PasswordPolicy {
     /// Requested length. Values are clamped to `8..=64`.
     pub length: usize,

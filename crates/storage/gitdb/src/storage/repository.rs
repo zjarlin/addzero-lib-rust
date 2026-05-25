@@ -9,6 +9,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use az_derive_aliases::{apply, plain_clone, plain_clone_debug};
 use git2::Repository;
 use parking_lot::RwLock;
 
@@ -23,7 +24,7 @@ use crate::storage::types::{BranchName, CommitId, GitSignature, RowKey, TableNam
 ///
 /// This provides thread-safe access to all Git operations.
 /// Clone this to share across threads - it uses Arc internally.
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct GitRepository {
     inner: Arc<GitRepositoryInner>,
 }
@@ -557,14 +558,14 @@ impl GitRepository {
 }
 
 /// A snapshot of the tree structure at a commit.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct TreeSnapshot {
     pub tree_id: TreeId,
     pub tables: Vec<TableName>,
 }
 
 /// Statistics about the repository.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct RepositoryStats {
     pub table_count: usize,
     pub total_rows: usize,

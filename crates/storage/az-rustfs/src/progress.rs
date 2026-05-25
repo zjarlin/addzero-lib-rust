@@ -1,4 +1,5 @@
 use crate::types::ObjectMetadata;
+use az_derive_aliases::{apply, plain_copy_eq, plain_eq, plain_partial_eq};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -15,7 +16,7 @@ pub trait UploadProgressListener: Send + Sync {
     fn on_progress(&self, progress: UploadProgressData);
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct UploadProgressData {
     pub uploaded: u64,
     pub total: u64,
@@ -55,7 +56,7 @@ impl Default for MultipartUploadConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct PartInfo {
     pub part_number: u32,
     pub start: u64,
@@ -65,7 +66,7 @@ pub struct PartInfo {
     pub status: PartStatus,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum PartStatus {
     Pending,
     Uploading,
@@ -73,7 +74,7 @@ pub enum PartStatus {
     Failed,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct UploadStatus {
     pub upload_id: String,
     pub bucket_name: String,
@@ -97,7 +98,7 @@ impl UploadStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum UploadStatusType {
     Initialized,
     InProgress,
@@ -106,7 +107,7 @@ pub enum UploadStatusType {
     Cancelled,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub enum MultipartUploadResult {
     Success {
         bucket_name: String,
@@ -128,7 +129,7 @@ pub enum MultipartUploadResult {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct UploadProgress {
     pub total_bytes: u64,
     pub uploaded_bytes: u64,

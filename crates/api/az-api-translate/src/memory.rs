@@ -5,10 +5,10 @@
 //! does not require an API key (but a valid email increases the daily quota).
 
 use reqwest::Client;
-use serde::Deserialize;
 
 use crate::model::{DetectedLanguage, TranslateOptions, TranslateResult};
 use crate::{TranslateClient, TranslateError};
+use az_derive_aliases::{apply, deserialize_debug};
 
 const BASE_URL: &str = "https://api.mymemory.translated.net/get";
 
@@ -40,7 +40,7 @@ impl MyMemoryClient {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 #[allow(dead_code)]
 struct MyMemoryResponse {
     #[serde(rename = "responseData")]
@@ -51,7 +51,7 @@ struct MyMemoryResponse {
     response_details: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 #[allow(dead_code)]
 struct MyMemoryResponseData {
     #[serde(rename = "translatedText")]
@@ -60,7 +60,7 @@ struct MyMemoryResponseData {
     match_score: Option<f64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 #[allow(dead_code)]
 struct MyMemoryMatchesResponse {
     #[serde(rename = "responseData")]
@@ -71,7 +71,7 @@ struct MyMemoryMatchesResponse {
     response_status: u16,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 #[allow(dead_code)]
 struct MyMemoryMatch {
     translation: String,

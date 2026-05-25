@@ -3,6 +3,7 @@ use crate::error::GitDbDriverError;
 use crate::sql::inline_indexed_params;
 use crate::value::from_json_value;
 use async_trait::async_trait;
+use az_derive_aliases::{apply, plain_clone_debug};
 use gitdb::db::{Database, DatabaseConfig};
 use gitdb::executor::QueryResult;
 use std::borrow::Cow;
@@ -20,7 +21,7 @@ use toasty_sql as sql;
 const MIGRATIONS_TABLE: &str = "__toasty_migrations";
 
 /// Toasty driver for a filesystem-backed `gitdb` database.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct GitDb {
     path: PathBuf,
     create_if_missing: bool,

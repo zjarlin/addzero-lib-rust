@@ -7,13 +7,13 @@
 //! removal.
 
 use crate::{BrowserAutomationError, BrowserAutomationResult};
+use az_derive_aliases::{apply, plain_copy_eq, serde_eq};
 use headless_chrome::Tab;
 use headless_chrome::protocol::cdp::{Emulation, Page};
 use rand::Rng;
-use serde::{Deserialize, Serialize};
 
 /// Browser and device identity values for one automation session.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct FingerprintProfile {
     /// User agent string applied through CDP.
     pub user_agent: String,
@@ -229,7 +229,7 @@ impl FingerprintProfile {
 }
 
 /// Static browser profile template used by [`SELECTION_POOL`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct FingerprintProfileTemplate {
     /// User agent string.
     pub user_agent: &'static str,

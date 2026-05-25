@@ -1,7 +1,7 @@
 //! Table schema definitions and validation.
 
+use az_derive_aliases::{apply, error_eq, serde_partial_eq};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::types::{ColumnDef, Constraint, DataType};
@@ -10,7 +10,7 @@ use super::types::{ColumnDef, Constraint, DataType};
 pub type SchemaVersion = u32;
 
 /// Table schema definition.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct TableSchema {
     /// Table name.
     pub name: String,
@@ -157,7 +157,7 @@ impl TableSchema {
 }
 
 /// Schema-related errors.
-#[derive(Debug, Clone, thiserror::Error)]
+#[apply(error_eq)]
 pub enum SchemaError {
     #[error("duplicate column: {0}")]
     DuplicateColumn(String),

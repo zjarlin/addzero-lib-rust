@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 
+use az_derive_aliases::{apply, plain_eq};
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct S3ClientConfig {
     pub endpoint: String,
@@ -50,7 +52,7 @@ impl S3ClientConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct ObjectMetadata {
     pub key: String,
     pub size: u64,
@@ -60,7 +62,7 @@ pub struct ObjectMetadata {
     pub metadata: BTreeMap<String, String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct PresignedUrl {
     pub url: String,
     pub expiration: SystemTime,

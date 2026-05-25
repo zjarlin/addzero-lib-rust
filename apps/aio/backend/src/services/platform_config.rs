@@ -1,15 +1,15 @@
 use std::{collections::BTreeMap, fs, path::PathBuf, time::Duration};
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq, serde_eq_default};
 use sqlx::{Connection, Executor, postgres::PgConnection};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PlatformConfigDto {
     pub config_path: String,
     pub postgres: PostgresConfigDto,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct PostgresConfigDto {
     pub database_url: String,
     pub configured: bool,
@@ -17,12 +17,12 @@ pub struct PostgresConfigDto {
     pub message: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct PostgresConfigUpdateDto {
     pub database_url: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PlatformConfigSaveResultDto {
     pub config: PlatformConfigDto,
     pub message: String,

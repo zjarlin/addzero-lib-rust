@@ -1,4 +1,5 @@
 use crate::{KiroAuthSupportError, KiroAuthSupportResult};
+use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use std::time::Duration;
 
 const DEFAULT_OIDC_BASE_URL: &str = "https://oidc.us-east-1.amazonaws.com";
@@ -10,7 +11,7 @@ const DEFAULT_POLL_INTERVAL_SECS: u64 = 2;
 const DEFAULT_POLL_TIMEOUT_SECS: u64 = 300;
 
 /// HTTP and polling configuration for Kiro's AWS Builder ID device flow.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct KiroOidcConfig {
     /// AWS IAM Identity Center OIDC API base URL.
     pub base_url: String,
@@ -92,7 +93,7 @@ impl KiroOidcConfig {
 }
 
 /// Builder for [`KiroOidcConfig`].
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct KiroOidcConfigBuilder {
     config: KiroOidcConfig,
 }

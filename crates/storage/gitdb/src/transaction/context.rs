@@ -9,6 +9,7 @@
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
+use az_derive_aliases::{apply, plain_clone_debug};
 use serde_json::Value;
 
 use crate::storage::{BranchName, CommitId, GitRepository, Row, RowKey, StorageError, TableName};
@@ -28,7 +29,7 @@ pub struct TxCommitted;
 pub struct TxAborted;
 
 /// Transaction metadata stored in the manager.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct TransactionMetadata {
     /// Unique transaction ID.
     pub tx_id: String,

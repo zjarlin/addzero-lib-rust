@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use az_derive_aliases::{apply, plain_eq};
 use gitdb::db::{Connection, ConnectionPool, DatabaseConfig, DatabaseError};
 use gitdb::executor::QueryResult;
 
@@ -249,14 +250,14 @@ pub struct GitDbRoutedResult {
 }
 
 /// Cluster-level pool statistics.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct GitDbStats {
     /// Per-node statistics.
     pub nodes: Vec<GitDbNodeStats>,
 }
 
 /// Pool statistics for one node.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct GitDbNodeStats {
     /// Node id.
     pub id: String,

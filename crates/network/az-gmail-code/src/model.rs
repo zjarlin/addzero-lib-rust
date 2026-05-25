@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, plain_eq, serde_eq};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
 /// Verification code extracted from a Gmail message.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct ExtractedGmailCode {
     /// Numeric verification code.
     pub code: String,
@@ -19,7 +19,7 @@ pub struct ExtractedGmailCode {
     pub source_mime_type: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(serde_eq)]
 pub(crate) struct GmailListMessagesResponse {
     #[serde(default)]
     pub(crate) messages: Vec<GmailMessageSummary>,
@@ -29,7 +29,7 @@ pub(crate) struct GmailListMessagesResponse {
     pub(crate) result_size_estimate: Option<u32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(serde_eq)]
 pub(crate) struct GmailMessageSummary {
     pub(crate) id: String,
     #[serde(default, rename = "threadId")]
@@ -37,7 +37,7 @@ pub(crate) struct GmailMessageSummary {
 }
 
 /// Gmail message shape needed for verification-code extraction.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct GmailMessage {
     /// Gmail message id.
     pub id: String,
@@ -64,7 +64,7 @@ impl GmailMessage {
 }
 
 /// One part of a Gmail MIME message tree.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct GmailMessagePart {
     /// Gmail part id.
     #[serde(default, rename = "partId")]
@@ -95,7 +95,7 @@ impl GmailMessagePart {
 }
 
 /// Gmail MIME header.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct GmailMessageHeader {
     /// Header name.
     pub name: String,
@@ -104,7 +104,7 @@ pub struct GmailMessageHeader {
 }
 
 /// Gmail message body metadata and inline payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct GmailMessagePartBody {
     #[serde(default)]
     pub data: Option<String>,

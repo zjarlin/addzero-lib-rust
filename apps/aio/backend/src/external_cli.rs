@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, bail};
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq_default};
 use tokio::process::Command;
 
 use crate::{
@@ -24,7 +24,7 @@ use crate::{
 const CONFIG_FILE_NAME: &str = "external-cli.json";
 const SKILL_DIR_NAME: &str = "aio-cli";
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct ExternalCliConfig {
     #[serde(default = "current_config_version")]
     pub version: u32,
@@ -32,7 +32,7 @@ pub struct ExternalCliConfig {
     pub commands: BTreeMap<String, ExternalCliDefinition>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct ExternalCliDefinition {
     pub name: String,
     pub command: String,

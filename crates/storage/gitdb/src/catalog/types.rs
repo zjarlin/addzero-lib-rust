@@ -2,11 +2,11 @@
 
 use std::fmt;
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq_copy, serde_partial_eq};
 use serde_json::Value;
 
 /// SQL-like data types supported by GitDB.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 #[serde(rename_all = "lowercase")]
 pub enum DataType {
     /// Text/string data (VARCHAR in SQL).
@@ -68,7 +68,7 @@ impl fmt::Display for DataType {
 }
 
 /// Column constraints.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Constraint {
     /// Column cannot be null.
@@ -113,7 +113,7 @@ impl fmt::Display for Constraint {
 }
 
 /// Full column definition including name, type, and constraints.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct ColumnDef {
     /// Column name.
     pub name: String,

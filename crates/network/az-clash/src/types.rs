@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_code, serde_eq, serde_partial_eq};
 use serde_yaml::Value;
 use std::time::Duration;
 use thiserror::Error;
@@ -72,7 +72,7 @@ pub enum ClashError {
 }
 
 /// Supported proxy node types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[apply(serde_code)]
 pub enum ProxyType {
     /// Shadowsocks proxy node.
     Ss,
@@ -93,28 +93,15 @@ pub enum ProxyType {
 impl ProxyType {
     /// Returns the Clash YAML `type` string for this proxy type.
     pub fn as_clash_str(self) -> &'static str {
-        match self {
-            Self::Ss => "ss",
-            Self::Vmess => "vmess",
-            Self::Vless => "vless",
-            Self::Trojan => "trojan",
-            Self::Hysteria2 => "hysteria2",
-            Self::Tuic => "tuic",
-            Self::Wireguard => "wireguard",
-        }
+        self.into()
     }
 
     /// Parses a Clash YAML `type` string into a supported proxy type.
     pub fn from_clash_type(value: &str) -> Option<Self> {
         match value.trim().to_ascii_lowercase().as_str() {
-            "ss" | "shadowsocks" => Some(Self::Ss),
-            "vmess" => Some(Self::Vmess),
-            "vless" => Some(Self::Vless),
-            "trojan" => Some(Self::Trojan),
-            "hysteria2" | "hy2" => Some(Self::Hysteria2),
-            "tuic" => Some(Self::Tuic),
-            "wireguard" => Some(Self::Wireguard),
-            _ => None,
+            "shadowsocks" => Some(Self::Ss),
+            "hy2" => Some(Self::Hysteria2),
+            other => other.parse().ok(),
         }
     }
 
@@ -125,7 +112,7 @@ impl ProxyType {
 }
 
 /// A normalized proxy node parsed from Clash YAML or a proxy URI.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct ProxyNode {
     /// Human-readable node name from YAML or URI fragment.
     pub name: String,
@@ -163,7 +150,7 @@ impl ProxyNode {
 }
 
 /// Result of one TCP connection latency test.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SpeedTestResult {
     /// Index of the tested node in the original node slice.
     pub node_index: usize,
@@ -176,7 +163,7 @@ pub struct SpeedTestResult {
 }
 
 /// A minimal Clash config document generated for a selected node.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct ClashConfig {
     /// Mixed HTTP/SOCKS listen port.
     #[serde(rename = "mixed-port")]
@@ -227,7 +214,7 @@ impl ClashConfig {
 }
 
 /// A Clash proxy group entry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ProxyGroup {
     /// Proxy group name.
     pub name: String,
@@ -301,4 +288,32 @@ fn country_from_keywords(name: &str) -> Option<String> {
     KEYWORDS
         .iter()
         .find_map(|(needle, country)| lowercase.contains(needle).then(|| (*country).to_owned()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ProxyType;
+
+    #[test]
+    fn proxy_type_uses_clash_wire_codes() {
+        assert_eq!(ProxyType::Ss.as_clash_str(), "ss");
+        assert_eq!(ProxyType::Hysteria2.as_clash_str(), "hysteria2");
+        assert_eq!(
+            ProxyType::from_clash_type("shadowsocks"),
+            Some(ProxyType::Ss)
+        );
+        assert_eq!(
+            ProxyType::from_clash_type("hy2"),
+            Some(ProxyType::Hysteria2)
+        );
+        assert_eq!(ProxyType::from_clash_type("VMESS"), Some(ProxyType::Vmess));
+    }
+
+    #[test]
+    fn proxy_type_serializes_as_snake_case_code() {
+        assert_eq!(
+            serde_json::to_string(&ProxyType::Wireguard).expect("proxy type should serialize"),
+            "\"wireguard\""
+        );
+    }
 }

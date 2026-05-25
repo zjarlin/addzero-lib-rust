@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq, serde_eq_default};
 
 use super::terminal_sessions::{
     TerminalProfileDto, TerminalSessionCreateDto, TerminalSessionInputDto,
     TerminalSessionSnapshotDto, create_terminal_session_on_server, send_terminal_input_on_server,
 };
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct StartVibeCodingRequestDto {
     #[serde(default)]
     pub profile: Option<TerminalProfileDto>,
@@ -19,7 +19,7 @@ pub struct StartVibeCodingRequestDto {
     pub title: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct StartVibeCodingResponseDto {
     pub session: TerminalSessionSnapshotDto,
     pub bootstrap_prompt: String,

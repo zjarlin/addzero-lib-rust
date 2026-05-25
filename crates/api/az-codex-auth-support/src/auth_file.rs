@@ -1,14 +1,14 @@
 use crate::{CodexAuthSupportError, CodexAuthSupportResult};
+use az_derive_aliases::{apply, plain_eq, serde_eq, serde_eq_default};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE;
 use chrono::{DateTime, FixedOffset, SecondsFormat, Utc};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 /// OAuth token response fields needed to write a Codex auth file.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct OAuthTokens {
     #[serde(default)]
     pub access_token: String,
@@ -19,7 +19,7 @@ pub struct OAuthTokens {
 }
 
 /// CLIProxyAPI-compatible Codex auth-file content.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct CodexAuthFile {
     #[serde(rename = "type")]
     pub kind: String,
@@ -95,7 +95,7 @@ impl CodexAuthFile {
 }
 
 /// Result metadata for an auth-file write.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct AuthFileWriteOutcome {
     pub path: PathBuf,
 }

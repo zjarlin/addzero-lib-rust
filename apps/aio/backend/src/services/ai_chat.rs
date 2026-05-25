@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use az_derive_aliases::{apply, serde_code_default_ord, serde_eq_default};
 use rig::{
     client::CompletionClient,
     completion::{AssistantContent, CompletionError, Message},
@@ -7,8 +8,7 @@ use rig::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_default_ord)]
 pub enum AiProviderKindDto {
     #[default]
     OpenAi,
@@ -28,7 +28,7 @@ impl AiProviderKindDto {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AiProviderConfigDto {
     pub provider: AiProviderKindDto,
     pub label: String,
@@ -39,7 +39,7 @@ pub struct AiProviderConfigDto {
     pub updated_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AiProviderConfigUpsertDto {
     pub provider: AiProviderKindDto,
     pub base_url: Option<String>,
@@ -48,20 +48,20 @@ pub struct AiProviderConfigUpsertDto {
     pub api_key: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct ChatMessageDto {
     pub role: String,
     pub content: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct ChatRequestDto {
     #[serde(default)]
     pub provider: Option<AiProviderKindDto>,
     pub messages: Vec<ChatMessageDto>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct ChatResponseDto {
     pub provider: AiProviderKindDto,
     pub model: String,

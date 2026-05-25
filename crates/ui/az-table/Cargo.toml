@@ -10,6 +10,7 @@ repository.workspace = true
 description = "Data-driven Dioxus table component built on top of az-* table primitives."
 
 [dependencies]
+az-derive-aliases.workspace = true
 az-dioxus-components.workspace = true
 dioxus.workspace = true
 

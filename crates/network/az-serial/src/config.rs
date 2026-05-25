@@ -1,9 +1,9 @@
 //! Serial port configuration types.
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq, serde_eq_copy};
 
 /// Standard baud rates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum BaudRate {
     /// 0 baud (invalid / disconnected).
     Baud0,
@@ -49,7 +49,7 @@ impl BaudRate {
 }
 
 /// Parity checking mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum Parity {
     /// No parity bit.
     None,
@@ -64,7 +64,7 @@ pub enum Parity {
 }
 
 /// Number of stop bits.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum StopBits {
     /// 1 stop bit.
     One,
@@ -73,7 +73,7 @@ pub enum StopBits {
 }
 
 /// Hardware/software flow control.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum FlowControl {
     /// No flow control.
     None,
@@ -84,7 +84,7 @@ pub enum FlowControl {
 }
 
 /// Serial port configuration parameters.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SerialConfig {
     /// Baud rate.
     pub baud_rate: BaudRate,

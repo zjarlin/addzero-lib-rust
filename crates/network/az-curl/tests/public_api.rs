@@ -100,6 +100,19 @@ fn generates_rules_and_mutates_json_payload() {
 }
 
 #[test]
+fn mutation_rule_uses_snake_case_wire_codes() {
+    assert_eq!(
+        serde_json::to_string(&MutationRule::String).expect("mutation rule should serialize"),
+        "\"string\""
+    );
+    assert_eq!(
+        serde_json::from_str::<MutationRule>("\"number\"")
+            .expect("mutation rule should deserialize"),
+        MutationRule::Number
+    );
+}
+
+#[test]
 fn update_payload_works_for_curl_command() {
     let command = r#"curl https://example.com/api -H 'content-type: application/json' -d '{"name":"alice","age":18}'"#;
 

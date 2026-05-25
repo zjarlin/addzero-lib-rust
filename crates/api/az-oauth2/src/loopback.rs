@@ -1,4 +1,5 @@
 use crate::{OAuth2Error, OAuth2Result, PkcePair};
+use az_derive_aliases::{apply, plain_eq};
 use reqwest::Url;
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -87,7 +88,7 @@ impl LoopbackAuthorizationSession {
 }
 
 /// Parsed OAuth loopback callback.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct OAuth2AuthorizationCallback {
     /// Authorization code returned by the provider.
     pub code: String,

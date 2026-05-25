@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq};
 
 /// Represents a database index on a table.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct Index {
     /// Index name.
     pub name: String,

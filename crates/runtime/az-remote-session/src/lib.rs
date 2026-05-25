@@ -11,6 +11,7 @@
 
 #![forbid(unsafe_code)]
 
+use az_derive_aliases::{apply, error_eq, plain_clone_debug};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, DeviceId, FileTransferEnvelope, OnlineStatus, SessionGrant,
     SessionId, SessionRequest, SessionState, SessionSummary, VideoFrameEnvelope,
@@ -18,12 +19,11 @@ use az_remote_model::{
 use chrono::Utc;
 use quinn::VarInt;
 use std::collections::HashMap;
-use thiserror::Error;
 use uuid::Uuid;
 
 pub type RemoteSessionResult<T> = Result<T, RemoteSessionError>;
 
-#[derive(Debug, Error)]
+#[apply(error_eq)]
 pub enum RemoteSessionError {
     #[error("device `{0}` was not found")]
     DeviceNotFound(DeviceId),
@@ -33,7 +33,7 @@ pub enum RemoteSessionError {
     SessionRejected(SessionId, String),
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct RelayRuntimeConfig {
     pub bind_addr: String,
     pub max_concurrent_sessions: u32,

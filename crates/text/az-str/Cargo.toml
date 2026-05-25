@@ -10,7 +10,9 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+az-derive-aliases.workspace = true
 deunicode.workspace = true
+derive_more.workspace = true
 regex.workspace = true
 
 [dev-dependencies]

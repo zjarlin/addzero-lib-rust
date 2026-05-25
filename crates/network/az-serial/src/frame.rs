@@ -3,10 +3,10 @@
 //! Supports common industrial protocols: fixed-length, delimiter-based,
 //! and length-prefixed frames.
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, plain_eq, serde_eq};
 
 /// The format used to delimit frames in a byte stream.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub enum FrameFormat {
     /// Fixed-length frames (every frame is exactly N bytes).
     FixedLength(usize),
@@ -22,7 +22,7 @@ pub enum FrameFormat {
 }
 
 /// Events produced by the frame decoder.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub enum FrameEvent {
     /// A complete frame was decoded.
     Frame(Vec<u8>),

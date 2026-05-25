@@ -1,11 +1,12 @@
 use crate::OAuth2Config;
+use az_derive_aliases::{apply, plain_default_copy_eq};
 
 const GOOGLE_AUTHORIZATION_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const GOOGLE_DEVICE_AUTHORIZATION_URL: &str = "https://oauth2.googleapis.com/device/code";
 
 /// Google OAuth2 endpoints and scope constants.
-#[derive(Debug, Clone, Copy, Default)]
+#[apply(plain_default_copy_eq)]
 pub struct GoogleOAuth2;
 
 impl GoogleOAuth2 {

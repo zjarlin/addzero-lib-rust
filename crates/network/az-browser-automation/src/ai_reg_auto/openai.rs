@@ -1,13 +1,14 @@
 //! OpenAI login and sign-up page automation.
 
 use crate::BrowserAutomationResult;
-use crate::FingerprintProfile;
 use crate::{BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions};
+use az_derive_aliases::{
+    apply, deserialize_eq, plain_copy_eq, plain_copy_eq_hash, plain_default_copy_eq, plain_eq,
+};
 use az_sms::SmsProvider;
-use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
-use headless_chrome::Tab;
+use az_temp_mail::{create_mail_tm_api, PageRequest, TempMailMailbox, TempMailProvider};
 use headless_chrome::protocol::cdp::Runtime;
-use serde::Deserialize;
+use headless_chrome::Tab;
 use serde_json::Value;
 use std::sync::Arc;
 use std::thread;
@@ -23,7 +24,7 @@ fn random_jitter() {
 }
 
 /// OpenAI authorization flow mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum OpenAiAuthFlow {
     /// Open the login flow.
     Login,
@@ -32,7 +33,7 @@ pub enum OpenAiAuthFlow {
 }
 
 /// Current stage reached by [`OpenAiAuthAutomation`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum OpenAiAuthStage {
     /// The authorization page was opened, but no credential input was requested.
     Opened,
@@ -57,7 +58,7 @@ pub enum OpenAiAuthStage {
 }
 
 /// Step identifiers for manual OpenAI entry-flow recording.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[apply(plain_copy_eq_hash)]
 pub enum OpenAiRecordingStep {
     /// Step 1: open the OpenAI entry page.
     OpenEntryPage,
@@ -115,7 +116,7 @@ impl OpenAiRecordingStep {
 }
 
 /// Result status for one manual recording step.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum OpenAiRecordingStepStatus {
     /// The target for the step was found and clicked, or the page was ready.
     Completed,
@@ -124,7 +125,7 @@ pub enum OpenAiRecordingStepStatus {
 }
 
 /// Result for one recorded step.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct OpenAiRecordingStepResult {
     /// Step that was executed.
     pub step: OpenAiRecordingStep,
@@ -139,7 +140,7 @@ pub struct OpenAiRecordingStepResult {
 }
 
 /// Result for a multi-step manual recording run.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct OpenAiRecordingResult {
     /// Executed step results in order.
     pub steps: Vec<OpenAiRecordingStepResult>,
@@ -156,7 +157,7 @@ impl OpenAiRecordingResult {
 }
 
 /// Options for manual OpenAI entry-flow recording.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct OpenAiRecordingOptions {
     /// Initial page used for the recording sequence.
     pub start_url: String,
@@ -233,7 +234,7 @@ impl OpenAiRecordingOptions {
 }
 
 /// Options for automating the OpenAI authorization entry flow.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct OpenAiAuthOptions {
     /// Initial URL for the OpenAI authorization flow.
     pub start_url: String,
@@ -324,7 +325,7 @@ impl OpenAiAuthOptions {
 }
 
 /// Result returned by [`OpenAiAuthAutomation`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct OpenAiAuthResult {
     /// Stage where automation stopped.
     pub stage: OpenAiAuthStage,
@@ -345,7 +346,7 @@ impl OpenAiAuthResult {
 }
 
 /// OpenAI authorization page automation.
-#[derive(Debug, Default, Clone, Copy)]
+#[apply(plain_default_copy_eq)]
 pub struct OpenAiAuthAutomation;
 
 /// If the page shows a "session ended" notice, click "Log in" to
@@ -628,7 +629,7 @@ const PASSWORD_SELECTORS: &[&str] = &[
     "input[data-testid*='password' i]",
 ];
 
-#[derive(Debug, Clone, Deserialize)]
+#[apply(deserialize_eq)]
 #[serde(rename_all = "camelCase")]
 struct AuthPageState {
     url: String,
@@ -1016,7 +1017,7 @@ fn normalize_page_url(start_url: String) -> String {
 
 /// Configuration for a complete OpenAI signup that handles email verification
 /// via a disposable mailbox and phone verification via 5sim SMS.
-#[derive(Debug, Clone)]
+#[apply(plain_eq)]
 pub struct OpenAiFullRegOptions {
     /// Start URL (defaults to OpenAI sign-up page).
     pub start_url: String,
@@ -1055,7 +1056,7 @@ impl Default for OpenAiFullRegOptions {
 }
 
 /// Result of a complete OpenAI signup attempt.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct OpenAiFullRegResult {
     /// Created disposable email address.
     pub email: String,
@@ -1085,7 +1086,7 @@ pub struct OpenAiFullRegResult {
 /// - disposable email creation via [`az_temp_mail`]
 /// - email verification code polling via the temp mailbox
 /// - phone verification via [`az_sms`] (5sim)
-#[derive(Debug, Default, Clone, Copy)]
+#[apply(plain_default_copy_eq)]
 pub struct OpenAiRegAutomation;
 
 impl OpenAiRegAutomation {
@@ -1487,7 +1488,7 @@ impl OpenAiRegAutomation {
     /// `[role="textbox"]` elements, not native `<input>`.
     fn handle_onboarding(
         tab: &Arc<Tab>,
-        step_delay: Duration,
+        _step_delay: Duration,
     ) -> BrowserAutomationResult<AuthPageState> {
         eprintln!("[DEBUG] handle_onboarding entered");
         // Fill name + age (first two visible textboxes in DOM order)

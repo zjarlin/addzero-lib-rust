@@ -10,14 +10,14 @@ use az_config_center_contract::{
     ShellComponentBuildRequest, ShellComponentBuildResult, ShellComponentConfigUpdate,
     ShellComponentPatch, ShellComponentRegistry, ShellComponentUpsert,
 };
+use az_derive_aliases::{apply, serde_eq, serde_eq_default};
 use az_shell_components::{build_output, expand_home_path, materialize_component, validate_patch};
-use serde::{Deserialize, Serialize};
 
 const CONFIG_FILE_NAME: &str = "shell-components.json";
 const CONFIG_PATH_ENV: &str = "AIO_SHELL_COMPONENTS_CONFIG";
 const OUTPUT_PATH_ENV: &str = "AIO_SHELL_COMPONENTS_OUTPUT";
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct PersistedShellComponentRegistry {
     #[serde(default = "current_config_version")]
     version: u32,
@@ -37,7 +37,7 @@ impl Default for PersistedShellComponentRegistry {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct PersistedShellComponentBuildConfig {
     #[serde(default = "default_output_path")]
     output_path: String,
@@ -51,7 +51,7 @@ impl Default for PersistedShellComponentBuildConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 struct PersistedShellComponent {
     name: String,
     kind: az_config_center_contract::ShellComponentKind,

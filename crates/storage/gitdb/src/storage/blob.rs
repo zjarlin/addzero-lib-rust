@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, plain_clone_debug, plain_eq, serde_partial_eq};
 use serde_json::Value;
 
 use crate::storage::error::{StorageError, StorageResult};
@@ -25,7 +25,7 @@ pub(crate) use crate::storage::types::{BlobId, RowKey};
 ///   "email": "abc@example.com"
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_eq)]
 pub struct Row {
     /// primary key (must match filename without . json extension)
     pub key: RowKey,
@@ -61,7 +61,7 @@ impl Row {
             _ => {
                 return Err(StorageError::SchemaViolation(
                     "row data must be a JSON object".to_string(),
-                ))
+                ));
             }
         };
         Ok(Self::new(key, data))
@@ -103,7 +103,7 @@ impl Row {
 /// internal format for JSON serialization
 ///
 /// uses `_` prefix for metadata fields to avoid conflicts with user columns
-#[derive(Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 struct RowJson {
     #[serde(rename = "_pk")]
     pk: String,
@@ -175,7 +175,7 @@ pub fn read_blob(repo: &git2::Repository, blob_id: BlobId) -> StorageResult<Vec<
 }
 
 /// metadata about a blob without reading its full content
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct BlobMetadata {
     pub id: BlobId,
     pub size: usize,

@@ -1,8 +1,10 @@
 use crate::quote_identifier;
 use crate::{JoinType, Query, QueryError, SortOrder, require_table_name};
+use az_derive_aliases::{apply, plain_clone_debug};
 
 /// A SELECT query builder.
-#[derive(Debug, Clone, Default)]
+#[derive(Default)]
+#[apply(plain_clone_debug)]
 pub struct SelectQuery {
     distinct: bool,
     columns: Vec<String>,
@@ -16,7 +18,7 @@ pub struct SelectQuery {
     offset: Option<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct JoinClause {
     join_type: JoinType,
     table: String,

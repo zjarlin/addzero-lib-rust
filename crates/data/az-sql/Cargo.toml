@@ -8,6 +8,7 @@ authors.workspace = true
 description = "SQL query builder with type-safe SQL construction"
 
 [dependencies]
+az-derive-aliases.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 

@@ -1,10 +1,11 @@
 use crate::{CodexAuthSupportError, CodexAuthSupportResult, DuckMailConfig};
+use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use reqwest::header::{ACCEPT, HeaderMap, HeaderValue};
 use serde::de::DeserializeOwned;
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub(crate) struct HttpClient {
     base_url: Url,
     client: Client,

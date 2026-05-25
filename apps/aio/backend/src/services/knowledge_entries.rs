@@ -1,6 +1,6 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq, serde_eq_default};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::sync::OnceCell;
 
@@ -15,7 +15,7 @@ pub const WORKSPACE_SOURCE_SLUG: &str = "workspace-notes";
 pub const WORKSPACE_SOURCE_NAME: &str = "笔记工作台";
 pub const WORKSPACE_SOURCE_ROOT: &str = "msc-aio://notes";
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct KnowledgeNoteDto {
     pub slug: String,
     pub title: String,
@@ -30,7 +30,7 @@ pub struct KnowledgeNoteDto {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct KnowledgeEntryUpsertDto {
     pub source_path: String,
     pub relative_path: String,
@@ -39,7 +39,7 @@ pub struct KnowledgeEntryUpsertDto {
     pub tags: Vec<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct KnowledgeEntryDeleteDto {
     pub source_path: String,
 }

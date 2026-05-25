@@ -9,6 +9,7 @@ description = "Generic model traits for database entities, pagination, and audit
 
 [dependencies]
 chrono.workspace = true
+az-derive-aliases.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

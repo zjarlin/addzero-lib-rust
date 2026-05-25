@@ -4,9 +4,10 @@ use std::io::{self, BufRead, Write};
 
 use super::api::{Database, DatabaseResult};
 use crate::executor::QueryResult;
+use az_derive_aliases::{apply, plain_clone_debug};
 
 /// REPL configuration.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct ReplConfig {
     /// Prompt string.
     pub prompt: String,

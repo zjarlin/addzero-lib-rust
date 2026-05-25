@@ -1,10 +1,12 @@
-#[derive(Debug, Clone)]
+use az_derive_aliases::{apply, plain_clone_debug};
+
+#[apply(plain_clone_debug)]
 pub struct Scene {
     pub index: usize,
     pub text: String,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct Plan {
     pub scenes: Vec<Scene>,
 }

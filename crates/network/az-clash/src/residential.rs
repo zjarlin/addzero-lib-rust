@@ -18,6 +18,7 @@ use crate::fetcher::fetch_and_parse;
 use crate::selector::{generate_clash_config, select_fastest_node};
 use crate::speedtest::batch_speed_test;
 use crate::types::{ClashError, ClashResult, ProxyNode};
+use az_derive_aliases::{apply, plain_clone_debug};
 use std::fs;
 use std::net::TcpStream;
 use std::path::PathBuf;
@@ -26,7 +27,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 /// Configuration for starting a residential proxy via local Clash.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct ResidentialProxyConfig {
     /// Subscription URL to fetch proxy nodes from.
     pub subscription_url: String,
@@ -111,8 +112,12 @@ impl ResidentialProxy {
     pub async fn start(config: ResidentialProxyConfig) -> ClashResult<Self> {
         let nodes = fetch_and_parse(&config.subscription_url).await?;
 
-        let results =
-            batch_speed_test(&nodes, config.speedtest_concurrency, config.speedtest_timeout).await;
+        let results = batch_speed_test(
+            &nodes,
+            config.speedtest_concurrency,
+            config.speedtest_timeout,
+        )
+        .await;
 
         let node = select_fastest_node(&nodes, &results)?.clone();
 

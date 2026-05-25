@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq};
 
 use crate::column::Column;
 
 /// Represents a database table definition.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct Table {
     /// Table name.
     pub name: String,

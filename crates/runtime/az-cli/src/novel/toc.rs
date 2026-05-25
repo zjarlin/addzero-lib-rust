@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
+use az_derive_aliases::{apply, plain_eq};
 use reqwest::Url;
 use scraper::{ElementRef, Html, Selector};
 
@@ -10,13 +11,13 @@ use crate::web::{
 
 use super::preset::ResolvedSelectors;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct TocEntry {
     pub title: Option<String>,
     pub url: Url,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct ParsedToc {
     pub book_title: String,
     pub chapters: Vec<TocEntry>,

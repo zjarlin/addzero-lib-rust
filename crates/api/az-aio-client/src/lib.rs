@@ -6,6 +6,7 @@ use az_config_center_contract::{
     ShellComponentBuildResult, ShellComponentConfigUpdate, ShellComponentPatch,
     ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
 };
+use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Method;
 use reqwest::blocking::{Client, Response};
 use serde::Serialize;
@@ -30,7 +31,7 @@ pub enum AioClientError {
     },
 }
 
-#[derive(Clone, Debug)]
+#[apply(plain_clone_debug)]
 pub struct AioClient {
     base_url: String,
     desktop_token: Option<String>,

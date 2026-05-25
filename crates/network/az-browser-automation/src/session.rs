@@ -6,6 +6,7 @@ use crate::{
     BrowserAutomationError, BrowserAutomationResult, query_cdp_websocket_url,
     resolve_chrome_executable,
 };
+use az_derive_aliases::{apply, plain_default_eq, plain_eq};
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
 use headless_chrome::protocol::cdp::{Accessibility, Runtime};
 use headless_chrome::{Browser, Tab};
@@ -30,7 +31,7 @@ fn find_free_port() -> Option<u16> {
 static NEXT_CDP_PORT: AtomicU16 = AtomicU16::new(9300);
 
 /// Strategy used to choose the browser profile for a session.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[apply(plain_default_eq)]
 pub enum FingerprintStrategy {
     /// Pick a random profile from the built-in profile pool.
     #[default]
@@ -61,7 +62,7 @@ impl FingerprintStrategy {
 }
 
 /// Configuration for an isolated [`BrowserSession`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct SessionConfig {
     /// Browser profile selection strategy.
     pub fingerprint: FingerprintStrategy,
@@ -102,7 +103,7 @@ impl SessionConfig {
 }
 
 /// Fluent builder for [`SessionConfig`].
-#[derive(Debug, Clone, Default)]
+#[apply(plain_default_eq)]
 pub struct SessionConfigBuilder {
     config: SessionConfig,
 }

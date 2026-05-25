@@ -1,3 +1,4 @@
+use az_derive_aliases::{apply, plain_clone_debug};
 use az_music::*;
 use reqwest::header::ACCEPT;
 use std::collections::BTreeMap;
@@ -177,7 +178,7 @@ fn facade_builds_default_clients() {
     let _ = Music::suno("token-123").expect("default suno client should build");
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_clone_debug)]
 struct CapturedRequest {
     method: String,
     path: String,
@@ -185,7 +186,7 @@ struct CapturedRequest {
     body: String,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct TestResponse {
     status: u16,
     content_type: &'static str,

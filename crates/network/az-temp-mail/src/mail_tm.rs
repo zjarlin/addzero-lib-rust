@@ -6,11 +6,11 @@ use crate::model::{
 use crate::provider::TempMailProvider;
 use crate::util::{random_alpha_numeric, sanitize_local_part, trim_non_blank};
 use crate::{ApiConfig, TempMailError, TempMailResult};
-use serde::Deserialize;
+use az_derive_aliases::{apply, deserialize_debug, deserialize_eq, plain_clone_debug};
 use serde_json::{Value, json};
 
 /// Blocking client for the hosted `mail.tm` temporary email API.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct MailTmTempMailApi {
     http: HttpApiClient,
 }
@@ -198,7 +198,7 @@ pub fn create_mail_tm_api() -> TempMailResult<MailTmTempMailApi> {
     MailTmTempMailApi::new(config)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(deserialize_eq)]
 pub struct MailTmDomain {
     pub id: String,
     pub domain: String,
@@ -208,25 +208,25 @@ pub struct MailTmDomain {
     pub is_private: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct HydraCollection<T> {
     #[serde(rename = "hydra:member", default = "Vec::new")]
     items: Vec<T>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct MailTmAccountResponse {
     #[serde(default)]
     id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct MailTmTokenResponse {
     #[serde(default)]
     token: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(deserialize_eq)]
 struct MailTmSenderRaw {
     #[serde(default)]
     address: String,
@@ -234,7 +234,7 @@ struct MailTmSenderRaw {
     name: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(deserialize_eq)]
 struct MailTmRecipientRaw {
     #[serde(default)]
     address: String,
@@ -242,7 +242,7 @@ struct MailTmRecipientRaw {
     name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct MailTmMessageSummaryRaw {
     #[serde(default)]
     id: String,
@@ -255,7 +255,7 @@ struct MailTmMessageSummaryRaw {
     created_at: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct MailTmMessageDetailRaw {
     #[serde(default)]
     id: String,

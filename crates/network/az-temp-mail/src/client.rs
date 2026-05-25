@@ -8,11 +8,12 @@ use crate::model::{
 use crate::provider::TempMailProvider;
 use crate::util::{required_non_blank, sha256_hex};
 use crate::{ApiConfig, TempMailResult};
+use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::header::ACCEPT;
 use serde_json::json;
 
 /// Blocking API client for a `dreamhunter2333/cloudflare_temp_email` deployment.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct CloudflareTempMailApi {
     http: HttpApiClient,
 }

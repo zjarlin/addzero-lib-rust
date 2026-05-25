@@ -8,6 +8,7 @@ authors.workspace = true
 description = "Auditable DuckMail and Codex auth-file helpers"
 
 [dependencies]
+az-derive-aliases.workspace = true
 base64.workspace = true
 chrono.workspace = true
 regex.workspace = true

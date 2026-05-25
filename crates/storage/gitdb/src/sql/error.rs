@@ -1,12 +1,12 @@
 //! SQL parsing errors.
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq};
 
 /// Result type for parsing operations.
 pub type ParseResult<T> = Result<T, ParseError>;
 
 /// SQL parsing errors.
-#[derive(Debug, Clone, Error)]
+#[apply(error_eq)]
 pub enum ParseError {
     #[error("syntax error: {0}")]
     Syntax(String),

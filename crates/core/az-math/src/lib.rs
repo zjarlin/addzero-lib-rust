@@ -27,7 +27,7 @@
 
 #![forbid(unsafe_code)]
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq, plain_copy_eq, plain_eq, plain_partial_eq};
 
 const DEFAULT_TOLERANCE: f64 = 1e-8;
 const DEFAULT_MAX_COMBINATIONS: u128 = 500_000;
@@ -35,7 +35,7 @@ const DEFAULT_MAX_COMBINATIONS: u128 = 500_000;
 pub type Matrix<T> = Vec<Vec<T>>;
 pub type MathResult<T> = Result<T, MathError>;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[apply(error_eq)]
 pub enum MathError {
     #[error("matrix cannot be empty")]
     EmptyMatrix,
@@ -63,27 +63,27 @@ pub enum MathError {
     CapacityMatrixMismatch,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct MatrixElement<T> {
     pub row: usize,
     pub col: usize,
     pub value: T,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum ConstraintRelation {
     LessOrEqual,
     GreaterOrEqual,
     Equal,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum GoalType {
     Minimize,
     Maximize,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct LinearConstraint {
     pub coefficients: Vec<f64>,
     pub relation: ConstraintRelation,
@@ -104,7 +104,7 @@ impl LinearConstraint {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct LinearObjective {
     pub coefficients: Vec<f64>,
     pub constant: f64,
@@ -119,7 +119,7 @@ impl LinearObjective {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct LinearProgrammingProblem {
     pub goal: GoalType,
     pub objective: LinearObjective,

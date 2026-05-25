@@ -1,5 +1,6 @@
 //! Query result types.
 
+use az_derive_aliases::{apply, plain_clone_debug};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -40,7 +41,7 @@ impl QueryResult {
 }
 
 /// A set of rows from a SELECT query.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct ResultSet {
     /// Column names in order.
     pub columns: Vec<String>,

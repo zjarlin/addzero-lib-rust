@@ -21,6 +21,10 @@ fn parses_and_validates_int_dictionary() {
 
     assert_eq!(spec.code, "board_parity");
     assert_eq!(spec.raw_value_kind, RawValueKind::Int);
+    assert_eq!(
+        serde_json::to_string(&RawValueKind::Int).unwrap(),
+        "\"int\""
+    );
     assert!(spec.open_enum);
     assert_eq!(spec.normalized_unknown_variant(), "Other");
     assert_eq!(spec.items.len(), 2);

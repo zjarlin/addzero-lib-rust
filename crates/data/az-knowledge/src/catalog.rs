@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, fmt::Write as _};
 
 use crate::{KnowledgeSourceSpec, types::KnowledgeDocument};
+use az_derive_aliases::{apply, plain_eq};
 
 pub fn render_catalog(
     mode: &str,
@@ -96,7 +97,7 @@ fn quote(value: &str) -> String {
     format!("{value:?}")
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[apply(plain_eq)]
 struct RenderedSourceSummary {
     slug: String,
     label: String,

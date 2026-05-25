@@ -6,21 +6,22 @@
 //! 远程文件通过 `owner_drive + root_alias + relative_path` 进行标识，
 //! 而各设备在本地存储各自的绝对路径映射。
 
+use az_derive_aliases::{
+    apply, error_eq, plain_eq, serde_eq, serde_eq_default, serde_eq_hash,
+    serde_eq_hash_ord_display,
+};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::env;
-use std::fmt;
 use std::path::{Component, Path, PathBuf};
-use thiserror::Error;
 use uuid::Uuid;
 
 /// Result alias for drive core operations.
 pub type DriveCoreResult<T> = Result<T, DriveCoreError>;
 
 /// Errors raised by path normalization and sync decision helpers.
-#[derive(Debug, Error, PartialEq, Eq)]
+#[apply(error_eq)]
 pub enum DriveCoreError {
     /// Root aliases are required because remote identity cannot use absolute paths.
     #[error("root alias cannot be empty")]
@@ -51,7 +52,7 @@ pub enum DriveCoreError {
 }
 
 /// Cross-device logical root name, for example `home` or `workspace`.
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[apply(serde_eq_hash_ord_display)]
 pub struct RootAlias(String);
 
 impl RootAlias {
@@ -84,12 +85,6 @@ impl RootAlias {
     }
 }
 
-impl fmt::Display for RootAlias {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
 impl TryFrom<&str> for RootAlias {
     type Error = DriveCoreError;
 
@@ -99,7 +94,7 @@ impl TryFrom<&str> for RootAlias {
 }
 
 /// Normalized POSIX-style path below a logical root.
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[apply(serde_eq_hash_ord_display)]
 pub struct RelativePath(String);
 
 impl RelativePath {
@@ -172,12 +167,6 @@ impl RelativePath {
     }
 }
 
-impl fmt::Display for RelativePath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
 impl TryFrom<&str> for RelativePath {
     type Error = DriveCoreError;
 
@@ -187,7 +176,7 @@ impl TryFrom<&str> for RelativePath {
 }
 
 /// Stable remote identity for a file or directory.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[apply(serde_eq_hash)]
 pub struct EntryKey {
     /// Owner Drive namespace.
     pub space_id: String,
@@ -227,7 +216,7 @@ impl EntryKey {
 }
 
 /// A device-local logical root mapping.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct LogicalRoot {
     /// Cross-device logical alias.
     pub alias: RootAlias,
@@ -236,7 +225,7 @@ pub struct LogicalRoot {
 }
 
 /// Result of mapping a device-local path to remote identity.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct HostPathMapping {
     /// Device-local normalized absolute path.
     pub local_abs_path: PathBuf,
@@ -247,7 +236,7 @@ pub struct HostPathMapping {
 }
 
 /// Registry that maps logical root aliases to device-local paths.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct RootRegistry {
     roots: BTreeMap<RootAlias, PathBuf>,
 }
@@ -388,7 +377,7 @@ pub fn normalize_absolute_path(path: &Path) -> DriveCoreResult<PathBuf> {
 }
 
 /// Version metadata used by sync decisions.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct EntryVersion {
     /// Metadata entry id.
     pub entry_id: Uuid,
@@ -403,7 +392,7 @@ pub struct EntryVersion {
 }
 
 /// Active lock snapshot for conflict decisions.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct LockSnapshot {
     /// Lock owner device id.
     pub owner_device_id: String,
@@ -420,7 +409,7 @@ impl LockSnapshot {
 }
 
 /// Decision for a local file change against the latest remote version.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub enum ChangeDecision {
     /// Local content already matches remote content.
     NoopSameContent,

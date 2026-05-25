@@ -17,11 +17,11 @@
 //! - 条目的 `code` 和原始值（`rawIntValue` / `rawTextValue`）不能重复
 //! - 整数型字典只能使用 `rawIntValue`，字符串型字典只能使用 `rawTextValue`
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, plain_copy_eq, serde_code_enum, serde_eq};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct DictEnumItem<T>
 where
     T: Copy + 'static,
@@ -33,7 +33,7 @@ where
     pub meta_json: Option<&'static str>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DictionarySpec {
     pub code: String,
@@ -123,7 +123,7 @@ impl DictionarySpec {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DictionaryItemSpec {
     pub code: String,
@@ -172,8 +172,7 @@ impl DictionaryItemSpec {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[apply(serde_code_enum)]
 pub enum RawValueKind {
     Int,
     String,

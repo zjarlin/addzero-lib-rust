@@ -7,12 +7,13 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
+use az_derive_aliases::{apply, deserialize_eq, serde_eq, serialize_eq};
 
 use crate::paths::config_center_config_dir_path;
 
 const DEVICE_INFO_FILE_NAME: &str = "device-info.json";
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PairingLocalInfo {
     pub device_name: String,
@@ -21,7 +22,7 @@ pub struct PairingLocalInfo {
     pub metadata_path: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PairingRemoteInfo {
     pub device_name: String,
@@ -32,14 +33,14 @@ pub struct PairingRemoteInfo {
     pub is_self: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[apply(deserialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PairingRemoteReadRequest {
     pub home_path: String,
     pub local_fingerprint: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[apply(serde_eq)]
 #[serde(rename_all = "camelCase")]
 struct StoredPairingDeviceInfo {
     device_name: String,

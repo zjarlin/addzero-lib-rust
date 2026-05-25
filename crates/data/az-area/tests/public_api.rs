@@ -1,7 +1,8 @@
 use az_area::*;
+use az_derive_aliases::{apply, plain_eq};
 use std::cmp::Ordering;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 struct DemoArea {
     name: &'static str,
     version: &'static str,

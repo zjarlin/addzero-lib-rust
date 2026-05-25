@@ -1,9 +1,9 @@
 use crate::http::HttpApiClient;
 use crate::util::non_blank;
 use crate::{ApiConfig, CreatesResult};
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, deserialize_debug, plain_clone_debug, serde_eq};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct MavenArtifact {
     pub id: String,
     pub group_id: String,
@@ -20,7 +20,7 @@ impl MavenArtifact {
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct MavenCentralApi {
     http: HttpApiClient,
 }
@@ -221,18 +221,18 @@ pub fn create_maven_central_api() -> CreatesResult<MavenCentralApi> {
     MavenCentralApi::new(config)
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct MavenSearchResponseEnvelope {
     response: MavenSearchResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct MavenSearchResponse {
     #[serde(default)]
     docs: Vec<MavenSearchDocument>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct MavenSearchDocument {
     #[serde(default)]
     id: String,

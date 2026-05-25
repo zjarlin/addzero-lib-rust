@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use anyhow::{Context, Result};
+use az_derive_aliases::{apply, serde_eq};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row, postgres::PgRow};
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -95,7 +95,7 @@ fn format_size(size: u64) -> String {
 }
 
 /// 文件索引项
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct FileIndex {
     pub id: i64,
     pub source: String,
@@ -112,7 +112,7 @@ pub struct FileIndex {
 }
 
 /// 分享链接
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ShareLink {
     pub token: String,
     pub source: String,
@@ -124,7 +124,7 @@ pub struct ShareLink {
 }
 
 /// 扫描统计
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ScanStats {
     pub total_files: i64,
     pub source_counts: HashMap<String, i64>,
@@ -132,7 +132,7 @@ pub struct ScanStats {
 }
 
 /// 筛选条件
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct FilterOptions {
     pub source: Option<String>,
     pub category: Option<String>,
@@ -525,7 +525,7 @@ impl DownloadStationService {
 }
 
 /// API DTO
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct FileIndexDto {
     pub id: i64,
     pub source: String,
@@ -579,7 +579,7 @@ impl sqlx::FromRow<'_, PgRow> for FileIndex {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ShareLinkDto {
     pub token: String,
     pub source: String,
@@ -604,7 +604,7 @@ impl From<ShareLink> for ShareLinkDto {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ScanStatsDto {
     pub total_files: i64,
     pub source_counts: HashMap<String, i64>,

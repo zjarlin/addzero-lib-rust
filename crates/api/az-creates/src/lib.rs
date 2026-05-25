@@ -40,6 +40,8 @@ mod util;
 #[cfg(test)]
 mod tests;
 
+use az_derive_aliases::{apply, plain_default_copy_eq};
+
 pub use az_music::{
     BatchFetchRequest, ConcatSongsRequest, GenerateLyricsRequest, LyricContent, LyricResponse,
     Music, MusicAlbum, MusicArtist, MusicCreator, MusicPlaylist, MusicPrivilege, MusicSearchApi,
@@ -69,7 +71,7 @@ pub use tianyancha::{
     TianyanchaHuaweiPageInfo, create_tianyancha_api, create_tianyancha_huawei_api,
 };
 
-#[derive(Debug, Clone, Copy, Default)]
+#[apply(plain_default_copy_eq)]
 pub struct Creates;
 
 impl Creates {

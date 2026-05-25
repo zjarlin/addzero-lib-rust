@@ -1,19 +1,21 @@
 use regex::Regex;
 use std::sync::LazyLock;
 
+use az_derive_aliases::{apply, plain_eq};
+
 static TABLE_NAME_REGEX: LazyLock<Regex> =
     LazyLock::new(|| match Regex::new(r"(?i)\bfrom\s+([a-zA-Z0-9_]+)") {
         Ok(regex) => regex,
         Err(error) => panic!("table extraction regex should compile: {error}"),
     });
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct FieldInfoSimple {
     pub field_name: &'static str,
     pub description: Option<&'static str>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct FieldInfo {
     pub field_name: &'static str,
     pub description: Option<&'static str>,

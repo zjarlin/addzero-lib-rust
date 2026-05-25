@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq_copy};
 
 /// Supported SQL database dialects for DDL generation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum Dialect {
     /// MySQL / MariaDB.
     MySQL,

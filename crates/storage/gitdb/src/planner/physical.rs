@@ -8,11 +8,12 @@ use std::sync::Arc;
 
 use super::logical::SortSpec;
 use crate::sql::Expr;
+use az_derive_aliases::{apply, plain_clone_debug, plain_copy_eq};
 
 /// Physical execution operators.
 ///
 /// These specify the actual algorithms used to execute the query.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub enum PhysicalOperator {
     /// Sequential table scan.
     SeqScan {
@@ -90,21 +91,21 @@ pub enum PhysicalOperator {
 }
 
 /// Key range for index scans.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct KeyRange {
     pub start: Option<KeyBound>,
     pub end: Option<KeyBound>,
 }
 
 /// Bound for key range.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct KeyBound {
     pub value: String,
     pub inclusive: bool,
 }
 
 /// Physical join types with implementation details.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum JoinPhysicalType {
     Inner,
     LeftOuter,
@@ -114,7 +115,7 @@ pub enum JoinPhysicalType {
 }
 
 /// Physical aggregate expression.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct PhysicalAggregate {
     pub function: AggregatePhysical,
     pub input_column: Option<String>,
@@ -123,7 +124,7 @@ pub struct PhysicalAggregate {
 }
 
 /// Physical aggregate functions.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum AggregatePhysical {
     Count,
     Sum,
@@ -133,7 +134,7 @@ pub enum AggregatePhysical {
 }
 
 /// A physical plan node.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct PhysicalPlanNode {
     pub operator: PhysicalOperator,
     pub children: Vec<Arc<PhysicalPlanNode>>,
@@ -184,7 +185,7 @@ impl PhysicalPlanNode {
 }
 
 /// A complete physical query plan.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct PhysicalPlan {
     pub root: Arc<PhysicalPlanNode>,
 }

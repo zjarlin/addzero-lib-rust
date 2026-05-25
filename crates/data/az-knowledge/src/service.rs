@@ -1,3 +1,4 @@
+use az_derive_aliases::{apply, plain_clone};
 use az_persistence::PersistenceContext;
 use chrono::Utc;
 use sha2::{Digest, Sha256};
@@ -12,12 +13,12 @@ use crate::{
     },
 };
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct KnowledgeService {
     backend: KnowledgeBackend,
 }
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 enum KnowledgeBackend {
     Postgres(KnowledgeRepository),
     Sqlite(SqliteKnowledgeRepository),

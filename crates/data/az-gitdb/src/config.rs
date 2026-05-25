@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
 use crate::error::{GitDbClusterError, GitDbClusterResult};
+use az_derive_aliases::{apply, plain_clone_debug, plain_copy_eq, plain_default_copy_eq};
 
 /// The role a GitDB repository node can serve inside a cluster.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum GitDbNodeRole {
     /// Accept both read and write SQL statements.
     ReadWrite,
@@ -24,7 +25,7 @@ impl GitDbNodeRole {
 }
 
 /// Load-balancing strategy used when more than one node can serve a request.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_default_copy_eq)]
 pub enum GitDbLoadBalanceStrategy {
     /// Rotate eligible nodes in a stable sequence.
     #[default]
@@ -36,7 +37,7 @@ pub enum GitDbLoadBalanceStrategy {
 }
 
 /// Configuration for one Git-backed database node.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct GitDbNodeConfig {
     /// Stable node identifier returned with routed results and errors.
     pub id: String,
@@ -142,7 +143,7 @@ impl GitDbNodeConfig {
 }
 
 /// Configuration for a multi-repository GitDB cluster.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct GitDbClusterConfig {
     /// GitDB repository nodes.
     pub nodes: Vec<GitDbNodeConfig>,

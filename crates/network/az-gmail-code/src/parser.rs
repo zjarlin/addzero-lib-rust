@@ -1,4 +1,5 @@
 use crate::{GmailCodeError, GmailCodeResult, GmailMessage, GmailMessagePart};
+use az_derive_aliases::{apply, plain_copy_eq, plain_eq};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE;
 use regex::Regex;
@@ -18,7 +19,7 @@ static DEFAULT_CODE_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
 });
 
 /// Controls numeric verification-code extraction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct ExtractCodeOptions {
     /// Minimum digit count after separators are removed.
     pub min_digits: usize,
@@ -53,7 +54,7 @@ impl Default for ExtractCodeOptions {
 }
 
 /// Decoded message body candidate inspected for verification codes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct MessageBodyCandidate {
     /// MIME type of the Gmail body part.
     pub mime_type: String,

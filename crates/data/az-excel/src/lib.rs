@@ -31,11 +31,11 @@
 #![forbid(unsafe_code)]
 
 use std::borrow::Cow;
-use std::fmt::{self, Display, Formatter};
 use std::fs::File;
 use std::io::{Cursor, Read, Seek, Write};
 use std::path::{Component, Path, PathBuf};
 
+use az_derive_aliases::{apply, from_display, plain_copy_eq, plain_default_partial_eq, plain_eq, plain_partial_eq};
 use quick_xml::Reader;
 use quick_xml::encoding::EncodingError;
 use quick_xml::escape::EscapeError;
@@ -81,11 +81,19 @@ pub enum ExcelError {
     WorksheetIndexOutOfBounds(usize),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(from_display)]
 pub enum CellValue {
+    #[display("")]
     Empty,
+    #[from(&str)]
+    #[from(String)]
+    #[display("{_0}")]
     String(String),
+    #[from(ignore)]
+    #[display("{_0}")]
     Number(f64),
+    #[from(bool)]
+    #[display("{_0}")]
     Boolean(bool),
 }
 
@@ -95,43 +103,7 @@ impl CellValue {
     }
 
     pub fn as_display_string(&self) -> String {
-        match self {
-            Self::Empty => String::new(),
-            Self::String(value) => value.clone(),
-            Self::Number(value) => {
-                if !value.is_finite() {
-                    value.to_string()
-                } else if value.fract() == 0.0 {
-                    format!("{value:.0}")
-                } else {
-                    value.to_string()
-                }
-            }
-            Self::Boolean(value) => value.to_string(),
-        }
-    }
-}
-
-impl Display for CellValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Empty => Ok(()),
-            Self::String(value) => f.write_str(value),
-            Self::Number(value) => Display::fmt(value, f),
-            Self::Boolean(value) => Display::fmt(value, f),
-        }
-    }
-}
-
-impl From<&str> for CellValue {
-    fn from(value: &str) -> Self {
-        Self::String(value.to_owned())
-    }
-}
-
-impl From<String> for CellValue {
-    fn from(value: String) -> Self {
-        Self::String(value)
+        self.to_string()
     }
 }
 
@@ -145,13 +117,7 @@ impl From<f64> for CellValue {
     }
 }
 
-impl From<bool> for CellValue {
-    fn from(value: bool) -> Self {
-        Self::Boolean(value)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct Range {
     pub start_row: usize,
     pub start_col: usize,
@@ -195,7 +161,7 @@ impl Range {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct ExcelSheet {
     pub name: String,
     pub cells: Vec<Vec<CellValue>>,
@@ -232,7 +198,7 @@ impl ExcelSheet {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[apply(plain_default_partial_eq)]
 pub struct ExcelWorkbook {
     pub sheets: Vec<ExcelSheet>,
 }
@@ -264,7 +230,7 @@ impl ExcelWorkbook {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct ExportSheetConfig {
     pub name: String,
     pub headers: Vec<String>,
@@ -307,7 +273,7 @@ impl From<ExportSheetConfig> for ExcelSheet {
         let mut cells =
             Vec::with_capacity(config.rows.len() + usize::from(!config.headers.is_empty()));
         if !config.headers.is_empty() {
-            cells.push(config.headers.into_iter().map(CellValue::String).collect());
+            cells.push(config.headers.into_iter().map(CellValue::from).collect());
         }
         cells.extend(config.rows);
 
@@ -538,7 +504,7 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_eq)]
 struct WorkbookSheetRef {
     name: String,
     relationship_id: String,
@@ -773,7 +739,7 @@ fn parse_worksheet(name: &str, xml: &str, shared_strings: &[String]) -> ExcelRes
     })
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_eq)]
 struct PendingCell {
     row: usize,
     col: usize,
@@ -833,7 +799,7 @@ fn finalize_cell(cell: PendingCell, shared_strings: &[String]) -> (usize, usize,
             .parse::<usize>()
             .ok()
             .and_then(|index| shared_strings.get(index).cloned())
-            .map(CellValue::String)
+            .map(CellValue::from)
             .unwrap_or(CellValue::Empty),
         Some("b") => CellValue::Boolean(matches!(cell.raw_value.trim(), "1" | "true" | "TRUE")),
         _ => parse_default_cell_value(&cell.raw_value, &cell.inline_text),
@@ -844,7 +810,7 @@ fn finalize_cell(cell: PendingCell, shared_strings: &[String]) -> (usize, usize,
 
 fn parse_default_cell_value(raw_value: &str, inline_text: &str) -> CellValue {
     if !inline_text.is_empty() {
-        return CellValue::String(inline_text.to_owned());
+        return CellValue::from(inline_text);
     }
 
     let trimmed = raw_value.trim();
@@ -855,10 +821,10 @@ fn parse_default_cell_value(raw_value: &str, inline_text: &str) -> CellValue {
         if number.is_finite() {
             return CellValue::Number(number);
         }
-        return CellValue::String(trimmed.to_owned());
+        return CellValue::from(trimmed);
     }
 
-    CellValue::String(trimmed.to_owned())
+    CellValue::from(trimmed)
 }
 
 fn row_index_from_attrs(

@@ -23,35 +23,10 @@
 //! | `CliInstallerKind`  | 包管理器 / 安装方式  |
 //! | `CliImportFormat`   | 导入文件格式         |
 
+use az_derive_aliases::{apply, error_eq, serde_code_default_enum, serde_eq_default};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use macro_rules_attribute::apply;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
-// 将高频契约派生收成浅层 item 包装宏。
-macro_rules! derive_error {
-    ($item:item) => {
-        #[derive(Clone, Debug, Error, PartialEq, Eq)]
-        $item
-    };
-}
-
-macro_rules! derive_snake_case_serde_enum_default {
-    ($item:item) => {
-        #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-        #[serde(rename_all = "snake_case")]
-        $item
-    };
-}
-
-macro_rules! derive_serde_struct_default {
-    ($item:item) => {
-        #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-        $item
-    };
-}
-
-#[apply(derive_snake_case_serde_enum_default)]
+#[apply(serde_code_default_enum)]
 pub enum CliMarketStatus {
     #[default]
     Draft,
@@ -60,25 +35,7 @@ pub enum CliMarketStatus {
     Archived,
 }
 
-impl CliMarketStatus {
-    pub const ALL: [Self; 4] = [
-        Self::Draft,
-        Self::Reviewing,
-        Self::Published,
-        Self::Archived,
-    ];
-
-    pub fn code(self) -> &'static str {
-        match self {
-            Self::Draft => "draft",
-            Self::Reviewing => "reviewing",
-            Self::Published => "published",
-            Self::Archived => "archived",
-        }
-    }
-}
-
-#[apply(derive_snake_case_serde_enum_default)]
+#[apply(serde_code_default_enum)]
 pub enum CliMarketSourceType {
     #[default]
     Manual,
@@ -87,7 +44,7 @@ pub enum CliMarketSourceType {
     SyncExternal,
 }
 
-#[apply(derive_snake_case_serde_enum_default)]
+#[apply(serde_code_default_enum)]
 pub enum CliEntryKind {
     #[default]
     Cli,
@@ -96,27 +53,18 @@ pub enum CliEntryKind {
     Bundle,
 }
 
-#[apply(derive_snake_case_serde_enum_default)]
+#[apply(serde_code_default_enum)]
 pub enum CliLocale {
     #[default]
     #[serde(rename = "zh-CN")]
+    #[strum(serialize = "zh-CN")]
     ZhCn,
     #[serde(rename = "en-US")]
+    #[strum(serialize = "en-US")]
     EnUs,
 }
 
-impl CliLocale {
-    pub const ALL: [Self; 2] = [Self::ZhCn, Self::EnUs];
-
-    pub fn code(self) -> &'static str {
-        match self {
-            Self::ZhCn => "zh-CN",
-            Self::EnUs => "en-US",
-        }
-    }
-}
-
-#[apply(derive_snake_case_serde_enum_default)]
+#[apply(serde_code_default_enum)]
 pub enum CliPlatform {
     Macos,
     Windows,
@@ -125,20 +73,7 @@ pub enum CliPlatform {
     CrossPlatform,
 }
 
-impl CliPlatform {
-    pub const ALL: [Self; 4] = [Self::Macos, Self::Windows, Self::Linux, Self::CrossPlatform];
-
-    pub fn code(self) -> &'static str {
-        match self {
-            Self::Macos => "macos",
-            Self::Windows => "windows",
-            Self::Linux => "linux",
-            Self::CrossPlatform => "cross_platform",
-        }
-    }
-}
-
-#[apply(derive_snake_case_serde_enum_default)]
+#[apply(serde_code_default_enum)]
 pub enum CliInstallerKind {
     Brew,
     Bun,
@@ -152,49 +87,21 @@ pub enum CliInstallerKind {
     Custom,
 }
 
-impl CliInstallerKind {
-    pub const ALL: [Self; 9] = [
-        Self::Brew,
-        Self::Bun,
-        Self::Npm,
-        Self::Cargo,
-        Self::Pipx,
-        Self::Winget,
-        Self::Scoop,
-        Self::Curl,
-        Self::Custom,
-    ];
-
-    pub fn code(self) -> &'static str {
-        match self {
-            Self::Brew => "brew",
-            Self::Bun => "bun",
-            Self::Npm => "npm",
-            Self::Cargo => "cargo",
-            Self::Pipx => "pipx",
-            Self::Winget => "winget",
-            Self::Scoop => "scoop",
-            Self::Curl => "curl",
-            Self::Custom => "custom",
-        }
-    }
-}
-
-#[apply(derive_snake_case_serde_enum_default)]
+#[apply(serde_code_default_enum)]
 pub enum CliImportFormat {
     #[default]
     Json,
     Xlsx,
 }
 
-#[apply(derive_snake_case_serde_enum_default)]
+#[apply(serde_code_default_enum)]
 pub enum CliImportMode {
     #[default]
     Native,
     RegistryCompat,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliLocaleText {
     pub locale: CliLocale,
     pub display_name: String,
@@ -206,7 +113,7 @@ pub struct CliLocaleText {
     pub install_command: String,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliInstallMethod {
     pub id: Option<String>,
     pub platform: CliPlatform,
@@ -217,7 +124,7 @@ pub struct CliInstallMethod {
     pub priority: i32,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliDocRef {
     pub id: Option<String>,
     pub locale: CliLocale,
@@ -228,7 +135,7 @@ pub struct CliDocRef {
     pub summary: String,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketEntry {
     pub id: String,
     pub slug: String,
@@ -251,7 +158,7 @@ pub struct CliMarketEntry {
     pub updated_at: Option<String>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketEntryUpsert {
     pub id: Option<String>,
     pub slug: String,
@@ -272,7 +179,7 @@ pub struct CliMarketEntryUpsert {
     pub raw: serde_json::Value,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketSummary {
     pub total_entries: usize,
     pub published_entries: usize,
@@ -280,14 +187,14 @@ pub struct CliMarketSummary {
     pub categories: usize,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketCatalog {
     pub schema_version: String,
     pub summary: CliMarketSummary,
     pub entries: Vec<CliMarketEntry>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketImportRequest {
     pub format: CliImportFormat,
     pub mode: CliImportMode,
@@ -304,7 +211,7 @@ impl CliMarketImportRequest {
     }
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketImportRowReport {
     pub row_index: usize,
     pub slug: String,
@@ -313,7 +220,7 @@ pub struct CliMarketImportRowReport {
     pub market_id: Option<String>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketImportReport {
     pub job_id: String,
     pub format: CliImportFormat,
@@ -324,7 +231,7 @@ pub struct CliMarketImportReport {
     pub rows: Vec<CliMarketImportRowReport>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketImportJob {
     pub id: String,
     pub file_name: String,
@@ -338,31 +245,31 @@ pub struct CliMarketImportJob {
     pub created_at: Option<String>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketImportJobDetail {
     pub job: CliMarketImportJob,
     pub rows: Vec<CliMarketImportRowReport>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketExportRequest {
     pub only_published: bool,
     pub locale: Option<CliLocale>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketExportArtifact {
     pub file_name: String,
     pub content_type: String,
     pub bytes_base64: String,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketInstallRequest {
     pub method_id: Option<String>,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketInstallResult {
     pub entry_id: String,
     pub slug: String,
@@ -378,7 +285,7 @@ pub struct CliMarketInstallResult {
     pub finished_at: String,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliMarketInstallHistoryItem {
     pub id: String,
     pub entry_id: String,
@@ -394,7 +301,7 @@ pub struct CliMarketInstallHistoryItem {
     pub created_at: String,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 pub struct CliRegistryCompatEntry {
     pub name: String,
     pub display_name: String,
@@ -406,7 +313,7 @@ pub struct CliRegistryCompatEntry {
     pub category: String,
 }
 
-#[apply(derive_serde_struct_default)]
+#[apply(serde_eq_default)]
 #[serde(deny_unknown_fields)]
 pub struct CliSimpleMetadata {
     pub name: String,
@@ -419,7 +326,7 @@ pub struct CliSimpleMetadata {
     pub category: String,
 }
 
-#[apply(derive_error)]
+#[apply(error_eq)]
 pub enum CliMarketContractError {
     #[error("{0}")]
     Message(String),
@@ -442,5 +349,26 @@ impl CliMarketExportArtifact {
         STANDARD
             .decode(self.bytes_base64.as_bytes())
             .map_err(|err| CliMarketContractError::Message(format!("无法解析导出文件：{err}")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CliInstallerKind, CliLocale, CliPlatform};
+
+    #[test]
+    fn code_enums_keep_public_wire_values() {
+        assert_eq!(CliLocale::ZhCn.code(), "zh-CN");
+        assert_eq!(CliLocale::from_code("en-US"), Some(CliLocale::EnUs));
+        assert_eq!(
+            serde_json::to_string(&CliLocale::ZhCn).expect("locale should serialize"),
+            "\"zh-CN\""
+        );
+
+        assert_eq!(CliPlatform::CrossPlatform.code(), "cross_platform");
+        assert_eq!(
+            CliInstallerKind::from_code("brew"),
+            Some(CliInstallerKind::Brew)
+        );
     }
 }

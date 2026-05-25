@@ -33,11 +33,12 @@ let session = client.begin_loopback_authorization(
 )?;
 
 println!("请打开: {}", session.authorization_url);
+let pkce = session.pkce.clone();
 let callback = session.wait_for_callback(std::time::Duration::from_secs(300))?;
 let token = client.exchange_authorization_code(
     &callback.code,
     &callback.redirect_uri,
-    Some(&session.pkce),
+    Some(&pkce),
 )?;
 
 println!("{}", token.require_access_token()?);

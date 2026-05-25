@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq, serde_eq_copy};
 
 /// The kind of relationship between tables.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum RelationKind {
     /// One-to-one (1:1).
     OneToOne,
@@ -14,7 +14,7 @@ pub enum RelationKind {
 }
 
 /// Represents a foreign key relationship between two tables.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct Relation {
     /// Name of this relation (e.g., "fk_user_order").
     pub name: String,

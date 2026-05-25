@@ -4,16 +4,18 @@ use crate::util::{
     trim_non_blank,
 };
 use crate::{ApiConfig, CreatesError, CreatesResult};
+use az_derive_aliases::{
+    apply, deserialize_debug, plain_clone_debug, serde_eq_default, serde_partial_eq_default,
+};
 use chrono::Utc;
 use hmac::{Hmac, Mac};
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HOST};
 use reqwest::{Method, Url};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::Sha256;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct TianyanchaApi {
     authorization: String,
     auth_token: String,
@@ -116,7 +118,7 @@ pub fn create_tianyancha_huawei_api(
     TianyanchaHuaweiApi::new(access_key, secret_key, config)
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct TianyanchaCompanySearchData {
     #[serde(rename = "adviceQuery", default)]
     pub advice_query: Option<Value>,
@@ -142,7 +144,7 @@ pub struct TianyanchaCompanySearchData {
     pub extra: BTreeMap<String, Value>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct TianyanchaCompany {
     #[serde(default)]
     pub id: i64,
@@ -172,7 +174,7 @@ pub struct TianyanchaCompany {
     pub extra: BTreeMap<String, Value>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct TianyanchaCompanyDetail {
     #[serde(default)]
     pub id: i64,
@@ -224,7 +226,7 @@ pub struct TianyanchaCompanyDetail {
     pub extra: BTreeMap<String, Value>,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct TianyanchaHuaweiApi {
     access_key: String,
     secret_key: String,
@@ -326,7 +328,7 @@ impl TianyanchaHuaweiApi {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct TianyanchaHuaweiCompanySearchData {
     #[serde(rename = "companyList", default)]
     pub company_list: Vec<TianyanchaHuaweiCompany>,
@@ -336,7 +338,7 @@ pub struct TianyanchaHuaweiCompanySearchData {
     pub page_info: Option<TianyanchaHuaweiPageInfo>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct TianyanchaHuaweiCompany {
     #[serde(rename = "companyCode", default)]
     pub company_code: String,
@@ -352,7 +354,7 @@ pub struct TianyanchaHuaweiCompany {
     pub legal_person: String,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct TianyanchaHuaweiPageInfo {
     #[serde(rename = "pageIndex", default)]
     pub page_index: String,
@@ -362,7 +364,7 @@ pub struct TianyanchaHuaweiPageInfo {
     pub total_records: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct TianyanchaSearchResponse {
     #[serde(default)]
     data: Option<TianyanchaCompanySearchData>,
@@ -391,7 +393,7 @@ impl TianyanchaSearchResponse {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct TianyanchaDetailResponse {
     #[serde(default)]
     data: Option<TianyanchaCompanyDetail>,
@@ -424,7 +426,7 @@ impl TianyanchaDetailResponse {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct TianyanchaHuaweiResponse {
     #[serde(default)]
     code: i32,
@@ -447,5 +449,47 @@ impl TianyanchaHuaweiResponse {
             "{action} failed: {}",
             self.msg.unwrap_or_else(|| format!("code={}", self.code))
         )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn company_search_data_round_trips_with_extra_fields() {
+        let value = TianyanchaCompanySearchData {
+            advice_query: Some(Value::String("rust".to_owned())),
+            company_count: Some(2),
+            company_human_count: None,
+            company_list: vec![TianyanchaCompany {
+                id: 7,
+                name: "Demo".to_owned(),
+                alias: Some("demo".to_owned()),
+                legal_person_name: Some("Alice".to_owned()),
+                reg_status: Some("active".to_owned()),
+                reg_capital: Some("100".to_owned()),
+                credit_code: Some("ABC".to_owned()),
+                phone_num: None,
+                email_list: vec!["demo@example.com".to_owned()],
+                company_org_type: None,
+                reg_location: Some("Shanghai".to_owned()),
+                logo: None,
+                extra: BTreeMap::from([("custom".to_owned(), Value::String("x".to_owned()))]),
+            }],
+            company_total: Some(2),
+            company_total_page: Some(1),
+            company_total_str: Some("2".to_owned()),
+            human_count: Some(1),
+            modified_query: None,
+            search_content: Some("demo".to_owned()),
+            extra: BTreeMap::from([("trace".to_owned(), Value::String("ok".to_owned()))]),
+        };
+
+        let json = serde_json::to_string(&value).expect("value should serialize");
+        let decoded: TianyanchaCompanySearchData =
+            serde_json::from_str(&json).expect("value should deserialize");
+
+        assert_eq!(value, decoded);
     }
 }

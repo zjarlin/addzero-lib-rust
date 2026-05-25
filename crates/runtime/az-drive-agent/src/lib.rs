@@ -6,6 +6,9 @@
 //! 对本地与远程版本进行对账，并自动写入冲突副本，
 //! 无需手动的 Git 式人工干预。
 
+use az_derive_aliases::{
+    apply, plain_copy_eq, plain_default_copy_eq, plain_eq, serde_eq, serde_eq_copy,
+};
 use az_drive_core::{
     ChangeDecision, EntryKey, RelativePath, RootAlias, RootRegistry, conflict_file_name,
     content_hash, decide_local_change, expand_path_expression, normalize_absolute_path,
@@ -20,7 +23,6 @@ use az_drive_store::{
 use chrono::{DateTime, Utc};
 use fs2::FileExt;
 use ignore::WalkBuilder;
-use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -65,7 +67,7 @@ pub enum DriveAgentError {
 }
 
 /// Agent configuration that is stable across CLI and future AIO embedding.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub struct DriveAgentConfig {
     /// Primary owner Drive namespace.
     pub space_id: String,
@@ -137,7 +139,7 @@ impl DriveAgentConfig {
 }
 
 /// Local root persisted in the device-private state file.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct LocalRootState {
     /// Logical root alias.
     pub alias: String,
@@ -146,7 +148,7 @@ pub struct LocalRootState {
 }
 
 /// Local hosted path mapping persisted on each device.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct HostedPathState {
     /// Device-local absolute path.
     pub local_path: PathBuf,
@@ -169,7 +171,7 @@ pub struct HostedPathState {
 }
 
 /// Local directory root whose descendants are hosted for synchronization.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct HostedRootState {
     /// Device-local absolute directory path.
     pub local_path: PathBuf,
@@ -184,7 +186,7 @@ pub struct HostedRootState {
 }
 
 /// Device-local conflict projection.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct LocalConflictState {
     /// Server conflict id.
     pub id: Uuid,
@@ -195,7 +197,7 @@ pub struct LocalConflictState {
 }
 
 /// Device-private state. This file is not server truth.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct LocalState {
     /// State schema version.
     pub state_version: u32,
@@ -231,7 +233,7 @@ impl LocalState {
 }
 
 /// Summary for CLI status output.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct HostedStatus {
     /// Owner Drive id.
     pub owner_drive_id: String,
@@ -248,7 +250,7 @@ pub struct HostedStatus {
 }
 
 /// Status category for `drive ls` output.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 #[serde(rename_all = "snake_case")]
 pub enum TrackedItemStatus {
     /// Local item is tracked and currently exists.
@@ -266,7 +268,7 @@ pub enum TrackedItemStatus {
 }
 
 /// Provenance for a tracked listing row.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 #[serde(rename_all = "snake_case")]
 pub enum TrackedItemSource {
     /// Device-local state or scan.
@@ -284,7 +286,7 @@ pub enum TrackedItemSource {
 }
 
 /// Options for listing tracked drive paths.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[apply(plain_default_copy_eq)]
 pub struct ListTrackedOptions {
     /// Include remote metadata entries.
     pub include_remote: bool,
@@ -297,7 +299,7 @@ pub struct ListTrackedOptions {
 }
 
 /// Unified row returned by `drive ls`.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct TrackedItem {
     /// Listing status.
     pub status: TrackedItemStatus,
@@ -326,7 +328,7 @@ pub struct TrackedItem {
 }
 
 /// Result status for materializing remote entries onto the current device.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 #[serde(rename_all = "snake_case")]
 pub enum PullRemoteStatus {
     /// Remote bytes were written locally and the file is now hosted.
@@ -346,7 +348,7 @@ pub enum PullRemoteStatus {
 }
 
 /// Options for pulling remote entries onto the current device.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[apply(plain_default_copy_eq)]
 pub struct PullRemoteOptions {
     /// Overwrite a conflicting local file with the remote version.
     pub overwrite: bool,
@@ -355,7 +357,7 @@ pub struct PullRemoteOptions {
 }
 
 /// Result row returned by remote materialization.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PullRemoteItem {
     /// Pull result status.
     pub status: PullRemoteStatus,
@@ -378,7 +380,7 @@ pub struct PullRemoteItem {
 }
 
 /// Conflict resolution action.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub enum ConflictResolution {
     /// Keep the current remote version and only clear the suspension.
     KeepRemote,
@@ -388,7 +390,7 @@ pub enum ConflictResolution {
     UseMerged(PathBuf),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 enum RemoteMaterializeMode {
     All,
     UntrackedOnly,

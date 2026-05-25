@@ -8,10 +8,13 @@ use az_plugin_contract::{
     PluginPackageManifest, PluginPage, RuntimeBinding,
 };
 use az_plugin_runtime::create_package_from_dir;
+use az_derive_aliases::{
+    apply, deserialize_eq, serde_eq, serde_eq_copy, serde_eq_default, serde_partial_eq,
+};
 use chrono::Utc;
 use regex::Regex;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
@@ -29,7 +32,7 @@ const MAX_SKILL_SAMPLE_COUNT: usize = 6;
 const MAX_SKILL_OWNERS: usize = 3;
 const MAX_SKILL_REPOS_PER_OWNER: usize = 2;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 #[serde(rename_all = "snake_case")]
 pub enum MarketSceneDto {
     Cli,
@@ -47,7 +50,7 @@ impl MarketSceneDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct MarketCatalogItemDto {
     pub id: String,
     pub scene: MarketSceneDto,
@@ -66,14 +69,14 @@ pub struct MarketCatalogItemDto {
     pub raw: serde_json::Value,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MarketSceneSummaryDto {
     pub scene: String,
     pub label: String,
     pub count: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct MarketCatalogDto {
     pub generated_at: String,
     pub default_target_dir: String,
@@ -81,26 +84,26 @@ pub struct MarketCatalogDto {
     pub items: Vec<MarketCatalogItemDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct MarketDeployRequestDto {
     pub target_dir: String,
     pub items: Vec<MarketCatalogItemDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct MarketDeployFileDto {
     pub path: String,
     pub kind: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct MarketDeployResultDto {
     pub target_dir: String,
     pub item_count: usize,
     pub files: Vec<MarketDeployFileDto>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[apply(deserialize_eq)]
 struct CliHubProvider {
     name: String,
     display_name: String,

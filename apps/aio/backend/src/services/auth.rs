@@ -4,11 +4,11 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use az_agent_runtime_contract::{LoginRequest, SessionUser};
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq};
 
 use super::skills::LocalBoxFuture;
 
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[apply(error_eq)]
 pub enum AuthServiceError {
     #[error("{0}")]
     Message(String),

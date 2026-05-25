@@ -12,12 +12,14 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+az-derive-aliases.workspace = true
 az-drive-core.workspace = true
 az-rustfs.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 gitdb = { path = "../gitdb" }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+strum.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

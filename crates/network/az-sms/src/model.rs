@@ -1,10 +1,11 @@
 use crate::{SmsError, SmsResult};
+use az_derive_aliases::{apply, plain_copy_eq, serde_eq, serde_partial_eq};
+use serde::Deserialize;
 use serde::de::{self, Deserializer};
-use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 /// Request for a one-time SMS activation number.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SmsActivationRequest {
     /// Provider country code, or provider-specific `any`.
     pub country: String,
@@ -88,7 +89,7 @@ impl SmsActivationRequest {
 }
 
 /// Request for a longer-lived hosted/rented SMS number.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SmsHostingRequest {
     /// Provider country code, or provider-specific `any`.
     pub country: String,
@@ -124,7 +125,7 @@ impl SmsHostingRequest {
 }
 
 /// Provider order state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum SmsOrderStatus {
     /// Provider is preparing the number.
@@ -155,7 +156,7 @@ impl SmsOrderStatus {
 }
 
 /// A single SMS message returned by a provider.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SmsMessage {
     /// Provider SMS ID when supplied.
     #[serde(default, alias = "ID", skip_serializing_if = "Option::is_none")]
@@ -178,7 +179,7 @@ pub struct SmsMessage {
 }
 
 /// SMS provider order data.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct SmsOrder {
     /// Provider order ID.
     pub id: u64,
@@ -214,7 +215,7 @@ pub struct SmsOrder {
 }
 
 /// SMS inbox for providers that expose rented-number inboxes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SmsInbox {
     /// SMS messages returned by the provider.
     #[serde(rename = "Data", default)]
@@ -225,7 +226,7 @@ pub struct SmsInbox {
 }
 
 /// Minimal provider account profile.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct SmsProfile {
     /// Provider account ID.
     pub id: u64,
@@ -243,7 +244,7 @@ pub struct SmsProfile {
 }
 
 /// Polling options used by [`crate::SmsProvider::wait_for_sms`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct WaitForSmsOptions {
     /// Maximum time spent polling.
     pub timeout: Duration,

@@ -22,10 +22,9 @@ use az_assets::{
     AiModelProvider, AiPromptButton, AiProviderKind, AssetKind, AssetProviderSecret,
     PromptRunOutput, SuggestedEdge,
 };
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq, serde_eq};
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct CaptureAssetRequest {
     pub raw_content: String,
     pub target_kind: AssetKind,
@@ -33,13 +32,13 @@ pub struct CaptureAssetRequest {
     pub provider: Option<AiModelProvider>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PromptButtonRun {
     pub prompt: AiPromptButton,
     pub raw_content: String,
 }
 
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[apply(error_eq)]
 pub enum AssetAgentError {
     #[error("采集内容不能为空")]
     EmptyInput,

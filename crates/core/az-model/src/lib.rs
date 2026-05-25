@@ -9,8 +9,8 @@
 //! - [`Pageable`] — 分页请求参数
 //! - [`PageResult`] — 分页响应容器
 
+use az_derive_aliases::{apply, serde_eq};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 
 /// An entity with a primary key of type `Id`.
 pub trait Identifiable {
@@ -65,7 +65,7 @@ pub trait Pageable {
 }
 
 /// A paginated response container.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[apply(serde_eq)]
 pub struct PageResult<T> {
     /// The items on the current page.
     pub items: Vec<T>,

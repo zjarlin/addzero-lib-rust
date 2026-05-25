@@ -1,11 +1,12 @@
 use crate::OAuth2Result;
 use crate::random::random_bytes;
+use az_derive_aliases::{apply, plain_eq};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest, Sha256};
 
 /// RFC 7636 PKCE verifier/challenge pair.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct PkcePair {
     /// High-entropy value sent only to the token endpoint.
     pub code_verifier: String,

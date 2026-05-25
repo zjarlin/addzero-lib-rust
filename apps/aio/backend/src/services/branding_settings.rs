@@ -3,8 +3,7 @@ use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
+use az_derive_aliases::{apply, error_eq, serde_code_default, serde_eq};
 
 use crate::services::logo_storage::StoredLogoDto;
 
@@ -14,8 +13,7 @@ const DEFAULT_SITE_NAME: &str = "MSC_AIO";
 const DEFAULT_BRAND_COPY: &str = "顶部品牌区默认使用 App 图标，可切换为上传品牌资产。";
 const DEFAULT_HEADER_BADGE: &str = "Knowledge Workspace";
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_default)]
 pub enum BrandingLogoSource {
     #[default]
     AppIcon,
@@ -51,7 +49,7 @@ impl BrandingLogoSource {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct BrandingSettingsDto {
     pub site_name: String,
     pub logo_source: BrandingLogoSource,
@@ -72,7 +70,7 @@ impl Default for BrandingSettingsDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct BrandingSettingsUpdate {
     pub site_name: String,
     pub logo_source: BrandingLogoSource,
@@ -93,7 +91,7 @@ impl From<BrandingSettingsDto> for BrandingSettingsUpdate {
     }
 }
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[apply(error_eq)]
 pub enum BrandingSettingsError {
     #[error("{0}")]
     Message(String),

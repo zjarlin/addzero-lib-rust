@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq};
 
 /// Supported SQL column types.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub enum ColumnType {
     /// Boolean type.
     Boolean,
@@ -34,7 +34,7 @@ pub enum ColumnType {
 }
 
 /// Represents a single column in a table.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct Column {
     /// Column name.
     pub name: String,

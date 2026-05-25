@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq};
 
 use crate::{Index, ModelError, Relation, Table};
 
 /// Represents a complete database schema.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct Schema {
     /// Schema or database name.
     pub name: String,

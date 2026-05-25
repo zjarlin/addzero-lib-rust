@@ -19,6 +19,9 @@
 //! ## 安全
 //!
 //! [`DatabaseConfig`] 的 [`std::fmt::Debug`] 实现会对 `jdbc_password` 字段脱敏（`***REDACTED***`）。
+use az_derive_aliases::{
+    apply, plain_default_copy_eq, plain_eq, plain_eq_no_debug, plain_partial_eq,
+};
 use serde::de::DeserializeOwned;
 use serde_yaml::Value;
 use std::env;
@@ -47,13 +50,13 @@ pub enum YmlError {
     CurrentDir(#[source] std::io::Error),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub enum YamlPathSegment {
     Key(String),
     Index(usize),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct YamlPath {
     segments: Vec<YamlPathSegment>,
 }
@@ -117,7 +120,7 @@ impl FromStr for YamlPath {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct YamlDoc {
     value: Value,
 }
@@ -245,7 +248,7 @@ pub fn env_subst(input: impl AsRef<str>) -> String {
     result
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct SpringYaml {
     root: PathBuf,
 }
@@ -322,7 +325,7 @@ impl SpringYaml {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[apply(plain_eq_no_debug)]
 pub struct DatabaseConfig {
     pub jdbc_url: String,
     pub jdbc_username: Option<String>,
@@ -344,7 +347,7 @@ impl std::fmt::Debug for DatabaseConfig {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[apply(plain_default_copy_eq)]
 pub struct DatabaseConfigReader;
 
 impl DatabaseConfigReader {

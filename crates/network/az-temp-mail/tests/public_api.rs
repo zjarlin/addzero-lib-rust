@@ -1,3 +1,4 @@
+use az_derive_aliases::{apply, plain_clone_debug};
 use az_temp_mail::*;
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -223,7 +224,7 @@ fn emailnator_provider_uses_xsrf_cookie_and_message_paths() -> Result<(), Box<dy
     Ok(())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_clone_debug)]
 struct CapturedRequest {
     method: String,
     path: String,
@@ -231,7 +232,7 @@ struct CapturedRequest {
     body: String,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct TestResponse {
     status: u16,
     content_type: &'static str,

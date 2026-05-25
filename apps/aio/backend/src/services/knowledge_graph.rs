@@ -7,17 +7,15 @@ use tokio::sync::OnceCell;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
+use az_derive_aliases::{apply, error_eq, serde_code, serde_eq_default, serde_partial_eq_default};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use sqlx::Row;
-use thiserror::Error;
 
 pub use super::LocalBoxFuture;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeSourceTypeDto {
     Note,
     Chat,
@@ -28,8 +26,7 @@ pub enum KnowledgeSourceTypeDto {
     Ai,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeRawTypeDto {
     RawNote,
     RawChat,
@@ -39,8 +36,7 @@ pub enum KnowledgeRawTypeDto {
     RawAiDraft,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeRawStatusDto {
     Active,
     Covered,
@@ -48,8 +44,7 @@ pub enum KnowledgeRawStatusDto {
     Discarded,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeNodeTypeDto {
     Note,
     Topic,
@@ -60,8 +55,7 @@ pub enum KnowledgeNodeTypeDto {
     Project,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeNodeStatusDto {
     Active,
     Superseded,
@@ -69,16 +63,14 @@ pub enum KnowledgeNodeStatusDto {
     Archived,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeVisibilityDto {
     Default,
     Hidden,
     System,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeEdgeTypeDto {
     SameAs,
     SimilarTo,
@@ -93,8 +85,7 @@ pub enum KnowledgeEdgeTypeDto {
     SupportedByRaw,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeEdgeStatusDto {
     Active,
     Suggested,
@@ -102,8 +93,7 @@ pub enum KnowledgeEdgeStatusDto {
     Hidden,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeEvidenceTypeDto {
     DirectQuote,
     SummarySource,
@@ -111,8 +101,7 @@ pub enum KnowledgeEvidenceTypeDto {
     ConflictSource,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeSuggestionTypeDto {
     MergeNodes,
     ArchiveRaw,
@@ -121,8 +110,7 @@ pub enum KnowledgeSuggestionTypeDto {
     CreateEdge,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeSuggestionStatusDto {
     Pending,
     Applied,
@@ -130,8 +118,7 @@ pub enum KnowledgeSuggestionStatusDto {
     PromotedToException,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeExceptionTypeDto {
     Conflict,
     UncertainMerge,
@@ -139,16 +126,14 @@ pub enum KnowledgeExceptionTypeDto {
     BehaviorAffectingChange,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeExceptionSeverityDto {
     Low,
     Medium,
     High,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeExceptionStatusDto {
     Open,
     Resolved,
@@ -156,8 +141,7 @@ pub enum KnowledgeExceptionStatusDto {
     AutoResolved,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum KnowledgeResolutionDto {
     AcceptA,
     AcceptB,
@@ -167,7 +151,7 @@ pub enum KnowledgeResolutionDto {
     ArchiveRaw,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct KnowledgeNodeSummaryDto {
     pub id: String,
     pub node_type: String,
@@ -180,7 +164,7 @@ pub struct KnowledgeNodeSummaryDto {
     pub updated_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct KnowledgeNodeDetailDto {
     pub id: String,
     pub node_type: String,
@@ -197,7 +181,7 @@ pub struct KnowledgeNodeDetailDto {
     pub metadata: serde_json::Value,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct KnowledgeSourceRefDto {
     pub raw_item_id: String,
     pub source_type: String,
@@ -209,7 +193,7 @@ pub struct KnowledgeSourceRefDto {
     pub updated_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct KnowledgeExceptionCardDto {
     pub id: String,
     pub exception_type: String,
@@ -222,7 +206,7 @@ pub struct KnowledgeExceptionCardDto {
     pub created_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct KnowledgeFeedDto {
     pub items: Vec<KnowledgeNodeSummaryDto>,
     pub total: usize,
@@ -230,7 +214,7 @@ pub struct KnowledgeFeedDto {
     pub warnings: Vec<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct IngestKnowledgeRawInput {
     pub source_type: String,
     pub source_ref: Option<String>,
@@ -240,14 +224,14 @@ pub struct IngestKnowledgeRawInput {
     pub metadata: serde_json::Value,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct ResolveKnowledgeExceptionInput {
     pub resolution: String,
     pub resolved_by: Option<String>,
     pub note: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct KnowledgeMaintenanceReportDto {
     pub raw_items_ingested: usize,
     pub nodes_created: usize,
@@ -257,7 +241,7 @@ pub struct KnowledgeMaintenanceReportDto {
     pub warnings: Vec<String>,
 }
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[apply(error_eq)]
 pub enum KnowledgeGraphError {
     #[error("{0}")]
     Message(String),

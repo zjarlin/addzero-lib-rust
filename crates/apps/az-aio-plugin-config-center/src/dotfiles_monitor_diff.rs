@@ -1,6 +1,8 @@
 use std::ops::RangeInclusive;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+use az_derive_aliases::{apply, plain_eq};
+
+#[apply(plain_eq)]
 pub struct LineChange {
     pub start: usize,
     pub end: usize,

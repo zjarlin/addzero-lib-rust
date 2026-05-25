@@ -17,6 +17,8 @@ name = "gitdb"
 path = "src/lib.rs"
 
 [dependencies]
+az-derive-aliases.workspace = true
+derive_more.workspace = true
 git2 = "0.20.2"
 serde = { version = "1.0.228", features = ["derive"] }
 ulid = "1.2.1"

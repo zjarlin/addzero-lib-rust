@@ -23,6 +23,8 @@
 
 use std::cmp::Ordering;
 
+use az_derive_aliases::{apply, plain_eq};
+
 pub trait AreaNode: Sized {
     fn children(&self) -> &[Self];
     fn children_mut(&mut self) -> &mut Vec<Self>;
@@ -127,7 +129,7 @@ impl<'a, T: AreaNode> Iterator for AreaIter<'a, T> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 enum VersionToken {
     Numeric(u64),
     Text(String),

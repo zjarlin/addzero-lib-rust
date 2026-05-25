@@ -2,7 +2,7 @@ use az_excel::*;
 use std::io::Cursor;
 
 fn string_cell(value: &str) -> CellValue {
-    CellValue::String(value.to_owned())
+    CellValue::from(value)
 }
 
 #[test]

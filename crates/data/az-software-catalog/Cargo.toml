@@ -7,8 +7,9 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-macro_rules_attribute.workspace = true
+az-derive-aliases.workspace = true
 serde = { workspace = true, features = ["derive"] }
+strum.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 

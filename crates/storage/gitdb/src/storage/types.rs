@@ -1,14 +1,16 @@
 //! core type-safe wrappers around git primitives for the storage layer.
 
+use az_derive_aliases::{
+    apply, plain_copy_eq, plain_copy_eq_hash, plain_eq, plain_eq_hash, serde_eq_hash,
+};
 use git2::Oid;
-use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Formatter;
 use std::path::PathBuf;
 
 /// This makes sure we don't accidentally pass a blob ID where a commit ID
 /// is expected. The inner Oid is only accessible within the storage module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[apply(plain_copy_eq_hash)]
 pub struct CommitId(pub(crate) Oid);
 
 impl CommitId {
@@ -38,7 +40,7 @@ impl fmt::Display for CommitId {
 }
 
 /// Git blob identifier
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[apply(plain_copy_eq_hash)]
 pub struct BlobId(pub(crate) Oid);
 
 impl BlobId {
@@ -51,13 +53,13 @@ impl BlobId {
 }
 
 impl fmt::Display for BlobId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
 /// Git tree identifier
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[apply(plain_copy_eq_hash)]
 pub struct TreeId(pub(crate) Oid);
 
 impl TreeId {
@@ -71,7 +73,7 @@ impl TreeId {
 }
 
 impl fmt::Display for TreeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
@@ -86,7 +88,7 @@ impl fmt::Display for TreeId {
 /// - Alphanumeric, underscores, hyphens only
 /// - Must start with a letter or underscore
 /// - Cannot be reserved names (_schema, _meta, etc.)
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[apply(serde_eq_hash)]
 pub struct TableName(String);
 
 impl TableName {
@@ -143,15 +145,15 @@ impl TableName {
     }
 }
 
-impl fmt::Display for TableName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 impl AsRef<str> for TableName {
     fn as_ref(&self) -> &str {
         &self.0
+    }
+}
+
+impl fmt::Display for TableName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -159,7 +161,7 @@ impl AsRef<str> for TableName {
 ///
 /// row keys are used as filenames, so they have similar restrictions
 /// to table names but are typically auto generated (ULIDs, UUIDs)
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[apply(serde_eq_hash)]
 pub struct RowKey(String);
 
 impl RowKey {
@@ -208,22 +210,22 @@ impl RowKey {
     }
 }
 
-impl fmt::Display for RowKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 impl AsRef<str> for RowKey {
     fn as_ref(&self) -> &str {
         &self.0
     }
 }
 
+impl fmt::Display for RowKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Full path to a row in the repository.
 ///
-/// Format: `{table}/{row_key}. json`
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Format: `{table}/{row_key}.json`
+#[apply(plain_eq)]
 pub struct RowPath {
     pub table: TableName,
     pub key: RowKey,
@@ -237,7 +239,7 @@ impl RowPath {
 
     /// convert to a PathBuf for filesystem operations
     pub fn to_path_buf(&self) -> PathBuf {
-        PathBuf::from(format!("{}/{}. json", self.table, self.key))
+        PathBuf::from(format!("{}/{}.json", self.table, self.key))
     }
 
     /// get the path as a string
@@ -247,13 +249,13 @@ impl RowPath {
 }
 
 impl fmt::Display for RowPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}. json", self.table, self.key)
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}.json", self.table, self.key)
     }
 }
 
 /// a branch name, with special handling for transaction branches
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[apply(plain_eq_hash)]
 pub struct BranchName(String);
 
 impl BranchName {
@@ -312,13 +314,13 @@ impl BranchName {
 }
 
 impl fmt::Display for BranchName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
 /// git signature (author/committer info)
-#[derive(Debug, Clone)]
+#[apply(plain_eq)]
 pub struct GitSignature {
     pub name: String,
     pub email: String,
@@ -351,7 +353,7 @@ impl Default for GitSignature {
 }
 
 /// error type for invalid names (tables, rows, branches)
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub enum InvalidNameError {
     Empty,
     TooLong(usize),
@@ -362,7 +364,7 @@ pub enum InvalidNameError {
 }
 
 impl fmt::Display for InvalidNameError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Empty => write!(f, "name cannot be empty"),
             Self::TooLong(len) => write!(f, "name too long: {} characters", len),
@@ -379,14 +381,14 @@ impl fmt::Display for InvalidNameError {
 impl std::error::Error for InvalidNameError {}
 
 /// represents a change in a diff between commits
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct Change {
     pub path: PathBuf,
     pub status: ChangeStatus,
 }
 
 /// the type of change in a diff
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum ChangeStatus {
     Added,
     Deleted,

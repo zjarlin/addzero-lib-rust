@@ -35,12 +35,12 @@
 //!
 //! send_with_config(&config, &message).unwrap();
 //! ```
+use az_derive_aliases::{apply, plain_clone_debug};
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::transport::smtp::client::{Tls, TlsParameters};
 use lettre::{Message, SmtpTransport, Transport};
-use std::fmt;
 use std::fs;
 use std::path::Path;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -256,7 +256,7 @@ pub trait EmailSender: Send + Sync {
     fn send(&self, message: &EmailMessage) -> Result<(), EmailError>;
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct SmtpEmailSender {
     config: EmailConfig,
     transport: SmtpTransport,

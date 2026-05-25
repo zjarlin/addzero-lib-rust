@@ -7,6 +7,7 @@ use az_assets::{
     AiModelProvider, AiModelProviderUpsert, AiProviderKind, Asset, AssetGraph, AssetKind,
     AssetUpsert,
 };
+use az_derive_aliases::{apply, plain_copy_eq, plain_default_eq, plain_eq};
 use az_drive_agent::{
     HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem, TrackedItem,
 };
@@ -47,26 +48,26 @@ pub type DesktopPlugin = dyn Plugin<
         DesktopRenderLayer,
     >;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 pub enum EventPropagation {
     Continue,
     Stop,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[apply(plain_copy_eq)]
 pub enum DesktopRenderLayer {
     Main,
     Inspector,
     Overlay,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 pub enum DesktopPageRole {
     Owner,
     Contributor,
 }
 
-#[derive(Clone, Debug, Default)]
+#[apply(plain_default_eq)]
 pub struct DesktopContributions {
     pub domains: Vec<DesktopDomainRegistration>,
     pub branches: Vec<DesktopBranchRegistration>,
@@ -76,7 +77,7 @@ pub struct DesktopContributions {
     pub commands: Vec<DesktopCommandRegistration>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[apply(plain_default_eq)]
 pub struct DesktopInitContext {
     current_plugin: Option<String>,
     contributions: DesktopContributions,
@@ -241,7 +242,7 @@ impl DesktopInitContext {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub struct DesktopDomainRegistration {
     pub plugin_name: String,
     pub id: String,
@@ -250,7 +251,7 @@ pub struct DesktopDomainRegistration {
     pub default_route: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub struct DesktopBranchRegistration {
     pub plugin_name: String,
     pub id: String,
@@ -260,7 +261,7 @@ pub struct DesktopBranchRegistration {
     pub order: i32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub struct DesktopPageRegistration {
     pub plugin_name: String,
     pub id: String,
@@ -273,7 +274,7 @@ pub struct DesktopPageRegistration {
     pub role: DesktopPageRole,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub struct DesktopToolbarActionRegistration {
     pub plugin_name: String,
     pub route: Option<String>,
@@ -284,7 +285,7 @@ pub struct DesktopToolbarActionRegistration {
     pub primary: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub struct DesktopSummaryCardRegistration {
     pub plugin_name: String,
     pub card_id: String,
@@ -294,7 +295,7 @@ pub struct DesktopSummaryCardRegistration {
     pub order: i32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub struct DesktopCommandRegistration {
     pub plugin_name: String,
     pub command_id: String,
@@ -305,7 +306,7 @@ pub struct DesktopCommandRegistration {
 ///
 /// The registry is built from plugin setup contributions so the desktop shell
 /// can render domain and context trees without hardcoding app-specific routes.
-#[derive(Clone, Debug)]
+#[apply(plain_eq)]
 pub struct DesktopHostRegistry {
     domains: Vec<DesktopDomainRegistration>,
     branches: Vec<DesktopBranchRegistration>,
@@ -508,7 +509,7 @@ fn sort_summary_cards(
     cards
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[apply(plain_default_eq)]
 pub struct DesktopShellSnapshot {
     pub current_route: String,
     pub current_domain_id: Option<String>,
@@ -517,7 +518,7 @@ pub struct DesktopShellSnapshot {
     pub notice: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub enum DesktopEvent {
     Startup,
     RouteChanged {
@@ -541,7 +542,7 @@ pub enum DesktopEvent {
     },
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[apply(plain_default_eq)]
 pub struct DesktopExecFeedback {
     pub notice: Option<String>,
     pub selected_entity: Option<Option<String>>,
@@ -590,12 +591,12 @@ impl DesktopExecContext {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[apply(plain_default_eq)]
 pub struct DesktopViewContext {
     pub shell: DesktopShellSnapshot,
 }
 
-#[derive(Clone, Debug, Default)]
+#[apply(plain_default_eq)]
 pub struct DesktopDriveSnapshot {
     pub roots: Vec<LocalRootState>,
     pub hosted: Vec<HostedStatus>,
@@ -604,7 +605,7 @@ pub struct DesktopDriveSnapshot {
     pub queue: Vec<DriveSyncQueueItem>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[apply(plain_default_eq)]
 pub struct DesktopProviderTestResult {
     pub provider: String,
     pub ok: bool,

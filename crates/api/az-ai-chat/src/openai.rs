@@ -1,7 +1,7 @@
 //! OpenAI-compatible chat client implementation.
 
+use az_derive_aliases::{apply, deserialize_debug, serialize_debug};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 
 use crate::{ChatClient, ChatError, ChatOptions, ChatResponse, ChatResult, Message, Role, Usage};
 
@@ -45,7 +45,7 @@ impl OpenAiClient {
     }
 }
 
-#[derive(Serialize)]
+#[apply(serialize_debug)]
 struct OpenAiRequest<'a> {
     model: &'a str,
     messages: Vec<OpenAiMessage<'a>>,
@@ -59,31 +59,31 @@ struct OpenAiRequest<'a> {
     stop: Option<&'a Vec<String>>,
 }
 
-#[derive(Serialize)]
+#[apply(serialize_debug)]
 struct OpenAiMessage<'a> {
     role: &'a str,
     content: &'a str,
 }
 
-#[derive(Deserialize)]
+#[apply(deserialize_debug)]
 struct OpenAiResponse {
     model: Option<String>,
     choices: Option<Vec<OpenAiChoice>>,
     usage: Option<OpenAiUsage>,
 }
 
-#[derive(Deserialize)]
+#[apply(deserialize_debug)]
 struct OpenAiChoice {
     message: Option<OpenAiChoiceMessage>,
     finish_reason: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[apply(deserialize_debug)]
 struct OpenAiChoiceMessage {
     content: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[apply(deserialize_debug)]
 struct OpenAiUsage {
     prompt_tokens: u32,
     completion_tokens: u32,

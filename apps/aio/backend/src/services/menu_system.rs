@@ -1,9 +1,10 @@
+use az_derive_aliases::{apply, serde_eq};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool, Row};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[apply(serde_eq)]
+#[derive(FromRow)]
 pub struct Menu {
     pub id: Uuid,
     pub route_path: String,
@@ -17,14 +18,14 @@ pub struct Menu {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct MenuTreeNode {
     #[serde(flatten)]
     pub menu: Menu,
     pub children: Vec<MenuTreeNode>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct CreateMenuRequest {
     pub route_path: String,
     pub title: String,
@@ -35,7 +36,7 @@ pub struct CreateMenuRequest {
     pub metadata: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct UpdateMenuRequest {
     pub title: Option<String>,
     pub icon: Option<String>,
@@ -45,7 +46,8 @@ pub struct UpdateMenuRequest {
     pub metadata: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[apply(serde_eq)]
+#[derive(FromRow)]
 pub struct Permission {
     pub id: Uuid,
     pub name: String,

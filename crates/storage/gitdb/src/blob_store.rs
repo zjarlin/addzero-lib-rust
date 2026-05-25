@@ -8,6 +8,7 @@
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
+use az_derive_aliases::{apply, serde_eq};
 use git2::{ErrorCode, IndexAddOption, Repository, Signature, StatusOptions};
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +23,7 @@ const CONTROL_DIR: &str = "control";
 const SHARDS_DIR: &str = "shards";
 
 /// Configuration for the sharded blob store.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct BlobStoreConfig {
     /// Root directory holding shard repositories and control metadata.
     pub root: PathBuf,
@@ -47,7 +48,7 @@ impl BlobStoreConfig {
 }
 
 /// Persisted metadata for a blob shard.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct BlobShardInfo {
     /// Stable shard name.
     pub name: String,
@@ -59,7 +60,7 @@ pub struct BlobShardInfo {
     pub used_bytes: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct BlobIndexRecord {
     shard_name: String,
 }

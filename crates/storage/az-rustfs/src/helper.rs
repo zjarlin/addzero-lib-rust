@@ -4,6 +4,7 @@ use crate::progress::{
     PartStatus, UploadProgress, UploadProgressData, UploadStatus, UploadStatusType, now_millis,
 };
 use crate::types::ObjectMetadata;
+use az_derive_aliases::{apply, plain_eq, plain_partial_eq};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -11,7 +12,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::thread;
 
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub enum RustfsResult {
     Success {
         message: String,
@@ -443,7 +444,7 @@ pub fn build_list_request(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct ListRequest {
     pub bucket_name: String,
     pub prefix: Option<String>,

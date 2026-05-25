@@ -2,6 +2,7 @@
 
 use crate::session::BrowserSession;
 use crate::{BrowserAutomationError, BrowserAutomationResult};
+use az_derive_aliases::{apply, plain_eq};
 use regex::Regex;
 use std::path::PathBuf;
 
@@ -27,7 +28,7 @@ pub trait RegistrationFlow: Send + Sync {
 }
 
 /// Result returned by a [`RegistrationFlow`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct RegistrationResult {
     /// Target service name.
     pub service: String,

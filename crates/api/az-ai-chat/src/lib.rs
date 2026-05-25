@@ -20,7 +20,7 @@
 //! # }
 //! ```
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_code, serde_eq, serde_partial_eq_default};
 use thiserror::Error;
 
 mod openai;
@@ -55,8 +55,7 @@ pub enum ChatError {
 pub type ChatResult<T> = Result<T, ChatError>;
 
 /// The role of a message participant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[apply(serde_code)]
 pub enum Role {
     /// System prompt (instructions to the model).
     System,
@@ -67,7 +66,7 @@ pub enum Role {
 }
 
 /// A single chat message.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct Message {
     /// The role of the message sender.
     pub role: Role,
@@ -102,7 +101,7 @@ impl Message {
 }
 
 /// Optional parameters for chat completion.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct ChatOptions {
     /// Sampling temperature (0.0–2.0). Higher = more random.
     pub temperature: Option<f64>,
@@ -134,7 +133,7 @@ impl ChatOptions {
 }
 
 /// The response from a chat completion.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ChatResponse {
     /// The model's text reply.
     pub content: String,
@@ -147,7 +146,7 @@ pub struct ChatResponse {
 }
 
 /// Token usage statistics.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct Usage {
     /// Number of tokens in the prompt.
     pub prompt_tokens: u32,

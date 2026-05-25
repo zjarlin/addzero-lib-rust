@@ -1,4 +1,5 @@
 use crate::{GmailCodeError, GmailCodeResult};
+use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use std::time::Duration;
 
 const DEFAULT_GMAIL_API_BASE_URL: &str = "https://gmail.googleapis.com/gmail/v1/";
@@ -9,7 +10,7 @@ const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 const DEFAULT_MAX_RESULTS: u32 = 10;
 
 /// Configuration for authorized Gmail API requests.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct GmailCodeConfig {
     /// Gmail API OAuth access token for a mailbox controlled by the caller.
     pub access_token: String,
@@ -61,7 +62,7 @@ impl GmailCodeConfig {
 }
 
 /// Builder for [`GmailCodeConfig`].
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct GmailCodeConfigBuilder {
     config: GmailCodeConfig,
 }
@@ -110,7 +111,7 @@ impl GmailCodeConfigBuilder {
 }
 
 /// Search parameters for finding Gmail verification-code messages.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct GmailCodeQuery {
     /// Raw Gmail search expression appended after structured filters.
     pub query: Option<String>,

@@ -29,14 +29,20 @@
 //!
 //! ```rust
 //! use az_remote_protocol::{ControlFrame, DeviceHello, StreamKind};
-//! use az_remote_model::DeviceDescriptor;
+//! use az_remote_model::{DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability};
+//! use chrono::Utc;
+//! use uuid::Uuid;
 //!
 //! let hello = DeviceHello {
 //!     device: DeviceDescriptor {
-//!         id: "device-001".into(),
-//!         name: "我的电脑".into(),
-//!         os: "Linux".into(),
-//!         ..Default::default()
+//!         device_id: Uuid::new_v4(),
+//!         device_name: "我的电脑".into(),
+//!         platform: RemotePlatform::LinuxX11,
+//!         role: DeviceRole::Host,
+//!         capabilities: SessionCapability::full_host(),
+//!         online_status: OnlineStatus::Online,
+//!         last_seen_at: Utc::now(),
+//!         notes: None,
 //!     },
 //!     relay_token: "secret-token".into(),
 //! };
@@ -50,11 +56,11 @@
 
 use std::fmt;
 
+use az_derive_aliases::{apply, serde_eq, serde_eq_copy, serde_eq_no_debug};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, FileTransferEnvelope, RemoteInputEvent, SessionGrant,
     SessionRequest, VideoFrameEnvelope,
 };
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub type ProtocolResult<T> = Result<T, ProtocolError>;
@@ -65,7 +71,7 @@ pub enum ProtocolError {
     Serialize(#[from] serde_json::Error),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum StreamKind {
     Control,
     Video,
@@ -74,7 +80,7 @@ pub enum StreamKind {
     File,
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_no_debug)]
 pub struct DeviceHello {
     pub device: DeviceDescriptor,
     pub relay_token: String,
@@ -90,35 +96,35 @@ impl fmt::Debug for DeviceHello {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SessionOffer {
     pub request: SessionRequest,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SessionAccept {
     pub grant: SessionGrant,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PermissionGrant {
     pub accepted: bool,
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct FileChunk {
     pub envelope: FileTransferEnvelope,
     pub bytes: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct VideoChunk {
     pub envelope: VideoFrameEnvelope,
     pub bytes: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub enum ControlFrame {
     Hello(DeviceHello),
     DeviceSnapshot(Vec<DeviceDescriptor>),

@@ -1,4 +1,5 @@
 use crate::{CodexAuthSupportError, CodexAuthSupportResult};
+use az_derive_aliases::{apply, plain_eq_no_debug};
 use std::fmt;
 use std::time::Duration;
 
@@ -12,7 +13,7 @@ const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 /// `auth_token` accepts either a DuckMail bearer token or a `dk_` API key.
 /// Both are transmitted with `Authorization: Bearer ...`, matching DuckMail's
 /// documented API behavior.
-#[derive(Clone, PartialEq, Eq)]
+#[apply(plain_eq_no_debug)]
 pub struct DuckMailConfig {
     pub base_url: String,
     pub auth_token: Option<String>,
@@ -120,7 +121,7 @@ impl DuckMailConfig {
 }
 
 /// Configuration for uploading generated auth JSON files to a CLIProxyAPI management endpoint.
-#[derive(Clone, PartialEq, Eq)]
+#[apply(plain_eq_no_debug)]
 pub struct CpaUploadConfig {
     pub upload_url: String,
     pub bearer_token: Option<String>,

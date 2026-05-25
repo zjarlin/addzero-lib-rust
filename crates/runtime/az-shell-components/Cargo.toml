@@ -9,6 +9,7 @@ description = "Shell 组件（export、alias、function、snippet）的校验与
 
 [dependencies]
 az-config-center-contract.workspace = true
+az-derive-aliases.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

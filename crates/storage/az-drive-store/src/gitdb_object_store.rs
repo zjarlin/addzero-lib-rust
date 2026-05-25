@@ -1,14 +1,14 @@
 use async_trait::async_trait;
 use gitdb::blob_store::{BlobShardInfo, BlobStoreConfig, ShardedBlobStore};
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::{DriveObjectStore, DriveStoreError, DriveStoreResult};
+use az_derive_aliases::{apply, serde_eq};
 
 pub use gitdb::blob_store::{DEFAULT_BLOB_SHARD_PREFIX, DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES};
 
 /// Configuration for the GitDB-backed object store.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct GitDbObjectStoreConfig {
     pub root: PathBuf,
     #[serde(default = "default_gitdb_shard_limit_bytes")]

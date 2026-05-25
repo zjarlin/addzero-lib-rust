@@ -1,12 +1,11 @@
 use std::rc::Rc;
 
+use az_derive_aliases::{apply, error_eq, serde_eq, serde_eq_default};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 pub use super::LocalBoxFuture;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub enum SkillSourceDto {
     Postgres,
     #[default]
@@ -14,7 +13,7 @@ pub enum SkillSourceDto {
     Both,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SkillDto {
     pub name: String,
     pub keywords: Vec<String>,
@@ -25,7 +24,7 @@ pub struct SkillDto {
     pub source: SkillSourceDto,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct SkillUpsertDto {
     pub name: String,
     pub keywords: Vec<String>,
@@ -33,7 +32,7 @@ pub struct SkillUpsertDto {
     pub body: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct SyncReportDto {
     pub added_to_fs: Vec<String>,
     pub added_to_pg: Vec<String>,
@@ -45,7 +44,7 @@ pub struct SyncReportDto {
     pub fs_root: String,
 }
 
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[apply(error_eq)]
 pub enum SkillServiceError {
     #[error("{0}")]
     Message(String),

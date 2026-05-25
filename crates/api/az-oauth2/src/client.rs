@@ -4,6 +4,7 @@ use crate::model::{OAuth2DeviceAuthorization, OAuth2DeviceTokenPoll, OAuth2Token
 use crate::{
     OAuth2Config, OAuth2Error, OAuth2Result, PkcePair, generate_pkce_pair, generate_state,
 };
+use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
 use serde::de::DeserializeOwned;
@@ -16,7 +17,7 @@ const REFRESH_TOKEN_GRANT_TYPE: &str = "refresh_token";
 const DEVICE_CODE_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:device_code";
 
 /// Blocking OAuth2 client for authorization-code, refresh-token, and device flows.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct OAuth2Client {
     config: OAuth2Config,
     authorization_url: Url,
@@ -297,7 +298,7 @@ impl OAuth2Client {
 }
 
 /// Built authorization URL and the material needed for token exchange.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct AuthorizationRequest {
     /// URL the user should open in the system browser.
     pub authorization_url: String,

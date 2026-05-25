@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
+use az_derive_aliases::{apply, plain_clone};
 use az_persistence::PersistenceContext;
 use chrono::Utc;
 use tokio::sync::Mutex;
@@ -24,7 +25,7 @@ struct MemoryStore {
     prompts: BTreeMap<Uuid, AiPromptButton>,
 }
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct AssetService {
     pg: Option<PgRepo>,
     memory: Arc<Mutex<MemoryStore>>,

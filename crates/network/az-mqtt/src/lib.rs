@@ -45,11 +45,11 @@
 //! ```
 #![forbid(unsafe_code)]
 
+use az_derive_aliases::{apply, plain_copy_eq, plain_eq, plain_eq_no_debug};
 use rumqttc::{
     Client, ClientError, Connection, Event, LastWill, MqttOptions, Packet, QoS, RecvTimeoutError,
     SubscribeFilter, Transport,
 };
-use std::fmt;
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -89,7 +89,7 @@ pub enum MqttError {
     BackgroundThreadPanicked,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum MqttQoS {
     AtMostOnce,
     AtLeastOnce,
@@ -116,7 +116,7 @@ impl From<QoS> for MqttQoS {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct MqttMessage {
     pub topic: String,
     pub payload: Vec<u8>,
@@ -171,7 +171,7 @@ impl MqttMessage {
 
 pub type MqttMessageBuilder = MqttMessage;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct MqttReceivedMessage {
     pub topic: String,
     pub payload: Vec<u8>,
@@ -187,7 +187,7 @@ impl MqttReceivedMessage {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct MqttSubscription {
     pub topic_filter: String,
     pub qos: MqttQoS,
@@ -211,7 +211,7 @@ impl MqttSubscription {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[apply(plain_eq_no_debug)]
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,

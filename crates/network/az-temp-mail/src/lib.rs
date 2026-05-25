@@ -49,6 +49,8 @@ mod model;
 mod provider;
 mod util;
 
+use az_derive_aliases::{apply, plain_default_copy_eq};
+
 pub use client::{CloudflareTempMailApi, TempMailApi, create_temp_mail_api};
 pub use cloudflare::CloudflareTempMailContext;
 pub use config::{ApiConfig, ApiConfigBuilder};
@@ -67,7 +69,7 @@ pub use model::{
 pub use provider::TempMailProvider;
 
 /// Namespace-style entry point for constructing temp-mail clients.
-#[derive(Debug, Clone, Copy, Default)]
+#[apply(plain_default_copy_eq)]
 pub struct TempMail;
 
 impl TempMail {

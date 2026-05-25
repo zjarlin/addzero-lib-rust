@@ -1,8 +1,11 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{
+    apply, deserialize_eq, deserialize_partial_eq, plain_copy_eq, plain_copy_eq_hash, plain_eq,
+    serde_partial_eq, serialize_eq,
+};
 use serde_json::Value;
 
 /// Supported concrete temporary email providers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[apply(plain_copy_eq_hash)]
 pub enum TempMailProviderKind {
     /// Self-hosted Cloudflare Worker from `dreamhunter2333/cloudflare_temp_email`.
     Cloudflare,
@@ -13,7 +16,7 @@ pub enum TempMailProviderKind {
 }
 
 /// Pagination used by list endpoints. Values are normalized to common provider limits.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct PageRequest {
     pub limit: usize,
     pub offset: usize,
@@ -46,7 +49,7 @@ impl Default for PageRequest {
 }
 
 /// Provider-neutral request for creating a mailbox.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct CreateMailboxRequest {
     /// Preferred local part. Providers may sanitize it or generate a random one.
     pub name: Option<String>,
@@ -117,7 +120,7 @@ impl CreateMailboxRequest {
 }
 
 /// Public settings returned by `/open_api/settings`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct TempMailSettings {
     #[serde(default)]
@@ -170,7 +173,7 @@ pub struct TempMailSettings {
 }
 
 /// Request body for `/api/new_address`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct NewAddressRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -231,7 +234,7 @@ impl From<&CreateMailboxRequest> for NewAddressRequest {
 }
 
 /// Address credential returned by `/api/new_address` and `/api/address_login`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(deserialize_eq)]
 pub struct AddressCredential {
     pub jwt: String,
     pub address: String,
@@ -241,7 +244,7 @@ pub struct AddressCredential {
 }
 
 /// Provider-neutral mailbox credential.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct TempMailMailbox {
     pub provider: TempMailProviderKind,
     pub address: String,
@@ -279,7 +282,7 @@ impl TempMailMailbox {
 }
 
 /// Address settings returned by `/api/settings`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(deserialize_eq)]
 pub struct AddressSettings {
     pub address: String,
     #[serde(default)]
@@ -287,8 +290,8 @@ pub struct AddressSettings {
 }
 
 /// Paginated response shape used by the Cloudflare Temp Email worker.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(bound(deserialize = "T: Deserialize<'de>"))]
+#[apply(deserialize_eq)]
+#[serde(bound(deserialize = "T: ::serde::Deserialize<'de>"))]
 pub struct ListResponse<T> {
     #[serde(default)]
     pub results: Vec<T>,
@@ -297,7 +300,7 @@ pub struct ListResponse<T> {
 }
 
 /// Raw mailbox row from `/api/mails`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(deserialize_eq)]
 pub struct MailRow {
     pub id: u64,
     #[serde(default)]
@@ -317,7 +320,7 @@ pub struct MailRow {
 }
 
 /// Provider-neutral message summary.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct TempMailMessageSummary {
     pub id: String,
     pub from_address: String,
@@ -341,7 +344,7 @@ impl From<MailRow> for TempMailMessageSummary {
 }
 
 /// Provider-neutral message detail.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct TempMailMessageDetail {
     pub id: String,
     pub from_address: String,
@@ -380,14 +383,14 @@ impl From<MailRow> for TempMailMessageDetail {
 }
 
 /// Provider-neutral email recipient.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct TempMailRecipient {
     pub address: String,
     pub name: String,
 }
 
 /// Parsed mailbox row from `/api/parsed_mails`.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[apply(deserialize_partial_eq)]
 pub struct ParsedMailRow {
     pub id: u64,
     #[serde(default)]
@@ -413,7 +416,7 @@ pub struct ParsedMailRow {
 }
 
 /// Parsed attachment metadata returned by `/api/parsed_mails`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(deserialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ParsedMailAttachment {
     #[serde(default)]
@@ -427,7 +430,7 @@ pub struct ParsedMailAttachment {
 }
 
 /// Request body for `/api/send_mail`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[apply(serialize_eq)]
 pub struct SendMailRequest {
     pub from_name: String,
     pub to_mail: String,
@@ -486,7 +489,7 @@ impl SendMailRequest {
 }
 
 /// Generic success response returned by mutation endpoints.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[apply(deserialize_eq)]
 pub struct SuccessResponse {
     #[serde(default)]
     pub success: bool,
@@ -495,7 +498,7 @@ pub struct SuccessResponse {
 }
 
 /// Login request for address-password deployments.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[apply(serialize_eq)]
 pub struct AddressLoginRequest {
     pub email: String,
     pub password: String,

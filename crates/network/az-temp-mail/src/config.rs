@@ -1,9 +1,10 @@
 use crate::{TempMailError, TempMailResult};
+use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
 /// HTTP configuration for a Cloudflare Temp Email worker deployment.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct ApiConfig {
     /// Base URL of the deployed worker, for example `https://mail.example.com`.
     pub base_url: String,
@@ -51,7 +52,7 @@ impl ApiConfig {
 }
 
 /// Builder for [`ApiConfig`].
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct ApiConfigBuilder {
     base_url: String,
     connect_timeout: Duration,

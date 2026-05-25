@@ -8,6 +8,7 @@ authors.workspace = true
 description = "SMS provider abstraction and 5sim API client"
 
 [dependencies]
+az-derive-aliases.workspace = true
 async-trait.workspace = true
 reqwest.workspace = true
 serde.workspace = true

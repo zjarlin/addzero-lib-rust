@@ -6,12 +6,13 @@
 use crate::BrowserAutomationResult;
 use crate::registration::{RegistrationFlow, RegistrationResult, extract_verification_code};
 use crate::session::BrowserSession;
+use az_derive_aliases::{apply, plain_default_copy_eq};
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider};
 use std::thread;
 use std::time::Duration;
 
 /// Registration flow descriptor for Kiro via AWS Builder ID.
-#[derive(Debug, Clone, Copy, Default)]
+#[apply(plain_default_copy_eq)]
 pub struct KiroRegistrationFlow;
 
 impl KiroRegistrationFlow {

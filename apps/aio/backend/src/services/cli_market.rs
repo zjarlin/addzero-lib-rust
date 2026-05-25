@@ -16,17 +16,16 @@ use az_cli_market_contract::{
     CliMarketSourceType, CliMarketStatus, CliMarketSummary, CliPlatform, CliRegistryCompatEntry,
     CliSimpleMetadata,
 };
+use az_derive_aliases::{apply, error_eq, serde_eq_default};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
 #[cfg(not(target_arch = "wasm32"))]
 use quick_xml::{Reader, events::Event};
-use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use sqlx::{
     Row,
     postgres::{PgPool, PgPoolOptions},
 };
-use thiserror::Error;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::process::Command;
 #[cfg(not(target_arch = "wasm32"))]
@@ -36,7 +35,7 @@ use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[apply(error_eq)]
 pub enum CliMarketError {
     #[error("{0}")]
     Message(String),
@@ -44,7 +43,7 @@ pub enum CliMarketError {
 
 pub type CliMarketResult<T> = Result<T, CliMarketError>;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct CliMarketPublicRegistry {
     pub schema_version: String,
     pub generated_at: String,
@@ -1499,7 +1498,7 @@ fn validate_upsert(input: &CliMarketEntryUpsert) -> CliMarketResult<()> {
     if input.slug.trim().is_empty() {
         return Err(CliMarketError::Message("slug 不能为空".to_string()));
     }
-    for locale in CliLocale::ALL {
+    for &locale in CliLocale::ALL {
         let Some(text) = input.locales.iter().find(|text| text.locale == locale) else {
             return Err(CliMarketError::Message(format!(
                 "缺少 {} 多语言字段",

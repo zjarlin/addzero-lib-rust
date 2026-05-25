@@ -21,16 +21,16 @@
 
 #![forbid(unsafe_code)]
 
+use az_derive_aliases::{apply, error_eq, plain_default_copy_eq};
 use az_remote_model::{
     DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability,
 };
 use chrono::Utc;
-use thiserror::Error;
 use uuid::Uuid;
 
 pub type HostResult<T> = Result<T, HostError>;
 
-#[derive(Debug, Error)]
+#[apply(error_eq)]
 pub enum HostError {
     #[error("platform adapter is unavailable: {0}")]
     Unavailable(String),
@@ -41,7 +41,7 @@ pub trait HostPlatformAdapter {
     fn permission_hint(&self) -> &'static str;
 }
 
-#[derive(Debug, Default)]
+#[apply(plain_default_copy_eq)]
 pub struct MockHostPlatformAdapter;
 
 impl HostPlatformAdapter for MockHostPlatformAdapter {

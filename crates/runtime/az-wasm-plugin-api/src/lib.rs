@@ -19,14 +19,14 @@
 //!
 //! - [`PluginError`]：覆盖未找到、重复加载、权限拒绝、WASM 运行时错误等场景
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, error_eq, serde_eq, serde_eq_copy};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
 // ─── Plugin Metadata ────────────────────────────────────────────────
 
 /// Plugin manifest shipped inside every `.azplugin` bundle.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PluginManifest {
     /// Unique plugin identifier (e.g. "com.addzero.rhai-engine").
     pub id: String,
@@ -51,7 +51,7 @@ pub struct PluginManifest {
 }
 
 /// Where this plugin hooks into the platform.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[apply(serde_eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum ExtensionPoint {
     /// Adds a new script engine (Rhai, Python, etc.).
@@ -73,7 +73,7 @@ pub enum ExtensionPoint {
 // ─── Plugin Lifecycle ───────────────────────────────────────────────
 
 /// State of a plugin within the runtime.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginState {
     /// Plugin is installed but not active.
@@ -87,7 +87,7 @@ pub enum PluginState {
 }
 
 /// Runtime handle for a loaded plugin.
-#[derive(Clone, Debug)]
+#[apply(serde_eq)]
 pub struct PluginHandle {
     pub id: Uuid,
     pub manifest: PluginManifest,
@@ -145,7 +145,7 @@ pub trait PluginRegistry: Send + Sync {
 
 // ─── Error ──────────────────────────────────────────────────────────
 
-#[derive(Clone, Debug, thiserror::Error)]
+#[apply(error_eq)]
 pub enum PluginError {
     #[error("plugin not found: {0}")]
     NotFound(String),

@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, anyhow};
+use az_derive_aliases::{apply, plain_clone};
 use chrono::Utc;
 use sea_orm::{
     ActiveValue::NotSet, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter,
@@ -15,7 +16,7 @@ use crate::{
     },
 };
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct PgRepo {
     db: DatabaseConnection,
 }

@@ -10,6 +10,8 @@ authors.workspace = true
 workspace = true
 
 [dependencies]
+az-derive-aliases.workspace = true
+derive_more.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 sha2.workspace = true

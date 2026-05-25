@@ -1,4 +1,5 @@
 use az_codex_auth_support::{DuckMailApi, DuckMailConfig};
+use az_derive_aliases::{apply, plain_clone_debug};
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::io::{Read, Write};
@@ -74,14 +75,14 @@ fn duckmail_messages_read_body_from_html_array() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_clone_debug)]
 struct CapturedRequest {
     path: String,
     headers: BTreeMap<String, String>,
     body: String,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct TestResponse {
     status: u16,
     content_type: &'static str,

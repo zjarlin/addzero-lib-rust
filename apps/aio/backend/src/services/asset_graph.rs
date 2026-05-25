@@ -10,15 +10,13 @@ use std::{
     time::Duration,
 };
 
+use az_derive_aliases::{apply, error_eq, serde_code, serde_eq_default};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 pub use super::LocalBoxFuture;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code)]
 pub enum AssetKindDto {
     Note,
     Software,
@@ -43,14 +41,14 @@ impl AssetKindDto {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AssetGraphTagDto {
     pub id: String,
     pub label: String,
     pub item_count: usize,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AssetGraphItemDto {
     pub id: String,
     pub kind: String,
@@ -67,14 +65,14 @@ pub struct AssetGraphItemDto {
     pub updated_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AssetGraphEdgeDto {
     pub source: String,
     pub target: String,
     pub relation: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AssetGraphDto {
     pub items: Vec<AssetGraphItemDto>,
     pub tags: Vec<AssetGraphTagDto>,
@@ -85,7 +83,7 @@ pub struct AssetGraphDto {
     pub warnings: Vec<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct AssetSyncReportDto {
     pub notes_imported: usize,
     pub software_imported: usize,
@@ -94,7 +92,7 @@ pub struct AssetSyncReportDto {
     pub warnings: Vec<String>,
 }
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[apply(error_eq)]
 pub enum AssetGraphError {
     #[error("{0}")]
     Message(String),

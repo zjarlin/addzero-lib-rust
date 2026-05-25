@@ -1,6 +1,7 @@
+use az_derive_aliases::{apply, plain_eq};
 use az_stream_wrapper::*;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 struct User {
     name: String,
     city: String,

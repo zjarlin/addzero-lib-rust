@@ -8,6 +8,7 @@ authors.workspace = true
 description = "AIO Desktop 后端 HTTP 客户端：Shell 组件注册表与桌面状态 API 的同步调用封装"
 
 [dependencies]
+az-derive-aliases.workspace = true
 az-config-center-contract.workspace = true
 reqwest.workspace = true
 serde.workspace = true

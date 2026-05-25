@@ -32,12 +32,12 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, plain_eq, serde_partial_eq};
 
 /// 通用树节点。
 ///
 /// 每个节点持有标识符、可选的父标识符、子节点列表和可选的 JSON 数据。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct TreeNode<T> {
     /// 节点唯一标识符。
     pub id: T,
@@ -50,7 +50,7 @@ pub struct TreeNode<T> {
 }
 
 /// 树构建过程中的错误类型。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub enum TreeError<T> {
     /// 检测到涉及给定节点 id 的循环引用。
     Cycle(T),

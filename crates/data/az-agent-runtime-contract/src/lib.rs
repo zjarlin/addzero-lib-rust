@@ -21,12 +21,11 @@
 //! - **认证**：[`SessionUser`]、[`LoginRequest`]。
 //! - **制品**：[`AgentArtifact`] — Agent 安装包元数据（下载地址、校验和、安装/启动/卸载命令）。
 
+use az_derive_aliases::{apply, serde_code_enum, serde_eq};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_enum)]
 pub enum AgentArtifactChannel {
     MacosBinary,
     DockerCompose,
@@ -34,15 +33,11 @@ pub enum AgentArtifactChannel {
 
 impl AgentArtifactChannel {
     pub fn as_str(self) -> &'static str {
-        match self {
-            Self::MacosBinary => "macos_binary",
-            Self::DockerCompose => "docker_compose",
-        }
+        self.code()
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_enum)]
 pub enum PairingStatus {
     Pending,
     Approved,
@@ -51,8 +46,7 @@ pub enum PairingStatus {
     Revoked,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_enum)]
 pub enum AgentNodeStatus {
     Pending,
     Online,
@@ -60,14 +54,13 @@ pub enum AgentNodeStatus {
     Revoked,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_enum)]
 pub enum ConflictResolution {
     UseWeb,
     UseAgent,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AgentArtifact {
     pub id: Uuid,
     pub channel: AgentArtifactChannel,
@@ -85,7 +78,7 @@ pub struct AgentArtifact {
     pub active: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PairingRequest {
     pub channel: AgentArtifactChannel,
     pub device_name: String,
@@ -93,7 +86,7 @@ pub struct PairingRequest {
     pub agent_version: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PairingSessionSummary {
     pub id: Uuid,
     pub channel: AgentArtifactChannel,
@@ -107,18 +100,18 @@ pub struct PairingSessionSummary {
     pub exchanged_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PairingCreateResponse {
     pub session: PairingSessionSummary,
     pub poll_token: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PairingExchangeRequest {
     pub poll_token: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AgentNode {
     pub id: Uuid,
     pub display_name: String,
@@ -134,20 +127,20 @@ pub struct AgentNode {
     pub last_conflict_count: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PairingExchangeResponse {
     pub node: AgentNode,
     pub node_token: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AgentHeartbeat {
     pub node_token: String,
     pub platform: String,
     pub agent_version: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SkillSnapshot {
     pub name: String,
     pub keywords: Vec<String>,
@@ -157,14 +150,14 @@ pub struct SkillSnapshot {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SkillSyncRequest {
     pub node_token: String,
     pub fs_root: String,
     pub skills: Vec<SkillSnapshot>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SkillConflict {
     pub id: Uuid,
     pub node_id: Uuid,
@@ -178,7 +171,7 @@ pub struct SkillConflict {
     pub resolution: Option<ConflictResolution>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SkillSyncResponse {
     pub node: AgentNode,
     pub uploaded_names: Vec<String>,
@@ -187,12 +180,12 @@ pub struct SkillSyncResponse {
     pub synced_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ResolveConflictRequest {
     pub resolution: ConflictResolution,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AgentRuntimeOverview {
     pub artifacts: Vec<AgentArtifact>,
     pub active_node: Option<AgentNode>,
@@ -202,14 +195,37 @@ pub struct AgentRuntimeOverview {
     pub pg_online: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SessionUser {
     pub authenticated: bool,
     pub username: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct LoginRequest {
     pub username: String,
     pub password: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AgentArtifactChannel, AgentNodeStatus, PairingStatus};
+
+    #[test]
+    fn contract_enums_keep_snake_case_wire_shape() {
+        assert_eq!(AgentArtifactChannel::MacosBinary.as_str(), "macos_binary");
+        assert_eq!(
+            AgentArtifactChannel::from_code("docker_compose"),
+            Some(AgentArtifactChannel::DockerCompose)
+        );
+        assert_eq!(
+            serde_json::to_string(&PairingStatus::Approved)
+                .expect("pairing status should serialize"),
+            "\"approved\""
+        );
+        assert_eq!(
+            serde_json::to_string(&AgentNodeStatus::Offline).expect("node status should serialize"),
+            "\"offline\""
+        );
+    }
 }

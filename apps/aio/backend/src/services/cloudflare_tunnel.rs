@@ -4,9 +4,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq_default};
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct CloudflareTunnelStatusDto {
     pub config_path: String,
     pub config_exists: bool,
@@ -18,14 +18,14 @@ pub struct CloudflareTunnelStatusDto {
     pub hosts: Vec<CloudflareTunnelHostDto>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct CloudflareTunnelCliCommandDto {
     pub name: String,
     pub path: String,
     pub installed: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct CloudflareTunnelHostDto {
     pub hostname: String,
     pub service: String,

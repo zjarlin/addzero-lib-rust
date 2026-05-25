@@ -9,12 +9,14 @@ use std::{
     thread,
 };
 
+use az_derive_aliases::{
+    apply, serde_code_default, serde_code_default_ord, serde_eq, serde_eq_default,
+};
 use chrono::{DateTime, Utc};
 #[cfg(not(target_arch = "wasm32"))]
 use once_cell::sync::Lazy;
 #[cfg(not(target_arch = "wasm32"))]
 use portable_pty::{Child, ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::LocalBoxFuture;
@@ -22,8 +24,7 @@ use super::LocalBoxFuture;
 const DEFAULT_TERMINAL_ROWS: u16 = 32;
 const DEFAULT_TERMINAL_COLS: u16 = 120;
 
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_default_ord)]
 pub enum TerminalProfileDto {
     #[default]
     Codex,
@@ -59,8 +60,7 @@ impl TerminalProfileDto {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_default)]
 pub enum TerminalSessionStateDto {
     #[default]
     Running,
@@ -68,7 +68,7 @@ pub enum TerminalSessionStateDto {
     Failed,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct TerminalSessionCreateDto {
     #[serde(default)]
     pub profile: TerminalProfileDto,
@@ -78,18 +78,18 @@ pub struct TerminalSessionCreateDto {
     pub cols: Option<u16>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct TerminalSessionInputDto {
     pub data: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct TerminalSessionResizeDto {
     pub rows: u16,
     pub cols: u16,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct TerminalSessionSummaryDto {
     pub id: Uuid,
     pub title: String,
@@ -105,7 +105,7 @@ pub struct TerminalSessionSummaryDto {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct TerminalSessionSnapshotDto {
     pub summary: TerminalSessionSummaryDto,
     pub screen: String,
@@ -113,7 +113,7 @@ pub struct TerminalSessionSnapshotDto {
     pub cursor_col: u16,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct TerminalSessionListDto {
     pub default_cwd: String,
     pub sessions: Vec<TerminalSessionSummaryDto>,

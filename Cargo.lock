@@ -16,6 +16,7 @@ name = "addzdero-cli"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "az-derive-aliases",
  "clap",
  "encoding_rs",
  "regex",
@@ -98,6 +99,7 @@ dependencies = [
  "az-assets",
  "az-cli-market-contract",
  "az-config-center-contract",
+ "az-derive-aliases",
  "az-drive-agent",
  "az-drive-app",
  "az-drive-store",
@@ -132,6 +134,7 @@ dependencies = [
  "sha2",
  "shlex",
  "sqlx",
+ "strum 0.28.0",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -872,6 +875,7 @@ dependencies = [
 name = "az-admin-plugin-registry"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "inventory",
 ]
 
@@ -879,8 +883,11 @@ dependencies = [
 name = "az-agent-runtime-contract"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "chrono",
  "serde",
+ "serde_json",
+ "strum 0.28.0",
  "uuid",
 ]
 
@@ -890,6 +897,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "az-assets",
+ "az-derive-aliases",
  "rig-core",
  "serde",
  "serde_json",
@@ -902,9 +910,11 @@ name = "az-ai-chat"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "tokio",
 ]
@@ -914,6 +924,7 @@ name = "az-aio-client"
 version = "2026.5.10"
 dependencies = [
  "az-config-center-contract",
+ "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -942,6 +953,7 @@ dependencies = [
  "anyhow",
  "az-ai-agent",
  "az-assets",
+ "az-derive-aliases",
  "az-desktop-plugin",
  "az-desktop-plugin-registry",
  "gpui",
@@ -965,6 +977,7 @@ name = "az-aio-plugin-edge-gateway"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "az-derive-aliases",
  "az-desktop-plugin",
  "az-desktop-plugin-registry",
  "gpui",
@@ -994,6 +1007,7 @@ name = "az-api-translate"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -1005,6 +1019,9 @@ dependencies = [
 [[package]]
 name = "az-area"
 version = "2026.5.10"
+dependencies = [
+ "az-derive-aliases",
+]
 
 [[package]]
 name = "az-array"
@@ -1019,6 +1036,7 @@ name = "az-assets"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "az-derive-aliases",
  "az-persistence",
  "base64 0.22.1",
  "chrono",
@@ -1029,6 +1047,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "tokio",
  "uuid",
@@ -1039,6 +1058,7 @@ name = "az-browser-automation"
 version = "2026.5.10"
 dependencies = [
  "az-context",
+ "az-derive-aliases",
  "az-sms",
  "az-temp-mail",
  "base64 0.22.1",
@@ -1061,12 +1081,14 @@ name = "az-clash"
 version = "2026.5.10"
 dependencies = [
  "automod",
+ "az-derive-aliases",
  "base64 0.22.1",
  "dirs 6.0.0",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
  "serde_yaml",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -1078,10 +1100,11 @@ dependencies = [
 name = "az-cli-market-contract"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "base64 0.22.1",
- "macro_rules_attribute",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "uuid",
 ]
@@ -1090,6 +1113,8 @@ dependencies = [
 name = "az-cli-repl"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
+ "derive_more 2.1.1",
  "thiserror 2.0.18",
 ]
 
@@ -1097,6 +1122,7 @@ dependencies = [
 name = "az-codex-auth-support"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "base64 0.22.1",
  "chrono",
  "regex",
@@ -1121,7 +1147,10 @@ dependencies = [
 name = "az-config-center-contract"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
+ "serde_json",
+ "strum 0.28.0",
 ]
 
 [[package]]
@@ -1132,6 +1161,7 @@ version = "2026.5.10"
 name = "az-creates"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-music",
  "az-temp-mail",
  "chrono",
@@ -1147,12 +1177,14 @@ dependencies = [
 name = "az-curl"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "base64 0.22.1",
  "regex",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
  "shlex",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1160,6 +1192,7 @@ dependencies = [
 name = "az-database-model"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -1169,8 +1202,20 @@ dependencies = [
 name = "az-ddl-generator"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-derive-aliases"
+version = "2026.5.10"
+dependencies = [
+ "derive_more 2.1.1",
+ "macro_rules_attribute",
+ "serde",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1179,6 +1224,7 @@ name = "az-desktop-plugin"
 version = "2026.5.10"
 dependencies = [
  "az-assets",
+ "az-derive-aliases",
  "az-drive-agent",
  "az-drive-store",
  "az-software-catalog",
@@ -1211,8 +1257,10 @@ dependencies = [
 name = "az-dict-spec"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1230,6 +1278,7 @@ dependencies = [
 name = "az-docker"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "shlex",
  "thiserror 2.0.18",
 ]
@@ -1238,6 +1287,7 @@ dependencies = [
 name = "az-drive-agent"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-drive-core",
  "az-drive-store",
  "chrono",
@@ -1277,7 +1327,9 @@ dependencies = [
 name = "az-drive-core"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "chrono",
+ "derive_more 2.1.1",
  "serde",
  "sha2",
  "thiserror 2.0.18",
@@ -1289,6 +1341,7 @@ name = "az-drive-store"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "az-derive-aliases",
  "az-drive-core",
  "az-rustfs",
  "chrono",
@@ -1296,6 +1349,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "strum 0.28.0",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -1320,6 +1374,7 @@ dependencies = [
 name = "az-email"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "lettre",
  "mime_guess",
  "tempfile",
@@ -1339,6 +1394,8 @@ dependencies = [
 name = "az-excel"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
+ "derive_more 2.1.1",
  "quick-xml 0.38.4",
  "thiserror 2.0.18",
  "zip",
@@ -1356,6 +1413,7 @@ dependencies = [
 name = "az-gitdb"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "gitdb 0.1.0 (git+https://github.com/qeqqe/gitdb.git?rev=04c99a159d193273be8a6d9d1186756d20bff43a)",
  "tempfile",
  "thiserror 2.0.18",
@@ -1365,6 +1423,7 @@ dependencies = [
 name = "az-gmail-code"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-oauth2",
  "base64 0.22.1",
  "regex",
@@ -1395,6 +1454,7 @@ dependencies = [
 name = "az-kiro-auth-support"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "regex",
  "reqwest 0.12.28",
  "ring",
@@ -1409,6 +1469,7 @@ name = "az-knowledge"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "az-derive-aliases",
  "az-persistence",
  "chrono",
  "deunicode",
@@ -1435,6 +1496,7 @@ dependencies = [
 name = "az-math"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "thiserror 2.0.18",
 ]
 
@@ -1442,6 +1504,7 @@ dependencies = [
 name = "az-maven"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-music",
  "reqwest 0.12.28",
  "serde",
@@ -1454,6 +1517,7 @@ dependencies = [
 name = "az-model"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "chrono",
  "serde",
  "serde_json",
@@ -1463,6 +1527,7 @@ dependencies = [
 name = "az-mqtt"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "rumqttc",
  "rustls",
  "thiserror 2.0.18",
@@ -1472,6 +1537,7 @@ dependencies = [
 name = "az-music"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -1482,6 +1548,7 @@ dependencies = [
 name = "az-oauth2"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "base64 0.22.1",
  "reqwest 0.12.28",
  "ring",
@@ -1515,14 +1582,17 @@ dependencies = [
 name = "az-plugin-contract"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "chrono",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
 name = "az-plugin-kernel"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-plugin-contract",
  "az-plugin-registry",
  "az-plugin-runtime",
@@ -1543,6 +1613,7 @@ dependencies = [
 name = "az-plugin-registry"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-plugin-contract",
  "inventory",
 ]
@@ -1551,6 +1622,7 @@ dependencies = [
 name = "az-plugin-runtime"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-plugin-contract",
  "chrono",
  "serde",
@@ -1566,6 +1638,7 @@ dependencies = [
 name = "az-reflection"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "regex",
  "serde",
  "serde_json",
@@ -1576,6 +1649,7 @@ dependencies = [
 name = "az-regex"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "regex",
  "serde",
  "serde_json",
@@ -1585,6 +1659,7 @@ dependencies = [
 name = "az-remote-host"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-remote-model",
  "chrono",
  "thiserror 2.0.18",
@@ -1595,7 +1670,9 @@ dependencies = [
 name = "az-remote-model"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "chrono",
+ "derive_more 2.1.1",
  "serde",
  "serde_json",
  "uuid",
@@ -1605,6 +1682,7 @@ dependencies = [
 name = "az-remote-protocol"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-remote-model",
  "chrono",
  "serde",
@@ -1617,6 +1695,7 @@ dependencies = [
 name = "az-remote-session"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-remote-model",
  "az-remote-protocol",
  "chrono",
@@ -1631,6 +1710,7 @@ dependencies = [
 name = "az-rustfs"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "base64 0.22.1",
  "chrono",
  "hmac",
@@ -1647,6 +1727,7 @@ dependencies = [
 name = "az-sandbox"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
 ]
 
@@ -1654,6 +1735,7 @@ dependencies = [
 name = "az-script-engine"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-sandbox",
  "serde",
  "serde_json",
@@ -1675,6 +1757,7 @@ dependencies = [
 name = "az-serial"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -1686,6 +1769,7 @@ name = "az-shell-components"
 version = "2026.5.10"
 dependencies = [
  "az-config-center-contract",
+ "az-derive-aliases",
  "serde",
  "tempfile",
  "thiserror 2.0.18",
@@ -1696,6 +1780,7 @@ name = "az-skills"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "az-derive-aliases",
  "chrono",
  "log",
  "regex",
@@ -1713,6 +1798,7 @@ name = "az-sms"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -1724,14 +1810,15 @@ dependencies = [
 name = "az-software-catalog"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-persistence",
  "chrono",
- "macro_rules_attribute",
  "regex",
  "reqwest 0.12.28",
  "sea-orm",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "uuid",
 ]
@@ -1740,6 +1827,7 @@ dependencies = [
 name = "az-sql"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "thiserror 2.0.18",
 ]
@@ -1748,6 +1836,7 @@ dependencies = [
 name = "az-ssh"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "ssh2",
  "tempfile",
  "thiserror 2.0.18",
@@ -1811,6 +1900,8 @@ dependencies = [
 name = "az-str"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
+ "derive_more 2.1.1",
  "deunicode",
  "regex",
  "tempfile",
@@ -1819,6 +1910,9 @@ dependencies = [
 [[package]]
 name = "az-stream-wrapper"
 version = "2026.5.10"
+dependencies = [
+ "az-derive-aliases",
+]
 
 [[package]]
 name = "az-system-starters"
@@ -1836,6 +1930,7 @@ dependencies = [
 name = "az-table"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-dioxus-components",
  "dioxus",
  "dioxus-ssr",
@@ -1845,6 +1940,7 @@ dependencies = [
 name = "az-temp-mail"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "regex",
  "reqwest 0.12.28",
  "serde",
@@ -1858,6 +1954,7 @@ dependencies = [
 name = "az-toml"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "tempfile",
  "thiserror 2.0.18",
@@ -1868,6 +1965,7 @@ dependencies = [
 name = "az-tree"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "serde_json",
 ]
@@ -1876,6 +1974,7 @@ dependencies = [
 name = "az-wasm-plugin-api"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -1897,6 +1996,7 @@ dependencies = [
 name = "az-yml"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "serde_yaml",
  "tempfile",
@@ -5233,7 +5333,9 @@ dependencies = [
 name = "gitdb"
 version = "0.1.0"
 dependencies = [
+ "az-derive-aliases",
  "chrono",
+ "derive_more 2.1.1",
  "git2",
  "parking_lot",
  "serde",
@@ -11120,6 +11222,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "strum"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd"
+dependencies = [
+ "strum_macros 0.28.0",
+]
+
+[[package]]
 name = "strum_macros"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11137,6 +11248,18 @@ name = "strum_macros"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab85eea0270ee17587ed4156089e10b9e6880ee688791d45a905f5b1ca36f664"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -11943,6 +12066,7 @@ name = "toasty-driver-gitdb"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "az-derive-aliases",
  "chrono",
  "gitdb 0.1.0",
  "serde_json",

@@ -20,44 +20,35 @@
 //! [`RemotePlatform`] 支持 macOS、Windows、Linux (X11/Wayland)、Browser；
 //! [`DeviceRole`] 区分 Host（被控端）与 Viewer（控制端）。
 
+use az_derive_aliases::{apply, serde_eq, serde_eq_copy, serde_eq_copy_display};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use std::fmt;
 use uuid::Uuid;
 
 pub type DeviceId = Uuid;
 pub type SessionId = Uuid;
 pub type TransferId = Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy_display)]
 pub enum RemotePlatform {
+    #[display("macOS")]
     MacOs,
+    #[display("Windows")]
     Windows,
+    #[display("Linux (X11)")]
     LinuxX11,
+    #[display("Linux (Wayland)")]
     LinuxWayland,
+    #[display("Browser")]
     Browser,
 }
 
-impl fmt::Display for RemotePlatform {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = match self {
-            Self::MacOs => "macOS",
-            Self::Windows => "Windows",
-            Self::LinuxX11 => "Linux (X11)",
-            Self::LinuxWayland => "Linux (Wayland)",
-            Self::Browser => "Browser",
-        };
-        f.write_str(value)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum DeviceRole {
     Viewer,
     Host,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum OnlineStatus {
     Online,
     Idle,
@@ -65,7 +56,7 @@ pub enum OnlineStatus {
     Offline,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub struct SessionCapability {
     pub screen: bool,
     pub input_control: bool,
@@ -95,7 +86,7 @@ impl SessionCapability {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct DeviceDescriptor {
     pub device_id: DeviceId,
     pub device_name: String,
@@ -107,7 +98,7 @@ pub struct DeviceDescriptor {
     pub notes: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SessionRequest {
     pub session_id: SessionId,
     pub viewer_id: DeviceId,
@@ -116,7 +107,7 @@ pub struct SessionRequest {
     pub requested_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SessionGrant {
     pub session_id: SessionId,
     pub host_id: DeviceId,
@@ -125,20 +116,20 @@ pub struct SessionGrant {
     pub granted_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum PointerButton {
     Left,
     Middle,
     Right,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum KeyState {
     Down,
     Up,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub enum RemoteInputEvent {
     PointerMove {
         x: u16,
@@ -161,13 +152,13 @@ pub enum RemoteInputEvent {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ClipboardPayload {
     pub content: String,
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct FileTransferEnvelope {
     pub transfer_id: TransferId,
     pub session_id: SessionId,
@@ -177,13 +168,13 @@ pub struct FileTransferEnvelope {
     pub chunk_count: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum VideoCodec {
     JpegFrames,
     PngFrames,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct VideoFrameEnvelope {
     pub session_id: SessionId,
     pub codec: VideoCodec,
@@ -193,7 +184,7 @@ pub struct VideoFrameEnvelope {
     pub captured_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum SessionState {
     Requested,
     Active,
@@ -201,7 +192,7 @@ pub enum SessionState {
     Closed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SessionSummary {
     pub session_id: SessionId,
     pub viewer_id: DeviceId,

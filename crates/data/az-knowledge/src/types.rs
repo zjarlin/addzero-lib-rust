@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
+use az_derive_aliases::{apply, serde_eq, serde_eq_default};
 use az_persistence::PersistenceError;
 use chrono::{DateTime, Utc};
 use sea_orm::DbErr;
-use serde::{Deserialize, Serialize};
 use sqlx::Error as SqlxError;
 use thiserror::Error;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[apply(serde_eq)]
 pub struct KnowledgeSourceSpec {
     pub slug: String,
     pub name: String,
@@ -28,7 +28,7 @@ impl KnowledgeSourceSpec {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[apply(serde_eq)]
 pub struct KnowledgeDocument {
     pub source_slug: String,
     pub source_name: String,
@@ -49,7 +49,7 @@ pub struct KnowledgeDocument {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ManualKnowledgeDocumentInput {
     pub source_slug: String,
     pub source_name: String,
@@ -62,13 +62,13 @@ pub struct ManualKnowledgeDocumentInput {
     pub tags: Vec<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[apply(serde_eq_default)]
 pub struct KnowledgeScan {
     pub documents: Vec<KnowledgeDocument>,
     pub skipped_paths: Vec<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[apply(serde_eq_default)]
 pub struct KnowledgeSyncReport {
     pub synced_sources: Vec<String>,
     pub upserted_documents: usize,

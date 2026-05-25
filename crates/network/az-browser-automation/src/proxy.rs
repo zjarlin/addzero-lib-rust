@@ -1,13 +1,13 @@
 //! Proxy configuration for isolated browser sessions.
 
 use crate::{BrowserAutomationError, BrowserAutomationResult};
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq, serde_eq_copy};
 use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
 /// Proxy protocol supported by Chrome launch arguments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_copy)]
 pub enum ProxyType {
     /// HTTP proxy.
     Http,
@@ -39,7 +39,7 @@ impl FromStr for ProxyType {
 }
 
 /// Proxy endpoint and optional credentials.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct ProxyConfig {
     /// Proxy protocol.
     pub proxy_type: ProxyType,

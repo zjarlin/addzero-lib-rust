@@ -38,13 +38,16 @@
 
 #![forbid(unsafe_code)]
 
+use az_derive_aliases::{
+    apply, deserialize_debug, plain_clone, plain_clone_debug, plain_default_copy_eq, plain_eq,
+    serde_eq, serde_eq_default, serde_partial_eq_default,
+};
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use reqwest::header::{
     ACCEPT, HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue,
 };
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::fmt;
@@ -88,7 +91,7 @@ pub enum MusicError {
     InvalidResponse(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct ApiConfig {
     pub base_url: String,
     pub connect_timeout: Duration,
@@ -128,7 +131,7 @@ impl ApiConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct ApiConfigBuilder {
     base_url: String,
     connect_timeout: Duration,
@@ -176,7 +179,7 @@ impl ApiConfigBuilder {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[apply(plain_default_copy_eq)]
 pub struct Music;
 
 impl Music {
@@ -219,7 +222,7 @@ pub fn create_suno_api(api_token: impl Into<String>) -> MusicResult<SunoApi> {
     SunoApi::new(api_token, config)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[apply(plain_default_copy_eq)]
 pub enum MusicSearchType {
     #[default]
     Song,
@@ -249,7 +252,7 @@ impl MusicSearchType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct MusicSearchRequest {
     pub keywords: String,
     pub search_type: MusicSearchType,
@@ -283,7 +286,7 @@ impl MusicSearchRequest {
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct MusicSearchApi {
     http: HttpApiClient,
 }
@@ -491,7 +494,7 @@ impl MusicSearchApi {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MusicSearchResponse {
     #[serde(default)]
     pub code: i32,
@@ -501,7 +504,7 @@ pub struct MusicSearchResponse {
     pub result: Option<MusicSearchResult>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MusicSearchResult {
     #[serde(default)]
     pub songs: Vec<MusicSong>,
@@ -521,7 +524,7 @@ pub struct MusicSearchResult {
     pub playlist_count: Option<i64>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MusicSong {
     #[serde(default)]
     pub id: i64,
@@ -541,7 +544,7 @@ pub struct MusicSong {
     pub privilege: Option<MusicPrivilege>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MusicArtist {
     #[serde(default)]
     pub id: i64,
@@ -557,7 +560,7 @@ pub struct MusicArtist {
     pub music_size: Option<i32>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MusicAlbum {
     #[serde(default)]
     pub id: i64,
@@ -573,7 +576,7 @@ pub struct MusicAlbum {
     pub size: Option<i32>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MusicPlaylist {
     #[serde(default)]
     pub id: i64,
@@ -591,7 +594,7 @@ pub struct MusicPlaylist {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MusicCreator {
     #[serde(rename = "userId", default)]
     pub user_id: i64,
@@ -601,7 +604,7 @@ pub struct MusicCreator {
     pub avatar_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct MusicPrivilege {
     #[serde(default)]
     pub id: Option<i64>,
@@ -617,7 +620,7 @@ pub struct MusicPrivilege {
     pub maxbr: Option<i32>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct LyricResponse {
     #[serde(default)]
     pub code: i32,
@@ -629,7 +632,7 @@ pub struct LyricResponse {
     pub romalrc: Option<LyricContent>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct LyricContent {
     #[serde(default)]
     pub version: Option<i32>,
@@ -637,7 +640,7 @@ pub struct LyricContent {
     pub lyric: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct SongDetailResponse {
     #[serde(default)]
     pub code: i32,
@@ -647,13 +650,13 @@ pub struct SongDetailResponse {
     pub privileges: Vec<MusicPrivilege>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SongWithLyric {
     pub song: MusicSong,
     pub lyric: LyricResponse,
 }
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct SunoApi {
     api_token: String,
     http: HttpApiClient,
@@ -854,7 +857,7 @@ impl SunoApi {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct SunoMusicRequest {
     #[serde(default = "default_suno_mv")]
     pub mv: String,
@@ -893,24 +896,24 @@ pub struct SunoMusicRequest {
     pub task: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct GenerateLyricsRequest {
     pub prompt: String,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct BatchFetchRequest {
     #[serde(default)]
     pub ids: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct ConcatSongsRequest {
     #[serde(rename = "clip_id")]
     pub clip_id: String,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct SunoTask {
     #[serde(default)]
     pub id: Option<String>,
@@ -946,7 +949,7 @@ pub struct SunoTask {
     pub instrumental: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct ApiEnvelope<T> {
     #[serde(default)]
     code: Value,
@@ -998,7 +1001,7 @@ impl<T> ApiEnvelope<T> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct HttpApiClient {
     base_url: Url,
     client: Client,

@@ -2,10 +2,11 @@ use crate::util::{required_non_blank, trim_non_blank};
 use crate::{
     ApiConfig, CloudflareTempMailApi, CreateMailboxRequest, NewAddressRequest, TempMailResult,
 };
+use az_derive_aliases::{apply, plain_eq};
 
 /// Consumer-supplied context for initializing a Cloudflare temp-mail worker client
 /// and its default mailbox creation request.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct CloudflareTempMailContext {
     /// Base URL of the deployed worker, for example `https://mail.example.com`.
     pub base_url: String,

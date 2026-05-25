@@ -22,9 +22,10 @@
 
 use std::collections::BTreeMap;
 
+use az_derive_aliases::{apply, plain_copy_eq, plain_eq};
 pub use inventory;
 
-#[derive(Clone, Copy, Debug)]
+#[apply(plain_copy_eq)]
 pub struct AdminDomainRegistration {
     pub id: &'static str,
     pub label: &'static str,
@@ -32,24 +33,13 @@ pub struct AdminDomainRegistration {
     pub default_href: &'static str,
 }
 
-impl PartialEq for AdminDomainRegistration {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-            && self.label == other.label
-            && self.order == other.order
-            && self.default_href == other.default_href
-    }
-}
-
-impl Eq for AdminDomainRegistration {}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum AdminNavigationKind {
     Branch,
     Page,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct AdminNavigationRegistration {
     pub kind: AdminNavigationKind,
     pub id: &'static str,
@@ -62,7 +52,7 @@ pub struct AdminNavigationRegistration {
     pub permissions_any_of: &'static [&'static str],
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct RegisteredAdminNode {
     pub id: &'static str,
     pub kind: AdminNavigationKind,
@@ -73,7 +63,7 @@ pub struct RegisteredAdminNode {
     pub children: Vec<RegisteredAdminNode>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct RegisteredAdminSection {
     pub label: &'static str,
     pub menus: Vec<RegisteredAdminNode>,

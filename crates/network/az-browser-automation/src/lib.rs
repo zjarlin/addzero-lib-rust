@@ -24,10 +24,10 @@ pub use registration::{RegistrationFlow, RegistrationResult, extract_verificatio
 pub use session::{BrowserSession, FingerprintStrategy, SessionConfig, SessionConfigBuilder};
 
 use az_context::ThreadLocalUtil;
+use az_derive_aliases::{apply, plain_default_copy_eq, serde_eq, serde_eq_default_copy};
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
 use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::ffi::OsStr;
 use std::fs;
@@ -126,7 +126,7 @@ pub enum BrowserAutomationError {
 }
 
 /// Options for the legacy [`BrowserAutomation`] facade.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct BrowserAutomationOptions {
     /// Enables debug artifacts and forces headful browsing.
     pub debug: bool,
@@ -166,7 +166,7 @@ impl BrowserAutomationOptions {
 }
 
 /// Browser connection strategy used by the legacy facade.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub enum BrowserMode {
     /// Connect to an existing or auto-started Chrome DevTools endpoint.
     Cdp(CdpEndpoint),
@@ -181,7 +181,7 @@ impl Default for BrowserMode {
 }
 
 /// Chrome DevTools Protocol endpoint address.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub enum CdpEndpoint {
     /// HTTP endpoint such as `http://127.0.0.1:9222`.
     Http(String),
@@ -196,7 +196,7 @@ impl Default for CdpEndpoint {
 }
 
 /// Form action kind for [`FormFieldDef`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[apply(serde_eq_default_copy)]
 pub enum FieldType {
     /// Type text into an input-like element.
     #[default]
@@ -208,7 +208,7 @@ pub enum FieldType {
 }
 
 /// Declarative form field operation used by [`BrowserAutomation::fill`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct FormFieldDef {
     /// Human-readable field name used in errors and debug artifact names.
     pub name: String,
@@ -275,7 +275,7 @@ impl FormFieldDef {
 }
 
 /// Thread-local browser automation context.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct BrowserAutomationContext {
     /// Normalized URL used as the workflow start point.
     pub start_url: String,
@@ -296,7 +296,7 @@ impl BrowserAutomationContext {
 }
 
 /// Thread-local store for [`BrowserAutomationContext`].
-#[derive(Debug, Default, Clone, Copy)]
+#[apply(plain_default_copy_eq)]
 pub struct BrowserAutomationContextStore;
 
 impl BrowserAutomationContextStore {
@@ -332,7 +332,7 @@ impl BrowserAutomationContextStore {
 }
 
 /// Legacy single-page browser automation facade.
-#[derive(Debug, Default, Clone, Copy)]
+#[apply(plain_default_copy_eq)]
 pub struct BrowserAutomation;
 
 impl BrowserAutomation {

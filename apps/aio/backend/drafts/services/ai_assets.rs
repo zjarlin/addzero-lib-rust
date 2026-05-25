@@ -1,12 +1,12 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
+use az_derive_aliases::{apply, error_eq, serde_eq_default_copy, serde_eq_default_copy_ord};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use thiserror::Error;
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq_default_copy)]
 #[serde(rename_all = "snake_case")]
 pub enum AiAssetKindDto {
     Capture,
@@ -50,7 +50,7 @@ impl AiAssetKindDto {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[apply(serde_eq_default_copy_ord)]
 #[serde(rename_all = "snake_case")]
 pub enum AiProviderKindDto {
     #[default]
@@ -182,7 +182,7 @@ pub struct AiPromptButtonUpsertDto {
     pub enabled: bool,
 }
 
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[apply(error_eq)]
 pub enum AiAssetsError {
     #[error("{0}")]
     Message(String),
@@ -823,8 +823,7 @@ fn default_prompt_button() -> az_assets::AiPromptButton {
             "把用户连续输入的采集内容归纳成结构化笔记，自动生成标题、标签、正文摘要和知识图谱关系。"
                 .to_string(),
         provider: az_assets::AiProviderKind::OpenAi,
-        model: az_ai_agent::default_model_for(az_assets::AiProviderKind::OpenAi)
-            .to_string(),
+        model: az_ai_agent::default_model_for(az_assets::AiProviderKind::OpenAi).to_string(),
         enabled: true,
         updated_at: chrono::Utc::now(),
     }

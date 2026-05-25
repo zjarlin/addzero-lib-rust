@@ -6,6 +6,7 @@ use crate::model::{
 use crate::provider::TempMailProvider;
 use crate::util::trim_non_blank;
 use crate::{ApiConfig, TempMailError, TempMailResult};
+use az_derive_aliases::{apply, deserialize_debug, plain_copy_eq, plain_eq, serialize_eq};
 use regex::Regex;
 use reqwest::blocking::Response;
 use reqwest::header::{COOKIE, SET_COOKIE};
@@ -21,7 +22,7 @@ static HTTP_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Email generation mode accepted by Emailnator's `/generate-email` endpoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum EmailnatorEmailMode {
     /// Gmail plus-address variant.
     PlusGmail,
@@ -39,7 +40,7 @@ impl EmailnatorEmailMode {
 }
 
 /// Request options for generating an Emailnator address.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct EmailnatorEmailRequest {
     /// Address generation modes forwarded to Emailnator.
     pub modes: Vec<EmailnatorEmailMode>,
@@ -229,18 +230,18 @@ pub fn extract_first_http_link(content: impl AsRef<str>, keyword: Option<&str>) 
         .find(|link| keyword.is_none_or(|keyword| link.contains(keyword)))
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 struct XsrfToken {
     raw_cookie_value: String,
     decoded: String,
 }
 
-#[derive(Debug, Serialize)]
+#[apply(serialize_eq)]
 struct EmailnatorGenerateEmailBody {
     email: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct EmailnatorGenerateEmailResponse {
     email: EmailnatorEmailValue,
 }
@@ -258,20 +259,20 @@ impl EmailnatorGenerateEmailResponse {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 #[serde(untagged)]
 enum EmailnatorEmailValue {
     Single(String),
     Many(Vec<String>),
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct EmailnatorMessageListResponse {
     #[serde(default, rename = "messageData")]
     message_data: Vec<EmailnatorMessageSummaryRaw>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct EmailnatorMessageSummaryRaw {
     #[serde(default, rename = "messageID")]
     message_id: Value,

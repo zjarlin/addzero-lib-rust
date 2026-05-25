@@ -1,4 +1,6 @@
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+use az_derive_aliases::{apply, deserialize_eq, serde_eq, serialize_eq};
+
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DotfilesMonitorStatus {
     pub root: String,
@@ -14,7 +16,7 @@ pub struct DotfilesMonitorStatus {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DotfilesWatchedFile {
     pub relative_path: String,
@@ -25,7 +27,7 @@ pub struct DotfilesWatchedFile {
     pub detail: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DotfilesConflict {
     pub id: String,
@@ -49,7 +51,7 @@ pub struct DotfilesConflict {
     pub line_end: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[apply(serde_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DotfilesPeerDevice {
     pub id: String,
@@ -59,7 +61,7 @@ pub struct DotfilesPeerDevice {
     pub last_seen: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[apply(serde_eq)]
 pub struct DotfilesBaselineEntry {
     pub relative_path: String,
     pub content: String,
@@ -67,7 +69,7 @@ pub struct DotfilesBaselineEntry {
     pub home_modified: u64,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[apply(deserialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DotfilesPeerDeviceInput {
     pub id: String,
@@ -76,13 +78,13 @@ pub struct DotfilesPeerDeviceInput {
     pub enabled: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[apply(deserialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DotfilesDevicesRequest {
     pub devices: Vec<DotfilesPeerDeviceInput>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[apply(deserialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResolveDotfilesConflictRequest {
     pub conflict_id: String,

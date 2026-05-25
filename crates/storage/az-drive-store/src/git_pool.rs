@@ -1,7 +1,8 @@
 use async_trait::async_trait;
+use az_derive_aliases::{apply, plain_eq, serde_eq};
 use az_drive_core::{EntryKey, RelativePath, RootAlias};
 use chrono::Utc;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Serialize, de::DeserializeOwned};
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::fs;
@@ -23,7 +24,7 @@ const CONTROL_DIR: &str = "control";
 const POOLS_DIR: &str = "pools";
 const POOL_INDEX_DIR: &str = "aio-pool-index";
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct GitPoolConfig {
     pub root: PathBuf,
     pub owner_drive_id: String,
@@ -51,7 +52,7 @@ impl GitPoolConfig {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct GitPoolRepoConfig {
     pub name: String,
     pub remote_url: String,
@@ -61,7 +62,7 @@ pub struct GitPoolRepoConfig {
     pub used_bytes: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct GitPoolMountConfig {
     pub name: String,
     pub remote_url: String,
@@ -69,44 +70,44 @@ pub struct GitPoolMountConfig {
     pub readonly: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct DriveRecord {
     schema_version: u32,
     owner_drive_id: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct EntryRecord {
     entry: DriveEntry,
     pool_name: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct VersionRecord {
     version: DriveVersion,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct IgnoredRecord {
     ignored: DriveIgnoredPath,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct ConflictRecord {
     conflict: DriveConflict,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct SyncQueueRecord {
     item: DriveSyncQueueItem,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 struct SuspendedRecord {
     suspension: DriveSuspendedPath,
 }
 
-#[derive(Clone, Debug)]
+#[apply(plain_eq)]
 pub struct GitPoolDriveStore {
     config: GitPoolConfig,
 }

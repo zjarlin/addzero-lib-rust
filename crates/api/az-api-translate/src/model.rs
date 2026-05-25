@@ -1,9 +1,9 @@
 //! Translation data models.
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq_default, serde_partial_eq};
 
 /// Options for translation requests.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[apply(serde_eq_default)]
 pub struct TranslateOptions {
     /// Whether to preserve formatting (line breaks, etc.).
     pub preserve_formatting: bool,
@@ -39,7 +39,7 @@ impl TranslateOptions {
 }
 
 /// Result of a translation request.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct TranslateResult {
     /// The translated text.
     pub translated_text: String,
@@ -54,7 +54,7 @@ pub struct TranslateResult {
 }
 
 /// Result of language detection.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct DetectedLanguage {
     /// ISO 639-1 language code.
     pub language: String,

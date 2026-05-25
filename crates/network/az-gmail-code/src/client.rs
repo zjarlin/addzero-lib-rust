@@ -2,12 +2,13 @@ use crate::config::GmailCodeQuery;
 use crate::model::{ExtractedGmailCode, GmailListMessagesResponse, GmailMessage};
 use crate::parser::{collect_message_body_candidates, extract_verification_code};
 use crate::{GmailCodeConfig, GmailCodeError, GmailCodeResult};
+use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 
 /// Blocking Gmail API client for reading verification codes from an authorized mailbox.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct GmailCodeClient {
     base_url: Url,
     user_id: String,

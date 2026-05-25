@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_partial_eq, serialize_partial_eq};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[apply(serde_partial_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayRunRequest {
     pub entry_route: String,
@@ -10,7 +10,7 @@ pub struct GatewayRunRequest {
     pub steps: Vec<GatewayRuntimeStep>,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[apply(serde_partial_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayRuntimeStep {
     pub body_preview: String,
@@ -26,7 +26,7 @@ pub struct GatewayRuntimeStep {
     pub url: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[apply(serialize_partial_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayRunResult {
     pub entry_route: String,
@@ -37,7 +37,7 @@ pub struct GatewayRunResult {
     pub steps: Vec<GatewayRunStepResult>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[apply(serialize_partial_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayRunStepResult {
     pub capture_path: String,

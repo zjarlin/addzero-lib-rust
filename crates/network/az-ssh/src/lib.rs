@@ -28,6 +28,7 @@
 //! # }
 //! ```
 
+use az_derive_aliases::{apply, plain_eq};
 use ssh2::Session;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -186,7 +187,7 @@ impl SshConfig {
 
 pub type SshConfigBuilder = SshConfig;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct SshExecutionResult {
     pub exit_code: i32,
     pub stdout: String,

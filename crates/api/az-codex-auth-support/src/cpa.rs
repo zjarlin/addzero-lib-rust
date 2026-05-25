@@ -1,12 +1,13 @@
 use crate::http::HttpClient;
 use crate::{CodexAuthFile, CodexAuthSupportResult, CpaUploadConfig};
+use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::Client;
 use reqwest::blocking::multipart::{Form, Part};
 use std::path::Path;
 
 /// Blocking client for CLIProxyAPI-compatible auth-file upload endpoints.
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 pub struct CpaClient {
     config: CpaUploadConfig,
     client: Client,

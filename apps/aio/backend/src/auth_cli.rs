@@ -9,12 +9,12 @@ use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 
 use anyhow::{Context, bail};
 use az_agent_runtime_contract::{LoginRequest, SessionUser};
+use az_derive_aliases::{apply, serde_eq, serde_eq_no_debug};
 use chrono::{DateTime, Duration, Utc};
 use reqwest::{
     Client, StatusCode,
     header::{COOKIE, HeaderMap, SET_COOKIE},
 };
-use serde::{Deserialize, Serialize};
 
 use crate::cli::{
     AuthServerArgs, KeyAddArgs, KeyCommand, KeySelectorArgs, KeyValueArgs, LoginArgs, RegArgs,
@@ -33,7 +33,7 @@ const AUTH_FILE_NAME: &str = "auth.json";
 ///
 /// The session cookie is intentionally local-only material and is written to
 /// `~/.config/aio/auth.json` with `0600` permissions on Unix platforms.
-#[derive(Clone, Deserialize, Serialize)]
+#[apply(serde_eq_no_debug)]
 pub struct StoredAioAuth {
     pub server_url: String,
     pub username: String,
@@ -46,7 +46,7 @@ pub struct StoredAioAuth {
     pub trusted_api_keys: Vec<StoredTrustedApiKey>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[apply(serde_eq)]
 pub struct StoredDriveApiKey {
     pub api_key: String,
     pub key_prefix: String,
@@ -60,7 +60,7 @@ pub struct StoredDriveApiKey {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[apply(serde_eq)]
 pub struct StoredTrustedApiKey {
     pub api_key: String,
     pub key_prefix: String,

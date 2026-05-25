@@ -75,3 +75,11 @@ cargo run -p az-dioxus-components --example preview
 ```text
 target/az-dioxus-components-preview/index.html
 ```
+
+按钮二次封装和属性透传示例：
+
+```bash
+cargo run -p az-dioxus-components --example button_preview
+```
+
+这个示例里 `DemoButton` 内部直接用 `Button { ..props }` 转发全部属性。

@@ -1,3 +1,4 @@
+use az_derive_aliases::{apply, plain_clone_debug};
 use az_temp_mail::{CloudflareTempMailContext, PageRequest, create_mail_tm_api};
 use std::env;
 use std::error::Error;
@@ -49,7 +50,7 @@ fn required_env(name: &str) -> Result<String, Box<dyn Error>> {
     env::var(name).map_err(|_| format!("{name} is required for this live integration test").into())
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct LiveCloudflareContext {
     cloudflare: CloudflareTempMailContext,
     delete_address: bool,

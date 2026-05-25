@@ -1,4 +1,4 @@
-use az_assets::{AssetKind, AssetService, AssetUpsert, SecretCipher};
+use az_assets::{AiProviderKind, AssetKind, AssetService, AssetUpsert, SecretCipher};
 
 #[tokio::test]
 async fn public_api_should_store_assets_and_hash_content() {
@@ -17,6 +17,12 @@ async fn public_api_should_store_assets_and_hash_content() {
         .unwrap();
     assert_eq!(saved.kind, AssetKind::Note);
     assert!(!saved.content_hash.is_empty());
+    assert_eq!(AssetKind::from_db_value("unknown"), AssetKind::Note);
+    assert_eq!(AiProviderKind::OpenAi.as_str(), "openai");
+    assert_eq!(
+        serde_json::to_string(&AiProviderKind::Anthropic).unwrap(),
+        "\"anthropic\""
+    );
 }
 
 #[test]

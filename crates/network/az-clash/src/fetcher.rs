@@ -1,9 +1,10 @@
 use crate::parser::parse_subscription;
 use crate::types::{ClashResult, ProxyNode};
+use az_derive_aliases::{apply, plain_eq};
 use reqwest::header::CONTENT_TYPE;
 
 /// Raw subscription response fetched over HTTP.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct FetchedSubscription {
     /// Response body as text.
     pub body: String,

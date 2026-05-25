@@ -1,3 +1,4 @@
+use az_derive_aliases::{apply, plain_clone_debug};
 use az_kiro_auth_support::{
     BlockedCapability, EnglishNameOptions, KiroDeviceFlowClient, KiroLoginType, KiroOidcConfig,
     KiroTokenPoll, NameGender, PasswordPolicy, extract_verification_code, generate_english_name,
@@ -108,14 +109,14 @@ fn unsupported_capabilities_return_explicit_error() {
     assert!(error.contains("automated_kiro_registration"));
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[apply(plain_clone_debug)]
 struct CapturedRequest {
     path: String,
     headers: BTreeMap<String, String>,
     body: String,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct TestResponse {
     status: u16,
     content_type: &'static str,

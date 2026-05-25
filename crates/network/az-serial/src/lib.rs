@@ -24,7 +24,7 @@
 //! # }
 //! ```
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, serde_eq};
 use thiserror::Error;
 
 mod config;
@@ -151,7 +151,7 @@ impl SerialPort {
 }
 
 /// Information about an available serial port.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PortInfo {
     /// System port name (e.g., "COM3", "/dev/ttyUSB0").
     pub port_name: String,

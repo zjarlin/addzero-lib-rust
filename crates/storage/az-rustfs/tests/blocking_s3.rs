@@ -1,3 +1,4 @@
+use az_derive_aliases::{apply, plain_clone_debug};
 use az_rustfs::{BlockingS3StorageClient, PartInfo, PartStatus, S3ClientConfig, S3StorageClient};
 use quick_xml::Reader;
 use quick_xml::events::Event;
@@ -209,7 +210,7 @@ fn presigned_url_uses_virtual_host_when_path_style_disabled() -> Result<(), Box<
     Ok(())
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct CapturedRequest {
     method: String,
     path: String,
@@ -223,7 +224,7 @@ impl CapturedRequest {
     }
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct StoredObject {
     bytes: Vec<u8>,
     content_type: Option<String>,
@@ -231,7 +232,7 @@ struct StoredObject {
     etag: String,
 }
 
-#[derive(Debug, Clone)]
+#[apply(plain_clone_debug)]
 struct PendingUpload {
     bucket: String,
     key: String,
@@ -249,7 +250,7 @@ struct ServerState {
     next_id: u64,
 }
 
-#[derive(Debug)]
+#[apply(plain_clone_debug)]
 struct TestResponse {
     status: u16,
     headers: Vec<(String, String)>,

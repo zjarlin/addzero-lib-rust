@@ -7,6 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+az-derive-aliases.workspace = true
 az-assets.workspace = true
 anyhow.workspace = true
 rig-core = "0.36.0"

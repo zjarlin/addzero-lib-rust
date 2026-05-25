@@ -8,6 +8,7 @@ authors.workspace = true
 description = "Multi-repository GitDB pooling and load balancing"
 
 [dependencies]
+az-derive-aliases.workspace = true
 gitdb.workspace = true
 thiserror.workspace = true
 

@@ -2,6 +2,7 @@
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
 
+use az_derive_aliases::{apply, plain_default_eq, plain_eq};
 use az_dioxus_components::az_table::{
     AzTable as PrimitiveAzTable, AzTableBody, AzTableCaption, AzTableCell as PrimitiveAzTableCell,
     AzTableHead, AzTableHeaderCell, AzTableRow as PrimitiveAzTableRow,
@@ -31,7 +32,7 @@ impl AzTableAlign {
 }
 
 /// Column definition for [`AzTable`].
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct AzTableColumn {
     /// Stable column key used by the consumer.
     pub key: String,
@@ -44,7 +45,7 @@ pub struct AzTableColumn {
 }
 
 /// Cell payload for a row in [`AzTable`].
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[apply(plain_default_eq)]
 pub struct AzTableCell {
     /// Visible text content.
     pub value: String,
@@ -75,7 +76,7 @@ impl From<String> for AzTableCell {
 }
 
 /// Row payload for [`AzTable`].
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub struct AzTableRow {
     /// Stable row key used by the consumer.
     pub key: String,

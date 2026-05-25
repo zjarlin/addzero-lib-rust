@@ -3,11 +3,11 @@
 //! These types are simplified representations of SQL statements
 //! that the query executor understands.
 
-use serde::{Deserialize, Serialize};
+use az_derive_aliases::{apply, plain_copy_eq, plain_partial_eq};
 use serde_json::Value;
 
 /// A parsed SQL statement.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub enum Statement {
     /// CREATE TABLE statement.
     CreateTable(CreateTable),
@@ -34,7 +34,7 @@ pub enum Statement {
 }
 
 /// CREATE TABLE statement.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct CreateTable {
     pub name: String,
     pub columns: Vec<ColumnDef>,
@@ -42,7 +42,7 @@ pub struct CreateTable {
 }
 
 /// Column definition in CREATE TABLE.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct ColumnDef {
     pub name: String,
     pub data_type: SqlDataType,
@@ -50,7 +50,7 @@ pub struct ColumnDef {
 }
 
 /// SQL data types.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[apply(plain_copy_eq)]
 pub enum SqlDataType {
     Text,
     Integer,
@@ -62,7 +62,7 @@ pub enum SqlDataType {
 }
 
 /// Column constraints.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub enum ColumnConstraint {
     NotNull,
     Unique,
@@ -71,14 +71,14 @@ pub enum ColumnConstraint {
 }
 
 /// DROP TABLE statement.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct DropTable {
     pub name: String,
     pub if_exists: bool,
 }
 
 /// SELECT statement.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct Select {
     pub columns: Vec<SelectColumn>,
     pub from: String,
@@ -89,7 +89,7 @@ pub struct Select {
 }
 
 /// A column in SELECT clause.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub enum SelectColumn {
     /// SELECT *
     Wildcard,
@@ -100,14 +100,14 @@ pub enum SelectColumn {
 }
 
 /// ORDER BY clause item.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct OrderBy {
     pub column: String,
     pub ascending: bool,
 }
 
 /// INSERT statement.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct Insert {
     pub table: String,
     pub columns: Option<Vec<String>>,
@@ -115,7 +115,7 @@ pub struct Insert {
 }
 
 /// UPDATE statement.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct Update {
     pub table: String,
     pub assignments: Vec<Assignment>,
@@ -123,21 +123,21 @@ pub struct Update {
 }
 
 /// SET clause assignment.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct Assignment {
     pub column: String,
     pub value: Expr,
 }
 
 /// DELETE statement.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub struct Delete {
     pub table: String,
     pub where_clause: Option<Expr>,
 }
 
 /// SQL expression.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub enum Expr {
     /// Column reference.
     Column(String),
@@ -179,7 +179,7 @@ pub enum Expr {
 }
 
 /// Literal value.
-#[derive(Debug, Clone, PartialEq)]
+#[apply(plain_partial_eq)]
 pub enum LiteralValue {
     Null,
     Boolean(bool),
@@ -206,7 +206,7 @@ impl LiteralValue {
 }
 
 /// Binary operators.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum BinaryOperator {
     // Comparison
     Eq,
@@ -249,7 +249,7 @@ impl BinaryOperator {
 }
 
 /// Unary operators.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub enum UnaryOperator {
     Not,
     Minus,

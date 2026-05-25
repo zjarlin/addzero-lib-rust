@@ -1,12 +1,14 @@
+use az_derive_aliases::{
+    apply, serde_code_default_enum, serde_eq, serde_partial_eq, serde_partial_eq_default,
+};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_default_enum)]
 pub enum AssetKind {
     Capture,
+    #[default]
     Note,
     Skill,
     Software,
@@ -15,27 +17,15 @@ pub enum AssetKind {
 
 impl AssetKind {
     pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Capture => "capture",
-            Self::Note => "note",
-            Self::Skill => "skill",
-            Self::Software => "software",
-            Self::Package => "package",
-        }
+        self.code()
     }
 
     pub fn from_db_value(value: &str) -> Self {
-        match value {
-            "capture" => Self::Capture,
-            "skill" => Self::Skill,
-            "software" => Self::Software,
-            "package" => Self::Package,
-            _ => Self::Note,
-        }
+        Self::from_code(value).unwrap_or_default()
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct Asset {
     pub id: Uuid,
     pub kind: AssetKind,
@@ -49,7 +39,7 @@ pub struct Asset {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct AssetEdge {
     pub id: Uuid,
     pub source_asset_id: Uuid,
@@ -61,7 +51,7 @@ pub struct AssetEdge {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AssetUpsert {
     pub id: Option<Uuid>,
     pub kind: AssetKind,
@@ -90,7 +80,7 @@ impl AssetUpsert {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq)]
 pub struct AssetEdgeUpsert {
     pub source_asset_id: Uuid,
     pub target_asset_id: Uuid,
@@ -99,15 +89,17 @@ pub struct AssetEdgeUpsert {
     pub metadata: serde_json::Value,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[apply(serde_partial_eq_default)]
 pub struct AssetGraph {
     pub assets: Vec<Asset>,
     pub edges: Vec<AssetEdge>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[apply(serde_code_default_enum)]
 pub enum AiProviderKind {
+    #[default]
+    #[serde(rename = "openai")]
+    #[strum(serialize = "openai")]
     OpenAi,
     Anthropic,
     Gemini,
@@ -115,23 +107,15 @@ pub enum AiProviderKind {
 
 impl AiProviderKind {
     pub fn as_str(self) -> &'static str {
-        match self {
-            Self::OpenAi => "openai",
-            Self::Anthropic => "anthropic",
-            Self::Gemini => "gemini",
-        }
+        self.code()
     }
 
     pub fn from_db_value(value: &str) -> Self {
-        match value {
-            "anthropic" => Self::Anthropic,
-            "gemini" => Self::Gemini,
-            _ => Self::OpenAi,
-        }
+        Self::from_code(value).unwrap_or_default()
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AiModelProvider {
     pub provider: AiProviderKind,
     pub base_url: Option<String>,
@@ -142,7 +126,7 @@ pub struct AiModelProvider {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AiModelProviderUpsert {
     pub provider: AiProviderKind,
     pub base_url: Option<String>,
@@ -151,7 +135,7 @@ pub struct AiModelProviderUpsert {
     pub api_key: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AssetProviderSecret {
     pub provider: AiProviderKind,
     pub base_url: Option<String>,
@@ -159,7 +143,7 @@ pub struct AssetProviderSecret {
     pub api_key: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AiPromptButton {
     pub id: Uuid,
     pub label: String,
@@ -171,7 +155,7 @@ pub struct AiPromptButton {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct AiPromptButtonUpsert {
     pub id: Option<Uuid>,
     pub label: String,
@@ -182,14 +166,14 @@ pub struct AiPromptButtonUpsert {
     pub enabled: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct SuggestedEdge {
     pub target_title: String,
     pub relation: String,
     pub confidence: u8,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[apply(serde_eq)]
 pub struct PromptRunOutput {
     pub title: String,
     pub tags: Vec<String>,
