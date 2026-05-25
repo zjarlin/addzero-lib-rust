@@ -1202,6 +1202,34 @@ macro_rules! serde_code_ord {
     };
 }
 
+/// Ordered code-backed data type with custom `Display` and hash derives.
+#[macro_export]
+macro_rules! serde_code_ord_display {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                PartialEq,
+                Eq,
+                ::core::hash::Hash,
+                PartialOrd,
+                Ord,
+                ::serde::Serialize,
+                ::serde::Deserialize,
+                ::derive_more::Display,
+                ::strum::EnumString,
+                ::strum::IntoStaticStr,
+                ::strum::VariantArray
+            ),
+            #[serde(rename_all = "snake_case")]
+            #[strum(serialize_all = "snake_case")]
+            $item
+        );
+    };
+}
+
 /// Ordered code-backed enum with snake_case serde, variant list, and `code` helpers.
 #[macro_export]
 macro_rules! serde_code_ord_enum {
@@ -1212,6 +1240,26 @@ macro_rules! serde_code_ord_enum {
         }
     ) => {
         $crate::serde_code_ord! {
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
+    };
+}
+
+/// Ordered code-backed enum with snake_case serde, custom `Display`, variant list, and `code` helpers.
+#[macro_export]
+macro_rules! serde_code_ord_display_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::serde_code_ord_display! {
             $(#[$meta])*
             $vis enum $name {
                 $($body)*

@@ -1843,6 +1843,7 @@ dependencies = [
  "az-derive-aliases",
  "az-persistence",
  "chrono",
+ "derive_more 2.1.1",
  "regex",
  "reqwest 0.12.28",
  "sea-orm",

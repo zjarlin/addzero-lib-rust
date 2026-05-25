@@ -1,52 +1,38 @@
 use std::{collections::BTreeSet, fmt};
 
-use az_derive_aliases::{apply, error_eq, serde_code_ord_enum, serde_eq, serde_eq_default};
+use az_derive_aliases::{apply, error_eq, serde_code_ord_display_enum, serde_eq, serde_eq_default};
 use uuid::Uuid;
 
-#[apply(serde_code_ord_enum)]
+#[apply(serde_code_ord_display_enum)]
 pub enum SoftwarePlatform {
+    #[display("macOS")]
     Macos,
+    #[display("Windows")]
     Windows,
+    #[display("Linux")]
     Linux,
 }
 
-impl SoftwarePlatform {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Macos => "macOS",
-            Self::Windows => "Windows",
-            Self::Linux => "Linux",
-        }
-    }
-}
-
-#[apply(serde_code_ord_enum)]
+#[apply(serde_code_ord_display_enum)]
 pub enum InstallerKind {
+    #[display("Homebrew")]
     Brew,
+    #[display("Bun")]
     Bun,
+    #[display("winget")]
     Winget,
+    #[display("Scoop")]
     Scoop,
+    #[display("Chocolatey")]
     Choco,
+    #[display("curl 下载")]
     Curl,
     #[serde(rename = "package")]
     #[strum(serialize = "package")]
+    #[display("安装包")]
     DirectPackage,
+    #[display("自定义")]
     Custom,
-}
-
-impl InstallerKind {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Brew => "Homebrew",
-            Self::Bun => "Bun",
-            Self::Winget => "winget",
-            Self::Scoop => "Scoop",
-            Self::Choco => "Chocolatey",
-            Self::Curl => "curl 下载",
-            Self::DirectPackage => "安装包",
-            Self::Custom => "自定义",
-        }
-    }
 }
 
 #[apply(serde_eq)]
@@ -304,14 +290,14 @@ mod tests {
     #[test]
     fn code_enums_keep_storage_values() {
         assert_eq!(SoftwarePlatform::Macos.code(), "macos");
-        assert_eq!(SoftwarePlatform::Macos.label(), "macOS");
+        assert_eq!(SoftwarePlatform::Macos.to_string(), "macOS");
         assert_eq!(
             SoftwarePlatform::from_code("linux"),
             Some(SoftwarePlatform::Linux)
         );
 
         assert_eq!(InstallerKind::DirectPackage.code(), "package");
-        assert_eq!(InstallerKind::DirectPackage.label(), "安装包");
+        assert_eq!(InstallerKind::DirectPackage.to_string(), "安装包");
         assert_eq!(
             InstallerKind::from_code("package"),
             Some(InstallerKind::DirectPackage)
