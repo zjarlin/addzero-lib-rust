@@ -27,6 +27,7 @@ use az_config_center_contract::{
     ShellComponentBuildResult, ShellComponentConfigUpdate, ShellComponentPatch,
     ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
 };
+use az_derive_aliases::{apply, plain_clone_debug, plain_default_clone_debug};
 use az_script_engine::script::ScriptEngine;
 use az_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 use serde::Deserialize;
@@ -69,13 +70,13 @@ pub struct BackendServices {
 static SERVICES: OnceCell<BackendServices> = OnceCell::const_new();
 static ADMIN_AUTH: Lazy<AdminSessionService> = Lazy::new(AdminSessionService::from_env);
 
-#[derive(Clone, Debug, Default)]
+#[apply(plain_default_clone_debug)]
 pub struct ApiServerOptions {
     pub bind: Option<String>,
     pub desktop_token: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[apply(plain_clone_debug)]
 struct ServerState {
     bind: String,
     desktop_token: Option<String>,

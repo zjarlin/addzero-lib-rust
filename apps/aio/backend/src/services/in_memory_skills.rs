@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 
+use az_derive_aliases::{apply, plain_default};
 use chrono::Utc;
 
 use super::skills::{
@@ -7,7 +8,7 @@ use super::skills::{
     SkillUpsertDto, SkillsApi, SyncReportDto,
 };
 
-#[derive(Default)]
+#[apply(plain_default)]
 pub struct InMemorySkillsApi;
 
 thread_local! {

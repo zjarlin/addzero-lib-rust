@@ -1,8 +1,8 @@
 use std::fmt::Write;
 
-use serde::Serialize;
+use az_derive_aliases::{apply, serialize_copy_eq};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[apply(serialize_copy_eq)]
 pub struct AioCommandMetadata {
     pub name: &'static str,
     pub summary: &'static str,

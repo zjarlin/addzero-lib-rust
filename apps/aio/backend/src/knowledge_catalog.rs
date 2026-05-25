@@ -1,4 +1,6 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+use az_derive_aliases::{apply, plain_copy_eq};
+
+#[apply(plain_copy_eq)]
 pub struct KnowledgeDoc {
     pub source_slug: &'static str,
     pub source_name: &'static str,
@@ -15,7 +17,7 @@ pub struct KnowledgeDoc {
     pub headings: &'static [&'static str],
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct KnowledgeSourceSummary {
     pub slug: &'static str,
     pub label: &'static str,

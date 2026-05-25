@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use az_derive_aliases::{apply, error_eq, serde_code_enum, serde_eq_default};
+use az_derive_aliases::{apply, error_eq, plain_clone_debug, serde_code_enum, serde_eq_default};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
 
@@ -664,7 +664,7 @@ fn build_graph_edges(items: &[AssetGraphItemDto]) -> Vec<AssetGraphEdgeDto> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone, Debug)]
+#[apply(plain_clone_debug)]
 struct InstalledApp {
     name: String,
     path: String,

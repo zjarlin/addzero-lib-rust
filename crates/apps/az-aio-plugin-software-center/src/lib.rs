@@ -5,6 +5,7 @@ pub mod installer_scanner;
 pub mod installer_scanner_utils;
 pub mod paths;
 
+use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
     EventPropagation, Plugin,
@@ -18,7 +19,7 @@ use crate::installer_scanner::{InstallerPackage, organize_installers, scan_insta
 const KNOWLEDGE_DOMAIN_ID: &str = "knowledge";
 const SOFTWARE_BRANCH_ID: &str = "knowledge-software";
 
-#[derive(Default)]
+#[apply(plain_default)]
 struct SoftwareCenterPlugin {
     lines: Vec<String>,
     scanned: Vec<InstallerPackage>,

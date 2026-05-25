@@ -8,6 +8,7 @@ pub mod gateway_runtime_types;
 
 use std::collections::BTreeMap;
 
+use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
     EventPropagation, Plugin,
@@ -22,7 +23,7 @@ use crate::gateway_runtime_types::{GatewayRunRequest, GatewayRunResult, GatewayR
 const OPS_DOMAIN_ID: &str = "operations";
 const EDGE_BRANCH_ID: &str = "operations-edge";
 
-#[derive(Default)]
+#[apply(plain_default)]
 struct EdgeGatewayPlugin {
     plan: Option<GatewayRunRequest>,
     result: Option<GatewayRunResult>,

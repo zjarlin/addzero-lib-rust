@@ -9,6 +9,7 @@
 - **serialize_debug** — 带 `Debug` + `Serialize` 的只写请求/输出类型
 - **serialize_clone_debug** — 带 `Clone` + `Debug` + `Serialize` 的只写请求/输出类型
 - **serialize_eq** — 带 `Serialize` + 相等/调试 trait 的只写请求/输出类型
+- **serialize_copy_eq** — 在 `serialize_eq` 基础上改为 `Copy` 小类型，不增加 `Deserialize`
 - **serialize_partial_eq** — 用于不能 `Eq` 的只写请求/输出类型
 - **deserialize_eq** — 带 `Deserialize` + 相等/调试 trait 的只读响应/输入类型
 - **deserialize_partial_eq** — 用于不能 `Eq` 的只读响应/输入类型

@@ -1,4 +1,6 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+use az_derive_aliases::{apply, plain_copy_eq};
+
+#[apply(plain_copy_eq)]
 pub struct PackageChannel {
     pub slug: &'static str,
     pub title: &'static str,
@@ -7,7 +9,7 @@ pub struct PackageChannel {
     pub rule: &'static str,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct PackageAsset {
     pub slug: &'static str,
     pub channel_slug: &'static str,

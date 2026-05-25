@@ -1,6 +1,6 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
-use az_derive_aliases::{apply, error_eq, serde_eq, serde_eq_default};
+use az_derive_aliases::{apply, error_eq, plain_eq, serde_eq, serde_eq_default};
 #[cfg(not(target_arch = "wasm32"))]
 use sha2::{Digest, Sha256};
 #[cfg(not(target_arch = "wasm32"))]
@@ -151,7 +151,7 @@ pub struct CreatedApiKeyDto {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[apply(plain_eq)]
 pub enum UserAuthenticationResult {
     Authenticated(UserDto),
     UsernameNotFound,

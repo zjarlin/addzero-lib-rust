@@ -4,6 +4,7 @@
 mod skill_scanner;
 
 use az_assets::{AssetKind, AssetUpsert};
+use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
     EventPropagation, Plugin,
@@ -17,7 +18,7 @@ use crate::skill_scanner::scan_skill_assets;
 const KNOWLEDGE_DOMAIN_ID: &str = "knowledge";
 const ASSET_BRANCH_ID: &str = "knowledge-assets";
 
-#[derive(Default)]
+#[apply(plain_default)]
 struct AssetHubPlugin {
     lines: Vec<String>,
 }

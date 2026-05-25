@@ -15,24 +15,24 @@ use az_aio_plugin_software_center::installer_scanner::{
     InstallerPackage, organize_installers, scan_installers,
 };
 use az_assets::{AiProviderKind, AssetProviderSecret};
+use az_derive_aliases::{apply, deserialize_eq, serialize_eq};
 use az_drive_agent::{HostedStatus, ListTrackedOptions, LocalRootState, TrackedItem};
 use az_drive_store::{DriveConflict, DriveSyncQueueItem};
 use reqwest::{
     Client,
     header::{ACCEPT, AUTHORIZATION, HeaderMap, HeaderValue},
 };
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{AiProviderConfigDto, AiProviderConfigUpsertDto, AiProviderKindDto};
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionResultDto {
     pub message: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DriveSnapshotDto {
     pub roots: Vec<LocalRootState>,
@@ -42,13 +42,13 @@ pub struct DriveSnapshotDto {
     pub queue: Vec<DriveSyncQueueItem>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[apply(deserialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DrivePathRequestDto {
     pub path: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigLocalStatusDto {
     pub dotfiles: DotfilesMonitorStatus,
@@ -57,13 +57,13 @@ pub struct ConfigLocalStatusDto {
     pub providers: Vec<AiProviderConfigDto>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[apply(deserialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderTestRequestDto {
     pub provider: AiProviderKindDto,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[apply(serialize_eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderTestResultDto {
     pub provider: AiProviderKindDto,

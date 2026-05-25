@@ -11,6 +11,7 @@ use std::env;
 
 use az_ai_agent::default_model_for;
 use az_assets::{AiModelProviderUpsert, AiProviderKind};
+use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
     EventPropagation, Plugin,
@@ -27,7 +28,7 @@ use crate::{
 const ENV_DOMAIN_ID: &str = "environment";
 const MACHINE_BRANCH_ID: &str = "environment-machine";
 
-#[derive(Default)]
+#[apply(plain_default)]
 struct ConfigCenterPlugin {
     lines: Vec<String>,
     last_test_lines: Vec<String>,

@@ -968,6 +968,7 @@ dependencies = [
 name = "az-aio-plugin-drive-center"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-desktop-plugin",
  "az-desktop-plugin-registry",
  "gpui",

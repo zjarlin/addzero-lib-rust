@@ -1,4 +1,6 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+use az_derive_aliases::{apply, plain_copy_eq};
+
+#[apply(plain_copy_eq)]
 pub struct DotfileSpace {
     pub slug: &'static str,
     pub title: &'static str,
@@ -7,7 +9,7 @@ pub struct DotfileSpace {
     pub cloud_rule: &'static str,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[apply(plain_copy_eq)]
 pub struct DotfileEntry {
     pub slug: &'static str,
     pub space_slug: &'static str,

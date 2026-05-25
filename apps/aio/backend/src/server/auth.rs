@@ -8,12 +8,13 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 use az_agent_runtime_contract::{LoginRequest, SessionUser};
+use az_derive_aliases::{apply, plain_clone, plain_eq};
 
 type HmacSha256 = Hmac<Sha256>;
 
 const COOKIE_NAME: &str = "aio_session";
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct AdminSessionService {
     username: String,
     password: String,
@@ -21,7 +22,7 @@ pub struct AdminSessionService {
     ttl: Duration,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[apply(plain_eq)]
 pub enum AdminAuthFailure {
     UsernameNotFound,
     PasswordIncorrect,

@@ -54,6 +54,17 @@ macro_rules! serialize_eq {
     };
 }
 
+/// Serializable small request/output type with `Copy`, equality, and debug traits.
+#[macro_export]
+macro_rules! serialize_copy_eq {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (Clone, Copy, Debug, PartialEq, Eq, ::serde::Serialize),
+            $item
+        );
+    };
+}
+
 /// Serializable request/output type with partial equality and debug traits.
 #[macro_export]
 macro_rules! serialize_partial_eq {

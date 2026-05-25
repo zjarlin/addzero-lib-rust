@@ -6,6 +6,9 @@ use std::cell::RefCell;
 use az_agent_runtime_contract::{LoginRequest, SessionUser};
 use az_derive_aliases::{apply, error_eq};
 
+#[cfg(target_arch = "wasm32")]
+use az_derive_aliases::plain_copy_eq;
+
 use super::skills::LocalBoxFuture;
 
 #[apply(error_eq)]
@@ -27,7 +30,7 @@ const DEV_ADMIN_USERNAME: &str = "admin";
 const DEV_ADMIN_PASSWORD: &str = "admin";
 
 #[cfg(target_arch = "wasm32")]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[apply(plain_copy_eq)]
 enum DevCredentialError {
     UsernameNotFound,
     PasswordIncorrect,
