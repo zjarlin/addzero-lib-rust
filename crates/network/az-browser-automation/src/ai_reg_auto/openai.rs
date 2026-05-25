@@ -5,6 +5,7 @@ use crate::{BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions}
 use az_derive_aliases::{
     apply, deserialize_eq, plain_copy_eq, plain_copy_eq_hash, plain_default_copy_eq, plain_eq,
 };
+use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
 use headless_chrome::Tab;
 use headless_chrome::protocol::cdp::Runtime;
@@ -1784,9 +1785,17 @@ impl OpenAiRegAutomation {
         sms_token: &str,
         reg_options: &OpenAiFullRegOptions,
     ) -> BrowserAutomationResult<(String, u64)> {
+        Self::buy_sms_number_with(&BuiltinSmsProviderFactory, sms_token, reg_options)
+    }
+
+    fn buy_sms_number_with(
+        factory: &dyn SmsProviderFactory,
+        sms_token: &str,
+        reg_options: &OpenAiFullRegOptions,
+    ) -> BrowserAutomationResult<(String, u64)> {
         let rt = tokio::runtime::Runtime::new().map_err(to_browser_error)?;
         rt.block_on(async {
-            let client = super::build_fivesim_provider(sms_token)?;
+            let client = super::build_fivesim_provider_with(factory, sms_token)?;
             let request = az_sms::model::SmsActivationRequest::new(
                 &reg_options.sms_country,
                 &reg_options.sms_operator,
@@ -1804,9 +1813,18 @@ impl OpenAiRegAutomation {
 
     /// Polls 5sim for the SMS message containing a verification code.
     fn poll_sms_code(sms_token: &str, order_id: u64, max_wait: Duration) -> Option<String> {
+        Self::poll_sms_code_with(&BuiltinSmsProviderFactory, sms_token, order_id, max_wait)
+    }
+
+    fn poll_sms_code_with(
+        factory: &dyn SmsProviderFactory,
+        sms_token: &str,
+        order_id: u64,
+        max_wait: Duration,
+    ) -> Option<String> {
         let rt = tokio::runtime::Runtime::new().ok()?;
         rt.block_on(async {
-            let client = super::build_fivesim_provider(sms_token).ok()?;
+            let client = super::build_fivesim_provider_with(factory, sms_token).ok()?;
             let options =
                 az_sms::model::WaitForSmsOptions::new(max_wait, Duration::from_secs(5)).ok()?;
             match client.wait_for_sms(order_id, options).await {

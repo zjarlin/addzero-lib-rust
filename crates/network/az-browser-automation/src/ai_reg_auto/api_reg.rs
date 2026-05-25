@@ -16,6 +16,7 @@
 
 use crate::BrowserAutomationResult;
 use az_derive_aliases::{apply, plain_clone_debug, plain_default_copy_eq, plain_default_eq};
+use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
 use reqwest::blocking::Client as HttpClient;
 use sha2::{Digest, Sha256};
@@ -513,9 +514,17 @@ fn buy_sms_number(
     sms_token: &str,
     reg_options: &OpenAiApiRegOptions,
 ) -> BrowserAutomationResult<(String, u64)> {
+    buy_sms_number_with(&BuiltinSmsProviderFactory, sms_token, reg_options)
+}
+
+fn buy_sms_number_with(
+    factory: &dyn SmsProviderFactory,
+    sms_token: &str,
+    reg_options: &OpenAiApiRegOptions,
+) -> BrowserAutomationResult<(String, u64)> {
     let rt = tokio::runtime::Runtime::new().map_err(to_browser_error)?;
     rt.block_on(async {
-        let client = super::build_fivesim_provider(sms_token)?;
+        let client = super::build_fivesim_provider_with(factory, sms_token)?;
         let request = az_sms::model::SmsActivationRequest::new(
             &reg_options.sms_country,
             &reg_options.sms_operator,

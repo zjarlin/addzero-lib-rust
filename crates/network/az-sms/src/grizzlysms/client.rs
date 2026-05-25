@@ -8,7 +8,7 @@ use crate::model::{
     SmsProfile,
 };
 use crate::provider::SmsProvider;
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
+use az_derive_aliases::{apply, deserialize_debug, plain_clone_debug, plain_eq};
 use reqwest::Url;
 use reqwest::header::ACCEPT;
 use serde::{Deserialize, Deserializer};
@@ -458,7 +458,7 @@ impl GrizzlyStatusSnapshot {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct GrizzlyNumberV2Response {
     #[serde(rename = "activationId", deserialize_with = "deserialize_u64ish")]
     activation_id: u64,
@@ -497,7 +497,7 @@ impl GrizzlyNumberV2Response {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct GrizzlyActiveActivation {
     #[serde(rename = "activationId", deserialize_with = "deserialize_u64ish")]
     activation_id: u64,
@@ -570,13 +570,13 @@ impl GrizzlyActiveActivation {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct GrizzlyStatusV2Response {
     #[serde(default)]
     sms: Option<GrizzlyStatusSms>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct GrizzlyStatusSms {
     #[serde(rename = "dateTime", default)]
     date_time: Option<String>,
@@ -607,7 +607,7 @@ impl GrizzlyStatusSms {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 #[serde(untagged)]
 enum StringOrNumber {
     String(String),

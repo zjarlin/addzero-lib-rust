@@ -31,7 +31,7 @@ struct CacheEntry<V> {
 ///
 /// Internally uses a [`Mutex`] and recovers from poisoned locks gracefully,
 /// returning [`CacheError::Poisoned`] instead of panicking.
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct ExpiringCache<K, V> {
     expire_after: Duration,
     max_size: NonZeroUsize,
