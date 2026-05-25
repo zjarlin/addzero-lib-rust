@@ -31,9 +31,8 @@ impl CurlResponse {
 
 /// Blocking executor for parsed or raw curl commands.
 #[apply(plain_clone_debug)]
-pub struct CurlExecutor {
+pub(crate) struct CurlExecutor {
     client: reqwest::blocking::Client,
-    pub enable_debug_log: bool,
 }
 
 impl Default for CurlExecutor {
@@ -44,19 +43,16 @@ impl Default for CurlExecutor {
             .build()
             .expect("blocking reqwest client should build");
 
-        Self {
-            client,
-            enable_debug_log: false,
-        }
+        Self { client }
     }
 }
 
 impl CurlExecutor {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 
-    pub fn execute(&self, curl: impl AsRef<str>) -> CurlResult<CurlResponse> {
+    pub(crate) fn execute(&self, curl: impl AsRef<str>) -> CurlResult<CurlResponse> {
         let parsed = parse_curl(curl)?;
         self.execute_parsed(&parsed)
     }
@@ -90,7 +86,7 @@ impl CurlExecutor {
         builder.build().map_err(CurlError::RequestBuild)
     }
 
-    pub fn execute_parsed(&self, parsed: &ParsedCurl) -> CurlResult<CurlResponse> {
+    pub(crate) fn execute_parsed(&self, parsed: &ParsedCurl) -> CurlResult<CurlResponse> {
         let request = self.build_request(parsed)?;
         let response = self.client.execute(request).map_err(CurlError::Execute)?;
         let status = response.status().as_u16();
@@ -113,4 +109,12 @@ impl CurlExecutor {
             body,
         })
     }
+}
+
+/// Executes a curl command with a default blocking HTTP client.
+///
+/// Use this when the caller does not need to reuse an HTTP client across
+/// multiple requests.
+pub fn execute_curl(curl: impl AsRef<str>) -> CurlResult<CurlResponse> {
+    CurlExecutor::new().execute(curl)
 }

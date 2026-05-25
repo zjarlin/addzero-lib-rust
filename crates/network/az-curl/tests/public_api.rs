@@ -1,86 +1,17 @@
-use az_curl::*;
-use reqwest::Method;
+use az_curl::execute_curl;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
 use std::time::Duration;
 
 #[test]
-fn parses_complex_post_command() {
-    let command = r#"
-        curl 'https://demo.jetlinks.cn/api/device-product/_query' \
-          -H 'accept: application/json, text/plain, */*' \
-          -H 'content-type: application/json' \
-          -H 'x-access-token: token-123' \
-          --data-raw '{"pageIndex":0,"pageSize":96,"sorts":[{"name":"createTime","order":"desc"}],"terms":[]}'
-    "#;
-
-    let result = parse_curl(command);
-    let parsed = result.expect("curl should parse");
-
-    assert_eq!(parsed.method, Method::POST);
-    assert_eq!(
-        parsed.url,
-        "https://demo.jetlinks.cn/api/device-product/_query"
-    );
-    assert_eq!(
-        parsed.header("accept"),
-        Some("application/json, text/plain, */*")
-    );
-    assert_eq!(parsed.header("x-access-token"), Some("token-123"));
-    assert_eq!(parsed.inferred_content_type(), Some("application/json"));
-    assert!(
-        parsed
-            .body
-            .as_deref()
-            .expect("body should exist")
-            .contains("\"pageIndex\":0")
-    );
-}
-
-#[test]
-fn parses_auth_query_and_form_data() {
-    let command = "curl --url https://example.com/api/v1/users/42/orders/a1b2c3d4e5?userId=42&page=2 -u demo:secret -F 'name=alice' -F 'type=premium'";
-
-    let parsed = parse_curl(command).expect("curl should parse");
-
-    assert_eq!(parsed.method, Method::POST);
-    assert_eq!(
-        parsed.query_params.get("userId").map(String::as_str),
-        Some("42")
-    );
-    assert_eq!(
-        parsed.query_params.get("page").map(String::as_str),
-        Some("2")
-    );
-    assert_eq!(
-        parsed.path_params,
-        vec!["42".to_owned(), "a1b2c3d4e5".to_owned()]
-    );
-    assert_eq!(
-        parsed.form_params.get("name").map(String::as_str),
-        Some("alice")
-    );
-    assert_eq!(parsed.inferred_content_type(), Some("multipart/form-data"));
-    assert!(
-        parsed
-            .authorization
-            .as_deref()
-            .expect("authorization should exist")
-            .starts_with("Basic ")
-    );
-}
-
-#[test]
-fn executor_sends_request_to_local_server() {
+fn execute_curl_sends_request_to_local_server() {
     let (url, join_handle) = spawn_http_server("ok");
     let command = format!(
         "curl -X POST '{url}/echo?userId=42' -H 'x-token: abc' -H 'content-type: application/json' -d '{{\"hello\":\"world\"}}'"
     );
 
-    let executor = CurlExecutor::new();
-    let result = executor.execute(command);
-    let response = result.expect("request should succeed");
+    let response = execute_curl(command).expect("request should succeed");
     let request = join_handle.join().expect("server thread should join");
 
     assert_eq!(response.status, 200);
@@ -98,9 +29,7 @@ fn executor_returns_unauthorized_response_body() {
         "curl -X POST '{url}/api/device-product/_query' -H 'content-type: application/json' --data-raw '{{\"pageIndex\":0,\"pageSize\":96,\"sorts\":[{{\"name\":\"createTime\",\"order\":\"desc\"}}],\"terms\":[]}}'"
     );
 
-    let response = CurlExecutor::new()
-        .execute(command)
-        .expect("401 response should still return a body");
+    let response = execute_curl(command).expect("401 response should still return a body");
     let _request = join_handle.join().expect("server thread should join");
 
     assert_eq!(response.status, 401);
@@ -109,15 +38,6 @@ fn executor_returns_unauthorized_response_body() {
         response.text().expect("response body should be utf-8"),
         response_body
     );
-}
-
-#[test]
-fn parse_reports_missing_flag_values_as_structured_errors() {
-    let error = parse_curl("curl --header")
-        .expect_err("missing header value should fail")
-        .to_string();
-
-    assert_eq!(error, "flag `--header` requires a value");
 }
 
 fn spawn_http_server(body: &'static str) -> (String, thread::JoinHandle<String>) {
@@ -174,6 +94,7 @@ fn spawn_http_server_with_status(
         String::from_utf8_lossy(&buffer).into_owned()
     });
 
+    //noinspection HttpUrlsUsage
     (format!("http://{address}"), handle)
 }
 

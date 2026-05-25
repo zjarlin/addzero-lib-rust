@@ -9,8 +9,8 @@
 - 自动推断 Content-Type（JSON / multipart 表单）
 - 提取 URL 中的路径参数和查询参数
 - 通过 `curl!` 宏在编译期解析 curl 命令
-- 使用 `reqwest::blocking` 同步执行已解析的 HTTP 请求
-- 使用结构化 `CurlError`，不在库 API 暴露 `anyhow`
+- 使用 `execute_curl` 同步执行 curl 命令
+- 公开返回值使用 `anyhow::Result`，具体错误来源保留为结构化 `CurlError`
 
 ## 安装
 
@@ -35,11 +35,9 @@ assert_eq!(parsed.url, "https://api.example.com/data");
 ```
 
 ```rust
-use az_curl::CurlExecutor;
+use az_curl::execute_curl;
 
-let response = CurlExecutor::new().execute(
-    r#"curl -H "Accept: application/json" https://api.example.com"#,
-)?;
+let response = execute_curl(r#"curl -H "Accept: application/json" https://api.example.com"#)?;
 println!("{}", response.text()?);
 ```
 
