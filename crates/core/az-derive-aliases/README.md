@@ -28,13 +28,13 @@
 - **serde_partial_eq** — 用于包含 `f32`/`f64` 或动态 JSON 等不能 `Eq` 的 serde 数据类型
 - **serde_partial_eq_default** — 在 `serde_partial_eq` 基础上增加 `Default`
 - **serde_code** — 带 serde（snake_case）+ strum 字符串转换 + `Hash` 的代码类型
-- **serde_code_enum** — 在 `serde_code` 基础上生成 `ALL` / `code()` / `from_code()`
+- **serde_code_enum** — 在 `serde_code` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **serde_code_default** — 在 `serde_code` 基础上增加 `Default`
-- **serde_code_default_enum** — 在 `serde_code_default` 基础上生成 `ALL` / `code()` / `from_code()`
+- **serde_code_default_enum** — 在 `serde_code_default` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **serde_code_ord** — 在 `serde_code` 基础上增加 `Ord`/`PartialOrd`
-- **serde_code_ord_enum** — 在 `serde_code_ord` 基础上生成 `ALL` / `code()` / `from_code()`
+- **serde_code_ord_enum** — 在 `serde_code_ord` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **serde_code_default_ord** — 在 `serde_code_ord` 基础上增加 `Default`
-- **serde_code_default_ord_enum** — 在 `serde_code_default_ord` 基础上生成 `ALL` / `code()` / `from_code()`
+- **serde_code_default_ord_enum** — 在 `serde_code_default_ord` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **plain_eq** — 纯内存结构体/枚举的 `Clone` + `Debug` + `Eq` + `PartialEq`
 - **plain_clone** — 纯内存句柄/配置壳子的 `Clone`
 - **plain_clone_debug** — 纯内存句柄/配置壳子的 `Clone` + `Debug`
@@ -55,7 +55,7 @@
 - **plain_default_copy_eq_display** — 在 `plain_default_copy_eq` 基础上增加 `Display`
 
 所有宏设计为配合 [`macro_rules_attribute::apply`](https://docs.rs/macro_rules_attribute) 使用，保持 `#[serde(...)]` 和 `#[strum(...)]` 等辅助属性对编译器和 IDE 可见。
-`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。
+`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。
 
 ## 安装
 

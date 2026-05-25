@@ -16,10 +16,6 @@ pub enum AssetKind {
 }
 
 impl AssetKind {
-    pub fn as_str(self) -> &'static str {
-        self.code()
-    }
-
     pub fn from_db_value(value: &str) -> Self {
         Self::from_code(value).unwrap_or_default()
     }
@@ -106,10 +102,6 @@ pub enum AiProviderKind {
 }
 
 impl AiProviderKind {
-    pub fn as_str(self) -> &'static str {
-        self.code()
-    }
-
     pub fn from_db_value(value: &str) -> Self {
         Self::from_code(value).unwrap_or_default()
     }

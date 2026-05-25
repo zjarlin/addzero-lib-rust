@@ -586,8 +586,13 @@ macro_rules! serde_code_enum {
             pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
 
             #[must_use]
-            pub fn code(self) -> &'static str {
+            pub fn as_str(self) -> &'static str {
                 self.into()
+            }
+
+            #[must_use]
+            pub fn code(self) -> &'static str {
+                self.as_str()
             }
 
             pub fn from_code(value: &str) -> Option<Self> {
@@ -643,8 +648,13 @@ macro_rules! serde_code_default_enum {
             pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
 
             #[must_use]
-            pub fn code(self) -> &'static str {
+            pub fn as_str(self) -> &'static str {
                 self.into()
+            }
+
+            #[must_use]
+            pub fn code(self) -> &'static str {
+                self.as_str()
             }
 
             pub fn from_code(value: &str) -> Option<Self> {
@@ -701,8 +711,13 @@ macro_rules! serde_code_ord_enum {
             pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
 
             #[must_use]
-            pub fn code(self) -> &'static str {
+            pub fn as_str(self) -> &'static str {
                 self.into()
+            }
+
+            #[must_use]
+            pub fn code(self) -> &'static str {
+                self.as_str()
             }
 
             pub fn from_code(value: &str) -> Option<Self> {
@@ -760,8 +775,13 @@ macro_rules! serde_code_default_ord_enum {
             pub const ALL: &'static [Self] = <Self as ::strum::VariantArray>::VARIANTS;
 
             #[must_use]
-            pub fn code(self) -> &'static str {
+            pub fn as_str(self) -> &'static str {
                 self.into()
+            }
+
+            #[must_use]
+            pub fn code(self) -> &'static str {
+                self.as_str()
             }
 
             pub fn from_code(value: &str) -> Option<Self> {

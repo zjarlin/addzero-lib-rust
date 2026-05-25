@@ -31,12 +31,6 @@ pub enum AgentArtifactChannel {
     DockerCompose,
 }
 
-impl AgentArtifactChannel {
-    pub fn as_str(self) -> &'static str {
-        self.code()
-    }
-}
-
 #[apply(serde_code_enum)]
 pub enum PairingStatus {
     Pending,
