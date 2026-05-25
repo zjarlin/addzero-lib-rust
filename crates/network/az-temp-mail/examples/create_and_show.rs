@@ -4,6 +4,7 @@
 //! cargo run -p az-temp-mail --example create_and_show
 //! ```
 
+use az_derive_aliases::{apply, deserialize_debug};
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use std::error::Error;
@@ -190,13 +191,13 @@ fn random_str(len: usize) -> String {
         .collect()
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct DomainsResponse {
     #[serde(rename = "hydra:member")]
     hydra_member: Vec<DomainItem>,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct DomainItem {
     domain: String,
     #[serde(rename = "isActive")]
@@ -205,12 +206,12 @@ struct DomainItem {
     is_private: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct AccountResponse {
     id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[apply(deserialize_debug)]
 struct TokenResponse {
     token: String,
 }
