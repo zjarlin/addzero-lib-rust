@@ -7,8 +7,8 @@
 
 use async_trait::async_trait;
 use az_derive_aliases::{
-    apply, error, plain_default, plain_default_clone, plain_default_copy_eq, serde_code, serde_eq,
-    serde_eq_copy,
+    apply, error, plain_default, plain_default_clone, plain_default_copy_eq, serde_code_enum,
+    serde_eq, serde_eq_copy,
 };
 use az_drive_core::{EntryKey, RelativePath, RootAlias};
 use az_rustfs::StorageError;
@@ -160,7 +160,7 @@ pub struct DriveConflict {
 }
 
 /// Durable sync task kind used for queue diagnostics and retry.
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum DriveSyncTaskKind {
     /// Upload local bytes as a new remote version.
     Upload,
@@ -173,7 +173,7 @@ pub enum DriveSyncTaskKind {
 }
 
 /// Durable sync task status.
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum DriveSyncTaskStatus {
     /// Task has been discovered but not completed.
     Pending,

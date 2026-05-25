@@ -1059,6 +1059,37 @@ macro_rules! plain_code_display_enum {
     };
 }
 
+/// Plain code-backed enum with explicit string conversion and variant list.
+#[macro_export]
+macro_rules! plain_code_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Copy,
+                Debug,
+                Eq,
+                PartialEq,
+                ::core::hash::Hash,
+                ::strum::EnumString,
+                ::strum::IntoStaticStr,
+                ::strum::VariantArray
+            ),
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        );
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
+    };
+}
+
 /// Code-backed enum usable as both a Clap `ValueEnum` and a serde/string code enum.
 #[macro_export]
 macro_rules! clap_code_enum {

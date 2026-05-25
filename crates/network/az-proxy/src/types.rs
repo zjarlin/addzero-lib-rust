@@ -1,4 +1,4 @@
-use az_derive_aliases::{apply, error, serde_code, serde_eq, serde_partial_eq};
+use az_derive_aliases::{apply, error, serde_code_enum, serde_eq, serde_partial_eq};
 use serde_yaml::Value;
 use std::time::Duration;
 
@@ -68,7 +68,7 @@ pub enum ProxyError {
 }
 
 /// Supported proxy node types.
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum ProxyType {
     /// Shadowsocks proxy node.
     #[strum(serialize = "ss", serialize = "shadowsocks")]
@@ -91,15 +91,7 @@ pub enum ProxyType {
 impl ProxyType {
     /// Returns the Clash YAML `type` string for this proxy type.
     pub fn as_clash_str(self) -> &'static str {
-        match self {
-            Self::Ss => "ss",
-            Self::Vmess => "vmess",
-            Self::Vless => "vless",
-            Self::Trojan => "trojan",
-            Self::Hysteria2 => "hysteria2",
-            Self::Tuic => "tuic",
-            Self::Wireguard => "wireguard",
-        }
+        self.code()
     }
 
     /// Parses a Clash YAML `type` string into a supported proxy type.

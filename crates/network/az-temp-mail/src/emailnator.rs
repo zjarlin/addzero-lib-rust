@@ -7,7 +7,7 @@ use crate::provider::TempMailProvider;
 use crate::util::trim_non_blank;
 use crate::{ApiConfig, TempMailError, TempMailResult};
 use az_derive_aliases::{
-    apply, deserialize_debug, plain_copy_eq, plain_debug, plain_eq, serialize_eq,
+    apply, deserialize_debug, plain_code_enum, plain_debug, plain_eq, serialize_eq,
 };
 use regex::Regex;
 use reqwest::blocking::Response;
@@ -24,21 +24,14 @@ static HTTP_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Email generation mode accepted by Emailnator's `/generate-email` endpoint.
-#[apply(plain_copy_eq)]
+#[apply(plain_code_enum)]
 pub enum EmailnatorEmailMode {
     /// Gmail plus-address variant.
+    #[strum(serialize = "plusGmail")]
     PlusGmail,
     /// Gmail dot-address variant.
+    #[strum(serialize = "dotGmail")]
     DotGmail,
-}
-
-impl EmailnatorEmailMode {
-    const fn as_api_value(self) -> &'static str {
-        match self {
-            Self::PlusGmail => "plusGmail",
-            Self::DotGmail => "dotGmail",
-        }
-    }
 }
 
 /// Request options for generating an Emailnator address.
@@ -76,7 +69,7 @@ impl EmailnatorEmailRequest {
             email: self
                 .modes
                 .iter()
-                .map(|mode| mode.as_api_value().to_owned())
+                .map(|mode| mode.code().to_owned())
                 .collect(),
         }
     }

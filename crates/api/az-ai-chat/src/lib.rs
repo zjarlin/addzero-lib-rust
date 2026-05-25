@@ -20,7 +20,7 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, error, serde_code, serde_eq, serde_partial_eq_default};
+use az_derive_aliases::{apply, error, serde_code_enum, serde_eq, serde_partial_eq_default};
 
 mod openai;
 
@@ -54,7 +54,7 @@ pub enum ChatError {
 pub type ChatResult<T> = Result<T, ChatError>;
 
 /// The role of a message participant.
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum Role {
     /// System prompt (instructions to the model).
     System,
