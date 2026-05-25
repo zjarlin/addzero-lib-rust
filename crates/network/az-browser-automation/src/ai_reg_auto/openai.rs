@@ -5,7 +5,6 @@ use crate::{BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions}
 use az_derive_aliases::{
     apply, deserialize_eq, plain_copy_eq, plain_copy_eq_hash, plain_default_copy_eq, plain_eq,
 };
-use az_sms::provider::SmsProvider;
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
 use headless_chrome::Tab;
 use headless_chrome::protocol::cdp::Runtime;
@@ -1787,8 +1786,7 @@ impl OpenAiRegAutomation {
     ) -> BrowserAutomationResult<(String, u64)> {
         let rt = tokio::runtime::Runtime::new().map_err(to_browser_error)?;
         rt.block_on(async {
-            let client =
-                az_sms::fivesim::FivesimClient::from_token(sms_token).map_err(to_browser_error)?;
+            let client = super::build_fivesim_provider(sms_token)?;
             let request = az_sms::model::SmsActivationRequest::new(
                 &reg_options.sms_country,
                 &reg_options.sms_operator,
@@ -1808,7 +1806,7 @@ impl OpenAiRegAutomation {
     fn poll_sms_code(sms_token: &str, order_id: u64, max_wait: Duration) -> Option<String> {
         let rt = tokio::runtime::Runtime::new().ok()?;
         rt.block_on(async {
-            let client = az_sms::fivesim::FivesimClient::from_token(sms_token).ok()?;
+            let client = super::build_fivesim_provider(sms_token).ok()?;
             let options =
                 az_sms::model::WaitForSmsOptions::new(max_wait, Duration::from_secs(5)).ok()?;
             match client.wait_for_sms(order_id, options).await {

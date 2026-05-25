@@ -6,9 +6,11 @@
 
 pub mod api_reg;
 pub mod openai;
+pub mod sms;
 
 pub use openai::{
     OpenAiAuthAutomation, OpenAiAuthFlow, OpenAiAuthOptions, OpenAiAuthResult, OpenAiAuthStage,
     OpenAiFullRegOptions, OpenAiFullRegResult, OpenAiRecordingOptions, OpenAiRecordingResult,
     OpenAiRecordingStep, OpenAiRecordingStepResult, OpenAiRecordingStepStatus, OpenAiRegAutomation,
 };
+pub use sms::{build_fivesim_provider, build_fivesim_provider_with};

@@ -194,6 +194,22 @@ async fn main() -> az_sms::error::SmsResult<()> {
 
 Grizzly SMS 官方文档当前没有公开托管/租号 inbox API，因此 `buy_hosting_number` 和 `inbox` 会返回 `SmsError::UnsupportedOperation`。
 
+## Provider Factory
+
+需要把 provider 注入到应用服务时，可以使用统一 factory 返回 trait object：
+
+```rust,no_run
+use az_sms::fivesim::FivesimConfig;
+use az_sms::provider::{SmsProviderConfig, build_sms_provider};
+
+fn provider(token: String) -> az_sms::error::SmsResult<az_sms::provider::BoxSmsProvider> {
+    let config = FivesimConfig::builder(token).build()?;
+    build_sms_provider(SmsProviderConfig::from(config))
+}
+```
+
+如果上层服务需要依赖注入，依赖 `SmsProviderFactory` trait 即可，默认实现是 `BuiltinSmsProviderFactory`。
+
 ## Live Test
 
 默认测试不会访问 5sim，也不需要 token：
@@ -220,6 +236,11 @@ cargo test -p az-sms --test live_fivesim -- --ignored
 - `az_sms::grizzlysms::GrizzlySmsClient`
 - `az_sms::grizzlysms::GrizzlySmsConfig`
 - `az_sms::provider::SmsProvider`
+- `az_sms::provider::SmsProviderKind`
+- `az_sms::provider::SmsProviderConfig`
+- `az_sms::provider::SmsProviderFactory`
+- `az_sms::provider::BuiltinSmsProviderFactory`
+- `az_sms::provider::build_sms_provider`
 - `az_sms::model::SmsActivationRequest`
 - `az_sms::model::SmsHostingRequest`
 - `az_sms::model::SmsOrder`

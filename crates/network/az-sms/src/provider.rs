@@ -1,8 +1,81 @@
 use crate::error::{SmsError, SmsResult};
+use crate::fivesim::{FivesimClient, FivesimConfig};
+use crate::grizzlysms::{GrizzlySmsClient, GrizzlySmsConfig};
 use crate::model::{
     SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsOrder, WaitForSmsOptions,
 };
+use az_derive_aliases::{apply, plain_default_copy_eq, plain_eq, serde_code_enum};
 use std::time::Instant;
+
+/// Built-in SMS provider identifiers.
+#[apply(serde_code_enum)]
+pub enum SmsProviderKind {
+    /// 5sim v1 API.
+    #[serde(rename = "5sim")]
+    #[strum(serialize = "5sim")]
+    Fivesim,
+    /// Grizzly SMS sms-activate-compatible API.
+    GrizzlySms,
+}
+
+/// Configuration for one built-in SMS provider.
+#[apply(plain_eq)]
+pub enum SmsProviderConfig {
+    /// 5sim v1 API config.
+    Fivesim(FivesimConfig),
+    /// Grizzly SMS API config.
+    GrizzlySms(GrizzlySmsConfig),
+}
+
+impl SmsProviderConfig {
+    /// Return the provider kind represented by this config.
+    #[must_use]
+    pub const fn kind(&self) -> SmsProviderKind {
+        match self {
+            Self::Fivesim(_) => SmsProviderKind::Fivesim,
+            Self::GrizzlySms(_) => SmsProviderKind::GrizzlySms,
+        }
+    }
+}
+
+impl From<FivesimConfig> for SmsProviderConfig {
+    fn from(value: FivesimConfig) -> Self {
+        Self::Fivesim(value)
+    }
+}
+
+impl From<GrizzlySmsConfig> for SmsProviderConfig {
+    fn from(value: GrizzlySmsConfig) -> Self {
+        Self::GrizzlySms(value)
+    }
+}
+
+/// Boxed provider object used at application boundaries.
+pub type BoxSmsProvider = Box<dyn SmsProvider + Send + Sync>;
+
+/// Factory abstraction for dependency-injected SMS provider creation.
+pub trait SmsProviderFactory: Send + Sync {
+    /// Build a provider trait object from a provider-specific config.
+    fn build_provider(&self, config: SmsProviderConfig) -> SmsResult<BoxSmsProvider>;
+}
+
+/// Factory for the providers compiled into this crate.
+#[apply(plain_default_copy_eq)]
+pub struct BuiltinSmsProviderFactory;
+
+impl SmsProviderFactory for BuiltinSmsProviderFactory {
+    fn build_provider(&self, config: SmsProviderConfig) -> SmsResult<BoxSmsProvider> {
+        match config {
+            SmsProviderConfig::Fivesim(config) => Ok(Box::new(FivesimClient::new(config)?)),
+            SmsProviderConfig::GrizzlySms(config) => Ok(Box::new(GrizzlySmsClient::new(config)?)),
+        }
+    }
+}
+
+/// Build a provider trait object from a provider-specific config.
+pub fn build_sms_provider(config: SmsProviderConfig) -> SmsResult<BoxSmsProvider> {
+    BuiltinSmsProviderFactory.build_provider(config)
+}
 
 /// Common async interface implemented by SMS providers.
 #[async_trait::async_trait]
