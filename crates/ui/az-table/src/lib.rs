@@ -2,7 +2,7 @@
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
 
-use az_derive_aliases::{apply, plain_default_eq, plain_eq};
+use az_derive_aliases::{apply, plain_default_copy_eq, plain_default_eq, plain_eq};
 use az_dioxus_components::az_table::{
     AzTable as PrimitiveAzTable, AzTableBody, AzTableCaption, AzTableCell as PrimitiveAzTableCell,
     AzTableHead, AzTableHeaderCell, AzTableRow as PrimitiveAzTableRow,
@@ -10,7 +10,7 @@ use az_dioxus_components::az_table::{
 use dioxus::prelude::*;
 
 /// Horizontal alignment for headers and cells.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[apply(plain_default_copy_eq)]
 pub enum AzTableAlign {
     /// Left-aligned content.
     #[default]
