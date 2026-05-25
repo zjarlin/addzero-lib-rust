@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use az_derive_aliases::{apply, serde_code_default_ord, serde_eq_default};
+use az_derive_aliases::{apply, serde_code_default_ord_enum, serde_eq_default};
 use rig::{
     client::CompletionClient,
     completion::{AssistantContent, CompletionError, Message},
@@ -8,7 +8,7 @@ use rig::{
 };
 use serde::{Deserialize, Serialize};
 
-#[apply(serde_code_default_ord)]
+#[apply(serde_code_default_ord_enum)]
 pub enum AiProviderKindDto {
     #[default]
     OpenAi,
@@ -17,8 +17,6 @@ pub enum AiProviderKindDto {
 }
 
 impl AiProviderKindDto {
-    pub const ALL: [Self; 3] = [Self::OpenAi, Self::Anthropic, Self::Gemini];
-
     pub fn label(self) -> &'static str {
         match self {
             Self::OpenAi => "OpenAI",
@@ -87,7 +85,8 @@ pub async fn list_provider_configs_on_server() -> Result<Vec<AiProviderConfigDto
         .collect::<BTreeMap<_, _>>();
 
     Ok(AiProviderKindDto::ALL
-        .into_iter()
+        .iter()
+        .copied()
         .map(|provider| {
             by_kind
                 .remove(&provider)
@@ -462,5 +461,21 @@ impl From<az_assets::AiModelProvider> for AiProviderConfigDto {
             api_key_configured: value.api_key_configured,
             updated_at: Some(value.updated_at.to_rfc3339()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AiProviderKindDto;
+
+    #[test]
+    fn provider_kind_code_helpers_follow_wire_values() {
+        assert_eq!(AiProviderKindDto::ALL.len(), 3);
+        assert_eq!(AiProviderKindDto::OpenAi.code(), "open_ai");
+        assert_eq!(
+            AiProviderKindDto::from_code("anthropic"),
+            Some(AiProviderKindDto::Anthropic)
+        );
+        assert_eq!(AiProviderKindDto::Gemini.to_string(), "gemini");
     }
 }

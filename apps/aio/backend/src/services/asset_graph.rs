@@ -10,13 +10,13 @@ use std::{
     time::Duration,
 };
 
-use az_derive_aliases::{apply, error_eq, serde_code, serde_eq_default};
+use az_derive_aliases::{apply, error_eq, serde_code_enum, serde_eq_default};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
 
 pub use super::LocalBoxFuture;
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum AssetKindDto {
     Note,
     Software,
@@ -29,14 +29,6 @@ impl AssetKindDto {
             Self::Note => "笔记",
             Self::Software => "软件",
             Self::Package => "安装包",
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Note => "note",
-            Self::Software => "software",
-            Self::Package => "package",
         }
     }
 }
@@ -938,7 +930,14 @@ fn query_error(err: sqlx::Error) -> AssetGraphError {
 
 #[cfg(test)]
 mod tests {
-    use super::package_record_from_catalog;
+    use super::{AssetKindDto, package_record_from_catalog};
+
+    #[test]
+    fn asset_kind_code_helpers_follow_wire_values() {
+        assert_eq!(AssetKindDto::Package.as_str(), "package");
+        assert_eq!(AssetKindDto::Software.code(), "software");
+        assert_eq!(AssetKindDto::from_code("note"), Some(AssetKindDto::Note));
+    }
 
     #[test]
     fn package_record_from_catalog_should_use_static_catalog_source() {

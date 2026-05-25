@@ -10,7 +10,7 @@ use std::{
 };
 
 use az_derive_aliases::{
-    apply, serde_code_default, serde_code_default_ord, serde_eq, serde_eq_default,
+    apply, serde_code_default, serde_code_default_ord_enum, serde_eq, serde_eq_default,
 };
 use chrono::{DateTime, Utc};
 #[cfg(not(target_arch = "wasm32"))]
@@ -24,7 +24,7 @@ use super::LocalBoxFuture;
 const DEFAULT_TERMINAL_ROWS: u16 = 32;
 const DEFAULT_TERMINAL_COLS: u16 = 120;
 
-#[apply(serde_code_default_ord)]
+#[apply(serde_code_default_ord_enum)]
 pub enum TerminalProfileDto {
     #[default]
     Codex,
@@ -33,16 +33,6 @@ pub enum TerminalProfileDto {
 }
 
 impl TerminalProfileDto {
-    pub const ALL: [Self; 3] = [Self::Codex, Self::Claude, Self::Shell];
-
-    pub fn code(self) -> &'static str {
-        match self {
-            Self::Codex => "codex",
-            Self::Claude => "claude",
-            Self::Shell => "shell",
-        }
-    }
-
     pub fn label(self) -> &'static str {
         match self {
             Self::Codex => "Codex CLI",
@@ -820,6 +810,17 @@ mod tests {
         assert_eq!(TerminalProfileDto::Codex.default_title(2), "Codex 2");
         assert_eq!(TerminalProfileDto::Claude.default_title(1), "Claude 1");
         assert_eq!(TerminalProfileDto::Shell.default_title(3), "Shell 3");
+    }
+
+    #[test]
+    fn terminal_profile_code_helpers_follow_wire_values() {
+        assert_eq!(TerminalProfileDto::ALL.len(), 3);
+        assert_eq!(TerminalProfileDto::Codex.code(), "codex");
+        assert_eq!(
+            TerminalProfileDto::from_code("claude"),
+            Some(TerminalProfileDto::Claude)
+        );
+        assert_eq!(TerminalProfileDto::Shell.to_string(), "shell");
     }
 
     #[cfg(not(target_arch = "wasm32"))]
