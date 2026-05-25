@@ -1,10 +1,9 @@
 use crate::quote_identifier;
 use crate::{JoinType, Query, QueryError, SortOrder, require_table_name};
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, plain_clone_debug, plain_default_clone_debug};
 
 /// A SELECT query builder.
-#[derive(Default)]
-#[apply(plain_clone_debug)]
+#[apply(plain_default_clone_debug)]
 pub struct SelectQuery {
     distinct: bool,
     columns: Vec<String>,

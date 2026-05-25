@@ -19,7 +19,7 @@
 
 use std::collections::BTreeMap;
 
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, plain_default_clone_debug};
 use az_plugin_contract::{
     MarketplaceEntry, NavigationItem, NavigationItemKind, NavigationSection, PageScope,
     PluginDescriptor, PluginInstance, PluginKind, PluginMenuContribution, PluginStatus,
@@ -54,8 +54,7 @@ pub fn load_system_descriptors() -> Vec<PluginDescriptor> {
     descriptors
 }
 
-#[derive(Default)]
-#[apply(plain_clone_debug)]
+#[apply(plain_default_clone_debug)]
 pub struct PluginRegistry {
     system: BTreeMap<String, PluginDescriptor>,
     business: BTreeMap<String, PluginDescriptor>,
