@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand};
 use reqwest::Url;
 
 use crate::novel::{NovelFetchConfig, NovelPreset, run_fetch};
@@ -86,13 +86,6 @@ enum NovelCommand {
     Fetch(NovelFetchArgs),
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
-enum NovelPresetArg {
-    Biqukan,
-    Xbqg,
-    Custom,
-}
-
 #[derive(Debug, Args)]
 struct NovelFetchArgs {
     /// TOC page that lists all chapter links.
@@ -105,7 +98,7 @@ struct NovelFetchArgs {
 
     /// Built-in selector preset.
     #[arg(long, value_enum)]
-    preset: NovelPresetArg,
+    preset: NovelPreset,
 
     /// Optional CSS selector for the book title on the TOC page.
     #[arg(long = "book-title-selector")]
@@ -212,16 +205,6 @@ impl Cli {
     }
 }
 
-impl From<NovelPresetArg> for NovelPreset {
-    fn from(value: NovelPresetArg) -> Self {
-        match value {
-            NovelPresetArg::Biqukan => NovelPreset::Biqukan,
-            NovelPresetArg::Xbqg => NovelPreset::Xbqg,
-            NovelPresetArg::Custom => NovelPreset::Custom,
-        }
-    }
-}
-
 pub fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Command::Novel(args) => match args.command {
@@ -229,7 +212,7 @@ pub fn run(cli: Cli) -> Result<()> {
                 let config = NovelFetchConfig {
                     toc_url: args.toc_url,
                     output: args.output,
-                    preset: args.preset.into(),
+                    preset: args.preset,
                     book_title_selector: args.book_title_selector,
                     chapter_list_selector: args.chapter_list_selector,
                     chapter_link_selector: args.chapter_link_selector,
@@ -329,7 +312,7 @@ mod tests {
         match cli.command {
             Command::Novel(args) => match args.command {
                 NovelCommand::Fetch(args) => {
-                    assert_eq!(args.preset, NovelPresetArg::Xbqg);
+                    assert_eq!(args.preset, NovelPreset::Xbqg);
                     assert_eq!(args.max_chapters, Some(10));
                     assert_eq!(args.content_selectors, vec!["#content"]);
                 }
@@ -364,7 +347,7 @@ mod tests {
         match cli.command {
             Command::Novel(args) => match args.command {
                 NovelCommand::Fetch(args) => {
-                    assert_eq!(args.preset, NovelPresetArg::Custom);
+                    assert_eq!(args.preset, NovelPreset::Custom);
                     assert_eq!(args.chapter_link_selector.as_deref(), Some("section.toc a"));
                     assert_eq!(args.chapter_title_selector.as_deref(), Some("h2.title"));
                     assert_eq!(args.content_selectors, vec!["article", "#reader"]);
@@ -379,7 +362,7 @@ mod tests {
         let args = NovelFetchArgs {
             toc_url: Url::parse("https://example.com/book/").expect("url"),
             output: PathBuf::from("book.txt"),
-            preset: NovelPresetArg::Custom,
+            preset: NovelPreset::Custom,
             book_title_selector: None,
             chapter_list_selector: None,
             chapter_link_selector: None,

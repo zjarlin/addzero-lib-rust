@@ -1,9 +1,10 @@
 use anyhow::Result;
-use az_derive_aliases::{apply, plain_copy_eq, plain_eq};
+use az_derive_aliases::{apply, plain_eq};
+use clap::ValueEnum;
 
 use super::NovelFetchConfig;
 
-#[apply(plain_copy_eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum NovelPreset {
     Biqukan,
     Xbqg,
