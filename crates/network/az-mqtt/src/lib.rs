@@ -45,7 +45,7 @@
 //! ```
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, plain_copy_eq, plain_eq, plain_eq_no_debug};
+use az_derive_aliases::{apply, error, plain_copy_eq, plain_eq, plain_eq_no_debug};
 use rumqttc::{
     Client, ClientError, Connection, Event, LastWill, MqttOptions, Packet, QoS, RecvTimeoutError,
     SubscribeFilter, Transport,
@@ -61,11 +61,10 @@ use std::sync::{
 };
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
-use thiserror::Error;
 
 pub type MqttResult<T> = Result<T, MqttError>;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum MqttError {
     #[error("invalid mqtt configuration: {0}")]
     InvalidConfig(String),

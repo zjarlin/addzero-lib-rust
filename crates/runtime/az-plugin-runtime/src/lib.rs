@@ -43,18 +43,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, error, plain_clone_debug};
 use az_plugin_contract::{
     MarketplaceEntry, MarketplaceSnapshot, PluginDescriptor, PluginInstance, PluginInstanceConfig,
     PluginPackageManifest, PluginStatus,
 };
 use chrono::Utc;
 use sha2::{Digest, Sha256};
-use thiserror::Error;
 use uuid::Uuid;
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum RuntimeError {
     #[error("plugin package `{0}` not found in catalog")]
     PackageNotFound(String),
@@ -68,11 +67,11 @@ pub enum RuntimeError {
     InstanceNotFound(String),
     #[error("plugin package is invalid: {0}")]
     InvalidPackage(String),
-    #[error(transparent)]
+    #[error("{0}")]
     Io(#[from] std::io::Error),
-    #[error(transparent)]
+    #[error("{0}")]
     Zip(#[from] zip::result::ZipError),
-    #[error(transparent)]
+    #[error("{0}")]
     Toml(#[from] toml_edit::de::Error),
 }
 

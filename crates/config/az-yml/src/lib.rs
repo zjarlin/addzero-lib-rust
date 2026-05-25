@@ -20,7 +20,7 @@
 //!
 //! [`DatabaseConfig`] 的 [`std::fmt::Debug`] 实现会对 `jdbc_password` 字段脱敏（`***REDACTED***`）。
 use az_derive_aliases::{
-    apply, plain_default_copy_eq, plain_eq, plain_eq_no_debug, plain_partial_eq,
+    apply, error, plain_default_copy_eq, plain_eq, plain_eq_no_debug, plain_partial_eq,
 };
 use serde::de::DeserializeOwned;
 use serde_yaml::Value;
@@ -28,9 +28,8 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum YmlError {
     #[error("failed to read yaml file at {path}: {source}")]
     ReadFile {

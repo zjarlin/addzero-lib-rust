@@ -24,7 +24,7 @@ pub use registration::{RegistrationFlow, RegistrationResult, extract_verificatio
 pub use session::{BrowserSession, FingerprintStrategy, SessionConfig, SessionConfigBuilder};
 
 use az_context::ThreadLocalUtil;
-use az_derive_aliases::{apply, plain_default_copy_eq, serde_eq, serde_eq_default_copy};
+use az_derive_aliases::{apply, error, plain_default_copy_eq, serde_eq, serde_eq_default_copy};
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
 use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
 use reqwest::blocking::Client;
@@ -36,13 +36,12 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use thiserror::Error;
 
 /// Crate-wide result type for browser automation operations.
 pub type BrowserAutomationResult<T> = Result<T, BrowserAutomationError>;
 
 /// Error type for browser launch, CDP, artifact, proxy, and workflow failures.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum BrowserAutomationError {
     /// Browser launch options could not be built.
     #[error("browser launch configuration is invalid: {0}")]

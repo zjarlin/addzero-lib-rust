@@ -8,6 +8,7 @@ authors.workspace = true
 
 [dependencies]
 async-trait.workspace = true
+az-derive-aliases.workspace = true
 sea-orm.workspace = true
 sea-orm-migration.workspace = true
 thiserror.workspace = true

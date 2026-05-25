@@ -20,12 +20,11 @@
 //! | [`LibraryEntry`] | `[libraries]` 条目，包含 group、name 和 version / version.ref |
 //! | [`PluginEntry`] | `[plugins]` 条目，包含插件 id 和 version / version.ref |
 //! | [`BundleEntry`] | `[bundles]` 条目，将多个 library key 打包 |
-use az_derive_aliases::{apply, deserialize_eq, plain_default_eq, plain_eq};
+use az_derive_aliases::{apply, deserialize_eq, error, plain_default_eq, plain_eq};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use thiserror::Error;
 use toml_edit::{Array, DocumentMut, Item, Table, Value};
 
 pub const DEFAULT_VERSION_CATALOG_TEMPLATE: &str = r#"[versions]
@@ -41,7 +40,7 @@ kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 spring = ["spring-boot", "spring-core"]
 "#;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum TomlCatalogError {
     #[error("failed to read TOML file at {path}: {source}")]
     ReadFile {

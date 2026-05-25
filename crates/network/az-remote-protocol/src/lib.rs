@@ -56,16 +56,15 @@
 
 use std::fmt;
 
-use az_derive_aliases::{apply, serde_eq, serde_eq_copy, serde_eq_no_debug};
+use az_derive_aliases::{apply, error, serde_eq, serde_eq_copy, serde_eq_no_debug};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, FileTransferEnvelope, RemoteInputEvent, SessionGrant,
     SessionRequest, VideoFrameEnvelope,
 };
-use thiserror::Error;
 
 pub type ProtocolResult<T> = Result<T, ProtocolError>;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum ProtocolError {
     #[error("serialization failed: {0}")]
     Serialize(#[from] serde_json::Error),

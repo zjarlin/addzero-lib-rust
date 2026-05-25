@@ -15,7 +15,7 @@
 //! # Ok::<(), az_curl::CurlError>(())
 //! ```
 
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq, serde_code};
+use az_derive_aliases::{apply, error, plain_clone_debug, plain_eq, serde_code};
 use base64::Engine;
 use regex::Regex;
 use reqwest::Method;
@@ -26,7 +26,6 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 use std::time::Duration;
-use thiserror::Error;
 
 static LINE_CONTINUATION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\\\s*\r?\n").expect("line continuation regex should compile"));
@@ -35,7 +34,7 @@ static UUID_LIKE_RE: LazyLock<Regex> =
 static NUMERIC_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\d+$").expect("numeric regex should compile"));
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum CurlError {
     #[error("failed to tokenize curl command")]
     Tokenize,

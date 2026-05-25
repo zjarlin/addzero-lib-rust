@@ -1,10 +1,10 @@
-use thiserror::Error;
+use az_derive_aliases::{apply, error};
 
 /// Result alias for OAuth2 operations.
 pub type OAuth2Result<T> = Result<T, OAuth2Error>;
 
 /// Errors returned by OAuth2 helpers.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum OAuth2Error {
     /// Client configuration failed validation before network I/O.
     #[error("invalid config: {0}")]

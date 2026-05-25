@@ -1,4 +1,4 @@
-use thiserror::Error;
+use az_derive_aliases::{apply, error};
 
 use crate::classify::GitDbQueryKind;
 
@@ -6,7 +6,7 @@ use crate::classify::GitDbQueryKind;
 pub type GitDbClusterResult<T> = Result<T, GitDbClusterError>;
 
 /// Errors returned by the multi-node GitDB pool.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum GitDbClusterError {
     /// Cluster or node configuration is invalid.
     #[error("invalid GitDB cluster configuration: {0}")]

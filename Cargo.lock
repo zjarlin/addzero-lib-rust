@@ -1363,6 +1363,7 @@ name = "az-drive-webdav"
 version = "2026.5.10"
 dependencies = [
  "axum",
+ "az-derive-aliases",
  "az-drive-core",
  "az-drive-store",
  "chrono",
@@ -1387,6 +1388,7 @@ dependencies = [
 name = "az-error"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -1567,6 +1569,7 @@ name = "az-persistence"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "az-derive-aliases",
  "sea-orm",
  "sea-orm-migration",
  "thiserror 2.0.18",

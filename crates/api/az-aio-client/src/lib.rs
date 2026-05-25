@@ -6,16 +6,15 @@ use az_config_center_contract::{
     ShellComponentBuildResult, ShellComponentConfigUpdate, ShellComponentPatch,
     ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
 };
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, error, plain_clone_debug};
 use reqwest::Method;
 use reqwest::blocking::{Client, Response};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use thiserror::Error;
 
 pub type AioClientResult<T> = Result<T, AioClientError>;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum AioClientError {
     #[error("request to {url} failed: {source}")]
     Transport {

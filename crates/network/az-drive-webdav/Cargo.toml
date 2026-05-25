@@ -11,6 +11,7 @@ workspace = true
 
 [dependencies]
 axum.workspace = true
+az-derive-aliases.workspace = true
 az-drive-core.workspace = true
 az-drive-store.workspace = true
 chrono = { workspace = true, features = ["serde"] }

@@ -1,6 +1,6 @@
 use crate::progress::{InMemoryUploadProgressStorage, PartInfo};
 use crate::types::{ObjectMetadata, PresignedUrl, S3ClientConfig};
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, error, plain_clone_debug};
 use base64::Engine as _;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
@@ -14,7 +14,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
-use thiserror::Error;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -29,7 +28,7 @@ fn recover_lock<T>(mutex: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> 
 const AWS_SERVICE_NAME: &str = "s3";
 const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum StorageError {
     #[error("invalid storage configuration: {0}")]
     InvalidConfig(String),

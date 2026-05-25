@@ -1,12 +1,11 @@
 use crate::SmsOrderStatus;
-use az_derive_aliases::{apply, plain_copy_eq};
-use thiserror::Error;
+use az_derive_aliases::{apply, error, plain_copy_eq};
 
 /// Result alias for SMS provider operations.
 pub type SmsResult<T> = Result<T, SmsError>;
 
 /// Errors that can occur while calling an SMS provider.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum SmsError {
     /// Configuration is incomplete or internally inconsistent.
     #[error("invalid config: {0}")]

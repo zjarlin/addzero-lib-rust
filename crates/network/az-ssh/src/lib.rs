@@ -28,7 +28,7 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, plain_eq};
+use az_derive_aliases::{apply, error, plain_eq};
 use ssh2::Session;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -36,9 +36,8 @@ use std::net::{TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
-use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum SshError {
     #[error("invalid ssh configuration: {0}")]
     InvalidConfig(String),

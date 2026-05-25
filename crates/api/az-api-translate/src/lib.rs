@@ -16,7 +16,7 @@
 //! # }
 //! ```
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error};
 
 mod memory;
 mod model;
@@ -25,7 +25,7 @@ pub use memory::MyMemoryClient;
 pub use model::{DetectedLanguage, TranslateOptions, TranslateResult};
 
 /// Errors that can occur during translation.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum TranslateError {
     /// HTTP request failed.
     #[error("http error: {0}")]

@@ -39,8 +39,8 @@
 #![forbid(unsafe_code)]
 
 use az_derive_aliases::{
-    apply, deserialize_debug, plain_clone, plain_clone_debug, plain_default_copy_eq, plain_eq,
-    serde_eq, serde_eq_default, serde_partial_eq_default,
+    apply, deserialize_debug, error, plain_clone, plain_clone_debug, plain_default_copy_eq,
+    plain_eq, serde_eq, serde_eq_default, serde_partial_eq_default,
 };
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
@@ -53,11 +53,10 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::thread;
 use std::time::{Duration, Instant};
-use thiserror::Error;
 
 pub type MusicResult<T> = Result<T, MusicError>;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum MusicError {
     #[error("invalid config: {0}")]
     InvalidConfig(String),

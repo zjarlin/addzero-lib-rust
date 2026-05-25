@@ -6,13 +6,12 @@
 //! 对象字节按内容哈希进行存储。
 
 use async_trait::async_trait;
-use az_derive_aliases::{apply, plain_default_copy_eq, serde_code, serde_eq, serde_eq_copy};
+use az_derive_aliases::{apply, error, plain_default_copy_eq, serde_code, serde_eq, serde_eq_copy};
 use az_drive_core::{EntryKey, RelativePath, RootAlias};
 use az_rustfs::StorageError;
 use chrono::{DateTime, Utc};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard};
-use thiserror::Error;
 use uuid::Uuid;
 
 pub mod git_pool;
@@ -31,7 +30,7 @@ pub use gitdb_object_store::{
 pub type DriveStoreResult<T> = Result<T, DriveStoreError>;
 
 /// Storage-layer errors with preserved root cause context.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum DriveStoreError {
     /// A requested entry does not exist.
     #[error("drive entry was not found: {0}")]

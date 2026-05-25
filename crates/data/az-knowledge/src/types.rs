@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
-use az_derive_aliases::{apply, serde_eq, serde_eq_default};
+use az_derive_aliases::{apply, error, serde_eq, serde_eq_default};
 use az_persistence::PersistenceError;
 use chrono::{DateTime, Utc};
 use sea_orm::DbErr;
 use sqlx::Error as SqlxError;
-use thiserror::Error;
 
 #[apply(serde_eq)]
 pub struct KnowledgeSourceSpec {
@@ -76,7 +75,7 @@ pub struct KnowledgeSyncReport {
     pub finished_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum KnowledgeError {
     #[error("could not resolve home directory")]
     MissingHomeDir,

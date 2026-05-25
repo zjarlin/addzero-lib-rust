@@ -11,6 +11,7 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::any;
+use az_derive_aliases::{apply, error};
 use az_drive_core::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
 use az_drive_store::{
     DriveEntry, DriveEntryKind, DriveLock, DriveMetadataStore, DriveObjectStore, DriveStoreError,
@@ -18,7 +19,6 @@ use az_drive_store::{
 };
 use chrono::{Duration, Utc};
 use std::sync::Arc;
-use thiserror::Error;
 use uuid::Uuid;
 
 const DEVICE_HEADER: &str = "x-aio-device-id";
@@ -29,7 +29,7 @@ const LOCK_TOKEN_HEADER: &str = "lock-token";
 pub type DriveWebdavResult<T> = Result<T, DriveWebdavError>;
 
 /// WebDAV adapter error.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum DriveWebdavError {
     /// Root alias or relative path was invalid.
     #[error("invalid drive path: {0}")]

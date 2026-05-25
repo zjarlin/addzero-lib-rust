@@ -20,15 +20,14 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, serde_code, serde_eq, serde_partial_eq_default};
-use thiserror::Error;
+use az_derive_aliases::{apply, error, serde_code, serde_eq, serde_partial_eq_default};
 
 mod openai;
 
 pub use openai::OpenAiClient;
 
 /// Errors that can occur during chat operations.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum ChatError {
     /// HTTP request failed.
     #[error("http error: {0}")]

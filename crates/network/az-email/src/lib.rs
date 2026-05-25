@@ -35,7 +35,7 @@
 //!
 //! send_with_config(&config, &message).unwrap();
 //! ```
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, error, plain_clone_debug};
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
@@ -44,9 +44,8 @@ use lettre::{Message, SmtpTransport, Transport};
 use std::fs;
 use std::path::Path;
 use std::sync::{Arc, OnceLock, RwLock};
-use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum EmailError {
     #[error("invalid email configuration: {0}")]
     InvalidConfig(String),

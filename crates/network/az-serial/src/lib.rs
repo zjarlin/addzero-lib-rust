@@ -24,8 +24,7 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, serde_eq};
-use thiserror::Error;
+use az_derive_aliases::{apply, error, serde_eq};
 
 mod config;
 mod frame;
@@ -34,7 +33,7 @@ pub use config::{BaudRate, FlowControl, Parity, SerialConfig, StopBits};
 pub use frame::{FrameDecoder, FrameEvent, FrameFormat};
 
 /// Errors that can occur during serial operations.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum SerialError {
     /// I/O error from the underlying OS.
     #[error("io error: {0}")]

@@ -17,7 +17,7 @@
 //! - 条目的 `code` 和原始值（`rawIntValue` / `rawTextValue`）不能重复
 //! - 整数型字典只能使用 `rawIntValue`，字符串型字典只能使用 `rawTextValue`
 
-use az_derive_aliases::{apply, plain_copy_eq, serde_code_enum, serde_eq};
+use az_derive_aliases::{apply, error, plain_copy_eq, serde_code_enum, serde_eq};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
@@ -178,7 +178,7 @@ pub enum RawValueKind {
     String,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[apply(error)]
 pub enum DictSpecError {
     #[error("invalid dictionary spec: {0}")]
     Validation(String),

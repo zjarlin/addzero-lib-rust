@@ -35,13 +35,14 @@ use std::fs::File;
 use std::io::{Cursor, Read, Seek, Write};
 use std::path::{Component, Path, PathBuf};
 
-use az_derive_aliases::{apply, from_display, plain_copy_eq, plain_default_partial_eq, plain_eq, plain_partial_eq};
+use az_derive_aliases::{
+    apply, error, from_display, plain_copy_eq, plain_default_partial_eq, plain_eq, plain_partial_eq,
+};
 use quick_xml::Reader;
 use quick_xml::encoding::EncodingError;
 use quick_xml::escape::EscapeError;
 use quick_xml::events::Event;
 use quick_xml::events::attributes::AttrError;
-use thiserror::Error;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
@@ -51,7 +52,7 @@ const XLSX_WORKBOOK_PATH: &str = "xl/workbook.xml";
 const XLSX_WORKBOOK_RELS_PATH: &str = "xl/_rels/workbook.xml.rels";
 const XLSX_SHARED_STRINGS_PATH: &str = "xl/sharedStrings.xml";
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum ExcelError {
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),

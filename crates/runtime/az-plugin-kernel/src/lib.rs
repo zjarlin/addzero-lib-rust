@@ -21,20 +21,19 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use az_derive_aliases::{apply, plain_default_eq, plain_eq};
+use az_derive_aliases::{apply, error, plain_default_eq, plain_eq};
 use az_plugin_contract::{
     ActorSnapshot, MarketplaceEntry, MarketplaceSnapshot, PluginCounts, PluginDescriptor,
     PluginInstance, PluginKind, ResolvedPage, RuntimeOverview, ShellSnapshot,
 };
 use az_plugin_registry::{PluginRegistry, load_system_descriptors};
 use az_plugin_runtime::{PluginRuntime, RuntimeError};
-use thiserror::Error;
 
 pub type KernelResult<T> = Result<T, KernelError>;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum KernelError {
-    #[error(transparent)]
+    #[error("{0}")]
     Runtime(#[from] RuntimeError),
     #[error("kernel lock poisoned: {0}")]
     LockPoisoned(&'static str),

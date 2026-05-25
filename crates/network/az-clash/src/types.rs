@@ -1,7 +1,6 @@
-use az_derive_aliases::{apply, serde_code, serde_eq, serde_partial_eq};
+use az_derive_aliases::{apply, error, serde_code, serde_eq, serde_partial_eq};
 use serde_yaml::Value;
 use std::time::Duration;
-use thiserror::Error;
 
 /// Default Clash mixed HTTP/SOCKS listen port used by [`crate::select_fastest`].
 pub const DEFAULT_MIXED_PORT: u16 = 7890;
@@ -16,7 +15,7 @@ pub const DEFAULT_SPEEDTEST_TIMEOUT: Duration = Duration::from_secs(5);
 pub type ClashResult<T> = Result<T, ClashError>;
 
 /// Errors returned by subscription fetching, parsing, selection, and config generation.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum ClashError {
     /// The HTTP request failed or returned an unsuccessful status.
     #[error("http request failed: {0}")]

@@ -4,12 +4,14 @@
 //! 包括 HTTP 风格错误、I/O 失败以及 JSON（反）序列化问题。
 //! 使用 [`AppResult<T>`] 作为可失败操作的标准返回类型。
 
+use az_derive_aliases::{apply, error};
+
 /// Unified application error type.
 ///
 /// Every variant carries a human-readable message and maps to an HTTP status
 /// code via [`AppError::status_code`] as well as a machine-readable error
 /// kind via [`AppError::error_type`].
-#[derive(Debug, thiserror::Error)]
+#[apply(error)]
 pub enum AppError {
     /// The requested resource was not found (HTTP 404).
     #[error("not found: {0}")]

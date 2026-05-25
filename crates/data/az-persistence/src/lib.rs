@@ -27,9 +27,9 @@ use std::{
     time::Duration,
 };
 
+use az_derive_aliases::{apply, error};
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbErr};
 use sea_orm_migration::prelude::*;
-use thiserror::Error;
 
 const WORKSPACE_ENV_FILE: &str = ".env";
 const LOCAL_ENV_FILE: &str = ".config/aio/aio.env";
@@ -100,7 +100,7 @@ impl PersistenceContext {
     }
 }
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum PersistenceError {
     #[error("missing MSC_AIO_DATABASE_URL / DATABASE_URL / ~/.config/aio/aio.env")]
     MissingDatabaseUrl,

@@ -7,7 +7,7 @@
 //! 无需手动的 Git 式人工干预。
 
 use az_derive_aliases::{
-    apply, plain_clone_debug, plain_copy_eq, plain_default_copy_eq, plain_eq, serde_eq,
+    apply, error, plain_clone_debug, plain_copy_eq, plain_default_copy_eq, plain_eq, serde_eq,
     serde_eq_copy,
 };
 use az_drive_core::{
@@ -29,14 +29,13 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use thiserror::Error;
 use uuid::Uuid;
 
 /// Result alias for agent operations.
 pub type DriveAgentResult<T> = Result<T, DriveAgentError>;
 
 /// Errors raised by the local drive agent.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum DriveAgentError {
     /// Core path or conflict logic failed.
     #[error("drive core error: {0}")]
