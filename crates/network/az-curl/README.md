@@ -2,15 +2,20 @@
 
 将 curl 命令字符串解析为结构化的 HTTP 请求表示，并支持直接执行。
 
+## 文档策略
+
+`README.md` 是本 crate 的公开文档单一真理源。`src/lib.rs` 通过 `#![doc = include_str!("../README.md")]` 将这份 README 直接引入 rustdoc，避免 README、crate 注释和发布文档三处内容漂移。
+
 ## 功能
 
 - 使用 `parse_curl` 解析 curl 命令行字符串，提取方法、URL、请求头、请求体、表单参数等
 - 支持常见的 curl 标志（`-X`、`-H`、`-d`、`-b`、`-F`、`-u`、`--data-raw` 等）
 - 自动推断 Content-Type（JSON / multipart 表单）
 - 提取 URL 中的路径参数和查询参数
-- 通过 `curl!` 宏在编译期解析 curl 命令
+- 通过 `curl!` 宏简化 `parse_curl` 调用
 - 使用 `execute_curl` 同步执行 curl 命令
-- 使用结构化 `CurlError`，不在库 API 暴露 `anyhow`
+- 响应同时保留原始 `body: Vec<u8>` 和便于调试器查看的 `text: Option<String>`
+- 公开返回值使用 `CurlResult<T>`，具体错误来源保留为结构化 `CurlError`
 
 ## 安装
 
@@ -28,28 +33,41 @@ az-curl = { path = "../az-curl" }         # workspace 内部引用
 ```rust
 use az_curl::parse_curl;
 
-// 解析 curl 命令字符串
+# fn main() -> az_curl::CurlResult<()> {
 let parsed = parse_curl(r#"curl -X POST -H "Content-Type: application/json" -d '{"key":"value"}' https://api.example.com/data"#)?;
-assert_eq!(parsed.method, reqwest::Method::POST);
+assert_eq!(parsed.method.as_str(), "POST");
 assert_eq!(parsed.url, "https://api.example.com/data");
+# Ok(())
+# }
 ```
 
-```rust
+```rust,no_run
 use az_curl::execute_curl;
 
+# fn main() -> az_curl::CurlResult<()> {
 let response = execute_curl(r#"curl -H "Accept: application/json" https://api.example.com"#)?;
 println!("{}", response.text()?);
+
+if let Some(text) = response.text.as_deref() {
+    println!("debug-visible response body: {text}");
+}
+# Ok(())
+# }
 ```
 
 ```rust
 use az_curl::curl;
 
-// 使用宏在编译期解析
-let parsed = curl!(r#"curl https://example.com"#);
+# fn main() -> az_curl::CurlResult<()> {
+let parsed = curl!(r#"curl https://example.com"#)?;
+assert_eq!(parsed.url, "https://example.com");
+# Ok(())
+# }
 ```
 
 ## 依赖的 crates
 
+- `automod` - 自动模块声明
 - `base64` - Basic 认证编码
 - `regex` - URL 路径/查询参数提取及行续接符处理
 - `reqwest` - HTTP 客户端（blocking 模式执行请求）

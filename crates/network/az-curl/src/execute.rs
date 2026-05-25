@@ -7,21 +7,32 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-/// HTTP response returned by [`CurlExecutor`].
+/// HTTP response returned by [`execute_curl`].
 #[apply(plain_eq)]
 pub struct CurlResponse {
+    /// Numeric HTTP status code.
     pub status: u16,
+    /// Response headers normalized into plain string values.
     pub headers: BTreeMap<String, String>,
+    /// UTF-8 response body cached for debugger inspection.
+    pub text: Option<String>,
+    /// Raw response body bytes.
     pub body: Vec<u8>,
 }
 
 impl CurlResponse {
     pub fn text(&self) -> CurlResult<String> {
-        String::from_utf8(self.body.clone()).map_err(CurlError::Utf8)
+        match &self.text {
+            Some(text) => Ok(text.clone()),
+            None => String::from_utf8(self.body.clone()).map_err(CurlError::Utf8),
+        }
     }
 
     pub fn text_lossy(&self) -> Cow<'_, str> {
-        String::from_utf8_lossy(&self.body)
+        match &self.text {
+            Some(text) => Cow::Borrowed(text.as_str()),
+            None => String::from_utf8_lossy(&self.body),
+        }
     }
 
     pub fn is_success(&self) -> bool {
@@ -102,10 +113,12 @@ impl CurlExecutor {
             })
             .collect::<BTreeMap<_, _>>();
         let body = response.bytes().map_err(CurlError::Execute)?.to_vec();
+        let text = String::from_utf8(body.clone()).ok();
 
         Ok(CurlResponse {
             status,
             headers,
+            text,
             body,
         })
     }
