@@ -9,10 +9,10 @@ pub mod gateway_runtime_types;
 use std::collections::BTreeMap;
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPlugin, DesktopRenderLayer,
-    DesktopViewContext, EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
+    EventPropagation, Plugin,
 };
-use az_desktop_plugin_registry::{DesktopPluginRegistration, inventory};
+use az_desktop_plugin_registry::register_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
 use serde_json::Value;
 
@@ -255,12 +255,4 @@ impl
     }
 }
 
-fn build_plugin() -> Box<DesktopPlugin> {
-    Box::new(EdgeGatewayPlugin::default())
-}
-
-inventory::submit! {
-    DesktopPluginRegistration {
-        constructor: build_plugin,
-    }
-}
+register_desktop_plugin!(EdgeGatewayPlugin);

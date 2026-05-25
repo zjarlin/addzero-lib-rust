@@ -6,10 +6,10 @@ pub mod installer_scanner_utils;
 pub mod paths;
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPlugin, DesktopRenderLayer,
-    DesktopViewContext, EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
+    EventPropagation, Plugin,
 };
-use az_desktop_plugin_registry::{DesktopPluginRegistration, inventory};
+use az_desktop_plugin_registry::register_desktop_plugin;
 use az_software_catalog::SoftwareCatalogDto;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
 
@@ -238,15 +238,7 @@ impl
     }
 }
 
-fn build_plugin() -> Box<DesktopPlugin> {
-    Box::new(SoftwareCenterPlugin::default())
-}
-
-inventory::submit! {
-    DesktopPluginRegistration {
-        constructor: build_plugin,
-    }
-}
+register_desktop_plugin!(SoftwareCenterPlugin);
 
 #[cfg(test)]
 mod tests {

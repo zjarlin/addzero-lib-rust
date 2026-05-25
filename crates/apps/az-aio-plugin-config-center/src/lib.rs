@@ -12,10 +12,10 @@ use std::env;
 use az_ai_agent::default_model_for;
 use az_assets::{AiModelProviderUpsert, AiProviderKind};
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPlugin, DesktopRenderLayer,
-    DesktopViewContext, EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
+    EventPropagation, Plugin,
 };
-use az_desktop_plugin_registry::{DesktopPluginRegistration, inventory};
+use az_desktop_plugin_registry::register_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
 
 use crate::{
@@ -327,15 +327,7 @@ impl
     }
 }
 
-fn build_plugin() -> Box<DesktopPlugin> {
-    Box::new(ConfigCenterPlugin::default())
-}
-
-inventory::submit! {
-    DesktopPluginRegistration {
-        constructor: build_plugin,
-    }
-}
+register_desktop_plugin!(ConfigCenterPlugin);
 
 #[cfg(test)]
 mod tests {

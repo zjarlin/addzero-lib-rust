@@ -2,10 +2,10 @@
 #![doc = include_str!("../README.md")]
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopHostServices, DesktopInitContext, DesktopPlugin,
-    DesktopRenderLayer, DesktopViewContext, EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopHostServices, DesktopInitContext, DesktopRenderLayer,
+    DesktopViewContext, EventPropagation, Plugin,
 };
-use az_desktop_plugin_registry::{DesktopPluginRegistration, inventory};
+use az_desktop_plugin_registry::register_desktop_plugin;
 use gpui::{AnyElement, IntoElement, div, prelude::*, rgb};
 
 const OPS_DOMAIN_ID: &str = "operations";
@@ -272,12 +272,4 @@ impl
     }
 }
 
-fn build_plugin() -> Box<DesktopPlugin> {
-    Box::new(DriveCenterPlugin::default())
-}
-
-inventory::submit! {
-    DesktopPluginRegistration {
-        constructor: build_plugin,
-    }
-}
+register_desktop_plugin!(DriveCenterPlugin);

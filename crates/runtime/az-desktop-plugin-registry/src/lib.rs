@@ -1,7 +1,10 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
-use az_desktop_plugin::DesktopPlugin;
+use az_desktop_plugin::{
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPlugin, DesktopRenderLayer,
+    DesktopViewContext, Plugin,
+};
 
 pub use inventory;
 
@@ -20,12 +23,40 @@ pub fn load_plugins() -> Vec<Box<DesktopPlugin>> {
     plugins
 }
 
+/// Builds a default-constructible desktop plugin as a boxed plugin trait object.
+pub fn default_desktop_plugin_constructor<P>() -> Box<DesktopPlugin>
+where
+    P: Default
+        + Plugin<
+            DesktopInitContext,
+            DesktopEvent,
+            DesktopExecContext,
+            DesktopViewContext,
+            DesktopRenderLayer,
+        > + 'static,
+{
+    Box::new(P::default())
+}
+
+/// Registers a default-constructible desktop plugin in the distributed registry.
+#[macro_export]
+macro_rules! register_desktop_plugin {
+    ($plugin_ty:ty $(,)?) => {
+        $crate::inventory::submit! {
+            $crate::DesktopPluginRegistration {
+                constructor: $crate::default_desktop_plugin_constructor::<$plugin_ty>,
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use az_desktop_plugin::{DesktopInitContext, DesktopRenderLayer, Plugin};
 
     use super::load_plugins;
 
+    #[derive(Default)]
     struct AlphaPlugin;
 
     impl
@@ -46,6 +77,7 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
     struct BetaPlugin;
 
     impl
@@ -66,17 +98,8 @@ mod tests {
         }
     }
 
-    inventory::submit! {
-        super::DesktopPluginRegistration {
-            constructor: || Box::new(BetaPlugin),
-        }
-    }
-
-    inventory::submit! {
-        super::DesktopPluginRegistration {
-            constructor: || Box::new(AlphaPlugin),
-        }
-    }
+    crate::register_desktop_plugin!(BetaPlugin);
+    crate::register_desktop_plugin!(AlphaPlugin);
 
     #[test]
     fn loads_plugins_sorted_by_name() {

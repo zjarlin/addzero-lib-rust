@@ -6,7 +6,7 @@
 
 - 使用 `inventory::collect!` 在编译期收集所有 `DesktopPluginRegistration` 提交
 - `load_plugins()` — 加载所有已注册插件，按名称排序返回
-- 零手动注册：业务插件只需调用 `inventory::submit!` 即可被自动发现
+- 零手动注册：业务插件只需调用 `register_desktop_plugin!` 即可被自动发现
 
 ## 安装
 
@@ -28,8 +28,9 @@ use az_desktop_plugin::{
     DesktopInitContext, DesktopEvent, DesktopExecContext,
     DesktopViewContext, DesktopRenderLayer, Plugin, EventPropagation,
 };
-use az_desktop_plugin_registry::DesktopPluginRegistration;
+use az_desktop_plugin_registry::register_desktop_plugin;
 
+#[derive(Default)]
 struct MyPlugin;
 
 impl Plugin<DesktopInitContext, DesktopEvent, DesktopExecContext, DesktopViewContext, DesktopRenderLayer>
@@ -44,11 +45,7 @@ impl Plugin<DesktopInitContext, DesktopEvent, DesktopExecContext, DesktopViewCon
     }
 }
 
-inventory::submit! {
-    DesktopPluginRegistration {
-        constructor: || Box::new(MyPlugin),
-    }
-}
+register_desktop_plugin!(MyPlugin);
 ```
 
 **加载所有插件：**
