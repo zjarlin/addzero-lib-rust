@@ -43,7 +43,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use az_derive_aliases::{apply, error, plain_clone_debug};
+use az_derive_aliases::{apply, error, plain_clone_debug, plain_debug};
 use az_plugin_contract::{
     MarketplaceEntry, MarketplaceSnapshot, PluginDescriptor, PluginInstance, PluginInstanceConfig,
     PluginPackageManifest, PluginStatus,
@@ -87,7 +87,7 @@ pub struct InstalledPlugin {
     pub install_dir: PathBuf,
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct PluginRuntime {
     catalog_dir: PathBuf,
     package_root: PathBuf,

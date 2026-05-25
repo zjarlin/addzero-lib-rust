@@ -5,7 +5,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, plain_clone_debug, serialize_debug};
+use az_derive_aliases::{apply, plain_clone_debug, plain_debug, serialize_debug};
 use reqwest::Url;
 use scraper::{ElementRef, Html, Selector};
 
@@ -45,7 +45,7 @@ struct PageManifest {
     char_count: usize,
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 struct DownloadedPage {
     index: usize,
     title: String,
@@ -54,7 +54,7 @@ struct DownloadedPage {
     next_url: Option<Url>,
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 struct Extractor {
     content_selectors: Vec<Selector>,
     title_selector: Option<Selector>,

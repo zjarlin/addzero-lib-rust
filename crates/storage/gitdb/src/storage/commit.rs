@@ -372,7 +372,7 @@ impl CommitMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::tree::{TreeMutator, create_initial_tree};
+    use crate::storage::tree::{create_initial_tree, TreeMutator};
     use crate::storage::types::TableName;
     use tempfile::TempDir;
 
@@ -480,11 +480,9 @@ mod tests {
 
         let changes = diff_commits(&repo, c1, c2).unwrap();
         assert!(!changes.is_empty());
-        assert!(
-            changes
-                .iter()
-                .any(|c| c.path.to_string_lossy().contains("users"))
-        );
+        assert!(changes
+            .iter()
+            .any(|c| c.path.to_string_lossy().contains("users")));
     }
 
     #[test]

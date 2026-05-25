@@ -443,7 +443,7 @@ fn default_blob_shard_prefix() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{BlobStoreConfig, DEFAULT_BLOB_SHARD_PREFIX, ShardedBlobStore};
+    use super::{BlobStoreConfig, ShardedBlobStore, DEFAULT_BLOB_SHARD_PREFIX};
 
     #[test]
     fn blob_store_round_trips_objects() -> Result<(), Box<dyn std::error::Error>> {
@@ -458,8 +458,8 @@ mod tests {
     }
 
     #[test]
-    fn blob_store_auto_expands_when_shard_capacity_is_exhausted()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn blob_store_auto_expands_when_shard_capacity_is_exhausted(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let mut config = BlobStoreConfig::new(temp.path().join("store"));
         config.max_shard_size_bytes = 4;

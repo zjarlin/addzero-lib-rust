@@ -1,7 +1,7 @@
 use crate::http::HttpClient;
 use crate::{KiroAuthSupportError, KiroAuthSupportResult, KiroOidcConfig};
 use az_derive_aliases::{
-    apply, plain_clone_debug, plain_eq, plain_partial_eq, plain_partial_eq_display,
+    apply, plain_clone_debug, plain_debug, plain_eq, plain_partial_eq, plain_partial_eq_display,
     serde_eq_default, serde_eq_default_copy, serde_partial_eq_default, serialize_eq,
 };
 use serde_json::Value;
@@ -374,7 +374,7 @@ pub struct KiroDeviceFlowSessionSnapshot {
     pub login_type: KiroLoginType,
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct KiroDeviceFlowSession {
     flow: KiroDeviceFlow,
     status: KiroDeviceFlowSessionStatus,
@@ -570,7 +570,7 @@ fn lock_error<T>(_error: T) -> KiroAuthSupportError {
 
 #[cfg(test)]
 mod tests {
-    use super::{map_token_response, KiroDeviceFlowClient, KiroLoginType, KiroTokenPoll};
+    use super::{KiroDeviceFlowClient, KiroLoginType, KiroTokenPoll, map_token_response};
     use crate::KiroOidcConfig;
     use std::time::Duration;
 

@@ -7,8 +7,7 @@
 //! 而各设备在本地存储各自的绝对路径映射。
 
 use az_derive_aliases::{
-    apply, error_eq, plain_eq, serde_eq, serde_eq_default, serde_eq_hash,
-    serde_eq_hash_ord_display,
+    apply, error_eq, plain_eq, serde_eq, serde_eq_default, serde_eq_hash, serde_eq_hash_ord_display,
 };
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};

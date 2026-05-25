@@ -3,7 +3,7 @@ use crate::error::GitDbDriverError;
 use crate::sql::inline_indexed_params;
 use crate::value::from_json_value;
 use async_trait::async_trait;
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 use gitdb::db::{Database, DatabaseConfig};
 use gitdb::executor::QueryResult;
 use std::borrow::Cow;
@@ -93,7 +93,7 @@ impl Driver for GitDb {
     }
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct GitDbConnection {
     request_tx: Sender<WorkerRequest>,
 }
@@ -284,7 +284,7 @@ impl Connection for GitDbConnection {
     }
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 enum WorkerRequest {
     Execute {
         sql: String,
@@ -293,7 +293,7 @@ enum WorkerRequest {
     Shutdown,
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 enum WorkerQueryResult {
     Count(u64),
     Rows {

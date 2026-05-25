@@ -277,8 +277,8 @@ mod tests {
     };
 
     use super::{
-        build_output, expand_home_path, materialize_component, render_component,
-        validate_component_name, validate_patch, ShellComponentError,
+        ShellComponentError, build_output, expand_home_path, materialize_component,
+        render_component, validate_component_name, validate_patch,
     };
 
     #[test]
@@ -337,9 +337,11 @@ mod tests {
             body: Some("commonip() {\n  hostname\n}".to_string()),
         })
         .expect("function should materialize");
-        assert!(render_component(&function)
-            .expect("function should render")
-            .contains("commonip() {"));
+        assert!(
+            render_component(&function)
+                .expect("function should render")
+                .contains("commonip() {")
+        );
 
         let snippet = materialize_component(ShellComponentUpsert {
             name: "snippet-demo".to_string(),

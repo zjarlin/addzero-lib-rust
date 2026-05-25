@@ -4,7 +4,7 @@
 //! cargo run -p az-temp-mail --example create_and_show
 //! ```
 
-use az_derive_aliases::{apply, deserialize_debug};
+use az_derive_aliases::{apply, deserialize_debug, plain_debug};
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use std::error::Error;
@@ -216,14 +216,14 @@ struct TokenResponse {
     token: String,
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 struct MessageSummary {
     id: String,
     from_address: String,
     subject: String,
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 struct MessageDetail {
     id: String,
     from: String,

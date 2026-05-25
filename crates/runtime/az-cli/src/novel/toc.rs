@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
-use az_derive_aliases::{apply, plain_eq};
+use az_derive_aliases::{apply, plain_debug, plain_eq};
 use reqwest::Url;
 use scraper::{ElementRef, Html, Selector};
 
@@ -23,7 +23,7 @@ pub struct ParsedToc {
     pub chapters: Vec<TocEntry>,
 }
 
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct TocParser {
     book_title_selectors: Vec<Selector>,
     chapter_list_selectors: Vec<Selector>,
