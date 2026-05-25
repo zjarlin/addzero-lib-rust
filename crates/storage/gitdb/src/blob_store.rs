@@ -8,7 +8,7 @@
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-use az_derive_aliases::{apply, serde_eq};
+use az_derive_aliases::{apply, plain_clone_debug, serde_eq};
 use git2::{ErrorCode, IndexAddOption, Repository, Signature, StatusOptions};
 use serde::{Deserialize, Serialize};
 
@@ -66,7 +66,7 @@ struct BlobIndexRecord {
 }
 
 /// Multi-repository blob store with automatic shard creation.
-#[derive(Clone, Debug)]
+#[apply(plain_clone_debug)]
 pub struct ShardedBlobStore {
     config: BlobStoreConfig,
 }
@@ -443,7 +443,7 @@ fn default_blob_shard_prefix() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{BlobStoreConfig, ShardedBlobStore, DEFAULT_BLOB_SHARD_PREFIX};
+    use super::{BlobStoreConfig, DEFAULT_BLOB_SHARD_PREFIX, ShardedBlobStore};
 
     #[test]
     fn blob_store_round_trips_objects() -> Result<(), Box<dyn std::error::Error>> {
@@ -458,8 +458,8 @@ mod tests {
     }
 
     #[test]
-    fn blob_store_auto_expands_when_shard_capacity_is_exhausted(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn blob_store_auto_expands_when_shard_capacity_is_exhausted()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let mut config = BlobStoreConfig::new(temp.path().join("store"));
         config.max_shard_size_bytes = 4;

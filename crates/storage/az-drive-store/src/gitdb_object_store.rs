@@ -3,7 +3,7 @@ use gitdb::blob_store::{BlobShardInfo, BlobStoreConfig, ShardedBlobStore};
 use std::path::PathBuf;
 
 use crate::{DriveObjectStore, DriveStoreError, DriveStoreResult};
-use az_derive_aliases::{apply, serde_eq};
+use az_derive_aliases::{apply, plain_clone_debug, serde_eq};
 
 pub use gitdb::blob_store::{DEFAULT_BLOB_SHARD_PREFIX, DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES};
 
@@ -37,7 +37,7 @@ impl GitDbObjectStoreConfig {
 }
 
 /// Drive object storage backed by GitDB shard repositories.
-#[derive(Clone, Debug)]
+#[apply(plain_clone_debug)]
 pub struct GitDbObjectStore {
     config: GitDbObjectStoreConfig,
     store: ShardedBlobStore,

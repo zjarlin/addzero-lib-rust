@@ -10,6 +10,7 @@ authors.workspace = true
 [dependencies]
 anyhow.workspace = true
 az-assets.workspace = true
+az-derive-aliases.workspace = true
 az-desktop-plugin.workspace = true
 az-desktop-plugin-registry.workspace = true
 gpui.workspace = true

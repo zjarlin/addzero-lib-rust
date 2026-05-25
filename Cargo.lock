@@ -938,6 +938,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "az-assets",
+ "az-derive-aliases",
  "az-desktop-plugin",
  "az-desktop-plugin-registry",
  "gpui",
@@ -994,6 +995,7 @@ name = "az-aio-plugin-software-center"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "az-derive-aliases",
  "az-desktop-plugin",
  "az-desktop-plugin-registry",
  "az-software-catalog",

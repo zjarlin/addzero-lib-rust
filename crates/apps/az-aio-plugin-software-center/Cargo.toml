@@ -10,6 +10,7 @@ authors.workspace = true
 anyhow.workspace = true
 az-desktop-plugin.workspace = true
 az-desktop-plugin-registry.workspace = true
+az-derive-aliases.workspace = true
 az-software-catalog.workspace = true
 gpui.workspace = true
 md5.workspace = true
