@@ -6,7 +6,9 @@
 //! 对象字节按内容哈希进行存储。
 
 use async_trait::async_trait;
-use az_derive_aliases::{apply, error, plain_default_copy_eq, serde_code, serde_eq, serde_eq_copy};
+use az_derive_aliases::{
+    apply, error, plain_default_clone, plain_default_copy_eq, serde_code, serde_eq, serde_eq_copy,
+};
 use az_drive_core::{EntryKey, RelativePath, RootAlias};
 use az_rustfs::StorageError;
 use chrono::{DateTime, Utc};
@@ -441,7 +443,7 @@ impl DriveSyncCoordinator for NoopDriveSyncCoordinator {
 }
 
 /// Recoverable in-memory implementation for tests and local-only smoke runs.
-#[derive(Clone, Default)]
+#[apply(plain_default_clone)]
 pub struct InMemoryDriveMetadataStore {
     state: Arc<Mutex<InMemoryState>>,
 }
@@ -875,7 +877,7 @@ impl DriveMetadataStore for InMemoryDriveMetadataStore {
 }
 
 /// In-memory object byte store.
-#[derive(Clone, Default)]
+#[apply(plain_default_clone)]
 pub struct InMemoryDriveObjectStore {
     objects: Arc<Mutex<HashMap<String, Vec<u8>>>>,
 }

@@ -38,6 +38,9 @@
 - **plain_eq** — 纯内存结构体/枚举的 `Clone` + `Debug` + `Eq` + `PartialEq`
 - **plain_clone** — 纯内存句柄/配置壳子的 `Clone`
 - **plain_clone_debug** — 纯内存句柄/配置壳子的 `Clone` + `Debug`
+- **plain_default_debug** — 纯内存状态/缓存的 `Debug` + `Default`
+- **plain_default_clone** — 纯内存句柄/状态的 `Clone` + `Default`
+- **plain_default_clone_debug** — 纯内存句柄/状态的 `Clone` + `Debug` + `Default`
 - **plain_clone_debug_display** — 在 `plain_clone_debug` 基础上增加 `Display`
 - **plain_eq_no_debug** — 在 `plain_eq` 基础上去掉生成的 `Debug`
 - **plain_eq_hash** — 在 `plain_eq` 基础上增加 `Hash`

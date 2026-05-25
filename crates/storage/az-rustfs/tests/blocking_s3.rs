@@ -1,4 +1,4 @@
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, plain_clone_debug, plain_default_debug};
 use az_rustfs::{BlockingS3StorageClient, PartInfo, PartStatus, S3ClientConfig, S3StorageClient};
 use quick_xml::Reader;
 use quick_xml::events::Event;
@@ -242,7 +242,7 @@ struct PendingUpload {
     etags: BTreeMap<u32, String>,
 }
 
-#[derive(Debug, Default)]
+#[apply(plain_default_debug)]
 struct ServerState {
     buckets: BTreeMap<String, BTreeMap<String, StoredObject>>,
     uploads: BTreeMap<String, PendingUpload>,

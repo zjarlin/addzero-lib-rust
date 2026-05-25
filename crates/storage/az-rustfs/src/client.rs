@@ -1,6 +1,8 @@
 use crate::progress::{InMemoryUploadProgressStorage, PartInfo};
 use crate::types::{ObjectMetadata, PresignedUrl, S3ClientConfig};
-use az_derive_aliases::{apply, error, plain_clone_debug};
+use az_derive_aliases::{
+    apply, error, plain_clone_debug, plain_default_clone_debug, plain_default_debug,
+};
 use base64::Engine as _;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
@@ -178,7 +180,7 @@ struct RequestTarget {
     host_header: String,
 }
 
-#[derive(Debug, Default)]
+#[apply(plain_default_debug)]
 struct PendingObjectSummary {
     key: String,
     size: u64,
@@ -1402,12 +1404,12 @@ fn escape_xml(value: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-#[derive(Debug, Default, Clone)]
+#[apply(plain_default_clone_debug)]
 pub struct InMemoryS3StorageClient {
     state: Arc<Mutex<MemoryState>>,
 }
 
-#[derive(Debug, Default)]
+#[apply(plain_default_debug)]
 struct MemoryState {
     buckets: HashMap<String, HashMap<String, MemoryObject>>,
     uploads: HashMap<String, MemoryUpload>,

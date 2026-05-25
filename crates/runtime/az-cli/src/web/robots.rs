@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use az_derive_aliases::{apply, plain_default_debug};
 use regex::Regex;
 use reqwest::StatusCode;
 use reqwest::Url;
@@ -16,7 +17,7 @@ struct Rule {
     matcher: Regex,
 }
 
-#[derive(Debug, Default)]
+#[apply(plain_default_debug)]
 struct Group {
     user_agents: Vec<String>,
     rules: Vec<RawRule>,

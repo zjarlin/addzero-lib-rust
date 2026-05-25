@@ -250,6 +250,30 @@ macro_rules! plain_clone_debug {
     };
 }
 
+/// Plain structural type with `Debug` and `Default`.
+#[macro_export]
+macro_rules! plain_default_debug {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Debug, Default), $item);
+    };
+}
+
+/// Plain structural type with `Clone` and `Default`.
+#[macro_export]
+macro_rules! plain_default_clone {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Clone, Default), $item);
+    };
+}
+
+/// Plain structural type with `Clone`, `Debug`, and `Default`.
+#[macro_export]
+macro_rules! plain_default_clone_debug {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Clone, Debug, Default), $item);
+    };
+}
+
 /// Plain structural type with `Clone`, `Debug`, and `Display`.
 #[macro_export]
 macro_rules! plain_clone_debug_display {

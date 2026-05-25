@@ -1,9 +1,10 @@
+use az_derive_aliases::{apply, plain_default_debug};
 use az_email::*;
 use std::fs;
 use std::sync::{Arc, Mutex};
 use tempfile::NamedTempFile;
 
-#[derive(Debug, Default)]
+#[apply(plain_default_debug)]
 struct RecordingSender {
     messages: Mutex<Vec<EmailMessage>>,
 }

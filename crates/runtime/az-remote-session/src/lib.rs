@@ -11,7 +11,7 @@
 
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, error_eq, plain_clone_debug};
+use az_derive_aliases::{apply, error_eq, plain_clone_debug, plain_default_debug};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, DeviceId, FileTransferEnvelope, OnlineStatus, SessionGrant,
     SessionId, SessionRequest, SessionState, SessionSummary, VideoFrameEnvelope,
@@ -50,7 +50,7 @@ impl Default for RelayRuntimeConfig {
     }
 }
 
-#[derive(Debug, Default)]
+#[apply(plain_default_debug)]
 pub struct RemoteRelayService {
     devices: HashMap<DeviceId, DeviceDescriptor>,
     sessions: HashMap<SessionId, SessionSummary>,

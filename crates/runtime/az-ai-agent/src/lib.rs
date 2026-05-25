@@ -22,7 +22,7 @@ use az_assets::{
     AiModelProvider, AiPromptButton, AiProviderKind, AssetKind, AssetProviderSecret,
     PromptRunOutput, SuggestedEdge,
 };
-use az_derive_aliases::{apply, error_eq, serde_eq};
+use az_derive_aliases::{apply, error_eq, plain_default_clone, serde_eq};
 
 #[apply(serde_eq)]
 pub struct CaptureAssetRequest {
@@ -44,7 +44,7 @@ pub enum AssetAgentError {
     EmptyInput,
 }
 
-#[derive(Clone, Default)]
+#[apply(plain_default_clone)]
 pub struct AssetAgentService;
 
 impl AssetAgentService {

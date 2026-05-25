@@ -1,5 +1,5 @@
 use crate::types::ObjectMetadata;
-use az_derive_aliases::{apply, plain_copy_eq, plain_eq, plain_partial_eq};
+use az_derive_aliases::{apply, plain_copy_eq, plain_default_debug, plain_eq, plain_partial_eq};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -205,7 +205,7 @@ pub trait UploadProgressStorage: Send + Sync {
     fn update_uploaded_size(&self, key: &str, uploaded_size: u64) -> bool;
 }
 
-#[derive(Debug, Default)]
+#[apply(plain_default_debug)]
 pub struct InMemoryUploadProgressStorage {
     state: Mutex<HashMap<String, UploadStatus>>,
 }
