@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error};
 
 use crate::storage::StorageError;
 
@@ -10,7 +10,7 @@ use crate::storage::StorageError;
 pub type TransactionResult<T> = Result<T, TransactionError>;
 
 /// Errors that can occur during transaction operations.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum TransactionError {
     /// Storage layer error.
     #[error("storage error: {0}")]

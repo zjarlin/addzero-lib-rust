@@ -1,6 +1,6 @@
 //! Query execution errors.
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error};
 
 use crate::catalog::SchemaError;
 use crate::sql::ParseError;
@@ -11,7 +11,7 @@ use crate::transaction::TransactionError;
 pub type ExecuteResult<T> = Result<T, ExecuteError>;
 
 /// Query execution errors.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum ExecuteError {
     #[error("parse error: {0}")]
     Parse(#[from] ParseError),

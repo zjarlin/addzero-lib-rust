@@ -1,10 +1,10 @@
-use thiserror::Error;
+use az_derive_aliases::{apply, error};
 
 /// Result alias for Gmail verification-code operations.
 pub type GmailCodeResult<T> = Result<T, GmailCodeError>;
 
 /// Errors returned by Gmail API and verification-code parsing helpers.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum GmailCodeError {
     /// Client configuration failed validation before a request was sent.
     #[error("invalid config: {0}")]

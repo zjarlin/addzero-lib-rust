@@ -101,6 +101,14 @@ macro_rules! error_eq {
     };
 }
 
+/// Basic library error type with `thiserror` and debug formatting.
+#[macro_export]
+macro_rules! error {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Debug, ::thiserror::Error), $item);
+    };
+}
+
 /// Serde-friendly data type with equality and debug traits.
 #[macro_export]
 macro_rules! serde_eq {

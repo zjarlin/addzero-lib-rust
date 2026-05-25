@@ -3,9 +3,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, error, plain_clone_debug};
 use parking_lot::RwLock;
-use thiserror::Error;
 
 use crate::catalog::Catalog;
 use crate::executor::{ExecuteError, QueryExecutor, QueryResult};
@@ -18,7 +17,7 @@ use crate::transaction::{Transaction, TransactionError, TransactionManager, TxAc
 pub type DatabaseResult<T> = Result<T, DatabaseError>;
 
 /// Database errors.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum DatabaseError {
     #[error("storage error: {0}")]
     Storage(#[from] StorageError),

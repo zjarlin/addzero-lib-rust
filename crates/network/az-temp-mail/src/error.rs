@@ -1,11 +1,11 @@
+use az_derive_aliases::{apply, error};
 use reqwest::header::{InvalidHeaderName, InvalidHeaderValue};
-use thiserror::Error;
 
 /// Result alias for Cloudflare Temp Email operations.
 pub type TempMailResult<T> = Result<T, TempMailError>;
 
 /// Errors returned by the Cloudflare Temp Email client.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum TempMailError {
     /// Client configuration is internally inconsistent.
     #[error("invalid config: {0}")]

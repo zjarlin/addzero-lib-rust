@@ -11,6 +11,7 @@
 - **deserialize_eq** — 带 `Deserialize` + 相等/调试 trait 的只读响应/输入类型
 - **deserialize_partial_eq** — 用于不能 `Eq` 的只读响应/输入类型
 - **serde_eq_no_debug** — 带 serde + 相等 trait 但保留自定义 `Debug` 的类型
+- **error** — 带 `thiserror` + `Debug` 的基础库错误类型
 - **error_eq** — 带 `thiserror` + 常用相等/调试 trait 的错误类型
 - **from_eq** — 带 `derive_more::From` + `PartialEq` 的轻量转换枚举
 - **from_display** — 带 `derive_more::From` + `Display` 的轻量值枚举
@@ -74,10 +75,9 @@ az-derive-aliases = { path = "../az-derive-aliases" }       # workspace 内部�
 
 ```rust
 use az_derive_aliases::{
-    apply, deserialize_debug, deserialize_eq, error_eq, plain_copy_eq_hash, plain_eq_hash,
+    apply, deserialize_debug, deserialize_eq, error, error_eq, plain_copy_eq_hash, plain_eq_hash,
     serde_code, serde_code_default_enum, serde_code_ord, serde_eq, serialize_debug, serialize_eq,
 };
-use thiserror::Error;
 
 // 只需要反序列化的第三方响应类型
 #[apply(deserialize_debug)]
@@ -101,6 +101,13 @@ struct WriteCommand {
 }
 
 // 带 thiserror 的错误类型
+#[apply(error)]
+enum TransportError {
+    #[error("io failed: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+// 带 thiserror 且需要相等比较的错误类型
 #[apply(error_eq)]
 #[error("invalid input: {0}")]
 struct MyError(String);
@@ -152,6 +159,6 @@ enum Priority {
 
 - `macro_rules_attribute` — 将宏作为 derive 属性应用到类型定义
 - `serde` — serde 相关 alias 的 derive 和辅助属性
-- `thiserror` — `error_eq`
+- `thiserror` — `error` / `error_eq`
 - `derive_more` — `from_eq` / `from_display` / `serde_eq_copy_display` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_default_copy_eq_display`
 - `strum` — `serde_code*` / `serde_code*_enum`

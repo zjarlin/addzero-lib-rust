@@ -1,11 +1,11 @@
+use az_derive_aliases::{apply, error};
 use reqwest::header::{InvalidHeaderName, InvalidHeaderValue};
-use thiserror::Error;
 
 /// Crate-local result type for DuckMail, PKCE, and auth-file support operations.
 pub type CodexAuthSupportResult<T> = Result<T, CodexAuthSupportError>;
 
 /// Errors returned by the safe auth support helpers.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum CodexAuthSupportError {
     /// Configuration failed validation before any network I/O was attempted.
     #[error("invalid config: {0}")]

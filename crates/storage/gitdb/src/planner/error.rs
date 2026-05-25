@@ -1,6 +1,6 @@
 //! Planning errors.
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error};
 
 use crate::catalog::SchemaError;
 use crate::sql::ParseError;
@@ -10,7 +10,7 @@ use crate::storage::StorageError;
 pub type PlanResult<T> = Result<T, PlanError>;
 
 /// Query planning errors.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum PlanError {
     #[error("parse error: {0}")]
     Parse(#[from] ParseError),

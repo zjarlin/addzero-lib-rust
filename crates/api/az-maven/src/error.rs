@@ -1,9 +1,9 @@
+use az_derive_aliases::{apply, error};
 use reqwest::header::{InvalidHeaderName, InvalidHeaderValue};
-use thiserror::Error;
 
 pub type CreatesResult<T> = Result<T, CreatesError>;
 
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum CreatesError {
     #[error("invalid config: {0}")]
     InvalidConfig(String),

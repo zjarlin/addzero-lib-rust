@@ -1,10 +1,10 @@
-use thiserror::Error;
+use az_derive_aliases::{apply, error};
 
 /// Crate-local result type for Kiro auth support operations.
 pub type KiroAuthSupportResult<T> = Result<T, KiroAuthSupportError>;
 
 /// Errors returned by Kiro device-flow, parsing, and generation helpers.
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum KiroAuthSupportError {
     /// Configuration failed validation before any network I/O was attempted.
     #[error("invalid config: {0}")]

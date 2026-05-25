@@ -5,12 +5,12 @@
 
 use std::path::PathBuf;
 
-use thiserror::Error;
+use az_derive_aliases::{apply, error};
 
 use crate::storage::types::{InvalidNameError, RowKey, TableName};
 
 /// the main error type for storage operations
-#[derive(Debug, Error)]
+#[apply(error)]
 pub enum StorageError {
     /// error from the underlying Git library
     #[error("git error: {0}")]
