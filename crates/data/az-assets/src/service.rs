@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use az_derive_aliases::{apply, plain_clone};
+use az_derive_aliases::{apply, plain_clone, plain_default};
 use az_persistence::PersistenceContext;
 use chrono::Utc;
 use tokio::sync::Mutex;
@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-#[derive(Default)]
+#[apply(plain_default)]
 struct MemoryStore {
     assets: BTreeMap<Uuid, Asset>,
     edges: BTreeMap<(Uuid, Uuid, String), AssetEdge>,

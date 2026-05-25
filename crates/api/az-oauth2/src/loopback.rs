@@ -1,5 +1,5 @@
 use crate::{OAuth2Error, OAuth2Result, PkcePair};
-use az_derive_aliases::{apply, plain_eq};
+use az_derive_aliases::{apply, plain_debug, plain_eq};
 use reqwest::Url;
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -8,7 +8,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 /// Active loopback authorization-code session.
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct LoopbackAuthorizationSession {
     /// URL the user should open in the system browser.
     pub authorization_url: String,

@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 use serde_json::Value;
 
 use crate::storage::{BranchName, CommitId, GitRepository, Row, RowKey, StorageError, TableName};
@@ -17,15 +17,15 @@ use crate::transaction::error::{TransactionError, TransactionResult};
 use crate::transaction::isolation::IsolationLevel;
 
 /// Marker type for active transactions.
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct TxActive;
 
 /// Marker type for committed transactions.
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct TxCommitted;
 
 /// Marker type for aborted transactions.
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct TxAborted;
 
 /// Transaction metadata stored in the manager.

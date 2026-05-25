@@ -272,6 +272,22 @@ macro_rules! plain_clone {
     };
 }
 
+/// Plain structural type with `Default` only.
+#[macro_export]
+macro_rules! plain_default {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Default), $item);
+    };
+}
+
+/// Plain structural type with `Debug` only.
+#[macro_export]
+macro_rules! plain_debug {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!((Debug), $item);
+    };
+}
+
 /// Plain structural type with `Clone` and `Debug`.
 #[macro_export]
 macro_rules! plain_clone_debug {

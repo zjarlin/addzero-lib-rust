@@ -1,5 +1,7 @@
 use crate::types::ObjectMetadata;
-use az_derive_aliases::{apply, plain_copy_eq, plain_default_debug, plain_eq, plain_partial_eq};
+use az_derive_aliases::{
+    apply, plain_clone, plain_copy_eq, plain_default_debug, plain_eq, plain_partial_eq,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -25,7 +27,7 @@ pub struct UploadProgressData {
     pub total_parts: Option<u32>,
 }
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct MultipartUploadConfig {
     pub part_size: u64,
     pub concurrency: usize,

@@ -1,11 +1,11 @@
 //! Query result types.
 
-use az_derive_aliases::{apply, plain_clone_debug};
+use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
 /// Result of a query execution.
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub enum QueryResult {
     /// Rows returned from SELECT.
     Select(ResultSet),

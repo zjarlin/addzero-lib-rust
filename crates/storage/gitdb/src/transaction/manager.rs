@@ -10,6 +10,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use az_derive_aliases::{apply, plain_clone};
 use parking_lot::{Mutex, RwLock};
 use ulid::Ulid;
 
@@ -21,7 +22,7 @@ use crate::transaction::isolation::IsolationLevel;
 /// Transaction manager - coordinates all transaction operations.
 ///
 /// Thread-safe: can be shared across threads via Clone (uses Arc internally).
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct TransactionManager {
     inner: Arc<TransactionManagerInner>,
 }

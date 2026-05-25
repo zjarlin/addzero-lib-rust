@@ -24,7 +24,7 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, error, serde_eq};
+use az_derive_aliases::{apply, error, plain_debug, serde_eq};
 
 mod config;
 mod frame;
@@ -63,7 +63,7 @@ pub type SerialResult<T> = Result<T, SerialError>;
 ///
 /// This is a platform-agnostic abstraction. On Unix it wraps `/dev/tty*`,
 /// on Windows it wraps `COM*` ports.
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct SerialPort {
     port_name: String,
     config: SerialConfig,

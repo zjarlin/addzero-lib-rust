@@ -6,7 +6,9 @@ use crate::model::{
 use crate::provider::TempMailProvider;
 use crate::util::trim_non_blank;
 use crate::{ApiConfig, TempMailError, TempMailResult};
-use az_derive_aliases::{apply, deserialize_debug, plain_copy_eq, plain_eq, serialize_eq};
+use az_derive_aliases::{
+    apply, deserialize_debug, plain_copy_eq, plain_debug, plain_eq, serialize_eq,
+};
 use regex::Regex;
 use reqwest::blocking::Response;
 use reqwest::header::{COOKIE, SET_COOKIE};
@@ -81,7 +83,7 @@ impl EmailnatorEmailRequest {
 }
 
 /// Blocking client for Emailnator's hosted temporary mailbox API.
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct EmailnatorTempMailApi {
     http: HttpApiClient,
     xsrf: Mutex<Option<XsrfToken>>,

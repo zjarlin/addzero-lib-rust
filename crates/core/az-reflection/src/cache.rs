@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use az_derive_aliases::{apply, error_eq, plain_clone_debug};
+use az_derive_aliases::{apply, error_eq, plain_debug};
 
 /// Errors that can occur when constructing or operating on an [`ExpiringCache`].
 #[apply(error_eq)]
@@ -15,7 +15,7 @@ pub enum CacheError {
     Poisoned,
 }
 
-#[apply(plain_clone_debug)]
+#[apply(plain_debug)]
 struct CacheEntry<V> {
     value: V,
     created_at: Instant,

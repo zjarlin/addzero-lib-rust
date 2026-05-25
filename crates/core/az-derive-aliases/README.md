@@ -40,6 +40,8 @@
 - **serde_code_default_ord_enum** — 在 `serde_code_default_ord` 基础上生成 `ALL` / `as_str()` / `code()` / `from_code()`
 - **plain_eq** — 纯内存结构体/枚举的 `Clone` + `Debug` + `Eq` + `PartialEq`
 - **plain_clone** — 纯内存句柄/配置壳子的 `Clone`
+- **plain_default** — 纯内存状态/缓存的 `Default`
+- **plain_debug** — 纯内存结果/会话/标记类型的 `Debug`
 - **plain_clone_debug** — 纯内存句柄/配置壳子的 `Clone` + `Debug`
 - **plain_default_debug** — 纯内存状态/缓存的 `Debug` + `Default`
 - **plain_default_clone** — 纯内存句柄/状态的 `Clone` + `Default`

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use az_derive_aliases::{apply, plain_eq};
+use az_derive_aliases::{apply, plain_debug, plain_eq};
 use gitdb::db::{Connection, ConnectionPool, DatabaseConfig, DatabaseError};
 use gitdb::executor::QueryResult;
 
@@ -241,7 +241,7 @@ impl Drop for GitDbConnection {
 }
 
 /// Query result plus the node that served it.
-#[derive(Debug)]
+#[apply(plain_debug)]
 pub struct GitDbRoutedResult {
     /// Node id selected by the router.
     pub node_id: String,

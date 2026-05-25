@@ -21,7 +21,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use az_derive_aliases::{apply, error, plain_default_eq, plain_eq};
+use az_derive_aliases::{apply, error, plain_clone, plain_default_eq, plain_eq};
 use az_plugin_contract::{
     ActorSnapshot, MarketplaceEntry, MarketplaceSnapshot, PluginCounts, PluginDescriptor,
     PluginInstance, PluginKind, ResolvedPage, RuntimeOverview, ShellSnapshot,
@@ -150,7 +150,7 @@ impl StorageService for LocalStorageService {
     }
 }
 
-#[derive(Clone)]
+#[apply(plain_clone)]
 pub struct KernelServices {
     auth: Arc<dyn AuthProvider>,
     rbac: Arc<dyn RbacService>,

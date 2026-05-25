@@ -7,7 +7,8 @@
 
 use async_trait::async_trait;
 use az_derive_aliases::{
-    apply, error, plain_default_clone, plain_default_copy_eq, serde_code, serde_eq, serde_eq_copy,
+    apply, error, plain_default, plain_default_clone, plain_default_copy_eq, serde_code, serde_eq,
+    serde_eq_copy,
 };
 use az_drive_core::{EntryKey, RelativePath, RootAlias};
 use az_rustfs::StorageError;
@@ -445,7 +446,7 @@ pub struct InMemoryDriveMetadataStore {
     state: Arc<Mutex<InMemoryState>>,
 }
 
-#[derive(Default)]
+#[apply(plain_default)]
 struct InMemoryState {
     entries_by_key: BTreeMap<String, DriveEntry>,
     entries_by_id: HashMap<Uuid, String>,
