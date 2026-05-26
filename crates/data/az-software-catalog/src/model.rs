@@ -1,10 +1,13 @@
 use std::{collections::BTreeSet, fmt};
 
-use az_derive_aliases::{apply, error_eq, serde_code_ord_display_enum, serde_eq, serde_eq_default};
+use az_derive_aliases::{
+    apply, error_eq, serde_code_default_ord_display_enum, serde_eq, serde_eq_default,
+};
 use uuid::Uuid;
 
-#[apply(serde_code_ord_display_enum)]
+#[apply(serde_code_default_ord_display_enum)]
 pub enum SoftwarePlatform {
+    #[default]
     #[display("macOS")]
     Macos,
     #[display("Windows")]
@@ -13,7 +16,7 @@ pub enum SoftwarePlatform {
     Linux,
 }
 
-#[apply(serde_code_ord_display_enum)]
+#[apply(serde_code_default_ord_display_enum)]
 pub enum InstallerKind {
     #[display("Homebrew")]
     Brew,
@@ -31,6 +34,7 @@ pub enum InstallerKind {
     #[strum(serialize = "package")]
     #[display("安装包")]
     DirectPackage,
+    #[default]
     #[display("自定义")]
     Custom,
 }
@@ -295,12 +299,20 @@ mod tests {
             SoftwarePlatform::from_code("linux"),
             Some(SoftwarePlatform::Linux)
         );
+        assert_eq!(
+            SoftwarePlatform::from_code_or_default("unknown"),
+            SoftwarePlatform::Macos
+        );
 
         assert_eq!(InstallerKind::DirectPackage.code(), "package");
         assert_eq!(InstallerKind::DirectPackage.to_string(), "安装包");
         assert_eq!(
             InstallerKind::from_code("package"),
             Some(InstallerKind::DirectPackage)
+        );
+        assert_eq!(
+            InstallerKind::from_code_or_default("unknown"),
+            InstallerKind::Custom
         );
         assert_eq!(
             serde_json::to_string(&InstallerKind::DirectPackage)

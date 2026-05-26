@@ -266,8 +266,8 @@ fn entry_from_models(
 fn method_from_model(model: software_install_method::Model) -> SoftwareInstallMethodDto {
     SoftwareInstallMethodDto {
         id: model.id.to_string(),
-        platform: SoftwarePlatform::from_code(&model.platform).unwrap_or(SoftwarePlatform::Macos),
-        kind: InstallerKind::from_code(&model.installer_kind).unwrap_or(InstallerKind::Custom),
+        platform: SoftwarePlatform::from_code_or_default(&model.platform),
+        kind: InstallerKind::from_code_or_default(&model.installer_kind),
         label: model.label,
         package_id: model.package_id,
         asset_item_id: model.asset_item_id,
