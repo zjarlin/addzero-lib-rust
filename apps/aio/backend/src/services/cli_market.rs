@@ -589,8 +589,8 @@ impl CliMarketRepo {
         .bind(id)
         .bind(&slug)
         .bind(input.status.code())
-        .bind(source_type_code(input.source_type))
-        .bind(entry_kind_code(input.entry_kind))
+        .bind(input.source_type.code())
+        .bind(input.entry_kind.code())
         .bind(input.vendor_name.trim())
         .bind(input.latest_version.trim())
         .bind(input.homepage_url.trim())
@@ -740,8 +740,8 @@ impl CliMarketRepo {
         )
         .bind(job_id)
         .bind(input.file_name.trim())
-        .bind(import_format_code(input.format))
-        .bind(import_mode_code(input.mode))
+        .bind(input.format.code())
+        .bind(input.mode.code())
         .bind(input.submitted_by.trim())
         .bind(i32::try_from(reports.len()).unwrap_or_default())
         .bind(i32::try_from(success_rows).unwrap_or_default())
@@ -1523,42 +1523,6 @@ fn validate_upsert(input: &CliMarketEntryUpsert) -> CliMarketResult<()> {
 #[cfg(not(target_arch = "wasm32"))]
 fn parse_uuid(value: &str) -> CliMarketResult<Uuid> {
     Uuid::parse_str(value).map_err(|err| CliMarketError::Message(format!("无效 UUID：{err}")))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn source_type_code(value: CliMarketSourceType) -> &'static str {
-    match value {
-        CliMarketSourceType::Manual => "manual",
-        CliMarketSourceType::ImportJson => "import_json",
-        CliMarketSourceType::ImportExcel => "import_excel",
-        CliMarketSourceType::SyncExternal => "sync_external",
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn entry_kind_code(value: CliEntryKind) -> &'static str {
-    match value {
-        CliEntryKind::Cli => "cli",
-        CliEntryKind::Wrapper => "wrapper",
-        CliEntryKind::Installer => "installer",
-        CliEntryKind::Bundle => "bundle",
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn import_format_code(value: CliImportFormat) -> &'static str {
-    match value {
-        CliImportFormat::Json => "json",
-        CliImportFormat::Xlsx => "xlsx",
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn import_mode_code(value: CliImportMode) -> &'static str {
-    match value {
-        CliImportMode::Native => "native",
-        CliImportMode::RegistryCompat => "registry_compat",
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
