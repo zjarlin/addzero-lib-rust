@@ -3,7 +3,7 @@
 //! Standalone headless drive app support utilities.
 
 use anyhow::Context;
-use az_derive_aliases::{apply, deserialize_debug, plain_code_enum, plain_eq};
+use az_derive_aliases::{apply, deserialize_debug, plain_code_default_enum, plain_eq};
 use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalState, LocalStateStore};
 use az_drive_store::{
     DEFAULT_AUTO_GIT_POOL_PREFIX, DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator,
@@ -415,8 +415,9 @@ enum DriveObjectBackendConfig {
     GitDb(GitDbObjectStoreConfig),
 }
 
-#[apply(plain_code_enum)]
+#[apply(plain_code_default_enum)]
 enum DriveObjectBackend {
+    #[default]
     GitPool,
     #[strum(serialize = "gitdb")]
     GitDb,
@@ -602,7 +603,8 @@ fn normalize_object_backend_name(value: &str) -> anyhow::Result<DriveObjectBacke
 }
 
 fn normalize_persisted_object_backend_name(value: &str) -> DriveObjectBackend {
-    normalize_object_backend_name(value).unwrap_or(DriveObjectBackend::GitPool)
+    let normalized = value.trim().replace('-', "_");
+    DriveObjectBackend::from_code_or_default(&normalized)
 }
 
 fn drive_toml_path() -> Option<PathBuf> {
@@ -782,6 +784,10 @@ mod tests {
         assert!(normalize_object_backend_name("s3").is_err());
         assert_eq!(
             normalize_persisted_object_backend_name("s3"),
+            DriveObjectBackend::GitPool
+        );
+        assert_eq!(
+            DriveObjectBackend::from_code_or_default("unknown"),
             DriveObjectBackend::GitPool
         );
     }
