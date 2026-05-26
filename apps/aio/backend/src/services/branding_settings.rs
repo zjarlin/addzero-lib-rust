@@ -24,18 +24,6 @@ pub enum BrandingLogoSource {
     TextOnly,
 }
 
-impl BrandingLogoSource {
-    #[cfg(not(target_arch = "wasm32"))]
-    fn as_db_value(self) -> &'static str {
-        self.as_str()
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn from_db_value(value: &str) -> Self {
-        Self::from_code(value).unwrap_or_default()
-    }
-}
-
 #[apply(serde_eq)]
 pub struct BrandingSettingsDto {
     pub site_name: String,
@@ -208,7 +196,7 @@ pub async fn save_branding_settings_on_server(
         "#,
     )
     .bind(input.site_name.trim())
-    .bind(input.logo_source.as_db_value())
+    .bind(input.logo_source.as_str())
     .bind(logo.as_ref().map(|logo| logo.object_key.as_str()))
     .bind(logo.as_ref().map(|logo| logo.relative_path.as_str()))
     .bind(logo.as_ref().map(|logo| logo.file_name.as_str()))
@@ -284,11 +272,11 @@ async fn read_branding_settings(
 
     let logo = row_to_logo(&row);
 
+    let logo_source = row.get::<String, _>("logo_source");
+
     Ok(BrandingSettingsDto {
         site_name: row.get::<String, _>("site_name"),
-        logo_source: BrandingLogoSource::from_db_value(
-            row.get::<String, _>("logo_source").as_str(),
-        ),
+        logo_source: BrandingLogoSource::from_code_or_default(&logo_source),
         logo,
         brand_copy: row.get::<String, _>("brand_copy"),
         header_badge: row.get::<String, _>("header_badge"),
@@ -342,6 +330,10 @@ mod tests {
         assert_eq!(
             BrandingLogoSource::from_code("app_icon"),
             Some(BrandingLogoSource::AppIcon)
+        );
+        assert_eq!(
+            BrandingLogoSource::from_code_or_default("unknown"),
+            BrandingLogoSource::AppIcon
         );
     }
 }
