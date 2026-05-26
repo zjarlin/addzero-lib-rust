@@ -69,16 +69,22 @@ impl DataType {
 
 /// Column constraints.
 #[apply(serde_code_partial_eq)]
+#[derive(derive_more::Display)]
 pub enum Constraint {
     /// Column cannot be null.
+    #[display("NOT NULL")]
     NotNull,
     /// Column values must be unique across all rows.
+    #[display("UNIQUE")]
     Unique,
     /// Column is the primary key (implies NotNull + Unique).
+    #[display("PRIMARY KEY")]
     PrimaryKey,
     /// Default value for the column.
+    #[display("DEFAULT {_0}")]
     Default(Value),
     /// Check constraint (expression stored as string for now).
+    #[display("CHECK ({_0})")]
     Check(String),
 }
 
@@ -95,25 +101,7 @@ impl Constraint {
 
     /// Get the SQL representation of this constraint.
     pub fn sql_name(&self) -> String {
-        match self {
-            Constraint::NotNull => "NOT NULL".to_string(),
-            Constraint::Unique => "UNIQUE".to_string(),
-            Constraint::PrimaryKey => "PRIMARY KEY".to_string(),
-            Constraint::Default(v) => format!("DEFAULT {}", v),
-            Constraint::Check(expr) => format!("CHECK ({})", expr),
-        }
-    }
-}
-
-impl fmt::Display for Constraint {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Constraint::NotNull => write!(f, "NOT NULL"),
-            Constraint::Unique => write!(f, "UNIQUE"),
-            Constraint::PrimaryKey => write!(f, "PRIMARY KEY"),
-            Constraint::Default(v) => write!(f, "DEFAULT {}", v),
-            Constraint::Check(expr) => write!(f, "CHECK ({})", expr),
-        }
+        self.to_string()
     }
 }
 
@@ -244,14 +232,18 @@ mod tests {
 
     #[test]
     fn constraint_display_matches_sql_name() {
-        assert_eq!(Constraint::NotNull.sql_name(), "NOT NULL");
-        assert_eq!(Constraint::Unique.to_string(), "UNIQUE");
-        assert_eq!(Constraint::PrimaryKey.sql_name(), "PRIMARY KEY");
-        assert_eq!(Constraint::Default(json!(1)).to_string(), "DEFAULT 1");
-        assert_eq!(
-            Constraint::Check("x > 0".to_owned()).to_string(),
-            "CHECK (x > 0)"
-        );
+        let cases = [
+            (Constraint::NotNull, "NOT NULL"),
+            (Constraint::Unique, "UNIQUE"),
+            (Constraint::PrimaryKey, "PRIMARY KEY"),
+            (Constraint::Default(json!(1)), "DEFAULT 1"),
+            (Constraint::Check("x > 0".to_owned()), "CHECK (x > 0)"),
+        ];
+
+        for (constraint, expected) in cases {
+            assert_eq!(constraint.sql_name(), expected);
+            assert_eq!(constraint.to_string(), expected);
+        }
     }
 
     #[test]
