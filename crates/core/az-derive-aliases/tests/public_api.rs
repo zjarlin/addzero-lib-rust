@@ -3,9 +3,9 @@ use az_derive_aliases::{
     from_copy_eq_display, plain_code_default_enum, plain_code_enum, plain_copy_eq_hash,
     plain_copy_eq_hash_display, plain_copy_eq_hash_ord_display, plain_default_copy_eq,
     plain_default_copy_eq_display, plain_eq_hash_display, serde_camel_eq_default,
-    serde_camel_partial_eq_default, serde_code_partial_eq, serde_eq_copy_display,
-    serde_eq_hash_display, serde_kebab_eq, serde_partial_eq_display, serde_upper_eq,
-    serialize_camel_clone_debug, serialize_camel_eq,
+    serde_camel_partial_eq_default, serde_code_enum, serde_code_partial_eq, serde_eq_copy_display,
+    serde_eq_hash_display, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
+    serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
 };
 use serde_json::Value;
 use std::collections::HashSet;
@@ -62,6 +62,21 @@ enum CustomPlainCode {
     DefaultName,
     #[strum(serialize = "legacyCode")]
     LegacyCode,
+}
+
+#[apply(serde_code_enum)]
+enum SnakeCode {
+    ReadyNow,
+}
+
+#[apply(serde_kebab_code_enum)]
+enum KebabCode {
+    ReadyNow,
+}
+
+#[apply(serde_lower_code_enum)]
+enum LowerCode {
+    Ready,
 }
 
 #[apply(serialize_camel_eq)]
@@ -197,6 +212,26 @@ fn plain_code_enum_defaults_to_snake_case_and_allows_variant_overrides() {
     assert_eq!(
         CustomPlainCode::from_code("legacyCode"),
         Some(CustomPlainCode::LegacyCode)
+    );
+}
+
+#[test]
+fn serde_code_enum_aliases_reuse_case_aware_helper() {
+    assert_eq!(SnakeCode::ReadyNow.code(), "ready_now");
+    assert_eq!(KebabCode::ReadyNow.code(), "ready-now");
+    assert_eq!(LowerCode::Ready.code(), "ready");
+
+    assert_eq!(
+        serde_json::to_value(SnakeCode::ReadyNow).unwrap(),
+        serde_json::json!("ready_now")
+    );
+    assert_eq!(
+        serde_json::to_value(KebabCode::ReadyNow).unwrap(),
+        serde_json::json!("ready-now")
+    );
+    assert_eq!(
+        serde_json::to_value(LowerCode::Ready).unwrap(),
+        serde_json::json!("ready")
     );
 }
 

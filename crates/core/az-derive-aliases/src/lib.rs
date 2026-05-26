@@ -914,6 +914,14 @@ macro_rules! serde_partial_eq_display {
 #[macro_export]
 macro_rules! serde_code {
     ($item:item) => {
+        $crate::__az_derive_aliases_serde_code!("snake_case", $item);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __az_derive_aliases_serde_code {
+    ($case:literal, $item:item) => {
         $crate::__az_derive_aliases_derive!(
             (
                 Clone,
@@ -929,8 +937,8 @@ macro_rules! serde_code {
                 ::strum::IntoStaticStr,
                 ::strum::VariantArray
             ),
-            #[serde(rename_all = "snake_case")]
-            #[strum(serialize_all = "snake_case")]
+            #[serde(rename_all = $case)]
+            #[strum(serialize_all = $case)]
             $item
         );
     };
@@ -977,25 +985,7 @@ macro_rules! __az_derive_aliases_code_default_enum_impl {
 #[macro_export]
 macro_rules! serde_kebab_code {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::strum::Display,
-                ::strum::EnumString,
-                ::strum::IntoStaticStr,
-                ::strum::VariantArray
-            ),
-            #[serde(rename_all = "kebab-case")]
-            #[strum(serialize_all = "kebab-case")]
-            $item
-        );
+        $crate::__az_derive_aliases_serde_code!("kebab-case", $item);
     };
 }
 
@@ -1003,25 +993,7 @@ macro_rules! serde_kebab_code {
 #[macro_export]
 macro_rules! serde_lower_code {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::strum::Display,
-                ::strum::EnumString,
-                ::strum::IntoStaticStr,
-                ::strum::VariantArray
-            ),
-            #[serde(rename_all = "lowercase")]
-            #[strum(serialize_all = "lowercase")]
-            $item
-        );
+        $crate::__az_derive_aliases_serde_code!("lowercase", $item);
     };
 }
 
