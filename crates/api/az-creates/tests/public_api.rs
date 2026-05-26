@@ -1,6 +1,5 @@
 use az_creates::*;
 use az_derive_aliases::{apply, plain_clone_debug};
-use std::collections::BTreeMap;
 use std::error::Error;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -193,7 +192,6 @@ fn creates_facade_builds_email_sender() -> Result<(), Box<dyn Error>> {
 struct CapturedRequest {
     method: String,
     path: String,
-    headers: BTreeMap<String, String>,
     body: String,
 }
 
@@ -314,7 +312,6 @@ fn read_request(stream: &mut TcpStream) -> std::io::Result<CapturedRequest> {
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "missing path"))?
         .to_owned();
 
-    let mut headers = BTreeMap::new();
     let mut content_length = 0usize;
     for line in lines {
         if line.is_empty() {
@@ -329,7 +326,6 @@ fn read_request(stream: &mut TcpStream) -> std::io::Result<CapturedRequest> {
         if normalized_name == "content-length" {
             content_length = trimmed_value.parse::<usize>().unwrap_or_default();
         }
-        headers.insert(normalized_name, trimmed_value);
     }
 
     while buffer.len() < header_end + content_length {
@@ -349,7 +345,6 @@ fn read_request(stream: &mut TcpStream) -> std::io::Result<CapturedRequest> {
     Ok(CapturedRequest {
         method,
         path,
-        headers,
         body: String::from_utf8_lossy(body_bytes).into_owned(),
     })
 }

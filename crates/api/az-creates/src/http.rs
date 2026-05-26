@@ -1,4 +1,3 @@
-use crate::util::trim_non_blank;
 use crate::{ApiConfig, CreatesError, CreatesResult};
 use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
@@ -41,20 +40,6 @@ impl HttpApiClient {
 
     pub(crate) fn get_url(&self, url: Url) -> RequestBuilder {
         self.client.get(url)
-    }
-
-    pub(crate) fn post(&self, path: &str) -> CreatesResult<RequestBuilder> {
-        Ok(self.client.post(self.join_url(path)?))
-    }
-
-    pub(crate) fn with_bearer_auth(
-        builder: RequestBuilder,
-        bearer_token: Option<&str>,
-    ) -> RequestBuilder {
-        match trim_non_blank(bearer_token) {
-            Some(token) => builder.bearer_auth(token),
-            None => builder,
-        }
     }
 
     pub(crate) fn with_headers(
