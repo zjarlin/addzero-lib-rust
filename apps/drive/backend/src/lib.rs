@@ -3,7 +3,7 @@
 //! Standalone headless drive app support utilities.
 
 use anyhow::Context;
-use az_derive_aliases::{apply, deserialize_debug, plain_eq};
+use az_derive_aliases::{apply, deserialize_debug, plain_code_enum, plain_eq};
 use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalState, LocalStateStore};
 use az_drive_store::{
     DEFAULT_AUTO_GIT_POOL_PREFIX, DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator,
@@ -392,7 +392,7 @@ struct DriveTomlConfig {
     default_pool_limit_bytes: u64,
     auto_pool_root: Option<PathBuf>,
     auto_pool_prefix: String,
-    object_backend: String,
+    object_backend: DriveObjectBackend,
     gitdb_object_root: Option<PathBuf>,
     gitdb_object_shard_prefix: String,
     gitdb_object_max_shard_size_bytes: u64,
@@ -415,17 +415,24 @@ enum DriveObjectBackendConfig {
     GitDb(GitDbObjectStoreConfig),
 }
 
+#[apply(plain_code_enum)]
+enum DriveObjectBackend {
+    GitPool,
+    #[strum(serialize = "gitdb")]
+    GitDb,
+}
+
 fn current_object_backend_config() -> anyhow::Result<DriveObjectBackendConfig> {
     let config = current_drive_config()?;
-    match config.object_backend.as_str() {
-        "gitdb" => Ok(DriveObjectBackendConfig::GitDb(GitDbObjectStoreConfig {
+    match config.object_backend {
+        DriveObjectBackend::GitDb => Ok(DriveObjectBackendConfig::GitDb(GitDbObjectStoreConfig {
             root: config
                 .gitdb_object_root
                 .unwrap_or_else(default_gitdb_object_root),
             max_shard_size_bytes: config.gitdb_object_max_shard_size_bytes,
             shard_prefix: config.gitdb_object_shard_prefix,
         })),
-        _ => Ok(DriveObjectBackendConfig::GitPool),
+        DriveObjectBackend::GitPool => Ok(DriveObjectBackendConfig::GitPool),
     }
 }
 
@@ -542,7 +549,7 @@ fn save_drive_config(config: &DriveTomlConfig) -> anyhow::Result<()> {
     if config.auto_pool_prefix != DEFAULT_AUTO_GIT_POOL_PREFIX {
         doc["auto_pool_prefix"] = value(config.auto_pool_prefix.as_str());
     }
-    doc["object_backend"] = value(config.object_backend.as_str());
+    doc["object_backend"] = value(config.object_backend.code());
     if let Some(root) = &config.gitdb_object_root {
         doc["gitdb_object_root"] = value(path_to_config_string(root.clone()));
     }
@@ -563,7 +570,7 @@ fn default_drive_toml_config() -> DriveTomlConfig {
         default_pool_limit_bytes: az_drive_store::DEFAULT_GIT_POOL_LIMIT_BYTES,
         auto_pool_root: None,
         auto_pool_prefix: DEFAULT_AUTO_GIT_POOL_PREFIX.to_owned(),
-        object_backend: "git_pool".to_owned(),
+        object_backend: DriveObjectBackend::GitPool,
         gitdb_object_root: Some(default_gitdb_object_root()),
         gitdb_object_shard_prefix: az_drive_store::DEFAULT_BLOB_SHARD_PREFIX.to_owned(),
         gitdb_object_max_shard_size_bytes: az_drive_store::DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES,
@@ -588,19 +595,14 @@ fn normalize_persisted_backend_name(value: &str) -> String {
     }
 }
 
-fn normalize_object_backend_name(value: &str) -> anyhow::Result<String> {
-    match value.trim().replace('-', "_").as_str() {
-        "git_pool" => Ok("git_pool".to_owned()),
-        "gitdb" => Ok("gitdb".to_owned()),
-        other => anyhow::bail!("不支持的 Drive object backend: {other}"),
-    }
+fn normalize_object_backend_name(value: &str) -> anyhow::Result<DriveObjectBackend> {
+    let normalized = value.trim().replace('-', "_");
+    DriveObjectBackend::from_code(&normalized)
+        .ok_or_else(|| anyhow::anyhow!("不支持的 Drive object backend: {}", normalized))
 }
 
-fn normalize_persisted_object_backend_name(value: &str) -> String {
-    match value.trim().replace('-', "_").as_str() {
-        "gitdb" => "gitdb".to_owned(),
-        _ => "git_pool".to_owned(),
-    }
+fn normalize_persisted_object_backend_name(value: &str) -> DriveObjectBackend {
+    normalize_object_backend_name(value).unwrap_or(DriveObjectBackend::GitPool)
 }
 
 fn drive_toml_path() -> Option<PathBuf> {
@@ -749,4 +751,38 @@ fn legacy_drive_env_paths() -> Vec<PathBuf> {
         paths.push(home.join(".config").join("az-drive").join("drive.env"));
     }
     paths
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        DriveObjectBackend, normalize_object_backend_name, normalize_persisted_object_backend_name,
+    };
+
+    #[test]
+    fn object_backend_codes_round_trip_through_alias() {
+        assert_eq!(
+            normalize_object_backend_name("git_pool").expect("git_pool should parse"),
+            DriveObjectBackend::GitPool
+        );
+        assert_eq!(
+            normalize_object_backend_name("git-pool").expect("git-pool should normalize"),
+            DriveObjectBackend::GitPool
+        );
+        assert_eq!(
+            normalize_object_backend_name("gitdb").expect("gitdb should parse"),
+            DriveObjectBackend::GitDb
+        );
+        assert_eq!(DriveObjectBackend::GitPool.code(), "git_pool");
+        assert_eq!(DriveObjectBackend::GitDb.code(), "gitdb");
+    }
+
+    #[test]
+    fn persisted_object_backend_falls_back_to_git_pool_when_unknown() {
+        assert!(normalize_object_backend_name("s3").is_err());
+        assert_eq!(
+            normalize_persisted_object_backend_name("s3"),
+            DriveObjectBackend::GitPool
+        );
+    }
 }
