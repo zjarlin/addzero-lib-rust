@@ -165,6 +165,12 @@ fn progress_helpers_compute_expected_values() {
 }
 
 #[test]
+fn upload_status_enums_expose_stable_display_values() {
+    assert_eq!(PartStatus::Uploading.to_string(), "uploading");
+    assert_eq!(UploadStatusType::InProgress.to_string(), "in-progress");
+}
+
+#[test]
 fn speed_tracking_listener_calculates_speed_and_updates_storage() {
     let storage: Arc<dyn UploadProgressStorage> =
         Arc::new(InMemoryUploadProgressStorage::default());

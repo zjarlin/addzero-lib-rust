@@ -1,6 +1,6 @@
 use crate::types::ObjectMetadata;
 use az_derive_aliases::{
-    apply, plain_clone, plain_copy_eq, plain_default_debug, plain_eq, plain_partial_eq,
+    apply, plain_clone, plain_copy_eq_display, plain_default_debug, plain_eq, plain_partial_eq,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -68,11 +68,15 @@ pub struct PartInfo {
     pub status: PartStatus,
 }
 
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum PartStatus {
+    #[display("pending")]
     Pending,
+    #[display("uploading")]
     Uploading,
+    #[display("completed")]
     Completed,
+    #[display("failed")]
     Failed,
 }
 
@@ -100,12 +104,17 @@ impl UploadStatus {
     }
 }
 
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum UploadStatusType {
+    #[display("initialized")]
     Initialized,
+    #[display("in-progress")]
     InProgress,
+    #[display("completed")]
     Completed,
+    #[display("failed")]
     Failed,
+    #[display("cancelled")]
     Cancelled,
 }
 
