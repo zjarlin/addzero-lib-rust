@@ -1,5 +1,5 @@
 use az_derive_aliases::{
-    apply, deserialize_camel_clone_debug, deserialize_camel_eq, error_copy_eq,
+    apply, clap_code_enum, deserialize_camel_clone_debug, deserialize_camel_eq, error_copy_eq,
     from_copy_eq_display, plain_code_default_enum, plain_code_enum, plain_copy_eq_hash,
     plain_copy_eq_hash_display, plain_copy_eq_hash_ord_display, plain_default_copy_eq,
     plain_default_copy_eq_display, plain_eq_hash_display, serde_camel_eq_default,
@@ -7,6 +7,7 @@ use az_derive_aliases::{
     serde_eq_hash_display, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
     serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
 };
+use clap::ValueEnum;
 use serde_json::Value;
 use std::collections::HashSet;
 
@@ -77,6 +78,11 @@ enum KebabCode {
 #[apply(serde_lower_code_enum)]
 enum LowerCode {
     Ready,
+}
+
+#[apply(clap_code_enum)]
+enum ClapCode {
+    ReadyNow,
 }
 
 #[apply(serialize_camel_eq)]
@@ -232,6 +238,16 @@ fn serde_code_enum_aliases_reuse_case_aware_helper() {
     assert_eq!(
         serde_json::to_value(LowerCode::Ready).unwrap(),
         serde_json::json!("ready")
+    );
+}
+
+#[test]
+fn clap_code_enum_reuses_serde_code_enum_helpers() {
+    assert_eq!(ClapCode::ReadyNow.code(), "ready_now");
+    assert_eq!(ClapCode::from_code("ready_now"), Some(ClapCode::ReadyNow));
+    assert_eq!(
+        ClapCode::from_str("ready-now", false),
+        Ok(ClapCode::ReadyNow)
     );
 }
 

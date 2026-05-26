@@ -1233,31 +1233,13 @@ macro_rules! clap_code_enum {
             $($body:tt)*
         }
     ) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::strum::Display,
-                ::strum::EnumString,
-                ::strum::IntoStaticStr,
-                ::strum::VariantArray,
-                ::clap::ValueEnum
-            ),
-            #[serde(rename_all = "snake_case")]
-            #[strum(serialize_all = "snake_case")]
+        $crate::serde_code_enum! {
+            #[derive(::clap::ValueEnum)]
             $(#[$meta])*
             $vis enum $name {
                 $($body)*
             }
-        );
-
-        $crate::__az_derive_aliases_code_enum_impl!($name);
+        }
     };
 }
 
