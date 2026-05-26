@@ -467,6 +467,7 @@ mod tests {
                 actual: GitDbQueryKind::Write
             }
         ));
+        assert_eq!(error.to_string(), "expected read query, got write query");
     }
 
     #[test]

@@ -1415,6 +1415,7 @@ name = "az-gitdb"
 version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
+ "derive_more 2.1.1",
  "gitdb 0.1.0 (git+https://github.com/qeqqe/gitdb.git?rev=04c99a159d193273be8a6d9d1186756d20bff43a)",
  "tempfile",
  "thiserror 2.0.18",

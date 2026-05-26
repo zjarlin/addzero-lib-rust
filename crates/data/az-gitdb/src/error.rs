@@ -13,7 +13,7 @@ pub enum GitDbClusterError {
     InvalidConfig(String),
 
     /// No configured node can serve the requested query kind.
-    #[error("no eligible GitDB node for {kind:?} query")]
+    #[error("no eligible GitDB node for {kind} query")]
     NoEligibleNode { kind: GitDbQueryKind },
 
     /// A specific node id does not exist.
@@ -21,7 +21,7 @@ pub enum GitDbClusterError {
     NodeNotFound { node_id: String },
 
     /// All eligible pools are at capacity.
-    #[error("all eligible GitDB pools are exhausted for {kind:?} query: {node_ids:?}")]
+    #[error("all eligible GitDB pools are exhausted for {kind} query: {node_ids:?}")]
     PoolsExhausted {
         kind: GitDbQueryKind,
         node_ids: Vec<String>,
@@ -39,7 +39,7 @@ pub enum GitDbClusterError {
     TransactionRequiresConnection,
 
     /// The SQL kind does not match the explicit execution API that was called.
-    #[error("expected {expected:?} query, got {actual:?} query")]
+    #[error("expected {expected} query, got {actual} query")]
     UnexpectedQueryKind {
         expected: GitDbQueryKind,
         actual: GitDbQueryKind,

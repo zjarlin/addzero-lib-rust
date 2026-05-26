@@ -1,16 +1,19 @@
-use az_derive_aliases::{apply, plain_copy_eq};
+use az_derive_aliases::{apply, plain_copy_eq_display};
 use gitdb::sql::{Parser, Statement};
 
 use crate::error::{GitDbClusterError, GitDbClusterResult};
 
 /// High-level query kind used for cluster routing.
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum GitDbQueryKind {
     /// Read-only query.
+    #[display("read")]
     Read,
     /// Mutating query.
+    #[display("write")]
     Write,
     /// Transaction control statement.
+    #[display("transaction-control")]
     TransactionControl,
 }
 
