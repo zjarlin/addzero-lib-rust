@@ -960,6 +960,19 @@ macro_rules! __az_derive_aliases_code_enum_impl {
     };
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __az_derive_aliases_code_default_enum_impl {
+    ($name:ident) => {
+        impl $name {
+            #[must_use]
+            pub fn from_code_or_default(value: &str) -> Self {
+                Self::from_code(value).unwrap_or_default()
+            }
+        }
+    };
+}
+
 /// Code-backed data type with kebab-case serde, string conversion, and hash derives.
 #[macro_export]
 macro_rules! serde_kebab_code {
@@ -1149,6 +1162,7 @@ macro_rules! plain_code_display_enum {
         );
 
         $crate::__az_derive_aliases_code_enum_impl!($name);
+        $crate::__az_derive_aliases_code_default_enum_impl!($name);
     };
 }
 
@@ -1200,6 +1214,8 @@ macro_rules! plain_code_default_enum {
                 $($body)*
             }
         }
+
+        $crate::__az_derive_aliases_code_default_enum_impl!($name);
     };
 }
 
@@ -1301,6 +1317,7 @@ macro_rules! serde_code_default_enum {
         }
 
         $crate::__az_derive_aliases_code_enum_impl!($name);
+        $crate::__az_derive_aliases_code_default_enum_impl!($name);
     };
 }
 
@@ -1389,6 +1406,7 @@ macro_rules! serde_code_default_ord_display_enum {
         }
 
         $crate::__az_derive_aliases_code_enum_impl!($name);
+        $crate::__az_derive_aliases_code_default_enum_impl!($name);
     };
 }
 
@@ -1460,5 +1478,6 @@ macro_rules! serde_code_default_ord_enum {
         }
 
         $crate::__az_derive_aliases_code_enum_impl!($name);
+        $crate::__az_derive_aliases_code_default_enum_impl!($name);
     };
 }

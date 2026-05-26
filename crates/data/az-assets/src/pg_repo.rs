@@ -305,7 +305,7 @@ impl PgRepo {
 fn model_to_asset(row: asset::Model) -> Asset {
     Asset {
         id: row.id,
-        kind: AssetKind::from_db_value(&row.kind),
+        kind: AssetKind::from_code_or_default(&row.kind),
         title: row.title,
         body: row.body,
         tags: row.tags,
@@ -332,7 +332,7 @@ fn model_to_edge(row: asset_edge::Model) -> AssetEdge {
 
 fn model_to_provider(row: ai_model_provider::Model) -> AiModelProvider {
     AiModelProvider {
-        provider: AiProviderKind::from_db_value(&row.provider),
+        provider: AiProviderKind::from_code_or_default(&row.provider),
         base_url: row.base_url,
         default_model: row.default_model,
         enabled: row.enabled,
@@ -346,9 +346,9 @@ fn model_to_prompt(row: ai_prompt_button::Model) -> AiPromptButton {
     AiPromptButton {
         id: row.id,
         label: row.label,
-        target_kind: AssetKind::from_db_value(&row.target_kind),
+        target_kind: AssetKind::from_code_or_default(&row.target_kind),
         prompt_template: row.prompt_template,
-        provider: AiProviderKind::from_db_value(&row.provider),
+        provider: AiProviderKind::from_code_or_default(&row.provider),
         model: row.model,
         enabled: row.enabled,
         updated_at: row.updated_at,

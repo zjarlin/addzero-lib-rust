@@ -15,12 +15,6 @@ pub enum AssetKind {
     Package,
 }
 
-impl AssetKind {
-    pub fn from_db_value(value: &str) -> Self {
-        Self::from_code(value).unwrap_or_default()
-    }
-}
-
 #[apply(serde_eq)]
 pub struct Asset {
     pub id: Uuid,
@@ -99,12 +93,6 @@ pub enum AiProviderKind {
     OpenAi,
     Anthropic,
     Gemini,
-}
-
-impl AiProviderKind {
-    pub fn from_db_value(value: &str) -> Self {
-        Self::from_code(value).unwrap_or_default()
-    }
 }
 
 #[apply(serde_eq)]

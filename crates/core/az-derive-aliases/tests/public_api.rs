@@ -185,6 +185,10 @@ fn plain_code_default_enum_cascades_code_helpers_and_default() {
         DefaultMode::from_code("round_robin"),
         Some(DefaultMode::RoundRobin)
     );
+    assert_eq!(
+        DefaultMode::from_code_or_default("unknown"),
+        DefaultMode::RoundRobin
+    );
 }
 
 #[test]
