@@ -7,7 +7,9 @@ use tokio::sync::OnceCell;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
-use az_derive_aliases::{apply, error_eq, serde_code, serde_eq_default, serde_partial_eq_default};
+use az_derive_aliases::{
+    apply, error_eq, serde_code_enum, serde_eq_default, serde_partial_eq_default,
+};
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
 #[cfg(not(target_arch = "wasm32"))]
@@ -15,7 +17,7 @@ use sqlx::Row;
 
 pub use super::LocalBoxFuture;
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeSourceTypeDto {
     Note,
     Chat,
@@ -26,7 +28,7 @@ pub enum KnowledgeSourceTypeDto {
     Ai,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeRawTypeDto {
     RawNote,
     RawChat,
@@ -36,7 +38,7 @@ pub enum KnowledgeRawTypeDto {
     RawAiDraft,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeRawStatusDto {
     Active,
     Covered,
@@ -44,7 +46,7 @@ pub enum KnowledgeRawStatusDto {
     Discarded,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeNodeTypeDto {
     Note,
     Topic,
@@ -55,7 +57,7 @@ pub enum KnowledgeNodeTypeDto {
     Project,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeNodeStatusDto {
     Active,
     Superseded,
@@ -63,14 +65,14 @@ pub enum KnowledgeNodeStatusDto {
     Archived,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeVisibilityDto {
     Default,
     Hidden,
     System,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeEdgeTypeDto {
     SameAs,
     SimilarTo,
@@ -85,7 +87,7 @@ pub enum KnowledgeEdgeTypeDto {
     SupportedByRaw,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeEdgeStatusDto {
     Active,
     Suggested,
@@ -93,7 +95,7 @@ pub enum KnowledgeEdgeStatusDto {
     Hidden,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeEvidenceTypeDto {
     DirectQuote,
     SummarySource,
@@ -101,7 +103,7 @@ pub enum KnowledgeEvidenceTypeDto {
     ConflictSource,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeSuggestionTypeDto {
     MergeNodes,
     ArchiveRaw,
@@ -110,7 +112,7 @@ pub enum KnowledgeSuggestionTypeDto {
     CreateEdge,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeSuggestionStatusDto {
     Pending,
     Applied,
@@ -118,7 +120,7 @@ pub enum KnowledgeSuggestionStatusDto {
     PromotedToException,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeExceptionTypeDto {
     Conflict,
     UncertainMerge,
@@ -126,14 +128,14 @@ pub enum KnowledgeExceptionTypeDto {
     BehaviorAffectingChange,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeExceptionSeverityDto {
     Low,
     Medium,
     High,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeExceptionStatusDto {
     Open,
     Resolved,
@@ -141,7 +143,7 @@ pub enum KnowledgeExceptionStatusDto {
     AutoResolved,
 }
 
-#[apply(serde_code)]
+#[apply(serde_code_enum)]
 pub enum KnowledgeResolutionDto {
     AcceptA,
     AcceptB,
@@ -980,4 +982,24 @@ fn token_estimate(content: &str) -> usize {
 #[cfg(not(target_arch = "wasm32"))]
 fn query_error(err: impl std::fmt::Display) -> KnowledgeGraphError {
     KnowledgeGraphError::new(err.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{KnowledgeEdgeTypeDto, KnowledgeExceptionSeverityDto, KnowledgeNodeTypeDto};
+
+    #[test]
+    fn knowledge_code_enums_share_generated_code_helpers() {
+        assert_eq!(KnowledgeNodeTypeDto::Decision.code(), "decision");
+        assert_eq!(
+            KnowledgeEdgeTypeDto::from_code("derived_from_raw"),
+            Some(KnowledgeEdgeTypeDto::DerivedFromRaw)
+        );
+        assert!(KnowledgeExceptionSeverityDto::ALL.contains(&KnowledgeExceptionSeverityDto::High));
+        assert_eq!(
+            serde_json::to_string(&KnowledgeEdgeTypeDto::SupportedByRaw)
+                .expect("edge type should serialize"),
+            "\"supported_by_raw\""
+        );
+    }
 }

@@ -9,6 +9,7 @@
 - **deserialize_camel_clone_debug** — 在 `deserialize_clone_debug` 基础上增加 `#[serde(rename_all = "camelCase")]`
 - **serialize_debug** — 带 `Debug` + `Serialize` 的只写请求/输出类型
 - **serialize_clone_debug** — 带 `Clone` + `Debug` + `Serialize` 的只写请求/输出类型
+- **serialize_camel_clone_debug** — 在 `serialize_clone_debug` 基础上增加 `#[serde(rename_all = "camelCase")]`
 - **serialize_eq** — 带 `Serialize` + 相等/调试 trait 的只写请求/输出类型
 - **serialize_copy_eq** — 在 `serialize_eq` 基础上改为 `Copy` 小类型，不增加 `Deserialize`
 - **serialize_partial_eq** — 用于不能 `Eq` 的只写请求/输出类型
@@ -18,6 +19,8 @@
 - **deserialize_partial_eq** — 用于不能 `Eq` 的只读响应/输入类型
 - **deserialize_camel_eq** — 在 `deserialize_eq` 基础上增加 `#[serde(rename_all = "camelCase")]`
 - **deserialize_camel_partial_eq** — 在 `deserialize_partial_eq` 基础上增加 `#[serde(rename_all = "camelCase")]`
+- **serde_kebab_eq** — 在 `serde_eq` 基础上增加 `#[serde(rename_all = "kebab-case")]`
+- **serde_upper_eq** — 在 `serde_eq` 基础上增加 `#[serde(rename_all = "UPPERCASE")]`
 - **from_copy_eq_display** — 在 `from_copy_eq` 基础上增加 `Display`
 - **serde_eq_no_debug** — 带 serde + 相等 trait 但保留自定义 `Debug` 的类型
 - **serde_eq_redacted** — 带 serde + 相等 trait 的 redacted `Debug` 类型，适合 `derive_more::Debug` + `#[debug(skip)]`
@@ -44,6 +47,7 @@
 - **serde_eq_default** — 在 `serde_eq` 基础上增加 `Default`
 - **serde_camel_eq_default** — 在 `serde_eq_default` 基础上增加 `#[serde(rename_all = "camelCase")]`
 - **serde_partial_eq** — 用于包含 `f32`/`f64` 或动态 JSON 等不能 `Eq` 的 serde 数据类型
+- **serde_code_partial_eq** — 在 `serde_partial_eq` 基础上增加 `#[serde(rename_all = "snake_case")]`
 - **serde_partial_eq_default** — 在 `serde_partial_eq` 基础上增加 `Default`
 - **serde_camel_partial_eq** — 在 `serde_partial_eq` 基础上增加 `#[serde(rename_all = "camelCase")]`
 - **serde_camel_partial_eq_default** — 在 `serde_partial_eq_default` 基础上增加 `#[serde(rename_all = "camelCase")]`
@@ -110,7 +114,7 @@
 - **seaorm_relation** — SeaORM relation 常用的 `Copy` + `Clone` + `Debug` + `EnumIter` + `DeriveRelation`
 
 所有宏设计为配合 [`macro_rules_attribute::apply`](https://docs.rs/macro_rules_attribute) 使用，保持 `#[serde(...)]` 和 `#[strum(...)]` 等辅助属性对编译器和 IDE 可见。
-`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。`serde_code*` 同时派生 `strum::Display`，所以需要拥有字符串 code 时可以直接调用 `to_string()`；如果展示名必须不同于 wire code，使用 `serde_code_display*` 并继续通过 `#[display(...)]` 标注展示值。需要同时具备 `Default`、`Ord` 和自定义展示名时，用 `serde_code_default_ord_display*`。`serde_kebab_code*` 是同一套语义的 kebab-case 变体，不带 serde 的场景则用 `plain_code_display_enum`。`plain_code_enum` 和 `plain_code_default_enum` 默认按 snake_case 编码；需要特殊编码时仍可在具体 variant 上用 `#[strum(serialize = ...)]` 覆盖。`serde_camel*`、`serialize_camel*` 和 `deserialize_camel*` 是薄包装，只在对应基础 alias 上叠加 `camelCase` wire 约定，适合外部 JSON 协议请求/响应。`plain_*`、`serde_*`、`from_*` 和 `error_*` 这几组 alias 现在都按“基础能力 + 可选 Display/Hash/Ord/Copy”分层组织，能级联的就复用更底层 alias，减少重复实现面；不带自定义展示名的 code enum 也可以继续级联，例如 `plain_code_default_enum` 基于 `plain_code_enum` 增加 `Default`。带 `derive_more::Display` 且依赖 `#[display(...)]` 参数捕获的 code alias 仍保持浅层展开，避免多层宏转发引入卫生问题。
+`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法。`serde_code*` 同时派生 `strum::Display`，所以需要拥有字符串 code 时可以直接调用 `to_string()`；如果展示名必须不同于 wire code，使用 `serde_code_display*` 并继续通过 `#[display(...)]` 标注展示值。需要同时具备 `Default`、`Ord` 和自定义展示名时，用 `serde_code_default_ord_display*`。`serde_kebab_code*` 是同一套语义的 kebab-case code enum 变体；只需要普通 serde 数据类型时用 `serde_kebab_eq`，只需要 snake_case 且不能 `Eq` 的数据 enum 时用 `serde_code_partial_eq`，不带 serde 的场景则用 `plain_code_display_enum`。`plain_code_enum` 和 `plain_code_default_enum` 默认按 snake_case 编码；需要特殊编码时仍可在具体 variant 上用 `#[strum(serialize = ...)]` 覆盖。`serde_upper_eq` 用于必须保留大写 wire 值且不需要 code helpers 的 provider 状态。`serde_camel*`、`serialize_camel*` 和 `deserialize_camel*` 是薄包装，只在对应基础 alias 上叠加 `camelCase` wire 约定，适合外部 JSON 协议请求/响应。`plain_*`、`serde_*`、`from_*` 和 `error_*` 这几组 alias 现在都按“基础能力 + 可选 Display/Hash/Ord/Copy”分层组织，能级联的就复用更底层 alias，减少重复实现面；不带自定义展示名的 code enum 也可以继续级联，例如 `plain_code_default_enum` 基于 `plain_code_enum` 增加 `Default`。带 `derive_more::Display` 且依赖 `#[display(...)]` 参数捕获的 alias 保持浅层展开，避免多层宏转发引入卫生问题。
 
 ## 安装
 

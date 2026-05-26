@@ -76,6 +76,11 @@ assert_eq!(config.kind(), TempMailProviderKind::MailTm);
 
 let provider = build_temp_mail_provider(config)?;
 assert_eq!(provider.provider_kind(), TempMailProviderKind::MailTm);
+
+let provider = az_temp_mail::TempMail::provider(TempMailProviderConfig::Emailnator(
+    ApiConfig::builder("https://www.emailnator.com").build()?,
+))?;
+assert_eq!(provider.provider_kind(), TempMailProviderKind::Emailnator);
 ```
 
 ## 依赖的 crates

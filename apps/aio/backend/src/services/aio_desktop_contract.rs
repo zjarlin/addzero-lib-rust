@@ -15,7 +15,7 @@ use az_aio_plugin_software_center::installer_scanner::{
     InstallerPackage, organize_installers, scan_installers,
 };
 use az_assets::{AiProviderKind, AssetProviderSecret};
-use az_derive_aliases::{apply, deserialize_eq, serialize_eq};
+use az_derive_aliases::{apply, deserialize_camel_eq, serialize_camel_eq};
 use az_drive_agent::{HostedStatus, ListTrackedOptions, LocalRootState, TrackedItem};
 use az_drive_store::{DriveConflict, DriveSyncQueueItem};
 use reqwest::{
@@ -26,14 +26,12 @@ use serde_json::Value;
 
 use super::{AiProviderConfigDto, AiProviderConfigUpsertDto, AiProviderKindDto};
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 pub struct ActionResultDto {
     pub message: String,
 }
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 pub struct DriveSnapshotDto {
     pub roots: Vec<LocalRootState>,
     pub hosted: Vec<HostedStatus>,
@@ -42,14 +40,12 @@ pub struct DriveSnapshotDto {
     pub queue: Vec<DriveSyncQueueItem>,
 }
 
-#[apply(deserialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(deserialize_camel_eq)]
 pub struct DrivePathRequestDto {
     pub path: String,
 }
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 pub struct ConfigLocalStatusDto {
     pub dotfiles: DotfilesMonitorStatus,
     pub pairing: PairingLocalInfo,
@@ -57,14 +53,12 @@ pub struct ConfigLocalStatusDto {
     pub providers: Vec<AiProviderConfigDto>,
 }
 
-#[apply(deserialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(deserialize_camel_eq)]
 pub struct ProviderTestRequestDto {
     pub provider: AiProviderKindDto,
 }
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 pub struct ProviderTestResultDto {
     pub provider: AiProviderKindDto,
     pub ok: bool,
@@ -399,7 +393,11 @@ fn default_base_url(provider: AiProviderKind) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{gateway_example_plan, load_drive_snapshot_on_server};
+    use super::{
+        ActionResultDto, DrivePathRequestDto, ProviderTestRequestDto, gateway_example_plan,
+        load_drive_snapshot_on_server,
+    };
+    use crate::services::AiProviderKindDto;
 
     #[test]
     fn gateway_example_keeps_reference_step() {
@@ -408,6 +406,23 @@ mod tests {
         assert_eq!(plan.entry_route, "/edge/session-proxy");
         assert_eq!(plan.steps.len(), 1);
         assert_eq!(plan.steps[0].capture_path, "$.headers.host");
+    }
+
+    #[test]
+    fn desktop_contract_dtos_keep_camel_case_wire_names() {
+        let encoded = serde_json::to_value(ActionResultDto {
+            message: "ok".to_owned(),
+        })
+        .expect("action result should serialize");
+        assert_eq!(encoded["message"], "ok");
+
+        let drive_path: DrivePathRequestDto =
+            serde_json::from_str(r#"{"path":"/tmp/aio"}"#).expect("drive path should deserialize");
+        assert_eq!(drive_path.path, "/tmp/aio");
+
+        let request: ProviderTestRequestDto =
+            serde_json::from_str(r#"{"provider":"open_ai"}"#).expect("provider should deserialize");
+        assert_eq!(request.provider, AiProviderKindDto::OpenAi);
     }
 
     #[tokio::test]

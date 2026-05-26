@@ -13,6 +13,8 @@
 //!   支持 Cloudflare、mail.tm、Emailnator 三种后端和 provider factory 注入。
 //! - **短信接码**（re-export 自 `az-sms`）—— 统一 5sim、Grizzly SMS 等 provider 的
 //!   trait-object 工厂边界，供注册/验证流程依赖注入。
+//! - **邮件发送**（re-export 自 `az-email`）—— 统一 SMTP sender 与 sender factory，
+//!   供通知、验证码和工作流消息发送依赖注入。
 //! - **音乐搜索/生成**（re-export 自 `az-music`）—— 网易云音乐搜索、歌词获取、
 //!   Suno AI 音乐生成等。
 //!
@@ -44,6 +46,11 @@ mod tests;
 
 use az_derive_aliases::{apply, plain_default_copy_eq};
 
+pub use az_email::{
+    BoxEmailSender, BuiltinEmailSenderFactory, EmailConfig, EmailConfigBuilder, EmailError,
+    EmailMessage, EmailMessageBuilder, EmailSender, EmailSenderConfig, EmailSenderFactory,
+    EmailSenderKind, SmtpEmailSender, build_email_sender,
+};
 pub use az_music::{
     BatchFetchRequest, ConcatSongsRequest, GenerateLyricsRequest, LyricContent, LyricResponse,
     Music, MusicAlbum, MusicArtist, MusicCreator, MusicPlaylist, MusicPrivilege, MusicSearchApi,
@@ -70,14 +77,15 @@ pub use az_temp_mail::{
     AddressLoginRequest as TempMailAddressLoginRequest, AddressSettings as TempMailAddressSettings,
     ApiConfig as TempMailApiConfig, ApiConfigBuilder as TempMailApiConfigBuilder,
     BoxTempMailProvider, BuiltinTempMailProviderFactory, CloudflareTempMailApi,
-    CreateMailboxRequest as TempMailCreateMailboxRequest, ListResponse as TempMailListResponse,
-    MailRow, MailTmDomain, MailTmTempMailApi, NewAddressRequest as TempMailNewAddressRequest,
+    CreateMailboxRequest as TempMailCreateMailboxRequest, EmailnatorEmailMode,
+    EmailnatorEmailRequest, EmailnatorTempMailApi, ListResponse as TempMailListResponse, MailRow,
+    MailTmDomain, MailTmTempMailApi, NewAddressRequest as TempMailNewAddressRequest,
     PageRequest as TempMailPageRequest, ParsedMailAttachment as TempMailParsedMailAttachment,
     ParsedMailRow, SendMailRequest, SuccessResponse as TempMailSuccessResponse, TempMail,
     TempMailApi, TempMailError, TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary,
     TempMailProvider, TempMailProviderConfig, TempMailProviderFactory, TempMailProviderKind,
     TempMailRecipient, TempMailResult, TempMailSettings, build_temp_mail_provider,
-    create_mail_tm_api, create_temp_mail_api,
+    create_emailnator_api, create_mail_tm_api, create_temp_mail_api, extract_first_http_link,
 };
 pub use config::{ApiConfig, ApiConfigBuilder};
 pub use error::{CreatesError, CreatesResult};
@@ -130,6 +138,16 @@ impl Creates {
         MailTmTempMailApi::new(config)
     }
 
+    pub fn temp_mail_emailnator() -> TempMailResult<EmailnatorTempMailApi> {
+        create_emailnator_api()
+    }
+
+    pub fn temp_mail_emailnator_with_config(
+        config: TempMailApiConfig,
+    ) -> TempMailResult<EmailnatorTempMailApi> {
+        EmailnatorTempMailApi::new(config)
+    }
+
     pub fn temp_mail_provider(
         config: TempMailProviderConfig,
     ) -> TempMailResult<BoxTempMailProvider> {
@@ -163,6 +181,28 @@ impl Creates {
         token: &str,
     ) -> SmsResult<BoxSmsProvider> {
         build_fivesim_provider_with(factory, token)
+    }
+
+    pub fn email_sender(config: EmailSenderConfig) -> Result<BoxEmailSender, EmailError> {
+        build_email_sender(config)
+    }
+
+    pub fn email_sender_with_factory(
+        factory: &dyn EmailSenderFactory,
+        config: EmailSenderConfig,
+    ) -> Result<BoxEmailSender, EmailError> {
+        factory.build_sender(config)
+    }
+
+    pub fn smtp_email(config: EmailConfig) -> Result<BoxEmailSender, EmailError> {
+        build_email_sender(config.into())
+    }
+
+    pub fn smtp_email_with_factory(
+        factory: &dyn EmailSenderFactory,
+        config: EmailConfig,
+    ) -> Result<BoxEmailSender, EmailError> {
+        factory.build_sender(config.into())
     }
 
     pub fn music_search() -> CreatesResult<MusicSearchApi> {

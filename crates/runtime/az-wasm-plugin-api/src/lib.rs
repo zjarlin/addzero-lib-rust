@@ -19,7 +19,7 @@
 //!
 //! - [`PluginError`]：覆盖未找到、重复加载、权限拒绝、WASM 运行时错误等场景
 
-use az_derive_aliases::{apply, error_eq, serde_eq, serde_kebab_code_enum};
+use az_derive_aliases::{apply, error_eq, serde_eq, serde_kebab_code_enum, serde_kebab_eq};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -51,8 +51,7 @@ pub struct PluginManifest {
 }
 
 /// Where this plugin hooks into the platform.
-#[apply(serde_eq)]
-#[serde(rename_all = "kebab-case")]
+#[apply(serde_kebab_eq)]
 pub enum ExtensionPoint {
     /// Adds a new script engine (Rhai, Python, etc.).
     ScriptEngine,
@@ -167,11 +166,23 @@ pub enum PluginError {
 
 #[cfg(test)]
 mod tests {
-    use super::PluginState;
+    use super::{ExtensionPoint, PluginState};
 
     #[test]
     fn plugin_state_codes_follow_manifest_values() {
         assert_eq!(PluginState::Installed.code(), "installed");
         assert_eq!(PluginState::from_code("active"), Some(PluginState::Active));
+    }
+
+    #[test]
+    fn extension_points_keep_manifest_wire_values() {
+        assert_eq!(
+            serde_json::to_string(&ExtensionPoint::ScriptEngine).expect("serialize"),
+            r#""script-engine""#
+        );
+        assert_eq!(
+            serde_json::from_str::<ExtensionPoint>(r#""ui-contribution""#).expect("deserialize"),
+            ExtensionPoint::UiContribution
+        );
     }
 }

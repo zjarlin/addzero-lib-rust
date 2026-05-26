@@ -5,6 +5,9 @@
 ## 提供内容
 
 - `RhaiEngine`
+- `RhaiEngineFactory`
+- `register_rhai_engine`
+- `rhai_engine_registry`
 
 ## 示例
 
@@ -25,6 +28,17 @@ let output = engine.run(ScriptInput {
 });
 
 assert_eq!(output.exit_code, 0);
+```
+
+## Registry / factory
+
+```rust
+use az_script_engine::script::{ScriptEngineFactory, ScriptLang};
+use az_script_engine_rhai::RhaiEngineFactory;
+
+let factory = RhaiEngineFactory;
+assert_eq!(factory.lang(), ScriptLang::Rhai);
+let engine = factory.build();
 ```
 
 ## 适用范围

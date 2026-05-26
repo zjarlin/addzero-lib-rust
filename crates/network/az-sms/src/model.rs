@@ -1,5 +1,5 @@
 use crate::error::{SmsError, SmsResult};
-use az_derive_aliases::{apply, plain_copy_eq, serde_eq, serde_partial_eq};
+use az_derive_aliases::{apply, plain_copy_eq, serde_eq, serde_partial_eq, serde_upper_eq};
 use serde::Deserialize;
 use serde::de::{self, Deserializer};
 use std::time::Duration;
@@ -125,8 +125,7 @@ impl SmsHostingRequest {
 }
 
 /// Provider order state.
-#[apply(serde_eq)]
-#[serde(rename_all = "UPPERCASE")]
+#[apply(serde_upper_eq)]
 pub enum SmsOrderStatus {
     /// Provider is preparing the number.
     Pending,

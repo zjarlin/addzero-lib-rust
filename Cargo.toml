@@ -110,6 +110,7 @@ az-drive-agent = { version = "=2026.5.10", path = "crates/runtime/az-drive-agent
 az-drive-core = { version = "=2026.5.10", path = "crates/storage/az-drive-core" }
 az-drive-store = { version = "=2026.5.10", path = "crates/storage/az-drive-store" }
 az-drive-webdav = { version = "=2026.5.10", path = "crates/network/az-drive-webdav" }
+az-email = { version = "=2026.5.10", path = "crates/network/az-email" }
 az-gmail-code = { version = "=2026.5.10", path = "crates/network/az-gmail-code" }
 az-kiro-auth-support = { version = "=2026.5.10", path = "crates/api/az-kiro-auth-support" }
 az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }

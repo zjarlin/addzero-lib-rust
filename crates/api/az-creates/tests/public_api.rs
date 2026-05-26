@@ -130,6 +130,24 @@ fn creates_facade_builds_temp_mail_provider() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
+fn creates_facade_builds_emailnator_client() -> Result<(), Box<dyn Error>> {
+    let api = Creates::temp_mail_emailnator_with_config(
+        TempMailApiConfig::builder("http://127.0.0.1:22003").build()?,
+    )?;
+    drop(api);
+
+    let request = EmailnatorEmailRequest::new([EmailnatorEmailMode::DotGmail]);
+    assert_eq!(request.modes, vec![EmailnatorEmailMode::DotGmail]);
+
+    assert_eq!(
+        extract_first_http_link("code: https://example.com/verify", Some("verify")).as_deref(),
+        Some("https://example.com/verify")
+    );
+
+    Ok(())
+}
+
+#[test]
 fn creates_facade_builds_sms_provider() -> Result<(), Box<dyn Error>> {
     let fivesim = FivesimConfig::builder("token").build()?;
     assert_eq!(
@@ -147,6 +165,26 @@ fn creates_facade_builds_sms_provider() -> Result<(), Box<dyn Error>> {
 
     let fivesim = Creates::fivesim_sms_with_factory(factory, "token")?;
     drop(fivesim);
+
+    Ok(())
+}
+
+#[test]
+fn creates_facade_builds_email_sender() -> Result<(), Box<dyn Error>> {
+    let config = EmailConfig::builder("smtp.example.com", "user@example.com", "secret").build()?;
+    let sender_config = EmailSenderConfig::from(config.clone());
+    assert_eq!(sender_config.kind(), EmailSenderKind::Smtp);
+    assert_eq!(EmailSenderKind::Smtp.code(), "smtp");
+
+    let sender = Creates::email_sender(sender_config)?;
+    drop(sender);
+
+    let factory: &dyn EmailSenderFactory = &BuiltinEmailSenderFactory;
+    let sender = Creates::email_sender_with_factory(factory, config.clone().into())?;
+    drop(sender);
+
+    let sender = Creates::smtp_email_with_factory(factory, config)?;
+    drop(sender);
 
     Ok(())
 }

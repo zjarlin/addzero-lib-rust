@@ -84,6 +84,22 @@ fn order_parses_received_sms_code() {
 }
 
 #[test]
+fn order_status_serde_uses_uppercase_provider_values() {
+    assert_eq!(
+        serde_json::to_string(&SmsOrderStatus::Pending).unwrap(),
+        r#""PENDING""#
+    );
+    assert_eq!(
+        serde_json::from_str::<SmsOrderStatus>(r#""RECEIVED""#).unwrap(),
+        SmsOrderStatus::Received
+    );
+    assert_eq!(
+        serde_json::from_str::<SmsOrderStatus>(r#""EXPIRED""#).unwrap(),
+        SmsOrderStatus::Unknown
+    );
+}
+
+#[test]
 fn inbox_parses_uppercase_provider_fields() {
     let inbox: SmsInbox = serde_json::from_str(
         r#"{

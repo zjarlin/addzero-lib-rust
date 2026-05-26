@@ -28,7 +28,8 @@ use az_config_center_contract::{
     ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
 };
 use az_derive_aliases::{apply, deserialize_debug, plain_clone_debug, plain_default_clone_debug};
-use az_script_engine::script::ScriptEngine;
+use az_script_engine::script::InMemoryScriptEngineRegistry;
+use az_script_engine_rhai::RhaiEngineFactory;
 use az_skills::{FsRepo, SkillService, SkillSource, SkillUpsert};
 use uuid::Uuid;
 
@@ -64,6 +65,7 @@ pub struct BackendServices {
     pub software_catalog: Option<az_software_catalog::SoftwareCatalogService>,
     pub download_station: Option<crate::services::download_station::DownloadStationService>,
     pub menu_system: Option<crate::services::menu_system::MenuService>,
+    pub script_engines: InMemoryScriptEngineRegistry,
 }
 
 static SERVICES: OnceCell<BackendServices> = OnceCell::const_new();
@@ -188,6 +190,7 @@ pub async fn services() -> &'static BackendServices {
                 software_catalog,
                 download_station,
                 menu_system,
+                script_engines: InMemoryScriptEngineRegistry::with_factories(&[&RhaiEngineFactory]),
             }
         })
         .await
@@ -674,7 +677,7 @@ pub async fn run_api_server(options: ApiServerOptions) -> Result<()> {
             "/api/admin/download-station/download/{source}/{path:path}",
             get(ds_download_file),
         )
-        .route("/api/engine/rhai/run", post(run_rhai))
+        .route("/api/engine/rhai/run", post(rhai_handlers::run_rhai))
         .route(
             "/api/scripts",
             get(rhai_handlers::list_scripts).post(rhai_handlers::save_script),
@@ -2233,44 +2236,6 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         (self.status, self.message).into_response()
     }
-}
-
-// ─── Script Engine Handlers ─────────────────────────────────────────────
-
-#[apply(deserialize_debug)]
-pub struct RunRhaiRequest {
-    source: String,
-    #[serde(default)]
-    vars: std::collections::BTreeMap<String, serde_json::Value>,
-}
-
-async fn run_rhai(
-    headers: HeaderMap,
-    Json(body): Json<RunRhaiRequest>,
-) -> ApiResult<Json<serde_json::Value>> {
-    let backend = services().await;
-    ensure_auth(&backend.admin_auth, &headers)?;
-
-    let engine = az_script_engine_rhai::RhaiEngine::new();
-    let input = az_script_engine::script::ScriptInput {
-        source: body.source,
-        lang: az_script_engine::script::ScriptLang::Rhai,
-        vars: body.vars,
-        policy: az_sandbox::sandbox::SandboxPolicy::permissive(),
-        timeout_secs: 30,
-    };
-
-    let output = tokio::task::spawn_blocking(move || engine.run(input))
-        .await
-        .map_err(|e| ApiError::internal(e.to_string()))?;
-
-    Ok(Json(serde_json::json!({
-        "exit_code": output.exit_code,
-        "stdout": output.stdout,
-        "stderr": output.stderr,
-        "vars": output.vars,
-        "duration_ms": output.duration_ms,
-    })))
 }
 
 // ─── Menu Management Handlers ─────────────────────────────────────────────────────

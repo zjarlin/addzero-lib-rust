@@ -12,8 +12,9 @@
 //! 引擎默认设置最大操作数（100 万次）和最大模块数（32），防止脚本失控。
 
 use az_script_engine::script::{
-    InMemoryScriptEngineRegistry, ScriptEngine, ScriptEngineRegistry, ScriptFuture, ScriptInput,
-    ScriptLang, ScriptOutput,
+    BoxScriptEngine, InMemoryScriptEngineRegistry, ScriptEngine, ScriptEngineFactory,
+    ScriptEngineRegistry, ScriptFuture, ScriptInput, ScriptLang, ScriptOutput,
+    register_engine_factory,
 };
 use rhai::{Dynamic, Engine, Scope};
 
@@ -25,17 +26,28 @@ pub struct RhaiEngine {
     engine: Mutex<Engine>,
 }
 
+/// Factory for the default in-process Rhai engine implementation.
+pub struct RhaiEngineFactory;
+
+impl ScriptEngineFactory for RhaiEngineFactory {
+    fn lang(&self) -> ScriptLang {
+        ScriptLang::Rhai
+    }
+
+    fn build(&self) -> BoxScriptEngine {
+        Box::new(RhaiEngine::new())
+    }
+}
+
 /// Register the default Rhai engine into an existing script engine registry.
 pub fn register_rhai_engine(registry: &mut dyn ScriptEngineRegistry) {
-    registry.register(Box::new(RhaiEngine::new()));
+    register_engine_factory(registry, &RhaiEngineFactory);
 }
 
 /// Build a script engine registry preloaded with the default Rhai engine.
 #[must_use]
 pub fn rhai_engine_registry() -> InMemoryScriptEngineRegistry {
-    let mut registry = InMemoryScriptEngineRegistry::new();
-    register_rhai_engine(&mut registry);
-    registry
+    InMemoryScriptEngineRegistry::with_factories(&[&RhaiEngineFactory])
 }
 
 impl RhaiEngine {
@@ -236,6 +248,27 @@ mod tests {
             });
 
         // Registry helpers should expose a usable default Rhai implementation, not only a marker.
+        assert_eq!(output.exit_code, 0);
+        assert_eq!(
+            output.vars.get("_result").and_then(|v| v.as_i64()),
+            Some(42)
+        );
+    }
+
+    #[test]
+    fn rhai_engine_factory_builds_rhai_engine_instances() {
+        let factory = RhaiEngineFactory;
+        assert_eq!(factory.lang(), ScriptLang::Rhai);
+
+        let engine = factory.build();
+        let output = engine.run(ScriptInput {
+            source: "6 * 7".into(),
+            lang: ScriptLang::Rhai,
+            vars: BTreeMap::new(),
+            policy: SandboxPolicy::permissive(),
+            timeout_secs: 0,
+        });
+
         assert_eq!(output.exit_code, 0);
         assert_eq!(
             output.vars.get("_result").and_then(|v| v.as_i64()),

@@ -13,6 +13,7 @@
 - 天眼查华为云签名接口
 - 临时邮箱：Cloudflare Worker、mail.tm、Emailnator，以及 provider factory 注入入口
 - 短信接码：5sim、Grizzly SMS，以及 provider factory 注入入口
+- 邮件发送：SMTP sender，以及 sender factory 注入入口
 
 ## 添加依赖
 
@@ -247,6 +248,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `temp_mail_cloudflare_with_config`
 - `temp_mail_mail_tm`
 - `temp_mail_mail_tm_with_config`
+- `temp_mail_emailnator`
+- `temp_mail_emailnator_with_config`
 - `temp_mail_provider`
 - `temp_mail_provider_with_factory`
 
@@ -276,6 +279,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `sms_provider_with_factory`
 - `fivesim_sms`
 - `fivesim_sms_with_factory`
+
+## Email sender
+
+```rust
+use az_creates::{
+    BuiltinEmailSenderFactory, Creates, EmailConfig, EmailSenderConfig, EmailSenderFactory,
+    EmailSenderKind,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = EmailConfig::builder("smtp.example.com", "user@example.com", "secret").build()?;
+    let sender_config = EmailSenderConfig::from(config.clone());
+    assert_eq!(sender_config.kind(), EmailSenderKind::Smtp);
+    assert_eq!(EmailSenderKind::Smtp.code(), "smtp");
+
+    let sender = Creates::email_sender(sender_config)?;
+    drop(sender);
+
+    let factory: &dyn EmailSenderFactory = &BuiltinEmailSenderFactory;
+    let sender = Creates::smtp_email_with_factory(factory, config)?;
+    drop(sender);
+    Ok(())
+}
+```
+
+已封装的方法：
+
+- `email_sender`
+- `email_sender_with_factory`
+- `smtp_email`
+- `smtp_email_with_factory`
 
 ## 自定义配置
 

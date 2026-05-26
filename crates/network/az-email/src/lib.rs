@@ -38,7 +38,7 @@
 //! ```
 use az_derive_aliases::{
     apply, error, from_plain_eq, plain_clone_debug, plain_default_copy_eq, plain_default_eq,
-    plain_eq_redacted,
+    plain_eq_redacted, serde_code_enum,
 };
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
@@ -246,9 +246,23 @@ pub trait EmailSender: Send + Sync {
 
 pub type BoxEmailSender = Box<dyn EmailSender + Send + Sync>;
 
+#[apply(serde_code_enum)]
+pub enum EmailSenderKind {
+    Smtp,
+}
+
 #[apply(from_plain_eq)]
 pub enum EmailSenderConfig {
     Smtp(EmailConfig),
+}
+
+impl EmailSenderConfig {
+    #[must_use]
+    pub const fn kind(&self) -> EmailSenderKind {
+        match self {
+            Self::Smtp(_) => EmailSenderKind::Smtp,
+        }
+    }
 }
 
 pub trait EmailSenderFactory: Send + Sync {

@@ -119,9 +119,17 @@ fn email_sender_factory_builds_smtp_sender() {
     let config = EmailConfig::builder("smtp.example.com", "user@example.com", "secret")
         .build()
         .expect("config should build");
+    let sender_config = EmailSenderConfig::from(config.clone());
+
+    assert_eq!(sender_config.kind(), EmailSenderKind::Smtp);
+    assert_eq!(EmailSenderKind::Smtp.code(), "smtp");
+    assert_eq!(
+        serde_json::to_string(&EmailSenderKind::Smtp).expect("kind should serialize"),
+        r#""smtp""#
+    );
 
     let sender =
-        build_email_sender(config.clone().into()).expect("smtp sender should build through helper");
+        build_email_sender(sender_config).expect("smtp sender should build through helper");
     drop(sender);
 
     let factory: &dyn EmailSenderFactory = &BuiltinEmailSenderFactory;

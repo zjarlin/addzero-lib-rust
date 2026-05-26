@@ -68,12 +68,24 @@ pub trait ScriptEngine: Send + Sync {
     fn run_async<'a>(&'a self, input: ScriptInput) -> ScriptFuture<'a, ScriptOutput>;
 }
 
+/// Boxed script engine implementation.
+pub type BoxScriptEngine = Box<dyn ScriptEngine>;
+
+/// Factory boundary for plugin crates that provide script engines.
+pub trait ScriptEngineFactory: Send + Sync {
+    /// Language produced by this factory.
+    fn lang(&self) -> ScriptLang;
+
+    /// Build a fresh script engine instance.
+    fn build(&self) -> BoxScriptEngine;
+}
+
 // ─── Engine Registry ────────────────────────────────────────────────
 
 /// A registry of all available script engines.
 pub trait ScriptEngineRegistry: Send + Sync {
     /// Register a script engine.
-    fn register(&mut self, engine: Box<dyn ScriptEngine>);
+    fn register(&mut self, engine: BoxScriptEngine);
 
     /// Get an engine for the given language.
     fn get(&self, lang: ScriptLang) -> Option<&dyn ScriptEngine>;
@@ -97,17 +109,47 @@ impl InMemoryScriptEngineRegistry {
 
     /// Create a registry preloaded with engine implementations.
     #[must_use]
-    pub fn with_engines(engines: Vec<Box<dyn ScriptEngine>>) -> Self {
+    pub fn with_engines(engines: Vec<BoxScriptEngine>) -> Self {
         let mut registry = Self::new();
         for engine in engines {
             registry.register(engine);
         }
         registry
     }
+
+    /// Create a registry by asking each plugin factory for an engine.
+    #[must_use]
+    pub fn with_factories(factories: &[&dyn ScriptEngineFactory]) -> Self {
+        let mut registry = Self::new();
+        for factory in factories {
+            registry.register_from_factory(*factory);
+        }
+        registry
+    }
+
+    /// Build and register one engine through its factory contract.
+    pub fn register_from_factory(&mut self, factory: &dyn ScriptEngineFactory) {
+        register_engine_factory(self, factory);
+    }
+}
+
+/// Build an engine through a factory and register it into any script engine registry.
+pub fn register_engine_factory(
+    registry: &mut dyn ScriptEngineRegistry,
+    factory: &dyn ScriptEngineFactory,
+) {
+    let expected_lang = factory.lang();
+    let engine = factory.build();
+    debug_assert_eq!(
+        engine.lang(),
+        expected_lang,
+        "script engine factory returned an engine for a different language"
+    );
+    registry.register(engine);
 }
 
 impl ScriptEngineRegistry for InMemoryScriptEngineRegistry {
-    fn register(&mut self, engine: Box<dyn ScriptEngine>) {
+    fn register(&mut self, engine: BoxScriptEngine) {
         let lang = engine.lang();
         if let Some(slot) = self
             .engines
@@ -156,14 +198,32 @@ pub enum ScriptError {
 #[cfg(test)]
 mod tests {
     use super::{
-        InMemoryScriptEngineRegistry, ScriptEngine, ScriptEngineRegistry, ScriptFuture,
-        ScriptInput, ScriptLang, ScriptOutput,
+        BoxScriptEngine, InMemoryScriptEngineRegistry, ScriptEngine, ScriptEngineFactory,
+        ScriptEngineRegistry, ScriptFuture, ScriptInput, ScriptLang, ScriptOutput,
     };
     use std::collections::BTreeMap;
 
     struct StaticEngine {
         lang: ScriptLang,
         result: &'static str,
+    }
+
+    struct StaticEngineFactory {
+        lang: ScriptLang,
+        result: &'static str,
+    }
+
+    impl ScriptEngineFactory for StaticEngineFactory {
+        fn lang(&self) -> ScriptLang {
+            self.lang
+        }
+
+        fn build(&self) -> BoxScriptEngine {
+            Box::new(StaticEngine {
+                lang: self.lang,
+                result: self.result,
+            })
+        }
     }
 
     impl ScriptEngine for StaticEngine {
@@ -229,6 +289,71 @@ mod tests {
                 })
                 .stdout,
             "rhai-v2"
+        );
+    }
+
+    #[test]
+    fn in_memory_registry_builds_from_engine_factories() {
+        let bash = StaticEngineFactory {
+            lang: ScriptLang::Bash,
+            result: "bash",
+        };
+        let rhai = StaticEngineFactory {
+            lang: ScriptLang::Rhai,
+            result: "rhai",
+        };
+
+        let registry = InMemoryScriptEngineRegistry::with_factories(&[&bash, &rhai]);
+
+        assert_eq!(
+            registry.languages(),
+            vec![ScriptLang::Rhai, ScriptLang::Bash]
+        );
+        assert_eq!(
+            registry
+                .get(ScriptLang::Bash)
+                .expect("bash engine should be registered")
+                .run(ScriptInput {
+                    source: String::new(),
+                    lang: ScriptLang::Bash,
+                    vars: BTreeMap::new(),
+                    policy: az_sandbox::sandbox::SandboxPolicy::permissive(),
+                    timeout_secs: 0,
+                })
+                .stdout,
+            "bash"
+        );
+    }
+
+    #[test]
+    fn register_from_factory_replaces_existing_engine_for_same_lang() {
+        let mut registry = InMemoryScriptEngineRegistry::new();
+        let first = StaticEngineFactory {
+            lang: ScriptLang::Rhai,
+            result: "first",
+        };
+        let second = StaticEngineFactory {
+            lang: ScriptLang::Rhai,
+            result: "second",
+        };
+
+        registry.register_from_factory(&first);
+        registry.register_from_factory(&second);
+
+        assert_eq!(registry.languages(), vec![ScriptLang::Rhai]);
+        assert_eq!(
+            registry
+                .get(ScriptLang::Rhai)
+                .expect("rhai engine should be registered")
+                .run(ScriptInput {
+                    source: String::new(),
+                    lang: ScriptLang::Rhai,
+                    vars: BTreeMap::new(),
+                    policy: az_sandbox::sandbox::SandboxPolicy::permissive(),
+                    timeout_secs: 0,
+                })
+                .stdout,
+            "second"
         );
     }
 }

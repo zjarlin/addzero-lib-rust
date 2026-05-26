@@ -60,6 +60,17 @@ macro_rules! serialize_clone_debug {
     };
 }
 
+/// Serializable camelCase request/output type with clone support and debug formatting.
+#[macro_export]
+macro_rules! serialize_camel_clone_debug {
+    ($item:item) => {
+        $crate::serialize_clone_debug! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
+    };
+}
+
 /// Serializable request/output type with equality and debug traits.
 #[macro_export]
 macro_rules! serialize_eq {
@@ -110,6 +121,28 @@ macro_rules! serialize_camel_partial_eq {
     ($item:item) => {
         $crate::serialize_partial_eq! {
             #[serde(rename_all = "camelCase")]
+            $item
+        }
+    };
+}
+
+/// Serde-friendly kebab-case data type with equality and debug traits.
+#[macro_export]
+macro_rules! serde_kebab_eq {
+    ($item:item) => {
+        $crate::serde_eq! {
+            #[serde(rename_all = "kebab-case")]
+            $item
+        }
+    };
+}
+
+/// Serde-friendly uppercase data type with equality and debug traits.
+#[macro_export]
+macro_rules! serde_upper_eq {
+    ($item:item) => {
+        $crate::serde_eq! {
+            #[serde(rename_all = "UPPERCASE")]
             $item
         }
     };
@@ -816,6 +849,17 @@ macro_rules! serde_camel_partial_eq {
     ($item:item) => {
         $crate::serde_partial_eq! {
             #[serde(rename_all = "camelCase")]
+            $item
+        }
+    };
+}
+
+/// Serde-friendly snake_case data type with partial equality and debug traits.
+#[macro_export]
+macro_rules! serde_code_partial_eq {
+    ($item:item) => {
+        $crate::serde_partial_eq! {
+            #[serde(rename_all = "snake_case")]
             $item
         }
     };

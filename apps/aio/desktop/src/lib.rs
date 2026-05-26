@@ -5,7 +5,7 @@ mod embedded_backend;
 use std::{path::PathBuf, process::Command, sync::Arc};
 
 use anyhow::Context;
-use az_derive_aliases::{apply, plain_clone, serialize_clone_debug};
+use az_derive_aliases::{apply, plain_clone, serialize_camel_clone_debug};
 use embedded_backend::DesktopRuntime;
 use tauri::{Manager, State};
 
@@ -14,8 +14,7 @@ struct RuntimeState {
     runtime: Arc<DesktopRuntime>,
 }
 
-#[apply(serialize_clone_debug)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_clone_debug)]
 struct RuntimeInfo {
     base_url: String,
     desktop_token: String,
@@ -89,4 +88,23 @@ fn open_native_path(path: PathBuf) -> anyhow::Result<()> {
         .spawn()
         .with_context(|| format!("open path {}", path.display()))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RuntimeInfo;
+
+    #[test]
+    fn runtime_info_keeps_camel_case_wire_names() {
+        let encoded = serde_json::to_value(RuntimeInfo {
+            base_url: "http://127.0.0.1:3000".to_owned(),
+            desktop_token: "token".to_owned(),
+        })
+        .expect("runtime info should serialize");
+
+        assert_eq!(encoded["baseUrl"], "http://127.0.0.1:3000");
+        assert_eq!(encoded["desktopToken"], "token");
+        assert!(encoded.get("base_url").is_none());
+        assert!(encoded.get("desktop_token").is_none());
+    }
 }

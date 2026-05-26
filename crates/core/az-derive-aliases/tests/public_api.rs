@@ -3,8 +3,9 @@ use az_derive_aliases::{
     from_copy_eq_display, plain_code_default_enum, plain_code_enum, plain_copy_eq_hash,
     plain_copy_eq_hash_display, plain_copy_eq_hash_ord_display, plain_default_copy_eq,
     plain_default_copy_eq_display, plain_eq_hash_display, serde_camel_eq_default,
-    serde_camel_partial_eq_default, serde_eq_copy_display, serde_eq_hash_display,
-    serde_partial_eq_display, serialize_camel_eq,
+    serde_camel_partial_eq_default, serde_code_partial_eq, serde_eq_copy_display,
+    serde_eq_hash_display, serde_kebab_eq, serde_partial_eq_display, serde_upper_eq,
+    serialize_camel_clone_debug, serialize_camel_eq,
 };
 use serde_json::Value;
 use std::collections::HashSet;
@@ -69,6 +70,12 @@ struct CamelWrite {
     retry_count: usize,
 }
 
+#[apply(serialize_camel_clone_debug)]
+struct CamelDebugWrite {
+    base_url: String,
+    desktop_token: String,
+}
+
 #[apply(deserialize_camel_eq)]
 struct CamelRead {
     response_code: String,
@@ -90,6 +97,27 @@ struct CamelDefaults {
 #[apply(serde_camel_partial_eq_default)]
 struct CamelMetrics {
     load_ratio: f64,
+}
+
+#[apply(serde_kebab_eq)]
+enum KebabExtensionPoint {
+    ScriptEngine,
+    UiContribution,
+    Custom(String),
+}
+
+#[apply(serde_upper_eq)]
+enum UpperOrderStatus {
+    Pending,
+    Received,
+    #[serde(other)]
+    Unknown,
+}
+
+#[apply(serde_code_partial_eq)]
+enum SnakeConstraint {
+    NotNull,
+    Default(Value),
 }
 
 #[apply(serde_eq_hash_display)]
@@ -180,6 +208,15 @@ fn camel_case_aliases_apply_serde_rename_all() {
     assert_eq!(encoded["retryCount"], 3);
     assert!(encoded.get("request_id").is_none());
 
+    let debug_write = CamelDebugWrite {
+        base_url: "http://127.0.0.1:3000".to_owned(),
+        desktop_token: "token".to_owned(),
+    };
+    let encoded_debug: Value = serde_json::to_value(debug_write.clone()).unwrap();
+    assert_eq!(encoded_debug["baseUrl"], "http://127.0.0.1:3000");
+    assert_eq!(encoded_debug["desktopToken"], "token");
+    assert!(format!("{debug_write:?}").contains("base_url"));
+
     let decoded: CamelRead =
         serde_json::from_str(r#"{"responseCode":"ok","payloadSize":4}"#).unwrap();
     assert_eq!(
@@ -213,6 +250,38 @@ fn camel_case_aliases_apply_serde_rename_all() {
     let metrics = serde_json::to_value(CamelMetrics::default()).unwrap();
     assert_eq!(metrics["loadRatio"], 0.0);
     assert_eq!(CamelMetrics::default(), CamelMetrics { load_ratio: 0.0 });
+}
+
+#[test]
+fn kebab_case_aliases_apply_serde_rename_all() {
+    let encoded = serde_json::to_value(KebabExtensionPoint::ScriptEngine).unwrap();
+    assert_eq!(encoded, serde_json::json!("script-engine"));
+
+    let decoded: KebabExtensionPoint = serde_json::from_str("\"ui-contribution\"").unwrap();
+    assert_eq!(decoded, KebabExtensionPoint::UiContribution);
+
+    let custom = KebabExtensionPoint::Custom("x".to_owned());
+    assert_eq!(custom, KebabExtensionPoint::Custom("x".to_owned()));
+}
+
+#[test]
+fn upper_and_snake_case_aliases_apply_serde_rename_all() {
+    let encoded = serde_json::to_value(UpperOrderStatus::Pending).unwrap();
+    assert_eq!(encoded, serde_json::json!("PENDING"));
+
+    let decoded: UpperOrderStatus = serde_json::from_str("\"RECEIVED\"").unwrap();
+    assert_eq!(decoded, UpperOrderStatus::Received);
+
+    let unknown: UpperOrderStatus = serde_json::from_str("\"EXPIRED\"").unwrap();
+    assert_eq!(unknown, UpperOrderStatus::Unknown);
+
+    let snake = serde_json::to_value(SnakeConstraint::NotNull).unwrap();
+    assert_eq!(snake, serde_json::json!("not_null"));
+    let with_value = SnakeConstraint::Default(serde_json::json!(1));
+    assert_eq!(
+        serde_json::to_value(with_value).unwrap(),
+        serde_json::json!({"default": 1})
+    );
 }
 
 #[test]

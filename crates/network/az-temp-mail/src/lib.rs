@@ -112,4 +112,17 @@ impl TempMail {
     pub fn emailnator_with_config(config: ApiConfig) -> TempMailResult<EmailnatorTempMailApi> {
         EmailnatorTempMailApi::new(config)
     }
+
+    /// Builds a boxed provider from a provider-specific config.
+    pub fn provider(config: TempMailProviderConfig) -> TempMailResult<BoxTempMailProvider> {
+        build_temp_mail_provider(config)
+    }
+
+    /// Builds a boxed provider through an injected factory.
+    pub fn provider_with_factory(
+        factory: &dyn TempMailProviderFactory,
+        config: TempMailProviderConfig,
+    ) -> TempMailResult<BoxTempMailProvider> {
+        factory.build_provider(config)
+    }
 }

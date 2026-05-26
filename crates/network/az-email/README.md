@@ -10,6 +10,7 @@
 - 纯文本 / HTML 内容及文件附件（自动 MIME 推断）
 - 全局默认发送器管理（`set_default_sender` / `send`）
 - `EmailSenderFactory` 注入边界，可按 `EmailSenderConfig` 构造 boxed sender
+- `EmailSenderKind` 提供 snake_case code / serde / strum 枚举约定
 - 快捷发送函数：`send_text()`、`send_html()`
 
 ## 安装
@@ -72,12 +73,16 @@ send(&msg).unwrap();
 ### 通过 factory 构造 sender
 
 \`\`\`rust,no_run
-use az_email::{EmailConfig, EmailSenderConfig, build_email_sender};
+use az_email::{EmailConfig, EmailSenderConfig, EmailSenderKind, build_email_sender};
 
 let config = EmailConfig::builder("smtp.example.com", "user", "pass")
     .build()
     .unwrap();
-let sender = build_email_sender(EmailSenderConfig::Smtp(config)).unwrap();
+let sender_config = EmailSenderConfig::Smtp(config);
+assert_eq!(sender_config.kind(), EmailSenderKind::Smtp);
+assert_eq!(EmailSenderKind::Smtp.code(), "smtp");
+
+let sender = build_email_sender(sender_config).unwrap();
 \`\`\`
 
 ## 依赖的 crates
@@ -86,3 +91,4 @@ let sender = build_email_sender(EmailSenderConfig::Smtp(config)).unwrap();
 - `mime_guess` — 文件 MIME 类型推断（用于附件）
 - `thiserror` — 错误类型派生
 - `derive_more` — `EmailSenderConfig` 的轻量 `From` 派生
+- `strum` — `EmailSenderKind` 的 code / display / parse / variants 派生

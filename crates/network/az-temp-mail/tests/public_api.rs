@@ -221,6 +221,23 @@ fn temp_mail_provider_factory_builds_boxed_providers() -> Result<(), Box<dyn Err
 }
 
 #[test]
+fn temp_mail_namespace_builds_boxed_providers() -> Result<(), Box<dyn Error>> {
+    let provider = TempMail::provider(TempMailProviderConfig::MailTm(
+        ApiConfig::builder("http://127.0.0.1:21004").build()?,
+    ))?;
+    assert_eq!(provider.provider_kind(), TempMailProviderKind::MailTm);
+
+    let factory: &dyn TempMailProviderFactory = &BuiltinTempMailProviderFactory;
+    let provider = TempMail::provider_with_factory(
+        factory,
+        TempMailProviderConfig::Emailnator(ApiConfig::builder("http://127.0.0.1:21005").build()?),
+    )?;
+    assert_eq!(provider.provider_kind(), TempMailProviderKind::Emailnator);
+
+    Ok(())
+}
+
+#[test]
 fn emailnator_provider_uses_xsrf_cookie_and_message_paths() -> Result<(), Box<dyn Error>> {
     let server = TestServer::spawn(vec![
         TestResponse::text("<html></html>").header("Set-Cookie", "XSRF-TOKEN=token%3D; Path=/"),

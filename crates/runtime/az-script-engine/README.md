@@ -10,6 +10,8 @@
 - `ScriptInput`
 - `ScriptOutput`
 - `ScriptEngine`
+- `ScriptEngineFactory`
+- `InMemoryScriptEngineRegistry`
 
 ## 示例
 
@@ -28,6 +30,42 @@ let input = ScriptInput {
 };
 
 assert_eq!(input.timeout_secs, 5);
+```
+
+## 插件化接入
+
+具体引擎实现 crate 可以实现 `ScriptEngineFactory`，宿主再用 registry 统一装配：
+
+```rust
+use az_script_engine::script::{
+    InMemoryScriptEngineRegistry, ScriptEngineFactory,
+};
+
+fn registry_from_plugins(factories: &[&dyn ScriptEngineFactory]) -> InMemoryScriptEngineRegistry {
+    InMemoryScriptEngineRegistry::with_factories(factories)
+}
+```
+
+单个插件也可以显式注册，registry 会按 `ScriptLang` 替换同语言旧实现：
+
+```rust
+use az_script_engine::script::{InMemoryScriptEngineRegistry, ScriptEngineFactory};
+
+fn add_plugin(registry: &mut InMemoryScriptEngineRegistry, factory: &dyn ScriptEngineFactory) {
+    registry.register_from_factory(factory);
+}
+```
+
+面向 trait object registry 时可直接复用同一层契约检查：
+
+```rust
+use az_script_engine::script::{
+    ScriptEngineFactory, ScriptEngineRegistry, register_engine_factory,
+};
+
+fn add_plugin(registry: &mut dyn ScriptEngineRegistry, factory: &dyn ScriptEngineFactory) {
+    register_engine_factory(registry, factory);
+}
 ```
 
 ## 适用范围
