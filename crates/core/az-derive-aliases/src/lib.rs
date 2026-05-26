@@ -453,7 +453,10 @@ macro_rules! plain_clone_debug {
 #[macro_export]
 macro_rules! plain_default_debug {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Debug, Default), $item);
+        $crate::plain_debug! {
+            #[derive(Default)]
+            $item
+        }
     };
 }
 
@@ -461,7 +464,10 @@ macro_rules! plain_default_debug {
 #[macro_export]
 macro_rules! plain_default_clone {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Default), $item);
+        $crate::plain_clone! {
+            #[derive(Default)]
+            $item
+        }
     };
 }
 
@@ -469,7 +475,10 @@ macro_rules! plain_default_clone {
 #[macro_export]
 macro_rules! plain_default_clone_debug {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Debug, Default), $item);
+        $crate::plain_clone_debug! {
+            #[derive(Default)]
+            $item
+        }
     };
 }
 
@@ -553,7 +562,10 @@ macro_rules! plain_partial_eq_display {
 #[macro_export]
 macro_rules! plain_default_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Debug, Default, Eq, PartialEq), $item);
+        $crate::plain_eq! {
+            #[derive(Default)]
+            $item
+        }
     };
 }
 
@@ -561,7 +573,10 @@ macro_rules! plain_default_eq {
 #[macro_export]
 macro_rules! plain_default_partial_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Debug, Default, PartialEq), $item);
+        $crate::plain_partial_eq! {
+            #[derive(Default)]
+            $item
+        }
     };
 }
 
@@ -800,18 +815,10 @@ macro_rules! serde_eq_default_copy_ord {
 #[macro_export]
 macro_rules! serde_eq_default {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Debug,
-                Default,
-                PartialEq,
-                Eq,
-                ::serde::Serialize,
-                ::serde::Deserialize
-            ),
+        $crate::serde_eq! {
+            #[derive(Default)]
             $item
-        );
+        }
     };
 }
 
@@ -869,17 +876,10 @@ macro_rules! serde_code_partial_eq {
 #[macro_export]
 macro_rules! serde_partial_eq_default {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Debug,
-                Default,
-                PartialEq,
-                ::serde::Serialize,
-                ::serde::Deserialize
-            ),
+        $crate::serde_partial_eq! {
+            #[derive(Default)]
             $item
-        );
+        }
     };
 }
 
