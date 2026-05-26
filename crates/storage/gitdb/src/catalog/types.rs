@@ -2,9 +2,7 @@
 
 use std::fmt;
 
-use az_derive_aliases::{
-    apply, serde_code_display_enum, serde_partial_eq, serde_partial_eq_display,
-};
+use az_derive_aliases::{apply, serde_code_display_enum, serde_partial_eq};
 use serde_json::Value;
 
 /// SQL-like data types supported by GitDB.
@@ -70,23 +68,18 @@ impl DataType {
 }
 
 /// Column constraints.
-#[apply(serde_partial_eq_display)]
+#[apply(serde_partial_eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Constraint {
     /// Column cannot be null.
-    #[display("NOT NULL")]
     NotNull,
     /// Column values must be unique across all rows.
-    #[display("UNIQUE")]
     Unique,
     /// Column is the primary key (implies NotNull + Unique).
-    #[display("PRIMARY KEY")]
     PrimaryKey,
     /// Default value for the column.
-    #[display("DEFAULT {_0}")]
     Default(Value),
     /// Check constraint (expression stored as string for now).
-    #[display("CHECK ({_0})")]
     Check(String),
 }
 
@@ -110,6 +103,12 @@ impl Constraint {
             Constraint::Default(v) => format!("DEFAULT {}", v),
             Constraint::Check(expr) => format!("CHECK ({})", expr),
         }
+    }
+}
+
+impl fmt::Display for Constraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.sql_name())
     }
 }
 
@@ -194,18 +193,6 @@ impl ColumnDef {
     }
 }
 
-impl fmt::Display for Constraint {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Constraint::NotNull => write!(f, "NOT NULL"),
-            Constraint::Unique => write!(f, "UNIQUE"),
-            Constraint::PrimaryKey => write!(f, "PRIMARY KEY"),
-            Constraint::Default(v) => write!(f, "DEFAULT {}", v),
-            Constraint::Check(expr) => write!(f, "CHECK ({})", expr),
-        }
-    }
-}
-
 impl fmt::Display for ColumnDef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} {}", self.name, self.data_type)?;
@@ -247,6 +234,18 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&DataType::Timestamp).expect("serialize"),
             "\"timestamp\""
+        );
+    }
+
+    #[test]
+    fn constraint_display_matches_sql_name() {
+        assert_eq!(Constraint::NotNull.sql_name(), "NOT NULL");
+        assert_eq!(Constraint::Unique.to_string(), "UNIQUE");
+        assert_eq!(Constraint::PrimaryKey.sql_name(), "PRIMARY KEY");
+        assert_eq!(Constraint::Default(json!(1)).to_string(), "DEFAULT 1");
+        assert_eq!(
+            Constraint::Check("x > 0".to_owned()).to_string(),
+            "CHECK (x > 0)"
         );
     }
 
