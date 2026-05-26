@@ -1551,22 +1551,12 @@ fn row_to_import_job(row: sqlx::postgres::PgRow) -> CliMarketImportJob {
             .unwrap_or_else(|_| Uuid::new_v4())
             .to_string(),
         file_name: row.try_get("file_name").unwrap_or_default(),
-        format: match row
-            .try_get::<String, _>("format")
-            .unwrap_or_default()
-            .as_str()
-        {
-            "xlsx" => CliImportFormat::Xlsx,
-            _ => CliImportFormat::Json,
-        },
-        mode: match row
-            .try_get::<String, _>("mode")
-            .unwrap_or_default()
-            .as_str()
-        {
-            "registry_compat" => CliImportMode::RegistryCompat,
-            _ => CliImportMode::Native,
-        },
+        format: CliImportFormat::from_code_or_default(
+            &row.try_get::<String, _>("format").unwrap_or_default(),
+        ),
+        mode: CliImportMode::from_code_or_default(
+            &row.try_get::<String, _>("mode").unwrap_or_default(),
+        ),
         submitted_by: row.try_get("submitted_by").unwrap_or_default(),
         total_rows: usize::try_from(row.try_get::<i32, _>("total_rows").unwrap_or_default())
             .unwrap_or_default(),
