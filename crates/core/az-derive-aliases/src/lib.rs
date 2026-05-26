@@ -150,6 +150,17 @@ macro_rules! error_eq {
     };
 }
 
+/// Small comparable error type with `thiserror`, `Copy`, and common equality/debug traits.
+#[macro_export]
+macro_rules! error_copy_eq {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (Clone, Copy, Debug, ::thiserror::Error, PartialEq, Eq),
+            $item
+        );
+    };
+}
+
 /// Basic library error type with `thiserror` and debug formatting.
 #[macro_export]
 macro_rules! error {
