@@ -1,4 +1,9 @@
+use az_derive_aliases::{apply, plain_copy_eq_hash_ord_display};
 use az_dict_macros::dict_enum;
+
+#[apply(plain_copy_eq_hash_ord_display)]
+#[display("{_0}")]
+struct OrderedCode(u8);
 
 dict_enum!(
     name = BoardParity,
@@ -44,6 +49,15 @@ fn string_closed_enum_supports_lookup() {
         BoardTransportTypeFromEnv::from_raw("RTU"),
         Some(BoardTransportTypeFromEnv::Rtu)
     ));
+}
+
+#[test]
+fn plain_copy_eq_hash_ord_display_supports_order_and_display() {
+    let mut values = vec![OrderedCode(2), OrderedCode(1)];
+    values.sort();
+
+    assert_eq!(values, vec![OrderedCode(1), OrderedCode(2)]);
+    assert_eq!(OrderedCode(7).to_string(), "7");
 }
 
 #[test]
