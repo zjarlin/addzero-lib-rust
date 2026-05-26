@@ -125,6 +125,7 @@ fn engine_help_and_command_list_include_metadata() {
     let list = engine.command_list();
 
     assert!(help.contains("sum: sum numbers"));
+    assert!(help.contains("right: right operand (默认: 10) (类型: Int)"));
     assert!(list.contains("1. sum - sum numbers"));
 }
 

@@ -17,16 +17,22 @@
 //! - 自动参数解析，支持默认值与必填校验
 //! - 通过 [`Command`] trait 实现命令扩展
 
-use az_derive_aliases::{apply, error_eq, from_display, plain_copy_eq, plain_eq, plain_partial_eq};
+use az_derive_aliases::{
+    apply, error_eq, from_display, plain_copy_eq_display, plain_eq, plain_partial_eq,
+};
 
 pub const EXIT_COMMAND: &str = "q";
 pub const HELP_COMMAND: &str = "h";
 
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum ParamType {
+    #[display("String")]
     String,
+    #[display("Int")]
     Int,
+    #[display("Float")]
     Float,
+    #[display("Boolean")]
     Bool,
 }
 
@@ -182,7 +188,7 @@ pub trait Command {
                     .map(|value| format!(" (默认: {value})"))
                     .unwrap_or_default();
                 format!(
-                    "{}{}: {}{} (类型: {:?})",
+                    "{}{}: {}{} (类型: {})",
                     def.name, required_mark, def.description, default_hint, def.param_type
                 )
             })
