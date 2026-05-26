@@ -18,6 +18,7 @@ syn.workspace = true
 
 [dev-dependencies]
 az-dict-spec.workspace = true
+derive_more.workspace = true
 trybuild.workspace = true
 
 [lints]

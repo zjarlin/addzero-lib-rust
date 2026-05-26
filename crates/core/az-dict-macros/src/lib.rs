@@ -79,6 +79,10 @@ fn expand_dict_enum(
         let variant_ident = format_ident!("{variant_name}");
         let code = LitStr::new(&item.code, proc_macro2::Span::call_site());
         let label = LitStr::new(&item.label, proc_macro2::Span::call_site());
+        let display_label = LitStr::new(
+            &escape_display_literal(&item.label),
+            proc_macro2::Span::call_site(),
+        );
         let description = LitStr::new(item.description_text(), proc_macro2::Span::call_site());
         let meta_json: Option<String> = item
             .meta
@@ -98,7 +102,10 @@ fn expand_dict_enum(
             }
         };
 
-        unit_variants.push(quote! { #variant_ident });
+        unit_variants.push(quote! {
+            #[display(#display_label)]
+            #variant_ident
+        });
         code_arms.push(quote! { Self::#variant_ident => #code });
         label_arms.push(quote! { Self::#variant_ident => #label });
         description_arms.push(quote! { Self::#variant_ident => #description });
@@ -156,7 +163,14 @@ fn expand_dict_enum(
             spec.normalized_unknown_variant(),
             proc_macro2::Span::call_site(),
         );
-        unit_variants.push(quote! { #unknown_ident(#raw_type) });
+        let display_unknown = LitStr::new(
+            &escape_display_literal(spec.normalized_unknown_variant()),
+            proc_macro2::Span::call_site(),
+        );
+        unit_variants.push(quote! {
+            #[display(#display_unknown)]
+            #unknown_ident(#raw_type)
+        });
         code_arms.push(quote! { Self::#unknown_ident(_) => #code_unknown });
         label_arms.push(quote! { Self::#unknown_ident(_) => #code_unknown });
         description_arms.push(quote! { Self::#unknown_ident(_) => "" });
@@ -178,7 +192,7 @@ fn expand_dict_enum(
     };
 
     Ok(quote! {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ::derive_more::Display)]
         pub enum #enum_name {
             #(#unit_variants,)*
         }
@@ -226,17 +240,16 @@ fn expand_dict_enum(
             }
         }
 
-        impl ::core::fmt::Display for #enum_name {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                f.write_str(self.label())
-            }
-        }
     })
 }
 
 fn compile_error(message: impl Into<String>) -> proc_macro2::TokenStream {
     let message = message.into();
     quote! { compile_error!(#message); }
+}
+
+fn escape_display_literal(value: &str) -> String {
+    value.replace('{', "{{").replace('}', "}}")
 }
 
 fn load_spec_text(expr: &Expr) -> std::result::Result<String, String> {

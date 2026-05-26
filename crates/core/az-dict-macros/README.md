@@ -5,7 +5,7 @@
 ## 功能
 
 - 从 JSON 字典规格编译期生成完整枚举类型
-- 自动提供 `code()`、`label()`、`Display`、`description()`、`raw_value()`、`meta_json()` 等方法
+- 自动提供 `code()`、`label()`、`description()`、`raw_value()`、`meta_json()` 等方法，并把 `Display` 直接派生到字典 label
 - 支持开枚举（`open_enum`），未知值归入 `Unknown(T)` 变体
 - 支持 `i64` 和 `&'static str` 两种原始值类型
 - 生成的枚举自动派生 `Debug`、`Clone`、`Copy`、`PartialEq`、`Eq`、`Hash` 等 trait
