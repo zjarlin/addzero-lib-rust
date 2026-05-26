@@ -11,28 +11,21 @@ use std::{
 };
 
 use az_derive_aliases::{
-    apply, error_eq, plain_clone, plain_clone_debug, serde_code_enum, serde_eq_default,
+    apply, error_eq, plain_clone, plain_clone_debug, serde_code_display_enum, serde_eq_default,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
 
 pub use super::LocalBoxFuture;
 
-#[apply(serde_code_enum)]
+#[apply(serde_code_display_enum)]
 pub enum AssetKindDto {
+    #[display("笔记")]
     Note,
+    #[display("软件")]
     Software,
+    #[display("安装包")]
     Package,
-}
-
-impl AssetKindDto {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Note => "笔记",
-            Self::Software => "软件",
-            Self::Package => "安装包",
-        }
-    }
 }
 
 #[apply(serde_eq_default)]
@@ -852,7 +845,7 @@ fn blake3_hex(bytes: &[u8]) -> String {
 
 fn normalized_tags(kind: AssetKindDto, raw: &[String]) -> Vec<String> {
     let mut tags = BTreeSet::new();
-    tags.insert(kind.label().to_string());
+    tags.insert(kind.to_string());
     for tag in raw {
         let cleaned = normalize_tag_label(tag);
         if !cleaned.is_empty() {
@@ -939,6 +932,7 @@ mod tests {
         assert_eq!(AssetKindDto::Package.as_str(), "package");
         assert_eq!(AssetKindDto::Software.code(), "software");
         assert_eq!(AssetKindDto::from_code("note"), Some(AssetKindDto::Note));
+        assert_eq!(AssetKindDto::Note.to_string(), "笔记");
     }
 
     #[test]

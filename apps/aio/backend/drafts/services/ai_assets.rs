@@ -1,53 +1,39 @@
 use std::{future::Future, pin::Pin, rc::Rc};
 
 use az_derive_aliases::{
-    apply, error_eq, impl_from_match, serde_code_default_enum, serde_code_default_ord_enum,
+    apply, error_eq, impl_from_match, serde_code_default_ord_display_enum,
     serde_eq_default, serde_partial_eq_default,
 };
 use serde_json::Value;
 
 pub type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
-#[apply(serde_code_default_enum)]
+#[apply(serde_code_default_ord_display_enum)]
 pub enum AiAssetKindDto {
+    #[display("采集")]
     Capture,
     #[default]
+    #[display("笔记")]
     Note,
+    #[display("Skill")]
     Skill,
+    #[display("软件")]
     Software,
+    #[display("安装包")]
     Package,
 }
 
-impl AiAssetKindDto {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Capture => "采集",
-            Self::Note => "笔记",
-            Self::Skill => "Skill",
-            Self::Software => "软件",
-            Self::Package => "安装包",
-        }
-    }
-}
-
-#[apply(serde_code_default_ord_enum)]
+#[apply(serde_code_default_ord_display_enum)]
 pub enum AiProviderKindDto {
     #[default]
     #[serde(rename = "openai")]
     #[strum(serialize = "openai")]
+    #[display("OpenAI")]
     OpenAi,
+    #[display("Anthropic")]
     Anthropic,
+    #[display("Gemini")]
     Gemini,
-}
-
-impl AiProviderKindDto {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::OpenAi => "OpenAI",
-            Self::Anthropic => "Anthropic",
-            Self::Gemini => "Gemini",
-        }
-    }
 }
 
 #[apply(serde_partial_eq_default)]
@@ -464,11 +450,11 @@ pub async fn list_model_providers_on_server() -> anyhow::Result<Vec<AiModelProvi
         .iter()
         .copied()
         .map(|provider| {
-            by_kind
+                by_kind
                 .remove(&provider)
                 .unwrap_or_else(|| AiModelProviderDto {
                     provider,
-                    label: provider.label().to_string(),
+                    label: provider.to_string(),
                     default_model: az_ai_agent::default_model_for(provider.into()).to_string(),
                     enabled: false,
                     api_key_configured: false,
@@ -886,7 +872,7 @@ impl From<az_assets::AiModelProvider> for AiModelProviderDto {
         let provider = AiProviderKindDto::from(value.provider);
         Self {
             provider,
-            label: provider.label().to_string(),
+            label: provider.to_string(),
             default_model: value.default_model,
             enabled: value.enabled,
             api_key_configured: value.api_key_configured,

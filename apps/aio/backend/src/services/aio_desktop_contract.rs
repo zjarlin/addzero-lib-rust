@@ -277,7 +277,7 @@ pub async fn test_provider_on_server(
         .provider_secret(provider.into())
         .await
         .map_err(|err| err.to_string())?
-        .ok_or_else(|| format!("{} is not configured with an API key", provider.label()))?;
+        .ok_or_else(|| format!("{} is not configured with an API key", provider))?;
     test_provider_connection(provider, secret)
         .await
         .map_err(|err| err.to_string())

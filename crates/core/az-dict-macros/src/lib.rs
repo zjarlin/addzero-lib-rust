@@ -1,7 +1,7 @@
 //! 数据字典枚举生成宏，从 JSON 规格文件自动生成类型安全的 Rust 枚举。
 //!
 //! `dict_enum!` 过程宏根据 [`az-dict-spec`] 定义的 JSON 字典规格，在编译期生成包含
-//! `code()`、`label()`、`description()`、`raw_value()`、`meta_json()` 等方法的枚举类型，
+//! `code()`、`label()`、`Display`、`description()`、`raw_value()`、`meta_json()` 等方法的枚举类型，
 //! 消除手写枚举与字典数据不一致的风险。
 //!
 //! ## 宏参数
@@ -223,6 +223,12 @@ fn expand_dict_enum(
                     #(#item_entries,)*
                 ];
                 ITEMS
+            }
+        }
+
+        impl ::core::fmt::Display for #enum_name {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                f.write_str(self.label())
             }
         }
     })

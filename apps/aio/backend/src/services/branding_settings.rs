@@ -3,7 +3,7 @@ use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
-use az_derive_aliases::{apply, error_eq, serde_code_default_enum, serde_eq};
+use az_derive_aliases::{apply, error_eq, serde_code_default_ord_display_enum, serde_eq};
 
 use crate::services::logo_storage::StoredLogoDto;
 
@@ -13,11 +13,14 @@ const DEFAULT_SITE_NAME: &str = "MSC_AIO";
 const DEFAULT_BRAND_COPY: &str = "顶部品牌区默认使用 App 图标，可切换为上传品牌资产。";
 const DEFAULT_HEADER_BADGE: &str = "Knowledge Workspace";
 
-#[apply(serde_code_default_enum)]
+#[apply(serde_code_default_ord_display_enum)]
 pub enum BrandingLogoSource {
     #[default]
+    #[display("App 图标")]
     AppIcon,
+    #[display("自定义上传")]
     CustomUpload,
+    #[display("仅文字")]
     TextOnly,
 }
 
@@ -30,14 +33,6 @@ impl BrandingLogoSource {
     #[cfg(not(target_arch = "wasm32"))]
     fn from_db_value(value: &str) -> Self {
         Self::from_code(value).unwrap_or_default()
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::AppIcon => "App 图标",
-            Self::CustomUpload => "自定义上传",
-            Self::TextOnly => "仅文字",
-        }
     }
 }
 
@@ -343,6 +338,7 @@ mod tests {
 
         assert_eq!(encoded, "\"custom_upload\"");
         assert_eq!(BrandingLogoSource::TextOnly.code(), "text_only");
+        assert_eq!(BrandingLogoSource::AppIcon.to_string(), "App 图标");
         assert_eq!(
             BrandingLogoSource::from_code("app_icon"),
             Some(BrandingLogoSource::AppIcon)

@@ -76,18 +76,6 @@ pub enum OpenAiRecordingStep {
 }
 
 impl OpenAiRecordingStep {
-    /// Returns the stable step id used by manual recording helpers.
-    #[must_use]
-    pub fn id(self) -> &'static str {
-        self.code()
-    }
-
-    /// Returns a short human-readable step title.
-    #[must_use]
-    pub fn title(self) -> String {
-        self.to_string()
-    }
-
     /// Returns the intended manual recording action.
     #[must_use]
     pub const fn description(self) -> &'static str {

@@ -216,11 +216,6 @@ impl RowPath {
     pub fn to_path_buf(&self) -> PathBuf {
         PathBuf::from(format!("{}/{}.json", self.table, self.key))
     }
-
-    /// get the path as a string
-    pub fn as_string(&self) -> String {
-        format!("{}/{}.json", self.table, self.key)
-    }
 }
 
 /// a branch name, with special handling for transaction branches
@@ -387,6 +382,15 @@ mod tests {
         let key2 = RowKey::generate();
         assert_ne!(key1, key2);
         assert_eq!(key1.as_str().len(), 26); // ULID length
+    }
+
+    #[test]
+    fn test_row_path_display() {
+        let path = RowPath::new(
+            TableName::new("users").unwrap(),
+            RowKey::new("abc123").unwrap(),
+        );
+        assert_eq!(path.to_string(), "users/abc123.json");
     }
 
     #[test]

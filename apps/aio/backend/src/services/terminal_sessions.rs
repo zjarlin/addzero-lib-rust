@@ -10,7 +10,7 @@ use std::{
 };
 
 use az_derive_aliases::{
-    apply, serde_code_default, serde_code_default_ord_enum, serde_eq, serde_eq_default,
+    apply, serde_code_default, serde_code_default_ord_display_enum, serde_eq, serde_eq_default,
 };
 use chrono::{DateTime, Utc};
 #[cfg(not(target_arch = "wasm32"))]
@@ -24,23 +24,18 @@ use super::LocalBoxFuture;
 const DEFAULT_TERMINAL_ROWS: u16 = 32;
 const DEFAULT_TERMINAL_COLS: u16 = 120;
 
-#[apply(serde_code_default_ord_enum)]
+#[apply(serde_code_default_ord_display_enum)]
 pub enum TerminalProfileDto {
     #[default]
+    #[display("Codex CLI")]
     Codex,
+    #[display("Claude Code")]
     Claude,
+    #[display("Shell")]
     Shell,
 }
 
 impl TerminalProfileDto {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Codex => "Codex CLI",
-            Self::Claude => "Claude Code",
-            Self::Shell => "Shell",
-        }
-    }
-
     fn default_title(self, index: usize) -> String {
         match self {
             Self::Codex => format!("Codex {index}"),
@@ -487,7 +482,7 @@ impl TerminalSessionStore {
         let child = pair
             .slave
             .spawn_command(command)
-            .map_err(|err| format!("启动 {} 失败：{err}", profile.label()))?;
+            .map_err(|err| format!("启动 {} 失败：{err}", profile))?;
         let killer = child.clone_killer();
         let reader = pair
             .master
@@ -820,7 +815,7 @@ mod tests {
             TerminalProfileDto::from_code("claude"),
             Some(TerminalProfileDto::Claude)
         );
-        assert_eq!(TerminalProfileDto::Shell.to_string(), "shell");
+        assert_eq!(TerminalProfileDto::Shell.to_string(), "Shell");
     }
 
     #[cfg(not(target_arch = "wasm32"))]

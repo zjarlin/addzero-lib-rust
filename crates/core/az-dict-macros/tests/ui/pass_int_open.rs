@@ -8,7 +8,7 @@ dict_enum!(
 );
 
 fn main() {
-    assert_eq!(BoardParity::from_raw(0).label(), "None");
+    assert_eq!(BoardParity::from_raw(0).to_string(), "None");
     assert_eq!(BoardParity::from_raw(2).meta_json(), Some("{\"legacy\":true}"));
     match BoardParity::from_raw(7) {
         BoardParity::Other(value) => assert_eq!(value, 7),

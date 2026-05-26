@@ -102,10 +102,6 @@ impl CellValue {
     pub fn is_empty(&self) -> bool {
         matches!(self, Self::Empty)
     }
-
-    pub fn as_display_string(&self) -> String {
-        self.to_string()
-    }
 }
 
 impl From<f64> for CellValue {
@@ -1160,32 +1156,32 @@ mod tests {
         assert!(!CellValue::Boolean(false).is_empty());
     }
 
-    // ===== CellValue::as_display_string =====
+    // ===== CellValue::Display =====
 
     #[test]
     fn cell_value_display_string_integer() {
-        assert_eq!(CellValue::Number(3.0).as_display_string(), "3");
-        assert_eq!(CellValue::Number(0.0).as_display_string(), "0");
-        assert_eq!(CellValue::Number(-0.0).as_display_string(), "-0");
+        assert_eq!(CellValue::Number(3.0).to_string(), "3");
+        assert_eq!(CellValue::Number(0.0).to_string(), "0");
+        assert_eq!(CellValue::Number(-0.0).to_string(), "-0");
     }
 
     #[test]
     fn cell_value_display_string_float() {
-        assert_eq!(CellValue::Number(3.14).as_display_string(), "3.14");
-        assert_eq!(CellValue::Number(-2.5).as_display_string(), "-2.5");
+        assert_eq!(CellValue::Number(3.14).to_string(), "3.14");
+        assert_eq!(CellValue::Number(-2.5).to_string(), "-2.5");
     }
 
     #[test]
     fn cell_value_display_string_special_floats() {
-        assert_eq!(CellValue::Number(f64::NAN).as_display_string(), "NaN");
-        assert_eq!(CellValue::Number(f64::INFINITY).as_display_string(), "inf");
+        assert_eq!(CellValue::Number(f64::NAN).to_string(), "NaN");
+        assert_eq!(CellValue::Number(f64::INFINITY).to_string(), "inf");
     }
 
     #[test]
     fn cell_value_display_string_empty_and_boolean() {
-        assert_eq!(CellValue::Empty.as_display_string(), "");
-        assert_eq!(CellValue::Boolean(true).as_display_string(), "true");
-        assert_eq!(CellValue::Boolean(false).as_display_string(), "false");
+        assert_eq!(CellValue::Empty.to_string(), "");
+        assert_eq!(CellValue::Boolean(true).to_string(), "true");
+        assert_eq!(CellValue::Boolean(false).to_string(), "false");
     }
 
     // ===== Range::from_excel_ref =====

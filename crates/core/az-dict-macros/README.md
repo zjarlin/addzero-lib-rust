@@ -5,7 +5,7 @@
 ## 功能
 
 - 从 JSON 字典规格编译期生成完整枚举类型
-- 自动提供 `code()`、`label()`、`description()`、`raw_value()`、`meta_json()` 等方法
+- 自动提供 `code()`、`label()`、`Display`、`description()`、`raw_value()`、`meta_json()` 等方法
 - 支持开枚举（`open_enum`），未知值归入 `Unknown(T)` 变体
 - 支持 `i64` 和 `&'static str` 两种原始值类型
 - 生成的枚举自动派生 `Debug`、`Clone`、`Copy`、`PartialEq`、`Eq`、`Hash` 等 trait
@@ -37,7 +37,7 @@ dict_enum!(
 // 生成的枚举提供了类型安全的字典访问：
 let g = Gender::Male;
 assert_eq!(g.code(), "male");
-assert_eq!(g.label(), "男");
+assert_eq!(g.to_string(), "男");
 assert_eq!(g.raw_value(), "male");
 
 // 遍历所有字典项

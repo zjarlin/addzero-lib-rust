@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use az_derive_aliases::{
-    apply, deserialize_debug, impl_from_match, serde_code_default_ord_enum, serde_eq_default,
-    serialize_debug,
+    apply, deserialize_debug, impl_from_match, serde_code_default_ord_display_enum,
+    serde_eq_default, serialize_debug,
 };
 use rig::{
     client::CompletionClient,
@@ -10,22 +10,15 @@ use rig::{
     providers::{anthropic, gemini},
 };
 
-#[apply(serde_code_default_ord_enum)]
+#[apply(serde_code_default_ord_display_enum)]
 pub enum AiProviderKindDto {
     #[default]
+    #[display("OpenAI")]
     OpenAi,
+    #[display("Anthropic")]
     Anthropic,
+    #[display("Gemini")]
     Gemini,
-}
-
-impl AiProviderKindDto {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::OpenAi => "OpenAI",
-            Self::Anthropic => "Anthropic",
-            Self::Gemini => "Gemini",
-        }
-    }
 }
 
 #[apply(serde_eq_default)]
@@ -139,7 +132,7 @@ pub async fn chat_on_server(input: ChatRequestDto) -> Result<ChatResponseDto, St
         .provider_secret(provider.into())
         .await
         .map_err(|err| err.to_string())?
-        .ok_or_else(|| format!("{} 尚未启用，或还没有保存 API key。", provider.label()))?;
+        .ok_or_else(|| format!("{} 尚未启用，或还没有保存 API key。", provider))?;
 
     match provider {
         AiProviderKindDto::OpenAi => send_openai_compatible_chat(provider, secret, messages).await,
@@ -422,7 +415,7 @@ fn build_gemini_client(
 fn default_provider_config(provider: AiProviderKindDto) -> AiProviderConfigDto {
     AiProviderConfigDto {
         provider,
-        label: provider.label().to_string(),
+        label: provider.to_string(),
         base_url: None,
         default_model: az_ai_agent::default_model_for(provider.into()).to_string(),
         enabled: false,
@@ -448,7 +441,7 @@ impl From<az_assets::AiModelProvider> for AiProviderConfigDto {
         let provider = AiProviderKindDto::from(value.provider);
         Self {
             provider,
-            label: provider.label().to_string(),
+            label: provider.to_string(),
             base_url: value.base_url,
             default_model: value.default_model,
             enabled: value.enabled,
@@ -470,6 +463,6 @@ mod tests {
             AiProviderKindDto::from_code("anthropic"),
             Some(AiProviderKindDto::Anthropic)
         );
-        assert_eq!(AiProviderKindDto::Gemini.to_string(), "gemini");
+        assert_eq!(AiProviderKindDto::Gemini.to_string(), "Gemini");
     }
 }

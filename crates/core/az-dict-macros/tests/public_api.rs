@@ -38,7 +38,7 @@ fn string_closed_enum_supports_lookup() {
         BoardTransportType::from_raw("TCP"),
         Some(BoardTransportType::Tcp)
     ));
-    assert_eq!(BoardTransportType::Tcp.label(), "TCP");
+    assert_eq!(BoardTransportType::Tcp.to_string(), "TCP");
     assert_eq!(BoardTransportType::items().len(), 2);
     assert!(matches!(
         BoardTransportTypeFromEnv::from_raw("RTU"),

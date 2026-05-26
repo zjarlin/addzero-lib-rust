@@ -27,8 +27,8 @@ fn openai_login_page_opens_for_manual_recording() {
     for step in result.steps {
         eprintln!(
             "{} {} => {:?} | {} | {}",
-            step.step.id(),
-            step.step.title(),
+            step.step.code(),
+            step.step.to_string(),
             step.status,
             step.final_url,
             step.message,
@@ -80,6 +80,11 @@ fn parse_duration_var(name: &str) -> Option<Duration> {
 fn print_recording_plan(options: &OpenAiRecordingOptions) {
     eprintln!("OpenAI recording plan: {}", options.start_url);
     for step in &options.steps {
-        eprintln!("{} {} - {}", step.id(), step.title(), step.description());
+        eprintln!(
+            "{} {} - {}",
+            step.code(),
+            step.to_string(),
+            step.description()
+        );
     }
 }
