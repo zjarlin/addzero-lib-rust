@@ -25,7 +25,7 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, error_eq, plain_copy_eq};
+use az_derive_aliases::{apply, error_eq, plain_copy_eq_display};
 
 mod delete;
 mod insert;
@@ -76,26 +76,33 @@ pub trait Query {
 }
 
 /// Represents a SQL ORDER BY clause direction.
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum SortOrder {
     /// Ascending order.
+    #[display("ASC")]
     Asc,
     /// Descending order.
+    #[display("DESC")]
     Desc,
 }
 
 /// Represents a SQL join type.
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum JoinType {
     /// INNER JOIN.
+    #[display("INNER JOIN")]
     Inner,
     /// LEFT JOIN.
+    #[display("LEFT JOIN")]
     Left,
     /// RIGHT JOIN.
+    #[display("RIGHT JOIN")]
     Right,
     /// FULL OUTER JOIN.
+    #[display("FULL OUTER JOIN")]
     FullOuter,
     /// CROSS JOIN.
+    #[display("CROSS JOIN")]
     Cross,
 }
 

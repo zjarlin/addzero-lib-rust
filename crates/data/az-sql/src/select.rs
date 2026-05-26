@@ -146,16 +146,9 @@ impl Query for SelectQuery {
 
         // JOIN clauses
         for join in &self.joins {
-            let join_kw = match join.join_type {
-                JoinType::Inner => "INNER JOIN",
-                JoinType::Left => "LEFT JOIN",
-                JoinType::Right => "RIGHT JOIN",
-                JoinType::FullOuter => "FULL OUTER JOIN",
-                JoinType::Cross => "CROSS JOIN",
-            };
             sql.push_str(&format!(
                 " {} {} ON {}",
-                join_kw,
+                join.join_type,
                 quote_identifier(&join.table),
                 join.on
             ));
@@ -192,13 +185,7 @@ impl Query for SelectQuery {
             let parts: Vec<String> = self
                 .order_by
                 .iter()
-                .map(|(col, order)| {
-                    let dir = match order {
-                        SortOrder::Asc => "ASC",
-                        SortOrder::Desc => "DESC",
-                    };
-                    format!("{} {}", quote_identifier(col), dir)
-                })
+                .map(|(col, order)| format!("{} {}", quote_identifier(col), order))
                 .collect();
             sql.push_str(&format!(" ORDER BY {}", parts.join(", ")));
         }
