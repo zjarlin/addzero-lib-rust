@@ -10,7 +10,7 @@ use std::{
 };
 
 use az_derive_aliases::{
-    apply, serde_code_default, serde_code_default_ord_display_enum, serde_eq, serde_eq_default,
+    apply, serde_code_default_enum, serde_code_default_ord_display_enum, serde_eq, serde_eq_default,
 };
 use chrono::{DateTime, Utc};
 #[cfg(not(target_arch = "wasm32"))]
@@ -45,7 +45,7 @@ impl TerminalProfileDto {
     }
 }
 
-#[apply(serde_code_default)]
+#[apply(serde_code_default_enum)]
 pub enum TerminalSessionStateDto {
     #[default]
     Running,
@@ -816,6 +816,20 @@ mod tests {
             Some(TerminalProfileDto::Claude)
         );
         assert_eq!(TerminalProfileDto::Shell.to_string(), "Shell");
+    }
+
+    #[test]
+    fn terminal_session_state_code_helpers_follow_wire_values() {
+        assert_eq!(TerminalSessionStateDto::ALL.len(), 3);
+        assert_eq!(TerminalSessionStateDto::Running.code(), "running");
+        assert_eq!(
+            TerminalSessionStateDto::from_code("failed"),
+            Some(TerminalSessionStateDto::Failed)
+        );
+        assert_eq!(
+            TerminalSessionStateDto::from_code_or_default("unknown"),
+            TerminalSessionStateDto::Running
+        );
     }
 
     #[cfg(not(target_arch = "wasm32"))]
