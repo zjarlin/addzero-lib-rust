@@ -6,9 +6,7 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use az_derive_aliases::{
-    apply, plain_copy_eq, plain_copy_eq_display, plain_eq_hash, plain_partial_eq,
-};
+use az_derive_aliases::{apply, plain_copy_eq_display, plain_eq_hash, plain_partial_eq};
 
 // Re-export Expr from sql for use in plans.
 pub use crate::sql::Expr;
@@ -46,9 +44,11 @@ pub enum AggregateFunction {
 }
 
 /// Sort direction.
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum SortDirection {
+    #[display("ASC")]
     Ascending,
+    #[display("DESC")]
     Descending,
 }
 
@@ -332,7 +332,7 @@ impl LogicalPlan {
             LogicalPlan::Sort { input, order } => {
                 let ord: Vec<String> = order
                     .iter()
-                    .map(|s| format!("{} {:?}", s.column, s.direction))
+                    .map(|s| format!("{} {}", s.column, s.direction))
                     .collect();
                 writeln!(f, "{}Sort: [{}]", pad, ord.join(", "))?;
                 input.format_indent(f, indent + 1)
@@ -392,6 +392,12 @@ mod tests {
         assert_eq!(JoinType::Inner.to_string(), "INNER");
         assert_eq!(JoinType::Left.to_string(), "LEFT");
         assert_eq!(JoinType::Right.to_string(), "RIGHT");
+    }
+
+    #[test]
+    fn test_sort_direction_display() {
+        assert_eq!(SortDirection::Ascending.to_string(), "ASC");
+        assert_eq!(SortDirection::Descending.to_string(), "DESC");
     }
 
     #[test]

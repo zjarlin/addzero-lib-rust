@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use super::logical::SortSpec;
 use crate::sql::Expr;
-use az_derive_aliases::{apply, plain_clone_debug, plain_copy_eq};
+use az_derive_aliases::{apply, plain_clone_debug, plain_copy_eq_display};
 
 /// Physical execution operators.
 ///
@@ -105,7 +105,7 @@ pub struct KeyBound {
 }
 
 /// Physical join types with implementation details.
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum JoinPhysicalType {
     Inner,
     LeftOuter,
@@ -124,7 +124,7 @@ pub struct PhysicalAggregate {
 }
 
 /// Physical aggregate functions.
-#[apply(plain_copy_eq)]
+#[apply(plain_copy_eq_display)]
 pub enum AggregatePhysical {
     Count,
     Sum,
@@ -248,7 +248,7 @@ impl PhysicalPlan {
                 write!(f, "{}Project: [{}]", pad, columns.join(", "))?;
             }
             PhysicalOperator::NestedLoopJoin { join_type, .. } => {
-                write!(f, "{}NestedLoopJoin: {:?}", pad, join_type)?;
+                write!(f, "{}NestedLoopJoin: {}", pad, join_type)?;
             }
             PhysicalOperator::HashJoin {
                 join_type,
@@ -257,12 +257,12 @@ impl PhysicalPlan {
             } => {
                 write!(
                     f,
-                    "{}HashJoin: {:?} on {:?} = {:?}",
+                    "{}HashJoin: {} on {:?} = {:?}",
                     pad, join_type, left_keys, right_keys
                 )?;
             }
             PhysicalOperator::MergeJoin { join_type, .. } => {
-                write!(f, "{}MergeJoin: {:?}", pad, join_type)?;
+                write!(f, "{}MergeJoin: {}", pad, join_type)?;
             }
             PhysicalOperator::Sort { order } => {
                 let cols: Vec<_> = order.iter().map(|s| &s.column).collect();
@@ -376,5 +376,12 @@ mod tests {
 
         let plan = PhysicalPlan::new(join);
         assert_eq!(plan.total_cost(), 800.0); // 100 + 200 + 500
+    }
+
+    #[test]
+    fn test_join_physical_type_display() {
+        assert_eq!(JoinPhysicalType::Inner.to_string(), "Inner");
+        assert_eq!(JoinPhysicalType::LeftOuter.to_string(), "LeftOuter");
+        assert_eq!(AggregatePhysical::Count.to_string(), "Count");
     }
 }
