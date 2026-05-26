@@ -65,6 +65,7 @@ pub enum OpenAiAuthStage {
 
 /// Step identifiers for manual OpenAI entry-flow recording.
 #[apply(plain_code_display_no_default_enum)]
+#[strum(ascii_case_insensitive)]
 pub enum OpenAiRecordingStep {
     /// Step 1: open the OpenAI entry page.
     #[strum(serialize = "step1")]
@@ -98,11 +99,7 @@ impl OpenAiRecordingStep {
     /// Parses `step1`, `step2`, or `step3`.
     #[must_use]
     pub fn from_id(id: &str) -> Option<Self> {
-        let trimmed = id.trim();
-        Self::from_code(trimmed).or_else(|| {
-            let lowered = trimmed.to_ascii_lowercase();
-            Self::from_code(&lowered)
-        })
+        Self::from_code(id.trim())
     }
 }
 
@@ -2371,6 +2368,10 @@ mod tests {
         assert_eq!(
             OpenAiRecordingStep::from_id("step2"),
             Some(OpenAiRecordingStep::ClickLogin)
+        );
+        assert_eq!(
+            OpenAiRecordingStep::from_id(" STEP3 "),
+            Some(OpenAiRecordingStep::ClickSignUp)
         );
     }
 
