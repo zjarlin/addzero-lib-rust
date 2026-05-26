@@ -2,7 +2,9 @@
 
 use std::fmt;
 
-use az_derive_aliases::{apply, serde_code_display_enum, serde_partial_eq};
+use az_derive_aliases::{
+    apply, serde_code_display_enum, serde_partial_eq, serde_partial_eq_display,
+};
 use serde_json::Value;
 
 /// SQL-like data types supported by GitDB.
@@ -68,18 +70,23 @@ impl DataType {
 }
 
 /// Column constraints.
-#[apply(serde_partial_eq)]
+#[apply(serde_partial_eq_display)]
 #[serde(rename_all = "snake_case")]
 pub enum Constraint {
     /// Column cannot be null.
+    #[display("NOT NULL")]
     NotNull,
     /// Column values must be unique across all rows.
+    #[display("UNIQUE")]
     Unique,
     /// Column is the primary key (implies NotNull + Unique).
+    #[display("PRIMARY KEY")]
     PrimaryKey,
     /// Default value for the column.
+    #[display("DEFAULT {_0}")]
     Default(Value),
     /// Check constraint (expression stored as string for now).
+    #[display("CHECK ({_0})")]
     Check(String),
 }
 

@@ -52,7 +52,7 @@ impl<'repo> TreeHandle<'repo> {
                     return None;
                 }
 
-                let name = entry.name()?;
+                let name = entry.name().ok()?;
 
                 // skip metadata directories
                 if name.starts_with('_') {
@@ -111,7 +111,7 @@ impl<'repo> TreeHandle<'repo> {
                     return None;
                 }
 
-                let name = entry.name()?;
+                let name = entry.name().ok()?;
 
                 // must end with .json
                 let key_str = name.strip_suffix(".json")?;
@@ -211,7 +211,7 @@ impl<'repo> TreeMutator<'repo> {
         let mut original_tables = std::collections::HashMap::new();
         for entry in tree.inner().iter() {
             if entry.kind() == Some(ObjectType::Tree) {
-                if let Some(name) = entry.name() {
+                if let Ok(name) = entry.name() {
                     original_tables.insert(name.to_string(), entry.id());
                 }
             }

@@ -1,6 +1,6 @@
 //! Domain model for gateway endpoint and route declarations.
 
-use az_derive_aliases::{apply, plain_copy_eq, plain_copy_eq_display};
+use az_derive_aliases::{apply, error_copy_eq, plain_copy_eq, plain_copy_eq_display};
 
 /// Industrial or integration protocol handled by the gateway.
 #[apply(plain_copy_eq_display)]
@@ -105,14 +105,18 @@ impl GatewayProfile<'_> {
 }
 
 /// Validation failure for a gateway profile.
-#[apply(plain_copy_eq)]
+#[apply(error_copy_eq)]
 pub enum GatewayProfileError {
+    #[error("endpoint id cannot be empty")]
     EmptyEndpointId,
+    #[error("route id cannot be empty")]
     EmptyRouteId,
+    #[error("route `{route_id}` cadence {cadence_ms}ms is below the 50ms safety floor")]
     CadenceTooFast {
         route_id: &'static str,
         cadence_ms: u64,
     },
+    #[error("route `{route_id}` references unknown endpoint `{endpoint_id}`")]
     UnknownEndpoint {
         route_id: &'static str,
         endpoint_id: &'static str,

@@ -5370,13 +5370,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "git2"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ddddbf932745a6be37109b6112d3ee09696106f848449069d3a57bba937ab82e"
+dependencies = [
+ "bitflags 2.11.1",
+ "libc",
+ "libgit2-sys",
+ "log",
+]
+
+[[package]]
 name = "gitdb"
 version = "0.1.0"
 dependencies = [
  "az-derive-aliases",
  "chrono",
  "derive_more 2.1.1",
- "git2",
+ "git2 0.21.0",
  "parking_lot",
  "serde",
  "serde_json",
@@ -5393,7 +5405,7 @@ version = "0.1.0"
 source = "git+https://github.com/qeqqe/gitdb.git?rev=04c99a159d193273be8a6d9d1186756d20bff43a#04c99a159d193273be8a6d9d1186756d20bff43a"
 dependencies = [
  "chrono",
- "git2",
+ "git2 0.20.4",
  "parking_lot",
  "serde",
  "serde_json",

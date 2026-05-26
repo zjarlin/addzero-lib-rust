@@ -18,6 +18,7 @@
 - **serde_eq_redacted** — 带 serde + 相等 trait 的 redacted `Debug` 类型，适合 `derive_more::Debug` + `#[debug(skip)]`
 - **error** — 带 `thiserror` + `Debug` 的基础库错误类型
 - **error_eq** — 带 `thiserror` + 常用相等/调试 trait 的错误类型
+- **error_copy_eq** — 在 `error_eq` 基础上增加 `Copy`，适合只含小型复制字段的错误枚举
 - **impl_from_match!** — 用显式 pattern 映射快速生成 `From` 实现
 - **from_eq** — 带 `derive_more::From` + `PartialEq` 的轻量转换枚举
 - **from_display** — 带 `derive_more::From` + `Display` 的轻量值枚举
