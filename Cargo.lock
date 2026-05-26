@@ -277,12 +277,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
-name = "anymap2"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d301b3b94cb4b2f23d7917810addbbaff90738e0ca2be692bd027e70d7e0330c"
-
-[[package]]
 name = "ar_archive_writer"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1063,6 +1057,7 @@ dependencies = [
 name = "az-browser-automation"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-context",
  "az-derive-aliases",
  "az-sms",
@@ -1587,62 +1582,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "az-plugin-contract"
-version = "2026.5.10"
-dependencies = [
- "az-derive-aliases",
- "chrono",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "az-plugin-kernel"
-version = "2026.5.10"
-dependencies = [
- "az-derive-aliases",
- "az-plugin-contract",
- "az-plugin-registry",
- "az-plugin-runtime",
- "shaku",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "az-plugin-macros"
-version = "2026.5.10"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "az-plugin-registry"
-version = "2026.5.10"
-dependencies = [
- "az-derive-aliases",
- "az-plugin-contract",
- "inventory",
-]
-
-[[package]]
-name = "az-plugin-runtime"
-version = "2026.5.10"
-dependencies = [
- "az-derive-aliases",
- "az-plugin-contract",
- "chrono",
- "serde",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "toml_edit 0.22.27",
- "uuid",
- "zip",
-]
-
-[[package]]
 name = "az-proxy"
 version = "2026.5.10"
 dependencies = [
@@ -1885,54 +1824,42 @@ dependencies = [
 name = "az-starter-audit"
 version = "2026.5.10"
 dependencies = [
- "az-plugin-contract",
- "az-plugin-macros",
- "az-plugin-registry",
+ "az-admin-plugin-registry",
 ]
 
 [[package]]
 name = "az-starter-dictionary"
 version = "2026.5.10"
 dependencies = [
- "az-plugin-contract",
- "az-plugin-macros",
- "az-plugin-registry",
+ "az-admin-plugin-registry",
 ]
 
 [[package]]
 name = "az-starter-identity"
 version = "2026.5.10"
 dependencies = [
- "az-plugin-contract",
- "az-plugin-macros",
- "az-plugin-registry",
+ "az-admin-plugin-registry",
 ]
 
 [[package]]
 name = "az-starter-menu"
 version = "2026.5.10"
 dependencies = [
- "az-plugin-contract",
- "az-plugin-macros",
- "az-plugin-registry",
+ "az-admin-plugin-registry",
 ]
 
 [[package]]
 name = "az-starter-organization"
 version = "2026.5.10"
 dependencies = [
- "az-plugin-contract",
- "az-plugin-macros",
- "az-plugin-registry",
+ "az-admin-plugin-registry",
 ]
 
 [[package]]
 name = "az-starter-storage"
 version = "2026.5.10"
 dependencies = [
- "az-plugin-contract",
- "az-plugin-macros",
- "az-plugin-registry",
+ "az-admin-plugin-registry",
 ]
 
 [[package]]
@@ -1957,6 +1884,7 @@ dependencies = [
 name = "az-system-starters"
 version = "2026.5.10"
 dependencies = [
+ "az-admin-plugin-registry",
  "az-starter-audit",
  "az-starter-dictionary",
  "az-starter-identity",
@@ -10595,28 +10523,6 @@ dependencies = [
  "cfg-if",
  "cpufeatures 0.2.17",
  "digest",
-]
-
-[[package]]
-name = "shaku"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d599314a26c92706bde1c984391b1eeb77ebf46e23142216a58eacb6e12f858b"
-dependencies = [
- "anymap2",
- "once_cell",
- "shaku_derive",
-]
-
-[[package]]
-name = "shaku_derive"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524f791f1f958b9c1825c1e48657d3bc485ee9ac4a1c7c226ab7fc7010afa7dc"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]

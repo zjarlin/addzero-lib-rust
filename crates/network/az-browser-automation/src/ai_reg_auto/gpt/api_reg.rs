@@ -14,7 +14,7 @@
 //!
 //! Based on `debug_register.py` from the GPTregister project.
 
-use crate::BrowserAutomationResult;
+use crate::browser_automation::BrowserAutomationResult;
 use az_derive_aliases::{apply, plain_clone_debug, plain_default_copy_eq, plain_default_eq};
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
@@ -524,7 +524,7 @@ fn buy_sms_number_with(
 ) -> BrowserAutomationResult<(String, u64)> {
     let rt = tokio::runtime::Runtime::new().map_err(to_browser_error)?;
     rt.block_on(async {
-        let client = super::build_fivesim_provider_with(factory, sms_token)?;
+        let client = crate::ai_reg_auto::build_fivesim_provider_with(factory, sms_token)?;
         let request = az_sms::model::SmsActivationRequest::new(
             &reg_options.sms_country,
             &reg_options.sms_operator,
@@ -706,8 +706,8 @@ fn err_result(
     }
 }
 
-fn to_browser_error(error: impl ToString) -> crate::BrowserAutomationError {
-    crate::BrowserAutomationError::Browser(error.to_string())
+fn to_browser_error(error: impl ToString) -> crate::browser_automation::BrowserAutomationError {
+    crate::browser_automation::BrowserAutomationError::Browser(error.to_string())
 }
 
 #[cfg(test)]

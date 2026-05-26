@@ -1,4 +1,4 @@
-use az_browser_automation::{
+use az_browser_automation::browser_automation::{
     BrowserAutomation, BrowserAutomationContextStore, BrowserAutomationOptions, BrowserMode,
     CdpEndpoint, normalize_cdp_http_url,
 };

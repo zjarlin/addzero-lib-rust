@@ -108,10 +108,15 @@ impl Constraint {
 
 impl fmt::Display for Constraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.sql_name())
+        match self {
+            Constraint::NotNull => write!(f, "NOT NULL"),
+            Constraint::Unique => write!(f, "UNIQUE"),
+            Constraint::PrimaryKey => write!(f, "PRIMARY KEY"),
+            Constraint::Default(v) => write!(f, "DEFAULT {}", v),
+            Constraint::Check(expr) => write!(f, "CHECK ({})", expr),
+        }
     }
 }
-
 /// Full column definition including name, type, and constraints.
 #[apply(serde_partial_eq)]
 pub struct ColumnDef {

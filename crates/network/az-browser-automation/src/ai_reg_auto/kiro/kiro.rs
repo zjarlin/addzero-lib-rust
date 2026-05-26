@@ -3,7 +3,7 @@
 //! Automates the sign-up process at `https://app.kiro.dev/signin` through the
 //! AWS Builder ID provider using a disposable email address from `az-temp-mail`.
 
-use crate::BrowserAutomationResult;
+use crate::browser_automation::BrowserAutomationResult;
 use crate::registration::{RegistrationFlow, RegistrationResult, extract_verification_code};
 use crate::session::BrowserSession;
 use az_derive_aliases::{apply, plain_default_copy_eq};
@@ -139,9 +139,9 @@ impl KiroRegistrationFlow {
         if result.as_bool() == Some(true) {
             Ok(())
         } else {
-            Err(crate::BrowserAutomationError::Browser(format!(
-                "element not found: {selector}"
-            )))
+            Err(crate::browser_automation::BrowserAutomationError::Browser(
+                format!("element not found: {selector}"),
+            ))
         }
     }
 
@@ -162,9 +162,9 @@ impl KiroRegistrationFlow {
         if result.as_bool() == Some(true) {
             Ok(())
         } else {
-            Err(crate::BrowserAutomationError::Browser(format!(
-                "button with text '{text}' not found"
-            )))
+            Err(crate::browser_automation::BrowserAutomationError::Browser(
+                format!("button with text '{text}' not found"),
+            ))
         }
     }
 }
@@ -273,7 +273,9 @@ impl RegistrationFlow for KiroRegistrationFlow {
 
         // Step 5: Poll temp-mail for verification code
         let mail_provider = az_temp_mail::TempMail::mail_tm().map_err(|e| {
-            crate::BrowserAutomationError::Browser(format!("temp-mail init failed: {e}"))
+            crate::browser_automation::BrowserAutomationError::Browser(format!(
+                "temp-mail init failed: {e}"
+            ))
         })?;
 
         let code = Self::poll_verification_code(

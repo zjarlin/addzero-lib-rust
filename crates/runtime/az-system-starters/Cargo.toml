@@ -7,6 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+az-admin-plugin-registry.workspace = true
 az-starter-audit.workspace = true
 az-starter-dictionary.workspace = true
 az-starter-identity.workspace = true

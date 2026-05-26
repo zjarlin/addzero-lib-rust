@@ -5,10 +5,12 @@
 //! ```
 
 use az_browser_automation::ai_reg_auto::openai::*;
-use az_browser_automation::{BrowserAutomation, BrowserAutomationOptions};
+use az_browser_automation::browser_automation::{
+    BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions,
+};
 use headless_chrome::protocol::cdp::Runtime;
+use serde_json::Value;
 use std::error::Error;
-use std::sync::Arc;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -77,11 +79,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 allow_unsafe_eval_blocked_by_csp: None,
                 unique_context_id: None,
                 serialization_options: None,
-            }).map_err(|e| az_browser_automation::BrowserAutomationError::Browser(e.to_string()))?;
+            }).map_err(|e| BrowserAutomationError::Browser(e.to_string()))?;
 
-        if let Some(val) = result.result.value {
+        let value: Option<Value> = result.result.value;
+        if let Some(val) = value {
             if let Some(s) = val.as_str() {
                 println!("{}", s);
+            } else {
+                println!("{}", val);
             }
         }
 

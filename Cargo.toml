@@ -89,6 +89,7 @@ gpui = { version = "0.2.2", features = ["runtime_shaders"] }
 gpui-component = "0.5.1"
 strum = { version = "0.28.0", features = ["derive"] }
 az-agent-runtime-contract = { version = "=2026.5.10", path = "crates/data/az-agent-runtime-contract" }
+az-admin-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/az-admin-plugin-registry" }
 az-ai-agent = { version = "=2026.5.10", path = "crates/runtime/az-ai-agent" }
 az-ai-chat = { version = "=2026.5.10", path = "crates/api/az-ai-chat" }
 az-aio-client = { version = "=2026.5.10", path = "crates/api/az-aio-client" }
@@ -115,10 +116,6 @@ az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
 az-music = { version = "=2026.5.10", path = "crates/network/az-music" }
 az-oauth2 = { version = "=2026.5.10", path = "crates/api/az-oauth2" }
 az-persistence = { version = "=2026.5.10", path = "crates/data/az-persistence" }
-az-plugin-contract = { version = "=2026.5.10", path = "crates/runtime/az-plugin-contract" }
-az-plugin-macros = { version = "=2026.5.10", path = "crates/runtime/az-plugin-macros" }
-az-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/az-plugin-registry" }
-az-plugin-runtime = { version = "=2026.5.10", path = "crates/runtime/az-plugin-runtime" }
 az-remote-model = { version = "=2026.5.10", path = "crates/core/az-remote-model" }
 az-remote-protocol = { version = "=2026.5.10", path = "crates/network/az-remote-protocol" }
 az-rustfs = { version = "=2026.5.10", path = "crates/storage/az-rustfs" }

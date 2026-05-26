@@ -21,9 +21,18 @@
 //! ```rust
 //! fn main() {
 //!     az_system_starters::link_all();
-//!     // 此后插件注册中心可发现所有系统级插件
+//!     // 此后 admin 注册中心可发现所有系统级导航节点
 //! }
 //! ```
+
+const SYSTEM_DOMAIN_ID: &str = "system";
+
+az_admin_plugin_registry::register_admin_domain! {
+    id: SYSTEM_DOMAIN_ID,
+    label: "系统插件",
+    order: 30,
+    default_href: "/system/identity/users",
+}
 
 pub fn link_all() {
     az_starter_identity::ensure_linked();
@@ -32,4 +41,42 @@ pub fn link_all() {
     az_starter_menu::ensure_linked();
     az_starter_audit::ensure_linked();
     az_starter_storage::ensure_linked();
+}
+
+#[cfg(test)]
+mod tests {
+    use az_admin_plugin_registry::{registered_domains, section_for_path};
+
+    #[test]
+    fn link_all_exposes_system_starter_navigation() {
+        super::link_all();
+
+        let system_domain = registered_domains()
+            .into_iter()
+            .find(|domain| domain.id == super::SYSTEM_DOMAIN_ID)
+            .expect("system domain should be registered");
+        assert_eq!(system_domain.label, "系统插件");
+        assert_eq!(system_domain.default_href, "/system/identity/users");
+
+        let section =
+            section_for_path("/system/audit/events").expect("audit route should resolve section");
+        let labels = section
+            .menus
+            .iter()
+            .map(|node| node.label)
+            .collect::<Vec<_>>();
+
+        // Verifies the aggregate starter still exposes every system entry in menu order.
+        assert_eq!(
+            labels,
+            vec![
+                "用户管理",
+                "部门管理",
+                "字典管理",
+                "菜单挂载",
+                "审计日志",
+                "包仓库"
+            ]
+        );
+    }
 }

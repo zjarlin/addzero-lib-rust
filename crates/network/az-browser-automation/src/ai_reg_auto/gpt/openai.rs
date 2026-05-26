@@ -1,7 +1,9 @@
 //! OpenAI login and sign-up page automation.
 
-use crate::BrowserAutomationResult;
-use crate::{BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions};
+use crate::browser_automation::BrowserAutomationResult;
+use crate::browser_automation::{
+    BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions,
+};
 use az_derive_aliases::{
     apply, deserialize_eq, plain_code_display_no_default_enum, plain_default_copy_eq, plain_eq,
     serde_code_enum,
@@ -1163,7 +1165,7 @@ impl OpenAiRegAutomation {
     /// creation, SMS purchasing, or page interaction fails.
     pub fn run_on_session(
         reg_options: &OpenAiFullRegOptions,
-        session: &crate::BrowserSession,
+        session: &crate::browser_automation::BrowserSession,
     ) -> BrowserAutomationResult<OpenAiFullRegResult> {
         let api = create_mail_tm_api().map_err(to_browser_error)?;
         let mailbox = api
@@ -1781,7 +1783,7 @@ impl OpenAiRegAutomation {
     ) -> BrowserAutomationResult<(String, u64)> {
         let rt = tokio::runtime::Runtime::new().map_err(to_browser_error)?;
         rt.block_on(async {
-            let client = super::build_fivesim_provider_with(factory, sms_token)?;
+            let client = crate::ai_reg_auto::build_fivesim_provider_with(factory, sms_token)?;
             let request = az_sms::model::SmsActivationRequest::new(
                 &reg_options.sms_country,
                 &reg_options.sms_operator,
@@ -1810,7 +1812,7 @@ impl OpenAiRegAutomation {
     ) -> Option<String> {
         let rt = tokio::runtime::Runtime::new().ok()?;
         rt.block_on(async {
-            let client = super::build_fivesim_provider_with(factory, sms_token).ok()?;
+            let client = crate::ai_reg_auto::build_fivesim_provider_with(factory, sms_token).ok()?;
             let options =
                 az_sms::model::WaitForSmsOptions::new(max_wait, Duration::from_secs(5)).ok()?;
             match client.wait_for_sms(order_id, options).await {

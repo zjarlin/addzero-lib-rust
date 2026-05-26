@@ -11,11 +11,10 @@
 //!
 //! 程序会在需要邮箱验证码时提示手动输入。
 
-use az_browser_automation::ai_reg_auto::build_fivesim_provider;
 use az_browser_automation::ai_reg_auto::openai::*;
-use az_browser_automation::{
+use az_browser_automation::browser_automation::{
     BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions, BrowserMode, CdpEndpoint,
-    normalize_cdp_http_url,
+    build_fivesim_provider, normalize_cdp_http_url,
 };
 use az_derive_aliases::{apply, deserialize_clone_debug};
 use headless_chrome::Tab;

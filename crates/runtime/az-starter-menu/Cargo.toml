@@ -7,9 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-plugin-contract.workspace = true
-az-plugin-macros.workspace = true
-az-plugin-registry.workspace = true
+az-admin-plugin-registry.workspace = true
 
 [lints]
 workspace = true

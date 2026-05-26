@@ -6,7 +6,7 @@
 //! WebGL, canvas noise, audio context, plugin spoofing, and webdriver property
 //! removal.
 
-use crate::{BrowserAutomationError, BrowserAutomationResult};
+use crate::browser_automation::{BrowserAutomationError, BrowserAutomationResult};
 use az_derive_aliases::{apply, plain_copy_eq, serde_eq};
 use headless_chrome::Tab;
 use headless_chrome::protocol::cdp::{Emulation, Page};

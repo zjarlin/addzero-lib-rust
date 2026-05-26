@@ -1,7 +1,7 @@
 //! Trait-based building blocks for authorized registration workflows.
 
+use crate::browser_automation::{BrowserAutomationError, BrowserAutomationResult};
 use crate::session::BrowserSession;
-use crate::{BrowserAutomationError, BrowserAutomationResult};
 use az_derive_aliases::{apply, plain_eq};
 use regex::Regex;
 use std::path::PathBuf;

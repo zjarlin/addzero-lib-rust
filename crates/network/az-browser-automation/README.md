@@ -36,61 +36,72 @@ az-browser-automation = "0.1"
 
 ### 声明式表单填写
 
-```rust
-use az_browser_automation::{
+```rust,no_run
+use az_browser_automation::browser_automation::{
     BrowserAutomation, BrowserAutomationOptions, FormFieldDef,
 };
 
-let options = BrowserAutomationOptions {
-    headless: true,
-    ..Default::default()
-};
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let options = BrowserAutomationOptions {
+        headless: true,
+        ..Default::default()
+    };
 
-let fields = vec![
-    FormFieldDef::input(
-        "keyword",
-        ["input[name='wd']", "input#kw"],
-        "Hello Rust",
-    ).required(true),
-    FormFieldDef::click("search", ["input#su"]).required(true),
-];
+    let fields = vec![
+        FormFieldDef::input(
+            "keyword",
+            ["input[name='wd']", "input#kw"],
+            "Hello Rust",
+        ).required(true),
+        FormFieldDef::click("search", ["input#su"]).required(true),
+    ];
 
-BrowserAutomation::fill("https://www.baidu.com", &fields, &options, None)?;
+    BrowserAutomation::fill("https://www.baidu.com", &fields, &options, None)?;
+    Ok(())
+}
 ```
 
 ### 隔离浏览器会话
 
-```rust
-use az_browser_automation::{BrowserSession, SessionConfig, ProxyConfig};
+```rust,no_run
+use az_browser_automation::proxy::ProxyConfig;
+use az_browser_automation::session::{BrowserSession, SessionConfig};
 
-// 使用随机指纹和代理启动独立会话
-let proxy = ProxyConfig::from_url("socks5://user:pass@127.0.0.1:1080")?;
-let session = BrowserSession::new(
-    SessionConfig::builder()
-        .proxy(proxy)
-        .headless(true)
-        .build(),
-)?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 使用随机指纹和代理启动独立会话
+    let proxy = ProxyConfig::from_url("socks5://user:pass@127.0.0.1:1080")?;
+    let session = BrowserSession::new(
+        SessionConfig::builder()
+            .proxy(proxy)
+            .headless(true)
+            .build(),
+    )?;
 
-session.navigate("https://example.com")?;
-let accessibility_tree = session.snapshot()?;
-session.screenshot("/tmp/screenshot.png")?;
-// 会话结束时 Drop 自动终止 Chrome 进程并清理临时目录
+    session.navigate("https://example.com")?;
+    let accessibility_tree = session.snapshot()?;
+    session.screenshot("/tmp/screenshot.png")?;
+    // 会话结束时 Drop 自动终止 Chrome 进程并清理临时目录
+    Ok(())
+}
 ```
 
 ### 注册流程（Kiro 示例）
 
-```rust
-use az_browser_automation::{
-    BrowserSession, KiroRegistrationFlow, RegistrationFlow,
-};
+```rust,no_run
+use az_browser_automation::ai_reg_auto::kiro::kiro::KiroRegistrationFlow;
+use az_browser_automation::registration::RegistrationFlow;
+use az_browser_automation::session::{BrowserSession, SessionConfig};
 
-let session = BrowserSession::default()?;
-let flow = KiroRegistrationFlow::new();
-let result = flow.execute(&session, "test@example.com")?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let session = BrowserSession::new(SessionConfig::default())?;
+    let flow = KiroRegistrationFlow::new();
+    let result = flow.execute(&session, "test@example.com")?;
 
-if result.success {
-    println!("注册成功，验证码: {:?}", result.verification_code);
+    if result.success {
+        println!("注册成功，验证码: {:?}", result.verification_code);
+    }
+
+    Ok(())
 }
 ```
 

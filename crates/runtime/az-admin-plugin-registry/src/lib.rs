@@ -66,6 +66,7 @@ pub struct RegisteredAdminNode {
 #[apply(plain_eq)]
 pub struct RegisteredAdminSection {
     pub label: &'static str,
+    pub default_href: &'static str,
     pub menus: Vec<RegisteredAdminNode>,
 }
 
@@ -100,6 +101,7 @@ pub fn section_for_path(path: &str) -> Option<RegisteredAdminSection> {
     let domain = domain_for_path(path)?;
     Some(RegisteredAdminSection {
         label: domain.label,
+        default_href: domain.default_href,
         menus: navigation_tree_for_domain(domain.id),
     })
 }
@@ -471,6 +473,7 @@ mod tests {
         let child_labels: Vec<_> = cli_market.children.iter().map(|menu| menu.label).collect();
 
         assert_eq!(section.label, "Knowledge");
+        assert_eq!(section.default_href, "/knowledge/notes");
         assert_eq!(labels, vec!["Notes", "CLI Market"]);
         assert_eq!(cli_market.kind, AdminNavigationKind::Branch);
         assert_eq!(cli_market.permissions_any_of, &["knowledge:cli"]);

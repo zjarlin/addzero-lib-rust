@@ -1,11 +1,11 @@
 //! Isolated browser sessions backed by a dedicated Chrome process.
 
-use crate::fingerprint::FingerprintProfile;
-use crate::proxy::ProxyConfig;
-use crate::{
+use crate::browser_automation::{
     BrowserAutomationError, BrowserAutomationResult, query_cdp_websocket_url,
     resolve_chrome_executable,
 };
+use crate::fingerprint::FingerprintProfile;
+use crate::proxy::ProxyConfig;
 use az_derive_aliases::{apply, plain_default_eq, plain_eq};
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
 use headless_chrome::protocol::cdp::{Accessibility, Runtime};

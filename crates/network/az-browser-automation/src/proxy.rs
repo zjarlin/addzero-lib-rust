@@ -1,6 +1,6 @@
 //! Proxy configuration for isolated browser sessions.
 
-use crate::{BrowserAutomationError, BrowserAutomationResult};
+use crate::browser_automation::{BrowserAutomationError, BrowserAutomationResult};
 use az_derive_aliases::{apply, serde_code_enum, serde_eq};
 use std::fs;
 use std::path::Path;
