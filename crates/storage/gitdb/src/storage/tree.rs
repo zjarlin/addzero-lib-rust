@@ -44,7 +44,8 @@ impl<'repo> TreeHandle<'repo> {
 
     /// list all tables (top-level directories, excluding _schema and other metadata).
     pub fn list_tables(&self) -> Vec<TableName> {
-        self.tree
+        let mut tables: Vec<_> = self
+            .tree
             .iter()
             .filter_map(|entry| {
                 // only include tree entries (directories)
@@ -62,7 +63,9 @@ impl<'repo> TreeHandle<'repo> {
                 // try to create a valid TableName
                 TableName::new(name).ok()
             })
-            .collect()
+            .collect();
+        tables.sort_unstable();
+        tables
     }
 
     /// check if a table exists
@@ -102,7 +105,7 @@ impl<'repo> TreeHandle<'repo> {
             None => return Err(StorageError::TableNotFound(table.clone())),
         };
 
-        let keys = table_tree
+        let mut keys: Vec<_> = table_tree
             .tree
             .iter()
             .filter_map(|entry| {
@@ -120,6 +123,7 @@ impl<'repo> TreeHandle<'repo> {
                 RowKey::new(key_str).ok()
             })
             .collect();
+        keys.sort_unstable();
 
         Ok(keys)
     }
@@ -442,14 +446,22 @@ mod tests {
         mutator
             .create_table(&TableName::new("users").unwrap())
             .unwrap();
+        mutator
+            .create_table(&TableName::new("orders").unwrap())
+            .unwrap();
         let new_tree_id = mutator.write().unwrap();
 
         let new_tree = repo.find_tree(new_tree_id.raw()).unwrap();
         let new_handle = TreeHandle::new(new_tree);
 
         let tables = new_handle.list_tables();
-        assert_eq!(tables.len(), 1);
-        assert_eq!(tables[0].as_str(), "users");
+        assert_eq!(
+            tables
+                .iter()
+                .map(|table| table.as_str())
+                .collect::<Vec<_>>(),
+            vec!["orders", "users"]
+        );
     }
 
     #[test]
@@ -523,19 +535,20 @@ mod tests {
         let blob_id = BlobId::new(repo.blob(blob_content).unwrap());
 
         let mut mutator = TreeMutator::from_tree(&repo, &handle).unwrap();
-        let key1 = RowKey::new("row1").unwrap();
         let key2 = RowKey::new("row2").unwrap();
-        mutator.upsert_row(&table, &key1, blob_id).unwrap();
+        let key1 = RowKey::new("row1").unwrap();
         mutator.upsert_row(&table, &key2, blob_id).unwrap();
+        mutator.upsert_row(&table, &key1, blob_id).unwrap();
         let tree_id = mutator.write().unwrap();
 
         // verify
         let tree = repo.find_tree(tree_id.raw()).unwrap();
         let handle = TreeHandle::new(tree);
         let rows = handle.list_rows(&repo, &table).unwrap();
-        assert_eq!(rows.len(), 2);
-        assert!(rows.iter().any(|k| k.as_str() == "row1"));
-        assert!(rows.iter().any(|k| k.as_str() == "row2"));
+        assert_eq!(
+            rows.iter().map(|key| key.as_str()).collect::<Vec<_>>(),
+            vec!["row1", "row2"]
+        );
     }
 
     #[test]

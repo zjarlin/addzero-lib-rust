@@ -541,6 +541,27 @@ macro_rules! plain_copy_eq_hash_ord_display {
     };
 }
 
+/// Plain structural type with `Clone`, `Debug`, `Eq`, `Hash`, `PartialEq`, `PartialOrd`, `Ord`,
+/// and `Display`.
+#[macro_export]
+macro_rules! plain_eq_hash_ord_display {
+    ($item:item) => {
+        $crate::__az_derive_aliases_derive!(
+            (
+                Clone,
+                Debug,
+                Eq,
+                Hash,
+                PartialEq,
+                PartialOrd,
+                Ord,
+                ::derive_more::Display
+            ),
+            $item
+        );
+    };
+}
+
 /// Plain structural type with `Clone`, `Copy`, `Debug`, `Eq`, `Hash`, `PartialEq`, and `Display`.
 #[macro_export]
 macro_rules! plain_copy_eq_hash_display {

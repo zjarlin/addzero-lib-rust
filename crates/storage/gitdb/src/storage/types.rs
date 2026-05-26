@@ -1,15 +1,15 @@
 //! core type-safe wrappers around git primitives for the storage layer.
 
 use az_derive_aliases::{
-    apply, error_eq, plain_copy_eq, plain_copy_eq_hash_display, plain_eq, plain_eq_display,
-    plain_eq_hash_display, serde_eq_hash_display,
+    apply, error_eq, plain_copy_eq, plain_copy_eq_hash_ord_display, plain_eq, plain_eq_display,
+    plain_eq_hash_ord_display, serde_eq_hash_ord_display,
 };
 use git2::Oid;
 use std::path::PathBuf;
 
 /// This makes sure we don't accidentally pass a blob ID where a commit ID
 /// is expected. The inner Oid is only accessible within the storage module.
-#[apply(plain_copy_eq_hash_display)]
+#[apply(plain_copy_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct CommitId(pub(crate) Oid);
 
@@ -34,7 +34,7 @@ impl CommitId {
 }
 
 /// Git blob identifier
-#[apply(plain_copy_eq_hash_display)]
+#[apply(plain_copy_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct BlobId(pub(crate) Oid);
 
@@ -48,7 +48,7 @@ impl BlobId {
 }
 
 /// Git tree identifier
-#[apply(plain_copy_eq_hash_display)]
+#[apply(plain_copy_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct TreeId(pub(crate) Oid);
 
@@ -72,7 +72,7 @@ impl TreeId {
 /// - Alphanumeric, underscores, hyphens only
 /// - Must start with a letter or underscore
 /// - Cannot be reserved names (_schema, _meta, etc.)
-#[apply(serde_eq_hash_display)]
+#[apply(serde_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct TableName(String);
 
@@ -140,7 +140,7 @@ impl AsRef<str> for TableName {
 ///
 /// row keys are used as filenames, so they have similar restrictions
 /// to table names but are typically auto generated (ULIDs, UUIDs)
-#[apply(serde_eq_hash_display)]
+#[apply(serde_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct RowKey(String);
 
@@ -219,7 +219,7 @@ impl RowPath {
 }
 
 /// a branch name, with special handling for transaction branches
-#[apply(plain_eq_hash_display)]
+#[apply(plain_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct BranchName(String);
 

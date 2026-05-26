@@ -357,8 +357,7 @@ mod tests {
             catalog.create_table(schema).unwrap();
         }
 
-        let mut tables = catalog.list_tables().unwrap();
-        tables.sort();
+        let tables = catalog.list_tables().unwrap();
         assert_eq!(tables, vec!["orders", "products", "users"]);
     }
 

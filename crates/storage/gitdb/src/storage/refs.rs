@@ -140,6 +140,7 @@ impl RefManager {
             }
         }
 
+        result.sort_unstable();
         Ok(result)
     }
 
@@ -277,9 +278,9 @@ mod tests {
     fn test_transaction_branches() {
         let (_dir, repo, base_commit) = setup_repo_with_commit();
 
-        // Create transaction branches
-        let branch1 = RefManager::create_transaction_branch(&repo, "tx001", base_commit).unwrap();
+        // Create transaction branches in reverse lexical order.
         let branch2 = RefManager::create_transaction_branch(&repo, "tx002", base_commit).unwrap();
+        let branch1 = RefManager::create_transaction_branch(&repo, "tx001", base_commit).unwrap();
 
         assert!(branch1.is_transaction_branch());
         assert!(branch2.is_transaction_branch());
@@ -287,7 +288,7 @@ mod tests {
 
         // List transaction branches
         let tx_branches = RefManager::list_transaction_branches(&repo).unwrap();
-        assert_eq!(tx_branches.len(), 2);
+        assert_eq!(tx_branches, vec![branch1, branch2]);
 
         // Cleanup
         let deleted = RefManager::cleanup_abandoned_transactions(&repo).unwrap();

@@ -76,6 +76,7 @@
 - **plain_eq_redacted** — 带相等 trait 且使用 `derive_more::Debug` + `#[debug(skip)]` 脱敏的纯内存类型
 - **plain_eq_hash** — 在 `plain_eq` 基础上增加 `Hash`
 - **plain_eq_hash_display** — 在 `plain_eq_hash` 基础上增加 `Display`
+- **plain_eq_hash_ord_display** — 在 `plain_eq_hash_display` 基础上增加 `Ord`/`PartialOrd`
 - **plain_partial_eq** — 纯内存结构体/枚举的 `Clone` + `Debug` + `PartialEq`
 - **plain_partial_eq_display** — 在 `plain_partial_eq` 基础上增加 `Display`
 - **plain_default_eq** — 在 `plain_eq` 基础上增加 `Default`
@@ -208,7 +209,7 @@ enum Priority {
 - `macro_rules_attribute` — 将宏作为 derive 属性应用到类型定义
 - `serde` — serde 相关 alias 的 derive 和辅助属性
 - `thiserror` — `error` / `error_eq`
-- `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_copy_eq_display` / `from_display` / `serde_eq_copy_display` / `serde_partial_eq_display` / `serde_code_display*` / `serde_code_ord_display*` / `serde_code_default_ord_display*` / `plain_code_display_no_default_enum` / `plain_code_display_enum` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_clone_redacted` / `plain_eq_redacted` / `serde_eq_redacted` / `plain_eq_display` / `plain_eq_hash_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_copy_eq_hash_ord_display` / `plain_default_copy_eq_display`
+- `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_copy_eq_display` / `from_display` / `serde_eq_copy_display` / `serde_partial_eq_display` / `serde_code_display*` / `serde_code_ord_display*` / `serde_code_default_ord_display*` / `plain_code_display_no_default_enum` / `plain_code_display_enum` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_clone_redacted` / `plain_eq_redacted` / `serde_eq_redacted` / `plain_eq_display` / `plain_eq_hash_display` / `plain_eq_hash_ord_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_copy_eq_hash_ord_display` / `plain_default_copy_eq_display`
 - `clap` — `clap_parser` / `clap_args` / `clap_subcommand` / `clap_value_enum` / `clap_code_enum`
 - `strum` — `serde_code*` / `serde_code*_enum` / `serde_kebab_code*` / `serde_code_display*` / `plain_code_enum` / `plain_code_display_enum`
 - `sea_orm` — `seaorm_entity_model*` / `seaorm_relation`
