@@ -970,10 +970,9 @@ impl CliMarketRepo {
             locales: locales
                 .into_iter()
                 .map(|locale| CliLocaleText {
-                    locale: parse_locale(
+                    locale: CliLocale::from_code_or_default(
                         &locale.try_get::<String, _>("locale").unwrap_or_default(),
-                    )
-                    .unwrap_or(CliLocale::ZhCn),
+                    ),
                     display_name: locale.try_get("display_name").unwrap_or_default(),
                     summary: locale.try_get("summary").unwrap_or_default(),
                     description_md: locale.try_get("description_md").unwrap_or_default(),
@@ -992,16 +991,14 @@ impl CliMarketRepo {
                             .unwrap_or_else(|_| Uuid::new_v4())
                             .to_string(),
                     ),
-                    platform: parse_platform(
+                    platform: CliPlatform::from_code_or_default(
                         &method.try_get::<String, _>("platform").unwrap_or_default(),
-                    )
-                    .unwrap_or(CliPlatform::CrossPlatform),
-                    installer_kind: parse_installer_kind(
+                    ),
+                    installer_kind: CliInstallerKind::from_code_or_default(
                         &method
                             .try_get::<String, _>("installer_kind")
                             .unwrap_or_default(),
-                    )
-                    .unwrap_or(CliInstallerKind::Custom),
+                    ),
                     package_id: method.try_get("package_id").unwrap_or_default(),
                     command_template: method.try_get("command_template").unwrap_or_default(),
                     validation_note: method.try_get("validation_note").unwrap_or_default(),
@@ -1016,8 +1013,9 @@ impl CliMarketRepo {
                             .unwrap_or_else(|_| Uuid::new_v4())
                             .to_string(),
                     ),
-                    locale: parse_locale(&doc.try_get::<String, _>("locale").unwrap_or_default())
-                        .unwrap_or(CliLocale::ZhCn),
+                    locale: CliLocale::from_code_or_default(
+                        &doc.try_get::<String, _>("locale").unwrap_or_default(),
+                    ),
                     title: doc.try_get("title").unwrap_or_default(),
                     url: doc.try_get("url").unwrap_or_default(),
                     version: doc.try_get("version").unwrap_or_default(),
@@ -1565,71 +1563,20 @@ fn import_mode_code(value: CliImportMode) -> &'static str {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn parse_status(value: &str) -> CliMarketResult<CliMarketStatus> {
-    match value {
-        "draft" => Ok(CliMarketStatus::Draft),
-        "reviewing" => Ok(CliMarketStatus::Reviewing),
-        "published" => Ok(CliMarketStatus::Published),
-        "archived" => Ok(CliMarketStatus::Archived),
-        _ => Err(CliMarketError::Message(format!("未知状态：{value}"))),
-    }
+    CliMarketStatus::from_code(value)
+        .ok_or_else(|| CliMarketError::Message(format!("未知状态：{value}")))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn parse_source_type(value: &str) -> CliMarketResult<CliMarketSourceType> {
-    match value {
-        "manual" => Ok(CliMarketSourceType::Manual),
-        "import_json" => Ok(CliMarketSourceType::ImportJson),
-        "import_excel" => Ok(CliMarketSourceType::ImportExcel),
-        "sync_external" => Ok(CliMarketSourceType::SyncExternal),
-        _ => Err(CliMarketError::Message(format!("未知来源类型：{value}"))),
-    }
+    CliMarketSourceType::from_code(value)
+        .ok_or_else(|| CliMarketError::Message(format!("未知来源类型：{value}")))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn parse_entry_kind(value: &str) -> CliMarketResult<CliEntryKind> {
-    match value {
-        "cli" => Ok(CliEntryKind::Cli),
-        "wrapper" => Ok(CliEntryKind::Wrapper),
-        "installer" => Ok(CliEntryKind::Installer),
-        "bundle" => Ok(CliEntryKind::Bundle),
-        _ => Err(CliMarketError::Message(format!("未知条目类型：{value}"))),
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn parse_locale(value: &str) -> CliMarketResult<CliLocale> {
-    match value {
-        "zh-CN" => Ok(CliLocale::ZhCn),
-        "en-US" => Ok(CliLocale::EnUs),
-        _ => Err(CliMarketError::Message(format!("未知 locale：{value}"))),
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn parse_platform(value: &str) -> CliMarketResult<CliPlatform> {
-    match value {
-        "macos" => Ok(CliPlatform::Macos),
-        "windows" => Ok(CliPlatform::Windows),
-        "linux" => Ok(CliPlatform::Linux),
-        "cross_platform" => Ok(CliPlatform::CrossPlatform),
-        _ => Err(CliMarketError::Message(format!("未知平台：{value}"))),
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn parse_installer_kind(value: &str) -> CliMarketResult<CliInstallerKind> {
-    match value {
-        "brew" => Ok(CliInstallerKind::Brew),
-        "bun" => Ok(CliInstallerKind::Bun),
-        "npm" => Ok(CliInstallerKind::Npm),
-        "cargo" => Ok(CliInstallerKind::Cargo),
-        "pipx" => Ok(CliInstallerKind::Pipx),
-        "winget" => Ok(CliInstallerKind::Winget),
-        "scoop" => Ok(CliInstallerKind::Scoop),
-        "curl" => Ok(CliInstallerKind::Curl),
-        "custom" => Ok(CliInstallerKind::Custom),
-        _ => Err(CliMarketError::Message(format!("未知安装器类型：{value}"))),
-    }
+    CliEntryKind::from_code(value)
+        .ok_or_else(|| CliMarketError::Message(format!("未知条目类型：{value}")))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1705,13 +1652,13 @@ fn row_to_install_history_item(
             .ok()
             .flatten()
             .map(|value| value.to_string()),
-        platform: parse_platform(&row.try_get::<String, _>("platform").unwrap_or_default())
-            .unwrap_or(CliPlatform::CrossPlatform),
-        installer_kind: parse_installer_kind(
+        platform: CliPlatform::from_code_or_default(
+            &row.try_get::<String, _>("platform").unwrap_or_default(),
+        ),
+        installer_kind: CliInstallerKind::from_code_or_default(
             &row.try_get::<String, _>("installer_kind")
                 .unwrap_or_default(),
-        )
-        .unwrap_or(CliInstallerKind::Custom),
+        ),
         command: row.try_get("command").unwrap_or_default(),
         success: row.try_get("success").unwrap_or_default(),
         exit_code: row.try_get("exit_code").ok(),
@@ -2083,7 +2030,7 @@ fn parse_first_platform(value: &str) -> CliMarketResult<CliPlatform> {
         .into_iter()
         .next()
         .unwrap_or_else(|| "cross_platform".to_string());
-    parse_platform(first.trim()).or(Ok(CliPlatform::CrossPlatform))
+    Ok(CliPlatform::from_code_or_default(first.trim()))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -2092,7 +2039,7 @@ fn parse_first_installer_kind(value: &str) -> CliMarketResult<CliInstallerKind> 
         .into_iter()
         .next()
         .unwrap_or_else(|| "custom".to_string());
-    parse_installer_kind(first.trim()).or(Ok(CliInstallerKind::Custom))
+    Ok(CliInstallerKind::from_code_or_default(first.trim()))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
