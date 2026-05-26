@@ -12,10 +12,6 @@ pub(crate) fn trim_non_blank(value: Option<&str>) -> Option<&str> {
     })
 }
 
-pub(crate) fn non_blank(value: Option<&str>) -> Option<&str> {
-    trim_non_blank(value)
-}
-
 pub(crate) fn encode_url_component(value: &str) -> String {
     const UNRESERVED: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~";
     const HEX: &[u8; 16] = b"0123456789ABCDEF";

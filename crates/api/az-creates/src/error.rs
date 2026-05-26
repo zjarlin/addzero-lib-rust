@@ -50,3 +50,16 @@ impl_from_match!(az_music::MusicError => CreatesError {
     az_music::MusicError::HttpStatus { url, status, body } => Self::HttpStatus { url, status, body },
     az_music::MusicError::InvalidResponse(message) => Self::InvalidResponse(message),
 });
+
+impl_from_match!(az_maven::MavenError => CreatesError {
+    az_maven::MavenError::InvalidConfig(message) => Self::InvalidConfig(message),
+    az_maven::MavenError::InvalidBaseUrl(url) => Self::InvalidBaseUrl(url),
+    az_maven::MavenError::InvalidPath(path) => Self::InvalidPath(path),
+    az_maven::MavenError::InvalidHeaderName { name, source } => Self::InvalidHeaderName { name, source },
+    az_maven::MavenError::InvalidHeaderValue { name, source } => Self::InvalidHeaderValue { name, source },
+    az_maven::MavenError::Transport(error) => Self::Transport(error),
+    az_maven::MavenError::Json(error) => Self::Json(error),
+    az_maven::MavenError::HttpStatus { url, status, body } => Self::HttpStatus { url, status, body },
+    az_maven::MavenError::Signature(message) => Self::Signature(message),
+    az_maven::MavenError::InvalidResponse(message) => Self::InvalidResponse(message),
+});

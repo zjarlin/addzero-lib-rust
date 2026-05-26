@@ -58,11 +58,6 @@ impl HttpApiClient {
         Ok(serde_json::from_slice(bytes.as_ref())?)
     }
 
-    pub(crate) fn read_bytes(response: Response) -> CreatesResult<Vec<u8>> {
-        let response = Self::ensure_success(response)?;
-        Ok(response.bytes()?.to_vec())
-    }
-
     pub(crate) fn build_url(&self, path: &str, query: &[(&str, String)]) -> CreatesResult<Url> {
         let mut url = self.join_url(path)?;
         if !query.is_empty() {

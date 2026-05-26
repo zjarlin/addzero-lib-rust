@@ -1154,6 +1154,7 @@ version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
  "az-email",
+ "az-maven",
  "az-music",
  "az-sms",
  "az-temp-mail",

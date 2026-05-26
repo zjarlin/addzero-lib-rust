@@ -1,4 +1,3 @@
-use crate::util::trim_non_blank;
 use crate::{ApiConfig, CreatesError, CreatesResult};
 use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
@@ -39,34 +38,6 @@ impl HttpApiClient {
         Ok(self.client.get(self.join_url(path)?))
     }
 
-    pub(crate) fn get_url(&self, url: Url) -> RequestBuilder {
-        self.client.get(url)
-    }
-
-    pub(crate) fn post(&self, path: &str) -> CreatesResult<RequestBuilder> {
-        Ok(self.client.post(self.join_url(path)?))
-    }
-
-    pub(crate) fn with_bearer_auth(
-        builder: RequestBuilder,
-        bearer_token: Option<&str>,
-    ) -> RequestBuilder {
-        match trim_non_blank(bearer_token) {
-            Some(token) => builder.bearer_auth(token),
-            None => builder,
-        }
-    }
-
-    pub(crate) fn with_headers(
-        builder: RequestBuilder,
-        headers: &BTreeMap<String, String>,
-    ) -> CreatesResult<RequestBuilder> {
-        if headers.is_empty() {
-            return Ok(builder);
-        }
-        Ok(builder.headers(build_header_map(headers)?))
-    }
-
     pub(crate) fn read_json<T: DeserializeOwned>(response: Response) -> CreatesResult<T> {
         let response = Self::ensure_success(response)?;
         let bytes = response.bytes()?;
@@ -76,17 +47,6 @@ impl HttpApiClient {
     pub(crate) fn read_bytes(response: Response) -> CreatesResult<Vec<u8>> {
         let response = Self::ensure_success(response)?;
         Ok(response.bytes()?.to_vec())
-    }
-
-    pub(crate) fn build_url(&self, path: &str, query: &[(&str, String)]) -> CreatesResult<Url> {
-        let mut url = self.join_url(path)?;
-        if !query.is_empty() {
-            let mut pairs = url.query_pairs_mut();
-            for (name, value) in query {
-                pairs.append_pair(name, value);
-            }
-        }
-        Ok(url)
     }
 
     fn ensure_success(response: Response) -> CreatesResult<Response> {

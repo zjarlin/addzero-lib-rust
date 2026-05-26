@@ -1,34 +1,17 @@
-use crate::http::HttpApiClient;
-use crate::util::non_blank;
 use crate::{ApiConfig, CreatesResult};
-use az_derive_aliases::{apply, deserialize_debug, plain_clone_debug, serde_eq};
+use az_derive_aliases::{apply, plain_clone_debug};
 
-#[apply(serde_eq)]
-pub struct MavenArtifact {
-    pub id: String,
-    pub group_id: String,
-    pub artifact_id: String,
-    pub latest_version: Option<String>,
-    pub version: Option<String>,
-    pub packaging: Option<String>,
-    pub timestamp: Option<i64>,
-}
-
-impl MavenArtifact {
-    pub fn resolved_version(&self) -> Option<&str> {
-        self.version.as_deref().or(self.latest_version.as_deref())
-    }
-}
+pub use az_maven::MavenArtifact;
 
 #[apply(plain_clone_debug)]
 pub struct MavenCentralApi {
-    http: HttpApiClient,
+    inner: az_maven::MavenCentralApi,
 }
 
 impl MavenCentralApi {
     pub fn new(config: ApiConfig) -> CreatesResult<Self> {
         Ok(Self {
-            http: HttpApiClient::new(config)?,
+            inner: az_maven::MavenCentralApi::new(config)?,
         })
     }
 
@@ -37,7 +20,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        self.search(format!("g:{}", group_id.as_ref().trim()), rows, None)
+        Ok(self.inner.search_by_group_id(group_id, rows)?)
     }
 
     pub fn search_by_artifact_id(
@@ -45,7 +28,7 @@ impl MavenCentralApi {
         artifact_id: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        self.search(format!("a:{}", artifact_id.as_ref().trim()), rows, None)
+        Ok(self.inner.search_by_artifact_id(artifact_id, rows)?)
     }
 
     pub fn search_by_coordinates(
@@ -54,12 +37,9 @@ impl MavenCentralApi {
         artifact_id: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        let query = format!(
-            "g:{} AND a:{}",
-            group_id.as_ref().trim(),
-            artifact_id.as_ref().trim()
-        );
-        self.search(query, rows, None)
+        Ok(self
+            .inner
+            .search_by_coordinates(group_id, artifact_id, rows)?)
     }
 
     pub fn search_all_versions(
@@ -68,12 +48,9 @@ impl MavenCentralApi {
         artifact_id: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        let query = format!(
-            "g:{} AND a:{}",
-            group_id.as_ref().trim(),
-            artifact_id.as_ref().trim()
-        );
-        self.search(query, rows, Some("gav"))
+        Ok(self
+            .inner
+            .search_all_versions(group_id, artifact_id, rows)?)
     }
 
     pub fn search_by_full_coordinates(
@@ -85,22 +62,14 @@ impl MavenCentralApi {
         classifier: Option<&str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        let mut conditions = vec![
-            format!("g:{}", group_id.as_ref().trim()),
-            format!("a:{}", artifact_id.as_ref().trim()),
-        ];
-
-        if let Some(value) = non_blank(version) {
-            conditions.push(format!("v:{value}"));
-        }
-        if let Some(value) = non_blank(packaging) {
-            conditions.push(format!("p:{value}"));
-        }
-        if let Some(value) = non_blank(classifier) {
-            conditions.push(format!("l:{value}"));
-        }
-
-        self.search(conditions.join(" AND "), rows, None)
+        Ok(self.inner.search_by_full_coordinates(
+            group_id,
+            artifact_id,
+            version,
+            packaging,
+            classifier,
+            rows,
+        )?)
     }
 
     pub fn search_by_class_name(
@@ -108,7 +77,7 @@ impl MavenCentralApi {
         class_name: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        self.search(format!("c:{}", class_name.as_ref().trim()), rows, None)
+        Ok(self.inner.search_by_class_name(class_name, rows)?)
     }
 
     pub fn search_by_fully_qualified_class_name(
@@ -116,7 +85,9 @@ impl MavenCentralApi {
         class_name: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        self.search(format!("fc:{}", class_name.as_ref().trim()), rows, None)
+        Ok(self
+            .inner
+            .search_by_fully_qualified_class_name(class_name, rows)?)
     }
 
     pub fn search_by_sha1(
@@ -124,7 +95,7 @@ impl MavenCentralApi {
         sha1: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        self.search(format!("1:{}", sha1.as_ref().trim()), rows, None)
+        Ok(self.inner.search_by_sha1(sha1, rows)?)
     }
 
     pub fn search_by_tag(
@@ -132,7 +103,7 @@ impl MavenCentralApi {
         tag: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        self.search(format!("tags:{}", tag.as_ref().trim()), rows, None)
+        Ok(self.inner.search_by_tag(tag, rows)?)
     }
 
     pub fn search_by_keyword(
@@ -140,7 +111,7 @@ impl MavenCentralApi {
         keyword: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Vec<MavenArtifact>> {
-        self.search(keyword.as_ref().trim().to_owned(), rows, None)
+        Ok(self.inner.search_by_keyword(keyword, rows)?)
     }
 
     pub fn get_latest_version(
@@ -148,10 +119,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         artifact_id: impl AsRef<str>,
     ) -> CreatesResult<Option<String>> {
-        let artifacts = self.search_by_coordinates(group_id, artifact_id, 1)?;
-        Ok(artifacts
-            .first()
-            .and_then(|artifact| artifact.latest_version.clone().or(artifact.version.clone())))
+        Ok(self.inner.get_latest_version(group_id, artifact_id)?)
     }
 
     pub fn get_latest_version_by_group_id(
@@ -159,10 +127,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         rows: usize,
     ) -> CreatesResult<Option<String>> {
-        let artifacts = self.search_by_group_id(group_id, rows)?;
-        Ok(artifacts
-            .first()
-            .and_then(|artifact| artifact.latest_version.clone().or(artifact.version.clone())))
+        Ok(self.inner.get_latest_version_by_group_id(group_id, rows)?)
     }
 
     pub fn download_file(
@@ -172,94 +137,13 @@ impl MavenCentralApi {
         version: impl AsRef<str>,
         filename: impl AsRef<str>,
     ) -> CreatesResult<Vec<u8>> {
-        let filepath = format!(
-            "{}/{}/{}/{}",
-            group_id.as_ref().replace('.', "/"),
-            artifact_id.as_ref().trim(),
-            version.as_ref().trim(),
-            filename.as_ref().trim()
-        );
-
-        let response = self
-            .http
-            .get("/remotecontent")?
-            .query(&[("filepath", filepath)])
-            .send()?;
-        HttpApiClient::read_bytes(response)
-    }
-
-    fn search(
-        &self,
-        query: String,
-        rows: usize,
-        core: Option<&str>,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
-        let mut params = vec![
-            ("q", query),
-            ("rows", rows.max(1).to_string()),
-            ("wt", "json".to_owned()),
-        ];
-
-        if let Some(value) = core {
-            params.push(("core", value.to_owned()));
-        }
-
-        let response = self.http.get("/solrsearch/select")?.query(&params).send()?;
-        let response: MavenSearchResponseEnvelope = HttpApiClient::read_json(response)?;
-
-        Ok(response
-            .response
-            .docs
-            .into_iter()
-            .map(MavenArtifact::from)
-            .collect())
+        Ok(self
+            .inner
+            .download_file(group_id, artifact_id, version, filename)?)
     }
 }
 
 pub fn create_maven_central_api() -> CreatesResult<MavenCentralApi> {
     let config = ApiConfig::builder("https://search.maven.org").build()?;
     MavenCentralApi::new(config)
-}
-
-#[apply(deserialize_debug)]
-struct MavenSearchResponseEnvelope {
-    response: MavenSearchResponse,
-}
-
-#[apply(deserialize_debug)]
-struct MavenSearchResponse {
-    #[serde(default)]
-    docs: Vec<MavenSearchDocument>,
-}
-
-#[apply(deserialize_debug)]
-struct MavenSearchDocument {
-    #[serde(default)]
-    id: String,
-    #[serde(rename = "g", default)]
-    group_id: String,
-    #[serde(rename = "a", default)]
-    artifact_id: String,
-    #[serde(rename = "latestVersion", default)]
-    latest_version: Option<String>,
-    #[serde(rename = "v", default)]
-    version: Option<String>,
-    #[serde(rename = "p", default)]
-    packaging: Option<String>,
-    #[serde(default)]
-    timestamp: Option<i64>,
-}
-
-impl From<MavenSearchDocument> for MavenArtifact {
-    fn from(value: MavenSearchDocument) -> Self {
-        Self {
-            id: value.id,
-            group_id: value.group_id,
-            artifact_id: value.artifact_id,
-            latest_version: value.latest_version,
-            version: value.version,
-            packaging: value.packaging,
-            timestamp: value.timestamp,
-        }
-    }
 }

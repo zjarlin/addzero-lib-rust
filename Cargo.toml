@@ -114,6 +114,7 @@ az-email = { version = "=2026.5.10", path = "crates/network/az-email" }
 az-gmail-code = { version = "=2026.5.10", path = "crates/network/az-gmail-code" }
 az-kiro-auth-support = { version = "=2026.5.10", path = "crates/api/az-kiro-auth-support" }
 az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
+az-maven = { version = "=2026.5.10", path = "crates/api/az-maven" }
 az-music = { version = "=2026.5.10", path = "crates/network/az-music" }
 az-oauth2 = { version = "=2026.5.10", path = "crates/api/az-oauth2" }
 az-persistence = { version = "=2026.5.10", path = "crates/data/az-persistence" }
