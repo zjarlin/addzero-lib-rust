@@ -1,5 +1,5 @@
 use crate::progress::{InMemoryUploadProgressStorage, PartInfo};
-use crate::types::{ObjectMetadata, PresignedUrl, S3ClientConfig};
+use crate::types::{ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig};
 use az_derive_aliases::{
     apply, error, plain_clone, plain_clone_debug, plain_default_clone_debug, plain_default_debug,
 };
@@ -149,10 +149,17 @@ pub struct DefaultS3StorageClientFactory {
 }
 
 impl DefaultS3StorageClientFactory {
+    /// Creates a factory with a caller-provided default config source.
     pub fn new(default_config: impl Fn() -> S3ClientConfig + Send + Sync + 'static) -> Self {
         Self {
             default_config: Arc::new(default_config),
         }
+    }
+}
+
+impl Default for DefaultS3StorageClientFactory {
+    fn default() -> Self {
+        Self::new(|| S3ClientConfig::from(RustfsConfig::default()))
     }
 }
 

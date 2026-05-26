@@ -21,9 +21,46 @@ pub use progress::{
 };
 pub use types::{ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig};
 
+use az_derive_aliases::{apply, plain_default_copy_eq};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
+
+/// Namespace-style entry point for constructing S3-compatible storage clients.
+#[apply(plain_default_copy_eq)]
+pub struct Rustfs;
+
+impl Rustfs {
+    /// Creates a storage client from explicit S3-compatible configuration.
+    pub fn storage_client(config: impl Into<S3ClientConfig>) -> Arc<dyn S3StorageClient> {
+        create_storage_client(config)
+    }
+
+    /// Creates a storage client from the higher-level RustFS configuration.
+    pub fn client(config: RustfsConfig) -> Arc<dyn S3StorageClient> {
+        create_client(config)
+    }
+
+    /// Creates a storage client using [`RustfsConfig::default`].
+    pub fn default_client() -> Arc<dyn S3StorageClient> {
+        create_default_client()
+    }
+
+    /// Creates a storage client through an injected factory.
+    pub fn storage_client_with_factory(
+        factory: &dyn S3StorageClientFactory,
+        config: impl Into<S3ClientConfig>,
+    ) -> Arc<dyn S3StorageClient> {
+        factory.create_client(config.into())
+    }
+
+    /// Creates the factory-defined default storage client.
+    pub fn default_client_with_factory(
+        factory: &dyn S3StorageClientFactory,
+    ) -> Arc<dyn S3StorageClient> {
+        factory.create_default_client()
+    }
+}
 
 pub fn create_storage_client(config: impl Into<S3ClientConfig>) -> Arc<dyn S3StorageClient> {
     Arc::new(BlockingS3StorageClient::new(config.into()))

@@ -18,6 +18,65 @@ fn client_config_and_rustfs_defaults_match_expected_values() {
 }
 
 #[test]
+fn rustfs_facade_builds_clients_through_default_and_injected_factories() {
+    let config = RustfsConfig::default();
+    let client = Rustfs::client(config.clone());
+    assert_eq!(Arc::strong_count(&client), 1);
+
+    let client = Rustfs::storage_client(S3ClientConfig::from(config.clone()));
+    assert_eq!(Arc::strong_count(&client), 1);
+
+    let factory = DefaultS3StorageClientFactory::default();
+    let client = Rustfs::default_client_with_factory(&factory);
+    assert_eq!(Arc::strong_count(&client), 1);
+
+    let factory = CountingMemoryFactory::default();
+    let client = Rustfs::storage_client_with_factory(&factory, config);
+    assert!(
+        !client
+            .bucket_exists("missing")
+            .expect("injected factory client should be constructible")
+    );
+    assert_eq!(
+        factory
+            .explicit_configs
+            .lock()
+            .expect("configs should lock")
+            .len(),
+        1
+    );
+
+    let client = Rustfs::default_client_with_factory(&factory);
+    assert!(
+        !client
+            .bucket_exists("missing")
+            .expect("injected default client should be constructible")
+    );
+    assert_eq!(*factory.default_calls.lock().expect("calls should lock"), 1);
+}
+
+#[derive(Default)]
+struct CountingMemoryFactory {
+    explicit_configs: Mutex<Vec<S3ClientConfig>>,
+    default_calls: Mutex<usize>,
+}
+
+impl S3StorageClientFactory for CountingMemoryFactory {
+    fn create_client(&self, config: S3ClientConfig) -> Arc<dyn S3StorageClient> {
+        self.explicit_configs
+            .lock()
+            .expect("configs should lock")
+            .push(config);
+        Arc::new(InMemoryS3StorageClient::default())
+    }
+
+    fn create_default_client(&self) -> Arc<dyn S3StorageClient> {
+        *self.default_calls.lock().expect("calls should lock") += 1;
+        Arc::new(InMemoryS3StorageClient::default())
+    }
+}
+
+#[test]
 fn in_memory_client_supports_bucket_and_object_lifecycle() {
     let client = InMemoryS3StorageClient::default();
     client.create_bucket("demo").expect("bucket should create");

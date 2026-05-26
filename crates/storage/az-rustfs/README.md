@@ -5,6 +5,7 @@ S3 兼容对象存储客户端抽象。封装 `rust-s3`，提供同步/异步上
 ## 功能
 
 - `S3StorageClient` trait：统一的存储客户端接口（bucket 管理、对象 CRUD、预签名 URL）
+- `Rustfs` facade：统一入口，支持默认配置、显式配置和注入式工厂构造
 - `BlockingS3StorageClient`：基于 `rust-s3` 的同步 S3 实现
 - `InMemoryS3StorageClient`：纯内存的测试用实现
 - `S3StorageClientFactory`：可注入的客户端工厂模式
@@ -29,12 +30,11 @@ az-rustfs = { path = "../az-rustfs" }       # workspace 内部引用
 
 ```rust
 use az_rustfs::{
-    create_default_client, ensure_bucket, put_object_bytes, get_object,
-    S3StorageClient,
+    get_object, ensure_bucket, put_object_bytes, Rustfs,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = create_default_client();
+    let client = Rustfs::default_client();
     let bucket = "my-bucket";
 
     ensure_bucket(&*client, bucket)?;
@@ -45,6 +45,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+```
+
+### 工厂注入
+
+```rust
+use az_rustfs::{DefaultS3StorageClientFactory, Rustfs, RustfsConfig};
+
+let factory = DefaultS3StorageClientFactory::default();
+let client = Rustfs::storage_client_with_factory(&factory, RustfsConfig::default());
+assert_eq!(std::sync::Arc::strong_count(&client), 1);
 ```
 
 ## 依赖的 crates
