@@ -11,6 +11,8 @@
 //!   代理版（`TianyanchaHuaweiApi`）两种接入方式，支持公司搜索与详情查询。
 //! - **临时邮箱**（re-export 自 `az-temp-mail`）—— 创建临时邮箱、收发邮件、管理地址等，
 //!   支持 Cloudflare、mail.tm、Emailnator 三种后端和 provider factory 注入。
+//! - **短信接码**（re-export 自 `az-sms`）—— 统一 5sim、Grizzly SMS 等 provider 的
+//!   trait-object 工厂边界，供注册/验证流程依赖注入。
 //! - **音乐搜索/生成**（re-export 自 `az-music`）—— 网易云音乐搜索、歌词获取、
 //!   Suno AI 音乐生成等。
 //!
@@ -48,6 +50,20 @@ pub use az_music::{
     MusicSearchRequest, MusicSearchResponse, MusicSearchResult, MusicSearchType, MusicSong,
     NeteaseMusicApi, SongDetailResponse, SongWithLyric, SunoApi, SunoMusicRequest, SunoTask,
     create_netease_api as create_music_search_api, create_suno_api,
+};
+pub use az_sms::{
+    error::{SmsError, SmsResult},
+    fivesim::{FivesimClient, FivesimConfig, FivesimConfigBuilder},
+    fivesim_factory::{build_fivesim_provider, build_fivesim_provider_with},
+    grizzlysms::{GrizzlySmsClient, GrizzlySmsConfig, GrizzlySmsConfigBuilder},
+    model::{
+        SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsMessage, SmsOrder, SmsOrderStatus,
+        SmsProfile, WaitForSmsOptions,
+    },
+    provider::{
+        BoxSmsProvider, BuiltinSmsProviderFactory, SmsProvider, SmsProviderConfig,
+        SmsProviderFactory, SmsProviderKind, build_sms_provider,
+    },
 };
 pub use az_temp_mail::{
     AddressCredential as TempMailAddressCredential,
@@ -125,6 +141,28 @@ impl Creates {
         config: TempMailProviderConfig,
     ) -> TempMailResult<BoxTempMailProvider> {
         factory.build_provider(config)
+    }
+
+    pub fn sms_provider(config: SmsProviderConfig) -> SmsResult<BoxSmsProvider> {
+        build_sms_provider(config)
+    }
+
+    pub fn sms_provider_with_factory(
+        factory: &dyn SmsProviderFactory,
+        config: SmsProviderConfig,
+    ) -> SmsResult<BoxSmsProvider> {
+        factory.build_provider(config)
+    }
+
+    pub fn fivesim_sms(token: &str) -> SmsResult<BoxSmsProvider> {
+        build_fivesim_provider(token)
+    }
+
+    pub fn fivesim_sms_with_factory(
+        factory: &dyn SmsProviderFactory,
+        token: &str,
+    ) -> SmsResult<BoxSmsProvider> {
+        build_fivesim_provider_with(factory, token)
     }
 
     pub fn music_search() -> CreatesResult<MusicSearchApi> {

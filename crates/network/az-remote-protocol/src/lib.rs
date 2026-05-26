@@ -54,7 +54,7 @@
 //! ```
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, error, serde_eq, serde_eq_copy, serde_eq_redacted};
+use az_derive_aliases::{apply, error, serde_code_enum, serde_eq, serde_eq_redacted};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, FileTransferEnvelope, RemoteInputEvent, SessionGrant,
     SessionRequest, VideoFrameEnvelope,
@@ -68,7 +68,7 @@ pub enum ProtocolError {
     Serialize(#[from] serde_json::Error),
 }
 
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum StreamKind {
     Control,
     Video,

@@ -129,6 +129,28 @@ fn creates_facade_builds_temp_mail_provider() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[test]
+fn creates_facade_builds_sms_provider() -> Result<(), Box<dyn Error>> {
+    let fivesim = FivesimConfig::builder("token").build()?;
+    assert_eq!(
+        SmsProviderConfig::from(fivesim.clone()).kind(),
+        SmsProviderKind::Fivesim
+    );
+
+    let provider = Creates::sms_provider(fivesim.into())?;
+    drop(provider);
+
+    let factory: &dyn SmsProviderFactory = &BuiltinSmsProviderFactory;
+    let grizzly = GrizzlySmsConfig::builder("api-key").build()?;
+    let provider = Creates::sms_provider_with_factory(factory, grizzly.into())?;
+    drop(provider);
+
+    let fivesim = Creates::fivesim_sms_with_factory(factory, "token")?;
+    drop(fivesim);
+
+    Ok(())
+}
+
 #[apply(plain_clone_debug)]
 struct CapturedRequest {
     method: String,

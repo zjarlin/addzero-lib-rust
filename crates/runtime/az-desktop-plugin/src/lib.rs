@@ -7,7 +7,7 @@ use az_assets::{
     AiModelProvider, AiModelProviderUpsert, AiProviderKind, Asset, AssetGraph, AssetKind,
     AssetUpsert,
 };
-use az_derive_aliases::{apply, plain_clone, plain_copy_eq, plain_default_eq, plain_eq};
+use az_derive_aliases::{apply, plain_clone, plain_code_enum, plain_default_eq, plain_eq};
 use az_drive_agent::{
     HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem, TrackedItem,
 };
@@ -48,20 +48,20 @@ pub type DesktopPlugin = dyn Plugin<
         DesktopRenderLayer,
     >;
 
-#[apply(plain_copy_eq)]
+#[apply(plain_code_enum)]
 pub enum EventPropagation {
     Continue,
     Stop,
 }
 
-#[apply(plain_copy_eq)]
+#[apply(plain_code_enum)]
 pub enum DesktopRenderLayer {
     Main,
     Inspector,
     Overlay,
 }
 
-#[apply(plain_copy_eq)]
+#[apply(plain_code_enum)]
 pub enum DesktopPageRole {
     Owner,
     Contributor,
@@ -672,9 +672,9 @@ mod tests {
     use super::{
         DesktopBranchRegistration, DesktopContributions, DesktopDomainRegistration, DesktopEvent,
         DesktopExecContext, DesktopHostRegistry, DesktopHostServices, DesktopInitContext,
-        DesktopPageRegistration, DesktopPageRole, DesktopProviderTestResult, DesktopShellSnapshot,
-        DesktopSummaryCardRegistration, DesktopToolbarActionRegistration, EventPropagation,
-        ListTrackedOptions,
+        DesktopPageRegistration, DesktopPageRole, DesktopProviderTestResult, DesktopRenderLayer,
+        DesktopShellSnapshot, DesktopSummaryCardRegistration, DesktopToolbarActionRegistration,
+        EventPropagation, ListTrackedOptions,
     };
     use uuid::Uuid;
 
@@ -907,5 +907,23 @@ mod tests {
         assert!(feedback.refresh_requested);
         assert_eq!(feedback.selected_entity, Some(Some("item-1".to_string())));
         assert_eq!(feedback.route_override.as_deref(), Some("/config"));
+    }
+
+    #[test]
+    fn desktop_protocol_enums_expose_stable_codes() {
+        assert_eq!(
+            DesktopRenderLayer::ALL,
+            &[
+                DesktopRenderLayer::Main,
+                DesktopRenderLayer::Inspector,
+                DesktopRenderLayer::Overlay
+            ]
+        );
+        assert_eq!(EventPropagation::Stop.code(), "stop");
+        assert_eq!(
+            DesktopRenderLayer::from_code("inspector"),
+            Some(DesktopRenderLayer::Inspector)
+        );
+        assert_eq!(DesktopPageRole::Contributor.as_str(), "contributor");
     }
 }

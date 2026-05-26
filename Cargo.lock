@@ -874,6 +874,7 @@ version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
  "inventory",
+ "strum 0.28.0",
 ]
 
 [[package]]
@@ -1057,6 +1058,7 @@ dependencies = [
 name = "az-browser-automation"
 version = "2026.5.10"
 dependencies = [
+ "async-trait",
  "automod",
  "az-context",
  "az-derive-aliases",
@@ -1098,6 +1100,7 @@ version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
  "derive_more 2.1.1",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1115,6 +1118,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "strum 0.28.0",
  "tempfile",
  "thiserror 2.0.18",
  "uuid",
@@ -1150,6 +1154,7 @@ version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
  "az-music",
+ "az-sms",
  "az-temp-mail",
  "chrono",
  "hmac",
@@ -1180,6 +1185,7 @@ dependencies = [
  "az-derive-aliases",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1203,6 +1209,7 @@ dependencies = [
  "derive_more 2.1.1",
  "macro_rules_attribute",
  "serde",
+ "serde_json",
  "strum 0.28.0",
  "thiserror 2.0.18",
 ]
@@ -1218,6 +1225,7 @@ dependencies = [
  "az-software-catalog",
  "gpui",
  "serde_json",
+ "strum 0.28.0",
  "uuid",
 ]
 
@@ -1405,6 +1413,7 @@ dependencies = [
  "az-derive-aliases",
  "derive_more 2.1.1",
  "gitdb 0.1.0 (git+https://github.com/qeqqe/gitdb.git?rev=04c99a159d193273be8a6d9d1186756d20bff43a)",
+ "strum 0.28.0",
  "tempfile",
  "thiserror 2.0.18",
 ]
@@ -1523,6 +1532,7 @@ dependencies = [
  "derive_more 2.1.1",
  "rumqttc",
  "rustls",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1535,6 +1545,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1648,6 +1659,7 @@ dependencies = [
  "derive_more 2.1.1",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "uuid",
 ]
@@ -1681,6 +1693,7 @@ dependencies = [
  "quick-xml 0.38.4",
  "reqwest 0.12.28",
  "sha2",
+ "strum 0.28.0",
  "tempfile",
  "thiserror 2.0.18",
 ]
@@ -1723,6 +1736,7 @@ dependencies = [
  "az-derive-aliases",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "tokio",
 ]
@@ -1798,6 +1812,7 @@ dependencies = [
  "az-derive-aliases",
  "derive_more 2.1.1",
  "serde",
+ "strum 0.28.0",
  "thiserror 2.0.18",
 ]
 
@@ -1862,6 +1877,7 @@ dependencies = [
  "derive_more 2.1.1",
  "deunicode",
  "regex",
+ "strum 0.28.0",
  "tempfile",
 ]
 

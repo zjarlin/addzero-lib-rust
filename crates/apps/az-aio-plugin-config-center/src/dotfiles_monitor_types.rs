@@ -1,7 +1,8 @@
-use az_derive_aliases::{apply, deserialize_eq, serde_eq, serialize_eq};
+use az_derive_aliases::{
+    apply, deserialize_camel_eq, serde_camel_eq, serde_eq, serialize_camel_eq,
+};
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 pub struct DotfilesMonitorStatus {
     pub root: String,
     pub source_home: String,
@@ -16,8 +17,7 @@ pub struct DotfilesMonitorStatus {
     pub updated_at: String,
 }
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 pub struct DotfilesWatchedFile {
     pub relative_path: String,
     pub repo_path: String,
@@ -27,8 +27,7 @@ pub struct DotfilesWatchedFile {
     pub detail: String,
 }
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 pub struct DotfilesConflict {
     pub id: String,
     pub relative_path: String,
@@ -51,8 +50,7 @@ pub struct DotfilesConflict {
     pub line_end: usize,
 }
 
-#[apply(serde_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serde_camel_eq)]
 pub struct DotfilesPeerDevice {
     pub id: String,
     pub name: String,
@@ -69,8 +67,7 @@ pub struct DotfilesBaselineEntry {
     pub home_modified: u64,
 }
 
-#[apply(deserialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(deserialize_camel_eq)]
 pub struct DotfilesPeerDeviceInput {
     pub id: String,
     pub name: String,
@@ -78,14 +75,12 @@ pub struct DotfilesPeerDeviceInput {
     pub enabled: bool,
 }
 
-#[apply(deserialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(deserialize_camel_eq)]
 pub struct DotfilesDevicesRequest {
     pub devices: Vec<DotfilesPeerDeviceInput>,
 }
 
-#[apply(deserialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(deserialize_camel_eq)]
 pub struct ResolveDotfilesConflictRequest {
     pub conflict_id: String,
     pub strategy: String,

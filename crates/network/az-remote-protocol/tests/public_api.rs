@@ -1,7 +1,7 @@
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability,
 };
-use az_remote_protocol::{ControlFrame, DeviceHello};
+use az_remote_protocol::{ControlFrame, DeviceHello, StreamKind};
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -39,4 +39,31 @@ fn clipboard_frame_is_serializable() {
         updated_at: Utc::now(),
     });
     assert!(!frame.to_json_bytes().expect("encode").is_empty());
+}
+
+#[test]
+fn stream_kind_code_is_snake_case() {
+    assert_eq!(StreamKind::Clipboard.code(), "clipboard");
+}
+
+#[test]
+fn stream_kind_all_lists_supported_streams() {
+    assert_eq!(
+        StreamKind::ALL,
+        &[
+            StreamKind::Control,
+            StreamKind::Video,
+            StreamKind::Input,
+            StreamKind::Clipboard,
+            StreamKind::File,
+        ]
+    );
+}
+
+#[test]
+fn stream_kind_serde_uses_snake_case_protocol_code() {
+    assert_eq!(
+        serde_json::to_string(&StreamKind::File).expect("serialize stream kind"),
+        "\"file\""
+    );
 }

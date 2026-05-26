@@ -19,7 +19,7 @@ pub use crate::session::{
 };
 
 use az_context::ThreadLocalUtil;
-use az_derive_aliases::{apply, error, plain_default_copy_eq, serde_eq, serde_eq_default_copy};
+use az_derive_aliases::{apply, error, plain_default_copy_eq, serde_code_default_enum, serde_eq};
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
 use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
 use reqwest::blocking::Client;
@@ -190,7 +190,7 @@ impl Default for CdpEndpoint {
 }
 
 /// Form action kind for [`FormFieldDef`].
-#[apply(serde_eq_default_copy)]
+#[apply(serde_code_default_enum)]
 pub enum FieldType {
     /// Type text into an input-like element.
     #[default]

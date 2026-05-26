@@ -1,6 +1,6 @@
 use az_derive_aliases::{
-    apply, deserialize_eq, deserialize_partial_eq, plain_copy_eq, plain_eq, serde_code_enum,
-    serde_partial_eq, serialize_eq,
+    apply, deserialize_camel_eq, deserialize_eq, deserialize_partial_eq, plain_copy_eq, plain_eq,
+    serde_camel_partial_eq, serde_code_enum, serialize_camel_eq, serialize_eq,
 };
 use serde_json::Value;
 
@@ -120,8 +120,7 @@ impl CreateMailboxRequest {
 }
 
 /// Public settings returned by `/open_api/settings`.
-#[apply(serde_partial_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serde_camel_partial_eq)]
 pub struct TempMailSettings {
     #[serde(default)]
     pub title: String,
@@ -173,8 +172,7 @@ pub struct TempMailSettings {
 }
 
 /// Request body for `/api/new_address`.
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 pub struct NewAddressRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -416,8 +414,7 @@ pub struct ParsedMailRow {
 }
 
 /// Parsed attachment metadata returned by `/api/parsed_mails`.
-#[apply(deserialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(deserialize_camel_eq)]
 pub struct ParsedMailAttachment {
     #[serde(default)]
     pub filename: String,

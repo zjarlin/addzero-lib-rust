@@ -19,11 +19,9 @@ fn default_table_name_transliterates_when_english_name_is_blank() {
     let result = default_table_english_name("", Some("用户(表)"));
     assert!(!result.is_empty());
     assert!(!result.contains('('));
-    assert!(
-        result
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '_')
-    );
+    assert!(result
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric() || character == '_'));
 }
 
 #[test]
@@ -76,6 +74,16 @@ fn to_valid_variable_name_handles_digits_prefix_and_suffix() {
         to_valid_variable_name("order item", VariableType::SnakeCase, "erp", "entity"),
         "erp_order_item_entity"
     );
+}
+
+#[test]
+fn variable_type_exposes_stable_codes() {
+    assert_eq!(VariableType::CamelCase.code(), "camel_case");
+    assert_eq!(
+        VariableType::from_code("kebab_case"),
+        Some(VariableType::KebabCase)
+    );
+    assert_eq!(VariableType::ALL.len(), 5);
 }
 
 #[test]

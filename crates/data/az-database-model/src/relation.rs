@@ -1,7 +1,7 @@
-use az_derive_aliases::{apply, serde_eq, serde_eq_copy};
+use az_derive_aliases::{apply, serde_code_enum, serde_eq};
 
 /// The kind of relationship between tables.
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum RelationKind {
     /// One-to-one (1:1).
     OneToOne,
@@ -109,6 +109,19 @@ mod tests {
         let deserialized: Relation = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.name, "fk_post_author");
         assert_eq!(deserialized.kind, RelationKind::ManyToOne);
+    }
+
+    #[test]
+    fn relation_kind_uses_snake_case_wire_codes() {
+        assert_eq!(RelationKind::ManyToMany.code(), "many_to_many");
+        assert_eq!(
+            serde_json::to_string(&RelationKind::ManyToOne).unwrap(),
+            "\"many_to_one\""
+        );
+        assert_eq!(
+            RelationKind::from_code("one_to_one"),
+            Some(RelationKind::OneToOne)
+        );
     }
 
     #[test]

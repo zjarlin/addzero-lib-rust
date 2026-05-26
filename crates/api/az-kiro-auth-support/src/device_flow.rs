@@ -2,7 +2,8 @@ use crate::http::HttpClient;
 use crate::{KiroAuthSupportError, KiroAuthSupportResult, KiroOidcConfig};
 use az_derive_aliases::{
     apply, plain_clone_debug, plain_debug, plain_eq, plain_partial_eq, plain_partial_eq_display,
-    serde_code_default_enum, serde_eq_default, serde_partial_eq_default, serialize_eq,
+    serde_camel_eq_default, serde_camel_partial_eq_default, serde_code_default_enum,
+    serialize_camel_eq,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -50,8 +51,7 @@ impl KiroLoginType {
 }
 
 /// Registered OIDC public client returned by `/client/register`.
-#[apply(serde_eq_default)]
-#[serde(rename_all = "camelCase")]
+#[apply(serde_camel_eq_default)]
 pub struct KiroClientRegistration {
     #[serde(default)]
     pub client_id: String,
@@ -68,8 +68,7 @@ pub struct KiroClientRegistration {
 }
 
 /// Device authorization metadata returned by `/device_authorization`.
-#[apply(serde_eq_default)]
-#[serde(rename_all = "camelCase")]
+#[apply(serde_camel_eq_default)]
 pub struct KiroDeviceAuthorization {
     #[serde(default)]
     pub device_code: String,
@@ -98,8 +97,7 @@ impl KiroDeviceAuthorization {
 }
 
 /// Access token response returned by `/token`, including error responses.
-#[apply(serde_partial_eq_default)]
-#[serde(rename_all = "camelCase")]
+#[apply(serde_camel_partial_eq_default)]
 pub struct KiroTokenResponse {
     #[serde(default)]
     pub access_token: Option<String>,
@@ -507,8 +505,7 @@ impl KiroDeviceFlowManager {
     }
 }
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 struct RegisterClientRequest {
     client_name: String,
     client_type: String,
@@ -516,16 +513,14 @@ struct RegisterClientRequest {
     scopes: Vec<String>,
 }
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 struct DeviceAuthorizationRequest {
     client_id: String,
     client_secret: String,
     start_url: String,
 }
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 struct TokenRequest {
     client_id: String,
     client_secret: String,

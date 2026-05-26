@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use super::logical::SortSpec;
 use crate::sql::Expr;
-use az_derive_aliases::{apply, plain_clone_debug, plain_copy_eq_display};
+use az_derive_aliases::{apply, plain_clone_debug, plain_code_display_no_default_enum};
 
 /// Physical execution operators.
 ///
@@ -105,7 +105,7 @@ pub struct KeyBound {
 }
 
 /// Physical join types with implementation details.
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum JoinPhysicalType {
     Inner,
     LeftOuter,
@@ -124,7 +124,7 @@ pub struct PhysicalAggregate {
 }
 
 /// Physical aggregate functions.
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum AggregatePhysical {
     Count,
     Sum,
@@ -379,9 +379,21 @@ mod tests {
     }
 
     #[test]
-    fn test_join_physical_type_display() {
+    fn test_physical_enum_codes_and_display() {
         assert_eq!(JoinPhysicalType::Inner.to_string(), "Inner");
         assert_eq!(JoinPhysicalType::LeftOuter.to_string(), "LeftOuter");
         assert_eq!(AggregatePhysical::Count.to_string(), "Count");
+        assert_eq!(JoinPhysicalType::LeftOuter.code(), "left_outer");
+        assert_eq!(
+            JoinPhysicalType::from_code("full_outer"),
+            Some(JoinPhysicalType::FullOuter)
+        );
+        assert_eq!(AggregatePhysical::Avg.code(), "avg");
+        assert_eq!(
+            AggregatePhysical::from_code("max"),
+            Some(AggregatePhysical::Max)
+        );
+        assert_eq!(JoinPhysicalType::ALL.len(), 5);
+        assert_eq!(AggregatePhysical::ALL.len(), 5);
     }
 }

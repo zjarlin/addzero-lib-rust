@@ -14,12 +14,11 @@
 //!
 //! Based on `debug_register.py` from the GPTregister project.
 
+use crate::ai_reg_auto::{buy_fivesim_number_with, create_registration_mailbox};
 use crate::browser_automation::BrowserAutomationResult;
 use az_derive_aliases::{apply, plain_clone_debug, plain_default_copy_eq, plain_default_eq};
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
-use az_temp_mail::{
-    create_mail_tm_api, CreateMailboxRequest, PageRequest, TempMailMailbox, TempMailProvider,
-};
+use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
 use reqwest::blocking::Client as HttpClient;
 use sha2::{Digest, Sha256};
 use std::thread;
@@ -106,7 +105,21 @@ impl OpenAiApiRegAutomation {
         reg_options: &OpenAiApiRegOptions,
         provider: &dyn TempMailProvider,
     ) -> BrowserAutomationResult<OpenAiApiRegResult> {
-        let mailbox = create_registration_mailbox(provider, reg_options)?;
+        Self::run_with_providers(reg_options, provider, &BuiltinSmsProviderFactory)
+    }
+
+    /// Runs the API registration flow with caller-provided temp-mail and SMS
+    /// provider factories.
+    ///
+    /// This keeps both external acquisition channels behind dependency
+    /// injection boundaries while preserving [`Self::run`] as the default
+    /// built-in provider path.
+    pub fn run_with_providers(
+        reg_options: &OpenAiApiRegOptions,
+        temp_mail_provider: &dyn TempMailProvider,
+        sms_provider_factory: &dyn SmsProviderFactory,
+    ) -> BrowserAutomationResult<OpenAiApiRegResult> {
+        let mailbox = create_registration_mailbox(temp_mail_provider, &reg_options.email_prefix)?;
         let email = mailbox.address.clone();
         let email_password = mailbox.password.clone().unwrap_or_default();
         let jwt = mailbox.credential.clone();
@@ -273,7 +286,9 @@ impl OpenAiApiRegAutomation {
             .unwrap_or(false);
         if needs_verify {
             thread::sleep(Duration::from_secs(3));
-            if let Some(code) = poll_temp_mail_code(provider, &mailbox, Duration::from_secs(120)) {
+            if let Some(code) =
+                poll_temp_mail_code(temp_mail_provider, &mailbox, Duration::from_secs(120))
+            {
                 let cookie_header = join_cookies(&cookie_jar);
                 let verify_body = serde_json::json!({"code": code, "email": email});
                 let _ = client
@@ -289,10 +304,16 @@ impl OpenAiApiRegAutomation {
         }
 
         // SMS phone verification
-        let sms_res = reg_options
-            .sms_token
-            .as_deref()
-            .and_then(|token| buy_sms_number(token, reg_options).ok());
+        let sms_res = reg_options.sms_token.as_deref().and_then(|token| {
+            buy_fivesim_number_with(
+                sms_provider_factory,
+                token,
+                &reg_options.sms_country,
+                &reg_options.sms_operator,
+                &reg_options.sms_product,
+            )
+            .ok()
+        });
         let sms_phone = sms_res.as_ref().map(|(p, _)| p.clone());
         let sms_order_id = sms_res.map(|(_, id)| id);
 
@@ -330,15 +351,6 @@ impl OpenAiApiRegAutomation {
             sync_results,
         })
     }
-}
-
-fn create_registration_mailbox(
-    provider: &dyn TempMailProvider,
-    reg_options: &OpenAiApiRegOptions,
-) -> BrowserAutomationResult<TempMailMailbox> {
-    provider
-        .create_mailbox(&CreateMailboxRequest::named(&reg_options.email_prefix).password_length(16))
-        .map_err(to_browser_error)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -524,37 +536,6 @@ fn join_cookies(jar: &[(String, String)]) -> String {
         .join("; ")
 }
 
-// ── SMS ──
-
-fn buy_sms_number(
-    sms_token: &str,
-    reg_options: &OpenAiApiRegOptions,
-) -> BrowserAutomationResult<(String, u64)> {
-    buy_sms_number_with(&BuiltinSmsProviderFactory, sms_token, reg_options)
-}
-
-fn buy_sms_number_with(
-    factory: &dyn SmsProviderFactory,
-    sms_token: &str,
-    reg_options: &OpenAiApiRegOptions,
-) -> BrowserAutomationResult<(String, u64)> {
-    let rt = tokio::runtime::Runtime::new().map_err(to_browser_error)?;
-    rt.block_on(async {
-        let client = crate::ai_reg_auto::build_fivesim_provider_with(factory, sms_token)?;
-        let request = az_sms::model::SmsActivationRequest::new(
-            &reg_options.sms_country,
-            &reg_options.sms_operator,
-            &reg_options.sms_product,
-        )
-        .map_err(to_browser_error)?;
-        let order = client
-            .buy_activation_number(request)
-            .await
-            .map_err(to_browser_error)?;
-        Ok((order.phone, order.id))
-    })
-}
-
 // ── Temp mail ──
 
 fn poll_temp_mail_code(
@@ -724,4 +705,227 @@ fn err_result(
 
 fn to_browser_error(error: impl ToString) -> crate::browser_automation::BrowserAutomationError {
     crate::browser_automation::BrowserAutomationError::Browser(error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use az_sms::error::{SmsError, SmsResult};
+    use az_sms::model::{SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsOrder};
+    use az_sms::provider::{
+        BoxSmsProvider, SmsProvider, SmsProviderConfig, SmsProviderFactory, SmsProviderKind,
+    };
+    use az_temp_mail::CreateMailboxRequest;
+
+    struct InspectingTempMailProvider;
+
+    impl TempMailProvider for InspectingTempMailProvider {
+        fn provider_kind(&self) -> az_temp_mail::TempMailProviderKind {
+            az_temp_mail::TempMailProviderKind::MailTm
+        }
+
+        fn create_mailbox(
+            &self,
+            request: &CreateMailboxRequest,
+        ) -> az_temp_mail::TempMailResult<TempMailMailbox> {
+            assert_eq!(request.name.as_deref(), Some("api"));
+            assert_eq!(request.password_length, 16);
+            Ok(TempMailMailbox {
+                provider: az_temp_mail::TempMailProviderKind::MailTm,
+                address: "api@example.test".to_owned(),
+                credential: "jwt-token".to_owned(),
+                account_id: Some("account-1".to_owned()),
+                password: Some("mail-password".to_owned()),
+            })
+        }
+
+        fn list_messages(
+            &self,
+            _mailbox: &TempMailMailbox,
+            _page: PageRequest,
+        ) -> az_temp_mail::TempMailResult<
+            az_temp_mail::ListResponse<az_temp_mail::TempMailMessageSummary>,
+        > {
+            Ok(az_temp_mail::ListResponse {
+                results: Vec::new(),
+                count: 0,
+            })
+        }
+
+        fn get_message(
+            &self,
+            _mailbox: &TempMailMailbox,
+            _message_id: &str,
+        ) -> az_temp_mail::TempMailResult<Option<az_temp_mail::TempMailMessageDetail>> {
+            Ok(None)
+        }
+    }
+
+    #[test]
+    fn api_registration_mailbox_should_use_injected_temp_mail_provider() {
+        let options = OpenAiApiRegOptions {
+            email_prefix: "api".to_owned(),
+            ..OpenAiApiRegOptions::default()
+        };
+        let provider = InspectingTempMailProvider;
+
+        let mailbox = create_registration_mailbox(&provider, &options.email_prefix)
+            .expect("mailbox should be created through injected provider");
+
+        assert_eq!(mailbox.address, "api@example.test");
+        assert_eq!(mailbox.password.as_deref(), Some("mail-password"));
+    }
+
+    struct InspectingSmsFactory;
+
+    impl SmsProviderFactory for InspectingSmsFactory {
+        fn build_provider(&self, config: SmsProviderConfig) -> SmsResult<BoxSmsProvider> {
+            assert_eq!(config.kind(), SmsProviderKind::Fivesim);
+            Ok(Box::new(InspectingSmsProvider))
+        }
+    }
+
+    struct InspectingSmsProvider;
+
+    #[async_trait::async_trait]
+    impl SmsProvider for InspectingSmsProvider {
+        async fn buy_activation_number(
+            &self,
+            request: SmsActivationRequest,
+        ) -> SmsResult<SmsOrder> {
+            assert_eq!(request.country, "usa");
+            assert_eq!(request.operator, "any");
+            assert_eq!(request.product, "openai");
+            Ok(SmsOrder {
+                id: 42,
+                phone: "+15551234567".to_owned(),
+                operator: Some("any".to_owned()),
+                product: "openai".to_owned(),
+                price: 0.0,
+                status: az_sms::model::SmsOrderStatus::Pending,
+                expires: None,
+                sms: Vec::new(),
+                created_at: None,
+                forwarding: None,
+                forwarding_number: None,
+                country: Some("usa".to_owned()),
+            })
+        }
+
+        async fn buy_hosting_number(&self, _request: SmsHostingRequest) -> SmsResult<SmsOrder> {
+            unsupported_sms_operation("buy_hosting_number")
+        }
+
+        async fn check_order(&self, _order_id: u64) -> SmsResult<SmsOrder> {
+            unsupported_sms_operation("check_order")
+        }
+
+        async fn finish_order(&self, _order_id: u64) -> SmsResult<SmsOrder> {
+            unsupported_sms_operation("finish_order")
+        }
+
+        async fn cancel_order(&self, _order_id: u64) -> SmsResult<SmsOrder> {
+            unsupported_sms_operation("cancel_order")
+        }
+
+        async fn ban_order(&self, _order_id: u64) -> SmsResult<SmsOrder> {
+            unsupported_sms_operation("ban_order")
+        }
+
+        async fn inbox(&self, _order_id: u64) -> SmsResult<SmsInbox> {
+            unsupported_sms_operation("inbox")
+        }
+    }
+
+    fn unsupported_sms_operation<T>(operation: &'static str) -> SmsResult<T> {
+        Err(SmsError::UnsupportedOperation {
+            provider: "inspect",
+            operation,
+        })
+    }
+
+    #[test]
+    fn api_registration_sms_number_should_use_injected_factory() {
+        let options = OpenAiApiRegOptions {
+            sms_country: "usa".to_owned(),
+            sms_operator: "any".to_owned(),
+            sms_product: "openai".to_owned(),
+            ..OpenAiApiRegOptions::default()
+        };
+
+        let (phone, order_id) = buy_fivesim_number_with(
+            &InspectingSmsFactory,
+            "token",
+            &options.sms_country,
+            &options.sms_operator,
+            &options.sms_product,
+        )
+        .expect("SMS number should be bought through injected factory");
+
+        assert_eq!(phone, "+15551234567");
+        assert_eq!(order_id, 42);
+    }
+
+    #[test]
+    fn pkce_verifier_is_128_chars() {
+        let v = pkce_verifier();
+        assert_eq!(v.len(), 128);
+        assert!(
+            v.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-._~".contains(c))
+        );
+    }
+
+    #[test]
+    fn pkce_challenge_is_base64url_no_pad() {
+        let challenge = sha256_base64url_no_pad("test");
+        assert!(!challenge.contains('='));
+        assert!(!challenge.contains('+'));
+        assert!(!challenge.contains('/'));
+    }
+
+    #[test]
+    fn urlencoding_encodes_special_chars() {
+        let encoded = urlencoding("com.openai.chatgpt://callback");
+        assert!(encoded.contains("%3A%2F%2F"));
+    }
+
+    #[test]
+    fn extract_code_finds_six_digit() {
+        let code = extract_verification_code("Your verification code is 123456");
+        assert_eq!(code.as_deref(), Some("123456"));
+    }
+
+    #[test]
+    fn extract_code_finds_code_prefix() {
+        let code = extract_verification_code("Code: 7890");
+        assert_eq!(code.as_deref(), Some("7890"));
+    }
+
+    #[test]
+    fn extract_code_from_html() {
+        let code = extract_verification_code("<p>Your code is <b>555121</b></p>");
+        assert_eq!(code.as_deref(), Some("555121"));
+    }
+
+    #[test]
+    fn api_options_default() {
+        let opts = OpenAiApiRegOptions::default();
+        assert_eq!(opts.sms_product, "openai");
+        assert_eq!(opts.sms_country, "usa");
+    }
+
+    #[test]
+    fn api_error_result_is_not_success() {
+        let r = api_error(
+            "e@t.com".into(),
+            "ep".into(),
+            "jwt".into(),
+            "pwd".into(),
+            "sentinel",
+            "fail",
+        );
+        assert!(!r.success);
+        assert_eq!(r.stage, "sentinel");
+    }
 }

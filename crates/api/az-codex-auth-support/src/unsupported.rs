@@ -1,8 +1,8 @@
 use crate::{CodexAuthSupportError, CodexAuthSupportResult};
-use az_derive_aliases::{apply, plain_copy_eq_display};
+use az_derive_aliases::{apply, plain_code_display_no_default_enum};
 
 /// Automation capabilities intentionally left out of this Rust port.
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum BlockedCapability {
     /// Bulk creation of OpenAI or ChatGPT accounts.
     #[display("automated_openai_registration")]
@@ -39,6 +39,18 @@ mod tests {
         assert_eq!(
             error,
             "unsupported capability: automated_openai_registration"
+        );
+    }
+
+    #[test]
+    fn unsupported_capabilities_expose_machine_codes() {
+        assert_eq!(
+            BlockedCapability::AutomatedOpenAiRegistration.code(),
+            "automated_open_ai_registration"
+        );
+        assert_eq!(
+            BlockedCapability::from_code("bulk_token_generation"),
+            Some(BlockedCapability::BulkTokenGeneration)
         );
     }
 }

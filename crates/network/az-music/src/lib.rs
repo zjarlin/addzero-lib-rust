@@ -40,7 +40,8 @@
 
 use az_derive_aliases::{
     apply, deserialize_debug, error, plain_clone_debug, plain_clone_redacted,
-    plain_default_copy_eq, plain_eq, serde_eq, serde_eq_default, serde_partial_eq_default,
+    plain_code_default_enum, plain_default_copy_eq, plain_eq, serde_eq, serde_eq_default,
+    serde_partial_eq_default,
 };
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
@@ -220,7 +221,7 @@ pub fn create_suno_api(api_token: impl Into<String>) -> MusicResult<SunoApi> {
     SunoApi::new(api_token, config)
 }
 
-#[apply(plain_default_copy_eq)]
+#[apply(plain_code_default_enum)]
 pub enum MusicSearchType {
     #[default]
     Song,

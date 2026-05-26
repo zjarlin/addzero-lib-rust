@@ -10,6 +10,26 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 #[test]
+fn music_search_type_code_is_snake_case() {
+    assert_eq!(MusicSearchType::Playlist.code(), "playlist");
+    assert_eq!(
+        MusicSearchType::from_code("radio"),
+        Some(MusicSearchType::Radio)
+    );
+    assert_eq!(MusicSearchType::ALL.len(), 9);
+}
+
+#[test]
+fn music_search_type_default_stays_song() {
+    assert_eq!(MusicSearchType::default(), MusicSearchType::Song);
+}
+
+#[test]
+fn music_search_type_value_stays_netease_search_type() {
+    assert_eq!(MusicSearchType::Mv.value(), 1004);
+}
+
+#[test]
 fn music_search_supports_song_artist_album_and_playlist_queries() -> Result<(), Box<dyn Error>> {
     let server = TestServer::spawn(vec![
         TestResponse::json(

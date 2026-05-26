@@ -1,6 +1,6 @@
 //! Serial port configuration types.
 
-use az_derive_aliases::{apply, serde_eq, serde_eq_copy};
+use az_derive_aliases::{apply, serde_code_enum, serde_eq, serde_eq_copy};
 
 /// Standard baud rates.
 #[apply(serde_eq_copy)]
@@ -49,7 +49,7 @@ impl BaudRate {
 }
 
 /// Parity checking mode.
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum Parity {
     /// No parity bit.
     None,
@@ -64,7 +64,7 @@ pub enum Parity {
 }
 
 /// Number of stop bits.
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum StopBits {
     /// 1 stop bit.
     One,
@@ -73,7 +73,7 @@ pub enum StopBits {
 }
 
 /// Hardware/software flow control.
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum FlowControl {
     /// No flow control.
     None,
@@ -202,7 +202,18 @@ mod tests {
 
     #[test]
     fn parity_serialization() {
-        assert_eq!(serde_json::to_string(&Parity::None).unwrap(), "\"None\"");
-        assert_eq!(serde_json::to_string(&Parity::Even).unwrap(), "\"Even\"");
+        assert_eq!(Parity::None.code(), "none");
+        assert_eq!(serde_json::to_string(&Parity::None).unwrap(), "\"none\"");
+        assert_eq!(serde_json::to_string(&Parity::Even).unwrap(), "\"even\"");
+    }
+
+    #[test]
+    fn stop_bits_and_flow_control_use_snake_case_codes() {
+        assert_eq!(StopBits::One.code(), "one");
+        assert_eq!(FlowControl::Hardware.code(), "hardware");
+        assert_eq!(
+            serde_json::to_string(&FlowControl::Software).unwrap(),
+            "\"software\""
+        );
     }
 }

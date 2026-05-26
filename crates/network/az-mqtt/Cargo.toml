@@ -11,6 +11,7 @@ az-derive-aliases.workspace = true
 derive_more.workspace = true
 rumqttc.workspace = true
 rustls = { version = "0.23.37", features = ["ring"] }
+strum.workspace = true
 thiserror.workspace = true
 
 [lints]

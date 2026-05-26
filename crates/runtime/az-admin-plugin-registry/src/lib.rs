@@ -22,7 +22,7 @@
 
 use std::collections::BTreeMap;
 
-use az_derive_aliases::{apply, plain_copy_eq, plain_eq};
+use az_derive_aliases::{apply, plain_code_enum, plain_copy_eq, plain_eq};
 pub use inventory;
 
 #[apply(plain_copy_eq)]
@@ -33,7 +33,7 @@ pub struct AdminDomainRegistration {
     pub default_href: &'static str,
 }
 
-#[apply(plain_copy_eq)]
+#[apply(plain_code_enum)]
 pub enum AdminNavigationKind {
     Branch,
     Page,
@@ -445,6 +445,19 @@ mod tests {
     fn normalize_path_should_strip_query_and_trailing_slash() {
         assert_eq!(normalize_path("/files/?tab=recent"), "/files");
         assert_eq!(normalize_path(" / "), "/");
+    }
+
+    #[test]
+    fn admin_navigation_kind_should_expose_stable_codes() {
+        assert_eq!(
+            AdminNavigationKind::ALL,
+            &[AdminNavigationKind::Branch, AdminNavigationKind::Page]
+        );
+        assert_eq!(AdminNavigationKind::Branch.code(), "branch");
+        assert_eq!(
+            AdminNavigationKind::from_code("page"),
+            Some(AdminNavigationKind::Page)
+        );
     }
 
     #[test]

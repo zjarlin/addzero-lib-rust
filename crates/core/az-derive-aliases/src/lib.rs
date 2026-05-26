@@ -23,7 +23,21 @@ macro_rules! deserialize_debug {
 #[macro_export]
 macro_rules! deserialize_clone_debug {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Debug, ::serde::Deserialize), $item);
+        $crate::deserialize_debug! {
+            #[derive(Clone)]
+            $item
+        }
+    };
+}
+
+/// Deserializable camelCase response/input type with clone support and debug formatting.
+#[macro_export]
+macro_rules! deserialize_camel_clone_debug {
+    ($item:item) => {
+        $crate::deserialize_clone_debug! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
     };
 }
 
@@ -39,7 +53,10 @@ macro_rules! serialize_debug {
 #[macro_export]
 macro_rules! serialize_clone_debug {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Debug, ::serde::Serialize), $item);
+        $crate::serialize_debug! {
+            #[derive(Clone)]
+            $item
+        }
     };
 }
 
@@ -47,10 +64,10 @@ macro_rules! serialize_clone_debug {
 #[macro_export]
 macro_rules! serialize_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Clone, Debug, PartialEq, Eq, ::serde::Serialize),
+        $crate::serialize_clone_debug! {
+            #[derive(PartialEq, Eq)]
             $item
-        );
+        }
     };
 }
 
@@ -58,10 +75,10 @@ macro_rules! serialize_eq {
 #[macro_export]
 macro_rules! serialize_copy_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Clone, Copy, Debug, PartialEq, Eq, ::serde::Serialize),
+        $crate::serialize_eq! {
+            #[derive(Copy)]
             $item
-        );
+        }
     };
 }
 
@@ -69,7 +86,32 @@ macro_rules! serialize_copy_eq {
 #[macro_export]
 macro_rules! serialize_partial_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Debug, PartialEq, ::serde::Serialize), $item);
+        $crate::serialize_clone_debug! {
+            #[derive(PartialEq)]
+            $item
+        }
+    };
+}
+
+/// Serializable camelCase request/output type with equality and debug traits.
+#[macro_export]
+macro_rules! serialize_camel_eq {
+    ($item:item) => {
+        $crate::serialize_eq! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
+    };
+}
+
+/// Serializable camelCase request/output type with partial equality and debug traits.
+#[macro_export]
+macro_rules! serialize_camel_partial_eq {
+    ($item:item) => {
+        $crate::serialize_partial_eq! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
     };
 }
 
@@ -77,10 +119,10 @@ macro_rules! serialize_partial_eq {
 #[macro_export]
 macro_rules! deserialize_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Clone, Debug, PartialEq, Eq, ::serde::Deserialize),
+        $crate::deserialize_clone_debug! {
+            #[derive(PartialEq, Eq)]
             $item
-        );
+        }
     };
 }
 
@@ -88,7 +130,32 @@ macro_rules! deserialize_eq {
 #[macro_export]
 macro_rules! deserialize_partial_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Debug, PartialEq, ::serde::Deserialize), $item);
+        $crate::deserialize_clone_debug! {
+            #[derive(PartialEq)]
+            $item
+        }
+    };
+}
+
+/// Deserializable camelCase response/input type with equality and debug traits.
+#[macro_export]
+macro_rules! deserialize_camel_eq {
+    ($item:item) => {
+        $crate::deserialize_eq! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
+    };
+}
+
+/// Deserializable camelCase response/input type with partial equality and debug traits.
+#[macro_export]
+macro_rules! deserialize_camel_partial_eq {
+    ($item:item) => {
+        $crate::deserialize_partial_eq! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
     };
 }
 
@@ -104,10 +171,10 @@ macro_rules! from_eq {
 #[macro_export]
 macro_rules! from_plain_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Clone, Debug, ::derive_more::From, PartialEq, Eq),
+        $crate::from_eq! {
+            #[derive(Eq)]
             $item
-        );
+        }
     };
 }
 
@@ -115,10 +182,10 @@ macro_rules! from_plain_eq {
 #[macro_export]
 macro_rules! from_copy_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Clone, Copy, Debug, ::derive_more::From, PartialEq, Eq),
+        $crate::from_plain_eq! {
+            #[derive(Copy)]
             $item
-        );
+        }
     };
 }
 
@@ -126,16 +193,10 @@ macro_rules! from_copy_eq {
 #[macro_export]
 macro_rules! from_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Debug,
-                ::derive_more::From,
-                ::derive_more::Display,
-                PartialEq
-            ),
+        $crate::from_eq! {
+            #[derive(::derive_more::Display)]
             $item
-        );
+        }
     };
 }
 
@@ -143,10 +204,10 @@ macro_rules! from_display {
 #[macro_export]
 macro_rules! error_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Clone, Debug, ::thiserror::Error, PartialEq, Eq),
+        $crate::error! {
+            #[derive(Clone, PartialEq, Eq)]
             $item
-        );
+        }
     };
 }
 
@@ -154,10 +215,10 @@ macro_rules! error_eq {
 #[macro_export]
 macro_rules! error_copy_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Clone, Copy, Debug, ::thiserror::Error, PartialEq, Eq),
+        $crate::error_eq! {
+            #[derive(Copy)]
             $item
-        );
+        }
     };
 }
 
@@ -201,22 +262,25 @@ macro_rules! serde_eq {
     };
 }
 
+/// Serde-friendly camelCase data type with equality and debug traits.
+#[macro_export]
+macro_rules! serde_camel_eq {
+    ($item:item) => {
+        $crate::serde_eq! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
+    };
+}
+
 /// Serde-friendly identity type with equality, debug, and hash traits.
 #[macro_export]
 macro_rules! serde_eq_hash {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                ::serde::Serialize,
-                ::serde::Deserialize
-            ),
+        $crate::serde_eq! {
+            #[derive(Hash)]
             $item
-        );
+        }
     };
 }
 
@@ -224,19 +288,10 @@ macro_rules! serde_eq_hash {
 #[macro_export]
 macro_rules! serde_eq_hash_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::derive_more::Display
-            ),
+        $crate::serde_eq_hash! {
+            #[derive(::derive_more::Display)]
             $item
-        );
+        }
     };
 }
 
@@ -244,20 +299,10 @@ macro_rules! serde_eq_hash_display {
 #[macro_export]
 macro_rules! serde_eq_hash_ord {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                PartialOrd,
-                Ord,
-                ::serde::Serialize,
-                ::serde::Deserialize
-            ),
+        $crate::serde_eq_hash! {
+            #[derive(PartialOrd, Ord)]
             $item
-        );
+        }
     };
 }
 
@@ -265,21 +310,10 @@ macro_rules! serde_eq_hash_ord {
 #[macro_export]
 macro_rules! serde_eq_hash_ord_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                PartialOrd,
-                Ord,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::derive_more::Display
-            ),
+        $crate::serde_eq_hash_ord! {
+            #[derive(::derive_more::Display)]
             $item
-        );
+        }
     };
 }
 
@@ -410,7 +444,10 @@ macro_rules! plain_default_clone_debug {
 #[macro_export]
 macro_rules! plain_clone_debug_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Debug, ::derive_more::Display), $item);
+        $crate::plain_clone_debug! {
+            #[derive(::derive_more::Display)]
+            $item
+        }
     };
 }
 
@@ -442,7 +479,10 @@ macro_rules! plain_clone_redacted {
 #[macro_export]
 macro_rules! plain_eq_hash {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Debug, Eq, Hash, PartialEq), $item);
+        $crate::plain_eq! {
+            #[derive(Hash)]
+            $item
+        }
     };
 }
 
@@ -450,10 +490,10 @@ macro_rules! plain_eq_hash {
 #[macro_export]
 macro_rules! plain_eq_hash_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Clone, Debug, Eq, Hash, PartialEq, ::derive_more::Display),
+        $crate::plain_eq_hash! {
+            #[derive(::derive_more::Display)]
             $item
-        );
+        }
     };
 }
 
@@ -515,7 +555,10 @@ macro_rules! plain_copy_eq_display {
 #[macro_export]
 macro_rules! plain_copy_eq_hash {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Copy, Debug, Eq, Hash, PartialEq), $item);
+        $crate::plain_copy_eq! {
+            #[derive(Hash)]
+            $item
+        }
     };
 }
 
@@ -524,20 +567,10 @@ macro_rules! plain_copy_eq_hash {
 #[macro_export]
 macro_rules! plain_copy_eq_hash_ord_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                Eq,
-                Hash,
-                PartialEq,
-                PartialOrd,
-                Ord,
-                ::derive_more::Display
-            ),
+        $crate::plain_copy_eq_hash_display! {
+            #[derive(PartialOrd, Ord)]
             $item
-        );
+        }
     };
 }
 
@@ -546,19 +579,10 @@ macro_rules! plain_copy_eq_hash_ord_display {
 #[macro_export]
 macro_rules! plain_eq_hash_ord_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Debug,
-                Eq,
-                Hash,
-                PartialEq,
-                PartialOrd,
-                Ord,
-                ::derive_more::Display
-            ),
+        $crate::plain_eq_hash_display! {
+            #[derive(PartialOrd, Ord)]
             $item
-        );
+        }
     };
 }
 
@@ -566,18 +590,10 @@ macro_rules! plain_eq_hash_ord_display {
 #[macro_export]
 macro_rules! plain_copy_eq_hash_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                Eq,
-                Hash,
-                PartialEq,
-                ::derive_more::Display
-            ),
+        $crate::plain_copy_eq_hash! {
+            #[derive(::derive_more::Display)]
             $item
-        );
+        }
     };
 }
 
@@ -596,7 +612,10 @@ macro_rules! plain_eq_display {
 #[macro_export]
 macro_rules! plain_default_copy_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Clone, Copy, Debug, Default, Eq, PartialEq), $item);
+        $crate::plain_copy_eq! {
+            #[derive(Default)]
+            $item
+        }
     };
 }
 
@@ -604,18 +623,10 @@ macro_rules! plain_default_copy_eq {
 #[macro_export]
 macro_rules! plain_default_copy_eq_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                Default,
-                Eq,
-                PartialEq,
-                ::derive_more::Display
-            ),
+        $crate::plain_default_copy_eq! {
+            #[derive(::derive_more::Display)]
             $item
-        );
+        }
     };
 }
 
@@ -701,18 +712,10 @@ macro_rules! seaorm_relation {
 #[macro_export]
 macro_rules! serde_eq_copy {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                PartialEq,
-                Eq,
-                ::serde::Serialize,
-                ::serde::Deserialize
-            ),
+        $crate::serde_eq! {
+            #[derive(Copy)]
             $item
-        );
+        }
     };
 }
 
@@ -720,19 +723,10 @@ macro_rules! serde_eq_copy {
 #[macro_export]
 macro_rules! serde_eq_copy_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                PartialEq,
-                Eq,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::derive_more::Display
-            ),
+        $crate::serde_eq_copy! {
+            #[derive(::derive_more::Display)]
             $item
-        );
+        }
     };
 }
 
@@ -740,18 +734,10 @@ macro_rules! serde_eq_copy_display {
 #[macro_export]
 macro_rules! from_copy_eq_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                ::derive_more::From,
-                ::derive_more::Display,
-                PartialEq,
-                Eq
-            ),
+        $crate::from_copy_eq! {
+            #[derive(::derive_more::Display)]
             $item
-        );
+        }
     };
 }
 
@@ -759,20 +745,10 @@ macro_rules! from_copy_eq_display {
 #[macro_export]
 macro_rules! serde_eq_default_copy {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                Default,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                ::serde::Serialize,
-                ::serde::Deserialize
-            ),
+        $crate::serde_eq_copy! {
+            #[derive(Default, Hash)]
             $item
-        );
+        }
     };
 }
 
@@ -780,22 +756,10 @@ macro_rules! serde_eq_default_copy {
 #[macro_export]
 macro_rules! serde_eq_default_copy_ord {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                Default,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                PartialOrd,
-                Ord,
-                ::serde::Serialize,
-                ::serde::Deserialize
-            ),
+        $crate::serde_eq_default_copy! {
+            #[derive(PartialOrd, Ord)]
             $item
-        );
+        }
     };
 }
 
@@ -818,6 +782,17 @@ macro_rules! serde_eq_default {
     };
 }
 
+/// Serde-friendly camelCase data type with equality, debug, and `Default`.
+#[macro_export]
+macro_rules! serde_camel_eq_default {
+    ($item:item) => {
+        $crate::serde_eq_default! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
+    };
+}
+
 /// Serde-friendly data type with partial equality and debug traits.
 #[macro_export]
 macro_rules! serde_partial_eq {
@@ -832,6 +807,17 @@ macro_rules! serde_partial_eq {
             ),
             $item
         );
+    };
+}
+
+/// Serde-friendly camelCase data type with partial equality and debug traits.
+#[macro_export]
+macro_rules! serde_camel_partial_eq {
+    ($item:item) => {
+        $crate::serde_partial_eq! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
     };
 }
 
@@ -853,21 +839,30 @@ macro_rules! serde_partial_eq_default {
     };
 }
 
+/// Serde-friendly camelCase data type with partial equality, debug, and `Default`.
+#[macro_export]
+macro_rules! serde_camel_partial_eq_default {
+    ($item:item) => {
+        $crate::serde_partial_eq_default! {
+            #[serde(rename_all = "camelCase")]
+            $item
+        }
+    };
+}
+
 /// Serde-friendly data type with partial equality, debug, and `Display`.
 #[macro_export]
 macro_rules! serde_partial_eq_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Debug,
-                PartialEq,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::derive_more::Display
-            ),
-            $item
-        );
+        #[derive(
+            Clone,
+            Debug,
+            PartialEq,
+            ::serde::Serialize,
+            ::serde::Deserialize,
+            ::derive_more::Display,
+        )]
+        $item
     };
 }
 
@@ -1113,7 +1108,7 @@ macro_rules! plain_code_display_enum {
     };
 }
 
-/// Plain code-backed enum with explicit string conversion and variant list.
+/// Plain code-backed enum with snake_case string conversion and variant list.
 #[macro_export]
 macro_rules! plain_code_enum {
     (
@@ -1134,6 +1129,7 @@ macro_rules! plain_code_enum {
                 ::strum::IntoStaticStr,
                 ::strum::VariantArray
             ),
+            #[strum(serialize_all = "snake_case")]
             $(#[$meta])*
             $vis enum $name {
                 $($body)*
@@ -1141,6 +1137,25 @@ macro_rules! plain_code_enum {
         );
 
         $crate::__az_derive_aliases_code_enum_impl!($name);
+    };
+}
+
+/// Plain code-backed enum with `Default`, snake_case string conversion, and variant list.
+#[macro_export]
+macro_rules! plain_code_default_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::plain_code_enum! {
+            #[derive(Default)]
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
     };
 }
 

@@ -117,6 +117,7 @@ impl fmt::Display for Constraint {
         }
     }
 }
+
 /// Full column definition including name, type, and constraints.
 #[apply(serde_partial_eq)]
 pub struct ColumnDef {

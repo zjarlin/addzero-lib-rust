@@ -28,7 +28,7 @@ use std::fs;
 use std::path::PathBuf;
 use syn::parse::{Parse, ParseStream, Parser};
 use syn::punctuated::Punctuated;
-use syn::{Expr, Ident, LitInt, LitStr, Result, Token, Type, parse_macro_input};
+use syn::{parse_macro_input, Expr, Ident, LitInt, LitStr, Result, Token, Type};
 
 #[proc_macro]
 pub fn dict_enum(input: TokenStream) -> TokenStream {
@@ -191,55 +191,64 @@ fn expand_dict_enum(
         }
     };
 
+    let module_name = format_ident!("__az_dict_macros_{}", enum_name);
+
     Ok(quote! {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ::derive_more::Display)]
-        pub enum #enum_name {
-            #(#unit_variants,)*
+        #[doc(hidden)]
+        #[allow(non_snake_case)]
+        mod #module_name {
+            use ::az_derive_aliases::{apply, plain_copy_eq_hash_ord_display};
+
+            #[apply(plain_copy_eq_hash_ord_display)]
+            pub enum #enum_name {
+                #(#unit_variants,)*
+            }
+
+            impl #enum_name {
+                pub const DICT_CODE: &'static str = #dict_code;
+
+                #open_impl
+
+                pub fn code(&self) -> &'static str {
+                    match self {
+                        #(#code_arms,)*
+                    }
+                }
+
+                pub fn label(&self) -> &'static str {
+                    match self {
+                        #(#label_arms,)*
+                    }
+                }
+
+                pub fn description(&self) -> &'static str {
+                    match self {
+                        #(#description_arms,)*
+                    }
+                }
+
+                pub fn meta_json(&self) -> Option<&'static str> {
+                    match self {
+                        #(#meta_arms,)*
+                    }
+                }
+
+                pub fn raw_value(&self) -> #raw_type {
+                    match self {
+                        #(#raw_arms,)*
+                    }
+                }
+
+                pub fn items() -> &'static [::az_dict_spec::DictEnumItem<#raw_type>] {
+                    const ITEMS: &[::az_dict_spec::DictEnumItem<#raw_type>] = &[
+                        #(#item_entries,)*
+                    ];
+                    ITEMS
+                }
+            }
         }
 
-        impl #enum_name {
-            pub const DICT_CODE: &'static str = #dict_code;
-
-            #open_impl
-
-            pub fn code(&self) -> &'static str {
-                match self {
-                    #(#code_arms,)*
-                }
-            }
-
-            pub fn label(&self) -> &'static str {
-                match self {
-                    #(#label_arms,)*
-                }
-            }
-
-            pub fn description(&self) -> &'static str {
-                match self {
-                    #(#description_arms,)*
-                }
-            }
-
-            pub fn meta_json(&self) -> Option<&'static str> {
-                match self {
-                    #(#meta_arms,)*
-                }
-            }
-
-            pub fn raw_value(&self) -> #raw_type {
-                match self {
-                    #(#raw_arms,)*
-                }
-            }
-
-            pub fn items() -> &'static [::az_dict_spec::DictEnumItem<#raw_type>] {
-                const ITEMS: &[::az_dict_spec::DictEnumItem<#raw_type>] = &[
-                    #(#item_entries,)*
-                ];
-                ITEMS
-            }
-        }
-
+        pub use #module_name::#enum_name;
     })
 }
 

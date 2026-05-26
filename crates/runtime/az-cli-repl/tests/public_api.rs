@@ -76,6 +76,22 @@ impl Command for EchoCommand {
 }
 
 #[test]
+fn param_type_exposes_stable_codes_and_display_names() {
+    assert_eq!(
+        ParamType::ALL,
+        &[
+            ParamType::String,
+            ParamType::Int,
+            ParamType::Float,
+            ParamType::Bool
+        ]
+    );
+    assert_eq!(ParamType::String.code(), "string");
+    assert_eq!(ParamType::from_code("bool"), Some(ParamType::Bool));
+    assert_eq!(ParamType::Bool.to_string(), "Boolean");
+}
+
+#[test]
 fn parse_params_supports_defaults_and_bool_aliases() {
     let params = parse_params(
         &[
@@ -88,6 +104,24 @@ fn parse_params_supports_defaults_and_bool_aliases() {
 
     assert_eq!(params.get_string(0), Some("hello"));
     assert_eq!(params.get_bool(1), Some(true));
+}
+
+#[test]
+fn parse_params_reports_param_type_code_in_errors() {
+    let err = parse_params(
+        &[ParamDef::new("count", ParamType::Int, "count")],
+        &[String::from("abc")],
+    )
+    .expect_err("invalid integer should fail");
+
+    assert_eq!(
+        err,
+        ReplError::InvalidValue {
+            name: "count".to_owned(),
+            value: "abc".to_owned(),
+            expected: "int",
+        }
+    );
 }
 
 #[test]

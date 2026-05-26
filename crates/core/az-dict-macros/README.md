@@ -8,7 +8,7 @@
 - 自动提供 `code()`、`label()`、`description()`、`raw_value()`、`meta_json()` 等方法，并把 `Display` 直接派生到字典 label
 - 支持开枚举（`open_enum`），未知值归入 `Unknown(T)` 变体
 - 支持 `i64` 和 `&'static str` 两种原始值类型
-- 生成的枚举自动派生 `Debug`、`Clone`、`Copy`、`PartialEq`、`Eq`、`Hash` 等 trait
+- 生成的枚举通过 `az-derive-aliases` 的 alias 组装 `Debug`、`Clone`、`Copy`、`PartialEq`、`Eq`、`Hash`、`Display`
 
 ## 安装
 
@@ -18,9 +18,11 @@
 [dependencies]
 az-dict-macros = { path = "../az-dict-macros" }   # workspace 内部引用
 az-dict-spec = { path = "../az-dict-spec" }        # 依赖的规格解析 crate
+az-derive-aliases = { path = "../az-derive-aliases" } # 生成枚举所需的 alias 组装 crate
 # 或发布后：
 # az-dict-macros = "0.1"                            # crates.io 引用
 # az-dict-spec = "0.1"
+# az-derive-aliases = "2026.5.10"
 ```
 
 ## 用法

@@ -11,7 +11,10 @@
 //!
 //! 引擎默认设置最大操作数（100 万次）和最大模块数（32），防止脚本失控。
 
-use az_script_engine::script::{ScriptEngine, ScriptFuture, ScriptInput, ScriptLang, ScriptOutput};
+use az_script_engine::script::{
+    InMemoryScriptEngineRegistry, ScriptEngine, ScriptEngineRegistry, ScriptFuture, ScriptInput,
+    ScriptLang, ScriptOutput,
+};
 use rhai::{Dynamic, Engine, Scope};
 
 use std::collections::BTreeMap;
@@ -22,11 +25,32 @@ pub struct RhaiEngine {
     engine: Mutex<Engine>,
 }
 
+/// Register the default Rhai engine into an existing script engine registry.
+pub fn register_rhai_engine(registry: &mut dyn ScriptEngineRegistry) {
+    registry.register(Box::new(RhaiEngine::new()));
+}
+
+/// Build a script engine registry preloaded with the default Rhai engine.
+#[must_use]
+pub fn rhai_engine_registry() -> InMemoryScriptEngineRegistry {
+    let mut registry = InMemoryScriptEngineRegistry::new();
+    register_rhai_engine(&mut registry);
+    registry
+}
+
 impl RhaiEngine {
     pub fn new() -> Self {
         let mut engine = Engine::new();
         engine.set_max_operations(1_000_000);
         engine.set_max_modules(32);
+
+        Self::with_engine(engine)
+    }
+
+    /// Build a script engine from a preconfigured Rhai runtime.
+    ///
+    /// Use this when the host wants to inject registered functions, modules, or custom limits.
+    pub fn with_engine(engine: Engine) -> Self {
         Self {
             engine: Mutex::new(engine),
         }
@@ -171,5 +195,51 @@ mod tests {
         // `print` output must be captured so hosts can expose script logs to callers.
         assert_eq!(output.exit_code, 0);
         assert!(output.stdout.contains("hello from rhai"));
+    }
+
+    #[test]
+    fn with_engine_uses_injected_rhai_runtime() {
+        let mut rhai = Engine::new();
+        rhai.register_fn("answer", || 42_i64);
+        let engine = RhaiEngine::with_engine(rhai);
+
+        let output = engine.run(ScriptInput {
+            source: "answer()".into(),
+            lang: ScriptLang::Rhai,
+            vars: BTreeMap::new(),
+            policy: SandboxPolicy::permissive(),
+            timeout_secs: 0,
+        });
+
+        // The custom host function proves this instance uses the injected Rhai runtime.
+        assert_eq!(output.exit_code, 0);
+        assert_eq!(
+            output.vars.get("_result").and_then(|v| v.as_i64()),
+            Some(42)
+        );
+    }
+
+    #[test]
+    fn register_rhai_engine_adds_default_engine_to_registry() {
+        let registry = rhai_engine_registry();
+
+        assert_eq!(registry.languages(), vec![ScriptLang::Rhai]);
+        let output = registry
+            .get(ScriptLang::Rhai)
+            .expect("rhai engine should be registered")
+            .run(ScriptInput {
+                source: "21 * 2".into(),
+                lang: ScriptLang::Rhai,
+                vars: BTreeMap::new(),
+                policy: SandboxPolicy::permissive(),
+                timeout_secs: 0,
+            });
+
+        // Registry helpers should expose a usable default Rhai implementation, not only a marker.
+        assert_eq!(output.exit_code, 0);
+        assert_eq!(
+            output.vars.get("_result").and_then(|v| v.as_i64()),
+            Some(42)
+        );
     }
 }

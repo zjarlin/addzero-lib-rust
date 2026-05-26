@@ -25,7 +25,7 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, error_eq, plain_copy_eq_display};
+use az_derive_aliases::{apply, error_eq, plain_code_display_no_default_enum};
 
 mod delete;
 mod insert;
@@ -76,7 +76,7 @@ pub trait Query {
 }
 
 /// Represents a SQL ORDER BY clause direction.
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum SortOrder {
     /// Ascending order.
     #[display("ASC")]
@@ -87,7 +87,7 @@ pub enum SortOrder {
 }
 
 /// Represents a SQL join type.
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum JoinType {
     /// INNER JOIN.
     #[display("INNER JOIN")]
@@ -114,4 +114,23 @@ pub enum JoinType {
 pub fn quote_identifier(identifier: &str) -> String {
     let escaped = identifier.replace('"', "\"\"");
     format!("\"{}\"", escaped)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sort_order_keeps_sql_display_and_exposes_codes() {
+        assert_eq!(SortOrder::Asc.to_string(), "ASC");
+        assert_eq!(SortOrder::Desc.code(), "desc");
+        assert_eq!(SortOrder::from_code("asc"), Some(SortOrder::Asc));
+    }
+
+    #[test]
+    fn join_type_keeps_sql_display_and_exposes_codes() {
+        assert_eq!(JoinType::Inner.to_string(), "INNER JOIN");
+        assert_eq!(JoinType::FullOuter.code(), "full_outer");
+        assert_eq!(JoinType::from_code("left"), Some(JoinType::Left));
+    }
 }

@@ -1,6 +1,6 @@
 //! Common contracts for embeddable script engines.
 
-use az_derive_aliases::{apply, error_eq, serde_eq, serde_lower_code_enum};
+use az_derive_aliases::{apply, error_eq, plain_default, serde_eq, serde_lower_code_enum};
 use az_sandbox::sandbox::SandboxPolicy;
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -82,6 +82,60 @@ pub trait ScriptEngineRegistry: Send + Sync {
     fn languages(&self) -> Vec<ScriptLang>;
 }
 
+/// In-memory script engine registry for hosts that compose engines directly.
+#[apply(plain_default)]
+pub struct InMemoryScriptEngineRegistry {
+    engines: Vec<Box<dyn ScriptEngine>>,
+}
+
+impl InMemoryScriptEngineRegistry {
+    /// Create an empty registry.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Create a registry preloaded with engine implementations.
+    #[must_use]
+    pub fn with_engines(engines: Vec<Box<dyn ScriptEngine>>) -> Self {
+        let mut registry = Self::new();
+        for engine in engines {
+            registry.register(engine);
+        }
+        registry
+    }
+}
+
+impl ScriptEngineRegistry for InMemoryScriptEngineRegistry {
+    fn register(&mut self, engine: Box<dyn ScriptEngine>) {
+        let lang = engine.lang();
+        if let Some(slot) = self
+            .engines
+            .iter_mut()
+            .find(|current| current.lang() == lang)
+        {
+            *slot = engine;
+        } else {
+            self.engines.push(engine);
+        }
+    }
+
+    fn get(&self, lang: ScriptLang) -> Option<&dyn ScriptEngine> {
+        self.engines
+            .iter()
+            .find(|engine| engine.lang() == lang)
+            .map(|engine| engine.as_ref())
+    }
+
+    fn languages(&self) -> Vec<ScriptLang> {
+        ScriptLang::ALL
+            .iter()
+            .copied()
+            .filter(|lang| self.get(*lang).is_some())
+            .collect()
+    }
+}
+
 // ─── Error ──────────────────────────────────────────────────────────
 
 #[apply(error_eq)]
@@ -101,7 +155,36 @@ pub enum ScriptError {
 
 #[cfg(test)]
 mod tests {
-    use super::ScriptLang;
+    use super::{
+        InMemoryScriptEngineRegistry, ScriptEngine, ScriptEngineRegistry, ScriptFuture,
+        ScriptInput, ScriptLang, ScriptOutput,
+    };
+    use std::collections::BTreeMap;
+
+    struct StaticEngine {
+        lang: ScriptLang,
+        result: &'static str,
+    }
+
+    impl ScriptEngine for StaticEngine {
+        fn lang(&self) -> ScriptLang {
+            self.lang
+        }
+
+        fn run(&self, _input: ScriptInput) -> ScriptOutput {
+            ScriptOutput {
+                exit_code: 0,
+                stdout: self.result.to_string(),
+                stderr: String::new(),
+                vars: BTreeMap::new(),
+                duration_ms: 0,
+            }
+        }
+
+        fn run_async<'a>(&'a self, input: ScriptInput) -> ScriptFuture<'a, ScriptOutput> {
+            Box::pin(async move { self.run(input) })
+        }
+    }
 
     #[test]
     fn script_lang_codes_follow_lowercase_wires() {
@@ -110,6 +193,42 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&ScriptLang::Python).expect("serialize"),
             "\"python\""
+        );
+    }
+
+    #[test]
+    fn in_memory_registry_registers_replaces_and_lists_stably() {
+        let mut registry =
+            InMemoryScriptEngineRegistry::with_engines(vec![Box::new(StaticEngine {
+                lang: ScriptLang::Bash,
+                result: "bash",
+            })]);
+        registry.register(Box::new(StaticEngine {
+            lang: ScriptLang::Rhai,
+            result: "rhai-v1",
+        }));
+        registry.register(Box::new(StaticEngine {
+            lang: ScriptLang::Rhai,
+            result: "rhai-v2",
+        }));
+
+        assert_eq!(
+            registry.languages(),
+            vec![ScriptLang::Rhai, ScriptLang::Bash]
+        );
+        assert_eq!(
+            registry
+                .get(ScriptLang::Rhai)
+                .expect("rhai engine should be registered")
+                .run(ScriptInput {
+                    source: String::new(),
+                    lang: ScriptLang::Rhai,
+                    vars: BTreeMap::new(),
+                    policy: az_sandbox::sandbox::SandboxPolicy::permissive(),
+                    timeout_secs: 0,
+                })
+                .stdout,
+            "rhai-v2"
         );
     }
 }

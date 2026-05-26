@@ -11,6 +11,7 @@ description = "Multi-repository GitDB pooling and load balancing"
 az-derive-aliases.workspace = true
 derive_more.workspace = true
 gitdb.workspace = true
+strum.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

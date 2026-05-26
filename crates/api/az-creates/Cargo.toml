@@ -9,6 +9,7 @@ authors.workspace = true
 [dependencies]
 az-derive-aliases.workspace = true
 az-music.workspace = true
+az-sms.workspace = true
 az-temp-mail.workspace = true
 chrono.workspace = true
 hmac.workspace = true

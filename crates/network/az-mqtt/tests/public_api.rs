@@ -78,3 +78,10 @@ fn mqtt_config_builder_persists_custom_tls_paths() {
     assert_eq!(config.client_cert_path.as_deref(), Some("/tmp/client.pem"));
     assert_eq!(config.client_key_path.as_deref(), Some("/tmp/client.key"));
 }
+
+#[test]
+fn mqtt_qos_exposes_machine_codes() {
+    assert_eq!(MqttQoS::AtMostOnce.code(), "at_most_once");
+    assert_eq!(MqttQoS::from_code("at_least_once"), Some(MqttQoS::AtLeastOnce));
+    assert_eq!(rumqttc::QoS::from(MqttQoS::ExactlyOnce), rumqttc::QoS::ExactlyOnce);
+}

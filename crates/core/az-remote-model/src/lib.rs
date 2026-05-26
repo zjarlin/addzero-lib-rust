@@ -20,7 +20,7 @@
 //! [`RemotePlatform`] 支持 macOS、Windows、Linux (X11/Wayland)、Browser；
 //! [`DeviceRole`] 区分 Host（被控端）与 Viewer（控制端）。
 
-use az_derive_aliases::{apply, serde_code_display_enum, serde_eq, serde_eq_copy};
+use az_derive_aliases::{apply, serde_code_display_enum, serde_code_enum, serde_eq, serde_eq_copy};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -42,13 +42,13 @@ pub enum RemotePlatform {
     Browser,
 }
 
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum DeviceRole {
     Viewer,
     Host,
 }
 
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum OnlineStatus {
     Online,
     Idle,
@@ -116,14 +116,14 @@ pub struct SessionGrant {
     pub granted_at: DateTime<Utc>,
 }
 
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum PointerButton {
     Left,
     Middle,
     Right,
 }
 
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum KeyState {
     Down,
     Up,
@@ -168,7 +168,7 @@ pub struct FileTransferEnvelope {
     pub chunk_count: u32,
 }
 
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum VideoCodec {
     JpegFrames,
     PngFrames,
@@ -184,7 +184,7 @@ pub struct VideoFrameEnvelope {
     pub captured_at: DateTime<Utc>,
 }
 
-#[apply(serde_eq_copy)]
+#[apply(serde_code_enum)]
 pub enum SessionState {
     Requested,
     Active,

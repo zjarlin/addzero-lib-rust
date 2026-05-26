@@ -13,7 +13,6 @@ use headless_chrome::{Browser, Tab};
 use rand::Rng;
 use serde_json::Value;
 use std::fs;
-use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
@@ -21,12 +20,6 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
-
-/// Pick a free TCP port for CDP.
-fn find_free_port() -> Option<u16> {
-    let listener = TcpListener::bind("127.0.0.1:0").ok()?;
-    Some(listener.local_addr().ok()?.port())
-}
 
 static NEXT_CDP_PORT: AtomicU16 = AtomicU16::new(9300);
 

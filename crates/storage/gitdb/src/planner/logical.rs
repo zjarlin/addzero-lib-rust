@@ -6,13 +6,15 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use az_derive_aliases::{apply, plain_copy_eq_display, plain_eq_hash, plain_partial_eq};
+use az_derive_aliases::{
+    apply, plain_code_display_no_default_enum, plain_eq_hash, plain_partial_eq,
+};
 
 // Re-export Expr from sql for use in plans.
 pub use crate::sql::Expr;
 
 /// Join types supported by the planner.
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum JoinType {
     #[display("INNER")]
     Inner,
@@ -27,7 +29,7 @@ pub enum JoinType {
 }
 
 /// Aggregate function types.
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum AggregateFunction {
     #[display("COUNT")]
     Count,
@@ -44,7 +46,7 @@ pub enum AggregateFunction {
 }
 
 /// Sort direction.
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum SortDirection {
     #[display("ASC")]
     Ascending,
@@ -388,16 +390,39 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_join_type_display() {
+    fn test_join_type_code_and_display() {
         assert_eq!(JoinType::Inner.to_string(), "INNER");
         assert_eq!(JoinType::Left.to_string(), "LEFT");
         assert_eq!(JoinType::Right.to_string(), "RIGHT");
+        assert_eq!(JoinType::Inner.code(), "inner");
+        assert_eq!(JoinType::from_code("cross"), Some(JoinType::Cross));
+        assert_eq!(JoinType::ALL.len(), 5);
     }
 
     #[test]
-    fn test_sort_direction_display() {
+    fn test_aggregate_function_code_and_display() {
+        assert_eq!(
+            AggregateFunction::CountDistinct.to_string(),
+            "COUNT_DISTINCT"
+        );
+        assert_eq!(AggregateFunction::CountDistinct.code(), "count_distinct");
+        assert_eq!(
+            AggregateFunction::from_code("avg"),
+            Some(AggregateFunction::Avg)
+        );
+        assert_eq!(AggregateFunction::ALL.len(), 6);
+    }
+
+    #[test]
+    fn test_sort_direction_code_and_display() {
         assert_eq!(SortDirection::Ascending.to_string(), "ASC");
         assert_eq!(SortDirection::Descending.to_string(), "DESC");
+        assert_eq!(SortDirection::Ascending.code(), "ascending");
+        assert_eq!(
+            SortDirection::from_code("descending"),
+            Some(SortDirection::Descending)
+        );
+        assert_eq!(SortDirection::ALL.len(), 2);
     }
 
     #[test]

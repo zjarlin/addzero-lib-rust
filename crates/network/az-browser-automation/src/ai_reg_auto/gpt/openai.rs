@@ -1,17 +1,18 @@
 //! OpenAI login and sign-up page automation.
 
+use crate::ai_reg_auto::{
+    buy_fivesim_number_with, create_registration_mailbox, poll_fivesim_sms_with,
+};
 use crate::browser_automation::BrowserAutomationResult;
 use crate::browser_automation::{
     BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions,
 };
 use az_derive_aliases::{
-    apply, deserialize_eq, plain_code_display_no_default_enum, plain_default_copy_eq, plain_eq,
-    serde_code_enum,
+    apply, deserialize_camel_eq, plain_code_display_no_default_enum, plain_default_copy_eq,
+    plain_eq, serde_code_enum,
 };
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
-use az_temp_mail::{
-    CreateMailboxRequest, PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api,
-};
+use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
 use headless_chrome::Tab;
 use headless_chrome::protocol::cdp::Runtime;
 use serde_json::Value;
@@ -417,25 +418,6 @@ impl OpenAiAuthAutomation {
         })
     }
 
-    /// If the page shows a "session ended" notice, click "Log in" to
-    /// dismiss it and reach the real auth form.
-    fn dismiss_session_ended(tab: &Arc<Tab>) -> BrowserAutomationResult<bool> {
-        let body = evaluate_json(
-            tab,
-            "document.body ? document.body.innerText.slice(0, 500) : ''",
-        )?;
-        let text = body.as_str().unwrap_or("").to_lowercase();
-        if text.contains("session ended")
-            || text.contains("会话已结束")
-            || text.contains("your session")
-        {
-            // Click "Log in" / "登录" to reset the stale session
-            click_button_by_text(tab, &["Log in", "Login", "登录", "log in"])
-        } else {
-            Ok(false)
-        }
-    }
-
     fn run_on_tab(
         tab: &Arc<Tab>,
         auth_options: &OpenAiAuthOptions,
@@ -619,8 +601,7 @@ const PASSWORD_SELECTORS: &[&str] = &[
     "input[data-testid*='password' i]",
 ];
 
-#[apply(deserialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(deserialize_camel_eq)]
 struct AuthPageState {
     url: String,
     title: String,
@@ -1117,7 +1098,23 @@ impl OpenAiRegAutomation {
         browser_options: &BrowserAutomationOptions,
         provider: &dyn TempMailProvider,
     ) -> BrowserAutomationResult<OpenAiFullRegResult> {
-        let mailbox = Self::create_registration_mailbox(provider, reg_options)?;
+        Self::run_full_registration_with_providers(
+            reg_options,
+            browser_options,
+            provider,
+            &BuiltinSmsProviderFactory,
+        )
+    }
+
+    /// Runs the full OpenAI sign-up loop using caller-provided temp-mail and
+    /// SMS providers.
+    pub fn run_full_registration_with_providers(
+        reg_options: &OpenAiFullRegOptions,
+        browser_options: &BrowserAutomationOptions,
+        provider: &dyn TempMailProvider,
+        sms_provider_factory: &dyn SmsProviderFactory,
+    ) -> BrowserAutomationResult<OpenAiFullRegResult> {
+        let mailbox = create_registration_mailbox(provider, &reg_options.email_prefix)?;
         let openai_password = reg_options
             .password
             .clone()
@@ -1137,12 +1134,13 @@ impl OpenAiRegAutomation {
         };
 
         // 2–5. Run browser auth with email verification polling
-        let (mut auth_result, sms_phone, sms_order_id) = Self::run_with_verification(
+        let (mut auth_result, sms_phone, sms_order_id) = Self::run_with_verification_with(
             &auth_options,
             browser_options,
             provider,
             &mailbox,
             reg_options,
+            sms_provider_factory,
         )?;
 
         // 6. Build final result
@@ -1191,7 +1189,23 @@ impl OpenAiRegAutomation {
         session: &crate::browser_automation::BrowserSession,
         provider: &dyn TempMailProvider,
     ) -> BrowserAutomationResult<OpenAiFullRegResult> {
-        let mailbox = Self::create_registration_mailbox(provider, reg_options)?;
+        Self::run_on_session_with_providers(
+            reg_options,
+            session,
+            provider,
+            &BuiltinSmsProviderFactory,
+        )
+    }
+
+    /// Runs the full registration flow on an existing [`BrowserSession`] using
+    /// caller-provided temp-mail and SMS providers.
+    pub fn run_on_session_with_providers(
+        reg_options: &OpenAiFullRegOptions,
+        session: &crate::browser_automation::BrowserSession,
+        provider: &dyn TempMailProvider,
+        sms_provider_factory: &dyn SmsProviderFactory,
+    ) -> BrowserAutomationResult<OpenAiFullRegResult> {
+        let mailbox = create_registration_mailbox(provider, &reg_options.email_prefix)?;
         let openai_password = reg_options
             .password
             .clone()
@@ -1215,12 +1229,13 @@ impl OpenAiRegAutomation {
             .navigate(&auth_options.start_url)
             .map_err(to_browser_error)?;
 
-        let (mut auth_result, sms_phone, sms_order_id) = Self::run_verification_on_tab(
+        let (mut auth_result, sms_phone, sms_order_id) = Self::run_verification_on_tab_with(
             session.tab(),
             &auth_options,
             provider,
             &mailbox,
             reg_options,
+            sms_provider_factory,
         )?;
 
         let result = OpenAiFullRegResult {
@@ -1243,37 +1258,35 @@ impl OpenAiRegAutomation {
         Ok(result)
     }
 
-    fn create_registration_mailbox(
-        provider: &dyn TempMailProvider,
-        reg_options: &OpenAiFullRegOptions,
-    ) -> BrowserAutomationResult<TempMailMailbox> {
-        provider
-            .create_mailbox(
-                &CreateMailboxRequest::named(&reg_options.email_prefix).password_length(16),
-            )
-            .map_err(to_browser_error)
-    }
-
-    fn run_with_verification(
+    fn run_with_verification_with(
         auth_options: &OpenAiAuthOptions,
         browser_options: &BrowserAutomationOptions,
         provider: &dyn TempMailProvider,
         mailbox: &TempMailMailbox,
         reg_options: &OpenAiFullRegOptions,
+        sms_provider_factory: &dyn SmsProviderFactory,
     ) -> BrowserAutomationResult<(OpenAiAuthResult, Option<String>, Option<u64>)> {
         BrowserAutomation::with_tab(&auth_options.start_url, browser_options, |tab| {
-            Self::run_verification_on_tab(tab, auth_options, provider, mailbox, reg_options)
+            Self::run_verification_on_tab_with(
+                tab,
+                auth_options,
+                provider,
+                mailbox,
+                reg_options,
+                sms_provider_factory,
+            )
         })
     }
 
     /// Core verification logic extracted so it can be called from both
     /// [`BrowserAutomation::with_tab`] and [`BrowserSession`] paths.
-    fn run_verification_on_tab(
+    fn run_verification_on_tab_with(
         tab: &Arc<Tab>,
         auth_options: &OpenAiAuthOptions,
         provider: &dyn TempMailProvider,
         mailbox: &TempMailMailbox,
         reg_options: &OpenAiFullRegOptions,
+        sms_provider_factory: &dyn SmsProviderFactory,
     ) -> BrowserAutomationResult<(OpenAiAuthResult, Option<String>, Option<u64>)> {
         thread::sleep(auth_options.step_delay);
 
@@ -1470,8 +1483,12 @@ impl OpenAiRegAutomation {
                 // Email verification resolved, try phone next
             }
 
-            let (sms_phone, sms_order_id) =
-                Self::handle_phone_verification(tab, reg_options, auth_options.step_delay)?;
+            let (sms_phone, sms_order_id) = Self::handle_phone_verification_with(
+                tab,
+                reg_options,
+                auth_options.step_delay,
+                sms_provider_factory,
+            )?;
 
             // Wait a moment for the final state
             state = wait_for_state(tab, Duration::from_secs(15), |s| {
@@ -1620,90 +1637,6 @@ impl OpenAiRegAutomation {
         result
     }
 
-    /// Fills a React Aria textbox by searching for a visible textbox whose
-    /// accessible label matches one of the given labels.
-    fn fill_react_textbox(
-        tab: &Arc<Tab>,
-        label_cn: &str,
-        label_en: &str,
-        value: &str,
-    ) -> BrowserAutomationResult<bool> {
-        let js_labels = js_value(&[label_cn, label_en])?;
-        let js_value = js_value(value)?;
-        let script = format!(
-            r#"
-            (() => {{
-                const labels = {js_labels}.map(l => l.toLowerCase());
-                const value = {js_value};
-                // Find all textboxes (React Aria uses role="textbox")
-                const textboxes = [
-                    ...document.querySelectorAll('[role="textbox"]'),
-                    ...document.querySelectorAll('input[type="text"]:not([readonly]):not([disabled])'),
-                    ...document.querySelectorAll('input:not([type]):not([readonly]):not([disabled])'),
-                ];
-                const visible = (el) => {{
-                    const style = window.getComputedStyle(el);
-                    const rect = el.getBoundingClientRect();
-                    return style.visibility !== 'hidden'
-                        && style.display !== 'none'
-                        && rect.width > 0 && rect.height > 0;
-                }};
-                for (const el of textboxes) {{
-                    if (!visible(el)) continue;
-                    // Check accessible name
-                    const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
-                    const ariaLabelledby = el.getAttribute('aria-labelledby');
-                    let labelText = ariaLabel;
-                    if (ariaLabelledby) {{
-                        const labelEl = document.getElementById(ariaLabelledby);
-                        if (labelEl) labelText += ' ' + (labelEl.textContent || '').toLowerCase();
-                    }}
-                    // Also check nearby label elements
-                    const prevLabel = el.closest('label')?.textContent?.toLowerCase() || '';
-                    const matchesLabel = labels.some(l =>
-                        labelText.includes(l) || prevLabel.includes(l)
-                    );
-                    if (!matchesLabel) continue;
-
-                    // Found the right textbox — fill using React-compatible method
-                    el.focus();
-                    // For contentEditable divs
-                    if (el.contentEditable === 'true' || el.isContentEditable) {{
-                        el.textContent = '';
-                        el.dispatchEvent(new InputEvent('beforeinput', {{
-                            bubbles: true, inputType: 'insertText', data: value
-                        }}));
-                        document.execCommand('insertText', false, value);
-                        el.dispatchEvent(new InputEvent('input', {{
-                            bubbles: true, data: value, inputType: 'insertText'
-                        }}));
-                    }} else {{
-                        // Native input — use React value setter
-                        const nativeSetter = Object.getOwnPropertyDescriptor(
-                            window.HTMLInputElement.prototype, 'value'
-                        );
-                        if (nativeSetter && nativeSetter.set) {{
-                            nativeSetter.set.call(el, value);
-                        }} else {{
-                            el.value = value;
-                        }}
-                        el.dispatchEvent(new InputEvent('input', {{
-                            bubbles: true, data: value, inputType: 'insertText'
-                        }}));
-                    }}
-                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    el.dispatchEvent(new Event('blur', {{ bubbles: true }}));
-                    return true;
-                }}
-                return false;
-            }})()
-            "#
-        );
-        let result = evaluate_json(tab, &script).map(|v| v.as_bool().unwrap_or(false));
-        eprintln!("[DEBUG] fill_all_textboxes result={:?}", result);
-        result
-    }
-
     /// Polls the disposable mailbox for an email verification code and enters
     /// it into the page.
     fn handle_email_verification(
@@ -1764,10 +1697,11 @@ impl OpenAiRegAutomation {
 
     /// Handles phone verification: buys a 5sim number, enters it, polls for
     /// the SMS code, and enters that.
-    fn handle_phone_verification(
+    fn handle_phone_verification_with(
         tab: &Arc<Tab>,
         reg_options: &OpenAiFullRegOptions,
         step_delay: Duration,
+        factory: &dyn SmsProviderFactory,
     ) -> BrowserAutomationResult<(Option<String>, Option<u64>)> {
         let sms_token = match reg_options.sms_token.as_deref() {
             Some(t) => t,
@@ -1775,7 +1709,13 @@ impl OpenAiRegAutomation {
         };
 
         // Buy SMS number via 5sim
-        let (sms_phone, order_id) = Self::buy_sms_number(sms_token, reg_options)?;
+        let (sms_phone, order_id) = buy_fivesim_number_with(
+            factory,
+            sms_token,
+            &reg_options.sms_country,
+            &reg_options.sms_operator,
+            &reg_options.sms_product,
+        )?;
 
         // Enter phone number into the page
         Self::fill_phone_input(tab, &sms_phone)?;
@@ -1789,7 +1729,7 @@ impl OpenAiRegAutomation {
         thread::sleep(Duration::from_secs(3));
 
         // Poll 5sim for the SMS code
-        let code = Self::poll_sms_code(sms_token, order_id, Duration::from_secs(180));
+        let code = poll_fivesim_sms_with(factory, sms_token, order_id, Duration::from_secs(180));
         if let Some(code) = code {
             Self::fill_verification_code(tab, &code)?;
             thread::sleep(step_delay);
@@ -1798,70 +1738,6 @@ impl OpenAiRegAutomation {
         }
 
         Ok((Some(sms_phone), Some(order_id)))
-    }
-
-    /// Buys a one-time SMS activation number from 5sim.
-    fn buy_sms_number(
-        sms_token: &str,
-        reg_options: &OpenAiFullRegOptions,
-    ) -> BrowserAutomationResult<(String, u64)> {
-        Self::buy_sms_number_with(&BuiltinSmsProviderFactory, sms_token, reg_options)
-    }
-
-    fn buy_sms_number_with(
-        factory: &dyn SmsProviderFactory,
-        sms_token: &str,
-        reg_options: &OpenAiFullRegOptions,
-    ) -> BrowserAutomationResult<(String, u64)> {
-        let rt = tokio::runtime::Runtime::new().map_err(to_browser_error)?;
-        rt.block_on(async {
-            let client = crate::ai_reg_auto::build_fivesim_provider_with(factory, sms_token)?;
-            let request = az_sms::model::SmsActivationRequest::new(
-                &reg_options.sms_country,
-                &reg_options.sms_operator,
-                &reg_options.sms_product,
-            )
-            .map_err(to_browser_error)?;
-            let order = client
-                .buy_activation_number(request)
-                .await
-                .map_err(to_browser_error)?;
-
-            Ok((order.phone, order.id))
-        })
-    }
-
-    /// Polls 5sim for the SMS message containing a verification code.
-    fn poll_sms_code(sms_token: &str, order_id: u64, max_wait: Duration) -> Option<String> {
-        Self::poll_sms_code_with(&BuiltinSmsProviderFactory, sms_token, order_id, max_wait)
-    }
-
-    fn poll_sms_code_with(
-        factory: &dyn SmsProviderFactory,
-        sms_token: &str,
-        order_id: u64,
-        max_wait: Duration,
-    ) -> Option<String> {
-        let rt = tokio::runtime::Runtime::new().ok()?;
-        rt.block_on(async {
-            let client = crate::ai_reg_auto::build_fivesim_provider_with(factory, sms_token).ok()?;
-            let options =
-                az_sms::model::WaitForSmsOptions::new(max_wait, Duration::from_secs(5)).ok()?;
-            match client.wait_for_sms(order_id, options).await {
-                Ok(order) => {
-                    // Prefer provider-extracted code
-                    if let Some(code) = order.sms.first().and_then(|msg| msg.code.clone()) {
-                        return Some(code);
-                    }
-                    // Fallback: extract code from text
-                    order
-                        .sms
-                        .first()
-                        .and_then(|msg| extract_verification_code(&msg.text))
-                }
-                Err(_) => None,
-            }
-        })
     }
 
     /// Fills a verification code into the first matching input on the page.
@@ -1998,6 +1874,7 @@ fn extract_verification_code(text: &str) -> Option<String> {
     None
 }
 
+/// Removes HTML tags, keeping only the text content.
 fn strip_html_tags(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut in_tag = false;
@@ -2272,29 +2149,17 @@ fn random_seed() -> u64 {
         .as_nanos() as u64
 }
 
-fn char_to_key_code(ch: char) -> String {
-    match ch {
-        'a'..='z' => format!("Key{}", ch.to_uppercase()),
-        'A'..='Z' => format!("Key{ch}"),
-        '0'..='9' => format!("Digit{ch}"),
-        ' ' => "Space".into(),
-        _ => format!("Key{ch}"),
-    }
-}
-
-fn char_to_vk(ch: char) -> i32 {
-    match ch {
-        'a'..='z' => (ch as i32) - 32,
-        'A'..='Z' => ch as i32,
-        '0'..='9' => ch as i32,
-        ' ' => 32,
-        _ => 0,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use az_sms::error::{SmsError, SmsResult};
+    use az_sms::model::{
+        SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsMessage, SmsOrder, SmsOrderStatus,
+    };
+    use az_sms::provider::{
+        BoxSmsProvider, SmsProvider, SmsProviderConfig, SmsProviderFactory, SmsProviderKind,
+    };
+    use az_temp_mail::CreateMailboxRequest;
 
     struct InspectingTempMailProvider;
 
@@ -2340,6 +2205,86 @@ mod tests {
         }
     }
 
+    struct InspectingSmsFactory;
+
+    impl SmsProviderFactory for InspectingSmsFactory {
+        fn build_provider(&self, config: SmsProviderConfig) -> SmsResult<BoxSmsProvider> {
+            assert_eq!(config.kind(), SmsProviderKind::Fivesim);
+            Ok(Box::new(InspectingSmsProvider))
+        }
+    }
+
+    struct InspectingSmsProvider;
+
+    #[async_trait::async_trait]
+    impl SmsProvider for InspectingSmsProvider {
+        async fn buy_activation_number(
+            &self,
+            request: SmsActivationRequest,
+        ) -> SmsResult<SmsOrder> {
+            assert_eq!(request.country, "usa");
+            assert_eq!(request.operator, "any");
+            assert_eq!(request.product, "openai");
+            Ok(sample_sms_order(42, "+15551234567"))
+        }
+
+        async fn buy_hosting_number(&self, _request: SmsHostingRequest) -> SmsResult<SmsOrder> {
+            unsupported_sms_operation("buy_hosting_number")
+        }
+
+        async fn check_order(&self, order_id: u64) -> SmsResult<SmsOrder> {
+            assert_eq!(order_id, 42);
+            Ok(sample_sms_order(order_id, "+15551234567"))
+        }
+
+        async fn finish_order(&self, _order_id: u64) -> SmsResult<SmsOrder> {
+            unsupported_sms_operation("finish_order")
+        }
+
+        async fn cancel_order(&self, _order_id: u64) -> SmsResult<SmsOrder> {
+            unsupported_sms_operation("cancel_order")
+        }
+
+        async fn ban_order(&self, _order_id: u64) -> SmsResult<SmsOrder> {
+            unsupported_sms_operation("ban_order")
+        }
+
+        async fn inbox(&self, _order_id: u64) -> SmsResult<SmsInbox> {
+            unsupported_sms_operation("inbox")
+        }
+    }
+
+    fn sample_sms_order(id: u64, phone: &str) -> SmsOrder {
+        SmsOrder {
+            id,
+            phone: phone.to_owned(),
+            operator: Some("any".to_owned()),
+            product: "openai".to_owned(),
+            price: 0.0,
+            status: SmsOrderStatus::Pending,
+            expires: None,
+            sms: vec![SmsMessage {
+                id: Some(1),
+                created_at: None,
+                date: None,
+                sender: "OpenAI".to_owned(),
+                text: "Your code is 654321".to_owned(),
+                code: Some("654321".to_owned()),
+            }],
+            created_at: None,
+            forwarding: None,
+            forwarding_number: None,
+            country: Some("usa".to_owned()),
+        }
+    }
+
+    fn unsupported_sms_operation<T>(operation: &'static str) -> SmsResult<T> {
+        Err(SmsError::UnsupportedOperation {
+            provider: "inspect",
+            operation,
+        })
+    }
+
     #[test]
     fn registration_mailbox_should_use_injected_temp_mail_provider() {
         let options = OpenAiFullRegOptions {
@@ -2348,11 +2293,42 @@ mod tests {
         };
         let provider = InspectingTempMailProvider;
 
-        let mailbox = OpenAiRegAutomation::create_registration_mailbox(&provider, &options)
+        let mailbox = create_registration_mailbox(&provider, &options.email_prefix)
             .expect("mailbox should be created through injected provider");
 
         assert_eq!(mailbox.address, "owner@example.test");
         assert_eq!(mailbox.password.as_deref(), Some("mail-password"));
+    }
+
+    #[test]
+    fn sms_helpers_should_use_injected_provider_factory() {
+        let options = OpenAiFullRegOptions {
+            sms_country: "usa".to_owned(),
+            sms_operator: "any".to_owned(),
+            sms_product: "openai".to_owned(),
+            ..OpenAiFullRegOptions::default()
+        };
+
+        let (phone, order_id) = buy_fivesim_number_with(
+            &InspectingSmsFactory,
+            "token",
+            &options.sms_country,
+            &options.sms_operator,
+            &options.sms_product,
+        )
+        .expect("SMS number should be bought through injected factory");
+
+        assert_eq!(phone, "+15551234567");
+        assert_eq!(order_id, 42);
+
+        let code = poll_fivesim_sms_with(
+            &InspectingSmsFactory,
+            "token",
+            order_id,
+            Duration::from_secs(1),
+        );
+
+        assert_eq!(code.as_deref(), Some("654321"));
     }
 
     #[test]

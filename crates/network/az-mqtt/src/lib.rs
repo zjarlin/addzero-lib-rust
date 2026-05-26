@@ -46,7 +46,7 @@
 #![forbid(unsafe_code)]
 
 use az_derive_aliases::{
-    apply, error, impl_from_match, plain_copy_eq, plain_eq, plain_eq_redacted,
+    apply, error, impl_from_match, plain_code_enum, plain_eq, plain_eq_redacted,
 };
 use rumqttc::{
     Client, ClientError, Connection, Event, LastWill, MqttOptions, Packet, QoS, RecvTimeoutError,
@@ -90,7 +90,7 @@ pub enum MqttError {
     BackgroundThreadPanicked,
 }
 
-#[apply(plain_copy_eq)]
+#[apply(plain_code_enum)]
 pub enum MqttQoS {
     AtMostOnce,
     AtLeastOnce,

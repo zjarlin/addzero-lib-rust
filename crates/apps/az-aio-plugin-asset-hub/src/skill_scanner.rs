@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
-use az_derive_aliases::{apply, serialize_eq};
+use az_derive_aliases::{apply, serialize_camel_eq};
 
 const BUILT_IN_TAGS: &[&str] = &[
     "gradle",
@@ -19,8 +19,7 @@ const BUILT_IN_TAGS: &[&str] = &[
     "api",
 ];
 
-#[apply(serialize_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serialize_camel_eq)]
 pub struct ScannedSkillAsset {
     pub id: String,
     pub name: String,

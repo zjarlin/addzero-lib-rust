@@ -28,5 +28,8 @@ tracing = "0.1"
 strum.workspace = true
 uuid.workspace = true
 
+[dev-dependencies]
+async-trait.workspace = true
+
 [lints]
 workspace = true

@@ -113,6 +113,18 @@ fn unsupported_capabilities_return_explicit_error() {
     assert_eq!(error, "unsupported capability: automated_kiro_registration");
 }
 
+#[test]
+fn unsupported_capabilities_expose_machine_codes() {
+    assert_eq!(
+        BlockedCapability::BrowserFingerprintImpersonation.code(),
+        "browser_fingerprint_impersonation"
+    );
+    assert_eq!(
+        BlockedCapability::from_code("provider_challenge_bypass"),
+        Some(BlockedCapability::ProviderChallengeBypass)
+    );
+}
+
 #[apply(plain_clone_debug)]
 struct CapturedRequest {
     path: String,

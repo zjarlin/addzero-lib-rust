@@ -18,13 +18,13 @@
 //! - 通过 [`Command`] trait 实现命令扩展
 
 use az_derive_aliases::{
-    apply, error_eq, from_display, plain_copy_eq_display, plain_eq, plain_partial_eq,
+    apply, error_eq, from_display, plain_code_display_no_default_enum, plain_eq, plain_partial_eq,
 };
 
 pub const EXIT_COMMAND: &str = "q";
 pub const HELP_COMMAND: &str = "h";
 
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum ParamType {
     #[display("String")]
     String,
@@ -346,7 +346,7 @@ fn parse_value(def: &ParamDef, value: &str) -> Result<ParamValue, ReplError> {
                 .map_err(|_| ReplError::InvalidValue {
                     name: def.name.clone(),
                     value: value.to_owned(),
-                    expected: "Int",
+                    expected: def.param_type.code(),
                 })
         }
         ParamType::Float => {
@@ -356,7 +356,7 @@ fn parse_value(def: &ParamDef, value: &str) -> Result<ParamValue, ReplError> {
                 .map_err(|_| ReplError::InvalidValue {
                     name: def.name.clone(),
                     value: value.to_owned(),
-                    expected: "Float",
+                    expected: def.param_type.code(),
                 })
         }
         ParamType::Bool => match value.to_ascii_lowercase().as_str() {
@@ -365,7 +365,7 @@ fn parse_value(def: &ParamDef, value: &str) -> Result<ParamValue, ReplError> {
             _ => Err(ReplError::InvalidValue {
                 name: def.name.clone(),
                 value: value.to_owned(),
-                expected: "Boolean",
+                expected: def.param_type.code(),
             }),
         },
     }

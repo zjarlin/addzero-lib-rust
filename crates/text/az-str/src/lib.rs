@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, from_eq, plain_copy_eq, plain_eq};
+use az_derive_aliases::{apply, from_eq, plain_code_display_no_default_enum, plain_eq};
 use deunicode::deunicode;
 use regex::Regex;
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-#[apply(plain_copy_eq)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum VariableType {
     Constant,
     CamelCase,

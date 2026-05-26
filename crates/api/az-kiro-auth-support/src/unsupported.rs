@@ -1,8 +1,8 @@
 use crate::{KiroAuthSupportError, KiroAuthSupportResult};
-use az_derive_aliases::{apply, plain_copy_eq_display};
+use az_derive_aliases::{apply, plain_code_display_no_default_enum};
 
 /// Automation capabilities intentionally left out of this Rust port.
-#[apply(plain_copy_eq_display)]
+#[apply(plain_code_display_no_default_enum)]
 pub enum BlockedCapability {
     /// Fully automated third-party account creation.
     #[display("automated_kiro_registration")]

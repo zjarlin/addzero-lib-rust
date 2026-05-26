@@ -165,9 +165,18 @@ fn progress_helpers_compute_expected_values() {
 }
 
 #[test]
-fn upload_status_enums_expose_stable_display_values() {
+fn upload_status_enums_expose_stable_codes_and_display_values() {
+    assert_eq!(PartStatus::Uploading.code(), "uploading");
+    assert_eq!(PartStatus::from_code("pending"), Some(PartStatus::Pending));
+    assert_eq!(UploadStatusType::InProgress.code(), "in_progress");
+    assert_eq!(
+        UploadStatusType::from_code("cancelled"),
+        Some(UploadStatusType::Cancelled)
+    );
     assert_eq!(PartStatus::Uploading.to_string(), "uploading");
     assert_eq!(UploadStatusType::InProgress.to_string(), "in-progress");
+    assert_eq!(PartStatus::ALL.len(), 4);
+    assert_eq!(UploadStatusType::ALL.len(), 5);
 }
 
 #[test]

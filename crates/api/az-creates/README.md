@@ -12,6 +12,7 @@
 - 天眼查普通接口
 - 天眼查华为云签名接口
 - 临时邮箱：Cloudflare Worker、mail.tm、Emailnator，以及 provider factory 注入入口
+- 短信接码：5sim、Grizzly SMS，以及 provider factory 注入入口
 
 ## 添加依赖
 
@@ -43,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let songs = music.search_songs("晴天", 5, 0)?;
     println!("songs: {}", songs.len());
 
-    let temp_mail = Creates::temp_mail()?;
+    let temp_mail = Creates::temp_mail_mail_tm()?;
     let mailbox = temp_mail.create_mailbox_and_login("demo", 12)?;
     println!("mailbox: {}", mailbox.address);
 
@@ -248,6 +249,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `temp_mail_mail_tm_with_config`
 - `temp_mail_provider`
 - `temp_mail_provider_with_factory`
+
+## SMS provider
+
+```rust
+use az_creates::{
+    BuiltinSmsProviderFactory, Creates, FivesimConfig, SmsProviderConfig, SmsProviderFactory,
+    SmsProviderKind,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = FivesimConfig::builder("token").build()?;
+    let provider = Creates::sms_provider(SmsProviderConfig::from(config))?;
+    assert_eq!(provider.provider_kind(), SmsProviderKind::Fivesim);
+
+    let factory: &dyn SmsProviderFactory = &BuiltinSmsProviderFactory;
+    let provider = Creates::fivesim_sms_with_factory(factory, "token")?;
+    assert_eq!(provider.provider_kind(), SmsProviderKind::Fivesim);
+    Ok(())
+}
+```
+
+已封装的方法：
+
+- `sms_provider`
+- `sms_provider_with_factory`
+- `fivesim_sms`
+- `fivesim_sms_with_factory`
 
 ## 自定义配置
 

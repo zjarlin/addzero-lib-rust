@@ -17,7 +17,7 @@
 //! - 条目的 `code` 和原始值（`rawIntValue` / `rawTextValue`）不能重复
 //! - 整数型字典只能使用 `rawIntValue`，字符串型字典只能使用 `rawTextValue`
 
-use az_derive_aliases::{apply, error, plain_copy_eq, serde_code_enum, serde_eq};
+use az_derive_aliases::{apply, error, plain_copy_eq, serde_camel_eq, serde_code_enum};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
@@ -33,8 +33,7 @@ where
     pub meta_json: Option<&'static str>,
 }
 
-#[apply(serde_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serde_camel_eq)]
 pub struct DictionarySpec {
     pub code: String,
     pub name: String,
@@ -123,8 +122,7 @@ impl DictionarySpec {
     }
 }
 
-#[apply(serde_eq)]
-#[serde(rename_all = "camelCase")]
+#[apply(serde_camel_eq)]
 pub struct DictionaryItemSpec {
     pub code: String,
     pub label: String,
