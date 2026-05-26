@@ -11,7 +11,7 @@
 - Suno 音乐生成任务
 - 天眼查普通接口
 - 天眼查华为云签名接口
-- mail.tm 临时邮箱
+- 临时邮箱：Cloudflare Worker、mail.tm、Emailnator，以及 provider factory 注入入口
 
 ## 添加依赖
 
@@ -206,31 +206,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Temp Mail
 
 ```rust
-use az_creates::Creates;
+use az_creates::{Creates, TempMailNewAddressRequest, TempMailPageRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let api = Creates::temp_mail()?;
+    let api = Creates::temp_mail_cloudflare("https://mail.example.com")?;
 
-    let mailbox = api.create_mailbox_and_login("az", 12)?;
-    println!("address: {}", mailbox.address);
+    let address = api.new_address(&TempMailNewAddressRequest::new("az", "example.com"))?;
+    println!("address: {}", address.address);
 
-    let messages = api.list_messages(&mailbox.token, 1)?;
-    for message in messages {
-        println!("message: {} {}", message.id, message.subject);
+    let messages = api.list_parsed_mails(&address.jwt, TempMailPageRequest::default())?;
+    for message in messages.results {
+        println!("message: {}", message.subject);
     }
 
     Ok(())
 }
 ```
 
+Provider factory 注入：
+
+```rust
+use az_creates::{
+    Creates, TempMailApiConfig, TempMailProviderConfig, TempMailProviderKind,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = Creates::temp_mail_provider(TempMailProviderConfig::MailTm(
+        TempMailApiConfig::builder("https://api.mail.tm").build()?,
+    ))?;
+
+    assert_eq!(provider.provider_kind(), TempMailProviderKind::MailTm);
+    Ok(())
+}
+```
+
 已封装的方法：
 
-- `get_domains`
-- `create_mailbox_and_login`
-- `create_account`
-- `create_token`
-- `list_messages`
-- `get_message`
+- `temp_mail_cloudflare`
+- `temp_mail_cloudflare_with_config`
+- `temp_mail_mail_tm`
+- `temp_mail_mail_tm_with_config`
+- `temp_mail_provider`
+- `temp_mail_provider_with_factory`
 
 ## 自定义配置
 

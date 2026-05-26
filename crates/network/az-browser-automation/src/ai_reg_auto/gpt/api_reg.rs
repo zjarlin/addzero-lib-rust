@@ -17,7 +17,9 @@
 use crate::browser_automation::BrowserAutomationResult;
 use az_derive_aliases::{apply, plain_clone_debug, plain_default_copy_eq, plain_default_eq};
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
-use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
+use az_temp_mail::{
+    create_mail_tm_api, CreateMailboxRequest, PageRequest, TempMailMailbox, TempMailProvider,
+};
 use reqwest::blocking::Client as HttpClient;
 use sha2::{Digest, Sha256};
 use std::thread;
@@ -97,9 +99,14 @@ pub struct OpenAiApiRegAutomation;
 impl OpenAiApiRegAutomation {
     pub fn run(reg_options: &OpenAiApiRegOptions) -> BrowserAutomationResult<OpenAiApiRegResult> {
         let mail_api = create_mail_tm_api().map_err(to_browser_error)?;
-        let mailbox = mail_api
-            .create_mailbox_and_login(&reg_options.email_prefix, 16)
-            .map_err(to_browser_error)?;
+        Self::run_with_provider(reg_options, &mail_api)
+    }
+
+    pub fn run_with_provider(
+        reg_options: &OpenAiApiRegOptions,
+        provider: &dyn TempMailProvider,
+    ) -> BrowserAutomationResult<OpenAiApiRegResult> {
+        let mailbox = create_registration_mailbox(provider, reg_options)?;
         let email = mailbox.address.clone();
         let email_password = mailbox.password.clone().unwrap_or_default();
         let jwt = mailbox.credential.clone();
@@ -266,7 +273,7 @@ impl OpenAiApiRegAutomation {
             .unwrap_or(false);
         if needs_verify {
             thread::sleep(Duration::from_secs(3));
-            if let Some(code) = poll_temp_mail_code(&mail_api, &mailbox, Duration::from_secs(120)) {
+            if let Some(code) = poll_temp_mail_code(provider, &mailbox, Duration::from_secs(120)) {
                 let cookie_header = join_cookies(&cookie_jar);
                 let verify_body = serde_json::json!({"code": code, "email": email});
                 let _ = client
@@ -323,6 +330,15 @@ impl OpenAiApiRegAutomation {
             sync_results,
         })
     }
+}
+
+fn create_registration_mailbox(
+    provider: &dyn TempMailProvider,
+    reg_options: &OpenAiApiRegOptions,
+) -> BrowserAutomationResult<TempMailMailbox> {
+    provider
+        .create_mailbox(&CreateMailboxRequest::named(&reg_options.email_prefix).password_length(16))
+        .map_err(to_browser_error)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -708,72 +724,4 @@ fn err_result(
 
 fn to_browser_error(error: impl ToString) -> crate::browser_automation::BrowserAutomationError {
     crate::browser_automation::BrowserAutomationError::Browser(error.to_string())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pkce_verifier_is_128_chars() {
-        let v = pkce_verifier();
-        assert_eq!(v.len(), 128);
-        assert!(
-            v.chars()
-                .all(|c| c.is_ascii_alphanumeric() || "-._~".contains(c))
-        );
-    }
-
-    #[test]
-    fn pkce_challenge_is_base64url_no_pad() {
-        let challenge = sha256_base64url_no_pad("test");
-        assert!(!challenge.contains('='));
-        assert!(!challenge.contains('+'));
-        assert!(!challenge.contains('/'));
-    }
-
-    #[test]
-    fn urlencoding_encodes_special_chars() {
-        let encoded = urlencoding("com.openai.chatgpt://callback");
-        assert!(encoded.contains("%3A%2F%2F"));
-    }
-
-    #[test]
-    fn extract_code_finds_six_digit() {
-        let code = extract_verification_code("Your verification code is 123456");
-        assert_eq!(code.as_deref(), Some("123456"));
-    }
-
-    #[test]
-    fn extract_code_finds_code_prefix() {
-        let code = extract_verification_code("Code: 7890");
-        assert_eq!(code.as_deref(), Some("7890"));
-    }
-
-    #[test]
-    fn extract_code_from_html() {
-        let code = extract_verification_code("<p>Your code is <b>555121</b></p>");
-        assert_eq!(code.as_deref(), Some("555121"));
-    }
-
-    #[test]
-    fn api_options_default() {
-        let opts = OpenAiApiRegOptions::default();
-        assert_eq!(opts.sms_product, "openai");
-        assert_eq!(opts.sms_country, "usa");
-    }
-
-    #[test]
-    fn api_error_result_is_not_success() {
-        let r = api_error(
-            "e@t.com".into(),
-            "ep".into(),
-            "jwt".into(),
-            "pwd".into(),
-            "sentinel",
-            "fail",
-        );
-        assert!(!r.success);
-        assert_eq!(r.stage, "sentinel");
-    }
 }

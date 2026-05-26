@@ -4,7 +4,8 @@
 
 ## 功能
 
-- **多后端支持**：通过 `TempMailProvider` trait 统一抽象，内置 Cloudflare Workers 和 mail.tm 两种实现
+- **多后端支持**：通过 `TempMailProvider` trait 统一抽象，内置 Cloudflare Workers、mail.tm、Emailnator 三种实现
+- **依赖注入边界**：通过 `TempMailProviderFactory` 和 `TempMailProviderConfig` 构造 boxed provider，方便上层按配置注入
 - **地址管理**：创建临时邮箱地址、密码登录、凭据验证、修改密码、删除地址
 - **收件箱操作**：列表/详情查看原始邮件和解析后邮件、删除单封邮件、清空收件箱
 - **发信功能**：申请发信权限后通过 `/api/send_mail` 发送邮件
@@ -63,9 +64,24 @@ let api = TempMail::mail_tm()?;
 // api 实现了 TempMailProvider trait，可统一操作收件箱
 ```
 
+### 使用 provider factory
+
+```rust
+use az_temp_mail::{
+    ApiConfig, TempMailProviderConfig, TempMailProviderKind, build_temp_mail_provider,
+};
+
+let config = TempMailProviderConfig::MailTm(ApiConfig::builder("https://api.mail.tm").build()?);
+assert_eq!(config.kind(), TempMailProviderKind::MailTm);
+
+let provider = build_temp_mail_provider(config)?;
+assert_eq!(provider.provider_kind(), TempMailProviderKind::MailTm);
+```
+
 ## 依赖的 crates
 
 - `reqwest` - HTTP 客户端，用于调用临时邮箱 API
 - `serde` / `serde_json` - JSON 序列化/反序列化
 - `sha2` - SHA-256 哈希（用于密码登录时的密码散列）
 - `thiserror` - 简化错误类型定义
+- `strum` - 稳定 provider code 和字符串转换

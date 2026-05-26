@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stream-First Rust Style"
+  short_description: "Prefer iterator chains in Rust"
+  default_prompt: "Use $stream-first-rust-style to refactor this Rust code toward iterator chains and combinator-based flow while keeping it readable."

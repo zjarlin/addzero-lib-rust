@@ -18,6 +18,7 @@
 //!
 //! 插件导出的生命周期函数签名为 `() -> i32`，返回 0 表示成功，非零表示失败。
 
+use az_derive_aliases::{apply, plain_default};
 use az_wasm_plugin_api::{PluginError, PluginHandle, PluginManifest, PluginRegistry, PluginState};
 use std::collections::BTreeMap;
 use std::sync::RwLock;
@@ -31,6 +32,7 @@ const ON_DISABLE_EXPORT: &str = "aio_on_disable";
 const ON_UNLOAD_EXPORT: &str = "aio_on_unload";
 
 /// In-memory plugin registry backed by Wasmtime for external plugins.
+#[apply(plain_default)]
 pub struct RuntimePluginRegistry {
     engine: Engine,
     plugins: RwLock<BTreeMap<Uuid, RuntimePlugin>>,
@@ -53,16 +55,17 @@ struct WasmPluginInstance {
 
 impl RuntimePluginRegistry {
     pub fn new() -> Self {
-        Self {
-            engine: Engine::default(),
-            plugins: RwLock::new(BTreeMap::new()),
-        }
+        Self::default()
     }
-}
 
-impl Default for RuntimePluginRegistry {
-    fn default() -> Self {
-        Self::new()
+    /// Build a registry with an injected Wasmtime engine.
+    ///
+    /// Use this when the host needs a preconfigured engine instead of the default Wasmtime runtime.
+    pub fn with_engine(engine: Engine) -> Self {
+        Self {
+            engine,
+            plugins: RwLock::default(),
+        }
     }
 }
 
@@ -258,6 +261,17 @@ mod tests {
         let handle = registry
             .load(manifest("com.example.builtin", "builtin:test"), Vec::new())
             .expect("builtin plugin should load without wasm");
+
+        assert_eq!(handle.state, PluginState::Installed);
+    }
+
+    #[test]
+    fn with_engine_should_accept_injected_wasmtime_engine() {
+        let registry = RuntimePluginRegistry::with_engine(Engine::default());
+
+        let handle = registry
+            .load(manifest("com.example.injected", "builtin:test"), Vec::new())
+            .expect("builtin plugin should load with injected engine");
 
         assert_eq!(handle.state, PluginState::Installed);
     }

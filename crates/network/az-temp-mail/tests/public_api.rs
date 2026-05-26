@@ -198,6 +198,29 @@ fn temp_mail_provider_trait_supports_cloudflare_and_mail_tm() -> Result<(), Box<
 }
 
 #[test]
+fn temp_mail_provider_factory_builds_boxed_providers() -> Result<(), Box<dyn Error>> {
+    let factory = BuiltinTempMailProviderFactory;
+
+    let cloudflare_config =
+        TempMailProviderConfig::Cloudflare(ApiConfig::builder("http://127.0.0.1:21001").build()?);
+    assert_eq!(cloudflare_config.kind(), TempMailProviderKind::Cloudflare);
+    let cloudflare = factory.build_provider(cloudflare_config)?;
+    assert_eq!(cloudflare.provider_kind(), TempMailProviderKind::Cloudflare);
+
+    let mail_tm = build_temp_mail_provider(TempMailProviderConfig::MailTm(
+        ApiConfig::builder("http://127.0.0.1:21002").build()?,
+    ))?;
+    assert_eq!(mail_tm.provider_kind(), TempMailProviderKind::MailTm);
+
+    let emailnator = factory.build_provider(TempMailProviderConfig::Emailnator(
+        ApiConfig::builder("http://127.0.0.1:21003").build()?,
+    ))?;
+    assert_eq!(emailnator.provider_kind(), TempMailProviderKind::Emailnator);
+
+    Ok(())
+}
+
+#[test]
 fn emailnator_provider_uses_xsrf_cookie_and_message_paths() -> Result<(), Box<dyn Error>> {
     let server = TestServer::spawn(vec![
         TestResponse::text("<html></html>").header("Set-Cookie", "XSRF-TOKEN=token%3D; Path=/"),

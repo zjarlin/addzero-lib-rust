@@ -108,6 +108,27 @@ fn temp_mail_password_helpers_hash_like_upstream_frontend() -> Result<(), Box<dy
     Ok(())
 }
 
+#[test]
+fn creates_facade_builds_temp_mail_provider() -> Result<(), Box<dyn Error>> {
+    let mail_tm_config = TempMailProviderConfig::MailTm(
+        TempMailApiConfig::builder("http://127.0.0.1:22001").build()?,
+    );
+    assert_eq!(mail_tm_config.kind(), TempMailProviderKind::MailTm);
+    let provider = Creates::temp_mail_provider(mail_tm_config)?;
+    assert_eq!(provider.provider_kind(), TempMailProviderKind::MailTm);
+
+    let factory: &dyn TempMailProviderFactory = &BuiltinTempMailProviderFactory;
+    let emailnator = Creates::temp_mail_provider_with_factory(
+        factory,
+        TempMailProviderConfig::Emailnator(
+            TempMailApiConfig::builder("http://127.0.0.1:22002").build()?,
+        ),
+    )?;
+    assert_eq!(emailnator.provider_kind(), TempMailProviderKind::Emailnator);
+
+    Ok(())
+}
+
 #[apply(plain_clone_debug)]
 struct CapturedRequest {
     method: String,

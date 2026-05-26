@@ -9,7 +9,9 @@ use az_derive_aliases::{
     serde_code_enum,
 };
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
-use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
+use az_temp_mail::{
+    CreateMailboxRequest, PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api,
+};
 use headless_chrome::Tab;
 use headless_chrome::protocol::cdp::Runtime;
 use serde_json::Value;
@@ -1100,11 +1102,22 @@ impl OpenAiRegAutomation {
         reg_options: &OpenAiFullRegOptions,
         browser_options: &BrowserAutomationOptions,
     ) -> BrowserAutomationResult<OpenAiFullRegResult> {
-        // 1. Create disposable mailbox
         let api = create_mail_tm_api().map_err(to_browser_error)?;
-        let mailbox = api
-            .create_mailbox_and_login(&reg_options.email_prefix, 16)
-            .map_err(to_browser_error)?;
+        Self::run_full_registration_with_provider(reg_options, browser_options, &api)
+    }
+
+    /// Runs the full OpenAI sign-up loop using a caller-provided temporary
+    /// email provider.
+    ///
+    /// This keeps the browser workflow independent from a concrete mailbox
+    /// backend. Callers can build the provider through
+    /// [`az_temp_mail::TempMailProviderFactory`] and inject it here.
+    pub fn run_full_registration_with_provider(
+        reg_options: &OpenAiFullRegOptions,
+        browser_options: &BrowserAutomationOptions,
+        provider: &dyn TempMailProvider,
+    ) -> BrowserAutomationResult<OpenAiFullRegResult> {
+        let mailbox = Self::create_registration_mailbox(provider, reg_options)?;
         let openai_password = reg_options
             .password
             .clone()
@@ -1127,7 +1140,7 @@ impl OpenAiRegAutomation {
         let (mut auth_result, sms_phone, sms_order_id) = Self::run_with_verification(
             &auth_options,
             browser_options,
-            &api,
+            provider,
             &mailbox,
             reg_options,
         )?;
@@ -1168,9 +1181,17 @@ impl OpenAiRegAutomation {
         session: &crate::browser_automation::BrowserSession,
     ) -> BrowserAutomationResult<OpenAiFullRegResult> {
         let api = create_mail_tm_api().map_err(to_browser_error)?;
-        let mailbox = api
-            .create_mailbox_and_login(&reg_options.email_prefix, 16)
-            .map_err(to_browser_error)?;
+        Self::run_on_session_with_provider(reg_options, session, &api)
+    }
+
+    /// Runs the full registration flow on an existing [`BrowserSession`] using
+    /// a caller-provided temporary email provider.
+    pub fn run_on_session_with_provider(
+        reg_options: &OpenAiFullRegOptions,
+        session: &crate::browser_automation::BrowserSession,
+        provider: &dyn TempMailProvider,
+    ) -> BrowserAutomationResult<OpenAiFullRegResult> {
+        let mailbox = Self::create_registration_mailbox(provider, reg_options)?;
         let openai_password = reg_options
             .password
             .clone()
@@ -1197,7 +1218,7 @@ impl OpenAiRegAutomation {
         let (mut auth_result, sms_phone, sms_order_id) = Self::run_verification_on_tab(
             session.tab(),
             &auth_options,
-            &api,
+            provider,
             &mailbox,
             reg_options,
         )?;
@@ -1220,6 +1241,17 @@ impl OpenAiRegAutomation {
         }
 
         Ok(result)
+    }
+
+    fn create_registration_mailbox(
+        provider: &dyn TempMailProvider,
+        reg_options: &OpenAiFullRegOptions,
+    ) -> BrowserAutomationResult<TempMailMailbox> {
+        provider
+            .create_mailbox(
+                &CreateMailboxRequest::named(&reg_options.email_prefix).password_length(16),
+            )
+            .map_err(to_browser_error)
     }
 
     fn run_with_verification(
@@ -1966,7 +1998,6 @@ fn extract_verification_code(text: &str) -> Option<String> {
     None
 }
 
-/// Removes HTML tags, keeping only the text content.
 fn strip_html_tags(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut in_tag = false;
@@ -2264,6 +2295,65 @@ fn char_to_vk(ch: char) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct InspectingTempMailProvider;
+
+    impl TempMailProvider for InspectingTempMailProvider {
+        fn provider_kind(&self) -> az_temp_mail::TempMailProviderKind {
+            az_temp_mail::TempMailProviderKind::MailTm
+        }
+
+        fn create_mailbox(
+            &self,
+            request: &CreateMailboxRequest,
+        ) -> az_temp_mail::TempMailResult<TempMailMailbox> {
+            assert_eq!(request.name.as_deref(), Some("owner"));
+            assert_eq!(request.password_length, 16);
+            Ok(TempMailMailbox {
+                provider: az_temp_mail::TempMailProviderKind::MailTm,
+                address: "owner@example.test".to_owned(),
+                credential: "jwt-token".to_owned(),
+                account_id: Some("account-1".to_owned()),
+                password: Some("mail-password".to_owned()),
+            })
+        }
+
+        fn list_messages(
+            &self,
+            _mailbox: &TempMailMailbox,
+            _page: PageRequest,
+        ) -> az_temp_mail::TempMailResult<
+            az_temp_mail::ListResponse<az_temp_mail::TempMailMessageSummary>,
+        > {
+            Ok(az_temp_mail::ListResponse {
+                results: Vec::new(),
+                count: 0,
+            })
+        }
+
+        fn get_message(
+            &self,
+            _mailbox: &TempMailMailbox,
+            _message_id: &str,
+        ) -> az_temp_mail::TempMailResult<Option<az_temp_mail::TempMailMessageDetail>> {
+            Ok(None)
+        }
+    }
+
+    #[test]
+    fn registration_mailbox_should_use_injected_temp_mail_provider() {
+        let options = OpenAiFullRegOptions {
+            email_prefix: "owner".to_owned(),
+            ..OpenAiFullRegOptions::default()
+        };
+        let provider = InspectingTempMailProvider;
+
+        let mailbox = OpenAiRegAutomation::create_registration_mailbox(&provider, &options)
+            .expect("mailbox should be created through injected provider");
+
+        assert_eq!(mailbox.address, "owner@example.test");
+        assert_eq!(mailbox.password.as_deref(), Some("mail-password"));
+    }
 
     #[test]
     fn login_options_should_target_openai_login_page() {

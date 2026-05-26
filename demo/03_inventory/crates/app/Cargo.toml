@@ -1,0 +1,10 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+pay-api = { path = "../pay-api" }
+inventory-plugin-alipay = { path = "../inventory-plugin-alipay" }
+inventory-plugin-wechat = { path = "../inventory-plugin-wechat" }
+inventory-plugin-other = { path = "../inventory-plugin-other" }

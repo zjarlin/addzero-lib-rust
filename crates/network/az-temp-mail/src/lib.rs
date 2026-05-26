@@ -66,7 +66,10 @@ pub use model::{
     SuccessResponse, TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary,
     TempMailProviderKind, TempMailRecipient, TempMailSettings,
 };
-pub use provider::TempMailProvider;
+pub use provider::{
+    BoxTempMailProvider, BuiltinTempMailProviderFactory, TempMailProvider, TempMailProviderConfig,
+    TempMailProviderFactory, build_temp_mail_provider,
+};
 
 /// Namespace-style entry point for constructing temp-mail clients.
 #[apply(plain_default_copy_eq)]

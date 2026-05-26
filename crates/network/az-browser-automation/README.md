@@ -14,6 +14,7 @@
 - **代理支持** — `ProxyConfig` 支持 HTTP 和 SOCKS5 代理，可从 URL 解析（含认证），也支持从代理池文件批量加载。
 - **可扩展的注册流程** — `RegistrationFlow` trait 定义了多步骤注册工作流接口，已内置 Kiro（AWS Builder ID）注册流程，支持临时邮箱轮询验证码。
 - **AI 平台授权自动化** — `OpenAiAuthAutomation` / `OpenAiRegAutomation` 针对 OpenAI 登录、注册、API Key 申请页面提供自动化适配，遇到验证码或 MFA 时上报手动干预阶段。
+- **验证码 provider 注入** — OpenAI 注册流程支持注入 `TempMailProvider` / `SmsProviderFactory`，上层可以按配置切换邮箱和短信提供方。
 - **调试产物** — 调试模式下自动保存截图（PNG）和页面 HTML，便于排查自动化失败。
 
 ## 安装
@@ -100,6 +101,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if result.success {
         println!("注册成功，验证码: {:?}", result.verification_code);
     }
+
+    Ok(())
+}
+```
+
+### OpenAI 注册注入临时邮箱 provider
+
+```rust,no_run
+use az_browser_automation::ai_reg_auto::gpt::openai::{
+    OpenAiFullRegOptions, OpenAiRegAutomation,
+};
+use az_browser_automation::browser_automation::BrowserAutomationOptions;
+use az_temp_mail::{ApiConfig, TempMailProviderConfig, build_temp_mail_provider};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = build_temp_mail_provider(TempMailProviderConfig::MailTm(
+        ApiConfig::builder("https://api.mail.tm").build()?,
+    ))?;
+    let reg_options = OpenAiFullRegOptions::default();
+    let browser_options = BrowserAutomationOptions::default();
+
+    let result = OpenAiRegAutomation::run_full_registration_with_provider(
+        &reg_options,
+        &browser_options,
+        provider.as_ref(),
+    )?;
+    println!("stage={:?}", result.stage);
 
     Ok(())
 }

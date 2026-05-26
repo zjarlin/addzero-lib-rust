@@ -115,6 +115,23 @@ fn default_sender_dispatches_to_registered_sender() {
 }
 
 #[test]
+fn email_sender_factory_builds_smtp_sender() {
+    let config = EmailConfig::builder("smtp.example.com", "user@example.com", "secret")
+        .build()
+        .expect("config should build");
+
+    let sender =
+        build_email_sender(config.clone().into()).expect("smtp sender should build through helper");
+    drop(sender);
+
+    let factory: &dyn EmailSenderFactory = &BuiltinEmailSenderFactory;
+    let sender = factory
+        .build_sender(EmailSenderConfig::Smtp(config))
+        .expect("smtp sender should build through injected factory");
+    drop(sender);
+}
+
+#[test]
 fn smtp_sender_construction_validates_configuration() {
     let config = EmailConfig::builder("smtp.example.com", "user@example.com", "secret")
         .port(465)

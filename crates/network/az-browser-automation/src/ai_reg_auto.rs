@@ -13,8 +13,6 @@ pub mod kiro {
     pub mod kiro;
 }
 
-pub mod sms;
-
 pub use gpt::api_reg;
 pub use gpt::openai;
 

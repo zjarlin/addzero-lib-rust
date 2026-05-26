@@ -10,7 +10,7 @@
 //! - **天眼查**（[`tianyancha`]）—— 企业信息查询，提供标准版（`TianyanchaApi`）与华为云
 //!   代理版（`TianyanchaHuaweiApi`）两种接入方式，支持公司搜索与详情查询。
 //! - **临时邮箱**（re-export 自 `az-temp-mail`）—— 创建临时邮箱、收发邮件、管理地址等，
-//!   支持 Cloudflare 和 Mail.tm 两种后端。
+//!   支持 Cloudflare、mail.tm、Emailnator 三种后端和 provider factory 注入。
 //! - **音乐搜索/生成**（re-export 自 `az-music`）—— 网易云音乐搜索、歌词获取、
 //!   Suno AI 音乐生成等。
 //!
@@ -53,14 +53,15 @@ pub use az_temp_mail::{
     AddressCredential as TempMailAddressCredential,
     AddressLoginRequest as TempMailAddressLoginRequest, AddressSettings as TempMailAddressSettings,
     ApiConfig as TempMailApiConfig, ApiConfigBuilder as TempMailApiConfigBuilder,
-    CloudflareTempMailApi, CreateMailboxRequest as TempMailCreateMailboxRequest,
-    ListResponse as TempMailListResponse, MailRow, MailTmDomain, MailTmTempMailApi,
-    NewAddressRequest as TempMailNewAddressRequest, PageRequest as TempMailPageRequest,
-    ParsedMailAttachment as TempMailParsedMailAttachment, ParsedMailRow, SendMailRequest,
-    SuccessResponse as TempMailSuccessResponse, TempMail, TempMailApi, TempMailError,
-    TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary, TempMailProvider,
-    TempMailProviderKind, TempMailRecipient, TempMailResult, TempMailSettings, create_mail_tm_api,
-    create_temp_mail_api,
+    BoxTempMailProvider, BuiltinTempMailProviderFactory, CloudflareTempMailApi,
+    CreateMailboxRequest as TempMailCreateMailboxRequest, ListResponse as TempMailListResponse,
+    MailRow, MailTmDomain, MailTmTempMailApi, NewAddressRequest as TempMailNewAddressRequest,
+    PageRequest as TempMailPageRequest, ParsedMailAttachment as TempMailParsedMailAttachment,
+    ParsedMailRow, SendMailRequest, SuccessResponse as TempMailSuccessResponse, TempMail,
+    TempMailApi, TempMailError, TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary,
+    TempMailProvider, TempMailProviderConfig, TempMailProviderFactory, TempMailProviderKind,
+    TempMailRecipient, TempMailResult, TempMailSettings, build_temp_mail_provider,
+    create_mail_tm_api, create_temp_mail_api,
 };
 pub use config::{ApiConfig, ApiConfigBuilder};
 pub use error::{CreatesError, CreatesResult};
@@ -111,6 +112,19 @@ impl Creates {
         config: TempMailApiConfig,
     ) -> TempMailResult<MailTmTempMailApi> {
         MailTmTempMailApi::new(config)
+    }
+
+    pub fn temp_mail_provider(
+        config: TempMailProviderConfig,
+    ) -> TempMailResult<BoxTempMailProvider> {
+        build_temp_mail_provider(config)
+    }
+
+    pub fn temp_mail_provider_with_factory(
+        factory: &dyn TempMailProviderFactory,
+        config: TempMailProviderConfig,
+    ) -> TempMailResult<BoxTempMailProvider> {
+        factory.build_provider(config)
     }
 
     pub fn music_search() -> CreatesResult<MusicSearchApi> {

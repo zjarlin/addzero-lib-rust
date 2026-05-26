@@ -1399,14 +1399,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "az-funbox"
-version = "2026.5.10"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "az-gitdb"
 version = "2026.5.10"
 dependencies = [
@@ -1955,6 +1947,7 @@ dependencies = [
 name = "az-wasm-plugin-host"
 version = "2026.5.10"
 dependencies = [
+ "az-derive-aliases",
  "az-wasm-plugin-api",
  "thiserror 2.0.18",
  "uuid",

@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
+use az_derive_aliases::{apply, plain_copy};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPlugin, DesktopRenderLayer,
     DesktopViewContext, Plugin,
@@ -8,6 +9,7 @@ use az_desktop_plugin::{
 
 pub use inventory;
 
+#[apply(plain_copy)]
 pub struct DesktopPluginRegistration {
     pub constructor: fn() -> Box<DesktopPlugin>,
 }

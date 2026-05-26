@@ -9,6 +9,7 @@
 - 支持 to、cc、bcc 多收件人
 - 纯文本 / HTML 内容及文件附件（自动 MIME 推断）
 - 全局默认发送器管理（`set_default_sender` / `send`）
+- `EmailSenderFactory` 注入边界，可按 `EmailSenderConfig` 构造 boxed sender
 - 快捷发送函数：`send_text()`、`send_html()`
 
 ## 安装
@@ -68,8 +69,20 @@ let msg = EmailMessage::builder()
 send(&msg).unwrap();
 \`\`\`
 
+### 通过 factory 构造 sender
+
+\`\`\`rust,no_run
+use az_email::{EmailConfig, EmailSenderConfig, build_email_sender};
+
+let config = EmailConfig::builder("smtp.example.com", "user", "pass")
+    .build()
+    .unwrap();
+let sender = build_email_sender(EmailSenderConfig::Smtp(config)).unwrap();
+\`\`\`
+
 ## 依赖的 crates
 
 - `lettre` — SMTP 协议实现
 - `mime_guess` — 文件 MIME 类型推断（用于附件）
 - `thiserror` — 错误类型派生
+- `derive_more` — `EmailSenderConfig` 的轻量 `From` 派生

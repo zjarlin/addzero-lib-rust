@@ -5,6 +5,7 @@
 //! - [`EmailConfig`] — SMTP 服务器连接配置，支持 SSL/TLS，密码字段在 `Debug` 输出中自动脱敏。
 //! - [`EmailMessage`] — 邮件消息构建器，支持纯文本、HTML、多收件人（to/cc/bcc）及文件附件。
 //! - [`SmtpEmailSender`] — 实现 [`EmailSender`] trait 的 SMTP 发送器。
+//! - [`EmailSenderFactory`] — 依赖注入边界，按 [`EmailSenderConfig`] 构造 boxed sender。
 //! - [`EmailError`] — 统一错误类型，覆盖配置校验、地址解析、消息构建、传输和附件 IO 等场景。
 //!
 //! # 关键功能
@@ -35,7 +36,10 @@
 //!
 //! send_with_config(&config, &message).unwrap();
 //! ```
-use az_derive_aliases::{apply, error, plain_clone_debug, plain_default_eq, plain_eq_redacted};
+use az_derive_aliases::{
+    apply, error, from_plain_eq, plain_clone_debug, plain_default_copy_eq, plain_default_eq,
+    plain_eq_redacted,
+};
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
@@ -240,6 +244,32 @@ pub trait EmailSender: Send + Sync {
     fn send(&self, message: &EmailMessage) -> Result<(), EmailError>;
 }
 
+pub type BoxEmailSender = Box<dyn EmailSender + Send + Sync>;
+
+#[apply(from_plain_eq)]
+pub enum EmailSenderConfig {
+    Smtp(EmailConfig),
+}
+
+pub trait EmailSenderFactory: Send + Sync {
+    fn build_sender(&self, config: EmailSenderConfig) -> Result<BoxEmailSender, EmailError>;
+}
+
+#[apply(plain_default_copy_eq)]
+pub struct BuiltinEmailSenderFactory;
+
+impl EmailSenderFactory for BuiltinEmailSenderFactory {
+    fn build_sender(&self, config: EmailSenderConfig) -> Result<BoxEmailSender, EmailError> {
+        match config {
+            EmailSenderConfig::Smtp(config) => Ok(Box::new(SmtpEmailSender::new(config)?)),
+        }
+    }
+}
+
+pub fn build_email_sender(config: EmailSenderConfig) -> Result<BoxEmailSender, EmailError> {
+    BuiltinEmailSenderFactory.build_sender(config)
+}
+
 #[apply(plain_clone_debug)]
 pub struct SmtpEmailSender {
     config: EmailConfig,
@@ -295,7 +325,7 @@ pub fn send(message: &EmailMessage) -> Result<(), EmailError> {
 }
 
 pub fn send_with_config(config: &EmailConfig, message: &EmailMessage) -> Result<(), EmailError> {
-    let sender = SmtpEmailSender::new(config.clone())?;
+    let sender = build_email_sender(config.clone().into())?;
     sender.send(message)
 }
 
