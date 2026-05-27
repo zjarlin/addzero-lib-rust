@@ -1,5 +1,5 @@
 use crate::{OAuth2Error, OAuth2Result, PkcePair};
-use az_derive_aliases::{apply, plain_eq};
+use az_derive_aliases::{apply, impl_default, plain_eq};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -277,19 +277,15 @@ impl AuthorizationCodeOptions {
     }
 }
 
-impl Default for AuthorizationCodeOptions {
-    fn default() -> Self {
-        Self {
-            redirect_uri: None,
-            scopes: Vec::new(),
-            state: None,
-            pkce: None,
-            login_hint: None,
-            access_type: None,
-            prompt: None,
-            extra_params: BTreeMap::new(),
-            loopback_bind_addr: DEFAULT_LOOPBACK_BIND_ADDR.to_owned(),
-            loopback_path: DEFAULT_LOOPBACK_PATH.to_owned(),
-        }
-    }
-}
+impl_default!(AuthorizationCodeOptions => AuthorizationCodeOptions {
+    redirect_uri: None,
+    scopes: Vec::new(),
+    state: None,
+    pkce: None,
+    login_hint: None,
+    access_type: None,
+    prompt: None,
+    extra_params: BTreeMap::new(),
+    loopback_bind_addr: DEFAULT_LOOPBACK_BIND_ADDR.to_owned(),
+    loopback_path: DEFAULT_LOOPBACK_PATH.to_owned(),
+});

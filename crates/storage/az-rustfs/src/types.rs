@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 
-use az_derive_aliases::{apply, plain_eq, plain_eq_redacted};
+use az_derive_aliases::{apply, impl_default, plain_eq, plain_eq_redacted};
 
 #[apply(plain_eq_redacted)]
 pub struct S3ClientConfig {
@@ -77,11 +77,7 @@ impl RustfsConfig {
     }
 }
 
-impl Default for RustfsConfig {
-    fn default() -> Self {
-        Self::default_local()
-    }
-}
+impl_default!(RustfsConfig => RustfsConfig::default_local());
 
 impl From<RustfsConfig> for S3ClientConfig {
     fn from(value: RustfsConfig) -> Self {

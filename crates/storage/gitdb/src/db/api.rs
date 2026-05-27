@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use az_derive_aliases::{apply, error, plain_clone_debug};
+use az_derive_aliases::{apply, error, impl_default, plain_clone_debug};
 use parking_lot::RwLock;
 
 use crate::catalog::Catalog;
@@ -68,17 +68,13 @@ pub struct DatabaseConfig {
     pub auto_commit: bool,
 }
 
-impl Default for DatabaseConfig {
-    fn default() -> Self {
-        Self {
-            path: PathBuf::from(".gitdb"),
-            create_if_missing: true,
-            enable_planner: true,
-            verbose: false,
-            auto_commit: true,
-        }
-    }
-}
+impl_default!(DatabaseConfig => DatabaseConfig {
+    path: PathBuf::from(".gitdb"),
+    create_if_missing: true,
+    enable_planner: true,
+    verbose: false,
+    auto_commit: true,
+});
 
 impl DatabaseConfig {
     /// Create a new configuration with the given path.

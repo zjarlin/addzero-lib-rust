@@ -1,5 +1,5 @@
 use crate::{KiroAuthSupportError, KiroAuthSupportResult};
-use az_derive_aliases::{apply, plain_default_clone_debug, plain_eq};
+use az_derive_aliases::{apply, impl_default, plain_default_clone_debug, plain_eq};
 use std::time::Duration;
 
 const DEFAULT_OIDC_BASE_URL: &str = "https://oidc.us-east-1.amazonaws.com";
@@ -29,19 +29,15 @@ pub struct KiroOidcConfig {
     pub user_agent: Option<String>,
 }
 
-impl Default for KiroOidcConfig {
-    fn default() -> Self {
-        Self {
-            base_url: DEFAULT_OIDC_BASE_URL.to_owned(),
-            client_name: DEFAULT_CLIENT_NAME.to_owned(),
-            connect_timeout: Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS),
-            request_timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
-            poll_interval: Duration::from_secs(DEFAULT_POLL_INTERVAL_SECS),
-            poll_timeout: Duration::from_secs(DEFAULT_POLL_TIMEOUT_SECS),
-            user_agent: Some(DEFAULT_USER_AGENT.to_owned()),
-        }
-    }
-}
+impl_default!(KiroOidcConfig => KiroOidcConfig {
+    base_url: DEFAULT_OIDC_BASE_URL.to_owned(),
+    client_name: DEFAULT_CLIENT_NAME.to_owned(),
+    connect_timeout: Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS),
+    request_timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
+    poll_interval: Duration::from_secs(DEFAULT_POLL_INTERVAL_SECS),
+    poll_timeout: Duration::from_secs(DEFAULT_POLL_TIMEOUT_SECS),
+    user_agent: Some(DEFAULT_USER_AGENT.to_owned()),
+});
 
 impl KiroOidcConfig {
     /// Starts a builder with the default AWS OIDC endpoint.

@@ -1,8 +1,8 @@
 //! 存储层围绕 Git 原语建立的类型安全包装。
 
 use az_derive_aliases::{
-    apply, error_eq, plain_copy_eq, plain_copy_eq_hash_ord_display, plain_eq, plain_eq_display,
-    plain_eq_hash_ord_display, serde_eq_hash_ord_display_as_ref,
+    apply, error_eq, impl_default, plain_copy_eq, plain_copy_eq_hash_ord_display, plain_eq,
+    plain_eq_display, plain_eq_hash_ord_display, serde_eq_hash_ord_display_as_ref,
 };
 use git2::Oid;
 use std::path::PathBuf;
@@ -290,11 +290,7 @@ impl GitSignature {
     }
 }
 
-impl Default for GitSignature {
-    fn default() -> Self {
-        Self::gitdb()
-    }
-}
+impl_default!(GitSignature => GitSignature::gitdb());
 
 /// 表名、行键、分支名校验失败时返回的错误。
 #[apply(error_eq)]

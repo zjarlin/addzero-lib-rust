@@ -1,7 +1,8 @@
 use crate::progress::{InMemoryUploadProgressStorage, PartInfo};
 use crate::types::{ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig};
 use az_derive_aliases::{
-    apply, error, plain_clone, plain_clone_debug, plain_default_clone_debug, plain_default_debug,
+    apply, error, impl_default, plain_clone, plain_clone_debug, plain_default_clone_debug,
+    plain_default_debug,
 };
 use base64::Engine as _;
 use chrono::Utc;
@@ -157,11 +158,11 @@ impl DefaultS3StorageClientFactory {
     }
 }
 
-impl Default for DefaultS3StorageClientFactory {
-    fn default() -> Self {
-        Self::new(|| S3ClientConfig::from(RustfsConfig::default()))
-    }
-}
+impl_default!(
+    DefaultS3StorageClientFactory => DefaultS3StorageClientFactory::new(|| {
+        S3ClientConfig::from(RustfsConfig::default())
+    })
+);
 
 impl S3StorageClientFactory for DefaultS3StorageClientFactory {
     fn create_client(&self, config: S3ClientConfig) -> Arc<dyn S3StorageClient> {

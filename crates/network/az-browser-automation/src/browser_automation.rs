@@ -140,19 +140,15 @@ pub struct BrowserAutomationOptions {
     pub mode: BrowserMode,
 }
 
-impl Default for BrowserAutomationOptions {
-    fn default() -> Self {
-        Self {
-            debug: false,
-            headless: true,
-            timeout_ms: 30_000,
-            slow_mo_ms: 0,
-            artifacts_dir: None,
-            executable_path: None,
-            mode: BrowserMode::default(),
-        }
-    }
-}
+impl_default!(BrowserAutomationOptions => BrowserAutomationOptions {
+    debug: false,
+    headless: true,
+    timeout_ms: 30_000,
+    slow_mo_ms: 0,
+    artifacts_dir: None,
+    executable_path: None,
+    mode: BrowserMode::default(),
+});
 
 impl BrowserAutomationOptions {
     /// Returns the headless setting after applying debug-mode behavior.

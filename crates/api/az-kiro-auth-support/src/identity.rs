@@ -1,5 +1,5 @@
 use crate::{KiroAuthSupportError, KiroAuthSupportResult};
-use az_derive_aliases::{apply, plain_copy_eq, plain_default_copy_eq, plain_eq};
+use az_derive_aliases::{apply, impl_default, plain_copy_eq, plain_default_copy_eq, plain_eq};
 use ring::rand::{SecureRandom, SystemRandom};
 
 const LOWER: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
@@ -187,14 +187,10 @@ pub struct EnglishNameOptions {
     pub gender: NameGender,
 }
 
-impl Default for EnglishNameOptions {
-    fn default() -> Self {
-        Self {
-            full_name: true,
-            gender: NameGender::Random,
-        }
-    }
-}
+impl_default!(EnglishNameOptions => EnglishNameOptions {
+    full_name: true,
+    gender: NameGender::Random,
+});
 
 /// Generated English name parts.
 #[apply(plain_eq)]
@@ -225,15 +221,11 @@ pub struct PasswordPolicy {
     pub symbols: String,
 }
 
-impl Default for PasswordPolicy {
-    fn default() -> Self {
-        Self {
-            length: 12,
-            symbols: String::from_utf8(DEFAULT_SYMBOLS.to_vec())
-                .expect("default symbols should be ASCII"),
-        }
-    }
-}
+impl_default!(PasswordPolicy => PasswordPolicy {
+    length: 12,
+    symbols: String::from_utf8(DEFAULT_SYMBOLS.to_vec())
+        .expect("default symbols should be ASCII"),
+});
 
 /// Generates a random English name from the embedded first-name and surname pools.
 pub fn generate_english_name(options: EnglishNameOptions) -> KiroAuthSupportResult<EnglishName> {

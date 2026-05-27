@@ -12,7 +12,7 @@ use crate::browser_automation::{
     BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions,
 };
 use az_derive_aliases::{
-    apply, deserialize_camel_eq, plain_code_display_message_no_default_enum,
+    apply, deserialize_camel_eq, impl_default, plain_code_display_message_no_default_enum,
     plain_default_copy_eq, plain_eq, serde_code_enum,
 };
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
@@ -163,11 +163,7 @@ pub struct OpenAiRecordingOptions {
     pub hold_after_finish: Option<Duration>,
 }
 
-impl Default for OpenAiRecordingOptions {
-    fn default() -> Self {
-        Self::entry_sign_up()
-    }
-}
+impl_default!(OpenAiRecordingOptions => OpenAiRecordingOptions::entry_sign_up());
 
 impl OpenAiRecordingOptions {
     /// 入口流程记录默认打开的落地页。
@@ -242,11 +238,7 @@ pub struct OpenAiAuthOptions {
     pub hold_for: Option<Duration>,
 }
 
-impl Default for OpenAiAuthOptions {
-    fn default() -> Self {
-        Self::open_login()
-    }
-}
+impl_default!(OpenAiAuthOptions => OpenAiAuthOptions::open_login());
 
 impl OpenAiAuthOptions {
     /// Default OpenAI login URL.
@@ -1011,21 +1003,17 @@ pub struct OpenAiFullRegOptions {
     pub email_prefix: String,
 }
 
-impl Default for OpenAiFullRegOptions {
-    fn default() -> Self {
-        Self {
-            start_url: OpenAiAuthOptions::SIGN_UP_URL.to_owned(),
-            password: None,
-            step_delay: Duration::from_millis(700),
-            hold_for: None,
-            sms_token: None,
-            sms_product: "openai".to_owned(),
-            sms_country: "usa".to_owned(),
-            sms_operator: "any".to_owned(),
-            email_prefix: "azit".to_owned(),
-        }
-    }
-}
+impl_default!(OpenAiFullRegOptions => OpenAiFullRegOptions {
+    start_url: OpenAiAuthOptions::SIGN_UP_URL.to_owned(),
+    password: None,
+    step_delay: Duration::from_millis(700),
+    hold_for: None,
+    sms_token: None,
+    sms_product: "openai".to_owned(),
+    sms_country: "usa".to_owned(),
+    sms_operator: "any".to_owned(),
+    email_prefix: "azit".to_owned(),
+});
 
 /// Result of a complete OpenAI signup attempt.
 #[apply(plain_eq)]

@@ -1,7 +1,7 @@
 use crate::types::ObjectMetadata;
 use az_derive_aliases::{
-    apply, plain_clone, plain_code_display_no_default_enum, plain_default_debug, plain_eq,
-    plain_partial_eq,
+    apply, impl_default, plain_clone, plain_code_display_no_default_enum, plain_default_debug,
+    plain_eq, plain_partial_eq,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -46,18 +46,14 @@ impl MultipartUploadConfig {
     pub const DEFAULT_MULTIPART_THRESHOLD: u64 = 100 * 1024 * 1024;
 }
 
-impl Default for MultipartUploadConfig {
-    fn default() -> Self {
-        Self {
-            part_size: Self::DEFAULT_PART_SIZE,
-            concurrency: Self::DEFAULT_CONCURRENCY,
-            max_retries: Self::DEFAULT_MAX_RETRIES,
-            timeout_seconds: Self::DEFAULT_TIMEOUT_SECONDS,
-            multipart_threshold: Self::DEFAULT_MULTIPART_THRESHOLD,
-            progress_listener: None,
-        }
-    }
-}
+impl_default!(MultipartUploadConfig => MultipartUploadConfig {
+    part_size: MultipartUploadConfig::DEFAULT_PART_SIZE,
+    concurrency: MultipartUploadConfig::DEFAULT_CONCURRENCY,
+    max_retries: MultipartUploadConfig::DEFAULT_MAX_RETRIES,
+    timeout_seconds: MultipartUploadConfig::DEFAULT_TIMEOUT_SECONDS,
+    multipart_threshold: MultipartUploadConfig::DEFAULT_MULTIPART_THRESHOLD,
+    progress_listener: None,
+});
 
 #[apply(plain_eq)]
 pub struct PartInfo {

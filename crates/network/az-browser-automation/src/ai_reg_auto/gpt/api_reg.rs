@@ -16,7 +16,7 @@
 
 use crate::ai_reg_auto::{buy_fivesim_number_with, create_registration_mailbox};
 use crate::browser_automation::BrowserAutomationResult;
-use az_derive_aliases::{apply, plain_clone_debug, plain_default_copy_eq, plain_default_eq};
+use az_derive_aliases::{apply, impl_default, plain_clone_debug, plain_default_copy_eq, plain_default_eq};
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
 use reqwest::blocking::Client as HttpClient;
@@ -61,21 +61,17 @@ pub struct OpenAiApiRegOptions {
     pub sync: Option<SyncOptions>,
 }
 
-impl Default for OpenAiApiRegOptions {
-    fn default() -> Self {
-        Self {
-            proxy: None,
-            password: None,
-            sms_token: None,
-            sms_product: "openai".to_owned(),
-            sms_country: "usa".to_owned(),
-            sms_operator: "any".to_owned(),
-            email_prefix: "azit".to_owned(),
-            timeout: Duration::from_secs(30),
-            sync: None,
-        }
-    }
-}
+impl_default!(OpenAiApiRegOptions => OpenAiApiRegOptions {
+    proxy: None,
+    password: None,
+    sms_token: None,
+    sms_product: "openai".to_owned(),
+    sms_country: "usa".to_owned(),
+    sms_operator: "any".to_owned(),
+    email_prefix: "azit".to_owned(),
+    timeout: Duration::from_secs(30),
+    sync: None,
+});
 
 #[apply(plain_clone_debug)]
 pub struct OpenAiApiRegResult {

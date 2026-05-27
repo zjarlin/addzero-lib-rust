@@ -6,7 +6,7 @@ use crate::browser_automation::{
 };
 use crate::fingerprint::FingerprintProfile;
 use crate::proxy::ProxyConfig;
-use az_derive_aliases::{apply, plain_default_eq, plain_eq};
+use az_derive_aliases::{apply, impl_default, plain_default_eq, plain_eq};
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
 use headless_chrome::protocol::cdp::{Accessibility, Runtime};
 use headless_chrome::{Browser, Tab};
@@ -73,19 +73,15 @@ pub struct SessionConfig {
     pub executable_path: Option<PathBuf>,
 }
 
-impl Default for SessionConfig {
-    fn default() -> Self {
-        Self {
-            fingerprint: FingerprintStrategy::Random,
-            proxy: None,
-            cdp_port: None,
-            user_data_dir: None,
-            headless: true,
-            timeout_ms: 30_000,
-            executable_path: None,
-        }
-    }
-}
+impl_default!(SessionConfig => SessionConfig {
+    fingerprint: FingerprintStrategy::Random,
+    proxy: None,
+    cdp_port: None,
+    user_data_dir: None,
+    headless: true,
+    timeout_ms: 30_000,
+    executable_path: None,
+});
 
 impl SessionConfig {
     /// Creates a builder initialized with default session options.

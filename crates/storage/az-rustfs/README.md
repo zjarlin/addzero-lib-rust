@@ -28,7 +28,7 @@ az-rustfs = { path = "../az-rustfs" }       # workspace 内部引用
 
 ## 用法
 
-```rust
+```rust,no_run
 use az_rustfs::{
     get_object, ensure_bucket, put_object_bytes, Rustfs,
 };
