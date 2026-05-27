@@ -40,6 +40,16 @@ fn parse_docker_run_command_supports_inline_flags_and_other_options() {
 }
 
 #[test]
+fn docker_run_command_implements_from_str() {
+    let command: DockerRunCommand = "docker run --name redis redis:7"
+        .parse()
+        .expect("command should parse via FromStr");
+
+    assert_eq!(command.name.as_deref(), Some("redis"));
+    assert_eq!(command.image, "redis:7");
+}
+
+#[test]
 fn docker_compose_output_contains_expected_sections() {
     let yaml = DockerComposeConverter::convert_to_docker_compose(
         r#"docker run --name app -p 3000:3000 -e TOKEN="abc def" node:20"#,

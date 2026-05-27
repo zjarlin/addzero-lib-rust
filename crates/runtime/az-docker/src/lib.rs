@@ -14,7 +14,7 @@
 //! - 通过 `shlex` 正确处理 shell 引号与转义
 //! - 未知的 `--key=value` 选项会被归入 `other_options` 字段
 
-use az_derive_aliases::{apply, error_eq, plain_eq};
+use az_derive_aliases::{apply, error_eq, impl_from_str_parse, plain_eq};
 use std::collections::BTreeMap;
 
 #[apply(error_eq)]
@@ -46,6 +46,8 @@ impl DockerComposeConverter {
         DockerRunCommand::parse(docker_run_command).map(|command| command.to_docker_compose_yml())
     }
 }
+
+impl_from_str_parse!(DockerRunCommand => DockerComposeError);
 
 impl DockerRunCommand {
     pub fn parse(command: impl AsRef<str>) -> Result<Self, DockerComposeError> {
