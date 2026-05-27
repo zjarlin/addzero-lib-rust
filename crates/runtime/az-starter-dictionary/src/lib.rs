@@ -6,12 +6,10 @@
 const SYSTEM_DOMAIN_ID: &str = "system";
 const DICTIONARY_NODE_ID: &str = "system-dictionary-note-types";
 
-az_admin_plugin_registry::register_admin_root_page! {
+az_admin_plugin_registry::declare_admin_root_page_plugin! {
     id: DICTIONARY_NODE_ID,
     domain: SYSTEM_DOMAIN_ID,
     label: "字典管理",
     order: 30,
     href: "/system/dictionary/note-types",
 }
-
-az_admin_plugin_registry::declare_admin_plugin!();

@@ -6,12 +6,10 @@
 const SYSTEM_DOMAIN_ID: &str = "system";
 const AUDIT_EVENTS_NODE_ID: &str = "system-audit-events";
 
-az_admin_plugin_registry::register_admin_root_page! {
+az_admin_plugin_registry::declare_admin_root_page_plugin! {
     id: AUDIT_EVENTS_NODE_ID,
     domain: SYSTEM_DOMAIN_ID,
     label: "审计日志",
     order: 50,
     href: "/system/audit/events",
 }
-
-az_admin_plugin_registry::declare_admin_plugin!();

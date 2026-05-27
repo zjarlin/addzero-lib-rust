@@ -3,7 +3,8 @@
 //! 本 crate 为 admin 工作面提供**双轴上下文导航树**的注册与查询基础设施。
 //! 各业务域通过 `register_admin_domain!`、`register_admin_branch!`、
 //! `register_admin_page!`、`register_admin_root_page!` 宏在编译期声明自己的域、分支和页面节点，
-//! starter 插件可通过 `declare_admin_plugin!` 暴露链接保活入口。
+//! starter 插件可通过 `declare_admin_plugin!` 或 `declare_admin_root_page_plugin!`
+//! 暴露链接保活入口。
 //! 运行时通过 `registered_domains()`、`section_for_path()` 等函数
 //! 按排序和路径匹配组装出完整的导航树。
 //!
@@ -441,6 +442,31 @@ macro_rules! declare_admin_plugin {
     };
 }
 
+/// 声明挂在 domain 根部的 starter 页面插件。
+///
+/// 这是 `register_admin_root_page!` 和 `declare_admin_plugin!` 的浅层组合，适合只暴露
+/// 一个根级 admin 页面入口的 starter crate。复杂插件仍应直接使用更底层的注册宏。
+#[macro_export]
+macro_rules! declare_admin_root_page_plugin {
+    (
+        id: $id:expr,
+        domain: $domain_id:expr,
+        label: $label:expr,
+        order: $order:expr,
+        href: $href:expr $(,)?
+    ) => {
+        $crate::register_admin_root_page! {
+            id: $id,
+            domain: $domain_id,
+            label: $label,
+            order: $order,
+            href: $href,
+        }
+
+        $crate::declare_admin_plugin!();
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -545,7 +571,7 @@ mod tests {
         permissions_any_of: &["system:user"],
     }
 
-    crate::register_admin_root_page! {
+    crate::declare_admin_root_page_plugin! {
         id: SETTINGS_NODE_ID,
         domain: SYSTEM_DOMAIN_ID,
         label: "Settings",
@@ -625,6 +651,7 @@ mod tests {
 
     #[test]
     fn root_page_macro_should_register_top_level_page_defaults() {
+        ensure_linked();
         let section =
             section_for_path("/system/settings").expect("settings route should resolve section");
         let settings = section

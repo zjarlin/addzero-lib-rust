@@ -6,12 +6,10 @@
 const SYSTEM_DOMAIN_ID: &str = "system";
 const STORAGE_PACKAGES_NODE_ID: &str = "system-storage-packages";
 
-az_admin_plugin_registry::register_admin_root_page! {
+az_admin_plugin_registry::declare_admin_root_page_plugin! {
     id: STORAGE_PACKAGES_NODE_ID,
     domain: SYSTEM_DOMAIN_ID,
     label: "包仓库",
     order: 60,
     href: "/system/storage/packages",
 }
-
-az_admin_plugin_registry::declare_admin_plugin!();

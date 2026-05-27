@@ -5,6 +5,7 @@
 ## 功能
 
 - **编译期注册** — 通过 `register_admin_domain!`、`register_admin_branch!`、`register_admin_page!` 宏零成本声明导航结构
+- **Starter 插件入口** — 通过 `declare_admin_root_page_plugin!` 组合根页面注册和链接保活入口
 - **双轴上下文树** — 主轴（域）承载业务域切换，侧轴（导航节点）承载模块/页面菜单
 - **动态路径匹配** — 支持 `:param` 风格的动态路径段，如 `/users/:id`
 - **权限声明** — 每个节点通过 `permissions_any_of` 字段声明所需权限
@@ -51,6 +52,18 @@ register_admin_page! {
 // 运行时查询
 let domains = registered_domains();
 let section = section_for_path("/system/users/42");
+```
+
+只暴露一个根级页面的 starter crate 可以使用组合宏：
+
+```rust
+az_admin_plugin_registry::declare_admin_root_page_plugin! {
+    id: "system-users",
+    domain: "system",
+    label: "用户管理",
+    order: 10,
+    href: "/system/users",
+}
 ```
 
 ## 依赖的 crates
