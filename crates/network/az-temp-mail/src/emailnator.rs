@@ -7,7 +7,7 @@ use crate::provider::TempMailProvider;
 use crate::util::trim_non_blank;
 use crate::{ApiConfig, TempMailError, TempMailResult};
 use az_derive_aliases::{
-    apply, deserialize_debug, plain_code_enum, plain_debug, plain_eq, serialize_eq,
+    apply, deserialize_debug, impl_default, plain_code_enum, plain_debug, plain_eq, serialize_eq,
 };
 use regex::Regex;
 use reqwest::blocking::Response;
@@ -41,16 +41,12 @@ pub struct EmailnatorEmailRequest {
     pub modes: Vec<EmailnatorEmailMode>,
 }
 
-impl Default for EmailnatorEmailRequest {
-    fn default() -> Self {
-        Self {
-            modes: vec![
-                EmailnatorEmailMode::PlusGmail,
-                EmailnatorEmailMode::DotGmail,
-            ],
-        }
-    }
-}
+impl_default!(EmailnatorEmailRequest => EmailnatorEmailRequest {
+    modes: vec![
+        EmailnatorEmailMode::PlusGmail,
+        EmailnatorEmailMode::DotGmail,
+    ],
+});
 
 impl EmailnatorEmailRequest {
     /// Creates a request from explicit generation modes.

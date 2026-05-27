@@ -1,5 +1,5 @@
 use crate::{GmailCodeError, GmailCodeResult};
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
+use az_derive_aliases::{apply, impl_default, plain_clone_debug, plain_eq};
 use std::time::Duration;
 
 const DEFAULT_GMAIL_API_BASE_URL: &str = "https://gmail.googleapis.com/gmail/v1/";
@@ -200,19 +200,15 @@ impl GmailCodeQuery {
     }
 }
 
-impl Default for GmailCodeQuery {
-    fn default() -> Self {
-        Self {
-            query: None,
-            from: None,
-            subject: None,
-            newer_than: Some("10m".to_owned()),
-            unread: false,
-            max_results: DEFAULT_MAX_RESULTS,
-            label_ids: vec!["INBOX".to_owned()],
-        }
-    }
-}
+impl_default!(GmailCodeQuery => GmailCodeQuery {
+    query: None,
+    from: None,
+    subject: None,
+    newer_than: Some("10m".to_owned()),
+    unread: false,
+    max_results: DEFAULT_MAX_RESULTS,
+    label_ids: vec!["INBOX".to_owned()],
+});
 
 const fn clamp_max_results(value: u32) -> u32 {
     if value == 0 {
