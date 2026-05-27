@@ -1,6 +1,6 @@
 use az_derive_aliases::{
     apply, clap_code_enum, clap_value_enum, deserialize_camel_clone_debug, deserialize_camel_eq,
-    error_copy_eq, from_copy_eq_display, plain_code_default_enum,
+    error_copy_eq, from_copy_eq_display, impl_from_with_default, plain_code_default_enum,
     plain_code_display_message_no_default_enum, plain_code_display_no_default_enum,
     plain_code_enum, plain_copy_eq_hash, plain_copy_eq_hash_display,
     plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
@@ -198,6 +198,20 @@ struct FromCopyDisplayCode(u8);
 #[apply(error_copy_eq)]
 #[error("copy error: {0}")]
 struct CopyError(u8);
+
+#[derive(Debug, Default, Eq, PartialEq)]
+struct DefaultFromCell {
+    value: String,
+    class: Option<String>,
+}
+
+impl_from_with_default!(&str => DefaultFromCell {
+    value: |source| source.to_owned(),
+});
+
+impl_from_with_default!(String => DefaultFromCell {
+    value: |source| source,
+});
 
 #[test]
 fn layered_plain_aliases_keep_all_stacked_derives() {
@@ -455,4 +469,22 @@ fn serde_eq_hash_ord_display_as_ref_should_forward_to_inner_value() {
     assert_eq!(as_str, "users");
     assert_eq!(key.to_string(), "users");
     assert_eq!(serde_json::to_string(&key).unwrap(), r#""users""#);
+}
+
+#[test]
+fn impl_from_with_default_should_fill_only_declared_field() {
+    assert_eq!(
+        DefaultFromCell::from("name"),
+        DefaultFromCell {
+            value: "name".to_owned(),
+            class: None,
+        }
+    );
+    assert_eq!(
+        DefaultFromCell::from("role".to_owned()),
+        DefaultFromCell {
+            value: "role".to_owned(),
+            class: None,
+        }
+    );
 }

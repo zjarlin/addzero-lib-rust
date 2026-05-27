@@ -28,6 +28,7 @@
 - **error_eq** — 带 `thiserror` + 常用相等/调试 trait 的错误类型
 - **error_copy_eq** — 在 `error_eq` 基础上增加 `Copy`，适合只含小型复制字段的错误枚举
 - **impl_from_match!** — 用显式 pattern 映射快速生成 `From` 实现
+- **impl_from_with_default!** — 为“一个字段来自源值，其余字段走 `Default`”的结构体快速生成 `From`
 - **from_eq** — 带 `derive_more::From` + `PartialEq` 的轻量转换枚举
 - **from_display** — 带 `derive_more::From` + `Display` 的轻量值枚举
 - **serde_eq** — 带 serde + 相等/调试 trait 的数据类型

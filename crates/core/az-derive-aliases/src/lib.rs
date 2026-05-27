@@ -277,6 +277,21 @@ macro_rules! impl_from_match {
     };
 }
 
+/// Implements `From` for structs where one field comes from the source and the rest use `Default`.
+#[macro_export]
+macro_rules! impl_from_with_default {
+    ($source:ty => $target:ty { $field:ident: |$value:ident| $expr:expr $(,)? }) => {
+        impl From<$source> for $target {
+            fn from($value: $source) -> Self {
+                Self {
+                    $field: $expr,
+                    ..Default::default()
+                }
+            }
+        }
+    };
+}
+
 /// Serde-friendly data type with equality and debug traits.
 #[macro_export]
 macro_rules! serde_eq {
