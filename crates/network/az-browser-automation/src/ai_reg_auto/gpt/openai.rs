@@ -8,8 +8,8 @@ use crate::browser_automation::{
     BrowserAutomation, BrowserAutomationError, BrowserAutomationOptions,
 };
 use az_derive_aliases::{
-    apply, deserialize_camel_eq, plain_code_display_no_default_enum, plain_default_copy_eq,
-    plain_eq, serde_code_enum,
+    apply, deserialize_camel_eq, plain_code_display_message_no_default_enum,
+    plain_default_copy_eq, plain_eq, serde_code_enum,
 };
 use az_sms::provider::{BuiltinSmsProviderFactory, SmsProviderFactory};
 use az_temp_mail::{PageRequest, TempMailMailbox, TempMailProvider, create_mail_tm_api};
@@ -19,6 +19,7 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+use strum::EnumMessage;
 
 use rand::Rng;
 
@@ -64,19 +65,22 @@ pub enum OpenAiAuthStage {
 }
 
 /// Step identifiers for manual OpenAI entry-flow recording.
-#[apply(plain_code_display_no_default_enum)]
+#[apply(plain_code_display_message_no_default_enum)]
 #[strum(ascii_case_insensitive)]
 pub enum OpenAiRecordingStep {
     /// Step 1: open the OpenAI entry page.
     #[strum(serialize = "step1")]
+    #[strum(message = "Open the ChatGPT/OpenAI entry page and wait for the shell to stabilize.")]
     #[display("Open entry page")]
     OpenEntryPage,
     /// Step 2: click the `Log in` entry point.
     #[strum(serialize = "step2")]
+    #[strum(message = "Click the `Log in` entry button or link.")]
     #[display("Click Log in")]
     ClickLogin,
     /// Step 3: click the `Sign up` / `Create account` entry from the login page.
     #[strum(serialize = "step3")]
+    #[strum(message = "On the login page, click `Sign up` or `Create account` for the `Don't have an account?` branch.")]
     #[display("Click Sign up")]
     ClickSignUp,
 }
@@ -84,16 +88,9 @@ pub enum OpenAiRecordingStep {
 impl OpenAiRecordingStep {
     /// Returns the intended manual recording action.
     #[must_use]
-    pub const fn description(self) -> &'static str {
-        match self {
-            Self::OpenEntryPage => {
-                "Open the ChatGPT/OpenAI entry page and wait for the shell to stabilize."
-            }
-            Self::ClickLogin => "Click the `Log in` entry button or link.",
-            Self::ClickSignUp => {
-                "On the login page, click `Sign up` or `Create account` for the `Don't have an account?` branch."
-            }
-        }
+    pub fn description(self) -> &'static str {
+        self.get_message()
+            .expect("recording step message should be declared on every variant")
     }
 
     /// Parses `step1`, `step2`, or `step3`.
@@ -2372,6 +2369,22 @@ mod tests {
         assert_eq!(
             OpenAiRecordingStep::from_id(" STEP3 "),
             Some(OpenAiRecordingStep::ClickSignUp)
+        );
+    }
+
+    #[test]
+    fn recording_step_description_should_use_declared_message() {
+        assert_eq!(
+            OpenAiRecordingStep::OpenEntryPage.description(),
+            "Open the ChatGPT/OpenAI entry page and wait for the shell to stabilize."
+        );
+        assert_eq!(
+            OpenAiRecordingStep::ClickLogin.description(),
+            "Click the `Log in` entry button or link."
+        );
+        assert_eq!(
+            OpenAiRecordingStep::ClickSignUp.description(),
+            "On the login page, click `Sign up` or `Create account` for the `Don't have an account?` branch."
         );
     }
 

@@ -1,17 +1,19 @@
 use az_derive_aliases::{
     apply, clap_code_enum, clap_value_enum, deserialize_camel_clone_debug, deserialize_camel_eq,
     error_copy_eq, from_copy_eq_display, plain_code_default_enum,
-    plain_code_display_no_default_enum, plain_code_enum, plain_copy_eq_hash,
-    plain_copy_eq_hash_display, plain_copy_eq_hash_ord_display, plain_default_copy_eq,
-    plain_default_copy_eq_display, plain_eq_hash_display, serde_camel_eq_default,
-    serde_camel_partial_eq_default, serde_code_default_ord_display_enum, serde_code_enum,
-    serde_code_ord_display_enum, serde_code_partial_eq, serde_eq_copy_display,
-    serde_eq_hash_display, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
-    serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
+    plain_code_display_message_no_default_enum, plain_code_display_no_default_enum,
+    plain_code_enum, plain_copy_eq_hash, plain_copy_eq_hash_display,
+    plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
+    plain_eq_hash_display, serde_camel_eq_default, serde_camel_partial_eq_default,
+    serde_code_default_ord_display_enum, serde_code_enum, serde_code_ord_display_enum,
+    serde_code_partial_eq, serde_eq_copy_display, serde_eq_hash_display, serde_kebab_code_enum,
+    serde_kebab_eq, serde_lower_code_enum, serde_partial_eq_display, serde_upper_eq,
+    serialize_camel_clone_debug, serialize_camel_eq,
 };
 use clap::ValueEnum;
 use serde_json::Value;
 use std::collections::HashSet;
+use strum::EnumMessage;
 
 macro_rules! nested_default_copy_eq {
     ($item:item) => {
@@ -112,6 +114,13 @@ enum DefaultDisplayCode {
 enum PlainDisplayCode {
     #[display("Readable Label")]
     ReadableLabel,
+}
+
+#[apply(plain_code_display_message_no_default_enum)]
+enum PlainDisplayMessageCode {
+    #[display("Readable Message Label")]
+    #[strum(message = "Readable message body")]
+    ReadableMessageLabel,
 }
 
 #[apply(serialize_camel_eq)]
@@ -311,6 +320,22 @@ fn display_code_aliases_keep_wire_code_separate_from_label() {
     assert_eq!(
         PlainDisplayCode::ReadableLabel.to_string(),
         "Readable Label"
+    );
+}
+
+#[test]
+fn display_message_code_alias_reuses_display_code_layer() {
+    assert_eq!(
+        PlainDisplayMessageCode::ReadableMessageLabel.code(),
+        "readable_message_label"
+    );
+    assert_eq!(
+        PlainDisplayMessageCode::ReadableMessageLabel.to_string(),
+        "Readable Message Label"
+    );
+    assert_eq!(
+        PlainDisplayMessageCode::ReadableMessageLabel.get_message(),
+        Some("Readable message body")
     );
 }
 

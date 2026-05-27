@@ -1205,6 +1205,25 @@ macro_rules! plain_code_display_no_default_enum {
     };
 }
 
+/// Plain code-backed enum with custom `Display`, variant messages, and no generated `Default`.
+#[macro_export]
+macro_rules! plain_code_display_message_no_default_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::plain_code_display_no_default_enum! {
+            #[derive(::strum::EnumMessage)]
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+    };
+}
+
 /// Code-backed enum usable as both a Clap `ValueEnum` and a serde/string code enum.
 #[macro_export]
 macro_rules! clap_code_enum {
