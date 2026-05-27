@@ -62,12 +62,17 @@ use az_remote_model::{
 
 pub type ProtocolResult<T> = Result<T, ProtocolError>;
 
+/// 远程控制协议的编解码错误。
 #[apply(error)]
 pub enum ProtocolError {
+    /// JSON 序列化或反序列化失败。
     #[error("serialization failed: {0}")]
     Serialize(#[from] serde_json::Error),
 }
 
+/// 多路复用通道类型。
+///
+/// 该枚举的 code 字符串用于中继层标识数据通道，不用于区分 [`ControlFrame`] 的具体变体。
 #[apply(serde_code_enum)]
 pub enum StreamKind {
     Control,
@@ -77,6 +82,9 @@ pub enum StreamKind {
     File,
 }
 
+/// 设备握手帧。
+///
+/// `relay_token` 是一次性中继凭证，`Debug` 输出必须保持脱敏。
 #[apply(serde_eq_redacted)]
 pub struct DeviceHello {
     pub device: DeviceDescriptor,
@@ -84,34 +92,44 @@ pub struct DeviceHello {
     pub relay_token: String,
 }
 
+/// 请求建立远程会话的控制帧负载。
 #[apply(serde_eq)]
 pub struct SessionOffer {
     pub request: SessionRequest,
 }
 
+/// 接受远程会话后的授权结果负载。
 #[apply(serde_eq)]
 pub struct SessionAccept {
     pub grant: SessionGrant,
 }
 
+/// 人工或策略授权远程控制请求的结果。
 #[apply(serde_eq)]
 pub struct PermissionGrant {
     pub accepted: bool,
     pub reason: Option<String>,
 }
 
+/// 文件传输块。
+///
+/// 元数据放在 `envelope`，真实字节放在 `bytes`，方便后续替换为二进制通道。
 #[apply(serde_eq)]
 pub struct FileChunk {
     pub envelope: FileTransferEnvelope,
     pub bytes: Vec<u8>,
 }
 
+/// 视频帧传输块。
 #[apply(serde_eq)]
 pub struct VideoChunk {
     pub envelope: VideoFrameEnvelope,
     pub bytes: Vec<u8>,
 }
 
+/// 远程桌面控制协议的 JSON 控制帧。
+///
+/// 该 enum 是当前 wire contract 的中心；新增变体需要考虑旧客户端的反序列化兼容性。
 #[apply(serde_eq)]
 pub enum ControlFrame {
     Hello(DeviceHello),
@@ -128,10 +146,12 @@ pub enum ControlFrame {
 }
 
 impl ControlFrame {
+    /// 将控制帧编码为 JSON 字节。
     pub fn to_json_bytes(&self) -> ProtocolResult<Vec<u8>> {
         serde_json::to_vec(self).map_err(ProtocolError::from)
     }
 
+    /// 从 JSON 字节恢复控制帧。
     pub fn from_json_bytes(bytes: &[u8]) -> ProtocolResult<Self> {
         serde_json::from_slice(bytes).map_err(ProtocolError::from)
     }

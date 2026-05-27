@@ -66,13 +66,17 @@
 ### 已补
 
 - `az-admin-plugin-registry`：公开注册宏补中文 rustdoc，明确 `domain`、`branch`、`page`、`root page` 和 starter 插件链接保活入口的语义。
+- `az-cli-market-contract`：给 CLI 市场 wire enum、关键 DTO 和 base64 artifact 编解码入口补中文 rustdoc，明确 `code()` / serde wire value 的兼容边界。
+- `az-config-center-contract`：给 Shell 组件契约补中文 rustdoc，区分 `ShellComponentKind` 的 wire value 和 `Display` 分组名。
+- `az-remote-protocol`：给协议错误、流类型、握手帧、文件/视频块和 `ControlFrame` 补中文 rustdoc，强调 relay token 脱敏和 JSON wire contract。
+- `az-browser-automation`：将 OpenAI 手工记录步骤相关公开说明改为中文，明确 step id、`Display` 和 `strum(message)` 的职责分层。
 - `docs/README.md`：增加本巡检文档入口，方便文档站收录。
 
 ### 继续建议
 
 - `az-derive-aliases`：README 已经是中文 alias 清单，后续只在新增 alias 时维护“功能型分层”，不要再按 struct/enum 或业务语义拆出大量平行宏。
-- `az-browser-automation`：记录步骤 enum 适合用 `strum(message = "...")` 承载中文说明，避免手写 match 和注释分离。
-- `az-cli-market-contract`、`az-config-center-contract`：协议契约 crate 应优先给 wire enum 和 DTO 增补中文 rustdoc，说明 serde 命名约定和兼容风险。
+- `az-browser-automation`：后续新增记录步骤时继续用 `strum(message = "...")` 承载长说明，避免手写 match 和注释分离。
+- `az-cli-market-contract`、`az-config-center-contract`：后续扩展字段或新增 wire enum 时同步补中文 rustdoc 和兼容性测试。
 - `az-drive-store`、`gitdb`、`toasty-driver-gitdb`：存储层需要用模块级中文说明固定对象层、元数据层、shard 层边界。
 - `az-remote-protocol`、`az-wasm-plugin-api`：协议 crate 不要靠每个字段行注释堆信息，优先维护 crate/module 级“帧类型、兼容性、脱敏、安全边界”说明。
 

@@ -1,4 +1,8 @@
-//! OpenAI login and sign-up page automation.
+//! OpenAI 登录、注册入口和人工记录辅助。
+//!
+//! 本模块保留手工记录入口流程的显式步骤类型，避免把真实网页状态和选择器策略
+//! 隐藏在不可审阅的脚本字符串里。`OpenAiRecordingStep` 的稳定 step id、展示文案和说明
+//! 由 `strum` metadata 承载，调用方可以用同一套枚举驱动 CLI、测试和日志输出。
 
 use crate::ai_reg_auto::{
     buy_fivesim_number_with, create_registration_mailbox, poll_fivesim_sms_with,
@@ -23,62 +27,65 @@ use strum::EnumMessage;
 
 use rand::Rng;
 
-/// Sleeps a random duration between 5-70 seconds to mimic human pacing.
+/// 随机等待 5-70 秒，用于降低自动化动作节奏的机械感。
 fn random_jitter() {
     let mut rng = rand::thread_rng();
     let secs = rng.gen_range(5..=70);
     thread::sleep(Duration::from_secs(secs));
 }
 
-/// OpenAI authorization flow mode.
+/// OpenAI 授权入口流程模式。
 #[apply(serde_code_enum)]
 pub enum OpenAiAuthFlow {
-    /// Open the login flow.
+    /// 打开登录流程。
     Login,
-    /// Open the sign-up flow.
+    /// 打开注册流程。
     SignUp,
 }
 
-/// Current stage reached by [`OpenAiAuthAutomation`].
+/// [`OpenAiAuthAutomation`] 当前到达的流程阶段。
 #[apply(serde_code_enum)]
 pub enum OpenAiAuthStage {
-    /// The authorization page was opened, but no credential input was requested.
+    /// 授权页已打开，但还没有进入凭证输入阶段。
     Opened,
-    /// The email address was submitted.
+    /// 邮箱地址已提交。
     EmailSubmitted,
-    /// A password field is present and no password was supplied.
+    /// 页面要求输入密码，但调用方未提供密码。
     PasswordRequired,
-    /// The password was submitted.
+    /// 密码已提交。
     PasswordSubmitted,
-    /// The browser appears to have reached an authenticated OpenAI surface.
+    /// 浏览器看起来已经进入已认证的 OpenAI 页面。
     Authenticated,
-    /// OpenAI is asking for email, MFA, or similar human verification.
+    /// OpenAI 要求邮箱、MFA 或类似人工验证。
     VerificationRequired,
-    /// A CAPTCHA or bot challenge is present.
+    /// 页面出现 CAPTCHA 或机器人挑战。
     CaptchaRequired,
-    /// The page reached a state the automation intentionally leaves to a human.
+    /// 页面进入自动化刻意交还给人工处理的状态。
     AwaitingUserAction,
-    /// Onboarding / "About You" page (name, age, etc.).
+    /// 进入 onboarding / About You 页面，例如姓名、年龄等信息。
     OnboardingRequired,
-    /// OpenAI rejected the registration based on Terms of Service.
+    /// OpenAI 基于服务条款拒绝注册。
     TermsRejected,
 }
 
-/// Step identifiers for manual OpenAI entry-flow recording.
+/// OpenAI 入口流程手工记录步骤。
+///
+/// `step1` / `step2` / `step3` 是对外稳定 id；`Display` 用于短标签，
+/// `strum(message = "...")` 用于长说明，避免再写一张手工 match 表。
 #[apply(plain_code_display_message_no_default_enum)]
 #[strum(ascii_case_insensitive)]
 pub enum OpenAiRecordingStep {
-    /// Step 1: open the OpenAI entry page.
+    /// 第一步：打开 OpenAI 入口页。
     #[strum(serialize = "step1")]
     #[strum(message = "Open the ChatGPT/OpenAI entry page and wait for the shell to stabilize.")]
     #[display("Open entry page")]
     OpenEntryPage,
-    /// Step 2: click the `Log in` entry point.
+    /// 第二步：点击 `Log in` 入口。
     #[strum(serialize = "step2")]
     #[strum(message = "Click the `Log in` entry button or link.")]
     #[display("Click Log in")]
     ClickLogin,
-    /// Step 3: click the `Sign up` / `Create account` entry from the login page.
+    /// 第三步：从登录页点击 `Sign up` / `Create account` 分支。
     #[strum(serialize = "step3")]
     #[strum(message = "On the login page, click `Sign up` or `Create account` for the `Don't have an account?` branch.")]
     #[display("Click Sign up")]
@@ -86,53 +93,53 @@ pub enum OpenAiRecordingStep {
 }
 
 impl OpenAiRecordingStep {
-    /// Returns the intended manual recording action.
+    /// 返回该步骤的人工记录说明。
     #[must_use]
     pub fn description(self) -> &'static str {
         self.get_message()
             .expect("recording step message should be declared on every variant")
     }
 
-    /// Parses `step1`, `step2`, or `step3`.
+    /// 解析 `step1`、`step2` 或 `step3`。
     #[must_use]
     pub fn from_id(id: &str) -> Option<Self> {
         Self::from_code(id.trim())
     }
 }
 
-/// Result status for one manual recording step.
+/// 单个手工记录步骤的结果状态。
 #[apply(serde_code_enum)]
 pub enum OpenAiRecordingStepStatus {
-    /// The target for the step was found and clicked, or the page was ready.
+    /// 步骤目标已找到并点击，或页面已达到预期状态。
     Completed,
-    /// The browser stayed open but the expected target for the step was not found.
+    /// 浏览器保持打开，但没有找到该步骤预期的目标。
     MissingTarget,
 }
 
-/// Result for one recorded step.
+/// 单个记录步骤的结果。
 #[apply(plain_eq)]
 pub struct OpenAiRecordingStepResult {
-    /// Step that was executed.
+    /// 实际执行的步骤。
     pub step: OpenAiRecordingStep,
-    /// Step status.
+    /// 步骤结果状态。
     pub status: OpenAiRecordingStepStatus,
-    /// Final observed browser URL.
+    /// 步骤结束时观察到的浏览器 URL。
     pub final_url: String,
-    /// Final observed page title.
+    /// 步骤结束时观察到的页面标题。
     pub page_title: String,
-    /// Human-readable step outcome.
+    /// 面向日志或 CLI 输出的人类可读结果。
     pub message: String,
 }
 
-/// Result for a multi-step manual recording run.
+/// 多步骤手工记录运行结果。
 #[apply(plain_eq)]
 pub struct OpenAiRecordingResult {
-    /// Executed step results in order.
+    /// 按执行顺序记录的步骤结果。
     pub steps: Vec<OpenAiRecordingStepResult>,
 }
 
 impl OpenAiRecordingResult {
-    /// Returns true when every requested step completed.
+    /// 所有请求步骤均完成时返回 `true`。
     #[must_use]
     pub fn is_complete(&self) -> bool {
         self.steps
@@ -141,18 +148,18 @@ impl OpenAiRecordingResult {
     }
 }
 
-/// Options for manual OpenAI entry-flow recording.
+/// OpenAI 入口流程手工记录选项。
 #[apply(plain_eq)]
 pub struct OpenAiRecordingOptions {
-    /// Initial page used for the recording sequence.
+    /// 记录序列使用的起始页面。
     pub start_url: String,
-    /// Ordered steps to execute.
+    /// 要按顺序执行的步骤。
     pub steps: Vec<OpenAiRecordingStep>,
-    /// Delay between steps.
+    /// 步骤之间的等待时间。
     pub step_delay: Duration,
-    /// Optional pause after each step.
+    /// 每一步完成后的可选暂停时间。
     pub hold_after_each_step: Option<Duration>,
-    /// Optional pause after the final step.
+    /// 全部步骤完成后的可选暂停时间。
     pub hold_after_finish: Option<Duration>,
 }
 
@@ -163,10 +170,10 @@ impl Default for OpenAiRecordingOptions {
 }
 
 impl OpenAiRecordingOptions {
-    /// Default landing page used for entry-flow recording.
+    /// 入口流程记录默认打开的落地页。
     pub const ENTRY_URL: &'static str = "https://chatgpt.com/";
 
-    /// Returns the default `step1 -> step2 -> step3` recording plan.
+    /// 返回默认 `step1 -> step2 -> step3` 记录计划。
     #[must_use]
     pub fn entry_sign_up() -> Self {
         Self {
@@ -182,35 +189,35 @@ impl OpenAiRecordingOptions {
         }
     }
 
-    /// Replaces the step sequence.
+    /// 替换记录步骤序列。
     #[must_use]
     pub fn with_steps(mut self, steps: impl IntoIterator<Item = OpenAiRecordingStep>) -> Self {
         self.steps = steps.into_iter().collect();
         self
     }
 
-    /// Sets an explicit start URL.
+    /// 设置显式起始 URL。
     #[must_use]
     pub fn with_start_url(mut self, start_url: impl Into<String>) -> Self {
         self.start_url = normalize_page_url(start_url.into());
         self
     }
 
-    /// Sets the delay between steps.
+    /// 设置步骤之间的等待时间。
     #[must_use]
     pub fn with_step_delay(mut self, step_delay: Duration) -> Self {
         self.step_delay = step_delay;
         self
     }
 
-    /// Pauses after every step.
+    /// 每个步骤完成后暂停。
     #[must_use]
     pub fn with_hold_after_each_step(mut self, hold_after_each_step: Duration) -> Self {
         self.hold_after_each_step = Some(hold_after_each_step);
         self
     }
 
-    /// Keeps the final page open after the recording plan finishes.
+    /// 记录计划完成后保持最终页面打开一段时间。
     #[must_use]
     pub fn with_hold_after_finish(mut self, hold_after_finish: Duration) -> Self {
         self.hold_after_finish = Some(hold_after_finish);
@@ -280,7 +287,7 @@ impl OpenAiAuthOptions {
         }
     }
 
-    /// Sets an explicit start URL.
+    /// 设置显式起始 URL。
     #[must_use]
     pub fn with_start_url(mut self, start_url: impl Into<String>) -> Self {
         self.start_url = normalize_page_url(start_url.into());
@@ -314,9 +321,9 @@ impl OpenAiAuthOptions {
 pub struct OpenAiAuthResult {
     /// Stage where automation stopped.
     pub stage: OpenAiAuthStage,
-    /// Final observed browser URL.
+    /// 步骤结束时观察到的浏览器 URL。
     pub final_url: String,
-    /// Final observed page title.
+    /// 步骤结束时观察到的页面标题。
     pub page_title: String,
     /// Human-readable stop reason.
     pub message: String,

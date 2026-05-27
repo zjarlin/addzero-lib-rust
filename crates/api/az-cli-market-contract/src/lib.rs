@@ -22,10 +22,19 @@
 //! | `CliPlatform`       | 目标平台             |
 //! | `CliInstallerKind`  | 包管理器 / 安装方式  |
 //! | `CliImportFormat`   | 导入文件格式         |
+//!
+//! ## wire 约定
+//!
+//! 所有 `serde_code_default_enum` 枚举都通过 `code()` / `from_code()` 暴露稳定字符串，
+//! 并用同一套字符串完成 serde 序列化。修改这些字符串等同于修改 API wire contract，
+//! 需要同时更新服务端、CLI 客户端、导入导出测试和已有持久化数据。
 
 use az_derive_aliases::{apply, error_eq, serde_code_default_enum, serde_eq_default};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
+/// CLI 市场条目的生命周期状态。
+///
+/// 默认值 `Draft` 表示条目尚未进入公开目录；公开 API 中传输的是稳定 code 字符串。
 #[apply(serde_code_default_enum)]
 pub enum CliMarketStatus {
     #[default]
@@ -35,6 +44,9 @@ pub enum CliMarketStatus {
     Archived,
 }
 
+/// 市场条目的来源类型。
+///
+/// 该字段用于区分人工录入、文件导入和外部同步来源，不代表条目的可信等级。
 #[apply(serde_code_default_enum)]
 pub enum CliMarketSourceType {
     #[default]
@@ -44,6 +56,10 @@ pub enum CliMarketSourceType {
     SyncExternal,
 }
 
+/// CLI 市场条目的功能形态。
+///
+/// `Cli` 表示直接可执行工具，`Wrapper` / `Installer` / `Bundle`
+/// 用于描述包装脚本、安装器或组合分发包。
 #[apply(serde_code_default_enum)]
 pub enum CliEntryKind {
     #[default]
@@ -53,6 +69,9 @@ pub enum CliEntryKind {
     Bundle,
 }
 
+/// 条目文本内容的语言区域。
+///
+/// 这里的 wire value 使用 BCP 47 风格大小写（例如 `zh-CN`），不要改成 snake_case。
 #[apply(serde_code_default_enum)]
 pub enum CliLocale {
     #[default]
@@ -64,6 +83,9 @@ pub enum CliLocale {
     EnUs,
 }
 
+/// 安装方法适用的平台。
+///
+/// `CrossPlatform` 表示安装命令可跨平台复用，序列化值固定为 `cross_platform`。
 #[apply(serde_code_default_enum)]
 pub enum CliPlatform {
     Macos,
@@ -73,6 +95,9 @@ pub enum CliPlatform {
     CrossPlatform,
 }
 
+/// 安装命令所属的工具链或包管理器。
+///
+/// `Custom` 作为兜底值，用于导入暂时无法归类的安装脚本。
 #[apply(serde_code_default_enum)]
 pub enum CliInstallerKind {
     Brew,
@@ -87,6 +112,7 @@ pub enum CliInstallerKind {
     Custom,
 }
 
+/// CLI 市场导入文件格式。
 #[apply(serde_code_default_enum)]
 pub enum CliImportFormat {
     #[default]
@@ -94,6 +120,9 @@ pub enum CliImportFormat {
     Xlsx,
 }
 
+/// CLI 市场导入兼容模式。
+///
+/// `RegistryCompat` 用于兼容旧注册表 JSON 行格式，正式内部模型仍以 native DTO 为准。
 #[apply(serde_code_default_enum)]
 pub enum CliImportMode {
     #[default]
@@ -101,6 +130,7 @@ pub enum CliImportMode {
     RegistryCompat,
 }
 
+/// 某个语言区域下的展示文案和安装说明。
 #[apply(serde_eq_default)]
 pub struct CliLocaleText {
     pub locale: CliLocale,
@@ -113,6 +143,9 @@ pub struct CliLocaleText {
     pub install_command: String,
 }
 
+/// 单个可执行安装方法。
+///
+/// `command_template` 是最终执行命令模板，服务端生成安装任务前应完成平台和安全边界校验。
 #[apply(serde_eq_default)]
 pub struct CliInstallMethod {
     pub id: Option<String>,
@@ -124,6 +157,7 @@ pub struct CliInstallMethod {
     pub priority: i32,
 }
 
+/// 条目关联的外部文档引用。
 #[apply(serde_eq_default)]
 pub struct CliDocRef {
     pub id: Option<String>,
@@ -135,6 +169,10 @@ pub struct CliDocRef {
     pub summary: String,
 }
 
+/// CLI 市场条目的完整快照。
+///
+/// 这是服务端列表、详情和导出共用的正式 DTO；`raw` 只保留导入源补充信息，
+/// 不应成为业务查询的主要字段。
 #[apply(serde_eq_default)]
 pub struct CliMarketEntry {
     pub id: String,
@@ -158,6 +196,9 @@ pub struct CliMarketEntry {
     pub updated_at: Option<String>,
 }
 
+/// 创建或更新 CLI 市场条目时使用的 DTO。
+///
+/// `id` 为 `None` 时由服务端创建新条目；有值时表示更新现有条目。
 #[apply(serde_eq_default)]
 pub struct CliMarketEntryUpsert {
     pub id: Option<String>,
@@ -204,6 +245,9 @@ pub struct CliMarketImportRequest {
 }
 
 impl CliMarketImportRequest {
+    /// 解码导入文件的 base64 负载。
+    ///
+    /// 该方法只处理传输编码，不校验文件格式内容。
     pub fn decode_payload(&self) -> Result<Vec<u8>, CliMarketContractError> {
         STANDARD
             .decode(self.payload_base64.as_bytes())
@@ -333,6 +377,7 @@ pub enum CliMarketContractError {
 }
 
 impl CliMarketExportArtifact {
+    /// 将导出文件内容封装为 API 可传输的 base64 artifact。
     pub fn encode(
         file_name: impl Into<String>,
         content_type: impl Into<String>,
@@ -345,6 +390,7 @@ impl CliMarketExportArtifact {
         }
     }
 
+    /// 解码导出 artifact 中的 base64 文件内容。
     pub fn decode(&self) -> Result<Vec<u8>, CliMarketContractError> {
         STANDARD
             .decode(self.bytes_base64.as_bytes())
