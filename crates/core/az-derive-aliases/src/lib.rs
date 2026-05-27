@@ -698,7 +698,10 @@ macro_rules! clap_args {
 #[macro_export]
 macro_rules! clap_args_default_clone {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!((Debug, ::clap::Args, Clone, Default), $item);
+        $crate::clap_args! {
+            #[derive(Clone, Default)]
+            $item
+        }
     };
 }
 
@@ -722,10 +725,10 @@ macro_rules! dioxus_props {
 #[macro_export]
 macro_rules! clap_value_enum {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Debug, Clone, Copy, PartialEq, Eq, ::clap::ValueEnum),
+        $crate::plain_copy_eq! {
+            #[derive(::clap::ValueEnum)]
             $item
-        );
+        }
     };
 }
 
@@ -741,10 +744,10 @@ macro_rules! seaorm_entity_model {
 #[macro_export]
 macro_rules! seaorm_entity_model_eq {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (Clone, Debug, PartialEq, Eq, DeriveEntityModel),
+        $crate::seaorm_entity_model! {
+            #[derive(Eq)]
             $item
-        );
+        }
     };
 }
 
@@ -898,15 +901,10 @@ macro_rules! serde_camel_partial_eq_default {
 #[macro_export]
 macro_rules! serde_partial_eq_display {
     ($item:item) => {
-        #[derive(
-            Clone,
-            Debug,
-            PartialEq,
-            ::serde::Serialize,
-            ::serde::Deserialize,
-            ::derive_more::Display,
-        )]
-        $item
+        $crate::serde_partial_eq! {
+            #[derive(::derive_more::Display)]
+            $item
+        }
     };
 }
 

@@ -1,13 +1,13 @@
 use az_derive_aliases::{
-    apply, clap_code_enum, deserialize_camel_clone_debug, deserialize_camel_eq, error_copy_eq,
-    from_copy_eq_display, plain_code_default_enum, plain_code_display_no_default_enum,
-    plain_code_enum, plain_copy_eq_hash, plain_copy_eq_hash_display,
-    plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
-    plain_eq_hash_display, serde_camel_eq_default, serde_camel_partial_eq_default,
-    serde_code_default_ord_display_enum, serde_code_enum, serde_code_ord_display_enum,
-    serde_code_partial_eq, serde_eq_copy_display, serde_eq_hash_display, serde_kebab_code_enum,
-    serde_kebab_eq, serde_lower_code_enum, serde_partial_eq_display, serde_upper_eq,
-    serialize_camel_clone_debug, serialize_camel_eq,
+    apply, clap_code_enum, clap_value_enum, deserialize_camel_clone_debug, deserialize_camel_eq,
+    error_copy_eq, from_copy_eq_display, plain_code_default_enum,
+    plain_code_display_no_default_enum, plain_code_enum, plain_copy_eq_hash,
+    plain_copy_eq_hash_display, plain_copy_eq_hash_ord_display, plain_default_copy_eq,
+    plain_default_copy_eq_display, plain_eq_hash_display, serde_camel_eq_default,
+    serde_camel_partial_eq_default, serde_code_default_ord_display_enum, serde_code_enum,
+    serde_code_ord_display_enum, serde_code_partial_eq, serde_eq_copy_display,
+    serde_eq_hash_display, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
+    serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
 };
 use clap::ValueEnum;
 use serde_json::Value;
@@ -85,6 +85,12 @@ enum LowerCode {
 #[apply(clap_code_enum)]
 enum ClapCode {
     ReadyNow,
+}
+
+#[apply(clap_value_enum)]
+enum PlainClapValue {
+    FastMode,
+    SafeMode,
 }
 
 #[apply(serde_code_ord_display_enum)]
@@ -272,6 +278,19 @@ fn clap_code_enum_reuses_serde_code_enum_helpers() {
         ClapCode::from_str("ready-now", false),
         Ok(ClapCode::ReadyNow)
     );
+}
+
+#[test]
+fn clap_value_enum_alias_reuses_plain_copy_eq_layer() {
+    let mode = PlainClapValue::FastMode;
+    let copied = mode;
+
+    assert_eq!(mode, copied);
+    assert_eq!(
+        PlainClapValue::from_str("safe-mode", false),
+        Ok(PlainClapValue::SafeMode)
+    );
+    assert!(format!("{mode:?}").contains("FastMode"));
 }
 
 #[test]
