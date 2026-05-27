@@ -1,14 +1,14 @@
-//! OpenAI-compatible chat client implementation.
+//! OpenAI 兼容聊天客户端实现。
 
 use az_derive_aliases::{apply, deserialize_debug, serialize_debug};
 use reqwest::Client;
 
 use crate::{ChatClient, ChatError, ChatOptions, ChatResponse, ChatResult, Message, Role, Usage};
 
-/// OpenAI-compatible chat completion client.
+/// OpenAI 兼容的聊天补全客户端。
 ///
-/// Works with any API that follows the OpenAI `/chat/completions` format,
-/// including OpenAI, Azure OpenAI, local LLMs (Ollama, vLLM), etc.
+/// 只要服务端遵循 OpenAI `/chat/completions` 格式即可使用，
+/// 包括 OpenAI、Azure OpenAI、本地 LLM 服务（Ollama、vLLM）等。
 pub struct OpenAiClient {
     client: Client,
     base_url: String,
@@ -16,9 +16,9 @@ pub struct OpenAiClient {
 }
 
 impl OpenAiClient {
-    /// Create a new client with the given base URL and API key.
+    /// 使用 base URL 和 API key 创建客户端。
     ///
-    /// The `base_url` should be like `"https://api.openai.com/v1"` (no trailing slash).
+    /// `base_url` 应类似 `"https://api.openai.com/v1"`，尾部是否带斜杠都会被规范化。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
         Self {
             client: Client::new(),
@@ -27,7 +27,7 @@ impl OpenAiClient {
         }
     }
 
-    /// Create a new client with a custom `reqwest::Client`.
+    /// 使用自定义 `reqwest::Client` 创建客户端。
     pub fn with_client(
         client: Client,
         base_url: impl Into<String>,

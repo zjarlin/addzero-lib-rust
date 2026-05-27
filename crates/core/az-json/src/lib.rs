@@ -7,10 +7,9 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-/// Retrieve a value by dot-separated path.
+/// 通过点分隔路径读取 JSON 值。
 ///
-/// Given a JSON value and a path like `"a.b.c"`, this function traverses
-/// nested objects and returns the value at that location, if it exists.
+/// 给定 `"a.b.c"` 这样的路径时，会逐层遍历嵌套对象，并在路径存在时返回对应值。
 ///
 /// # Examples
 ///
@@ -36,9 +35,9 @@ pub fn get_value<'a>(json: &'a Value, path: &str) -> Option<&'a Value> {
     Some(current)
 }
 
-/// Retrieve a `String` value at the given dot-separated path.
+/// 通过点分隔路径读取 `String` 值。
 ///
-/// Returns `None` if the path does not exist or the value is not a string.
+/// 当路径不存在，或目标值不是字符串时返回 `None`。
 ///
 /// # Examples
 ///
@@ -54,10 +53,9 @@ pub fn get_string(json: &Value, path: &str) -> Option<String> {
     get_value(json, path).and_then(|v| v.as_str().map(String::from))
 }
 
-/// Retrieve an `i64` value at the given dot-separated path.
+/// 通过点分隔路径读取 `i64` 值。
 ///
-/// Returns `None` if the path does not exist or the value is not representable
-/// as `i64`.
+/// 当路径不存在，或目标值不能表示为 `i64` 时返回 `None`。
 ///
 /// # Examples
 ///
@@ -72,10 +70,9 @@ pub fn get_i64(json: &Value, path: &str) -> Option<i64> {
     get_value(json, path).and_then(|v| v.as_i64())
 }
 
-/// Retrieve an `f64` value at the given dot-separated path.
+/// 通过点分隔路径读取 `f64` 值。
 ///
-/// Returns `None` if the path does not exist or the value is not representable
-/// as `f64`.
+/// 当路径不存在，或目标值不能表示为 `f64` 时返回 `None`。
 ///
 /// # Examples
 ///
@@ -90,9 +87,9 @@ pub fn get_f64(json: &Value, path: &str) -> Option<f64> {
     get_value(json, path).and_then(|v| v.as_f64())
 }
 
-/// Retrieve a `bool` value at the given dot-separated path.
+/// 通过点分隔路径读取 `bool` 值。
 ///
-/// Returns `None` if the path does not exist or the value is not a boolean.
+/// 当路径不存在，或目标值不是布尔值时返回 `None`。
 ///
 /// # Examples
 ///
@@ -107,10 +104,9 @@ pub fn get_bool(json: &Value, path: &str) -> Option<bool> {
     get_value(json, path).and_then(|v| v.as_bool())
 }
 
-/// Deep-merge `overlay` into `base`.
+/// 将 `overlay` 深度合并到 `base`。
 ///
-/// Both values must be objects. Recursively merges nested objects;
-/// leaf values and non-object values in `overlay` overwrite `base`.
+/// 只有双方同为对象时才会递归合并；`overlay` 中的叶子值和非对象值会覆盖 `base`。
 ///
 /// # Examples
 ///
@@ -139,10 +135,9 @@ pub fn merge(base: &mut Value, overlay: &Value) {
     }
 }
 
-/// Flatten a nested JSON value into a `HashMap` with dot-separated keys.
+/// 将嵌套 JSON 展平成点分隔 key 的 `HashMap`。
 ///
-/// Objects are recursively flattened. Arrays produce numeric index keys
-/// (e.g. `"items.0"`). Non-container values become leaf entries.
+/// 对象会递归展开；数组使用数字下标 key，例如 `"items.0"`；非容器值会成为叶子条目。
 ///
 /// # Examples
 ///
@@ -188,11 +183,9 @@ fn flatten_inner(json: &Value, prefix: String, map: &mut HashMap<String, Value>)
     }
 }
 
-/// Pretty-print a JSON value as a formatted string.
+/// 将 JSON 值格式化为带缩进的字符串。
 ///
-/// Returns the indented representation. If serialization fails (which
-/// should not happen for valid `Value`s), returns the fallback string
-/// `"<invalid json>"`.
+/// 对有效的 [`Value`] 正常返回 pretty JSON；如果序列化异常失败，则返回 `"<invalid json>"`。
 ///
 /// # Examples
 ///

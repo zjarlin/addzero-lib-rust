@@ -71,6 +71,7 @@
 - `az-remote-protocol`：给协议错误、流类型、握手帧、文件/视频块和 `ControlFrame` 补中文 rustdoc，强调 relay token 脱敏和 JSON wire contract。
 - `az-browser-automation`：将 OpenAI 手工记录步骤相关公开说明改为中文，明确 step id、`Display` 和 `strum(message)` 的职责分层。
 - `docs/README.md`：增加本巡检文档入口，方便文档站收录。
+- `az-json`、`az-ai-chat`：续补 JSON 工具函数、聊天通用 trait、OpenAI 兼容客户端和 manifest 描述的中文 rustdoc。
 
 ### 继续建议
 

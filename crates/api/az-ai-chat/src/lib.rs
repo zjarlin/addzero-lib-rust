@@ -26,55 +26,55 @@ mod openai;
 
 pub use openai::OpenAiClient;
 
-/// Errors that can occur during chat operations.
+/// 聊天调用过程中可能出现的错误。
 #[apply(error)]
 pub enum ChatError {
-    /// HTTP request failed.
+    /// HTTP 请求失败。
     #[error("http error: {0}")]
     Http(#[from] reqwest::Error),
 
-    /// JSON serialization/deserialization failed.
+    /// JSON 序列化或反序列化失败。
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// The provider returned an error response.
+    /// 模型供应商返回错误响应。
     #[error("provider error ({code}): {message}")]
     ProviderError { code: u16, message: String },
 
-    /// A required field was missing from the response.
+    /// 响应中缺少必需字段。
     #[error("missing field in response: {0}")]
     MissingField(String),
 
-    /// Invalid configuration (e.g., empty API key).
+    /// 配置不合法，例如 API key 为空。
     #[error("invalid config: {0}")]
     InvalidConfig(String),
 }
 
-/// Result alias for chat operations.
+/// 聊天操作的统一结果类型。
 pub type ChatResult<T> = Result<T, ChatError>;
 
-/// The role of a message participant.
+/// 单条消息参与者的角色。
 #[apply(serde_code_enum)]
 pub enum Role {
-    /// System prompt (instructions to the model).
+    /// 系统提示词，用于给模型提供指令。
     System,
-    /// User message.
+    /// 用户消息。
     User,
-    /// Assistant (model) response.
+    /// 助手，即模型返回的消息。
     Assistant,
 }
 
-/// A single chat message.
+/// 单条聊天消息。
 #[apply(serde_eq)]
 pub struct Message {
-    /// The role of the message sender.
+    /// 消息发送者角色。
     pub role: Role,
-    /// The text content of the message.
+    /// 消息文本内容。
     pub content: String,
 }
 
 impl Message {
-    /// Create a system message.
+    /// 创建系统消息。
     pub fn system(content: impl Into<String>) -> Self {
         Self {
             role: Role::System,
@@ -82,7 +82,7 @@ impl Message {
         }
     }
 
-    /// Create a user message.
+    /// 创建用户消息。
     pub fn user(content: impl Into<String>) -> Self {
         Self {
             role: Role::User,
@@ -90,7 +90,7 @@ impl Message {
         }
     }
 
-    /// Create an assistant message.
+    /// 创建助手消息。
     pub fn assistant(content: impl Into<String>) -> Self {
         Self {
             role: Role::Assistant,
@@ -99,69 +99,69 @@ impl Message {
     }
 }
 
-/// Optional parameters for chat completion.
+/// 聊天补全的可选参数。
 #[apply(serde_partial_eq_default)]
 pub struct ChatOptions {
-    /// Sampling temperature (0.0–2.0). Higher = more random.
+    /// 采样温度，通常为 `0.0..=2.0`；值越高随机性越强。
     pub temperature: Option<f64>,
-    /// Maximum tokens to generate.
+    /// 最大生成 token 数。
     pub max_tokens: Option<u32>,
-    /// Top-p nucleus sampling.
+    /// nucleus sampling 的 top-p 参数。
     pub top_p: Option<f64>,
-    /// Stop sequences.
+    /// 停止序列。
     pub stop: Option<Vec<String>>,
 }
 
 impl ChatOptions {
-    /// Create default (empty) options.
+    /// 创建空的默认参数。
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Set the temperature.
+    /// 设置采样温度。
     pub fn with_temperature(mut self, temp: f64) -> Self {
         self.temperature = Some(temp);
         self
     }
 
-    /// Set the max tokens.
+    /// 设置最大生成 token 数。
     pub fn with_max_tokens(mut self, tokens: u32) -> Self {
         self.max_tokens = Some(tokens);
         self
     }
 }
 
-/// The response from a chat completion.
+/// 聊天补全响应。
 #[apply(serde_eq)]
 pub struct ChatResponse {
-    /// The model's text reply.
+    /// 模型返回的文本。
     pub content: String,
-    /// The model that was used (may differ from request).
+    /// 实际使用的模型，可能不同于请求中的模型名。
     pub model: String,
-    /// Token usage statistics, if available.
+    /// token 用量统计；供应商返回时才有值。
     pub usage: Option<Usage>,
-    /// The finish reason (e.g., "stop", "length").
+    /// 结束原因，例如 `stop` 或 `length`。
     pub finish_reason: Option<String>,
 }
 
-/// Token usage statistics.
+/// token 用量统计。
 #[apply(serde_eq)]
 pub struct Usage {
-    /// Number of tokens in the prompt.
+    /// prompt token 数。
     pub prompt_tokens: u32,
-    /// Number of tokens in the completion.
+    /// completion token 数。
     pub completion_tokens: u32,
-    /// Total tokens used.
+    /// 总 token 数。
     pub total_tokens: u32,
 }
 
-/// Trait implemented by all AI chat providers.
+/// 所有 AI 聊天供应商共同实现的 trait。
 ///
-/// Each provider translates the common [`Message`] / [`ChatOptions`] into its
-/// own API format and parses the response back into [`ChatResponse`].
+/// 每个供应商负责将通用 [`Message`] / [`ChatOptions`] 转换为自己的 API 格式，
+/// 再把响应解析回 [`ChatResponse`]。
 #[async_trait::async_trait]
 pub trait ChatClient: Send + Sync {
-    /// Send a list of messages and receive a completion.
+    /// 发送消息列表并接收一次补全响应。
     async fn chat(
         &self,
         model: &str,
