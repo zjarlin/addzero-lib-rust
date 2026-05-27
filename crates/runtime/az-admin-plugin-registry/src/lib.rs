@@ -351,6 +351,28 @@ macro_rules! register_admin_page {
     };
 }
 
+#[macro_export]
+macro_rules! register_admin_root_page {
+    (
+        id: $id:expr,
+        domain: $domain_id:expr,
+        label: $label:expr,
+        order: $order:expr,
+        href: $href:expr $(,)?
+    ) => {
+        $crate::register_admin_page! {
+            id: $id,
+            domain: $domain_id,
+            parent: None,
+            label: $label,
+            order: $order,
+            href: $href,
+            active_patterns: &[$href],
+            permissions_any_of: &[],
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

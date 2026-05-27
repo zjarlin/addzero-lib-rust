@@ -6,15 +6,12 @@
 const SYSTEM_DOMAIN_ID: &str = "system";
 const MENU_MOUNTING_NODE_ID: &str = "system-menu-mounting";
 
-az_admin_plugin_registry::register_admin_page! {
+az_admin_plugin_registry::register_admin_root_page! {
     id: MENU_MOUNTING_NODE_ID,
     domain: SYSTEM_DOMAIN_ID,
-    parent: None,
     label: "菜单挂载",
     order: 40,
     href: "/system/menu/mounting",
-    active_patterns: &["/system/menu/mounting"],
-    permissions_any_of: &[],
 }
 
 pub fn ensure_linked() {}

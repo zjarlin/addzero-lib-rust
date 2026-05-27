@@ -6,15 +6,12 @@
 const SYSTEM_DOMAIN_ID: &str = "system";
 const IDENTITY_USERS_NODE_ID: &str = "system-identity-users";
 
-az_admin_plugin_registry::register_admin_page! {
+az_admin_plugin_registry::register_admin_root_page! {
     id: IDENTITY_USERS_NODE_ID,
     domain: SYSTEM_DOMAIN_ID,
-    parent: None,
     label: "用户管理",
     order: 10,
     href: "/system/identity/users",
-    active_patterns: &["/system/identity/users"],
-    permissions_any_of: &[],
 }
 
 pub fn ensure_linked() {}

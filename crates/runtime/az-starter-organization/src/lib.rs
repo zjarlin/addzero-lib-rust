@@ -6,15 +6,12 @@
 const SYSTEM_DOMAIN_ID: &str = "system";
 const ORGANIZATION_DEPARTMENTS_NODE_ID: &str = "system-organization-departments";
 
-az_admin_plugin_registry::register_admin_page! {
+az_admin_plugin_registry::register_admin_root_page! {
     id: ORGANIZATION_DEPARTMENTS_NODE_ID,
     domain: SYSTEM_DOMAIN_ID,
-    parent: None,
     label: "部门管理",
     order: 20,
     href: "/system/organization/departments",
-    active_patterns: &["/system/organization/departments"],
-    permissions_any_of: &[],
 }
 
 pub fn ensure_linked() {}
