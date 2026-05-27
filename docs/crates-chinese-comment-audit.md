@@ -72,6 +72,7 @@
 - `az-browser-automation`：将 OpenAI 手工记录步骤相关公开说明改为中文，明确 step id、`Display` 和 `strum(message)` 的职责分层。
 - `docs/README.md`：增加本巡检文档入口，方便文档站收录。
 - `az-json`、`az-ai-chat`：续补 JSON 工具函数、聊天通用 trait、OpenAI 兼容客户端和 manifest 描述的中文 rustdoc。
+- `gitdb` 存储组：续补 SQL AST、逻辑/物理计划、Volcano 执行算子、typestate 事务、Git 存储类型和行 blob 编解码的中文 rustdoc，明确 SQL 子集、执行模型、事务状态和 Git 路径安全边界。
 
 ### 继续建议
 

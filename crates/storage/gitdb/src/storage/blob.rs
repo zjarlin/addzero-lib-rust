@@ -1,8 +1,8 @@
-//!  Blob operations for row storage.
+//! 行数据的 blob 编解码与读写。
 //!
-//! This module handles reading & writing raw data as a JSON blob,
-//! each row is stored as a separate JSON file, with a consistent format
-//! that includes metadata for version tracking and conflict detection
+//! GitDB 把每一行保存为独立 JSON 文件，文件内容同时包含 `_pk`、
+//! `_version`、时间戳等元数据和用户列值。这个模块负责保持文件名、
+//! 主键和 JSON 内容之间的一致性。
 
 use std::collections::BTreeMap;
 
@@ -12,9 +12,9 @@ use serde_json::Value;
 use crate::storage::error::{StorageError, StorageResult};
 pub(crate) use crate::storage::types::{BlobId, RowKey};
 
-/// a db row with metadata and user data
+/// 带元数据的数据库行。
 ///
-/// The internal format stored in Git:
+/// Git 中存储的内部 JSON 格式如下：
 /// ```json
 /// {
 ///   "_pk": "abc123",
@@ -27,22 +27,22 @@ pub(crate) use crate::storage::types::{BlobId, RowKey};
 /// ```
 #[apply(plain_eq)]
 pub struct Row {
-    /// primary key (must match filename without . json extension)
+    /// 主键，必须与去掉 `.json` 后缀的文件名一致。
     pub key: RowKey,
-    /// version number for optimistic concurrency control
+    /// 用于乐观并发控制的版本号。
     pub version: u64,
-    /// creation timestamp
+    /// 创建时间戳。
     pub created_at: String,
-    /// last update timestamp
+    /// 最近更新时间戳。
     pub updated_at: String,
-    /// data (column values)
+    /// 用户列值。
     pub data: BTreeMap<String, Value>,
 }
 
 impl Row {
-    /// creates a new row with key & data
+    /// 使用行键和列值创建新行。
     ///
-    /// sets v1 and current time
+    /// 新行版本从 1 开始，创建和更新时间都设为当前时间。
     pub fn new(key: RowKey, data: BTreeMap<String, Value>) -> Self {
         let now = chrono::Utc::now().to_rfc3339();
         Self {
@@ -54,7 +54,7 @@ impl Row {
         }
     }
 
-    /// create a new row from a JSON value (typically from INSERT)
+    /// 从 JSON 对象创建新行，通常用于 `INSERT`。
     pub fn from_value(key: RowKey, value: Value) -> StorageResult<Self> {
         let data = match value {
             Value::Object(map) => map.into_iter().collect(),
@@ -67,9 +67,9 @@ impl Row {
         Ok(Self::new(key, data))
     }
 
-    /// create an updated version of this row
+    /// 使用新列值生成此行的更新版本。
     ///
-    /// increments version and updates the timestamp
+    /// 该操作会递增版本号并刷新更新时间。
     pub fn with_update(self, new_data: BTreeMap<String, Value>) -> Self {
         Self {
             key: self.key,
@@ -80,7 +80,7 @@ impl Row {
         }
     }
 
-    /// merge new data into existing data (for partial updates)
+    /// 将部分列值合并到当前行，用于局部更新。
     pub fn merge_data(&mut self, updates: BTreeMap<String, Value>) {
         for (k, v) in updates {
             self.data.insert(k, v);
@@ -89,20 +89,20 @@ impl Row {
         self.updated_at = chrono::Utc::now().to_rfc3339();
     }
 
-    /// get a column value by name
+    /// 按列名读取值。
     pub fn get(&self, column: &str) -> Option<&Value> {
         self.data.get(column)
     }
 
-    /// check if the row has a column
+    /// 判断行是否包含指定列。
     pub fn has_column(&self, column: &str) -> bool {
         self.data.contains_key(column)
     }
 }
 
-/// internal format for JSON serialization
+/// JSON 序列化使用的内部结构。
 ///
-/// uses `_` prefix for metadata fields to avoid conflicts with user columns
+/// 元数据字段统一使用 `_` 前缀，避免与用户列名冲突。
 #[apply(serde_partial_eq)]
 struct RowJson {
     #[serde(rename = "_pk")]
@@ -117,9 +117,9 @@ struct RowJson {
     data: BTreeMap<String, Value>,
 }
 
-/// serialize a row to JSON bytes
+/// 将行序列化为 JSON 字节。
 ///
-/// uses BTreeMap for consistent key ordering (important for git deduplication)
+/// 用户列使用 `BTreeMap` 保持稳定排序，便于 Git 复用相同内容。
 pub fn serialize_row(row: &Row) -> StorageResult<Vec<u8>> {
     let json = RowJson {
         pk: row.key.to_string(),
@@ -133,9 +133,9 @@ pub fn serialize_row(row: &Row) -> StorageResult<Vec<u8>> {
     Ok(bytes)
 }
 
-/// deserialize a row from JSON bytes
+/// 从 JSON 字节反序列化行。
 ///
-/// validates that the primary key in the JSON matches the expected key
+/// 反序列化时会校验 JSON 内 `_pk` 是否与文件名推导出的行键一致。
 pub fn deserialize_row(bytes: &[u8], expected_key: &RowKey) -> StorageResult<Row> {
     let json: RowJson = serde_json::from_slice(bytes)?;
 
@@ -159,22 +159,22 @@ pub fn deserialize_row(bytes: &[u8], expected_key: &RowKey) -> StorageResult<Row
     })
 }
 
-/// write a row as a blob to the repository
+/// 将行写入 Git blob。
 ///
-/// returns the blob ID (SHA-1 hash of the content)
+/// 返回值是内容对应的 Git blob ID。
 pub fn write_blob(repo: &git2::Repository, row: &Row) -> StorageResult<BlobId> {
     let bytes = serialize_row(row)?;
     let oid = repo.blob(&bytes)?;
     Ok(BlobId::new(oid))
 }
 
-/// read a blob's content from the repository
+/// 从仓库读取 blob 内容。
 pub fn read_blob(repo: &git2::Repository, blob_id: BlobId) -> StorageResult<Vec<u8>> {
     let blob = repo.find_blob(blob_id.raw())?;
     Ok(blob.content().to_vec())
 }
 
-/// metadata about a blob without reading its full content
+/// 不读取完整内容时可获得的 blob 元数据。
 #[apply(plain_clone_debug)]
 pub struct BlobMetadata {
     pub id: BlobId,
@@ -182,7 +182,7 @@ pub struct BlobMetadata {
 }
 
 impl BlobMetadata {
-    /// get the metadata for a bolb
+    /// 从 `git2::Blob` 提取元数据。
     pub fn from_blob(blob: &git2::Blob) -> Self {
         Self {
             id: BlobId::new(blob.id()),

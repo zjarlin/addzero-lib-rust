@@ -1,7 +1,7 @@
-//! Volcano-style operators for query execution.
+//! 查询执行器的 Volcano/Iterator 风格算子。
 //!
-//! Each operator implements the iterator model where rows are pulled
-//! one at a time through the tree.
+//! 每个算子都实现拉取式迭代模型：上层从根节点请求下一行，
+//! 数据按需从下游算子逐层向上返回。
 
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -10,19 +10,19 @@ use super::error::ExecuteResult;
 use super::eval::{evaluate, matches_where};
 use crate::sql::{Expr, OrderBy, SelectColumn};
 
-/// A row in the query execution pipeline.
+/// 查询执行管线中的一行数据。
 pub type Row = BTreeMap<String, Value>;
 
-/// Trait for all query operators.
+/// 所有查询算子的统一接口。
 pub trait Operator: Send {
-    /// Get the next row, or None if exhausted.
+    /// 拉取下一行；数据耗尽时返回 `None`。
     fn next_row(&mut self) -> ExecuteResult<Option<Row>>;
 
-    /// Reset the operator to start over.
+    /// 重置算子，使后续读取从头开始。
     fn reset(&mut self) -> ExecuteResult<()>;
 }
 
-/// Scan operator - reads all rows from a table.
+/// 扫描算子，从表中顺序读取所有行。
 pub struct ScanOperator {
     rows: Vec<Row>,
     position: usize,
@@ -51,7 +51,7 @@ impl Operator for ScanOperator {
     }
 }
 
-/// Filter operator - applies WHERE clause.
+/// 过滤算子，应用 `WHERE` 条件。
 pub struct FilterOperator {
     source: Box<dyn Operator>,
     predicate: Expr,
@@ -84,7 +84,7 @@ impl Operator for FilterOperator {
     }
 }
 
-/// Project operator - selects columns.
+/// 投影算子，选择列或计算表达式。
 pub struct ProjectOperator {
     source: Box<dyn Operator>,
     columns: Vec<SelectColumn>,
@@ -135,7 +135,7 @@ impl Operator for ProjectOperator {
     }
 }
 
-/// Sort operator - orders rows.
+/// 排序算子，按 `ORDER BY` 规则重排行。
 pub struct SortOperator {
     source: Box<dyn Operator>,
     order_by: Vec<OrderBy>,
@@ -204,7 +204,7 @@ impl Operator for SortOperator {
     }
 }
 
-/// Limit operator - restricts number of rows.
+/// 限制算子，处理 `LIMIT` 与 `OFFSET`。
 pub struct LimitOperator {
     source: Box<dyn Operator>,
     limit: usize,
@@ -253,7 +253,7 @@ impl Operator for LimitOperator {
     }
 }
 
-/// Compare two JSON values for ordering.
+/// 按 GitDB 当前规则比较两个 JSON 值的排序位置。
 fn compare_json_values(a: Option<&Value>, b: Option<&Value>) -> std::cmp::Ordering {
     match (a, b) {
         (None, None) => std::cmp::Ordering::Equal,

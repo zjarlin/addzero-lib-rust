@@ -1,39 +1,40 @@
-//! Internal AST types for GitDB SQL.
+//! GitDB SQL 的内部 AST 类型。
 //!
-//! These types are simplified representations of SQL statements
-//! that the query executor understands.
+//! 本模块只表达执行器当前能理解的 SQL 子集，不承诺覆盖完整 SQL 标准。
+//! 解析器负责把外部 SQL 文本转换为这些结构，后续 planner/executor
+//! 只依赖这里的稳定形状。
 
 use az_derive_aliases::{apply, plain_copy_eq, plain_partial_eq};
 use serde_json::Value;
 
-/// A parsed SQL statement.
+/// 已解析的 SQL 语句。
 #[apply(plain_partial_eq)]
 pub enum Statement {
-    /// CREATE TABLE statement.
+    /// `CREATE TABLE` 建表语句。
     CreateTable(CreateTable),
-    /// DROP TABLE statement.
+    /// `DROP TABLE` 删表语句。
     DropTable(DropTable),
-    /// SELECT statement.
+    /// `SELECT` 查询语句。
     Select(Select),
-    /// INSERT statement.
+    /// `INSERT` 插入语句。
     Insert(Insert),
-    /// UPDATE statement.
+    /// `UPDATE` 更新语句。
     Update(Update),
-    /// DELETE statement.
+    /// `DELETE` 删除语句。
     Delete(Delete),
-    /// BEGIN TRANSACTION.
+    /// `BEGIN`，开启事务。
     Begin,
-    /// COMMIT.
+    /// `COMMIT`，提交当前事务。
     Commit,
-    /// ROLLBACK.
+    /// `ROLLBACK`，回滚当前事务。
     Rollback,
-    /// SHOW TABLES.
+    /// `SHOW TABLES`，列出表。
     ShowTables,
-    /// DESCRIBE table.
+    /// `DESCRIBE table`，查看表结构。
     Describe(String),
 }
 
-/// CREATE TABLE statement.
+/// `CREATE TABLE` 的内部表示。
 #[apply(plain_partial_eq)]
 pub struct CreateTable {
     pub name: String,
@@ -41,7 +42,7 @@ pub struct CreateTable {
     pub if_not_exists: bool,
 }
 
-/// Column definition in CREATE TABLE.
+/// `CREATE TABLE` 中的一列定义。
 #[apply(plain_partial_eq)]
 pub struct ColumnDef {
     pub name: String,
@@ -49,7 +50,7 @@ pub struct ColumnDef {
     pub constraints: Vec<ColumnConstraint>,
 }
 
-/// SQL data types.
+/// GitDB 当前支持的 SQL 数据类型。
 #[apply(plain_copy_eq)]
 pub enum SqlDataType {
     Text,
@@ -61,7 +62,7 @@ pub enum SqlDataType {
     Uuid,
 }
 
-/// Column constraints.
+/// 列约束定义。
 #[apply(plain_partial_eq)]
 pub enum ColumnConstraint {
     NotNull,
@@ -70,14 +71,14 @@ pub enum ColumnConstraint {
     Default(Expr),
 }
 
-/// DROP TABLE statement.
+/// `DROP TABLE` 的内部表示。
 #[apply(plain_partial_eq)]
 pub struct DropTable {
     pub name: String,
     pub if_exists: bool,
 }
 
-/// SELECT statement.
+/// `SELECT` 查询的内部表示。
 #[apply(plain_partial_eq)]
 pub struct Select {
     pub columns: Vec<SelectColumn>,
@@ -88,7 +89,7 @@ pub struct Select {
     pub offset: Option<usize>,
 }
 
-/// A column in SELECT clause.
+/// `SELECT` 子句中的投影列。
 #[apply(plain_partial_eq)]
 pub enum SelectColumn {
     /// SELECT *
@@ -99,14 +100,14 @@ pub enum SelectColumn {
     Expr { expr: Expr, alias: Option<String> },
 }
 
-/// ORDER BY clause item.
+/// `ORDER BY` 子句中的一个排序项。
 #[apply(plain_partial_eq)]
 pub struct OrderBy {
     pub column: String,
     pub ascending: bool,
 }
 
-/// INSERT statement.
+/// `INSERT` 语句的内部表示。
 #[apply(plain_partial_eq)]
 pub struct Insert {
     pub table: String,
@@ -114,7 +115,7 @@ pub struct Insert {
     pub values: Vec<Vec<Expr>>,
 }
 
-/// UPDATE statement.
+/// `UPDATE` 语句的内部表示。
 #[apply(plain_partial_eq)]
 pub struct Update {
     pub table: String,
@@ -122,63 +123,63 @@ pub struct Update {
     pub where_clause: Option<Expr>,
 }
 
-/// SET clause assignment.
+/// `SET` 子句中的单列赋值。
 #[apply(plain_partial_eq)]
 pub struct Assignment {
     pub column: String,
     pub value: Expr,
 }
 
-/// DELETE statement.
+/// `DELETE` 语句的内部表示。
 #[apply(plain_partial_eq)]
 pub struct Delete {
     pub table: String,
     pub where_clause: Option<Expr>,
 }
 
-/// SQL expression.
+/// SQL 表达式树。
 #[apply(plain_partial_eq)]
 pub enum Expr {
-    /// Column reference.
+    /// 列引用。
     Column(String),
-    /// Literal value.
+    /// 字面量值。
     Literal(LiteralValue),
-    /// Binary operation (e.g., a = b, a AND b).
+    /// 二元运算，例如 `a = b` 或 `a AND b`。
     BinaryOp {
         left: Box<Expr>,
         op: BinaryOperator,
         right: Box<Expr>,
     },
-    /// Unary operation (e.g., NOT a, -x).
+    /// 一元运算，例如 `NOT a` 或 `-x`。
     UnaryOp { op: UnaryOperator, expr: Box<Expr> },
-    /// IS NULL / IS NOT NULL.
+    /// `IS NULL` / `IS NOT NULL`。
     IsNull { expr: Box<Expr>, negated: bool },
-    /// IN list.
+    /// `IN (...)` 列表判断。
     InList {
         expr: Box<Expr>,
         list: Vec<Expr>,
         negated: bool,
     },
-    /// BETWEEN a AND b.
+    /// `BETWEEN a AND b` 范围判断。
     Between {
         expr: Box<Expr>,
         low: Box<Expr>,
         high: Box<Expr>,
         negated: bool,
     },
-    /// LIKE pattern.
+    /// `LIKE` 模式匹配。
     Like {
         expr: Box<Expr>,
         pattern: String,
         negated: bool,
     },
-    /// Function call.
+    /// 函数调用。
     Function { name: String, args: Vec<Expr> },
-    /// Nested expression in parentheses.
+    /// 括号中的嵌套表达式。
     Nested(Box<Expr>),
 }
 
-/// Literal value.
+/// 字面量值。
 #[apply(plain_partial_eq)]
 pub enum LiteralValue {
     Null,
@@ -190,7 +191,7 @@ pub enum LiteralValue {
 }
 
 impl LiteralValue {
-    /// Convert to JSON value for storage.
+    /// 转换为存储层使用的 JSON 值。
     pub fn to_json(&self) -> Value {
         match self {
             LiteralValue::Null => Value::Null,
@@ -205,7 +206,7 @@ impl LiteralValue {
     }
 }
 
-/// Binary operators.
+/// SQL 二元运算符。
 #[apply(plain_copy_eq)]
 pub enum BinaryOperator {
     // Comparison
@@ -229,7 +230,7 @@ pub enum BinaryOperator {
 }
 
 impl BinaryOperator {
-    /// Check if this is a comparison operator.
+    /// 判断是否为比较运算符。
     pub fn is_comparison(&self) -> bool {
         matches!(
             self,
@@ -242,13 +243,13 @@ impl BinaryOperator {
         )
     }
 
-    /// Check if this is a logical operator.
+    /// 判断是否为逻辑运算符。
     pub fn is_logical(&self) -> bool {
         matches!(self, BinaryOperator::And | BinaryOperator::Or)
     }
 }
 
-/// Unary operators.
+/// SQL 一元运算符。
 #[apply(plain_copy_eq)]
 pub enum UnaryOperator {
     Not,

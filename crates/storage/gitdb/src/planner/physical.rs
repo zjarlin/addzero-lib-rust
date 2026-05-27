@@ -1,7 +1,6 @@
-//! Physical query plan representation.
+//! 物理查询计划表示。
 //!
-//! Physical plans specify *how* the query will actually be executed,
-//! including specific algorithms and access methods.
+//! 物理计划描述查询“如何执行”，包括扫描方式、连接算法、聚合方式和估算成本。
 
 use std::fmt;
 use std::sync::Arc;
@@ -10,19 +9,19 @@ use super::logical::SortSpec;
 use crate::sql::Expr;
 use az_derive_aliases::{apply, plain_clone_debug, plain_code_display_no_default_enum};
 
-/// Physical execution operators.
+/// 物理执行算子。
 ///
-/// These specify the actual algorithms used to execute the query.
+/// 这些枚举值对应查询实际执行时使用的算法或访问方式。
 #[apply(plain_clone_debug)]
 pub enum PhysicalOperator {
-    /// Sequential table scan.
+    /// 顺序表扫描。
     SeqScan {
         table: String,
         columns: Option<Vec<String>>,
         predicate: Option<Expr>,
     },
 
-    /// Index scan (if indexes exist).
+    /// 索引扫描；仅在索引存在时可用。
     IndexScan {
         table: String,
         index: String,
@@ -30,81 +29,81 @@ pub enum PhysicalOperator {
         columns: Option<Vec<String>>,
     },
 
-    /// Filter operator.
+    /// 过滤算子。
     Filter { predicate: Expr },
 
-    /// Project specific columns.
+    /// 投影指定列。
     Project {
         columns: Vec<String>,
         expressions: Vec<(Expr, String)>,
     },
 
-    /// Nested loop join.
+    /// 嵌套循环连接。
     NestedLoopJoin {
         join_type: JoinPhysicalType,
         condition: Option<Expr>,
     },
 
-    /// Hash join (builds hash table on right, probes with left).
+    /// 哈希连接，在右侧构建哈希表并用左侧探测。
     HashJoin {
         join_type: JoinPhysicalType,
         left_keys: Vec<String>,
         right_keys: Vec<String>,
     },
 
-    /// Merge join (requires sorted inputs).
+    /// 归并连接，要求输入已排序。
     MergeJoin {
         join_type: JoinPhysicalType,
         left_keys: Vec<String>,
         right_keys: Vec<String>,
     },
 
-    /// In-memory sort.
+    /// 内存排序。
     Sort { order: Vec<SortSpec> },
 
-    /// External sort (for large datasets).
+    /// 外部排序，用于大数据集。
     ExternalSort {
         order: Vec<SortSpec>,
         memory_limit: usize,
     },
 
-    /// Limit rows.
+    /// 限制返回行数。
     Limit { limit: usize, offset: Option<usize> },
 
-    /// Hash-based aggregation.
+    /// 基于哈希表的聚合。
     HashAggregate {
         group_by: Vec<String>,
         aggregates: Vec<PhysicalAggregate>,
     },
 
-    /// Streaming aggregation (requires sorted input).
+    /// 流式聚合，要求输入已按分组键排序。
     StreamAggregate {
         group_by: Vec<String>,
         aggregates: Vec<PhysicalAggregate>,
     },
 
-    /// Hash-based distinct.
+    /// 基于哈希表的去重。
     HashDistinct,
 
-    /// Append multiple inputs (for UNION).
+    /// 追加多个输入，用于 `UNION`。
     Append,
 }
 
-/// Key range for index scans.
+/// 索引扫描使用的键范围。
 #[apply(plain_clone_debug)]
 pub struct KeyRange {
     pub start: Option<KeyBound>,
     pub end: Option<KeyBound>,
 }
 
-/// Bound for key range.
+/// 键范围边界。
 #[apply(plain_clone_debug)]
 pub struct KeyBound {
     pub value: String,
     pub inclusive: bool,
 }
 
-/// Physical join types with implementation details.
+/// 带实现语义的物理连接类型。
 #[apply(plain_code_display_no_default_enum)]
 pub enum JoinPhysicalType {
     Inner,
@@ -114,7 +113,7 @@ pub enum JoinPhysicalType {
     Cross,
 }
 
-/// Physical aggregate expression.
+/// 物理聚合表达式。
 #[apply(plain_clone_debug)]
 pub struct PhysicalAggregate {
     pub function: AggregatePhysical,
@@ -123,7 +122,7 @@ pub struct PhysicalAggregate {
     pub distinct: bool,
 }
 
-/// Physical aggregate functions.
+/// 物理聚合函数。
 #[apply(plain_code_display_no_default_enum)]
 pub enum AggregatePhysical {
     Count,
@@ -133,7 +132,7 @@ pub enum AggregatePhysical {
     Max,
 }
 
-/// A physical plan node.
+/// 物理计划节点。
 #[apply(plain_clone_debug)]
 pub struct PhysicalPlanNode {
     pub operator: PhysicalOperator,
@@ -143,7 +142,7 @@ pub struct PhysicalPlanNode {
 }
 
 impl PhysicalPlanNode {
-    /// Create a new physical plan node.
+    /// 创建物理计划节点。
     pub fn new(operator: PhysicalOperator) -> Self {
         Self {
             operator,
@@ -153,57 +152,57 @@ impl PhysicalPlanNode {
         }
     }
 
-    /// Add a child node.
+    /// 添加一个子节点。
     pub fn with_child(mut self, child: Arc<PhysicalPlanNode>) -> Self {
         self.children.push(child);
         self
     }
 
-    /// Add multiple children.
+    /// 添加多个子节点。
     pub fn with_children(mut self, children: Vec<Arc<PhysicalPlanNode>>) -> Self {
         self.children = children;
         self
     }
 
-    /// Set estimated cost.
+    /// 设置节点估算成本。
     pub fn with_cost(mut self, cost: f64) -> Self {
         self.estimated_cost = cost;
         self
     }
 
-    /// Set estimated rows.
+    /// 设置节点估算输出行数。
     pub fn with_rows(mut self, rows: usize) -> Self {
         self.estimated_rows = rows;
         self
     }
 
-    /// Get the total cost of this plan including children.
+    /// 计算包含子树在内的总估算成本。
     pub fn total_cost(&self) -> f64 {
         let child_cost: f64 = self.children.iter().map(|c| c.total_cost()).sum();
         self.estimated_cost + child_cost
     }
 }
 
-/// A complete physical query plan.
+/// 完整的物理查询计划。
 #[apply(plain_clone_debug)]
 pub struct PhysicalPlan {
     pub root: Arc<PhysicalPlanNode>,
 }
 
 impl PhysicalPlan {
-    /// Create a new physical plan.
+    /// 创建物理查询计划。
     pub fn new(root: PhysicalPlanNode) -> Self {
         Self {
             root: Arc::new(root),
         }
     }
 
-    /// Get the total estimated cost.
+    /// 返回总估算成本。
     pub fn total_cost(&self) -> f64 {
         self.root.total_cost()
     }
 
-    /// Get the estimated output rows.
+    /// 返回估算输出行数。
     pub fn estimated_rows(&self) -> usize {
         self.root.estimated_rows
     }

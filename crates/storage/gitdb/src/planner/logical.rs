@@ -1,7 +1,7 @@
-//! Logical query plan representation.
+//! 逻辑查询计划表示。
 //!
-//! Logical plans represent *what* the query does, not *how* it will be executed.
-//! They are tree structures that can be optimized before conversion to physical plans.
+//! 逻辑计划描述查询“要做什么”，不指定具体执行算法。优化器会先改写这棵树，
+//! 再把它转换为物理计划。
 
 use std::collections::HashSet;
 use std::fmt;
@@ -13,7 +13,7 @@ use az_derive_aliases::{
 // Re-export Expr from sql for use in plans.
 pub use crate::sql::Expr;
 
-/// Join types supported by the planner.
+/// planner 支持的逻辑连接类型。
 #[apply(plain_code_display_no_default_enum)]
 pub enum JoinType {
     #[display("INNER")]
@@ -28,7 +28,7 @@ pub enum JoinType {
     Cross,
 }
 
-/// Aggregate function types.
+/// 逻辑聚合函数类型。
 #[apply(plain_code_display_no_default_enum)]
 pub enum AggregateFunction {
     #[display("COUNT")]
@@ -45,7 +45,7 @@ pub enum AggregateFunction {
     CountDistinct,
 }
 
-/// Sort direction.
+/// 排序方向。
 #[apply(plain_code_display_no_default_enum)]
 pub enum SortDirection {
     #[display("ASC")]
@@ -54,7 +54,7 @@ pub enum SortDirection {
     Descending,
 }
 
-/// Sort specification.
+/// 排序规则。
 #[apply(plain_partial_eq)]
 pub struct SortSpec {
     pub column: String,
@@ -62,7 +62,7 @@ pub struct SortSpec {
     pub nulls_first: bool,
 }
 
-/// Column reference with optional table alias.
+/// 可带表别名的列引用。
 #[apply(plain_eq_hash)]
 pub struct ColumnRef {
     pub table: Option<String>,
@@ -95,33 +95,32 @@ impl fmt::Display for ColumnRef {
     }
 }
 
-/// Logical query plan.
+/// 逻辑查询计划树。
 ///
-/// This is a tree structure representing the logical operations of a query.
-/// Each node transforms its input(s) in some way.
+/// 每个节点表达一种关系代数操作，并对其输入节点进行变换。
 #[apply(plain_partial_eq)]
 pub enum LogicalPlan {
-    /// Scan a table, returning all rows.
+    /// 扫描表，返回所有行。
     Scan {
         table: String,
         alias: Option<String>,
-        /// Which columns to include (None = all).
+        /// 要包含的列；`None` 表示全部列。
         columns: Option<Vec<String>>,
     },
 
-    /// Filter rows based on a predicate.
+    /// 根据谓词过滤行。
     Filter {
         input: Box<LogicalPlan>,
         predicate: Expr,
     },
 
-    /// Project specific columns.
+    /// 投影指定列或表达式。
     Project {
         input: Box<LogicalPlan>,
         columns: Vec<ProjectColumn>,
     },
 
-    /// Join two inputs.
+    /// 连接两个输入。
     Join {
         left: Box<LogicalPlan>,
         right: Box<LogicalPlan>,
@@ -129,53 +128,53 @@ pub enum LogicalPlan {
         on: Option<Expr>,
     },
 
-    /// Sort by columns.
+    /// 按列排序。
     Sort {
         input: Box<LogicalPlan>,
         order: Vec<SortSpec>,
     },
 
-    /// Limit number of rows.
+    /// 限制返回行数。
     Limit {
         input: Box<LogicalPlan>,
         limit: usize,
         offset: Option<usize>,
     },
 
-    /// Group by with aggregates.
+    /// 分组并计算聚合。
     Aggregate {
         input: Box<LogicalPlan>,
         group_by: Vec<String>,
         aggregates: Vec<AggregateExpr>,
     },
 
-    /// Remove duplicate rows.
+    /// 去除重复行。
     Distinct { input: Box<LogicalPlan> },
 
-    /// Union of two inputs (removes duplicates).
+    /// 合并两个输入并去重。
     Union {
         left: Box<LogicalPlan>,
         right: Box<LogicalPlan>,
     },
 
-    /// Return no rows.
+    /// 返回空结果。
     Empty { columns: Vec<String> },
 }
 
-/// A column in a projection.
+/// 投影中的一列。
 #[apply(plain_partial_eq)]
 pub enum ProjectColumn {
-    /// All columns from input.
+    /// 输入中的所有列。
     Star,
-    /// All columns from a specific table.
+    /// 指定表的所有列。
     TableStar(String),
-    /// Named column reference.
+    /// 命名列引用。
     Column(ColumnRef),
-    /// Expression with optional alias.
+    /// 表达式及可选别名。
     Expr { expr: Expr, alias: Option<String> },
 }
 
-/// An aggregate expression.
+/// 聚合表达式。
 #[apply(plain_partial_eq)]
 pub struct AggregateExpr {
     pub function: AggregateFunction,
@@ -184,7 +183,7 @@ pub struct AggregateExpr {
 }
 
 impl LogicalPlan {
-    /// Get the output columns of this plan.
+    /// 推导该计划的输出列。
     pub fn output_columns(&self) -> Vec<String> {
         match self {
             LogicalPlan::Scan { columns, .. } => columns.clone().unwrap_or_default(),
@@ -219,7 +218,7 @@ impl LogicalPlan {
         }
     }
 
-    /// Get the tables referenced by this plan.
+    /// 收集该计划引用到的表。
     pub fn referenced_tables(&self) -> HashSet<String> {
         let mut tables = HashSet::new();
         self.collect_tables(&mut tables);

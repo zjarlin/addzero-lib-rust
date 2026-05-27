@@ -1,4 +1,4 @@
-//! core type-safe wrappers around git primitives for the storage layer.
+//! 存储层围绕 Git 原语建立的类型安全包装。
 
 use az_derive_aliases::{
     apply, error_eq, plain_copy_eq, plain_copy_eq_hash_ord_display, plain_eq, plain_eq_display,
@@ -7,8 +7,10 @@ use az_derive_aliases::{
 use git2::Oid;
 use std::path::PathBuf;
 
-/// This makes sure we don't accidentally pass a blob ID where a commit ID
-/// is expected. The inner Oid is only accessible within the storage module.
+/// Git 提交 ID。
+///
+/// 包装 `git2::Oid` 是为了避免把 blob/tree/commit ID 误传到错误位置；
+/// 原始 OID 只在存储模块内部暴露。
 #[apply(plain_copy_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct CommitId(pub(crate) Oid);
@@ -18,22 +20,22 @@ impl CommitId {
         Self(oid)
     }
 
-    /// raw Oid (for internal use only)
+    /// 返回原始 OID，仅供存储模块内部使用。
     pub(crate) fn raw(&self) -> Oid {
         self.0
     }
 
-    /// parse CommitId from a hex string
+    /// 从十六进制字符串解析提交 ID。
     pub fn from_hex(hex: &str) -> Result<Self, git2::Error> {
         Oid::from_str(hex).map(CommitId)
     }
-    /// short form of the commit ID
+    /// 返回提交 ID 的短格式。
     pub fn short(&self) -> String {
         self.0.to_string()[..7].to_string()
     }
 }
 
-/// Git blob identifier
+/// Git blob 标识符。
 #[apply(plain_copy_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct BlobId(pub(crate) Oid);
@@ -47,7 +49,7 @@ impl BlobId {
     }
 }
 
-/// Git tree identifier
+/// Git tree 标识符。
 #[apply(plain_copy_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct TreeId(pub(crate) Oid);
@@ -62,32 +64,27 @@ impl TreeId {
     }
 }
 
-/// A validated table name.
+/// 已验证的表名。
 ///
-/// Table names are restricted to prevent path traversal attacks and
-/// ensure compatibility with filesystem and Git constraints.
-///
-/// Valid names:
-/// - 1-64 characters
-/// - Alphanumeric, underscores, hyphens only
-/// - Must start with a letter or underscore
-/// - Cannot be reserved names (_schema, _meta, etc.)
+/// 表名会进入 Git 路径，因此这里限制字符集，避免路径穿越，并保持和
+/// 文件系统/Git 引用约束兼容。合法表名长度为 1 到 64，只允许 ASCII
+/// 字母、数字、下划线、连字符，且必须以字母或下划线开头。
 #[apply(serde_eq_hash_ord_display_as_ref)]
 #[display("{_0}")]
 pub struct TableName(String);
 
 impl TableName {
-    /// reserved table names that can't be used
+    /// 不能作为用户表使用的保留名称。
     const RESERVED: &'static [&'static str] = &["_schema", "_meta", "_system", "_git"];
 
-    /// create a new TableName, validating the input
+    /// 创建并校验表名。
     pub fn new(name: impl Into<String>) -> Result<Self, InvalidNameError> {
         let name = name.into();
         Self::validate(&name)?;
         Ok(Self(name))
     }
 
-    /// Validate a table name.
+    /// 校验表名。
     fn validate(name: &str) -> Result<(), InvalidNameError> {
         if name.is_empty() {
             return Err(InvalidNameError::Empty);
@@ -119,21 +116,21 @@ impl TableName {
 
         Ok(())
     }
-    /// get the string representation
+    /// 返回字符串视图。
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
-    /// convert to owned String
+    /// 转换为拥有所有权的字符串。
     pub fn into_string(self) -> String {
         self.0
     }
 }
 
-/// A validated row key (primary key)
+/// 已验证的行键，也就是主键。
 ///
-/// row keys are used as filenames, so they have similar restrictions
-/// to table names but are typically auto generated (ULIDs, UUIDs)
+/// 行键会作为 JSON 文件名使用，因此需要和表名类似的路径安全约束。
+/// 实际调用中通常由 ULID/UUID 生成，而不是人工输入。
 #[apply(serde_eq_hash_ord_display_as_ref)]
 #[display("{_0}")]
 pub struct RowKey(String);
@@ -145,7 +142,7 @@ impl RowKey {
         Ok(Self(key))
     }
 
-    /// Validate a row name.
+    /// 校验行键。
     fn validate(key: &str) -> Result<(), InvalidNameError> {
         if key.is_empty() {
             return Err(InvalidNameError::Empty);
@@ -168,25 +165,25 @@ impl RowKey {
         Ok(())
     }
 
-    /// get the string representation
+    /// 返回字符串视图。
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
-    /// convert to owned String
+    /// 转换为拥有所有权的字符串。
     pub fn into_string(self) -> String {
         self.0
     }
 
-    /// Generate a new ULID-based row key.
+    /// 生成基于 ULID 的新行键。
     pub fn generate() -> Self {
         Self(ulid::Ulid::new().to_string().to_lowercase())
     }
 }
 
-/// Full path to a row in the repository.
+/// 仓库中一行数据的完整路径。
 ///
-/// Format: `{table}/{row_key}.json`
+/// 路径格式固定为 `{table}/{row_key}.json`。
 #[apply(plain_eq_display)]
 #[display("{table}/{key}.json")]
 pub struct RowPath {
@@ -195,30 +192,30 @@ pub struct RowPath {
 }
 
 impl RowPath {
-    /// create a new RowPath
+    /// 创建行路径。
     pub fn new(table: TableName, key: RowKey) -> Self {
         Self { table, key }
     }
 
-    /// convert to a PathBuf for filesystem operations
+    /// 转换为文件系统路径。
     pub fn to_path_buf(&self) -> PathBuf {
         PathBuf::from(format!("{}/{}.json", self.table, self.key))
     }
 }
 
-/// a branch name, with special handling for transaction branches
+/// Git 分支名，对事务分支有固定前缀约定。
 #[apply(plain_eq_hash_ord_display)]
 #[display("{_0}")]
 pub struct BranchName(String);
 
 impl BranchName {
-    /// the main branch name
+    /// 主分支名。
     pub const MAIN: &'static str = "main";
 
-    /// prefix for transaction branches
+    /// 事务分支前缀。
     pub const TX_PREFIX: &'static str = "tx/";
 
-    /// create a new BranchName
+    /// 创建并校验分支名。
     pub fn new(name: impl Into<String>) -> Result<Self, InvalidNameError> {
         let name = name.into();
         // basic validation , git is more permissive but we gon be restrictive
@@ -231,22 +228,22 @@ impl BranchName {
         Ok(Self(name))
     }
 
-    /// create the main branch reference
+    /// 创建主分支名。
     pub fn main() -> Self {
         Self(Self::MAIN.to_string())
     }
 
-    /// create a transaction branch name
+    /// 根据事务 ID 创建事务分支名。
     pub fn for_transaction(tx_id: &str) -> Self {
         Self(format!("{}{}", Self::TX_PREFIX, tx_id))
     }
 
-    /// check if this is a transaction branch
+    /// 判断是否为事务分支。
     pub fn is_transaction_branch(&self) -> bool {
         self.0.starts_with(Self::TX_PREFIX)
     }
 
-    /// extract transaction ID if this is a transaction branch
+    /// 如果是事务分支，提取事务 ID。
     pub fn transaction_id(&self) -> Option<&str> {
         if self.is_transaction_branch() {
             Some(&self.0[Self::TX_PREFIX.len()..])
@@ -255,18 +252,18 @@ impl BranchName {
         }
     }
 
-    /// get the full ref path (e.g., "refs/heads/main")
+    /// 返回完整 Git ref 路径，例如 `refs/heads/main`。
     pub fn as_ref_path(&self) -> String {
         format!("refs/heads/{}", self.0)
     }
 
-    /// get the short name
+    /// 返回分支短名。
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
 
-/// git signature (author/committer info)
+/// Git 提交签名，包含作者/提交者信息。
 #[apply(plain_eq)]
 pub struct GitSignature {
     pub name: String,
@@ -274,7 +271,7 @@ pub struct GitSignature {
 }
 
 impl GitSignature {
-    /// create a new signature
+    /// 创建提交签名。
     pub fn new(name: impl Into<String>, email: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -282,12 +279,12 @@ impl GitSignature {
         }
     }
 
-    /// default signature for GitDB operations
+    /// GitDB 内部操作使用的默认提交签名。
     pub fn gitdb() -> Self {
         Self::new("GitDB", "gitdb@localhost")
     }
 
-    /// convert to git2::Signature
+    /// 转换为 `git2::Signature`。
     pub(crate) fn to_git2_signature(&self) -> Result<git2::Signature<'static>, git2::Error> {
         git2::Signature::now(&self.name, &self.email)
     }
@@ -299,7 +296,7 @@ impl Default for GitSignature {
     }
 }
 
-/// error type for invalid names (tables, rows, branches)
+/// 表名、行键、分支名校验失败时返回的错误。
 #[apply(error_eq)]
 pub enum InvalidNameError {
     #[error("name cannot be empty")]
@@ -316,14 +313,14 @@ pub enum InvalidNameError {
     InvalidPath(String),
 }
 
-/// represents a change in a diff between commits
+/// 两个提交之间的一条路径变更。
 #[apply(plain_eq)]
 pub struct Change {
     pub path: PathBuf,
     pub status: ChangeStatus,
 }
 
-/// the type of change in a diff
+/// diff 中的路径变更类型。
 #[apply(plain_copy_eq)]
 pub enum ChangeStatus {
     Added,

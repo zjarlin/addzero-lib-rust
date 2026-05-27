@@ -1,10 +1,8 @@
-//! Transaction context using typestate pattern.
+//! 使用 typestate 模式建模的事务上下文。
 //!
-//! The typestate pattern ensures at compile time that transactions
-//! are used correctly:
-//! - Only active transactions can perform operations
-//! - Committed/aborted transactions cannot be reused
-//! - Resources are properly cleaned up
+//! `Transaction<State>` 把事务生命周期编码进类型参数：只有
+//! `TxActive` 能执行读写操作，提交或回滚后的事务会移动到不可复用状态。
+//! 这样可以在编译期挡住“提交后继续写入”一类误用。
 
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
@@ -16,74 +14,72 @@ use crate::storage::{BranchName, CommitId, GitRepository, Row, RowKey, StorageEr
 use crate::transaction::error::{TransactionError, TransactionResult};
 use crate::transaction::isolation::IsolationLevel;
 
-/// Marker type for active transactions.
+/// 活跃事务的状态标记。
 #[apply(plain_debug)]
 pub struct TxActive;
 
-/// Marker type for committed transactions.
+/// 已提交事务的状态标记。
 #[apply(plain_debug)]
 pub struct TxCommitted;
 
-/// Marker type for aborted transactions.
+/// 已回滚事务的状态标记。
 #[apply(plain_debug)]
 pub struct TxAborted;
 
-/// Transaction metadata stored in the manager.
+/// 事务管理器保存的事务元数据。
 #[apply(plain_clone_debug)]
 pub struct TransactionMetadata {
-    /// Unique transaction ID.
+    /// 全局唯一的事务 ID。
     pub tx_id: String,
-    /// Transaction branch name.
+    /// 事务对应的 Git 分支名。
     pub branch: BranchName,
-    /// Commit where transaction started (base commit).
+    /// 事务开始时的基准提交。
     pub base_commit: CommitId,
-    /// Current head of the transaction branch.
+    /// 事务分支当前指向的提交。
     pub current_commit: CommitId,
-    /// Isolation level for this transaction.
+    /// 本事务使用的隔离级别。
     pub isolation: IsolationLevel,
-    /// When the transaction started.
+    /// 事务开始时间。
     pub started_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// A database transaction with typestate for lifecycle safety.
+/// 带 typestate 生命周期约束的数据库事务。
 ///
-/// The `State` parameter tracks whether the transaction is:
-/// - `TxActive`: Can perform operations
-/// - `TxCommitted`: Successfully committed, no more operations allowed
-/// - `TxAborted`: Rolled back, no more operations allowed
+/// `State` 参数表达事务当前阶段：`TxActive` 可继续读写，`TxCommitted`
+/// 表示已经成功提交，`TxAborted` 表示已经回滚。后两者不再暴露写操作。
 pub struct Transaction<State> {
-    /// Transaction metadata.
+    /// 事务元数据。
     pub(crate) metadata: TransactionMetadata,
-    /// Reference to the repository.
+    /// 事务操作的 Git 仓库句柄。
     pub(crate) repo: GitRepository,
-    /// Phantom data for typestate.
+    /// 用于表达 typestate 的零大小标记。
     _state: PhantomData<State>,
 }
 
 impl<State> Transaction<State> {
-    /// Get the transaction ID.
+    /// 返回事务 ID。
     pub fn id(&self) -> &str {
         &self.metadata.tx_id
     }
 
-    /// Get the transaction's base commit (where it started).
+    /// 返回事务开始时的基准提交。
     pub fn base_commit(&self) -> CommitId {
         self.metadata.base_commit
     }
 
-    /// Get the isolation level.
+    /// 返回事务隔离级别。
     pub fn isolation(&self) -> IsolationLevel {
         self.metadata.isolation
     }
 
-    /// Get the branch name for this transaction.
+    /// 返回事务分支名。
     pub fn branch(&self) -> &BranchName {
         &self.metadata.branch
     }
 }
 
 impl Transaction<TxActive> {
-    /// Create a new active transaction.
+    /// 创建新的活跃事务。
     pub(crate) fn new(
         repo: GitRepository,
         tx_id: String,
@@ -105,29 +101,24 @@ impl Transaction<TxActive> {
         }
     }
 
-    /// Get the commit to read from based on isolation level.
+    /// 根据隔离级别选择读取提交点。
     ///
-    /// For both isolation levels, we read from the transaction's current commit
-    /// to see our own writes. The difference is:
-    /// - ReadCommitted: If we haven't modified a row, we'd see the latest main state
-    ///   (but our implementation reads from tx branch, which is simpler)
-    /// - RepeatableRead: Always see snapshot from transaction start
-    ///
-    /// For simplicity, we always read from the transaction's current commit.
-    /// This means we see our own writes but not concurrent modifications.
+    /// 当前实现始终从事务分支的当前提交读取，因此事务能读到自己的写入，
+    /// 但不会看到并发事务已经提交到 `main` 的修改。`ReadCommitted` 与
+    /// `RepeatableRead` 的语义差异后续应在这里收窄实现。
     fn read_commit(&self) -> TransactionResult<CommitId> {
         // Always read from transaction's current state to see own writes
         Ok(self.metadata.current_commit)
     }
 
-    /// Get the current head of the transaction branch (for writes).
+    /// 返回事务分支当前提交，写操作会基于它继续追加。
     pub fn current_commit(&self) -> CommitId {
         self.metadata.current_commit
     }
 
     // ==================== Table Operations ====================
 
-    /// Create a new table.
+    /// 在事务分支中创建新表。
     pub fn create_table(&mut self, table: &TableName) -> TransactionResult<()> {
         let new_commit = self.repo.create_table(
             table,
@@ -139,7 +130,7 @@ impl Transaction<TxActive> {
         Ok(())
     }
 
-    /// Drop a table.
+    /// 在事务分支中删除表。
     pub fn drop_table(&mut self, table: &TableName) -> TransactionResult<()> {
         let new_commit = self.repo.drop_table(
             table,
@@ -151,7 +142,7 @@ impl Transaction<TxActive> {
         Ok(())
     }
 
-    /// List all tables.
+    /// 列出当前事务可见的所有表。
     pub fn list_tables(&self) -> TransactionResult<Vec<TableName>> {
         let commit = self.read_commit()?;
         self.repo
@@ -159,7 +150,7 @@ impl Transaction<TxActive> {
             .map_err(TransactionError::from)
     }
 
-    /// Check if a table exists.
+    /// 检查当前事务视图中表是否存在。
     pub fn table_exists(&self, table: &TableName) -> TransactionResult<bool> {
         let commit = self.read_commit()?;
         self.repo
@@ -169,7 +160,7 @@ impl Transaction<TxActive> {
 
     // ==================== Row Operations ====================
 
-    /// Insert a new row.
+    /// 插入一行新数据。
     pub fn insert(&mut self, table: &TableName, row: Row) -> TransactionResult<()> {
         let new_commit = self.repo.insert_row(
             table,
@@ -182,7 +173,7 @@ impl Transaction<TxActive> {
         Ok(())
     }
 
-    /// Insert a row from raw data.
+    /// 从原始列值插入一行。
     pub fn insert_data(
         &mut self,
         table: &TableName,
@@ -193,7 +184,7 @@ impl Transaction<TxActive> {
         self.insert(table, row)
     }
 
-    /// Update an existing row.
+    /// 更新已有行。
     pub fn update(&mut self, table: &TableName, row: Row) -> TransactionResult<()> {
         let new_commit = self.repo.update_row(
             table,
@@ -206,7 +197,7 @@ impl Transaction<TxActive> {
         Ok(())
     }
 
-    /// Insert or update a row (upsert).
+    /// 插入或更新一行。
     pub fn upsert(&mut self, table: &TableName, row: Row) -> TransactionResult<()> {
         let new_commit = self.repo.upsert_row(
             table,
@@ -219,7 +210,7 @@ impl Transaction<TxActive> {
         Ok(())
     }
 
-    /// Delete a row.
+    /// 删除一行。
     pub fn delete(&mut self, table: &TableName, key: &RowKey) -> TransactionResult<()> {
         let new_commit = self.repo.delete_row(
             table,
@@ -232,7 +223,7 @@ impl Transaction<TxActive> {
         Ok(())
     }
 
-    /// Read a single row.
+    /// 读取单行。
     pub fn read(&self, table: &TableName, key: &RowKey) -> TransactionResult<Option<Row>> {
         let commit = self.read_commit()?;
         self.repo
@@ -240,7 +231,7 @@ impl Transaction<TxActive> {
             .map_err(TransactionError::from)
     }
 
-    /// Scan all rows in a table.
+    /// 扫描表内所有行。
     pub fn scan(&self, table: &TableName) -> TransactionResult<Vec<Row>> {
         let commit = self.read_commit()?;
         self.repo
@@ -248,7 +239,7 @@ impl Transaction<TxActive> {
             .map_err(TransactionError::from)
     }
 
-    /// List all row keys in a table.
+    /// 列出表内所有行键。
     pub fn list_keys(&self, table: &TableName) -> TransactionResult<Vec<RowKey>> {
         let commit = self.read_commit()?;
         self.repo
@@ -258,17 +249,18 @@ impl Transaction<TxActive> {
 
     // ==================== Transaction Control ====================
 
-    /// Update the transaction branch to point to current commit.
+    /// 将事务分支推进到当前提交。
     fn update_branch(&self) -> TransactionResult<()> {
         self.repo
             .update_branch(&self.metadata.branch, self.metadata.current_commit)
             .map_err(TransactionError::from)
     }
 
-    /// Commit the transaction.
+    /// 提交事务。
     ///
-    /// This attempts to fast-forward main to include our changes.
-    /// Returns error if there are conflicts with concurrent transactions.
+    /// 提交时尝试把 `main` 快进到事务分支。
+    ///
+    /// 如果 `main` 已被并发事务推进，会先做冲突检测；检测到冲突时删除事务分支并返回错误。
     pub fn commit(self) -> TransactionResult<Transaction<TxCommitted>> {
         // Check for conflicts by seeing if main has moved
         let main_head = self.repo.head()?;
@@ -316,9 +308,9 @@ impl Transaction<TxActive> {
         })
     }
 
-    /// Rollback the transaction.
+    /// 回滚事务。
     ///
-    /// This simply deletes the transaction branch, discarding all changes.
+    /// 回滚通过删除事务分支丢弃本事务的所有改动。
     pub fn rollback(self) -> TransactionResult<Transaction<TxAborted>> {
         // Clean up the transaction branch
         let _ = self.repo.delete_transaction_branch(&self.metadata.tx_id);
@@ -332,14 +324,14 @@ impl Transaction<TxActive> {
 }
 
 impl Transaction<TxCommitted> {
-    /// Get the final commit ID of the committed transaction.
+    /// 返回已提交事务的最终提交 ID。
     pub fn final_commit(&self) -> CommitId {
         self.metadata.current_commit
     }
 }
 
 impl Transaction<TxAborted> {
-    /// Get the reason for abort (if available).
+    /// 返回事务是否由回滚结束。
     pub fn was_rolled_back(&self) -> bool {
         true
     }

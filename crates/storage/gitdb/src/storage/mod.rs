@@ -1,10 +1,9 @@
-//! storage layer for GitDB
+//! GitDB 的底层存储抽象。
 //!
-//! this module provides a complete abstraction over git for database storage.
-//! The upper layers (transaction manager, query engine) use this API and never
-//! touch git2 directly.
+//! 本模块把 `git2` 的提交、树、blob、ref 操作包装成数据库语义。事务管理器、
+//! 查询引擎和上层 API 都只依赖这里的类型，不直接触碰 `git2`。
 //!
-//!  # Architecture
+//! # 架构
 //!
 //! ```text
 //! ┌─────────────────────────────────────────────────────────────┐
@@ -29,7 +28,7 @@
 //!                        └─────────────┘
 //!  ```
 //!
-//! # Usage
+//! # 用法
 //!
 //! ```ignore
 //! use gitdb::storage::{GitRepository, TableName, RowKey, Row};
@@ -61,7 +60,7 @@ mod repository;
 mod tree;
 mod types;
 
-// Re-export public API
+// 重新导出公开存储 API。
 pub use blob::Row;
 pub use commit::{CommitInfo, CommitMessage};
 pub use error::{StorageError, StorageResult};
@@ -71,5 +70,5 @@ pub use types::{
     RowPath, TableName, TreeId,
 };
 
-// Re-export for internal use by other modules
+// 重新导出给 crate 内其他模块使用。
 pub(crate) use refs::RefManager;
