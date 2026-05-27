@@ -350,6 +350,18 @@ macro_rules! serde_eq_hash_ord_display {
     };
 }
 
+/// Serde-friendly ordered identity type with equality, hash, `Display`, and forwarded `AsRef`.
+#[macro_export]
+macro_rules! serde_eq_hash_ord_display_as_ref {
+    ($item:item) => {
+        $crate::serde_eq_hash_ord_display! {
+            #[derive(::derive_more::AsRef)]
+            #[as_ref(forward)]
+            $item
+        }
+    };
+}
+
 /// SQLx row-mapped type with `FromRow`.
 #[macro_export]
 macro_rules! sqlx_from_row {

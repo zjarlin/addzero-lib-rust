@@ -6,9 +6,9 @@ use az_derive_aliases::{
     plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
     plain_eq_hash_display, serde_camel_eq_default, serde_camel_partial_eq_default,
     serde_code_default_ord_display_enum, serde_code_enum, serde_code_ord_display_enum,
-    serde_code_partial_eq, serde_eq_copy_display, serde_eq_hash_display, serde_kebab_code_enum,
-    serde_kebab_eq, serde_lower_code_enum, serde_partial_eq_display, serde_upper_eq,
-    serialize_camel_clone_debug, serialize_camel_eq,
+    serde_code_partial_eq, serde_eq_copy_display, serde_eq_hash_display,
+    serde_eq_hash_ord_display_as_ref, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
+    serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
 };
 use clap::ValueEnum;
 use serde_json::Value;
@@ -181,6 +181,10 @@ enum SnakeConstraint {
 
 #[apply(serde_eq_hash_display)]
 struct SerdeHashDisplayCode(u8);
+
+#[apply(serde_eq_hash_ord_display_as_ref)]
+#[display("{_0}")]
+struct SerdeStringKey(String);
 
 #[apply(serde_eq_copy_display)]
 struct SerdeCopyDisplayCode(u8);
@@ -441,4 +445,14 @@ fn serde_and_from_display_aliases_should_chain_cleanly() {
     assert_eq!(SerdeDisplayRatio(0.5).to_string(), "0.5");
     assert_eq!(from_copy.to_string(), "11");
     assert_eq!(copy_error.to_string(), "copy error: 12");
+}
+
+#[test]
+fn serde_eq_hash_ord_display_as_ref_should_forward_to_inner_value() {
+    let key = SerdeStringKey("users".to_owned());
+    let as_str: &str = key.as_ref();
+
+    assert_eq!(as_str, "users");
+    assert_eq!(key.to_string(), "users");
+    assert_eq!(serde_json::to_string(&key).unwrap(), r#""users""#);
 }

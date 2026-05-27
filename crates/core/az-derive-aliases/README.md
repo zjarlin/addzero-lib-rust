@@ -36,6 +36,7 @@
 - **serde_eq_hash_display** — 在 `serde_eq_hash` 基础上增加 `Display`
 - **serde_eq_hash_ord** — 在 `serde_eq_hash` 基础上增加 `Ord`/`PartialOrd`
 - **serde_eq_hash_ord_display** — 在 `serde_eq_hash_ord` 基础上增加 `Display`
+- **serde_eq_hash_ord_display_as_ref** — 在 `serde_eq_hash_ord_display` 基础上增加转发式 `AsRef`，适合字符串值对象
 - **sqlx_from_row** — SQLx 查询结果行映射的 `FromRow`
 - **shaku_component** — Shaku DI 组件类型的 `Component`
 - **from_plain_eq** — 单字段包装枚举/值对象常用的 `From` + `Clone` + `Debug` + `PartialEq` + `Eq`
@@ -224,7 +225,7 @@ enum Priority {
 - `macro_rules_attribute` — 将宏作为 derive 属性应用到类型定义
 - `serde` — serde 相关 alias 的 derive 和辅助属性
 - `thiserror` — `error` / `error_eq`
-- `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_copy_eq_display` / `from_display` / `serde_eq_copy_display` / `serde_partial_eq_display` / `serde_code_display*` / `serde_code_ord_display*` / `serde_code_default_ord_display*` / `plain_code_display_no_default_enum` / `plain_code_display_message_no_default_enum` / `plain_code_display_enum` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `plain_clone_debug_display` / `plain_clone_redacted` / `plain_eq_redacted` / `serde_eq_redacted` / `plain_eq_display` / `plain_eq_hash_display` / `plain_eq_hash_ord_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_copy_eq_hash_ord_display` / `plain_default_copy_eq_display`
+- `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_copy_eq_display` / `from_display` / `serde_eq_copy_display` / `serde_partial_eq_display` / `serde_code_display*` / `serde_code_ord_display*` / `serde_code_default_ord_display*` / `plain_code_display_no_default_enum` / `plain_code_display_message_no_default_enum` / `plain_code_display_enum` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `serde_eq_hash_ord_display_as_ref` / `plain_clone_debug_display` / `plain_clone_redacted` / `plain_eq_redacted` / `serde_eq_redacted` / `plain_eq_display` / `plain_eq_hash_display` / `plain_eq_hash_ord_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_copy_eq_hash_ord_display` / `plain_default_copy_eq_display`
 - `clap` — `clap_parser` / `clap_args` / `clap_subcommand` / `clap_value_enum` / `clap_code_enum`
 - `strum` — `serde_code*` / `serde_code*_enum` / `serde_kebab_code*` / `serde_code_display*` / `plain_code_enum` / `plain_code_display_enum` / `plain_code_display_message_no_default_enum`
 - `sea_orm` — `seaorm_entity_model*` / `seaorm_relation`

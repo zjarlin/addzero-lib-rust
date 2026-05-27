@@ -2,7 +2,7 @@
 
 use az_derive_aliases::{
     apply, error_eq, plain_copy_eq, plain_copy_eq_hash_ord_display, plain_eq, plain_eq_display,
-    plain_eq_hash_ord_display, serde_eq_hash_ord_display,
+    plain_eq_hash_ord_display, serde_eq_hash_ord_display_as_ref,
 };
 use git2::Oid;
 use std::path::PathBuf;
@@ -72,7 +72,7 @@ impl TreeId {
 /// - Alphanumeric, underscores, hyphens only
 /// - Must start with a letter or underscore
 /// - Cannot be reserved names (_schema, _meta, etc.)
-#[apply(serde_eq_hash_ord_display)]
+#[apply(serde_eq_hash_ord_display_as_ref)]
 #[display("{_0}")]
 pub struct TableName(String);
 
@@ -130,17 +130,11 @@ impl TableName {
     }
 }
 
-impl AsRef<str> for TableName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
 /// A validated row key (primary key)
 ///
 /// row keys are used as filenames, so they have similar restrictions
 /// to table names but are typically auto generated (ULIDs, UUIDs)
-#[apply(serde_eq_hash_ord_display)]
+#[apply(serde_eq_hash_ord_display_as_ref)]
 #[display("{_0}")]
 pub struct RowKey(String);
 
@@ -187,12 +181,6 @@ impl RowKey {
     /// Generate a new ULID-based row key.
     pub fn generate() -> Self {
         Self(ulid::Ulid::new().to_string().to_lowercase())
-    }
-}
-
-impl AsRef<str> for RowKey {
-    fn as_ref(&self) -> &str {
-        &self.0
     }
 }
 
