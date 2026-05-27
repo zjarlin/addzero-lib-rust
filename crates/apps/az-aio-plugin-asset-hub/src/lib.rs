@@ -4,12 +4,11 @@
 mod skill_scanner;
 
 use az_assets::{AssetKind, AssetUpsert};
-use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
     EventPropagation, Plugin,
 };
-use az_desktop_plugin_registry::register_desktop_plugin;
+use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
 use serde_json::json;
 
@@ -18,9 +17,10 @@ use crate::skill_scanner::scan_skill_assets;
 const KNOWLEDGE_DOMAIN_ID: &str = "knowledge";
 const ASSET_BRANCH_ID: &str = "knowledge-assets";
 
-#[apply(plain_default)]
-struct AssetHubPlugin {
-    lines: Vec<String>,
+declare_desktop_plugin! {
+    struct AssetHubPlugin {
+        lines: Vec<String>,
+    }
 }
 
 impl AssetHubPlugin {
@@ -266,8 +266,6 @@ impl
         DesktopRenderLayer::Main
     }
 }
-
-register_desktop_plugin!(AssetHubPlugin);
 
 #[cfg(test)]
 mod tests {

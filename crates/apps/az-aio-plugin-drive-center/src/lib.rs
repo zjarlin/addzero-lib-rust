@@ -1,20 +1,20 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
-use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopHostServices, DesktopInitContext, DesktopRenderLayer,
     DesktopViewContext, EventPropagation, Plugin,
 };
-use az_desktop_plugin_registry::register_desktop_plugin;
+use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, IntoElement, div, prelude::*, rgb};
 
 const OPS_DOMAIN_ID: &str = "operations";
 const STORAGE_BRANCH_ID: &str = "operations-storage";
 
-#[apply(plain_default)]
-struct DriveCenterPlugin {
-    lines: Vec<String>,
+declare_desktop_plugin! {
+    struct DriveCenterPlugin {
+        lines: Vec<String>,
+    }
 }
 
 impl DriveCenterPlugin {
@@ -272,5 +272,3 @@ impl
         DesktopRenderLayer::Main
     }
 }
-
-register_desktop_plugin!(DriveCenterPlugin);

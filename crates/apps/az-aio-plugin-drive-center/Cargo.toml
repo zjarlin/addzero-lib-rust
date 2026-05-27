@@ -8,7 +8,6 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-derive-aliases.workspace = true
 az-desktop-plugin.workspace = true
 az-desktop-plugin-registry.workspace = true
 gpui.workspace = true

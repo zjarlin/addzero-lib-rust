@@ -11,12 +11,11 @@ use std::env;
 
 use az_ai_agent::default_model_for;
 use az_assets::{AiModelProviderUpsert, AiProviderKind};
-use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
     EventPropagation, Plugin,
 };
-use az_desktop_plugin_registry::register_desktop_plugin;
+use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
 
 use crate::{
@@ -28,10 +27,11 @@ use crate::{
 const ENV_DOMAIN_ID: &str = "environment";
 const MACHINE_BRANCH_ID: &str = "environment-machine";
 
-#[apply(plain_default)]
-struct ConfigCenterPlugin {
-    lines: Vec<String>,
-    last_test_lines: Vec<String>,
+declare_desktop_plugin! {
+    struct ConfigCenterPlugin {
+        lines: Vec<String>,
+        last_test_lines: Vec<String>,
+    }
 }
 
 impl ConfigCenterPlugin {
@@ -327,8 +327,6 @@ impl
         DesktopRenderLayer::Main
     }
 }
-
-register_desktop_plugin!(ConfigCenterPlugin);
 
 #[cfg(test)]
 mod tests {

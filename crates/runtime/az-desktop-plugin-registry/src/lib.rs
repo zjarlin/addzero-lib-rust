@@ -7,6 +7,8 @@ use az_desktop_plugin::{
     DesktopViewContext, Plugin,
 };
 
+#[doc(hidden)]
+pub use az_derive_aliases as __az_desktop_plugin_registry_derive_aliases;
 pub use inventory;
 
 #[apply(plain_copy)]
@@ -52,15 +54,46 @@ macro_rules! register_desktop_plugin {
     };
 }
 
+/// Declares a default-constructible desktop plugin and registers it in the distributed registry.
+#[macro_export]
+macro_rules! declare_desktop_plugin {
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $name:ident;
+    ) => {
+        $crate::__az_desktop_plugin_registry_derive_aliases::plain_default! {
+            $(#[$meta])*
+            $vis struct $name;
+        }
+
+        $crate::register_desktop_plugin!($name);
+    };
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::__az_desktop_plugin_registry_derive_aliases::plain_default! {
+            $(#[$meta])*
+            $vis struct $name {
+                $($body)*
+            }
+        }
+
+        $crate::register_desktop_plugin!($name);
+    };
+}
+
 #[cfg(test)]
 mod tests {
-    use az_derive_aliases::{apply, plain_default};
     use az_desktop_plugin::{DesktopInitContext, DesktopRenderLayer, Plugin};
 
     use super::load_plugins;
 
-    #[apply(plain_default)]
-    struct AlphaPlugin;
+    crate::declare_desktop_plugin! {
+        struct AlphaPlugin;
+    }
 
     impl
         Plugin<
@@ -80,8 +113,9 @@ mod tests {
         }
     }
 
-    #[apply(plain_default)]
-    struct BetaPlugin;
+    crate::declare_desktop_plugin! {
+        struct BetaPlugin;
+    }
 
     impl
         Plugin<
@@ -100,9 +134,6 @@ mod tests {
             DesktopRenderLayer::Overlay
         }
     }
-
-    crate::register_desktop_plugin!(BetaPlugin);
-    crate::register_desktop_plugin!(AlphaPlugin);
 
     #[test]
     fn loads_plugins_sorted_by_name() {

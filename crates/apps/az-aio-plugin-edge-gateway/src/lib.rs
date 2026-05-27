@@ -8,12 +8,11 @@ pub mod gateway_runtime_types;
 
 use std::collections::BTreeMap;
 
-use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
     EventPropagation, Plugin,
 };
-use az_desktop_plugin_registry::register_desktop_plugin;
+use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
 use serde_json::Value;
 
@@ -23,11 +22,12 @@ use crate::gateway_runtime_types::{GatewayRunRequest, GatewayRunResult, GatewayR
 const OPS_DOMAIN_ID: &str = "operations";
 const EDGE_BRANCH_ID: &str = "operations-edge";
 
-#[apply(plain_default)]
-struct EdgeGatewayPlugin {
-    plan: Option<GatewayRunRequest>,
-    result: Option<GatewayRunResult>,
-    lines: Vec<String>,
+declare_desktop_plugin! {
+    struct EdgeGatewayPlugin {
+        plan: Option<GatewayRunRequest>,
+        result: Option<GatewayRunResult>,
+        lines: Vec<String>,
+    }
 }
 
 impl EdgeGatewayPlugin {
@@ -255,5 +255,3 @@ impl
         DesktopRenderLayer::Main
     }
 }
-
-register_desktop_plugin!(EdgeGatewayPlugin);

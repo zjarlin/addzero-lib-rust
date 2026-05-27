@@ -5,12 +5,11 @@ pub mod installer_scanner;
 pub mod installer_scanner_utils;
 pub mod paths;
 
-use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
     EventPropagation, Plugin,
 };
-use az_desktop_plugin_registry::register_desktop_plugin;
+use az_desktop_plugin_registry::declare_desktop_plugin;
 use az_software_catalog::SoftwareCatalogDto;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
 
@@ -19,10 +18,11 @@ use crate::installer_scanner::{InstallerPackage, organize_installers, scan_insta
 const KNOWLEDGE_DOMAIN_ID: &str = "knowledge";
 const SOFTWARE_BRANCH_ID: &str = "knowledge-software";
 
-#[apply(plain_default)]
-struct SoftwareCenterPlugin {
-    lines: Vec<String>,
-    scanned: Vec<InstallerPackage>,
+declare_desktop_plugin! {
+    struct SoftwareCenterPlugin {
+        lines: Vec<String>,
+        scanned: Vec<InstallerPackage>,
+    }
 }
 
 impl SoftwareCenterPlugin {
@@ -238,8 +238,6 @@ impl
         DesktopRenderLayer::Main
     }
 }
-
-register_desktop_plugin!(SoftwareCenterPlugin);
 
 #[cfg(test)]
 mod tests {
