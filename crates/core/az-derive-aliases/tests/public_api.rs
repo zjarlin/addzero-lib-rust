@@ -1,11 +1,13 @@
 use az_derive_aliases::{
     apply, clap_code_enum, deserialize_camel_clone_debug, deserialize_camel_eq, error_copy_eq,
-    from_copy_eq_display, plain_code_default_enum, plain_code_enum, plain_copy_eq_hash,
-    plain_copy_eq_hash_display, plain_copy_eq_hash_ord_display, plain_default_copy_eq,
-    plain_default_copy_eq_display, plain_eq_hash_display, serde_camel_eq_default,
-    serde_camel_partial_eq_default, serde_code_enum, serde_code_partial_eq, serde_eq_copy_display,
-    serde_eq_hash_display, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
-    serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
+    from_copy_eq_display, plain_code_default_enum, plain_code_display_no_default_enum,
+    plain_code_enum, plain_copy_eq_hash, plain_copy_eq_hash_display,
+    plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
+    plain_eq_hash_display, serde_camel_eq_default, serde_camel_partial_eq_default,
+    serde_code_default_ord_display_enum, serde_code_enum, serde_code_ord_display_enum,
+    serde_code_partial_eq, serde_eq_copy_display, serde_eq_hash_display, serde_kebab_code_enum,
+    serde_kebab_eq, serde_lower_code_enum, serde_partial_eq_display, serde_upper_eq,
+    serialize_camel_clone_debug, serialize_camel_eq,
 };
 use clap::ValueEnum;
 use serde_json::Value;
@@ -83,6 +85,27 @@ enum LowerCode {
 #[apply(clap_code_enum)]
 enum ClapCode {
     ReadyNow,
+}
+
+#[apply(serde_code_ord_display_enum)]
+enum DisplayCode {
+    #[display("Human Label")]
+    HumanLabel,
+}
+
+#[apply(serde_code_default_ord_display_enum)]
+enum DefaultDisplayCode {
+    #[default]
+    #[display("Default Label")]
+    DefaultName,
+    #[display("Other Label")]
+    OtherName,
+}
+
+#[apply(plain_code_display_no_default_enum)]
+enum PlainDisplayCode {
+    #[display("Readable Label")]
+    ReadableLabel,
 }
 
 #[apply(serialize_camel_eq)]
@@ -248,6 +271,27 @@ fn clap_code_enum_reuses_serde_code_enum_helpers() {
     assert_eq!(
         ClapCode::from_str("ready-now", false),
         Ok(ClapCode::ReadyNow)
+    );
+}
+
+#[test]
+fn display_code_aliases_keep_wire_code_separate_from_label() {
+    assert_eq!(DisplayCode::HumanLabel.code(), "human_label");
+    assert_eq!(DisplayCode::HumanLabel.to_string(), "Human Label");
+    assert_eq!(
+        serde_json::to_value(DisplayCode::HumanLabel).unwrap(),
+        serde_json::json!("human_label")
+    );
+
+    assert_eq!(
+        DefaultDisplayCode::from_code_or_default("missing"),
+        DefaultDisplayCode::DefaultName
+    );
+    assert_eq!(DefaultDisplayCode::OtherName.to_string(), "Other Label");
+    assert_eq!(PlainDisplayCode::ReadableLabel.code(), "readable_label");
+    assert_eq!(
+        PlainDisplayCode::ReadableLabel.to_string(),
+        "Readable Label"
     );
 }
 

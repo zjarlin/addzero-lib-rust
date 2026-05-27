@@ -922,6 +922,14 @@ macro_rules! serde_code {
 #[macro_export]
 macro_rules! __az_derive_aliases_serde_code {
     ($case:literal, $item:item) => {
+        $crate::__az_derive_aliases_serde_code_with!((), ::strum::Display, $case, $item);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __az_derive_aliases_serde_code_with {
+    (($($extra:path),* $(,)?), $display:path, $case:literal, $item:item) => {
         $crate::__az_derive_aliases_derive!(
             (
                 Clone,
@@ -930,9 +938,10 @@ macro_rules! __az_derive_aliases_serde_code {
                 PartialEq,
                 Eq,
                 ::core::hash::Hash,
+                $($extra,)*
                 ::serde::Serialize,
                 ::serde::Deserialize,
-                ::strum::Display,
+                $display,
                 ::strum::EnumString,
                 ::strum::IntoStaticStr,
                 ::strum::VariantArray
@@ -1001,23 +1010,10 @@ macro_rules! serde_lower_code {
 #[macro_export]
 macro_rules! serde_code_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::derive_more::Display,
-                ::strum::EnumString,
-                ::strum::IntoStaticStr,
-                ::strum::VariantArray
-            ),
-            #[serde(rename_all = "snake_case")]
-            #[strum(serialize_all = "snake_case")]
+        $crate::__az_derive_aliases_serde_code_with!(
+            (),
+            ::derive_more::Display,
+            "snake_case",
             $item
         );
     };
@@ -1112,29 +1108,39 @@ macro_rules! plain_code_display_enum {
             $($body:tt)*
         }
     ) => {
+        $crate::__az_derive_aliases_plain_code! {
+            (Default, ::derive_more::Display),
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+
+        $crate::__az_derive_aliases_code_enum_impl!($name);
+        $crate::__az_derive_aliases_code_default_enum_impl!($name);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __az_derive_aliases_plain_code {
+    (($($extra:path),* $(,)?), $item:item) => {
         $crate::__az_derive_aliases_derive!(
             (
                 Clone,
                 Copy,
                 Debug,
-                Default,
-                PartialEq,
                 Eq,
+                PartialEq,
                 ::core::hash::Hash,
-                ::derive_more::Display,
+                $($extra,)*
                 ::strum::EnumString,
                 ::strum::IntoStaticStr,
                 ::strum::VariantArray
             ),
             #[strum(serialize_all = "snake_case")]
-            $(#[$meta])*
-            $vis enum $name {
-                $($body)*
-            }
+            $item
         );
-
-        $crate::__az_derive_aliases_code_enum_impl!($name);
-        $crate::__az_derive_aliases_code_default_enum_impl!($name);
     };
 }
 
@@ -1147,24 +1153,13 @@ macro_rules! plain_code_enum {
             $($body:tt)*
         }
     ) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                Eq,
-                PartialEq,
-                ::core::hash::Hash,
-                ::strum::EnumString,
-                ::strum::IntoStaticStr,
-                ::strum::VariantArray
-            ),
-            #[strum(serialize_all = "snake_case")]
+        $crate::__az_derive_aliases_plain_code! {
+            (),
             $(#[$meta])*
             $vis enum $name {
                 $($body)*
             }
-        );
+        }
 
         $crate::__az_derive_aliases_code_enum_impl!($name);
     };
@@ -1200,25 +1195,13 @@ macro_rules! plain_code_display_no_default_enum {
             $($body:tt)*
         }
     ) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                ::derive_more::Display,
-                ::strum::EnumString,
-                ::strum::IntoStaticStr,
-                ::strum::VariantArray
-            ),
-            #[strum(serialize_all = "snake_case")]
+        $crate::__az_derive_aliases_plain_code! {
+            (::derive_more::Display),
             $(#[$meta])*
             $vis enum $name {
                 $($body)*
             }
-        );
+        }
 
         $crate::__az_derive_aliases_code_enum_impl!($name);
     };
@@ -1290,26 +1273,10 @@ macro_rules! serde_code_ord {
 #[macro_export]
 macro_rules! serde_code_default_ord_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                Default,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                PartialOrd,
-                Ord,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::derive_more::Display,
-                ::strum::EnumString,
-                ::strum::IntoStaticStr,
-                ::strum::VariantArray
-            ),
-            #[serde(rename_all = "snake_case")]
-            #[strum(serialize_all = "snake_case")]
+        $crate::__az_derive_aliases_serde_code_with!(
+            (Default, PartialOrd, Ord),
+            ::derive_more::Display,
+            "snake_case",
             $item
         );
     };
@@ -1319,25 +1286,10 @@ macro_rules! serde_code_default_ord_display {
 #[macro_export]
 macro_rules! serde_code_ord_display {
     ($item:item) => {
-        $crate::__az_derive_aliases_derive!(
-            (
-                Clone,
-                Copy,
-                Debug,
-                PartialEq,
-                Eq,
-                ::core::hash::Hash,
-                PartialOrd,
-                Ord,
-                ::serde::Serialize,
-                ::serde::Deserialize,
-                ::derive_more::Display,
-                ::strum::EnumString,
-                ::strum::IntoStaticStr,
-                ::strum::VariantArray
-            ),
-            #[serde(rename_all = "snake_case")]
-            #[strum(serialize_all = "snake_case")]
+        $crate::__az_derive_aliases_serde_code_with!(
+            (PartialOrd, Ord),
+            ::derive_more::Display,
+            "snake_case",
             $item
         );
     };
