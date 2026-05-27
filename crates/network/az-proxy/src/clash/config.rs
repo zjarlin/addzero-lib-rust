@@ -5,34 +5,34 @@ use crate::types::{DEFAULT_SPEEDTEST_TIMEOUT, ProxyNode, ProxyResult};
 use az_derive_aliases::{apply, serde_eq, serde_partial_eq};
 use serde_yaml::{Mapping, Number, Value};
 
-/// Default Clash mixed HTTP/SOCKS listen port used by [`select_fastest`].
+/// [`select_fastest`] 使用的默认 Clash mixed HTTP/SOCKS 监听端口。
 pub const DEFAULT_MIXED_PORT: u16 = 7890;
 
-/// A minimal Clash config document generated for a selected node.
+/// 为选中节点生成的最小 Clash 配置文档。
 #[apply(serde_partial_eq)]
 pub struct ClashConfig {
-    /// Mixed HTTP/SOCKS listen port.
+    /// HTTP/SOCKS 混合监听端口。
     #[serde(rename = "mixed-port")]
     pub mixed_port: u16,
-    /// Whether Clash should listen on LAN interfaces.
+    /// Clash 是否监听局域网接口。
     #[serde(rename = "allow-lan")]
     pub allow_lan: bool,
-    /// Clash routing mode.
+    /// Clash 路由模式。
     pub mode: String,
-    /// Clash log level.
+    /// Clash 日志级别。
     #[serde(rename = "log-level")]
     pub log_level: String,
-    /// Proxy definitions included in the generated config.
+    /// 生成配置中包含的代理定义。
     pub proxies: Vec<Value>,
-    /// Proxy groups included in the generated config.
+    /// 生成配置中包含的代理组。
     #[serde(rename = "proxy-groups")]
     pub proxy_groups: Vec<ProxyGroup>,
-    /// Clash routing rules.
+    /// Clash 路由规则。
     pub rules: Vec<String>,
 }
 
 impl ClashConfig {
-    /// Builds a minimal rule-mode Clash config containing exactly one proxy node.
+    /// 构造只包含一个代理节点的最小 rule-mode Clash 配置。
     pub fn minimal(mixed_port: u16, proxy: Value, proxy_name: impl Into<String>) -> Self {
         let proxy_name = proxy_name.into();
         Self {
@@ -59,37 +59,36 @@ impl ClashConfig {
     }
 }
 
-/// A Clash proxy group entry.
+/// Clash 代理组配置项。
 #[apply(serde_eq)]
 pub struct ProxyGroup {
-    /// Proxy group name.
+    /// 代理组名称。
     pub name: String,
-    /// Clash group type such as `select`.
+    /// Clash 代理组类型，例如 `select`。
     #[serde(rename = "type")]
     pub group_type: String,
-    /// Names of proxies that belong to this group.
+    /// 属于该代理组的代理名称列表。
     pub proxies: Vec<String>,
 }
 
-/// Generates a minimal Clash YAML config containing `node` as the only proxy.
+/// 生成仅包含 `node` 的最小 Clash YAML 配置。
 ///
 /// # Errors
 ///
-/// Returns an error when the generated config cannot be serialized as YAML.
+/// 当生成的配置无法序列化为 YAML 时返回错误。
 pub fn generate_clash_config(node: &ProxyNode, mixed_port: u16) -> ProxyResult<String> {
     let proxy = normalized_proxy_value(node);
     let config = ClashConfig::minimal(mixed_port, proxy, node.name.clone());
     Ok(serde_yaml::to_string(&config)?)
 }
 
-/// Fetches, parses, speed-tests, selects the fastest node, and returns Clash YAML.
+/// 获取订阅、解析节点、测速、选择最快节点，并返回 Clash YAML。
 ///
-/// Uses [`DEFAULT_SPEEDTEST_TIMEOUT`] and [`DEFAULT_MIXED_PORT`].
+/// 使用 [`DEFAULT_SPEEDTEST_TIMEOUT`] 和 [`DEFAULT_MIXED_PORT`]。
 ///
 /// # Errors
 ///
-/// Returns an error when fetching/parsing fails, every speed test fails, or the
-/// selected config cannot be serialized.
+/// 当获取/解析失败、所有测速都失败，或选中配置无法序列化时返回错误。
 pub async fn select_fastest(url: &str, concurrency: usize) -> ProxyResult<String> {
     let nodes = fetch_and_parse(url).await?;
     let results = batch_speed_test(&nodes, concurrency, DEFAULT_SPEEDTEST_TIMEOUT).await;

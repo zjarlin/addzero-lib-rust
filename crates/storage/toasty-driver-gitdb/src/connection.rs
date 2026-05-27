@@ -20,7 +20,7 @@ use toasty_sql as sql;
 
 const MIGRATIONS_TABLE: &str = "__toasty_migrations";
 
-/// Toasty driver for a filesystem-backed `gitdb` database.
+/// 基于文件系统 gitdb 数据库的 Toasty driver。
 #[apply(plain_clone_debug)]
 pub struct GitDb {
     path: PathBuf,
@@ -28,7 +28,7 @@ pub struct GitDb {
 }
 
 impl GitDb {
-    /// Opens or creates a gitdb-backed Toasty driver rooted at `path`.
+    /// 在 `path` 指定目录打开或创建 gitdb-backed Toasty driver。
     pub fn open(path: impl AsRef<Path>) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
@@ -36,7 +36,7 @@ impl GitDb {
         }
     }
 
-    /// Creates a driver from an existing `gitdb:` URL or local path-like URL.
+    /// 从 `gitdb:` URL 创建 driver。
     pub fn new(url: impl Into<String>) -> Result<Self> {
         let url = url.into();
         let path = if let Some(path) = url.strip_prefix("gitdb://") {
@@ -93,6 +93,10 @@ impl Driver for GitDb {
     }
 }
 
+/// 单个 gitdb 连接。
+///
+/// 连接内部通过专用工作线程串行执行 gitdb SQL，避免把同步数据库操作直接暴露给 Toasty
+/// 的 async driver 边界。
 #[apply(plain_debug)]
 pub struct GitDbConnection {
     request_tx: Sender<WorkerRequest>,

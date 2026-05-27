@@ -1,15 +1,13 @@
 use crate::types::{ProxyError, ProxyResult, ProxyNode, ProxyType};
 use serde_yaml::{Mapping, Value};
 
-/// Parses supported proxy nodes from the `proxies:` list of a Clash YAML document.
+/// 从 Clash YAML 文档的 `proxies:` 列表中解析受支持的代理节点。
 ///
-/// Unsupported proxy types are ignored so a mixed Clash config can still yield
-/// usable nodes.
+/// 不支持的代理类型会被忽略，因此混合配置中仍可提取可用节点。
 ///
 /// # Errors
 ///
-/// Returns an error when the YAML cannot be decoded, the `proxies` field is
-/// absent, or no supported proxy entries can be parsed.
+/// 当 YAML 无法解码、缺少 `proxies` 字段，或没有任何受支持代理项时返回错误。
 pub fn parse_clash_yaml(input: &str) -> ProxyResult<Vec<ProxyNode>> {
     let document: Value = serde_yaml::from_str(input)?;
     let proxies = mapping_get(&document, "proxies")

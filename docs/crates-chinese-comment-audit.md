@@ -73,13 +73,17 @@
 - `docs/README.md`：增加本巡检文档入口，方便文档站收录。
 - `az-json`、`az-ai-chat`：续补 JSON 工具函数、聊天通用 trait、OpenAI 兼容客户端和 manifest 描述的中文 rustdoc。
 - `gitdb` 存储组：续补 SQL AST、逻辑/物理计划、Volcano 执行算子、typestate 事务、Git 存储类型和行 blob 编解码的中文 rustdoc，明确 SQL 子集、执行模型、事务状态和 Git 路径安全边界。
+- `az-serial`：补齐串口错误、端口句柄、配置枚举和帧解码器的中文 rustdoc，明确 `Baud0`、非阻塞 timeout、帧边界和 buffer overflow 语义。
+- `az-proxy`：补齐订阅获取、订阅解析、代理节点类型、节点归一化和 TCP 测速的中文 rustdoc，明确 Clash YAML / URI / base64 订阅自动识别边界。
+- `az-rustfs`：补齐 S3 兼容配置、凭证脱敏、对象元数据、客户端 trait、阻塞客户端、内存客户端、分片上传进度和断点续传状态的中文 rustdoc。
+- `toasty-driver-gitdb`：补齐 Toasty 能力矩阵、driver URL、连接工作线程和 gitdb/toasty 错误转换边界的中文 rustdoc。
 
 ### 继续建议
 
 - `az-derive-aliases`：README 已经是中文 alias 清单，后续只在新增 alias 时维护“功能型分层”，不要再按 struct/enum 或业务语义拆出大量平行宏。
 - `az-browser-automation`：后续新增记录步骤时继续用 `strum(message = "...")` 承载长说明，避免手写 match 和注释分离。
 - `az-cli-market-contract`、`az-config-center-contract`：后续扩展字段或新增 wire enum 时同步补中文 rustdoc 和兼容性测试。
-- `az-drive-store`、`gitdb`、`toasty-driver-gitdb`：存储层需要用模块级中文说明固定对象层、元数据层、shard 层边界。
+- `az-drive-store`、`gitdb`：存储层仍需继续用模块级中文说明固定对象层、元数据层、shard 层边界；`toasty-driver-gitdb` 的 driver 边界已补一轮。
 - `az-remote-protocol`、`az-wasm-plugin-api`：协议 crate 不要靠每个字段行注释堆信息，优先维护 crate/module 级“帧类型、兼容性、脱敏、安全边界”说明。
 
 ## 不建议补注释的位置
@@ -96,3 +100,4 @@
 3. 修改 wire enum 或 serde 命名时同步补测试，并在文档说明兼容风险。
 4. 只在代码意图无法通过命名表达时写局部 `//` 注释。
 5. 每轮巡检至少跑 `git diff --check`，涉及 rustdoc 示例时再跑对应 crate 的 `cargo test`。
+6. 对 `az-rustfs`、`az-proxy` 这类 README 注入 rustdoc 的 crate，后续优先让 README 承载场景示例，源码 `///` 只固定 API 契约。

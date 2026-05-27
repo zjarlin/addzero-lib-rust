@@ -32,37 +32,37 @@ mod frame;
 pub use config::{BaudRate, FlowControl, Parity, SerialConfig, StopBits};
 pub use frame::{FrameDecoder, FrameEvent, FrameFormat};
 
-/// Errors that can occur during serial operations.
+/// 串口操作过程中可能返回的错误。
 #[apply(error)]
 pub enum SerialError {
-    /// I/O error from the underlying OS.
+    /// 底层操作系统返回的 I/O 错误。
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// The specified port was not found.
+    /// 指定串口不存在。
     #[error("port not found: {0}")]
     PortNotFound(String),
 
-    /// Invalid configuration parameter.
+    /// 串口配置参数非法。
     #[error("invalid config: {0}")]
     InvalidConfig(String),
 
-    /// Operation timed out.
+    /// 读写操作超时。
     #[error("timeout after {0}ms")]
     Timeout(u64),
 
-    /// Buffer overflow during read.
+    /// 读取缓冲区容量不足。
     #[error("buffer overflow: requested {requested}, available {available}")]
     BufferOverflow { requested: usize, available: usize },
 }
 
-/// Result alias for serial operations.
+/// 串口操作统一结果类型。
 pub type SerialResult<T> = Result<T, SerialError>;
 
-/// A serial port handle for reading and writing data.
+/// 可读写串口句柄。
 ///
-/// This is a platform-agnostic abstraction. On Unix it wraps `/dev/tty*`,
-/// on Windows it wraps `COM*` ports.
+/// 这是平台无关抽象：Unix 系统通常对应 `/dev/tty*`，Windows 系统通常对应
+/// `COM*` 端口。当前类型只暴露统一的打开、读写和关闭契约。
 #[apply(plain_debug)]
 pub struct SerialPort {
     port_name: String,
@@ -71,7 +71,7 @@ pub struct SerialPort {
 }
 
 impl SerialPort {
-    /// Open a serial port with the given configuration.
+    /// 使用指定配置打开串口。
     pub fn open(port_name: &str, config: &SerialConfig) -> SerialResult<Self> {
         if port_name.is_empty() {
             return Err(SerialError::InvalidConfig(
@@ -79,7 +79,7 @@ impl SerialPort {
             ));
         }
 
-        // Validate baud rate is non-zero
+        // 波特率为 0 在本抽象中表示不可用配置。
         if config.baud_rate.value() == 0 {
             return Err(SerialError::InvalidConfig(
                 "baud rate cannot be zero".into(),
@@ -93,9 +93,9 @@ impl SerialPort {
         })
     }
 
-    /// Write data to the serial port.
+    /// 向串口写入字节。
     ///
-    /// Returns the number of bytes written.
+    /// 返回实际写入的字节数。
     pub fn write(&mut self, data: &[u8]) -> SerialResult<usize> {
         if !self.is_open {
             return Err(SerialError::Io(std::io::Error::new(
@@ -106,9 +106,9 @@ impl SerialPort {
         Ok(data.len())
     }
 
-    /// Read data into the provided buffer.
+    /// 从串口读取字节到调用方提供的缓冲区。
     ///
-    /// Returns the number of bytes actually read.
+    /// 返回实际读取的字节数。
     pub fn read(&mut self, buf: &mut [u8]) -> SerialResult<usize> {
         if !self.is_open {
             return Err(SerialError::Io(std::io::Error::new(
@@ -122,45 +122,45 @@ impl SerialPort {
         Ok(0)
     }
 
-    /// Close the serial port.
+    /// 关闭串口句柄。
     pub fn close(&mut self) -> SerialResult<()> {
         self.is_open = false;
         Ok(())
     }
 
-    /// Check if the port is currently open.
+    /// 判断串口句柄当前是否处于打开状态。
     pub fn is_open(&self) -> bool {
         self.is_open
     }
 
-    /// Get the port name (e.g., "COM3", "/dev/ttyUSB0").
+    /// 返回系统串口名称，例如 `COM3` 或 `/dev/ttyUSB0`。
     pub fn port_name(&self) -> &str {
         &self.port_name
     }
 
-    /// Get the current configuration.
+    /// 返回当前串口配置。
     pub fn config(&self) -> &SerialConfig {
         &self.config
     }
 
-    /// List available serial ports on the system.
+    /// 列出当前系统可用串口。
     pub fn list_ports() -> SerialResult<Vec<PortInfo>> {
         Ok(Vec::new())
     }
 }
 
-/// Information about an available serial port.
+/// 系统可用串口的描述信息。
 #[apply(serde_eq)]
 pub struct PortInfo {
-    /// System port name (e.g., "COM3", "/dev/ttyUSB0").
+    /// 系统串口名称，例如 `COM3` 或 `/dev/ttyUSB0`。
     pub port_name: String,
-    /// Human-readable description.
+    /// 面向用户展示的串口描述。
     pub description: String,
-    /// USB vendor ID (if USB device).
+    /// USB 厂商 ID；非 USB 设备时为空。
     pub vid: Option<u16>,
-    /// USB product ID (if USB device).
+    /// USB 产品 ID；非 USB 设备时为空。
     pub pid: Option<u16>,
-    /// Serial number (if available).
+    /// 设备序列号；系统无法提供时为空。
     pub serial_number: Option<String>,
 }
 

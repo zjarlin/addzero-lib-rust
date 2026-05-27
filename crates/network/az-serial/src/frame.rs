@@ -1,38 +1,39 @@
-//! Frame decoding for serial data streams.
+//! 串口字节流帧解码工具。
 //!
-//! Supports common industrial protocols: fixed-length, delimiter-based,
-//! and length-prefixed frames.
+//! 支持常见工业协议中的固定长度帧、分隔符帧和长度前缀帧。调用方持续推入字节，
+//! 解码器在缓冲区中累积数据，并在帧完整时返回 [`FrameEvent`]。
 
 use az_derive_aliases::{apply, plain_eq, serde_eq};
 
-/// The format used to delimit frames in a byte stream.
+/// 字节流中的帧边界格式。
 #[apply(serde_eq)]
 pub enum FrameFormat {
-    /// Fixed-length frames (every frame is exactly N bytes).
+    /// 固定长度帧，每一帧都恰好为指定字节数。
     FixedLength(usize),
-    /// Delimiter-terminated frames (e.g., `\r\n` or `0xAA 0x55`).
+    /// 以分隔符结尾的帧，例如 `\r\n` 或 `0xAA 0x55`。
     Delimiter(Vec<u8>),
-    /// Length-prefixed frames: a header of N bytes encodes the payload length.
+    /// 长度前缀帧，帧头中的 N 个字节编码 payload 长度。
     LengthPrefixed {
-        /// Number of bytes in the length field (1, 2, or 4).
+        /// 长度字段字节数，支持 1、2 或 4。
         length_bytes: usize,
-        /// Whether the length includes the header itself.
+        /// 长度值是否包含长度字段本身。
         length_includes_header: bool,
     },
 }
 
-/// Events produced by the frame decoder.
+/// 帧解码器产生的事件。
 #[apply(plain_eq)]
 pub enum FrameEvent {
-    /// A complete frame was decoded.
+    /// 已成功解出一帧完整数据。
     Frame(Vec<u8>),
-    /// The internal buffer overflowed — frame discarded.
+    /// 内部缓冲区溢出，当前未完成帧已被丢弃。
     Overflow,
 }
 
-/// Incremental frame decoder.
+/// 增量式串口帧解码器。
 ///
-/// Feed bytes in, get complete frames out. Useful for streaming serial data.
+/// 调用方可以多次推入字节，再通过 [`FrameDecoder::poll`] 取出完整帧。
+/// 该类型适合串口、TCP 透传或其他边读边拆包的场景。
 ///
 /// # Examples
 ///
@@ -52,7 +53,7 @@ pub struct FrameDecoder {
 }
 
 impl FrameDecoder {
-    /// Create a new frame decoder with the given format.
+    /// 使用指定帧格式创建解码器。
     pub fn new(format: FrameFormat) -> Self {
         Self {
             format,
@@ -61,13 +62,13 @@ impl FrameDecoder {
         }
     }
 
-    /// Create a new decoder with a custom maximum buffer size.
+    /// 设置自定义最大缓冲区大小。
     pub fn with_max_buffer(mut self, max: usize) -> Self {
         self.max_buffer_size = max;
         self
     }
 
-    /// Push incoming bytes into the decoder.
+    /// 向解码器追加新收到的字节。
     pub fn push(&mut self, data: &[u8]) {
         if self.buffer.len() + data.len() > self.max_buffer_size {
             self.buffer.clear();
@@ -76,11 +77,10 @@ impl FrameDecoder {
         self.buffer.extend_from_slice(data);
     }
 
-    /// Try to extract the next complete frame from the buffer.
+    /// 尝试从内部缓冲区取出下一帧完整数据。
     ///
-    /// Returns `Some(FrameEvent::Frame(data))` if a complete frame is available,
-    /// `Some(FrameEvent::Overflow)` if the buffer was too large,
-    /// or `None` if no complete frame is available yet.
+    /// 有完整帧时返回 `Some(FrameEvent::Frame(data))`；缓冲区过大时返回
+    /// `Some(FrameEvent::Overflow)`；暂时没有完整帧时返回 `None`。
     pub fn poll(&mut self) -> Option<FrameEvent> {
         if self.buffer.len() > self.max_buffer_size {
             self.buffer.clear();
@@ -101,7 +101,7 @@ impl FrameDecoder {
                 }
                 let pos = find_subsequence(&self.buffer, delim)?;
                 let frame: Vec<u8> = self.buffer.drain(..pos).collect();
-                // Remove the delimiter
+                // 返回帧体后丢弃分隔符，避免下一次 poll 重复命中同一边界。
                 self.buffer.drain(..delim.len());
                 Some(FrameEvent::Frame(frame))
             }
@@ -139,18 +139,18 @@ impl FrameDecoder {
         }
     }
 
-    /// Clear the internal buffer.
+    /// 清空内部缓冲区。
     pub fn clear(&mut self) {
         self.buffer.clear();
     }
 
-    /// Get the current number of bytes in the buffer.
+    /// 返回当前缓冲区中的字节数。
     pub fn buffered_len(&self) -> usize {
         self.buffer.len()
     }
 }
 
-/// Find the first occurrence of `needle` in `haystack`.
+/// 查找 `needle` 在 `haystack` 中第一次出现的位置。
 fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.is_empty() || needle.len() > haystack.len() {
         return None;

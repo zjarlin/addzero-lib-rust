@@ -1,15 +1,15 @@
-//! Residential proxy via local Clash/Mihomo process.
+//! 通过本地 Clash/Mihomo 进程提供住宅代理。
 //!
-//! Fetches proxy subscriptions, speed-tests nodes, selects the fastest one,
-//! and starts a local Clash process to provide an HTTP/SOCKS5 proxy.
+//! 本模块会获取代理订阅、测速节点、选择最快节点，并启动本地 Clash 进程提供
+//! HTTP/SOCKS5 代理。
 //!
 //! ```no_run
 //! # async fn run() -> az_proxy::types::ProxyResult<()> {
 //! let config = az_proxy::clash::ResidentialProxyConfig::new("https://example.com/sub");
 //! let proxy = az_proxy::clash::ResidentialProxy::start(config).await?;
 //! println!("Residential proxy ready at {}", proxy.http_proxy);
-//! // proxy.http_proxy is "http://127.0.0.1:7890"
-//! // proxy.socks5_proxy() is "socks5://127.0.0.1:7890"
+//! // proxy.http_proxy 为 "http://127.0.0.1:7890"
+//! // proxy.socks5_proxy() 为 "socks5://127.0.0.1:7890"
 //! # Ok(())
 //! # }
 //! ```
@@ -29,25 +29,25 @@ use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// Configuration for starting a residential proxy via local Clash.
+/// 通过本地 Clash 启动住宅代理的配置。
 #[apply(plain_clone_debug)]
 pub struct ResidentialProxyConfig {
-    /// Subscription URL to fetch proxy nodes from.
+    /// 用于获取代理节点的订阅 URL。
     pub subscription_url: String,
-    /// Local HTTP/SOCKS mixed port (default: [`DEFAULT_MIXED_PORT`] = 7890).
+    /// 本地 HTTP/SOCKS 混合端口，默认 [`DEFAULT_MIXED_PORT`] = 7890。
     pub mixed_port: u16,
-    /// Speed test concurrency (default: [`crate::types::DEFAULT_SPEEDTEST_CONCURRENCY`] = 10).
+    /// 测速并发数，默认 [`crate::types::DEFAULT_SPEEDTEST_CONCURRENCY`] = 10。
     pub speedtest_concurrency: usize,
-    /// Speed test per-node timeout (default: [`crate::types::DEFAULT_SPEEDTEST_TIMEOUT`] = 5s).
+    /// 单节点测速超时时间，默认 [`crate::types::DEFAULT_SPEEDTEST_TIMEOUT`] = 5s。
     pub speedtest_timeout: Duration,
-    /// Explicit Clash/Mihomo binary path. Auto-detected when `None`.
+    /// 显式 Clash/Mihomo 可执行文件路径；为 `None` 时自动探测。
     pub clash_binary: Option<PathBuf>,
-    /// Maximum time to wait for the proxy port to become ready.
+    /// 等待代理端口就绪的最长时间。
     pub ready_timeout: Duration,
 }
 
 impl ResidentialProxyConfig {
-    /// Creates a configuration with all defaults for the given subscription URL.
+    /// 使用指定订阅 URL 和默认参数创建配置。
     #[must_use]
     pub fn new(subscription_url: impl Into<String>) -> Self {
         Self {
@@ -60,28 +60,28 @@ impl ResidentialProxyConfig {
         }
     }
 
-    /// Uses an explicit Clash/Mihomo binary path.
+    /// 使用显式 Clash/Mihomo 可执行文件路径。
     #[must_use]
     pub fn with_clash_binary(mut self, path: impl Into<PathBuf>) -> Self {
         self.clash_binary = Some(path.into());
         self
     }
 
-    /// Overrides the local mixed proxy port.
+    /// 覆盖本地 mixed 代理端口。
     #[must_use]
     pub fn with_port(mut self, port: u16) -> Self {
         self.mixed_port = port;
         self
     }
 
-    /// Overrides the speed test concurrency.
+    /// 覆盖测速并发数。
     #[must_use]
     pub fn with_concurrency(mut self, concurrency: usize) -> Self {
         self.speedtest_concurrency = concurrency;
         self
     }
 
-    /// Overrides the speed test timeout.
+    /// 覆盖测速超时时间。
     #[must_use]
     pub fn with_speedtest_timeout(mut self, timeout: Duration) -> Self {
         self.speedtest_timeout = timeout;
@@ -89,29 +89,27 @@ impl ResidentialProxyConfig {
     }
 }
 
-/// A running residential proxy backed by a local Clash process.
+/// 正在运行的本地 Clash 住宅代理。
 ///
-/// The Clash process is killed and the temporary config file removed on drop.
+/// 该值 drop 时会结束 Clash 进程并删除临时配置文件。
 pub struct ResidentialProxy {
-    /// Selected proxy node being used.
+    /// 当前选中的代理节点。
     pub node: ProxyNode,
-    /// Local HTTP proxy URL (e.g. `http://127.0.0.1:7890`).
+    /// 本地 HTTP 代理 URL，例如 `http://127.0.0.1:7890`。
     pub http_proxy: String,
-    /// Local proxy port.
+    /// 本地代理端口。
     pub port: u16,
     child: Option<Child>,
     config_path: Option<PathBuf>,
 }
 
 impl ResidentialProxy {
-    /// Fetches the subscription, tests nodes, selects the fastest, starts Clash,
-    /// and returns a ready local proxy.
+    /// 获取订阅、测试节点、选择最快节点、启动 Clash，并返回就绪的本地代理。
     ///
     /// # Errors
     ///
-    /// Returns an error when fetching/parsing fails, no node passes the speed
-    /// test, the Clash binary cannot be found, or the proxy port does not become
-    /// ready within `config.ready_timeout`.
+    /// 当获取/解析失败、没有节点通过测速、找不到 Clash 可执行文件，或代理端口没有在
+    /// `config.ready_timeout` 内就绪时返回错误。
     pub async fn start(config: ResidentialProxyConfig) -> ProxyResult<Self> {
         let nodes = fetch_and_parse(&config.subscription_url).await?;
 
@@ -168,7 +166,7 @@ impl ResidentialProxy {
         })
     }
 
-    /// Returns the SOCKS5 proxy URL on the same port.
+    /// 返回同一端口上的 SOCKS5 代理 URL。
     #[must_use]
     pub fn socks5_proxy(&self) -> String {
         format!("socks5://127.0.0.1:{}", self.port)

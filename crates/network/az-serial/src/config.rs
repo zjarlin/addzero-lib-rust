@@ -1,36 +1,36 @@
-//! Serial port configuration types.
+//! 串口配置类型。
 
 use az_derive_aliases::{apply, serde_code_enum, serde_eq, serde_eq_copy};
 
-/// Standard baud rates.
+/// 常用串口波特率。
 #[apply(serde_eq_copy)]
 pub enum BaudRate {
-    /// 0 baud (invalid / disconnected).
+    /// 0 波特；在本 crate 中表示非法或未连接配置。
     Baud0,
-    /// 4800 baud.
+    /// 4800 波特。
     Baud4800,
-    /// 9600 baud.
+    /// 9600 波特。
     Baud9600,
-    /// 19200 baud.
+    /// 19200 波特。
     Baud19200,
-    /// 38400 baud.
+    /// 38400 波特。
     Baud38400,
-    /// 57600 baud.
+    /// 57600 波特。
     Baud57600,
-    /// 115200 baud.
+    /// 115200 波特。
     Baud115200,
-    /// 230400 baud.
+    /// 230400 波特。
     Baud230400,
-    /// 460800 baud.
+    /// 460800 波特。
     Baud460800,
-    /// 921600 baud.
+    /// 921600 波特。
     Baud921600,
-    /// Custom baud rate.
+    /// 自定义波特率。
     Custom(u32),
 }
 
 impl BaudRate {
-    /// Get the numeric value of this baud rate.
+    /// 返回波特率的数值形式。
     pub fn value(&self) -> u32 {
         match self {
             Self::Baud0 => 0,
@@ -48,63 +48,64 @@ impl BaudRate {
     }
 }
 
-/// Parity checking mode.
+/// 串口校验位模式。
 #[apply(serde_code_enum)]
 pub enum Parity {
-    /// No parity bit.
+    /// 不使用校验位。
     None,
-    /// Even parity.
+    /// 偶校验。
     Even,
-    /// Odd parity.
+    /// 奇校验。
     Odd,
-    /// Mark parity (always 1).
+    /// 标记校验，校验位恒为 1。
     Mark,
-    /// Space parity (always 0).
+    /// 空格校验，校验位恒为 0。
     Space,
 }
 
-/// Number of stop bits.
+/// 串口停止位数量。
 #[apply(serde_code_enum)]
 pub enum StopBits {
-    /// 1 stop bit.
+    /// 1 个停止位。
     One,
-    /// 2 stop bits.
+    /// 2 个停止位。
     Two,
 }
 
-/// Hardware/software flow control.
+/// 串口硬件或软件流控模式。
 #[apply(serde_code_enum)]
 pub enum FlowControl {
-    /// No flow control.
+    /// 不使用流控。
     None,
-    /// Hardware RTS/CTS.
+    /// 硬件 RTS/CTS 流控。
     Hardware,
-    /// Software XON/XOFF.
+    /// 软件 XON/XOFF 流控。
     Software,
 }
 
-/// Serial port configuration parameters.
+/// 串口连接配置参数。
 #[apply(serde_eq)]
 pub struct SerialConfig {
-    /// Baud rate.
+    /// 波特率。
     pub baud_rate: BaudRate,
-    /// Data bits per character (5, 6, 7, or 8).
+    /// 每个字符的数据位数量，通常为 5、6、7 或 8。
     pub data_bits: u8,
-    /// Parity checking mode.
+    /// 校验位模式。
     pub parity: Parity,
-    /// Number of stop bits.
+    /// 停止位数量。
     pub stop_bits: StopBits,
-    /// Flow control mode.
+    /// 流控模式。
     pub flow_control: FlowControl,
-    /// Read timeout in milliseconds (0 = non-blocking).
+    /// 读取超时时间，单位毫秒；`0` 表示非阻塞。
     pub read_timeout_ms: u64,
-    /// Write timeout in milliseconds (0 = non-blocking).
+    /// 写入超时时间，单位毫秒；`0` 表示非阻塞。
     pub write_timeout_ms: u64,
 }
 
 impl SerialConfig {
-    /// Create a new configuration with the given baud rate and sensible defaults:
-    /// 8 data bits, no parity, 1 stop bit, no flow control.
+    /// 使用指定波特率创建配置，并采用常见默认值：
+    ///
+    /// 8 数据位、无校验、1 停止位、无流控。
     pub fn new(baud_rate: BaudRate) -> Self {
         Self {
             baud_rate,
@@ -117,37 +118,37 @@ impl SerialConfig {
         }
     }
 
-    /// Set the number of data bits (5, 6, 7, or 8).
+    /// 设置数据位数量，通常为 5、6、7 或 8。
     pub fn with_data_bits(mut self, bits: u8) -> Self {
         self.data_bits = bits;
         self
     }
 
-    /// Set the parity mode.
+    /// 设置校验位模式。
     pub fn with_parity(mut self, parity: Parity) -> Self {
         self.parity = parity;
         self
     }
 
-    /// Set the stop bits.
+    /// 设置停止位数量。
     pub fn with_stop_bits(mut self, stop: StopBits) -> Self {
         self.stop_bits = stop;
         self
     }
 
-    /// Set the flow control mode.
+    /// 设置流控模式。
     pub fn with_flow_control(mut self, fc: FlowControl) -> Self {
         self.flow_control = fc;
         self
     }
 
-    /// Set the read timeout in milliseconds.
+    /// 设置读取超时时间，单位毫秒。
     pub fn with_read_timeout(mut self, ms: u64) -> Self {
         self.read_timeout_ms = ms;
         self
     }
 
-    /// Set the write timeout in milliseconds.
+    /// 设置写入超时时间，单位毫秒。
     pub fn with_write_timeout(mut self, ms: u64) -> Self {
         self.write_timeout_ms = ms;
         self

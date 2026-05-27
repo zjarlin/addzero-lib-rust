@@ -1,6 +1,6 @@
 use az_derive_aliases::{apply, error_eq};
 
-/// Driver-local conversion errors before they are mapped to `toasty_core::Error`.
+/// driver 内部转换错误，最终会映射为 `toasty_core::Error`。
 #[apply(error_eq)]
 pub(crate) enum GitDbDriverError {
     #[error("unsupported gitdb/toasty value conversion: {0}")]

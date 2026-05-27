@@ -20,7 +20,7 @@ use std::time::{Duration, SystemTime};
 
 type HmacSha256 = Hmac<Sha256>;
 
-/// Recover from a poisoned mutex instead of panicking.
+/// 从中毒 mutex 中恢复，避免测试/内存实现因一次 panic 失去可用性。
 fn recover_lock<T>(mutex: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|poisoned| {
         eprintln!("WARN: in-memory storage mutex was poisoned, recovering");
@@ -31,22 +31,33 @@ fn recover_lock<T>(mutex: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> 
 const AWS_SERVICE_NAME: &str = "s3";
 const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
 
+/// 对象存储客户端返回的错误。
 #[apply(error)]
 pub enum StorageError {
+    /// 客户端配置非法。
     #[error("invalid storage configuration: {0}")]
     InvalidConfig(String),
+    /// 指定 bucket 不存在。
     #[error("bucket `{bucket}` was not found")]
     BucketNotFound { bucket: String },
+    /// 指定对象不存在。
     #[error("object `{bucket}/{key}` was not found")]
     ObjectNotFound { bucket: String, key: String },
+    /// 后端服务或协议返回错误。
     #[error("storage backend error: {0}")]
     Backend(String),
+    /// 本地文件读写错误。
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 }
 
+/// 对象存储操作统一结果类型。
 pub type StorageResult<T> = Result<T, StorageError>;
 
+/// S3 兼容对象存储客户端接口。
+///
+/// trait 覆盖 bucket、对象、分片上传和预签名 URL 四类操作，便于在真实 HTTP
+/// 客户端和内存实现之间切换。
 pub trait S3StorageClient: Send + Sync {
     fn bucket_exists(&self, bucket_name: &str) -> StorageResult<bool>;
     fn create_bucket(&self, bucket_name: &str) -> StorageResult<()>;
@@ -139,18 +150,20 @@ pub trait S3StorageClient: Send + Sync {
     ) -> StorageResult<PresignedUrl>;
 }
 
+/// S3 兼容客户端工厂接口。
 pub trait S3StorageClientFactory: Send + Sync {
     fn create_client(&self, config: S3ClientConfig) -> Arc<dyn S3StorageClient>;
     fn create_default_client(&self) -> Arc<dyn S3StorageClient>;
 }
 
+/// 默认客户端工厂，通过调用方注入的配置源创建阻塞式 S3 客户端。
 #[apply(plain_clone)]
 pub struct DefaultS3StorageClientFactory {
     default_config: Arc<dyn Fn() -> S3ClientConfig + Send + Sync>,
 }
 
 impl DefaultS3StorageClientFactory {
-    /// Creates a factory with a caller-provided default config source.
+    /// 使用调用方提供的默认配置源创建工厂。
     pub fn new(default_config: impl Fn() -> S3ClientConfig + Send + Sync + 'static) -> Self {
         Self {
             default_config: Arc::new(default_config),
@@ -174,6 +187,9 @@ impl S3StorageClientFactory for DefaultS3StorageClientFactory {
     }
 }
 
+/// 基于 `reqwest::blocking` 的 S3 兼容客户端实现。
+///
+/// 该实现负责 AWS SigV4 签名、XML 响应解析和分片上传协议。
 #[apply(plain_clone_debug)]
 pub struct BlockingS3StorageClient {
     config: S3ClientConfig,
@@ -197,6 +213,7 @@ struct PendingObjectSummary {
 }
 
 impl BlockingS3StorageClient {
+    /// 使用指定配置创建阻塞式客户端。
     pub fn new(config: S3ClientConfig) -> Self {
         let http = match Client::builder().build() {
             Ok(client) => client,
@@ -205,6 +222,7 @@ impl BlockingS3StorageClient {
         Self { config, http }
     }
 
+    /// 返回当前客户端配置。
     pub fn config(&self) -> &S3ClientConfig {
         &self.config
     }
@@ -1412,6 +1430,7 @@ fn escape_xml(value: &str) -> String {
         .replace('\'', "&apos;")
 }
 
+/// 内存对象存储实现，主要用于测试和本地冒烟验证。
 #[apply(plain_default_clone_debug)]
 pub struct InMemoryS3StorageClient {
     state: Arc<Mutex<MemoryState>>,

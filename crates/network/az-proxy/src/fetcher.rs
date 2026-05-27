@@ -3,21 +3,21 @@ use crate::types::{ProxyResult, ProxyNode};
 use az_derive_aliases::{apply, plain_eq};
 use reqwest::header::CONTENT_TYPE;
 
-/// Raw subscription response fetched over HTTP.
+/// 通过 HTTP 获取到的原始订阅响应。
 #[apply(plain_eq)]
 pub struct FetchedSubscription {
-    /// Response body as text.
+    /// 响应正文文本。
     pub body: String,
-    /// Response `content-type` header when the server provided one.
+    /// 服务端提供的 `content-type` 响应头。
     pub content_type: Option<String>,
 }
 
-/// Fetches subscription content from `url` with HTTP GET.
+/// 通过 HTTP GET 从 `url` 获取订阅内容。
 ///
 /// # Errors
 ///
-/// Returns [`crate::types::ProxyError::Http`] when the request fails, the response
-/// status is not successful, or the response body cannot be decoded as text.
+/// 当请求失败、响应状态码不是成功状态，或响应体无法解码为文本时，返回
+/// [`crate::types::ProxyError::Http`]。
 pub async fn fetch_subscription(url: &str) -> ProxyResult<FetchedSubscription> {
     let response = reqwest::Client::new()
         .get(url)
@@ -42,15 +42,14 @@ pub async fn fetch_subscription(url: &str) -> ProxyResult<FetchedSubscription> {
     Ok(FetchedSubscription { body, content_type })
 }
 
-/// Fetches a subscription URL and parses all supported proxy nodes.
+/// 获取订阅 URL 并解析出所有受支持的代理节点。
 ///
-/// The parser auto-detects Clash YAML, direct URI lists, and base64-encoded URI
-/// lists. It also uses the HTTP `content-type` header as a parsing hint.
+/// 解析器会自动识别 Clash YAML、明文 URI 列表和 base64 编码 URI 列表，
+/// 同时把 HTTP `content-type` 响应头作为辅助判断。
 ///
 /// # Errors
 ///
-/// Returns an error when fetching fails or the response does not contain any
-/// usable supported proxy nodes.
+/// 当订阅获取失败，或响应中没有任何可用节点时返回错误。
 pub async fn fetch_and_parse(url: &str) -> ProxyResult<Vec<ProxyNode>> {
     let fetched = fetch_subscription(url).await?;
     parse_subscription(&fetched.body, fetched.content_type.as_deref())

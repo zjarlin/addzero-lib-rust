@@ -6,15 +6,14 @@ use serde_yaml::{Mapping, Number, Value};
 use std::collections::BTreeMap;
 use url::Url;
 
-/// Parses a single supported proxy URI into a proxy node.
+/// 将单个受支持的代理 URI 解析为代理节点。
 ///
-/// Supported URI schemes include `ss`, `vmess`, `vless`, `trojan`,
-/// `hysteria2`, `hy2`, `tuic`, and `wireguard`.
+/// 支持的 URI scheme 包括 `ss`、`vmess`、`vless`、`trojan`、
+/// `hysteria2`、`hy2`、`tuic` 和 `wireguard`。
 ///
 /// # Errors
 ///
-/// Returns an error when the scheme is unsupported or the URI does not contain
-/// enough data to build a Clash-compatible proxy entry.
+/// 当 scheme 不受支持，或 URI 缺少生成 Clash 兼容代理项所需的数据时返回错误。
 pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
     let input = input.trim();
     let scheme = input
@@ -34,14 +33,13 @@ pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
     }
 }
 
-/// Parses newline-separated proxy URI subscriptions.
+/// 解析按行分隔的代理 URI 订阅。
 ///
-/// Empty lines and lines without a supported URI scheme are ignored.
+/// 空行和不包含受支持 URI scheme 的行会被忽略。
 ///
 /// # Errors
 ///
-/// Returns an error when a supported URI line is malformed, or when no usable
-/// proxy nodes are found.
+/// 当某个可识别 URI 行格式错误，或最终没有任何可用节点时返回错误。
 pub fn parse_uri_lines(input: &str) -> ProxyResult<Vec<ProxyNode>> {
     let mut nodes = Vec::new();
     for line in input.lines().map(str::trim).filter(|line| !line.is_empty()) {

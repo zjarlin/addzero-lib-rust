@@ -1,7 +1,7 @@
 use toasty_core::driver::{Capability, SchemaMutations, StorageTypes};
 use toasty_core::schema::db;
 
-/// Storage type defaults tailored for gitdb's current SQL/type support.
+/// 面向 gitdb 当前 SQL/类型能力的 Toasty 存储类型默认值。
 pub(crate) const STORAGE_TYPES_GITDB: StorageTypes = StorageTypes {
     default_string_type: db::Type::Text,
     varchar: Some(1_000_000_000),
@@ -17,13 +17,13 @@ pub(crate) const STORAGE_TYPES_GITDB: StorageTypes = StorageTypes {
     max_unsigned_integer: Some(i64::MAX as u64),
 };
 
-/// Schema mutation support currently matches gitdb's create-table-first model.
+/// Schema 变更能力声明，当前匹配 gitdb 以建表为主的模型。
 pub(crate) const SCHEMA_MUTATIONS_GITDB: SchemaMutations = SchemaMutations {
     alter_column_type: false,
     alter_column_properties_atomic: false,
 };
 
-/// Capability definition used by the Toasty planner for gitdb.
+/// Toasty planner 用于判断 gitdb driver 能力的声明。
 pub(crate) const CAPABILITY_GITDB: Capability = Capability {
     sql: true,
     storage_types: STORAGE_TYPES_GITDB,

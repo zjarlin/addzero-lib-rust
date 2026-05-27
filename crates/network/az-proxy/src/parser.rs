@@ -1,4 +1,4 @@
-//! Subscription parser dispatch for Clash YAML, direct URI lists, and base64 URI lists.
+//! 代理订阅解析分发层，负责识别 Clash YAML、明文 URI 列表和 base64 URI 列表。
 
 use crate::clash::parse_clash_yaml;
 use crate::types::{ProxyError, ProxyNode, ProxyResult};
@@ -6,40 +6,36 @@ use base64::Engine;
 
 automod::dir!(pub "src/parser");
 
-/// Parses a single supported proxy URI into a proxy node.
+/// 将单个受支持的代理 URI 解析为代理节点。
 ///
-/// Supported URI schemes include `ss`, `vmess`, `vless`, `trojan`,
-/// `hysteria2`, `hy2`, `tuic`, and `wireguard`.
+/// 支持的 URI scheme 包括 `ss`、`vmess`、`vless`、`trojan`、
+/// `hysteria2`、`hy2`、`tuic` 和 `wireguard`。
 ///
 /// # Errors
 ///
-/// Returns an error when the scheme is unsupported or the URI does not contain
-/// enough data to build a Clash-compatible proxy entry.
+/// 当 scheme 不受支持，或 URI 缺少生成 Clash 兼容代理项所需的数据时返回错误。
 pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
     uri::parse_proxy_uri(input)
 }
 
-/// Parses newline-separated proxy URI subscriptions.
+/// 解析按行分隔的代理 URI 订阅。
 ///
-/// Empty lines and lines without a supported URI scheme are ignored.
+/// 空行和不包含受支持 URI scheme 的行会被忽略。
 ///
 /// # Errors
 ///
-/// Returns an error when a supported URI line is malformed, or when no usable
-/// proxy nodes are found.
+/// 当某个可识别 URI 行格式错误，或最终没有任何可用节点时返回错误。
 pub fn parse_uri_lines(input: &str) -> ProxyResult<Vec<ProxyNode>> {
     uri::parse_uri_lines(input)
 }
 
-/// Parses subscription text into supported proxy nodes.
+/// 将订阅文本解析为受支持的代理节点。
 ///
-/// `content_type` is optional and is used only as a hint. The response body is
-/// still inspected so subscriptions with incorrect headers can be parsed.
+/// `content_type` 只是辅助提示；函数仍会检查正文内容，因此响应头错误的订阅也能被识别。
 ///
 /// # Errors
 ///
-/// Returns an error when the body is empty, has invalid YAML for an apparent
-/// YAML subscription, has invalid URI data, or contains no usable proxy nodes.
+/// 当正文为空、疑似 YAML 但 YAML 非法、URI 数据非法，或没有任何可用节点时返回错误。
 pub fn parse_subscription(body: &str, content_type: Option<&str>) -> ProxyResult<Vec<ProxyNode>> {
     let trimmed = body.trim();
     if trimmed.is_empty() {

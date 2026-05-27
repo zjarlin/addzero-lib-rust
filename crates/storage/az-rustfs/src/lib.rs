@@ -26,27 +26,27 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-/// Namespace-style entry point for constructing S3-compatible storage clients.
+/// 构造 S3 兼容对象存储客户端的命名空间入口。
 #[apply(plain_default_copy_eq)]
 pub struct Rustfs;
 
 impl Rustfs {
-    /// Creates a storage client from explicit S3-compatible configuration.
+    /// 使用显式 S3 兼容配置创建存储客户端。
     pub fn storage_client(config: impl Into<S3ClientConfig>) -> Arc<dyn S3StorageClient> {
         create_storage_client(config)
     }
 
-    /// Creates a storage client from the higher-level RustFS configuration.
+    /// 使用高层 RustFS 配置创建存储客户端。
     pub fn client(config: RustfsConfig) -> Arc<dyn S3StorageClient> {
         create_client(config)
     }
 
-    /// Creates a storage client using [`RustfsConfig::default`].
+    /// 使用 [`RustfsConfig::default`] 创建默认存储客户端。
     pub fn default_client() -> Arc<dyn S3StorageClient> {
         create_default_client()
     }
 
-    /// Creates a storage client through an injected factory.
+    /// 通过注入的工厂创建存储客户端。
     pub fn storage_client_with_factory(
         factory: &dyn S3StorageClientFactory,
         config: impl Into<S3ClientConfig>,
@@ -54,7 +54,7 @@ impl Rustfs {
         factory.create_client(config.into())
     }
 
-    /// Creates the factory-defined default storage client.
+    /// 创建工厂定义的默认存储客户端。
     pub fn default_client_with_factory(
         factory: &dyn S3StorageClientFactory,
     ) -> Arc<dyn S3StorageClient> {
@@ -62,18 +62,22 @@ impl Rustfs {
     }
 }
 
+/// 使用 S3 兼容配置创建存储客户端。
 pub fn create_storage_client(config: impl Into<S3ClientConfig>) -> Arc<dyn S3StorageClient> {
     Arc::new(BlockingS3StorageClient::new(config.into()))
 }
 
+/// 使用 RustFS 配置创建存储客户端。
 pub fn create_client(config: RustfsConfig) -> Arc<dyn S3StorageClient> {
     create_storage_client(config)
 }
 
+/// 创建默认本地存储客户端。
 pub fn create_default_client() -> Arc<dyn S3StorageClient> {
     create_storage_client(RustfsConfig::default())
 }
 
+/// 确保 bucket 存在；不存在时自动创建。
 pub fn ensure_bucket(client: &dyn S3StorageClient, bucket_name: &str) -> StorageResult<()> {
     if client.bucket_exists(bucket_name)? {
         Ok(())
@@ -82,6 +86,7 @@ pub fn ensure_bucket(client: &dyn S3StorageClient, bucket_name: &str) -> Storage
     }
 }
 
+/// 上传内存字节为对象。
 pub fn put_object_bytes(
     client: &dyn S3StorageClient,
     bucket_name: &str,
@@ -92,6 +97,7 @@ pub fn put_object_bytes(
     client.put_object_bytes(bucket_name, key, data, content_type, &BTreeMap::new())
 }
 
+/// 上传本地文件为对象。
 pub fn put_object_file(
     client: &dyn S3StorageClient,
     bucket_name: &str,
@@ -102,6 +108,7 @@ pub fn put_object_file(
     client.put_object_file(bucket_name, key, file, content_type, &BTreeMap::new())
 }
 
+/// 读取对象全部字节。
 pub fn get_object(
     client: &dyn S3StorageClient,
     bucket_name: &str,
@@ -110,6 +117,7 @@ pub fn get_object(
     client.get_object(bucket_name, key)
 }
 
+/// 删除单个对象。
 pub fn delete_object(
     client: &dyn S3StorageClient,
     bucket_name: &str,
@@ -118,6 +126,7 @@ pub fn delete_object(
     client.delete_object(bucket_name, key)
 }
 
+/// 批量删除对象。
 pub fn delete_objects(
     client: &dyn S3StorageClient,
     bucket_name: &str,
@@ -126,6 +135,7 @@ pub fn delete_objects(
     client.delete_objects(bucket_name, keys)
 }
 
+/// 判断对象是否存在。
 pub fn object_exists(
     client: &dyn S3StorageClient,
     bucket_name: &str,
@@ -134,6 +144,7 @@ pub fn object_exists(
     client.object_exists(bucket_name, key)
 }
 
+/// 按 prefix 列出对象。
 pub fn list_objects(
     client: &dyn S3StorageClient,
     bucket_name: &str,
@@ -144,6 +155,7 @@ pub fn list_objects(
     client.list_objects(bucket_name, prefix, recursive, max_keys)
 }
 
+/// 复制对象到目标 bucket/key。
 pub fn copy_object(
     client: &dyn S3StorageClient,
     source_bucket: &str,
@@ -154,6 +166,7 @@ pub fn copy_object(
     client.copy_object(source_bucket, source_key, target_bucket, target_key)
 }
 
+/// 生成对象下载预签名 URL。
 pub fn get_presigned_url(
     client: &dyn S3StorageClient,
     bucket_name: &str,

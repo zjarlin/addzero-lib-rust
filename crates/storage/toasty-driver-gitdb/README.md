@@ -37,7 +37,11 @@ let driver = GitDb::open("./my-gitdb-data");
 ```rust
 use toasty_driver_gitdb::GitDb;
 
+# fn main() -> toasty_core::Result<()> {
 let driver = GitDb::new("gitdb://./my-gitdb-data")?;
+# let _ = driver;
+# Ok(())
+# }
 ```
 
 ## SQL 支持范围

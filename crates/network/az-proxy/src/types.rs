@@ -2,128 +2,136 @@ use az_derive_aliases::{apply, error, serde_code_enum, serde_eq, serde_partial_e
 use serde_yaml::Value;
 use std::time::Duration;
 
-/// Default maximum number of concurrent TCP latency checks.
+/// TCP 延迟测试的默认并发数上限。
 pub const DEFAULT_SPEEDTEST_CONCURRENCY: usize = 10;
 
-/// Default per-node TCP connection timeout.
+/// 单个节点 TCP 连接测试的默认超时时间。
 pub const DEFAULT_SPEEDTEST_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Result alias used by all fallible `az-proxy` operations.
+/// `az-proxy` 所有可失败操作的统一结果类型。
 pub type ProxyResult<T> = Result<T, ProxyError>;
 
-/// Errors returned by subscription fetching, parsing, selection, and config generation.
+/// 订阅获取、解析、节点选择和配置生成过程中可能返回的错误。
 #[apply(error)]
 pub enum ProxyError {
-    /// The HTTP request failed or returned an unsuccessful status.
+    /// HTTP 请求失败，或服务端返回非成功状态码。
     #[error("http request failed: {0}")]
     Http(#[from] reqwest::Error),
 
-    /// The subscription body could not be parsed as YAML.
+    /// 订阅内容无法按 YAML 解析。
     #[error("yaml parse failed: {0}")]
     Yaml(#[from] serde_yaml::Error),
 
-    /// A `vmess://` JSON payload could not be parsed.
+    /// `vmess://` 中的 JSON payload 无法解析。
     #[error("json parse failed: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// A base64 subscription or URI payload could not be decoded.
+    /// base64 订阅或 URI payload 解码失败。
     #[error("base64 decode failed: {0}")]
     Base64(#[from] base64::DecodeError),
 
-    /// A proxy URI was not a valid URL for its scheme.
+    /// 代理 URI 不符合对应 scheme 的 URL 结构。
     #[error("url parse failed: {0}")]
     Url(#[from] url::ParseError),
 
-    /// A required field was absent from a proxy definition.
+    /// 代理定义缺少必需字段。
     #[error("missing required field `{0}`")]
     MissingField(&'static str),
 
-    /// A proxy type or URI scheme is not supported by this crate.
+    /// 当前 crate 不支持该代理类型或 URI scheme。
     #[error("unsupported proxy type `{0}`")]
     UnsupportedProxyType(String),
 
-    /// A proxy port was absent, out of range, or not numeric.
+    /// 代理端口缺失、超出范围或不是数字。
     #[error("invalid proxy port `{0}`")]
     InvalidPort(String),
 
-    /// A proxy URI had the expected scheme but invalid structure.
+    /// 代理 URI 的 scheme 可识别，但内部结构非法。
     #[error("invalid proxy uri: {0}")]
     InvalidUri(String),
 
-    /// The subscription body did not contain usable proxy nodes.
+    /// 订阅内容中没有可用的代理节点。
     #[error("subscription did not contain usable proxy nodes")]
     NoUsableNodes,
 
-    /// No speed test result completed successfully.
+    /// 没有任何测速结果成功完成。
     #[error("no successful speed test result")]
     NoSuccessfulSpeedTest,
 
-    /// Could not locate a Clash/Mihomo binary on the system.
+    /// 无法在系统中找到 Clash/Mihomo 可执行文件。
     #[error("could not find Clash/Mihomo binary; set CLASH_BINARY env var")]
     ClashBinaryNotFound,
 
-    /// Clash process management error.
+    /// Clash 进程管理错误。
     #[error("clash process error: {0}")]
     ClashProcess(String),
 }
 
-/// Supported proxy node types.
+/// 当前支持的代理节点类型。
 #[apply(serde_code_enum)]
 pub enum ProxyType {
-    /// Shadowsocks proxy node.
+    /// Shadowsocks 代理节点。
     #[strum(serialize = "ss", serialize = "shadowsocks")]
     Ss,
-    /// VMess proxy node.
+    /// VMess 代理节点。
     Vmess,
-    /// VLESS proxy node.
+    /// VLESS 代理节点。
     Vless,
-    /// Trojan proxy node.
+    /// Trojan 代理节点。
     Trojan,
-    /// Hysteria2 or `hy2` proxy node.
+    /// Hysteria2 或 `hy2` 代理节点。
     #[strum(serialize = "hysteria2", serialize = "hy2")]
     Hysteria2,
-    /// TUIC proxy node.
+    /// TUIC 代理节点。
     Tuic,
-    /// WireGuard proxy node.
+    /// WireGuard 代理节点。
     Wireguard,
 }
 
 impl ProxyType {
-    /// Returns the Clash YAML `type` string for this proxy type.
+    /// 返回 Clash YAML 中使用的规范 `type` 字符串。
     pub fn as_clash_str(self) -> &'static str {
-        self.code()
+        match self {
+            Self::Ss => "ss",
+            Self::Vmess => "vmess",
+            Self::Vless => "vless",
+            Self::Trojan => "trojan",
+            Self::Hysteria2 => "hysteria2",
+            Self::Tuic => "tuic",
+            Self::Wireguard => "wireguard",
+        }
     }
 
-    /// Parses a Clash YAML `type` string into a supported proxy type.
+    /// 将 Clash YAML 的 `type` 字符串解析为受支持的代理类型。
     pub fn from_clash_type(value: &str) -> Option<Self> {
         value.trim().to_ascii_lowercase().parse().ok()
     }
 
-    /// Parses a URI scheme into a supported proxy type.
+    /// 将 URI scheme 解析为受支持的代理类型。
     pub fn from_uri_scheme(value: &str) -> Option<Self> {
         Self::from_clash_type(value)
     }
 }
 
-/// A normalized proxy node parsed from Clash YAML or a proxy URI.
+/// 从 Clash YAML 或代理 URI 归一化后的代理节点。
 #[apply(serde_partial_eq)]
 pub struct ProxyNode {
-    /// Human-readable node name from YAML or URI fragment.
+    /// 来自 YAML 或 URI fragment 的可读节点名称。
     pub name: String,
-    /// Normalized proxy type.
+    /// 归一化后的代理类型。
     pub node_type: ProxyType,
-    /// Proxy server hostname or IP address.
+    /// 代理服务器主机名或 IP 地址。
     pub server: String,
-    /// Proxy TCP port.
+    /// 代理 TCP 端口。
     pub port: u16,
-    /// Best-effort country or region code parsed from the node name.
+    /// 从节点名称中尽力解析出的国家或地区代码。
     pub country: Option<String>,
-    /// Original YAML proxy value, or a generated Clash-compatible YAML value for URI inputs.
+    /// 原始 YAML 代理配置；若来源是 URI，则为生成的 Clash 兼容 YAML 值。
     pub raw: Value,
 }
 
 impl ProxyNode {
-    /// Creates a proxy node and derives its country or region from the name.
+    /// 创建代理节点，并根据名称推断国家或地区代码。
     pub fn new(
         name: impl Into<String>,
         node_type: ProxyType,
@@ -143,16 +151,16 @@ impl ProxyNode {
     }
 }
 
-/// Result of one TCP connection latency test.
+/// 单个 TCP 连接延迟测试结果。
 #[apply(serde_eq)]
 pub struct SpeedTestResult {
-    /// Index of the tested node in the original node slice.
+    /// 被测节点在原始节点列表中的下标。
     pub node_index: usize,
-    /// TCP connect latency in milliseconds when the test succeeded.
+    /// 测试成功时的 TCP 连接耗时，单位毫秒。
     pub latency_ms: Option<u128>,
-    /// Whether the TCP connection completed before timeout.
+    /// TCP 连接是否在超时前完成。
     pub success: bool,
-    /// Error message when the test failed.
+    /// 测试失败时的错误信息。
     pub error_msg: Option<String>,
 }
 

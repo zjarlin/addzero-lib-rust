@@ -6,12 +6,11 @@ use tokio::net::TcpStream;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 
-/// Runs TCP connection latency tests for every proxy node.
+/// 对每个代理节点执行 TCP 连接延迟测试。
 ///
-/// `concurrency` values of `0` fall back to [`DEFAULT_SPEEDTEST_CONCURRENCY`].
-/// `timeout` values of `0ms` fall back to [`DEFAULT_SPEEDTEST_TIMEOUT`].
-/// Returned results are sorted by successful latency ascending, with failures
-/// placed after successful results.
+/// `concurrency` 为 `0` 时回退到 [`DEFAULT_SPEEDTEST_CONCURRENCY`]；
+/// `timeout` 为 `0ms` 时回退到 [`DEFAULT_SPEEDTEST_TIMEOUT`]。
+/// 返回结果按成功连接的延迟从低到高排序，失败结果排在成功结果之后。
 pub async fn batch_speed_test(
     nodes: &[ProxyNode],
     concurrency: usize,
