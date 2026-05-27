@@ -1,6 +1,7 @@
 use az_derive_aliases::{
-    apply, deserialize_camel_eq, deserialize_eq, deserialize_partial_eq, plain_copy_eq, plain_eq,
-    serde_camel_partial_eq, serde_code_enum, serialize_camel_eq, serialize_eq,
+    apply, deserialize_camel_eq, deserialize_eq, deserialize_partial_eq, impl_default,
+    plain_copy_eq, plain_eq, serde_camel_partial_eq, serde_code_enum, serialize_camel_eq,
+    serialize_eq,
 };
 use serde_json::Value;
 
@@ -39,14 +40,10 @@ impl PageRequest {
     }
 }
 
-impl Default for PageRequest {
-    fn default() -> Self {
-        Self {
-            limit: 20,
-            offset: 0,
-        }
-    }
-}
+impl_default!(PageRequest => PageRequest {
+    limit: 20,
+    offset: 0,
+});
 
 /// Provider-neutral request for creating a mailbox.
 #[apply(plain_eq)]

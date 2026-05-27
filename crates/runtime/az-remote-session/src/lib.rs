@@ -11,7 +11,7 @@
 
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, error_eq, plain_clone_debug, plain_default_debug};
+use az_derive_aliases::{apply, error_eq, impl_default, plain_clone_debug, plain_default_debug};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, DeviceId, FileTransferEnvelope, OnlineStatus, SessionGrant,
     SessionId, SessionRequest, SessionState, SessionSummary, VideoFrameEnvelope,
@@ -40,15 +40,11 @@ pub struct RelayRuntimeConfig {
     pub idle_timeout_secs: u64,
 }
 
-impl Default for RelayRuntimeConfig {
-    fn default() -> Self {
-        Self {
-            bind_addr: "127.0.0.1:7443".into(),
-            max_concurrent_sessions: VarInt::from_u32(64).into_inner() as u32,
-            idle_timeout_secs: 30,
-        }
-    }
-}
+impl_default!(RelayRuntimeConfig => RelayRuntimeConfig {
+    bind_addr: "127.0.0.1:7443".into(),
+    max_concurrent_sessions: VarInt::from_u32(64).into_inner() as u32,
+    idle_timeout_secs: 30,
+});
 
 #[apply(plain_default_debug)]
 pub struct RemoteRelayService {

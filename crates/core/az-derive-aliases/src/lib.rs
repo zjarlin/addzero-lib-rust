@@ -277,6 +277,18 @@ macro_rules! impl_from_match {
     };
 }
 
+/// Implements `Default` by returning an explicit expression.
+#[macro_export]
+macro_rules! impl_default {
+    ($target:ty => $expr:expr $(,)?) => {
+        impl Default for $target {
+            fn default() -> Self {
+                $expr
+            }
+        }
+    };
+}
+
 /// Implements `From` for structs where one field comes from the source and the rest use `Default`.
 #[macro_export]
 macro_rules! impl_from_with_default {

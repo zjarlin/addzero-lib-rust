@@ -1,5 +1,5 @@
 use crate::{GmailCodeError, GmailCodeResult, GmailMessage, GmailMessagePart};
-use az_derive_aliases::{apply, plain_copy_eq, plain_eq};
+use az_derive_aliases::{apply, impl_default, plain_copy_eq, plain_eq};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE;
 use regex::Regex;
@@ -44,14 +44,10 @@ impl ExtractCodeOptions {
     }
 }
 
-impl Default for ExtractCodeOptions {
-    fn default() -> Self {
-        Self {
-            min_digits: 4,
-            max_digits: 8,
-        }
-    }
-}
+impl_default!(ExtractCodeOptions => ExtractCodeOptions {
+    min_digits: 4,
+    max_digits: 8,
+});
 
 /// Decoded message body candidate inspected for verification codes.
 #[apply(plain_eq)]

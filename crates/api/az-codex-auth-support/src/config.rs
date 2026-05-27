@@ -1,5 +1,5 @@
 use crate::{CodexAuthSupportError, CodexAuthSupportResult};
-use az_derive_aliases::{apply, plain_eq_redacted};
+use az_derive_aliases::{apply, impl_default, plain_eq_redacted};
 use std::time::Duration;
 
 const DEFAULT_DUCKMAIL_BASE_URL: &str = "https://api.duckmail.sbs";
@@ -22,17 +22,13 @@ pub struct DuckMailConfig {
     pub request_timeout: Duration,
 }
 
-impl Default for DuckMailConfig {
-    fn default() -> Self {
-        Self {
-            base_url: DEFAULT_DUCKMAIL_BASE_URL.to_owned(),
-            auth_token: None,
-            user_agent: Some(DEFAULT_USER_AGENT.to_owned()),
-            connect_timeout: Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS),
-            request_timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
-        }
-    }
-}
+impl_default!(DuckMailConfig => DuckMailConfig {
+    base_url: DEFAULT_DUCKMAIL_BASE_URL.to_owned(),
+    auth_token: None,
+    user_agent: Some(DEFAULT_USER_AGENT.to_owned()),
+    connect_timeout: Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS),
+    request_timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
+});
 
 impl DuckMailConfig {
     /// Starts a DuckMail configuration with the provided API base URL.

@@ -4,6 +4,8 @@
 
 use std::sync::Arc;
 
+use az_derive_aliases::impl_default;
+
 use super::error::PlanResult;
 use super::logical::{LogicalPlan, ProjectColumn};
 use super::physical::{
@@ -187,11 +189,7 @@ pub struct Optimizer {
     max_iterations: usize,
 }
 
-impl Default for Optimizer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+impl_default!(Optimizer => Optimizer::new());
 
 impl Optimizer {
     /// Create a new optimizer with default rules.

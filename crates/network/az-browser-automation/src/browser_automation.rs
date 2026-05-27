@@ -19,7 +19,9 @@ pub use crate::session::{
 };
 
 use az_context::ThreadLocalUtil;
-use az_derive_aliases::{apply, error, plain_default_copy_eq, serde_code_default_enum, serde_eq};
+use az_derive_aliases::{
+    apply, error, impl_default, plain_default_copy_eq, serde_code_default_enum, serde_eq,
+};
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
 use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
 use reqwest::blocking::Client;
@@ -168,11 +170,7 @@ pub enum BrowserMode {
     Launch,
 }
 
-impl Default for BrowserMode {
-    fn default() -> Self {
-        Self::Cdp(CdpEndpoint::default())
-    }
-}
+impl_default!(BrowserMode => BrowserMode::Cdp(CdpEndpoint::default()));
 
 /// Chrome DevTools Protocol endpoint address.
 #[apply(serde_eq)]
@@ -183,11 +181,7 @@ pub enum CdpEndpoint {
     WebSocket(String),
 }
 
-impl Default for CdpEndpoint {
-    fn default() -> Self {
-        Self::Http("http://127.0.0.1:9222".to_owned())
-    }
-}
+impl_default!(CdpEndpoint => CdpEndpoint::Http("http://127.0.0.1:9222".to_owned()));
 
 /// Form action kind for [`FormFieldDef`].
 #[apply(serde_code_default_enum)]

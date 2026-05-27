@@ -1,5 +1,7 @@
 use crate::error::{SmsError, SmsResult};
-use az_derive_aliases::{apply, plain_copy_eq, serde_eq, serde_partial_eq, serde_upper_eq};
+use az_derive_aliases::{
+    apply, impl_default, plain_copy_eq, serde_eq, serde_partial_eq, serde_upper_eq,
+};
 use serde::Deserialize;
 use serde::de::{self, Deserializer};
 use std::time::Duration;
@@ -251,14 +253,10 @@ pub struct WaitForSmsOptions {
     pub interval: Duration,
 }
 
-impl Default for WaitForSmsOptions {
-    fn default() -> Self {
-        Self {
-            timeout: Duration::from_secs(300),
-            interval: Duration::from_secs(5),
-        }
-    }
-}
+impl_default!(WaitForSmsOptions => WaitForSmsOptions {
+    timeout: Duration::from_secs(300),
+    interval: Duration::from_secs(5),
+});
 
 impl WaitForSmsOptions {
     /// Create polling options and validate that both durations are non-zero.
