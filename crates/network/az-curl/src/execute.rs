@@ -1,7 +1,7 @@
 use crate::error::{CurlError, CurlResult};
 use crate::model::ParsedCurl;
 use crate::parse::parse_curl;
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
+use az_derive_aliases::{apply, impl_default, plain_clone_debug, plain_eq};
 use reqwest::blocking::multipart::Form;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -46,21 +46,15 @@ pub(crate) struct CurlExecutor {
     client: reqwest::blocking::Client,
 }
 
-impl Default for CurlExecutor {
-    fn default() -> Self {
-        let client = reqwest::blocking::Client::builder()
-            .connect_timeout(Duration::from_secs(30))
-            .timeout(Duration::from_secs(30))
-            .build()
-            .expect("blocking reqwest client should build");
-
-        Self { client }
-    }
-}
+impl_default!(CurlExecutor => CurlExecutor::with_client(default_client()));
 
 impl CurlExecutor {
     pub(crate) fn new() -> Self {
         Self::default()
+    }
+
+    pub(crate) fn with_client(client: reqwest::blocking::Client) -> Self {
+        Self { client }
     }
 
     pub(crate) fn execute(&self, curl: impl AsRef<str>) -> CurlResult<CurlResponse> {
@@ -124,10 +118,42 @@ impl CurlExecutor {
     }
 }
 
+fn default_client() -> reqwest::blocking::Client {
+    reqwest::blocking::Client::builder()
+        .connect_timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("blocking reqwest client should build")
+}
+
 /// Executes a curl command with a default blocking HTTP client.
 ///
 /// Use this when the caller does not need to reuse an HTTP client across
 /// multiple requests.
 pub fn execute_curl(curl: impl AsRef<str>) -> CurlResult<CurlResponse> {
     CurlExecutor::new().execute(curl)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn executor_accepts_injected_blocking_client() {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent("az-curl-test")
+            .build()
+            .expect("test client should build");
+        let executor = CurlExecutor::with_client(client);
+        let parsed = parse_curl("curl https://example.test -H 'x-test: yes'")
+            .expect("curl command should parse");
+
+        let request = executor
+            .build_request(&parsed)
+            .expect("request should build without executing network IO");
+
+        assert_eq!(request.url().as_str(), "https://example.test/");
+        assert_eq!(request.headers()["x-test"], "yes");
+    }
 }
