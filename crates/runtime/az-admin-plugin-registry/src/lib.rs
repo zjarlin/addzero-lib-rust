@@ -270,8 +270,10 @@ macro_rules! register_admin_domain {
 }
 
 #[macro_export]
-macro_rules! register_admin_branch {
+#[doc(hidden)]
+macro_rules! __register_admin_navigation {
     (
+        kind: $kind:expr,
         id: $id:expr,
         domain: $domain_id:expr,
         parent: $parent_id:expr,
@@ -283,7 +285,7 @@ macro_rules! register_admin_branch {
     ) => {
         $crate::inventory::submit! {
             $crate::AdminNavigationRegistration {
-                kind: $crate::AdminNavigationKind::Branch,
+                kind: $kind,
                 id: $id,
                 domain_id: $domain_id,
                 parent_id: $parent_id,
@@ -293,6 +295,32 @@ macro_rules! register_admin_branch {
                 active_patterns: $active_patterns,
                 permissions_any_of: $permissions_any_of,
             }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! register_admin_branch {
+    (
+        id: $id:expr,
+        domain: $domain_id:expr,
+        parent: $parent_id:expr,
+        label: $label:expr,
+        order: $order:expr,
+        href: $href:expr,
+        active_patterns: $active_patterns:expr,
+        permissions_any_of: $permissions_any_of:expr $(,)?
+    ) => {
+        $crate::__register_admin_navigation! {
+            kind: $crate::AdminNavigationKind::Branch,
+            id: $id,
+            domain: $domain_id,
+            parent: $parent_id,
+            label: $label,
+            order: $order,
+            href: $href,
+            active_patterns: $active_patterns,
+            permissions_any_of: $permissions_any_of,
         }
     };
 }
@@ -309,18 +337,16 @@ macro_rules! register_admin_page {
         active_patterns: $active_patterns:expr,
         permissions_any_of: $permissions_any_of:expr $(,)?
     ) => {
-        $crate::inventory::submit! {
-            $crate::AdminNavigationRegistration {
-                kind: $crate::AdminNavigationKind::Page,
-                id: $id,
-                domain_id: $domain_id,
-                parent_id: $parent_id,
-                label: $label,
-                order: $order,
-                href: $href,
-                active_patterns: $active_patterns,
-                permissions_any_of: $permissions_any_of,
-            }
+        $crate::__register_admin_navigation! {
+            kind: $crate::AdminNavigationKind::Page,
+            id: $id,
+            domain: $domain_id,
+            parent: $parent_id,
+            label: $label,
+            order: $order,
+            href: $href,
+            active_patterns: $active_patterns,
+            permissions_any_of: $permissions_any_of,
         }
     };
 }
