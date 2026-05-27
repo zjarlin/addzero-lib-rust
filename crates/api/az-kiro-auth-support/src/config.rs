@@ -1,5 +1,5 @@
 use crate::{KiroAuthSupportError, KiroAuthSupportResult};
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
+use az_derive_aliases::{apply, plain_default_clone_debug, plain_eq};
 use std::time::Duration;
 
 const DEFAULT_OIDC_BASE_URL: &str = "https://oidc.us-east-1.amazonaws.com";
@@ -93,17 +93,9 @@ impl KiroOidcConfig {
 }
 
 /// Builder for [`KiroOidcConfig`].
-#[apply(plain_clone_debug)]
+#[apply(plain_default_clone_debug)]
 pub struct KiroOidcConfigBuilder {
     config: KiroOidcConfig,
-}
-
-impl Default for KiroOidcConfigBuilder {
-    fn default() -> Self {
-        Self {
-            config: KiroOidcConfig::default(),
-        }
-    }
 }
 
 impl KiroOidcConfigBuilder {
