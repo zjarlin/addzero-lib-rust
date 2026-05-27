@@ -1,15 +1,15 @@
 use az_derive_aliases::{
     apply, clap_code_enum, clap_value_enum, deserialize_camel_clone_debug, deserialize_camel_eq,
-    error_copy_eq, from_copy_eq_display, impl_from_str_parse, impl_from_with_default,
-    impl_try_from_str_parse, plain_code_default_enum, plain_code_display_message_no_default_enum,
-    plain_code_display_no_default_enum, plain_code_enum, plain_copy_eq_hash,
-    plain_copy_eq_hash_display, plain_copy_eq_hash_ord_display, plain_default_copy_eq,
-    plain_default_copy_eq_display, plain_eq_hash_display, serde_camel_eq_default,
-    serde_camel_partial_eq_default, serde_code_default_ord_display_enum, serde_code_enum,
-    serde_code_ord_display_enum, serde_code_partial_eq, serde_eq_copy_display,
-    serde_eq_hash_display, serde_eq_hash_ord_display_as_ref, serde_kebab_code_enum, serde_kebab_eq,
-    serde_lower_code_enum, serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug,
-    serialize_camel_eq,
+    error_copy_eq, from_copy_eq_display, impl_enum_kind, impl_from_str_parse,
+    impl_from_with_default, impl_try_from_str_parse, plain_code_default_enum,
+    plain_code_display_message_no_default_enum, plain_code_display_no_default_enum,
+    plain_code_enum, plain_copy_eq_hash, plain_copy_eq_hash_display,
+    plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
+    plain_eq_hash_display, serde_camel_eq_default, serde_camel_partial_eq_default,
+    serde_code_default_ord_display_enum, serde_code_enum, serde_code_ord_display_enum,
+    serde_code_partial_eq, serde_eq_copy_display, serde_eq_hash_display,
+    serde_eq_hash_ord_display_as_ref, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
+    serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
 };
 use clap::ValueEnum;
 use serde_json::Value;
@@ -123,6 +123,26 @@ enum PlainDisplayMessageCode {
     #[strum(message = "Readable message body")]
     ReadableMessageLabel,
 }
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum RoutedConfigKind {
+    Local,
+    Remote,
+    Disabled,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum RoutedConfig {
+    Local(String),
+    Remote { endpoint: String },
+    Disabled,
+}
+
+impl_enum_kind!(RoutedConfig => RoutedConfigKind, kind {
+    Self::Local(_) => RoutedConfigKind::Local,
+    Self::Remote { .. } => RoutedConfigKind::Remote,
+    Self::Disabled => RoutedConfigKind::Disabled,
+});
 
 #[apply(serialize_camel_eq)]
 struct CamelWrite {
@@ -377,6 +397,18 @@ fn display_message_code_alias_reuses_display_code_layer() {
         PlainDisplayMessageCode::ReadableMessageLabel.get_message(),
         Some("Readable message body")
     );
+}
+
+#[test]
+fn impl_enum_kind_generates_const_variant_mapping() {
+    let local = RoutedConfig::Local("/tmp/local".to_owned());
+    let remote = RoutedConfig::Remote {
+        endpoint: "https://example.test".to_owned(),
+    };
+
+    assert_eq!(local.kind(), RoutedConfigKind::Local);
+    assert_eq!(remote.kind(), RoutedConfigKind::Remote);
+    assert_eq!(RoutedConfig::Disabled.kind(), RoutedConfigKind::Disabled);
 }
 
 #[test]

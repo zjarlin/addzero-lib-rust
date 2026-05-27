@@ -37,8 +37,8 @@
 //! send_with_config(&config, &message).unwrap();
 //! ```
 use az_derive_aliases::{
-    apply, error, from_plain_eq, plain_clone_debug, plain_default_copy_eq, plain_default_eq,
-    plain_eq_redacted, serde_code_enum,
+    apply, error, from_plain_eq, impl_enum_kind, plain_clone_debug, plain_default_copy_eq,
+    plain_default_eq, plain_eq_redacted, serde_code_enum,
 };
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
@@ -256,14 +256,9 @@ pub enum EmailSenderConfig {
     Smtp(EmailConfig),
 }
 
-impl EmailSenderConfig {
-    #[must_use]
-    pub const fn kind(&self) -> EmailSenderKind {
-        match self {
-            Self::Smtp(_) => EmailSenderKind::Smtp,
-        }
-    }
-}
+impl_enum_kind!(EmailSenderConfig => EmailSenderKind, kind {
+    Self::Smtp(_) => EmailSenderKind::Smtp,
+});
 
 pub trait EmailSenderFactory: Send + Sync {
     fn build_sender(&self, config: EmailSenderConfig) -> Result<BoxEmailSender, EmailError>;

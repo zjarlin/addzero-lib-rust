@@ -7,7 +7,7 @@ use crate::model::{
     CreateMailboxRequest, ListResponse, PageRequest, TempMailMailbox, TempMailMessageDetail,
     TempMailMessageSummary, TempMailProviderKind,
 };
-use az_derive_aliases::{apply, plain_default_copy_eq, plain_eq};
+use az_derive_aliases::{apply, impl_enum_kind, plain_default_copy_eq, plain_eq};
 
 /// Configuration for one built-in temporary email provider.
 #[apply(plain_eq)]
@@ -20,17 +20,11 @@ pub enum TempMailProviderConfig {
     Emailnator(ApiConfig),
 }
 
-impl TempMailProviderConfig {
-    /// Return the provider kind represented by this config.
-    #[must_use]
-    pub const fn kind(&self) -> TempMailProviderKind {
-        match self {
-            Self::Cloudflare(_) => TempMailProviderKind::Cloudflare,
-            Self::MailTm(_) => TempMailProviderKind::MailTm,
-            Self::Emailnator(_) => TempMailProviderKind::Emailnator,
-        }
-    }
-}
+impl_enum_kind!(TempMailProviderConfig => TempMailProviderKind, kind {
+    Self::Cloudflare(_) => TempMailProviderKind::Cloudflare,
+    Self::MailTm(_) => TempMailProviderKind::MailTm,
+    Self::Emailnator(_) => TempMailProviderKind::Emailnator,
+});
 
 /// Common receive-mail contract for temporary email providers.
 ///

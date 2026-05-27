@@ -277,6 +277,21 @@ macro_rules! impl_from_match {
     };
 }
 
+/// Implements a const inherent method that maps enum config patterns to kind expressions.
+#[macro_export]
+macro_rules! impl_enum_kind {
+    ($source:ty => $target:ty, $method:ident { $($pattern:pat => $kind:expr),+ $(,)? }) => {
+        impl $source {
+            #[must_use]
+            pub const fn $method(&self) -> $target {
+                match self {
+                    $($pattern => $kind,)+
+                }
+            }
+        }
+    };
+}
+
 /// Implements `Default` by returning an explicit expression.
 #[macro_export]
 macro_rules! impl_default {

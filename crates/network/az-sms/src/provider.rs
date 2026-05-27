@@ -4,7 +4,9 @@ use crate::grizzlysms::{GrizzlySmsClient, GrizzlySmsConfig};
 use crate::model::{
     SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsOrder, WaitForSmsOptions,
 };
-use az_derive_aliases::{apply, from_plain_eq, plain_default_copy_eq, serde_code_enum};
+use az_derive_aliases::{
+    apply, from_plain_eq, impl_enum_kind, plain_default_copy_eq, serde_code_enum,
+};
 use std::time::Instant;
 
 /// Built-in SMS provider identifiers.
@@ -27,16 +29,10 @@ pub enum SmsProviderConfig {
     GrizzlySms(GrizzlySmsConfig),
 }
 
-impl SmsProviderConfig {
-    /// Return the provider kind represented by this config.
-    #[must_use]
-    pub const fn kind(&self) -> SmsProviderKind {
-        match self {
-            Self::Fivesim(_) => SmsProviderKind::Fivesim,
-            Self::GrizzlySms(_) => SmsProviderKind::GrizzlySms,
-        }
-    }
-}
+impl_enum_kind!(SmsProviderConfig => SmsProviderKind, kind {
+    Self::Fivesim(_) => SmsProviderKind::Fivesim,
+    Self::GrizzlySms(_) => SmsProviderKind::GrizzlySms,
+});
 
 /// Boxed provider object used at application boundaries.
 pub type BoxSmsProvider = Box<dyn SmsProvider + Send + Sync>;
