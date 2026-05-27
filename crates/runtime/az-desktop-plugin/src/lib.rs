@@ -7,7 +7,9 @@ use az_assets::{
     AiModelProvider, AiModelProviderUpsert, AiProviderKind, Asset, AssetGraph, AssetKind,
     AssetUpsert,
 };
-use az_derive_aliases::{apply, plain_clone, plain_code_enum, plain_default_eq, plain_eq};
+use az_derive_aliases::{
+    apply, impl_from_match, plain_clone, plain_code_enum, plain_default_eq, plain_eq,
+};
 use az_drive_agent::{
     HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem, TrackedItem,
 };
@@ -315,17 +317,15 @@ pub struct DesktopHostRegistry {
     summary_cards: Vec<DesktopSummaryCardRegistration>,
 }
 
-impl From<DesktopContributions> for DesktopHostRegistry {
-    fn from(value: DesktopContributions) -> Self {
-        Self {
-            domains: dedupe_and_sort_domains(value.domains),
-            branches: dedupe_and_sort_branches(value.branches),
-            pages: dedupe_and_sort_pages(value.pages),
-            toolbar_actions: sort_toolbar_actions(value.toolbar_actions),
-            summary_cards: sort_summary_cards(value.summary_cards),
-        }
+impl_from_match!(DesktopContributions => DesktopHostRegistry {
+    value => DesktopHostRegistry {
+        domains: dedupe_and_sort_domains(value.domains),
+        branches: dedupe_and_sort_branches(value.branches),
+        pages: dedupe_and_sort_pages(value.pages),
+        toolbar_actions: sort_toolbar_actions(value.toolbar_actions),
+        summary_cards: sort_summary_cards(value.summary_cards),
     }
-}
+});
 
 impl DesktopHostRegistry {
     #[must_use]

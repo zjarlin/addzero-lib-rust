@@ -1,7 +1,7 @@
 use crate::http::HttpApiClient;
 use crate::util::non_blank;
 use crate::{ApiConfig, CreatesResult};
-use az_derive_aliases::{apply, deserialize_debug, plain_clone_debug, serde_eq};
+use az_derive_aliases::{apply, deserialize_debug, impl_from_match, plain_clone_debug, serde_eq};
 
 #[apply(serde_eq)]
 pub struct MavenArtifact {
@@ -250,16 +250,14 @@ struct MavenSearchDocument {
     timestamp: Option<i64>,
 }
 
-impl From<MavenSearchDocument> for MavenArtifact {
-    fn from(value: MavenSearchDocument) -> Self {
-        Self {
-            id: value.id,
-            group_id: value.group_id,
-            artifact_id: value.artifact_id,
-            latest_version: value.latest_version,
-            version: value.version,
-            packaging: value.packaging,
-            timestamp: value.timestamp,
-        }
+impl_from_match!(MavenSearchDocument => MavenArtifact {
+    value => MavenArtifact {
+        id: value.id,
+        group_id: value.group_id,
+        artifact_id: value.artifact_id,
+        latest_version: value.latest_version,
+        version: value.version,
+        packaging: value.packaging,
+        timestamp: value.timestamp,
     }
-}
+});

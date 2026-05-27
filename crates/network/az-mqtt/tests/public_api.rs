@@ -82,6 +82,12 @@ fn mqtt_config_builder_persists_custom_tls_paths() {
 #[test]
 fn mqtt_qos_exposes_machine_codes() {
     assert_eq!(MqttQoS::AtMostOnce.code(), "at_most_once");
-    assert_eq!(MqttQoS::from_code("at_least_once"), Some(MqttQoS::AtLeastOnce));
-    assert_eq!(rumqttc::QoS::from(MqttQoS::ExactlyOnce), rumqttc::QoS::ExactlyOnce);
+    assert_eq!(
+        MqttQoS::from_code("at_least_once"),
+        Some(MqttQoS::AtLeastOnce)
+    );
+    assert_eq!(
+        rumqttc::QoS::from(MqttQoS::ExactlyOnce),
+        rumqttc::QoS::ExactlyOnce
+    );
 }

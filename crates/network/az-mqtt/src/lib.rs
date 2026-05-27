@@ -662,18 +662,16 @@ fn read_file_bytes(path: impl AsRef<Path>) -> MqttResult<Vec<u8>> {
     })
 }
 
-impl From<rumqttc::Publish> for MqttReceivedMessage {
-    fn from(value: rumqttc::Publish) -> Self {
-        Self {
-            topic: value.topic,
-            payload: value.payload.to_vec(),
-            qos: value.qos.into(),
-            retain: value.retain,
-            duplicate: value.dup,
-            packet_id: (value.pkid != 0).then_some(value.pkid),
-        }
+impl_from_match!(rumqttc::Publish => MqttReceivedMessage {
+    value => MqttReceivedMessage {
+        topic: value.topic,
+        payload: value.payload.to_vec(),
+        qos: value.qos.into(),
+        retain: value.retain,
+        duplicate: value.dup,
+        packet_id: (value.pkid != 0).then_some(value.pkid),
     }
-}
+});
 
 #[cfg(test)]
 mod debug_redaction_tests {

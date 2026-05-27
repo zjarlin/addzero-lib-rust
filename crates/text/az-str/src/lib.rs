@@ -1,7 +1,9 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, from_display, plain_code_display_no_default_enum, plain_eq};
+use az_derive_aliases::{
+    apply, from_display, impl_from_match, plain_code_display_no_default_enum, plain_eq,
+};
 use deunicode::deunicode;
 use regex::Regex;
 use std::collections::HashMap;
@@ -87,17 +89,13 @@ impl FormatArg {
     }
 }
 
-impl From<isize> for FormatArg {
-    fn from(value: isize) -> Self {
-        Self::Integer(value as i64)
-    }
-}
+impl_from_match!(isize => FormatArg {
+    value => FormatArg::Integer(value as i64)
+});
 
-impl From<usize> for FormatArg {
-    fn from(value: usize) -> Self {
-        Self::Unsigned(value as u64)
-    }
-}
+impl_from_match!(usize => FormatArg {
+    value => FormatArg::Unsigned(value as u64)
+});
 
 pub fn clean_blank(input: Option<&str>) -> String {
     let Some(input) = input else {

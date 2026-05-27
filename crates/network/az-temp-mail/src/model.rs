@@ -1,7 +1,7 @@
 use az_derive_aliases::{
     apply, deserialize_camel_eq, deserialize_eq, deserialize_partial_eq, impl_default,
-    plain_copy_eq, plain_eq, serde_camel_partial_eq, serde_code_enum, serialize_camel_eq,
-    serialize_eq,
+    impl_from_match, plain_copy_eq, plain_eq, serde_camel_partial_eq, serde_code_enum,
+    serialize_camel_eq, serialize_eq,
 };
 use serde_json::Value;
 
@@ -217,16 +217,14 @@ impl NewAddressRequest {
     }
 }
 
-impl From<&CreateMailboxRequest> for NewAddressRequest {
-    fn from(value: &CreateMailboxRequest) -> Self {
-        Self {
-            name: value.name.clone(),
-            domain: value.domain.clone(),
-            cf_token: value.cf_token.clone(),
-            enable_random_subdomain: Some(value.enable_random_subdomain),
-        }
+impl_from_match!(&CreateMailboxRequest => NewAddressRequest {
+    value => NewAddressRequest {
+        name: value.name.clone(),
+        domain: value.domain.clone(),
+        cf_token: value.cf_token.clone(),
+        enable_random_subdomain: Some(value.enable_random_subdomain),
     }
-}
+});
 
 /// Address credential returned by `/api/new_address` and `/api/address_login`.
 #[apply(deserialize_eq)]
@@ -325,18 +323,16 @@ pub struct TempMailMessageSummary {
     pub created_at: String,
 }
 
-impl From<MailRow> for TempMailMessageSummary {
-    fn from(value: MailRow) -> Self {
-        Self {
-            id: value.id.to_string(),
-            from_address: value.source.unwrap_or_default(),
-            from_name: String::new(),
-            subject: extract_raw_subject(value.raw.as_deref()).unwrap_or_default(),
-            intro: String::new(),
-            created_at: value.created_at.unwrap_or_default(),
-        }
+impl_from_match!(MailRow => TempMailMessageSummary {
+    value => TempMailMessageSummary {
+        id: value.id.to_string(),
+        from_address: value.source.unwrap_or_default(),
+        from_name: String::new(),
+        subject: extract_raw_subject(value.raw.as_deref()).unwrap_or_default(),
+        intro: String::new(),
+        created_at: value.created_at.unwrap_or_default(),
     }
-}
+});
 
 /// Provider-neutral message detail.
 #[apply(plain_eq)]
@@ -352,10 +348,10 @@ pub struct TempMailMessageDetail {
     pub created_at: String,
 }
 
-impl From<MailRow> for TempMailMessageDetail {
-    fn from(value: MailRow) -> Self {
+impl_from_match!(MailRow => TempMailMessageDetail {
+    value => {
         let subject = extract_raw_subject(value.raw.as_deref()).unwrap_or_default();
-        Self {
+        TempMailMessageDetail {
             id: value.id.to_string(),
             from_address: value.source.unwrap_or_default(),
             from_name: String::new(),
@@ -375,7 +371,7 @@ impl From<MailRow> for TempMailMessageDetail {
             created_at: value.created_at.unwrap_or_default(),
         }
     }
-}
+});
 
 /// Provider-neutral email recipient.
 #[apply(plain_eq)]
