@@ -9,76 +9,76 @@
 //! - [`Pageable`] — 分页请求参数
 //! - [`PageResult`] — 分页响应容器
 
-use az_derive_aliases::{apply, plain_debug, serde_eq};
+use az_derive_aliases::{apply, serde_eq};
 use chrono::{DateTime, Utc};
 
-/// An entity with a primary key of type `Id`.
+/// 带主键的实体抽象。
 pub trait Identifiable {
-    /// The type of the identifier.
+    /// 主键的类型。
     type Id;
 
-    /// Returns a reference to the entity's identifier.
+    /// 返回实体主键引用。
     fn id(&self) -> &Self::Id;
 }
 
-/// An entity that tracks creation and last-updated timestamps.
+/// 记录创建时间和最后更新时间的实体抽象。
 pub trait Timestamped {
-    /// Returns the creation timestamp, if known.
+    /// 返回创建时间；未知时返回 `None`。
     fn created_at(&self) -> Option<DateTime<Utc>>;
 
-    /// Returns the last-updated timestamp, if known.
+    /// 返回最后更新时间；未知时返回 `None`。
     fn updated_at(&self) -> Option<DateTime<Utc>>;
 }
 
-/// An entity that supports soft deletion via a `deleted_at` timestamp.
+/// 通过 `deleted_at` 时间戳表达软删除状态的实体抽象。
 pub trait SoftDeletable {
-    /// Returns the deletion timestamp, or `None` if not deleted.
+    /// 返回删除时间；未删除时返回 `None`。
     fn deleted_at(&self) -> Option<DateTime<Utc>>;
 
-    /// Returns `true` if this entity has been soft-deleted.
+    /// 判断实体是否已被软删除。
     fn is_deleted(&self) -> bool {
         self.deleted_at().is_some()
     }
 }
 
-/// An entity that tracks who created and last updated it.
+/// 记录创建者和最后更新者的实体抽象。
 pub trait Auditable: Timestamped {
-    /// Returns the identifier of the user who created this entity.
+    /// 返回创建者标识。
     fn created_by(&self) -> Option<&str>;
 
-    /// Returns the identifier of the user who last updated this entity.
+    /// 返回最后更新者标识。
     fn updated_by(&self) -> Option<&str>;
 }
 
-/// Pagination request parameters.
+/// 分页请求参数抽象。
 pub trait Pageable {
-    /// The current page number (1-indexed).
+    /// 当前页码，从 1 开始。
     fn page(&self) -> usize;
 
-    /// The number of items per page.
+    /// 每页条目数量。
     fn page_size(&self) -> usize;
 
-    /// Computes the zero-based offset for database queries.
+    /// 计算面向数据库查询的零基偏移量。
     fn offset(&self) -> usize {
         (self.page().saturating_sub(1)) * self.page_size()
     }
 }
 
-/// A paginated response container.
+/// 分页响应容器。
 #[apply(serde_eq)]
 pub struct PageResult<T> {
-    /// The items on the current page.
+    /// 当前页的条目列表。
     pub items: Vec<T>,
-    /// Total number of items across all pages.
+    /// 所有页面中的总条目数。
     pub total: u64,
-    /// Current page number (1-indexed).
+    /// 当前页码，从 1 开始。
     pub page: usize,
-    /// Number of items per page.
+    /// 每页条目数量。
     pub page_size: usize,
 }
 
 impl<T> PageResult<T> {
-    /// Creates a new `PageResult`.
+    /// 创建分页响应。
     #[must_use]
     pub fn new(items: Vec<T>, total: u64, page: usize, page_size: usize) -> Self {
         Self {
@@ -89,7 +89,7 @@ impl<T> PageResult<T> {
         }
     }
 
-    /// Creates an empty `PageResult` for the given page.
+    /// 创建指定分页参数下的空分页响应。
     #[must_use]
     pub fn empty(page: usize, page_size: usize) -> Self {
         Self {
@@ -100,7 +100,9 @@ impl<T> PageResult<T> {
         }
     }
 
-    /// Computes the total number of pages.
+    /// 计算总页数。
+    ///
+    /// `page_size` 为 0 时返回 0，避免无效分页参数导致除零。
     #[must_use]
     pub fn total_pages(&self) -> usize {
         if self.page_size == 0 {
@@ -109,25 +111,25 @@ impl<T> PageResult<T> {
         (self.total as usize).div_ceil(self.page_size)
     }
 
-    /// Returns `true` if there is a next page.
+    /// 判断当前页之后是否还有下一页。
     #[must_use]
     pub fn has_next(&self) -> bool {
         self.page < self.total_pages()
     }
 
-    /// Returns `true` if there is a previous page.
+    /// 判断当前页之前是否还有上一页。
     #[must_use]
     pub fn has_prev(&self) -> bool {
         self.page > 1
     }
 
-    /// Returns the number of items on this page.
+    /// 返回当前页实际包含的条目数量。
     #[must_use]
     pub fn len(&self) -> usize {
         self.items.len()
     }
 
-    /// Returns `true` if this page is empty.
+    /// 判断当前页是否没有任何条目。
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
@@ -137,14 +139,13 @@ impl<T> PageResult<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use az_derive_aliases::{apply, plain_clone_debug};
+    use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 
     // --- Test types ---
 
     #[apply(plain_clone_debug)]
     struct User {
         id: u64,
-        name: String,
         created_at: Option<DateTime<Utc>>,
         updated_at: Option<DateTime<Utc>>,
         deleted_at: Option<DateTime<Utc>>,
@@ -201,7 +202,6 @@ mod tests {
     fn make_user(id: u64) -> User {
         User {
             id,
-            name: format!("user_{id}"),
             created_at: Some(Utc::now()),
             updated_at: Some(Utc::now()),
             deleted_at: None,
@@ -226,7 +226,6 @@ mod tests {
 
         let u2 = User {
             id: 2,
-            name: "no_time".into(),
             created_at: None,
             updated_at: None,
             deleted_at: None,
@@ -262,7 +261,6 @@ mod tests {
     fn test_auditable_none() {
         let u = User {
             id: 3,
-            name: "anon".into(),
             created_at: None,
             updated_at: None,
             deleted_at: None,

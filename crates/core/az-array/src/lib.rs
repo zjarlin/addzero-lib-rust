@@ -15,10 +15,9 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-/// Splits `slice` into chunks of at most `size` elements.
+/// 将切片按最多 `size` 个元素分成多个块。
 ///
-/// The last chunk may contain fewer than `size` elements.
-/// Returns an empty `Vec` if `size` is 0.
+/// 最后一个块可能少于 `size` 个元素。`size` 为 0 时返回空向量。
 ///
 /// # Examples
 ///
@@ -37,8 +36,7 @@ pub fn chunk<T: Clone>(slice: &[T], size: usize) -> Vec<Vec<T>> {
     slice.chunks(size).map(<[T]>::to_vec).collect()
 }
 
-/// Returns a new `Vec` with duplicate elements removed, preserving the
-/// original order of first occurrence.
+/// 返回保持首次出现顺序的去重结果。
 ///
 /// # Examples
 ///
@@ -60,7 +58,7 @@ pub fn unique<T: Eq + Hash + Clone>(slice: &[T]) -> Vec<T> {
     result
 }
 
-/// Flattens a nested `Vec<Vec<T>>` into a single `Vec<T>`.
+/// 将嵌套向量展平成单层向量。
 ///
 /// # Examples
 ///
@@ -74,7 +72,7 @@ pub fn flatten_nested<T: Clone>(nested: &[Vec<T>]) -> Vec<T> {
     nested.iter().flat_map(|v| v.iter().cloned()).collect()
 }
 
-/// Zips two slices together, using `fill` to pad the shorter slice.
+/// 将两个切片按位置压缩，较短的一侧用 `fill` 补齐。
 ///
 /// # Examples
 ///
@@ -95,9 +93,9 @@ pub fn zip_longest<T: Clone>(a: &[T], b: &[T], fill: T) -> Vec<(T, T)> {
         .collect()
 }
 
-/// Rotates `slice` left by `mid` positions in-place.
+/// 将切片原地左旋 `mid` 个位置。
 ///
-/// The element at index `mid` becomes the first element.
+/// 原索引 `mid` 处的元素会成为旋转后的第一个元素；`mid` 超过长度时按长度截断。
 ///
 /// # Examples
 ///
@@ -113,7 +111,9 @@ pub fn rotate_left<T>(slice: &mut [T], mid: usize) {
     slice.rotate_left(mid);
 }
 
-/// Rotates `slice` right by `mid` positions in-place.
+/// 将切片原地右旋 `mid` 个位置。
+///
+/// `mid` 超过长度时按长度截断，因此不会因为过大的旋转量 panic。
 ///
 /// # Examples
 ///
@@ -129,9 +129,9 @@ pub fn rotate_right<T>(slice: &mut [T], mid: usize) {
     slice.rotate_right(mid);
 }
 
-/// Returns sliding windows of `size` elements from `slice`.
+/// 返回由 `size` 个元素组成的滑动窗口。
 ///
-/// Returns an empty `Vec` if `size` is 0 or greater than the slice length.
+/// `size` 为 0 或大于切片长度时返回空向量。
 ///
 /// # Examples
 ///
@@ -149,7 +149,9 @@ pub fn window<T: Clone>(slice: &[T], size: usize) -> Vec<Vec<T>> {
     slice.windows(size).map(<[T]>::to_vec).collect()
 }
 
-/// Counts the occurrences of each element in `slice`.
+/// 统计切片中每个元素出现的次数。
+///
+/// 返回的键是原切片中元素的引用，不会克隆元素本身。
 ///
 /// # Examples
 ///
@@ -170,9 +172,9 @@ pub fn frequencies<T: Eq + Hash>(slice: &[T]) -> HashMap<&T, usize> {
     map
 }
 
-/// Partitions `slice` into two groups based on `pred`.
+/// 按谓词将切片划分为两个引用分组。
 ///
-/// Returns `(matching, not_matching)`.
+/// 返回值为 `(matching, not_matching)`，分别表示满足和不满足谓词的元素引用。
 ///
 /// # Examples
 ///
@@ -196,9 +198,9 @@ pub fn partition<T>(slice: &[T], pred: impl Fn(&T) -> bool) -> (Vec<&T>, Vec<&T>
     (pass, fail)
 }
 
-/// Pads `slice` to `len` elements by prepending `fill` values.
+/// 在切片左侧补入 `fill`，直到结果长度达到 `len`。
 ///
-/// If `slice` is already at least `len` elements, returns a clone of it.
+/// 如果原切片长度已经不小于 `len`，则直接返回它的克隆。
 ///
 /// # Examples
 ///

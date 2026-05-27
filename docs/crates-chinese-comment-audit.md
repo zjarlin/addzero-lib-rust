@@ -77,6 +77,7 @@
 - `az-proxy`：补齐订阅获取、订阅解析、代理节点类型、节点归一化和 TCP 测速的中文 rustdoc，明确 Clash YAML / URI / base64 订阅自动识别边界。
 - `az-rustfs`：补齐 S3 兼容配置、凭证脱敏、对象元数据、客户端 trait、阻塞客户端、内存客户端、分片上传进度和断点续传状态的中文 rustdoc。
 - `toasty-driver-gitdb`：补齐 Toasty 能力矩阵、driver URL、连接工作线程和 gitdb/toasty 错误转换边界的中文 rustdoc。
+- `az-array`、`az-common`、`az-model`：补齐基础集合工具、本地日期时间工具、实体分页模型 trait 的中文 rustdoc，明确边界条件、时区语义、分页零基 offset 和空分页规则。
 
 ### 继续建议
 
