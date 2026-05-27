@@ -19,9 +19,11 @@ fn default_table_name_transliterates_when_english_name_is_blank() {
     let result = default_table_english_name("", Some("用户(表)"));
     assert!(!result.is_empty());
     assert!(!result.contains('('));
-    assert!(result
-        .chars()
-        .all(|character| character.is_ascii_alphanumeric() || character == '_'));
+    assert!(
+        result
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '_')
+    );
 }
 
 #[test]
@@ -172,6 +174,10 @@ fn format_helpers_work() {
         &["John".into(), 30.into(), 95.5.into(), 255.into()],
     );
     assert_eq!(value, "Name: John, Age: 30, Score: 95.5, Hex: ff, Done: %");
+    assert_eq!(
+        format_template("%s %s %s", &[FormatArg::Null, true.into(), 7usize.into()]),
+        "null true 7"
+    );
     assert_eq!(kmp_format("Value: %.2f", &[PI.into()]), "Value: 3.14");
     assert_eq!(format_currency(19.99, 2), "19.99");
 }

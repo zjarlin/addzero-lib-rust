@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, from_eq, plain_code_display_no_default_enum, plain_eq};
+use az_derive_aliases::{apply, from_display, plain_code_display_no_default_enum, plain_eq};
 use deunicode::deunicode;
 use regex::Regex;
 use std::collections::HashMap;
@@ -26,32 +26,31 @@ pub trait ParentPathExt {
         P: AsRef<Path>;
 }
 
-#[apply(from_eq)]
+#[apply(from_display)]
 pub enum FormatArg {
     #[from(skip)]
+    #[display("null")]
     Null,
     #[from(String, &str)]
+    #[display("{_0}")]
     String(String),
     #[from(i8, i16, i32, i64)]
+    #[display("{_0}")]
     Integer(i64),
     #[from(u8, u16, u32, u64)]
+    #[display("{_0}")]
     Unsigned(u64),
     #[from(f32, f64)]
+    #[display("{_0}")]
     Float(f64),
     #[from(bool)]
+    #[display("{_0}")]
     Boolean(bool),
 }
 
 impl FormatArg {
     fn as_text(&self) -> String {
-        match self {
-            Self::Null => "null".to_owned(),
-            Self::String(value) => value.clone(),
-            Self::Integer(value) => value.to_string(),
-            Self::Unsigned(value) => value.to_string(),
-            Self::Float(value) => value.to_string(),
-            Self::Boolean(value) => value.to_string(),
-        }
+        self.to_string()
     }
 
     fn as_f64(&self) -> f64 {
