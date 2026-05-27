@@ -20,14 +20,14 @@
 //!
 //! [`DatabaseConfig`] 的 [`std::fmt::Debug`] 实现会对 `jdbc_password` 字段脱敏（`***REDACTED***`）。
 use az_derive_aliases::{
-    apply, error, plain_default_copy_eq, plain_eq, plain_eq_redacted, plain_partial_eq,
+    apply, error, impl_from_str_parse, plain_default_copy_eq, plain_eq, plain_eq_redacted,
+    plain_partial_eq,
 };
 use serde::de::DeserializeOwned;
 use serde_yaml::Value;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 #[apply(error)]
 pub enum YmlError {
@@ -111,13 +111,7 @@ impl YamlPath {
     }
 }
 
-impl FromStr for YamlPath {
-    type Err = YmlError;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Self::parse(value)
-    }
-}
+impl_from_str_parse!(YamlPath => YmlError);
 
 #[apply(plain_partial_eq)]
 pub struct YamlDoc {

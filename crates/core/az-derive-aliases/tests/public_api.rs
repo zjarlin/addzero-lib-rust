@@ -1,14 +1,15 @@
 use az_derive_aliases::{
     apply, clap_code_enum, clap_value_enum, deserialize_camel_clone_debug, deserialize_camel_eq,
-    error_copy_eq, from_copy_eq_display, impl_from_with_default, plain_code_default_enum,
-    plain_code_display_message_no_default_enum, plain_code_display_no_default_enum,
-    plain_code_enum, plain_copy_eq_hash, plain_copy_eq_hash_display,
-    plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
-    plain_eq_hash_display, serde_camel_eq_default, serde_camel_partial_eq_default,
-    serde_code_default_ord_display_enum, serde_code_enum, serde_code_ord_display_enum,
-    serde_code_partial_eq, serde_eq_copy_display, serde_eq_hash_display,
-    serde_eq_hash_ord_display_as_ref, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
-    serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
+    error_copy_eq, from_copy_eq_display, impl_from_str_parse, impl_from_with_default,
+    impl_try_from_str_parse, plain_code_default_enum, plain_code_display_message_no_default_enum,
+    plain_code_display_no_default_enum, plain_code_enum, plain_copy_eq_hash,
+    plain_copy_eq_hash_display, plain_copy_eq_hash_ord_display, plain_default_copy_eq,
+    plain_default_copy_eq_display, plain_eq_hash_display, serde_camel_eq_default,
+    serde_camel_partial_eq_default, serde_code_default_ord_display_enum, serde_code_enum,
+    serde_code_ord_display_enum, serde_code_partial_eq, serde_eq_copy_display,
+    serde_eq_hash_display, serde_eq_hash_ord_display_as_ref, serde_kebab_code_enum, serde_kebab_eq,
+    serde_lower_code_enum, serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug,
+    serialize_camel_eq,
 };
 use clap::ValueEnum;
 use serde_json::Value;
@@ -212,6 +213,27 @@ impl_from_with_default!(&str => DefaultFromCell {
 impl_from_with_default!(String => DefaultFromCell {
     value: |source| source,
 });
+
+#[derive(Debug, Eq, PartialEq)]
+struct ParsedToken(String);
+
+impl ParsedToken {
+    fn parse(value: &str) -> Result<Self, ParseTokenError> {
+        let value = value.trim();
+        if value.is_empty() {
+            Err(ParseTokenError)
+        } else {
+            Ok(Self(value.to_owned()))
+        }
+    }
+}
+
+#[apply(error_copy_eq)]
+#[error("token cannot be empty")]
+struct ParseTokenError;
+
+impl_from_str_parse!(ParsedToken => ParseTokenError);
+impl_try_from_str_parse!(ParsedToken => ParseTokenError);
 
 #[test]
 fn layered_plain_aliases_keep_all_stacked_derives() {
@@ -469,6 +491,19 @@ fn serde_eq_hash_ord_display_as_ref_should_forward_to_inner_value() {
     assert_eq!(as_str, "users");
     assert_eq!(key.to_string(), "users");
     assert_eq!(serde_json::to_string(&key).unwrap(), r#""users""#);
+}
+
+#[test]
+fn parse_trait_helpers_delegate_to_parse_method() {
+    assert_eq!(
+        " token ".parse::<ParsedToken>().unwrap(),
+        ParsedToken("token".to_owned())
+    );
+    assert_eq!(
+        ParsedToken::try_from("token").unwrap(),
+        ParsedToken("token".to_owned())
+    );
+    assert_eq!("   ".parse::<ParsedToken>().unwrap_err(), ParseTokenError);
 }
 
 #[test]

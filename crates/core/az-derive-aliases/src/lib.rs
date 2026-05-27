@@ -292,6 +292,52 @@ macro_rules! impl_from_with_default {
     };
 }
 
+/// Implements `FromStr` by delegating to an inherent parser such as `Self::parse`.
+#[macro_export]
+macro_rules! impl_from_str_parse {
+    ($target:ty => $error:ty, $parse:path $(,)?) => {
+        impl ::std::str::FromStr for $target {
+            type Err = $error;
+
+            fn from_str(value: &str) -> Result<Self, Self::Err> {
+                $parse(value)
+            }
+        }
+    };
+    ($target:ty => $error:ty $(,)?) => {
+        impl ::std::str::FromStr for $target {
+            type Err = $error;
+
+            fn from_str(value: &str) -> Result<Self, Self::Err> {
+                <$target>::parse(value)
+            }
+        }
+    };
+}
+
+/// Implements `TryFrom<&str>` by delegating to an inherent parser such as `Self::parse`.
+#[macro_export]
+macro_rules! impl_try_from_str_parse {
+    ($target:ty => $error:ty, $parse:path $(,)?) => {
+        impl ::core::convert::TryFrom<&str> for $target {
+            type Error = $error;
+
+            fn try_from(value: &str) -> Result<Self, Self::Error> {
+                $parse(value)
+            }
+        }
+    };
+    ($target:ty => $error:ty $(,)?) => {
+        impl ::core::convert::TryFrom<&str> for $target {
+            type Error = $error;
+
+            fn try_from(value: &str) -> Result<Self, Self::Error> {
+                <$target>::parse(value)
+            }
+        }
+    };
+}
+
 /// Serde-friendly data type with equality and debug traits.
 #[macro_export]
 macro_rules! serde_eq {

@@ -20,11 +20,12 @@
 //! | [`LibraryEntry`] | `[libraries]` 条目，包含 group、name 和 version / version.ref |
 //! | [`PluginEntry`] | `[plugins]` 条目，包含插件 id 和 version / version.ref |
 //! | [`BundleEntry`] | `[bundles]` 条目，将多个 library key 打包 |
-use az_derive_aliases::{apply, deserialize_eq, error, plain_default_eq, plain_eq};
+use az_derive_aliases::{
+    apply, deserialize_eq, error, impl_from_str_parse, plain_default_eq, plain_eq,
+};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use toml_edit::{Array, DocumentMut, Item, Table, Value};
 
 pub const DEFAULT_VERSION_CATALOG_TEMPLATE: &str = r#"[versions]
@@ -293,13 +294,7 @@ impl VersionCatalog {
     }
 }
 
-impl FromStr for VersionCatalog {
-    type Err = TomlCatalogError;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Self::parse_catalog(value)
-    }
-}
+impl_from_str_parse!(VersionCatalog => TomlCatalogError, VersionCatalog::parse_catalog);
 
 pub fn insert_after_table(content: &str, tag: &str, append_text: &str) -> String {
     let normalized_tag = if tag.starts_with('[') {

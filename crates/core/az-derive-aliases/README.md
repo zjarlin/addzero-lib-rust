@@ -29,6 +29,8 @@
 - **error_copy_eq** — 在 `error_eq` 基础上增加 `Copy`，适合只含小型复制字段的错误枚举
 - **impl_from_match!** — 用显式 pattern 映射快速生成 `From` 实现
 - **impl_from_with_default!** — 为“一个字段来自源值，其余字段走 `Default`”的结构体快速生成 `From`
+- **impl_from_str_parse!** — 为“`FromStr` 直接委托到 `parse` 方法”的类型快速生成 trait glue
+- **impl_try_from_str_parse!** — 为“`TryFrom<&str>` 直接委托到 `parse` 方法”的类型快速生成 trait glue
 - **from_eq** — 带 `derive_more::From` + `PartialEq` 的轻量转换枚举
 - **from_display** — 带 `derive_more::From` + `Display` 的轻量值枚举
 - **serde_eq** — 带 serde + 相等/调试 trait 的数据类型
@@ -139,8 +141,9 @@ Clap 相关 alias 仍要求调用侧引入 `clap` 的 derive 入口，通常通�
 
 ```rust
 use az_derive_aliases::{
-    apply, deserialize_debug, deserialize_eq, error, error_eq, plain_copy_eq_hash, plain_eq_hash,
-    serde_code, serde_code_default_enum, serde_code_ord, serde_eq, serialize_debug, serialize_eq,
+    apply, deserialize_debug, deserialize_eq, error, error_eq, impl_from_str_parse,
+    plain_copy_eq_hash, plain_eq_hash, serde_code, serde_code_default_enum, serde_code_ord,
+    serde_eq, serialize_debug, serialize_eq,
 };
 
 // 只需要反序列化的第三方响应类型
@@ -170,6 +173,16 @@ enum TransportError {
     #[error("io failed: {0}")]
     Io(#[from] std::io::Error),
 }
+
+struct PathExpr(String);
+
+impl PathExpr {
+    fn parse(value: &str) -> Result<Self, TransportError> {
+        Ok(Self(value.trim().to_owned()))
+    }
+}
+
+impl_from_str_parse!(PathExpr => TransportError);
 
 // 带 thiserror 且需要相等比较的错误类型
 #[apply(error_eq)]

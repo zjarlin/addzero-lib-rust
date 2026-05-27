@@ -7,7 +7,8 @@
 //! 而各设备在本地存储各自的绝对路径映射。
 
 use az_derive_aliases::{
-    apply, error_eq, plain_eq, serde_eq, serde_eq_default, serde_eq_hash, serde_eq_hash_ord_display,
+    apply, error_eq, impl_try_from_str_parse, plain_eq, serde_eq, serde_eq_default, serde_eq_hash,
+    serde_eq_hash_ord_display,
 };
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
@@ -84,13 +85,7 @@ impl RootAlias {
     }
 }
 
-impl TryFrom<&str> for RootAlias {
-    type Error = DriveCoreError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::parse(value)
-    }
-}
+impl_try_from_str_parse!(RootAlias => DriveCoreError);
 
 /// Normalized POSIX-style path below a logical root.
 #[apply(serde_eq_hash_ord_display)]
@@ -166,13 +161,7 @@ impl RelativePath {
     }
 }
 
-impl TryFrom<&str> for RelativePath {
-    type Error = DriveCoreError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::parse(value)
-    }
-}
+impl_try_from_str_parse!(RelativePath => DriveCoreError);
 
 /// Stable remote identity for a file or directory.
 #[apply(serde_eq_hash)]
