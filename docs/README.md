@@ -26,6 +26,10 @@
 - `crates/**/README.md`
 - `apps/**/README.md`
 
+## 巡检文档
+
+- [crates 中文注释巡检](./crates-chinese-comment-audit.md)
+
 这意味着 AIO Drive 的 CLI、Git Pool、Finder 文档会直接进入文档站搜索入口，而不需要单独维护一套手写 sidebar。
 
 ## 自定义域名 / Tunnel

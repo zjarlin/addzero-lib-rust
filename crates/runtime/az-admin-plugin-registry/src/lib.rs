@@ -26,63 +26,101 @@ use std::collections::BTreeMap;
 use az_derive_aliases::{apply, plain_code_enum, plain_copy_eq, plain_eq};
 pub use inventory;
 
+/// Admin 主轴上下文域注册项。
+///
+/// 一个 domain 通常对应业务域、产品壳或大型路由组；只有至少挂载一个导航节点的
+/// domain 会出现在运行时查询结果中。
 #[apply(plain_copy_eq)]
 pub struct AdminDomainRegistration {
+    /// 全局唯一的 domain 标识。
     pub id: &'static str,
+    /// 展示给 admin shell 的中文或业务标签。
     pub label: &'static str,
+    /// 主轴排序值，数值越小越靠前。
     pub order: u16,
+    /// 当前 domain 被选中但没有更具体路径时使用的默认入口。
     pub default_href: &'static str,
 }
 
+/// Admin 侧轴导航节点类型。
 #[apply(plain_code_enum)]
 pub enum AdminNavigationKind {
+    /// 可展开分组节点，通常用于承载一组子页面。
     Branch,
+    /// 可直接打开的页面节点。
     Page,
 }
 
+/// Admin 侧轴导航注册项。
+///
+/// 所有节点都属于某个 domain，并可通过 `parent_id` 组成树形菜单。
 #[apply(plain_copy_eq)]
 pub struct AdminNavigationRegistration {
+    /// 节点类型。
     pub kind: AdminNavigationKind,
+    /// 当前节点在所属 domain 内的唯一标识。
     pub id: &'static str,
+    /// 所属主轴 domain 标识。
     pub domain_id: &'static str,
+    /// 父节点标识；`None` 表示挂到 domain 根部。
     pub parent_id: Option<&'static str>,
+    /// 展示给 admin shell 的节点标签。
     pub label: &'static str,
+    /// 同级排序值，数值越小越靠前。
     pub order: u16,
+    /// 点击节点时进入的路由。
     pub href: &'static str,
+    /// 判定当前路由是否命中该节点的路径模式，支持 `:param` 动态段。
     pub active_patterns: &'static [&'static str],
+    /// 访问该节点任一所需权限；空切片表示不声明权限要求。
     pub permissions_any_of: &'static [&'static str],
 }
 
+/// 运行时组装后的递归导航节点。
 #[apply(plain_eq)]
 pub struct RegisteredAdminNode {
+    /// 节点唯一标识。
     pub id: &'static str,
+    /// 节点类型。
     pub kind: AdminNavigationKind,
+    /// 展示标签。
     pub label: &'static str,
+    /// 目标路由。
     pub href: &'static str,
+    /// 激活匹配模式。
     pub active_patterns: &'static [&'static str],
+    /// 访问权限声明。
     pub permissions_any_of: &'static [&'static str],
+    /// 子节点，已经按稳定排序规则排好序。
     pub children: Vec<RegisteredAdminNode>,
 }
 
+/// 某个 domain 下可直接交给 admin shell 渲染的菜单区段。
 #[apply(plain_eq)]
 pub struct RegisteredAdminSection {
+    /// domain 展示标签。
     pub label: &'static str,
+    /// domain 默认入口路由。
     pub default_href: &'static str,
+    /// 当前 domain 的根级菜单节点。
     pub menus: Vec<RegisteredAdminNode>,
 }
 
 inventory::collect!(AdminDomainRegistration);
 inventory::collect!(AdminNavigationRegistration);
 
+/// 返回排序后的第一个可见 admin domain。
 pub fn primary_domain() -> Option<AdminDomainRegistration> {
     registered_domains().into_iter().next()
 }
 
+/// 根据当前路径反查命中的 admin domain。
 pub fn domain_for_path(path: &str) -> Option<AdminDomainRegistration> {
     let node = active_node(path)?;
     domain_by_id(node.domain_id)
 }
 
+/// 返回所有已注册且至少包含一个导航节点的 admin domain。
 pub fn registered_domains() -> Vec<AdminDomainRegistration> {
     let mut domains: Vec<_> = inventory::iter::<AdminDomainRegistration>
         .into_iter()
@@ -98,6 +136,7 @@ pub fn registered_domains() -> Vec<AdminDomainRegistration> {
     domains
 }
 
+/// 根据当前路径组装所属 domain 的完整菜单区段。
 pub fn section_for_path(path: &str) -> Option<RegisteredAdminSection> {
     let domain = domain_for_path(path)?;
     Some(RegisteredAdminSection {
@@ -107,6 +146,9 @@ pub fn section_for_path(path: &str) -> Option<RegisteredAdminSection> {
     })
 }
 
+/// 判断路径是否命中任一路由模式。
+///
+/// 模式支持 `:param` 形式的动态段；查询字符串和 hash 会先被规范化移除。
 pub fn path_matches_patterns(path: &str, patterns: &[&str]) -> bool {
     let path = normalize_path(path);
     patterns
@@ -251,6 +293,10 @@ fn normalize_path(path: &str) -> String {
     }
 }
 
+/// 注册 admin 主轴上下文域。
+///
+/// 该宏通过 `inventory` 在编译期收集注册项。调用方只声明 domain 本身；
+/// 如果没有任何导航节点引用该 domain，运行时查询会自动过滤它。
 #[macro_export]
 macro_rules! register_admin_domain {
     (
@@ -300,6 +346,9 @@ macro_rules! __register_admin_navigation {
     };
 }
 
+/// 注册 admin 侧轴分支节点。
+///
+/// 分支节点用于组织子页面，仍然可以携带 `href` 作为默认落点。
 #[macro_export]
 macro_rules! register_admin_branch {
     (
@@ -326,6 +375,9 @@ macro_rules! register_admin_branch {
     };
 }
 
+/// 注册 admin 侧轴页面节点。
+///
+/// 页面节点是 admin 内容区的真实入口，所属 `(domain, parent)` 决定它在双轴导航树中的位置。
 #[macro_export]
 macro_rules! register_admin_page {
     (
@@ -352,6 +404,10 @@ macro_rules! register_admin_page {
     };
 }
 
+/// 注册挂在 domain 根部的页面节点。
+///
+/// 这是 `register_admin_page!` 的浅层便捷包装，默认 `parent: None`、
+/// `active_patterns: &[href]` 且不声明权限要求。
 #[macro_export]
 macro_rules! register_admin_root_page {
     (
@@ -374,6 +430,10 @@ macro_rules! register_admin_root_page {
     };
 }
 
+/// 为 starter 插件声明一个链接保活入口。
+///
+/// host crate 可调用生成的 `ensure_linked()`，确保只靠 inventory 注册副作用的插件 crate
+/// 不会在链接阶段被当作未使用依赖剔除。
 #[macro_export]
 macro_rules! declare_admin_plugin {
     () => {
