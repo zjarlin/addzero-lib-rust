@@ -373,6 +373,13 @@ macro_rules! register_admin_root_page {
     };
 }
 
+#[macro_export]
+macro_rules! declare_admin_plugin {
+    () => {
+        pub fn ensure_linked() {}
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

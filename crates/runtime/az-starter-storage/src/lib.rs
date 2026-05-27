@@ -14,4 +14,4 @@ az_admin_plugin_registry::register_admin_root_page! {
     href: "/system/storage/packages",
 }
 
-pub fn ensure_linked() {}
+az_admin_plugin_registry::declare_admin_plugin!();
