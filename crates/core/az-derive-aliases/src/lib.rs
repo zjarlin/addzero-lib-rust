@@ -1157,6 +1157,25 @@ macro_rules! serde_code_enum {
     };
 }
 
+/// Code-backed enum with snake_case serde, `strum::EnumProperty`, variant list, and `code` helpers.
+#[macro_export]
+macro_rules! serde_code_props_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::serde_code_enum! {
+            #[derive(::strum::EnumProperty)]
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+    };
+}
+
 /// Code-backed enum with kebab-case serde, string conversion, variant list, and `code` helpers.
 #[macro_export]
 macro_rules! serde_kebab_code_enum {

@@ -1,4 +1,4 @@
-use az_derive_aliases::{apply, error, serde_code_enum, serde_eq, serde_partial_eq};
+use az_derive_aliases::{apply, error, serde_code_props_enum, serde_eq, serde_partial_eq};
 use serde_yaml::Value;
 use strum::EnumProperty;
 use std::time::Duration;
@@ -69,8 +69,7 @@ pub enum ProxyError {
 }
 
 /// 当前支持的代理节点类型。
-#[derive(strum::EnumProperty)]
-#[apply(serde_code_enum)]
+#[apply(serde_code_props_enum)]
 pub enum ProxyType {
     /// Shadowsocks 代理节点。
     #[strum(serialize = "ss", serialize = "shadowsocks", props(clash = "ss"))]

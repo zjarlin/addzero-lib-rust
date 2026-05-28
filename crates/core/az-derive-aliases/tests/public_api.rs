@@ -7,14 +7,14 @@ use az_derive_aliases::{
     plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
     plain_eq_hash_display, serde_camel_eq_default, serde_camel_partial_eq_default,
     serde_code_default_ord_display_enum, serde_code_enum, serde_code_ord_display_enum,
-    serde_code_partial_eq, serde_eq_copy_display, serde_eq_hash_display,
+    serde_code_partial_eq, serde_code_props_enum, serde_eq_copy_display, serde_eq_hash_display,
     serde_eq_hash_ord_display_as_ref, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
     serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
 };
 use clap::ValueEnum;
 use serde_json::Value;
 use std::collections::HashSet;
-use strum::EnumMessage;
+use strum::{EnumMessage, EnumProperty};
 
 macro_rules! nested_default_copy_eq {
     ($item:item) => {
@@ -73,6 +73,14 @@ enum CustomPlainCode {
 #[apply(serde_code_enum)]
 enum SnakeCode {
     ReadyNow,
+}
+
+#[apply(serde_code_props_enum)]
+enum PropertyCode {
+    #[strum(props(wire = "ready_now", priority = 7))]
+    ReadyNow,
+    #[strum(props(wire = "paused_now", priority = 3))]
+    PausedNow,
 }
 
 #[apply(serde_kebab_code_enum)]
@@ -317,6 +325,18 @@ fn plain_code_enum_defaults_to_snake_case_and_allows_variant_overrides() {
         CustomPlainCode::from_code("legacyCode"),
         Some(CustomPlainCode::LegacyCode)
     );
+}
+
+#[test]
+fn serde_code_props_enum_adds_variant_metadata() {
+    assert_eq!(PropertyCode::ReadyNow.code(), "ready_now");
+    assert_eq!(
+        PropertyCode::from_code("paused_now"),
+        Some(PropertyCode::PausedNow)
+    );
+    assert_eq!(PropertyCode::ReadyNow.get_str("wire"), Some("ready_now"));
+    assert_eq!(PropertyCode::ReadyNow.get_int("priority"), Some(7));
+    assert_eq!(PropertyCode::ALL.len(), 2);
 }
 
 #[test]
