@@ -13,38 +13,56 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+/// 标识符输出风格，用于把任意文本规整成代码生成可用的变量名。
 #[apply(plain_code_display_no_default_enum)]
 pub enum VariableType {
+    /// 常量风格，例如 `MAX_VALUE`。
     Constant,
+    /// 小驼峰风格，例如 `maxValue`。
     CamelCase,
+    /// 大驼峰风格，例如 `MaxValue`。
     PascalCase,
+    /// 下划线风格，例如 `max_value`。
     SnakeCase,
+    /// 短横线风格，例如 `max-value`。
     KebabCase,
 }
 
+/// 为路径类型补充“基于父目录创建子目录”的便捷能力。
 pub trait ParentPathExt {
+    /// 取当前路径的父目录并在其下创建 `child_path`，返回创建后的完整路径。
     fn parent_path_and_mkdir<P>(&self, child_path: P) -> io::Result<PathBuf>
     where
         P: AsRef<Path>;
 }
 
+/// 模板格式化参数的弱类型载体。
+///
+/// `%s`、`%d`、`%f`、`%x` 等模板占位符会按目标格式读取这里的值；
+/// 类型不匹配时采用宽松转换，无法解析的字符串按 `0` 处理。
 #[apply(from_display)]
 pub enum FormatArg {
+    /// 空值，占位格式化时显示为 `null` 或数值 `0`。
     #[from(skip)]
     #[display("null")]
     Null,
+    /// 字符串参数。
     #[from(String, &str)]
     #[display("{_0}")]
     String(String),
+    /// 有符号整数参数。
     #[from(i8, i16, i32, i64)]
     #[display("{_0}")]
     Integer(i64),
+    /// 无符号整数参数。
     #[from(u8, u16, u32, u64)]
     #[display("{_0}")]
     Unsigned(u64),
+    /// 浮点参数。
     #[from(f32, f64)]
     #[display("{_0}")]
     Float(f64),
+    /// 布尔参数，数值格式化时 `true` 为 `1`、`false` 为 `0`。
     #[from(bool)]
     #[display("{_0}")]
     Boolean(bool),
@@ -97,6 +115,9 @@ impl_from_match!(usize => FormatArg {
     value => FormatArg::Unsigned(value as u64)
 });
 
+/// 清理输入两端和中间空白，并移除不可见控制字符。
+///
+/// `None` 和空串都会返回空 `String`；连续空白会折叠成单个空格。
 pub fn clean_blank(input: Option<&str>) -> String {
     let Some(input) = input else {
         return String::new();
@@ -112,6 +133,9 @@ pub fn clean_blank(input: Option<&str>) -> String {
         .collect()
 }
 
+/// 取 `path` 的父目录，在父目录下创建 `child_path` 并返回创建后的路径。
+///
+/// 当 `path` 没有父目录时，直接创建并返回 `child_path`。
 pub fn parent_path_and_mkdir(
     path: impl AsRef<Path>,
     child_path: impl AsRef<Path>,
@@ -146,6 +170,9 @@ impl ParentPathExt for str {
     }
 }
 
+/// 按分隔项把线性列表切成多个段。
+///
+/// 满足 `predicate` 的元素会成为结果里的 key，直到下一个分隔项之前的元素会成为该 key 的值。
 pub fn group_by_separator<T, F>(lines: &[T], predicate: F) -> HashMap<T, Vec<T>>
 where
     T: Clone + Eq + Hash,
@@ -171,11 +198,15 @@ where
     result
 }
 
+/// 确保输入同时带有指定前缀和后缀。
 pub fn make_surround_with(input: Option<&str>, fix: &str) -> String {
     let with_prefix = add_prefix_if_not(input, fix, false);
     add_suffix_if_not(Some(&with_prefix), fix, false)
 }
 
+/// 确保非空文本被 `<p>` 和 `</p>` 包裹。
+///
+/// `None`、空串和纯空白输入都会返回空字符串。
 pub fn make_surround_with_html_p(input: Option<&str>) -> String {
     let Some(input) = input else {
         return String::new();
@@ -188,10 +219,14 @@ pub fn make_surround_with_html_p(input: Option<&str>) -> String {
     add_suffix_if_not(Some(&with_prefix), "</p>", false)
 }
 
+/// 用英文圆括号包裹输入。
 pub fn make_surround_with_brackets(input: &str) -> String {
     format!("({input})")
 }
 
+/// 只保留输入里的中文字符。
+///
+/// `None` 会返回空字符串；标点、数字、英文字母和其他字符都会被过滤。
 pub fn remove_not_chinese(input: Option<&str>) -> String {
     let Some(input) = input else {
         return String::new();
@@ -202,6 +237,9 @@ pub fn remove_not_chinese(input: Option<&str>) -> String {
         .collect()
 }
 
+/// 当输入尚未以 `suffix` 结尾时追加后缀。
+///
+/// `ignore_case` 只影响后缀存在性判断，不改变返回文本本身的大小写。
 pub fn add_suffix_if_not(input: Option<&str>, suffix: &str, ignore_case: bool) -> String {
     let Some(input) = input else {
         return suffix.to_owned();
@@ -213,6 +251,9 @@ pub fn add_suffix_if_not(input: Option<&str>, suffix: &str, ignore_case: bool) -
     }
 }
 
+/// 当输入尚未以 `prefix` 开头时追加前缀。
+///
+/// `None` 和空串返回空字符串；`ignore_case` 只影响前缀存在性判断。
 pub fn add_prefix_if_not(input: Option<&str>, prefix: &str, ignore_case: bool) -> String {
     let Some(input) = input else {
         return String::new();
@@ -227,10 +268,14 @@ pub fn add_prefix_if_not(input: Option<&str>, prefix: &str, ignore_case: bool) -
     }
 }
 
+/// 判断输入是否不是空白文本。
 pub fn is_not_blank(input: Option<&str>) -> bool {
     !is_blank(input)
 }
 
+/// 从点分路径右侧移除 `n` 段。
+///
+/// 当路径段数小于 `n` 时返回原始输入。
 pub fn get_path_from_right(input: &str, n: usize) -> String {
     let parts = input
         .split('.')
@@ -242,10 +287,12 @@ pub fn get_path_from_right(input: &str, n: usize) -> String {
     parts[..parts.len() - n].join(".")
 }
 
+/// 将输入整体转成小写，`None` 返回空字符串。
 pub fn lower_case(input: Option<&str>) -> String {
     input.unwrap_or_default().to_lowercase()
 }
 
+/// 只把首个 Unicode 字符转成小写，其余内容保持原样。
 pub fn lower_first(input: &str) -> String {
     let mut chars = input.chars();
     let Some(first) = chars.next() else {
@@ -256,6 +303,7 @@ pub fn lower_first(input: &str) -> String {
     result
 }
 
+/// 判断 `value` 是否按 ASCII 忽略大小写存在于集合中。
 pub fn ignore_case_in<I, S>(value: &str, collection: I) -> bool
 where
     I: IntoIterator<Item = S>,
@@ -266,6 +314,7 @@ where
         .any(|item| item.as_ref().eq_ignore_ascii_case(value))
 }
 
+/// 判断 `value` 是否按 ASCII 忽略大小写不存在于集合中。
 pub fn ignore_case_not_in<I, S>(value: &str, collection: I) -> bool
 where
     I: IntoIterator<Item = S>,
@@ -274,6 +323,7 @@ where
     !ignore_case_in(value, collection)
 }
 
+/// 判断文本是否包含任意非空子串，比较时忽略大小写。
 pub fn contains_any_ignore_case<I, S>(value: &str, substrings: I) -> bool
 where
     I: IntoIterator<Item = S>,
@@ -286,16 +336,19 @@ where
     })
 }
 
+/// 判断 `value` 是否包含 `other`，比较时忽略大小写。
 pub fn ignore_case_like(value: &str, other: &str) -> bool {
     value.to_lowercase().contains(&other.to_lowercase())
 }
 
+/// 判断输入中是否包含 CJK 统一表意文字范围内的中文字符。
 pub fn contains_chinese(input: Option<&str>) -> bool {
     input.unwrap_or_default().chars().any(is_chinese)
 }
 
-/// Builds a stable ASCII table name from an English name first, then a Chinese
-/// fallback when the English name is blank.
+/// 构造稳定的 ASCII 表名。
+///
+/// 优先使用英文名；英文名为空时使用中文名并经 `deunicode` 转写，随后规整成 `snake_case`。
 pub fn default_table_english_name(english_name: &str, chinese_name: Option<&str>) -> String {
     let source = if english_name.trim().is_empty() {
         chinese_name.unwrap_or_default()
@@ -310,6 +363,7 @@ pub fn default_table_english_name(english_name: &str, chinese_name: Option<&str>
     compact.trim_matches('_').to_owned()
 }
 
+/// 用指定分隔符拼接字符串切片。
 pub fn join<S: AsRef<str>>(separator: &str, values: &[S]) -> String {
     values
         .iter()
@@ -318,18 +372,22 @@ pub fn join<S: AsRef<str>>(separator: &str, values: &[S]) -> String {
         .join(separator)
 }
 
+/// 把 Java/Kotlin 风格点分包名拼到基础路径后。
 pub fn with_pkg(base: &str, pkg: &str) -> String {
     format!("{base}/{}", pkg.replace('.', "/"))
 }
 
+/// 把文件名拼到基础路径后。
 pub fn with_file_name(base: &str, file_name: &str) -> String {
     format!("{base}/{file_name}")
 }
 
+/// 给基础路径追加文件后缀，未传后缀时默认追加 `.kt`。
 pub fn with_file_suffix(base: &str, suffix: Option<&str>) -> String {
     format!("{base}{}", suffix.unwrap_or(".kt"))
 }
 
+/// 从输入中移除给定集合里的所有字符串片段。
 pub fn remove_any<I, S>(input: Option<&str>, strings_to_remove: I) -> String
 where
     I: IntoIterator<Item = S>,
@@ -345,56 +403,71 @@ where
         })
 }
 
+/// 移除双引号和反斜杠。
 pub fn remove_any_quote(input: &str) -> String {
     remove_any(Some(input), ["\"", "\\"])
 }
 
+/// 移除空格和双引号。
 pub fn remove_blank_or_quotation(input: &str) -> String {
     remove_any(Some(input), [" ", "\""])
 }
 
+/// 按标识符词边界转成下划线分隔形式，并保留原有大小写。
 pub fn to_underline_case(input: &str) -> String {
     join_identifier_words(input, "_", CaseStyle::Preserve)
 }
 
+/// 按标识符词边界转成小写下划线形式。
 pub fn to_underline_lower_case(input: &str) -> String {
     to_underline_case(input).to_lowercase()
 }
 
+/// 判断输入是否是带可选正负号和小数部分的十进制数字。
 pub fn is_number(input: &str) -> bool {
     number_regex().is_match(input)
 }
 
+/// 按 ASCII 忽略大小写比较两个字符串是否相等。
 pub fn equals_ignore_case(left: &str, right: &str) -> bool {
     left.eq_ignore_ascii_case(right)
 }
 
+/// 把可选值转成去空格、去双引号后的字符串。
 pub fn to_not_empty_str<T: ToString>(value: Option<T>) -> String {
     value
         .map(|value| remove_blank_or_quotation(&value.to_string()))
         .unwrap_or_default()
 }
 
+/// 使用 `format_template` 的兼容入口。
 pub fn kmp_format(template: &str, args: &[FormatArg]) -> String {
     format_template(template, args)
 }
 
+/// 使用固定小数位格式化 `f64`。
 pub fn format_decimal(value: f64, decimals: usize) -> String {
     format!("{value:.decimals$}")
 }
 
+/// 使用固定小数位格式化 `f32`。
 pub fn format_decimal_f32(value: f32, decimals: usize) -> String {
     format_decimal(value as f64, decimals)
 }
 
+/// 货币数值格式化入口，目前与固定小数位格式化保持一致。
 pub fn format_currency(value: f64, decimals: usize) -> String {
     format_decimal(value, decimals)
 }
 
+/// `f32` 货币数值格式化入口。
 pub fn format_currency_f32(value: f32, decimals: usize) -> String {
     format_currency(value as f64, decimals)
 }
 
+/// 基于 KMP 算法的可复用字符串匹配器。
+///
+/// 匹配位置以 UTF-8 字节偏移返回，适合继续用于字符串切片。
 #[apply(plain_eq)]
 pub struct KmpMatcher {
     pattern: String,
@@ -402,12 +475,16 @@ pub struct KmpMatcher {
 }
 
 impl KmpMatcher {
+    /// 预计算模式串的 LPS 表，创建匹配器。
     pub fn new(pattern: impl Into<String>) -> Self {
         let pattern = pattern.into();
         let lps = compute_lps(&pattern);
         Self { pattern, lps }
     }
 
+    /// 返回首个匹配位置；未命中时返回 `-1`。
+    ///
+    /// 空模式串按传统 `index_of` 语义返回 `0`。
     pub fn search(&self, text: &str) -> isize {
         if self.pattern.is_empty() {
             return 0;
@@ -440,6 +517,9 @@ impl KmpMatcher {
         -1
     }
 
+    /// 返回所有匹配位置，支持重叠匹配。
+    ///
+    /// 空模式串返回空列表，避免产生无意义的每字节命中。
     pub fn search_all(&self, text: &str) -> Vec<usize> {
         if self.pattern.is_empty() {
             return Vec::new();
@@ -473,18 +553,24 @@ impl KmpMatcher {
     }
 }
 
+/// 判断文本中是否存在模式串。
 pub fn contains_kmp(text: &str, pattern: &str) -> bool {
     KmpMatcher::new(pattern).search(text) != -1
 }
 
+/// 返回模式串首次出现的字节偏移；未命中时返回 `-1`。
 pub fn index_of_kmp(text: &str, pattern: &str) -> isize {
     KmpMatcher::new(pattern).search(text)
 }
 
+/// 返回模式串所有出现位置的字节偏移。
 pub fn find_all_kmp(text: &str, pattern: &str) -> Vec<usize> {
     KmpMatcher::new(pattern).search_all(text)
 }
 
+/// 使用 KMP 匹配结果替换文本。
+///
+/// 空模式串或未命中时返回原文本；重叠命中按从左到右的非重叠替换处理。
 pub fn replace_kmp(text: &str, pattern: &str, replacement: &str) -> String {
     if pattern.is_empty() {
         return text.to_owned();
@@ -509,6 +595,9 @@ pub fn replace_kmp(text: &str, pattern: &str, replacement: &str) -> String {
     result
 }
 
+/// 移除目标字符最后一次出现的位置。
+///
+/// `None`、空串和纯空白输入返回空字符串；未找到目标字符时返回原文本。
 pub fn remove_last_char_occurrence(input: Option<&str>, target: char) -> String {
     let Some(input) = input else {
         return String::new();
@@ -525,6 +614,9 @@ pub fn remove_last_char_occurrence(input: Option<&str>, target: char) -> String 
     result
 }
 
+/// 提取 Markdown fenced code block 中的正文内容。
+///
+/// 未检测到代码围栏时返回原文本；`None` 和空串返回空字符串。
 pub fn extract_markdown_block_content(markdown: Option<&str>) -> String {
     let Some(markdown) = markdown else {
         return String::new();
@@ -544,6 +636,7 @@ pub fn extract_markdown_block_content(markdown: Option<&str>) -> String {
     markdown.to_owned()
 }
 
+/// 提取双反引号包裹的代码块正文。
 pub fn extract_code_block_content(code: impl AsRef<str>) -> String {
     double_tick_regex()
         .captures(code.as_ref())
@@ -552,6 +645,9 @@ pub fn extract_code_block_content(code: impl AsRef<str>) -> String {
         .unwrap_or_default()
 }
 
+/// 把任意输入规整成指定风格的有效变量名。
+///
+/// 会移除非法标识符字符；纯数字会加 `__` 前缀，以避免直接生成非法标识符。
 pub fn to_valid_variable_name(
     input: &str,
     variable_type: VariableType,
@@ -629,30 +725,37 @@ pub fn to_valid_variable_name(
     result
 }
 
+/// 把输入规整成常量名风格。
 pub fn to_constant_name(input: &str, prefix: &str, suffix: &str) -> String {
     to_valid_variable_name(input, VariableType::Constant, prefix, suffix)
 }
 
+/// 把输入规整成小驼峰变量名。
 pub fn to_camel_case(input: &str, prefix: &str, suffix: &str) -> String {
     to_valid_variable_name(input, VariableType::CamelCase, prefix, suffix)
 }
 
+/// 把输入规整成大驼峰类型名。
 pub fn to_pascal_case(input: &str, prefix: &str, suffix: &str) -> String {
     to_valid_variable_name(input, VariableType::PascalCase, prefix, suffix)
 }
 
+/// 把输入规整成小写下划线变量名。
 pub fn to_snake_case(input: &str, prefix: &str, suffix: &str) -> String {
     to_valid_variable_name(input, VariableType::SnakeCase, prefix, suffix)
 }
 
+/// 把输入规整成短横线名称。
 pub fn to_kebab_name(input: &str, prefix: &str, suffix: &str) -> String {
     to_valid_variable_name(input, VariableType::KebabCase, prefix, suffix)
 }
 
+/// 返回输入的 UTF-8 字节长度，`None` 返回 `0`。
 pub fn length(input: Option<&str>) -> usize {
     input.map_or(0, str::len)
 }
 
+/// 判断输入是否包含任意给定子串。
 pub fn contains_any<I, S>(input: Option<&str>, test_strings: I) -> bool
 where
     I: IntoIterator<Item = S>,
@@ -666,14 +769,19 @@ where
         .any(|test| input.contains(test.as_ref()))
 }
 
+/// 判断输入是否为 `None` 或 trim 后为空。
 pub fn is_blank(input: Option<&str>) -> bool {
     input.is_none_or(|value| value.trim().is_empty())
 }
 
+/// 判断输入是否为 `None` 或原始字符串为空。
 pub fn is_null_or_empty(input: Option<&str>) -> bool {
     input.is_none_or(str::is_empty)
 }
 
+/// 把连续重复出现的指定符号压缩为单个符号。
+///
+/// 任一输入为 `None` 时返回 `None`；重复符号为空时返回原文本。
 pub fn remove_duplicate_symbol(
     source: Option<&str>,
     duplicate_element: Option<&str>,
@@ -689,6 +797,7 @@ pub fn remove_duplicate_symbol(
     Some(regex.replace_all(source, duplicate_element).to_string())
 }
 
+/// 提取所有 `<p>...</p>` 标签之间的文本。
 pub fn extract_text_between_p_tags(input: Option<&str>) -> Vec<String> {
     let Some(input) = input else {
         return Vec::new();
@@ -703,6 +812,7 @@ pub fn extract_text_between_p_tags(input: Option<&str>) -> Vec<String> {
         .collect()
 }
 
+/// 清理块注释或文档注释标记，并折叠空白。
 pub fn clean_doc_comment(input: Option<&str>) -> String {
     let Some(input) = input else {
         return String::new();
@@ -718,6 +828,9 @@ pub fn clean_doc_comment(input: Option<&str>) -> String {
         .to_owned()
 }
 
+/// 返回第一个 trim 后非空的字符串。
+///
+/// 保留命中值原始空白；全部为空时返回空字符串。
 pub fn first_not_blank(values: &[Option<&str>]) -> String {
     values
         .iter()
@@ -727,6 +840,7 @@ pub fn first_not_blank(values: &[Option<&str>]) -> String {
         .unwrap_or_default()
 }
 
+/// 从完整 URL 中提取 `/api/...` 之后的 REST 路径。
 pub fn get_rest_url(input: Option<&str>) -> String {
     let Some(input) = input else {
         return String::new();
@@ -738,6 +852,7 @@ pub fn get_rest_url(input: Option<&str>) -> String {
         .unwrap_or_default()
 }
 
+/// 从文本中提取 `key: value` 或 `key：value` 形式的键值对。
 pub fn extract_key_value_pairs(input: &str) -> HashMap<String, String> {
     key_value_regex()
         .captures_iter(input)
@@ -749,6 +864,9 @@ pub fn extract_key_value_pairs(input: &str) -> HashMap<String, String> {
         .collect()
 }
 
+/// 转义常见 shell、HTML、SQL/注释和正则相关特殊字符。
+///
+/// 该函数用于降低把用户文本拼进命令、片段或展示文本时的误解释风险，不能替代上下文专用编码器。
 pub fn escape_special_characters(input: &str) -> String {
     let mut output = String::with_capacity(input.len());
     for character in input.chars() {
@@ -785,10 +903,14 @@ pub fn escape_special_characters(input: &str) -> String {
         .replace("*/", "*\\/")
 }
 
+/// 按标识符词边界转成小写短横线形式。
 pub fn to_kebab_case(input: &str) -> String {
     join_identifier_words(input, "-", CaseStyle::Lower)
 }
 
+/// 按轻量 C 风格占位符格式化模板。
+///
+/// 支持 `%s`、`%d`、`%f`、`%x`、`%.Nf` 和 `%%`；参数不足时使用 `FormatArg::Null`。
 pub fn format_template(template: &str, args: &[FormatArg]) -> String {
     let mut result = String::new();
     let mut arg_index = 0usize;
@@ -865,6 +987,7 @@ pub fn format_template(template: &str, args: &[FormatArg]) -> String {
     result
 }
 
+/// 返回点分名称的最后一段。
 pub fn to_simple_name(input: &str) -> String {
     input.rsplit('.').next().unwrap_or_default().to_owned()
 }

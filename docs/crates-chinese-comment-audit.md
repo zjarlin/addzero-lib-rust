@@ -22,15 +22,14 @@
 | inline crate doc | 65 | `src/lib.rs` 中存在 `//!` 入口说明。 |
 | README 注入 rustdoc | 25 | `#![doc = include_str!("../README.md")]`。 |
 | 二进制入口 | 1 | `crates/runtime/az-cli`，没有常规 `src/lib.rs`。 |
-| 公开 item 粗扫 | 2842 | 匹配 `pub struct/enum/trait/fn/type/const/static/mod` 和 `#[macro_export]`。 |
-| 已有 item rustdoc | 1820 | 公开 item 前 8 行内存在 `///`。 |
-| 中文 item rustdoc | 657 | item rustdoc 中含中文字符。 |
+| 公开 item 粗扫 | 2688 | 匹配 `pub struct/enum/trait/fn/type/const/static/mod` 和 `#[macro_export]`。 |
+| 已有 item rustdoc | 1865 | 公开 item 前 8 行内存在 `///`。 |
+| 中文 item rustdoc | 716 | item rustdoc 中含中文字符。 |
 
 ### 优先补注释队列
 
 | 优先级 | crate | 依据 | 建议动作 |
 | --- | --- | --- | --- |
-| P0 | `az-str` | README 注入入口存在，但公开文本工具函数密集，item-level rustdoc 基本缺失。 | 给字符串规格化、截断、模板替换、命名转换等公开函数补中文契约，说明 Unicode、空串和边界长度语义。 |
 | P0 | `az-creates` | API crate 公开 DTO/客户端入口较多，当前 item-level rustdoc 缺口最大之一。 | 先补外部接口 DTO、错误语义和请求边界，不给普通字段写重复注释。 |
 | P0 | `az-music`、`az-mqtt`、`az-email` | 网络协议/外部服务 crate 公开面较大，但公开项中文说明几乎为空。 | 优先写协议边界、认证/连接失败语义、脱敏和重试约束。 |
 | P0 | `az-yml`、`az-toml` | 配置 crate 容易成为跨 crate 基础入口，公开 API 文档缺口明显。 | 补环境变量替换、解析失败、格式保真和默认值处理约束。 |
@@ -112,6 +111,7 @@
 - `az-array`、`az-common`、`az-model`：补齐基础集合工具、本地日期时间工具、实体分页模型 trait 的中文 rustdoc，明确边界条件、时区语义、分页零基 offset 和空分页规则。
 - `az-derive-aliases`、`gitdb::catalog`：新增 `serde_code_display_props_enum` 功能型 alias，并把 `DataType` 的 wire code、SQL 展示名和 `strum::EnumProperty` 元数据关系写进中文 rustdoc，替换手写 SQL 类型 match 表。
 - `az-derive-aliases`、`gitdb::storage::types`：新增 `serde_string_value_object` / `plain_string_value_object`，把 `TableName`、`RowKey`、`BranchName` 的 `as_str()` / `into_string()` 样板收进功能型 alias，同时保留各自的业务校验。
+- `az-str`：补齐字符串规格化、前后缀处理、命名转换、KMP 匹配、模板格式化、Markdown/HTML 提取、键值对解析和特殊字符转义等公开工具函数的中文 rustdoc，明确空值、UTF-8 字节偏移、宽松数值转换和上下文专用编码器边界。
 
 ### 继续建议
 
