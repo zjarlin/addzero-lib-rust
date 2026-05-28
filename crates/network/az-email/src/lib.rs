@@ -49,47 +49,71 @@ use std::fs;
 use std::path::Path;
 use std::sync::{Arc, OnceLock, RwLock};
 
+/// 邮件配置、消息构建和 SMTP 发送过程中可能返回的错误。
+///
+/// 该类型保留 `lettre` 和附件 IO 的源错误链，便于上层做日志归因、重试判断或统一错误映射。
 #[apply(error)]
 pub enum EmailError {
+    /// SMTP 连接配置不完整或字段非法。
     #[error("invalid email configuration: {0}")]
     InvalidConfig(String),
+    /// 邮件消息缺少发件人、收件人或主题等必要字段。
     #[error("invalid email message: {0}")]
     InvalidMessage(String),
+    /// 邮箱地址无法被 `lettre` 解析。
     #[error("invalid email address: {0}")]
     Address(#[from] lettre::address::AddressError),
+    /// `lettre::Message` 构建失败。
     #[error("failed to build email message: {0}")]
     Build(#[from] lettre::error::Error),
+    /// 附件 MIME 类型转换为邮件 `Content-Type` 失败。
     #[error("failed to parse content type `{value}`: {source}")]
     ContentType {
         value: String,
         #[source]
         source: lettre::message::header::ContentTypeErr,
     },
+    /// SMTP 传输层连接、认证或发送失败。
     #[error("smtp transport error: {0}")]
     Transport(#[from] lettre::transport::smtp::Error),
+    /// 读取附件文件失败。
     #[error("failed to read attachment `{path}`: {source}")]
     AttachmentIo {
         path: String,
         #[source]
         source: std::io::Error,
     },
+    /// 调用全局 `send` 时尚未注册默认发送器。
     #[error("default email sender not configured")]
     MissingDefaultSender,
 }
 
+/// SMTP 连接配置。
+///
+/// `password` 在 `Debug` 输出中会被脱敏；`enable_ssl` 表示 SMTPS wrapper TLS，`enable_tls` 表示普通 SMTP 上要求 TLS。
 #[apply(plain_eq_redacted)]
 pub struct EmailConfig {
+    /// SMTP 服务器主机名。
     pub host: String,
+    /// SMTP 服务器端口，默认 587。
     pub port: u16,
+    /// SMTP 登录用户名。
     pub username: String,
+    /// SMTP 登录密码，调试输出会脱敏。
     #[debug(skip)]
     pub password: String,
+    /// 协议名；`smtps` 会触发 wrapper TLS。
     pub protocol: String,
+    /// 是否使用 SMTPS wrapper TLS。
     pub enable_ssl: bool,
+    /// 是否在普通 SMTP 连接上要求 TLS。
     pub enable_tls: bool,
 }
 
 impl EmailConfig {
+    /// 创建 SMTP 配置构建器。
+    ///
+    /// 默认端口为 587，协议为 `smtp`，默认启用 TLS 且不启用 SMTPS wrapper。
     pub fn builder(
         host: impl Into<String>,
         username: impl Into<String>,
@@ -106,6 +130,9 @@ impl EmailConfig {
         }
     }
 
+    /// 校验 SMTP 配置的最小可用字段。
+    ///
+    /// 该方法只做本地字段校验，不尝试连接 SMTP 服务器。
     pub fn validate(&self) -> Result<(), EmailError> {
         if self.host.trim().is_empty() {
             return Err(EmailError::InvalidConfig("host cannot be blank".to_owned()));
@@ -128,51 +155,74 @@ impl EmailConfig {
         Ok(())
     }
 
+    /// 设置 SMTP 端口。
     pub fn port(mut self, value: u16) -> Self {
         self.port = value;
         self
     }
 
+    /// 设置协议名。
+    ///
+    /// 当值为 `smtps` 时，传输层会按 SMTPS wrapper TLS 构建。
     pub fn protocol(mut self, value: impl Into<String>) -> Self {
         self.protocol = value.into();
         self
     }
 
+    /// 设置是否使用 SMTPS wrapper TLS。
     pub fn enable_ssl(mut self, value: bool) -> Self {
         self.enable_ssl = value;
         self
     }
 
+    /// 设置是否要求普通 SMTP 连接使用 TLS。
     pub fn enable_tls(mut self, value: bool) -> Self {
         self.enable_tls = value;
         self
     }
 
+    /// 完成构建并执行本地字段校验。
     pub fn build(self) -> Result<EmailConfig, EmailError> {
         self.validate()?;
         Ok(self)
     }
 }
 
+/// `EmailConfig` 采用自身作为轻量 builder。
 pub type EmailConfigBuilder = EmailConfig;
 
+/// 待发送的邮件消息。
+///
+/// 支持纯文本、HTML、多收件人以及本地文件附件；附件路径会在 `build_message` 阶段读取。
 #[apply(plain_default_eq)]
 pub struct EmailMessage {
+    /// 发件人地址。
     pub from: String,
+    /// 主收件人列表。
     pub to: Vec<String>,
+    /// 抄送收件人列表。
     pub cc: Vec<String>,
+    /// 密送收件人列表。
     pub bcc: Vec<String>,
+    /// 邮件主题。
     pub subject: String,
+    /// 纯文本正文。
     pub text_content: Option<String>,
+    /// HTML 正文。
     pub html_content: Option<String>,
+    /// 本地附件文件路径列表。
     pub attachments: Vec<String>,
 }
 
 impl EmailMessage {
+    /// 创建空邮件消息构建器。
     pub fn builder() -> EmailMessageBuilder {
         Self::default()
     }
 
+    /// 校验邮件消息的最小可发送字段。
+    ///
+    /// 该方法不解析邮箱地址、不读取附件，只检查发件人、收件人和主题是否存在。
     pub fn validate(&self) -> Result<(), EmailError> {
         if self.from.trim().is_empty() {
             return Err(EmailError::InvalidMessage(
@@ -192,67 +242,88 @@ impl EmailMessage {
         Ok(())
     }
 
+    /// 设置发件人地址。
     pub fn from(mut self, value: impl Into<String>) -> Self {
         self.from = value.into();
         self
     }
 
+    /// 追加一个主收件人。
     pub fn to(mut self, value: impl Into<String>) -> Self {
         self.to.push(value.into());
         self
     }
 
+    /// 追加一个抄送收件人。
     pub fn cc(mut self, value: impl Into<String>) -> Self {
         self.cc.push(value.into());
         self
     }
 
+    /// 追加一个密送收件人。
     pub fn bcc(mut self, value: impl Into<String>) -> Self {
         self.bcc.push(value.into());
         self
     }
 
+    /// 设置邮件主题。
     pub fn subject(mut self, value: impl Into<String>) -> Self {
         self.subject = value.into();
         self
     }
 
+    /// 设置纯文本正文。
     pub fn text(mut self, value: impl Into<String>) -> Self {
         self.text_content = Some(value.into());
         self
     }
 
+    /// 设置 HTML 正文。
     pub fn html(mut self, value: impl Into<String>) -> Self {
         self.html_content = Some(value.into());
         self
     }
 
+    /// 追加一个本地附件路径。
     pub fn attachment(mut self, value: impl Into<String>) -> Self {
         self.attachments.push(value.into());
         self
     }
 
+    /// 完成构建并执行本地消息校验。
     pub fn build(self) -> Result<EmailMessage, EmailError> {
         self.validate()?;
         Ok(self)
     }
 }
 
+/// `EmailMessage` 采用自身作为轻量 builder。
 pub type EmailMessageBuilder = EmailMessage;
 
+/// 邮件发送器抽象。
+///
+/// 该 trait 是依赖注入边界，允许测试替身、SMTP 实现或后续其他 provider 共享同一发送入口。
 pub trait EmailSender: Send + Sync {
+    /// 发送一封已经构建好的邮件消息。
     fn send(&self, message: &EmailMessage) -> Result<(), EmailError>;
 }
 
+/// 可在线程间共享的 boxed 邮件发送器。
 pub type BoxEmailSender = Box<dyn EmailSender + Send + Sync>;
 
+/// 邮件发送器类型代码。
+///
+/// 该枚举的 serde wire value、`code()` 和 `Display` 统一使用 snake_case 约定。
 #[apply(serde_code_enum)]
 pub enum EmailSenderKind {
+    /// SMTP 发送器。
     Smtp,
 }
 
+/// 邮件发送器构造配置。
 #[apply(from_plain_eq)]
 pub enum EmailSenderConfig {
+    /// SMTP 发送器配置。
     Smtp(EmailConfig),
 }
 
@@ -260,10 +331,17 @@ impl_enum_kind!(EmailSenderConfig => EmailSenderKind, kind {
     Self::Smtp(_) => EmailSenderKind::Smtp,
 });
 
+/// 邮件发送器工厂抽象。
+///
+/// 应用层可以通过该 trait 注入自定义 sender 构造策略，避免业务代码直接依赖 SMTP 实现。
 pub trait EmailSenderFactory: Send + Sync {
+    /// 根据发送器配置创建 boxed sender。
     fn build_sender(&self, config: EmailSenderConfig) -> Result<BoxEmailSender, EmailError>;
 }
 
+/// 内置发送器工厂。
+///
+/// 当前只支持 SMTP，后续新增 provider 时应在 `EmailSenderKind` 和 `EmailSenderConfig` 中同步扩展。
 #[apply(plain_default_copy_eq)]
 pub struct BuiltinEmailSenderFactory;
 
@@ -275,10 +353,14 @@ impl EmailSenderFactory for BuiltinEmailSenderFactory {
     }
 }
 
+/// 使用内置工厂创建邮件发送器。
 pub fn build_email_sender(config: EmailSenderConfig) -> Result<BoxEmailSender, EmailError> {
     BuiltinEmailSenderFactory.build_sender(config)
 }
 
+/// 基于 `lettre` 的 SMTP 邮件发送器。
+///
+/// 发送器持有构建好的 `SmtpTransport`，适合作为全局默认 sender 或注入到服务层复用。
 #[apply(plain_clone_debug)]
 pub struct SmtpEmailSender {
     config: EmailConfig,
@@ -286,12 +368,16 @@ pub struct SmtpEmailSender {
 }
 
 impl SmtpEmailSender {
+    /// 根据 SMTP 配置构建发送器。
+    ///
+    /// 构建阶段会执行本地配置校验并初始化 `lettre` transport；实际网络连接通常发生在发送阶段。
     pub fn new(config: EmailConfig) -> Result<Self, EmailError> {
         config.validate()?;
         let transport = build_transport(&config)?;
         Ok(Self { config, transport })
     }
 
+    /// 返回发送器持有的 SMTP 配置。
     pub fn config(&self) -> &EmailConfig {
         &self.config
     }
@@ -307,6 +393,9 @@ impl EmailSender for SmtpEmailSender {
 
 static DEFAULT_SENDER: OnceLock<RwLock<Option<Arc<dyn EmailSender>>>> = OnceLock::new();
 
+/// 注册进程级默认邮件发送器。
+///
+/// 后续调用 `send` 会使用该 sender；重复调用会覆盖旧 sender。
 pub fn set_default_sender(sender: Arc<dyn EmailSender>) {
     let lock = DEFAULT_SENDER.get_or_init(|| RwLock::new(None));
     *match lock.write() {
@@ -315,6 +404,7 @@ pub fn set_default_sender(sender: Arc<dyn EmailSender>) {
     } = Some(sender);
 }
 
+/// 清除进程级默认邮件发送器。
 pub fn clear_default_sender() {
     let lock = DEFAULT_SENDER.get_or_init(|| RwLock::new(None));
     *match lock.write() {
@@ -323,6 +413,9 @@ pub fn clear_default_sender() {
     } = None;
 }
 
+/// 使用进程级默认发送器发送邮件。
+///
+/// 若尚未调用 `set_default_sender`，返回 `EmailError::MissingDefaultSender`。
 pub fn send(message: &EmailMessage) -> Result<(), EmailError> {
     let sender = DEFAULT_SENDER
         .get_or_init(|| RwLock::new(None))
@@ -333,11 +426,15 @@ pub fn send(message: &EmailMessage) -> Result<(), EmailError> {
     sender.send(message)
 }
 
+/// 使用临时 SMTP 配置发送一封邮件。
+///
+/// 该函数每次调用都会新建 sender，适合低频发送；高频发送建议复用 `SmtpEmailSender`。
 pub fn send_with_config(config: &EmailConfig, message: &EmailMessage) -> Result<(), EmailError> {
     let sender = build_email_sender(config.clone().into())?;
     sender.send(message)
 }
 
+/// 构建并发送纯文本邮件。
 pub fn send_text(
     config: &EmailConfig,
     from: impl Into<String>,
@@ -354,6 +451,7 @@ pub fn send_text(
     send_with_config(config, &message)
 }
 
+/// 构建并发送 HTML 邮件。
 pub fn send_html(
     config: &EmailConfig,
     from: impl Into<String>,
@@ -370,6 +468,9 @@ pub fn send_html(
     send_with_config(config, &message)
 }
 
+/// 将 `EmailMessage` 转换为 `lettre::Message`。
+///
+/// 该函数会解析邮箱地址、读取附件文件并推断 MIME 类型，但不会连接 SMTP 服务器。
 pub fn build_message(message: &EmailMessage) -> Result<Message, EmailError> {
     message.validate()?;
 

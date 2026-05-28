@@ -30,7 +30,8 @@
 
 | 优先级 | crate | 依据 | 建议动作 |
 | --- | --- | --- | --- |
-| P0 | `az-music`、`az-mqtt`、`az-email` | 网络协议/外部服务 crate 公开面较大，但公开项中文说明几乎为空。 | 优先写协议边界、认证/连接失败语义、脱敏和重试约束。 |
+| P0 | `az-music`、`az-mqtt` | 网络协议/外部服务 crate 公开面较大，但公开项中文说明几乎为空。 | 优先写协议边界、认证/连接失败语义、脱敏和重试约束。 |
+| P1 | `az-email` | 已补一轮 item-level 中文 rustdoc，SMTP 配置、消息构建、sender 注入和默认 sender 边界已明确。 | 后续新增 provider 或发送策略时同步补 `EmailSenderKind` / `EmailSenderConfig` 说明。 |
 | P1 | `az-yml`、`az-toml` | 已补一轮 item-level 中文 rustdoc，仍可继续补测试断言意图和 README 场景示例。 | 后续只在新增 API 或发现行为歧义时补充，避免重复注释。 |
 | P1 | `az-excel`、`az-knowledge`、`az-software-catalog` | 数据 crate 入口说明存在，但公开模型和操作缺少中文契约。 | 补数据源边界、导入/导出语义、正式持久化与临时扫描结果的区别。 |
 | P1 | `az-ssh`、`az-remote-session`、`az-cli-repl` | 运行时/远程交互 crate 的失败边界和交互契约需要可审计。 | 补会话生命周期、命令执行、交互输入和错误传播说明。 |
@@ -113,6 +114,7 @@
 - `az-str`：补齐字符串规格化、前后缀处理、命名转换、KMP 匹配、模板格式化、Markdown/HTML 提取、键值对解析和特殊字符转义等公开工具函数的中文 rustdoc，明确空值、UTF-8 字节偏移、宽松数值转换和上下文专用编码器边界。
 - `az-creates`：补齐统一错误类型、`Creates` 门面、Maven Central 包装器、天眼查普通/华为云签名客户端和关键响应 DTO 的中文 rustdoc，明确外部 API 凭证边界、上游响应兼容、provider factory 依赖注入入口和错误链保留方式。
 - `az-yml`、`az-toml`：补齐 YAML 路径查询、环境变量替换、Spring profile 激活、数据库配置提取、Version Catalog 解析/初始化/合并和 TOML 插入宏的中文 rustdoc，明确路径语法、默认值、脱敏、排序输出和非解析式文本插入边界。
+- `az-email`：补齐 SMTP 配置、邮件消息、sender trait/factory、默认 sender、快捷发送函数和 `lettre::Message` 构建入口的中文 rustdoc，明确密码脱敏、TLS 选择、附件 IO/MIME 推断、进程级默认发送器和临时 sender 创建成本。
 
 ### 继续建议
 
