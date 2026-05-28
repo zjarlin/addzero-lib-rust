@@ -22,11 +22,15 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+/// 基于 Rhai 的进程内脚本引擎实现。
+///
+/// 引擎内部持有一个可注入的 [`Engine`]，宿主可以使用 [`RhaiEngine::with_engine`] 注册
+/// 自定义函数、模块或执行限制，再通过 [`ScriptEngine`] trait 统一调度。
 pub struct RhaiEngine {
     engine: Mutex<Engine>,
 }
 
-/// Factory for the default in-process Rhai engine implementation.
+/// 默认进程内 Rhai 引擎的工厂。
 pub struct RhaiEngineFactory;
 
 impl ScriptEngineFactory for RhaiEngineFactory {
@@ -39,18 +43,19 @@ impl ScriptEngineFactory for RhaiEngineFactory {
     }
 }
 
-/// Register the default Rhai engine into an existing script engine registry.
+/// 将默认 Rhai 引擎注册到已有脚本引擎注册表。
 pub fn register_rhai_engine(registry: &mut dyn ScriptEngineRegistry) {
     register_engine_factory(registry, &RhaiEngineFactory);
 }
 
-/// Build a script engine registry preloaded with the default Rhai engine.
+/// 创建一个预装默认 Rhai 引擎的脚本引擎注册表。
 #[must_use]
 pub fn rhai_engine_registry() -> InMemoryScriptEngineRegistry {
     InMemoryScriptEngineRegistry::with_factories(&[&RhaiEngineFactory])
 }
 
 impl RhaiEngine {
+    /// 创建带默认安全限制的 Rhai 引擎。
     pub fn new() -> Self {
         let mut engine = Engine::new();
         engine.set_max_operations(1_000_000);
@@ -59,9 +64,9 @@ impl RhaiEngine {
         Self::with_engine(engine)
     }
 
-    /// Build a script engine from a preconfigured Rhai runtime.
+    /// 使用预配置的 Rhai 运行时创建脚本引擎。
     ///
-    /// Use this when the host wants to inject registered functions, modules, or custom limits.
+    /// 宿主需要注入注册函数、模块或自定义限制时使用该入口。
     pub fn with_engine(engine: Engine) -> Self {
         Self {
             engine: Mutex::new(engine),
@@ -163,9 +168,9 @@ mod tests {
             policy: SandboxPolicy::permissive(),
             timeout_secs: 0,
         });
-        // Successful evaluation must surface a zero exit code before result decoding matters.
+        // 成功执行必须先暴露零退出码，结果解码才有意义。
         assert_eq!(output.exit_code, 0);
-        // The engine contract stores expression results in `_result` for downstream callers.
+        // 引擎契约把表达式结果放入 `_result`，供下游调用方读取。
         assert_eq!(
             output.vars.get("_result").and_then(|v| v.as_i64()),
             Some(42)
@@ -185,9 +190,9 @@ mod tests {
             policy: SandboxPolicy::permissive(),
             timeout_secs: 0,
         });
-        // Variable injection is part of the public script-engine contract, not a Rhai-only detail.
+        // 变量注入是公开脚本引擎契约，不是 Rhai 实现细节。
         assert_eq!(output.exit_code, 0);
-        // String interpolation should round-trip through serde_json without losing the computed value.
+        // 字符串插值结果需要能经 serde_json 往返而不丢失计算值。
         assert_eq!(
             output.vars.get("_result").and_then(|v| v.as_str()),
             Some("Hello, AIO!")
@@ -204,7 +209,7 @@ mod tests {
             policy: SandboxPolicy::permissive(),
             timeout_secs: 0,
         });
-        // `print` output must be captured so hosts can expose script logs to callers.
+        // `print` 输出必须被捕获，宿主才能向调用方暴露脚本日志。
         assert_eq!(output.exit_code, 0);
         assert!(output.stdout.contains("hello from rhai"));
     }
@@ -223,7 +228,7 @@ mod tests {
             timeout_secs: 0,
         });
 
-        // The custom host function proves this instance uses the injected Rhai runtime.
+        // 自定义宿主函数用于证明该实例确实使用了注入的 Rhai 运行时。
         assert_eq!(output.exit_code, 0);
         assert_eq!(
             output.vars.get("_result").and_then(|v| v.as_i64()),
@@ -247,7 +252,7 @@ mod tests {
                 timeout_secs: 0,
             });
 
-        // Registry helpers should expose a usable default Rhai implementation, not only a marker.
+        // 注册表辅助函数必须暴露可用的默认 Rhai 实现，而不只是登记语言标记。
         assert_eq!(output.exit_code, 0);
         assert_eq!(
             output.vars.get("_result").and_then(|v| v.as_i64()),

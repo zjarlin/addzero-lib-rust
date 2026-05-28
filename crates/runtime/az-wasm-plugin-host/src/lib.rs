@@ -31,7 +31,10 @@ const ON_ENABLE_EXPORT: &str = "aio_on_enable";
 const ON_DISABLE_EXPORT: &str = "aio_on_disable";
 const ON_UNLOAD_EXPORT: &str = "aio_on_unload";
 
-/// In-memory plugin registry backed by Wasmtime for external plugins.
+/// 基于 Wasmtime 的内存插件注册表。
+///
+/// 外部插件通过 WASM 字节加载，内置插件通过 `builtin:` 入口声明；宿主也可以通过
+/// [`RuntimePluginRegistry::with_engine`] 注入预配置的 Wasmtime 引擎。
 #[apply(plain_default)]
 pub struct RuntimePluginRegistry {
     engine: Engine,
@@ -54,13 +57,14 @@ struct WasmPluginInstance {
 }
 
 impl RuntimePluginRegistry {
+    /// 创建使用默认 Wasmtime 引擎的插件注册表。
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Build a registry with an injected Wasmtime engine.
+    /// 使用注入的 Wasmtime 引擎创建插件注册表。
     ///
-    /// Use this when the host needs a preconfigured engine instead of the default Wasmtime runtime.
+    /// 宿主需要预配置引擎能力、缓存策略或运行限制时使用该入口。
     pub fn with_engine(engine: Engine) -> Self {
         Self {
             engine,
