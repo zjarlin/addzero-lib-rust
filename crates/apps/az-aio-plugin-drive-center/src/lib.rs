@@ -2,8 +2,9 @@
 #![doc = include_str!("../README.md")]
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopHostServices, DesktopInitContext, DesktopRenderLayer,
-    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopHostServices, DesktopInitContext,
+    DesktopPageContributionSpec, DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext,
+    EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, IntoElement, div, prelude::*, rgb};
@@ -25,6 +26,52 @@ impl DriveCenterPlugin {
     const ACTION_RETRY: &str = "drive.retry-queue";
     const ACTION_HOST_SKILLS: &str = "drive.host-skills";
     const ACTION_UNHOST_SKILLS: &str = "drive.unhost-skills";
+    const TOOLBAR_ACTIONS: &[DesktopToolbarActionSpec] = &[
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_REFRESH,
+            "Refresh",
+            "Reload drive snapshot",
+            10,
+        ),
+        DesktopToolbarActionSpec::primary(Self::ACTION_SYNC, "Sync", "Run one sync cycle", 20),
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_RETRY,
+            "Retry Queue",
+            "Retry queued sync items",
+            30,
+        ),
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_HOST_SKILLS,
+            "Host Skills",
+            "Host ~/.agents/skills",
+            40,
+        ),
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_UNHOST_SKILLS,
+            "Unhost Skills",
+            "Unhost ~/.agents/skills",
+            50,
+        ),
+    ];
+    const CONTRIBUTION: DesktopPageContributionSpec = DesktopPageContributionSpec {
+        domain_id: OPS_DOMAIN_ID,
+        domain_label: "Operations",
+        domain_order: 10,
+        branch_id: STORAGE_BRANCH_ID,
+        parent_branch_id: None,
+        branch_label: "Storage",
+        branch_order: 10,
+        page_id: Self::PAGE_ID,
+        page_title: "Drive Center",
+        page_subtitle: "Host, sync, inspect queue and conflicts.",
+        route: Self::ROUTE,
+        page_order: 10,
+        summary_card_id: "drive-center-summary",
+        summary_title: "Drive Center",
+        summary: "Realtime drive operations, queue, conflicts, pool surfaces, and hosting status.",
+        summary_order: 10,
+        toolbar_actions: Self::TOOLBAR_ACTIONS,
+    };
 
     fn refresh(&mut self, services: &dyn DesktopHostServices) -> Result<(), String> {
         let snapshot = services.load_drive_snapshot()?;
@@ -160,65 +207,7 @@ impl
     }
 
     fn setup(&mut self, ctx: &mut DesktopInitContext) {
-        ctx.register_domain(OPS_DOMAIN_ID, "Operations", 10, Self::ROUTE);
-        ctx.register_branch(
-            STORAGE_BRANCH_ID,
-            OPS_DOMAIN_ID,
-            None::<String>,
-            "Storage",
-            10,
-        );
-        ctx.register_page(
-            Self::PAGE_ID,
-            OPS_DOMAIN_ID,
-            Some(STORAGE_BRANCH_ID),
-            "Drive Center",
-            "Host, sync, inspect queue and conflicts.",
-            Self::ROUTE,
-            10,
-        );
-        ctx.register_route_toolbar_actions(
-            Self::ROUTE,
-            [
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_REFRESH,
-                    "Refresh",
-                    "Reload drive snapshot",
-                    10,
-                ),
-                DesktopToolbarActionSpec::primary(
-                    Self::ACTION_SYNC,
-                    "Sync",
-                    "Run one sync cycle",
-                    20,
-                ),
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_RETRY,
-                    "Retry Queue",
-                    "Retry queued sync items",
-                    30,
-                ),
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_HOST_SKILLS,
-                    "Host Skills",
-                    "Host ~/.agents/skills",
-                    40,
-                ),
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_UNHOST_SKILLS,
-                    "Unhost Skills",
-                    "Unhost ~/.agents/skills",
-                    50,
-                ),
-            ],
-        );
-        ctx.register_summary_card(
-            "drive-center-summary",
-            "Drive Center",
-            "Realtime drive operations, queue, conflicts, pool surfaces, and hosting status.",
-            Self::ROUTE,
-            10,
-        );
+        ctx.register_page_contribution(Self::CONTRIBUTION);
         ctx.register_command(Self::ACTION_SYNC, "Run a drive sync cycle");
     }
 

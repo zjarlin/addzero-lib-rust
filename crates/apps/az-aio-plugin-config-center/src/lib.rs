@@ -12,8 +12,8 @@ use std::env;
 use az_ai_agent::default_model_for;
 use az_assets::{AiModelProviderUpsert, AiProviderKind};
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer,
-    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPageContributionSpec,
+    DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
@@ -42,6 +42,57 @@ impl ConfigCenterPlugin {
     const ACTION_TEST_OPENAI: &str = "config-center.test-openai";
     const ACTION_TEST_ANTHROPIC: &str = "config-center.test-anthropic";
     const ACTION_TEST_GEMINI: &str = "config-center.test-gemini";
+    const TOOLBAR_ACTIONS: &[DesktopToolbarActionSpec] = &[
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_REFRESH,
+            "Refresh",
+            "Reload dotfiles, pairing, paths, and providers",
+            10,
+        ),
+        DesktopToolbarActionSpec::primary(
+            Self::ACTION_IMPORT_ENV,
+            "Import Env",
+            "Import provider secrets from environment variables",
+            20,
+        ),
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_TEST_OPENAI,
+            "Test OpenAI",
+            "Test OpenAI provider connectivity",
+            30,
+        ),
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_TEST_ANTHROPIC,
+            "Test Anthropic",
+            "Test Anthropic provider connectivity",
+            40,
+        ),
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_TEST_GEMINI,
+            "Test Gemini",
+            "Test Gemini provider connectivity",
+            50,
+        ),
+    ];
+    const CONTRIBUTION: DesktopPageContributionSpec = DesktopPageContributionSpec {
+        domain_id: ENV_DOMAIN_ID,
+        domain_label: "Environment",
+        domain_order: 30,
+        branch_id: MACHINE_BRANCH_ID,
+        parent_branch_id: None,
+        branch_label: "Machine",
+        branch_order: 10,
+        page_id: Self::PAGE_ID,
+        page_title: "Config Center",
+        page_subtitle: "Dotfiles monitor, pairing identity, XDG paths, and model provider configuration.",
+        route: Self::ROUTE,
+        page_order: 10,
+        summary_card_id: "config-center-summary",
+        summary_title: "Config Center",
+        summary: "Dotfiles conflict audit, pairing identity, XDG/backend panels, and provider config/testing.",
+        summary_order: 40,
+        toolbar_actions: Self::TOOLBAR_ACTIONS,
+    };
 
     fn refresh(&mut self, ctx: &DesktopExecContext) -> Result<(), String> {
         ensure_local_pairing_device_info().map_err(|err| err.to_string())?;
@@ -201,65 +252,7 @@ impl
     }
 
     fn setup(&mut self, ctx: &mut DesktopInitContext) {
-        ctx.register_domain(ENV_DOMAIN_ID, "Environment", 30, Self::ROUTE);
-        ctx.register_branch(
-            MACHINE_BRANCH_ID,
-            ENV_DOMAIN_ID,
-            None::<String>,
-            "Machine",
-            10,
-        );
-        ctx.register_page(
-            Self::PAGE_ID,
-            ENV_DOMAIN_ID,
-            Some(MACHINE_BRANCH_ID),
-            "Config Center",
-            "Dotfiles monitor, pairing identity, XDG paths, and model provider configuration.",
-            Self::ROUTE,
-            10,
-        );
-        ctx.register_route_toolbar_actions(
-            Self::ROUTE,
-            [
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_REFRESH,
-                    "Refresh",
-                    "Reload dotfiles, pairing, paths, and providers",
-                    10,
-                ),
-                DesktopToolbarActionSpec::primary(
-                    Self::ACTION_IMPORT_ENV,
-                    "Import Env",
-                    "Import provider secrets from environment variables",
-                    20,
-                ),
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_TEST_OPENAI,
-                    "Test OpenAI",
-                    "Test OpenAI provider connectivity",
-                    30,
-                ),
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_TEST_ANTHROPIC,
-                    "Test Anthropic",
-                    "Test Anthropic provider connectivity",
-                    40,
-                ),
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_TEST_GEMINI,
-                    "Test Gemini",
-                    "Test Gemini provider connectivity",
-                    50,
-                ),
-            ],
-        );
-        ctx.register_summary_card(
-            "config-center-summary",
-            "Config Center",
-            "Dotfiles conflict audit, pairing identity, XDG/backend panels, and provider config/testing.",
-            Self::ROUTE,
-            40,
-        );
+        ctx.register_page_contribution(Self::CONTRIBUTION);
     }
 
     fn on_event(&mut self, event: &DesktopEvent, ctx: &mut DesktopExecContext) -> EventPropagation {

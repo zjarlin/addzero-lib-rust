@@ -9,8 +9,8 @@ pub mod gateway_runtime_types;
 use std::collections::BTreeMap;
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer,
-    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPageContributionSpec,
+    DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
@@ -36,6 +36,45 @@ impl EdgeGatewayPlugin {
     const ACTION_REFRESH: &str = "edge-gateway.refresh";
     const ACTION_LOAD_EXAMPLE: &str = "edge-gateway.load-example";
     const ACTION_RUN_EXAMPLE: &str = "edge-gateway.run-example";
+    const TOOLBAR_ACTIONS: &[DesktopToolbarActionSpec] = &[
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_REFRESH,
+            "Refresh",
+            "Refresh gateway panel state",
+            10,
+        ),
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_LOAD_EXAMPLE,
+            "Load Example",
+            "Load a reference gateway plan",
+            20,
+        ),
+        DesktopToolbarActionSpec::primary(
+            Self::ACTION_RUN_EXAMPLE,
+            "Run Example",
+            "Execute the loaded example gateway plan",
+            30,
+        ),
+    ];
+    const CONTRIBUTION: DesktopPageContributionSpec = DesktopPageContributionSpec {
+        domain_id: OPS_DOMAIN_ID,
+        domain_label: "Operations",
+        domain_order: 10,
+        branch_id: EDGE_BRANCH_ID,
+        parent_branch_id: None,
+        branch_label: "Network",
+        branch_order: 20,
+        page_id: Self::PAGE_ID,
+        page_title: "Edge Gateway",
+        page_subtitle: "Gateway flow editor, plan generation, runtime execution, and helper references.",
+        route: Self::ROUTE,
+        page_order: 20,
+        summary_card_id: "edge-gateway-summary",
+        summary_title: "Edge Gateway",
+        summary: "Flow editor/runtime reference with Rust planner and HTTP chain execution.",
+        summary_order: 50,
+        toolbar_actions: Self::TOOLBAR_ACTIONS,
+    };
 
     fn refresh(&mut self) {
         let mut lines = vec![
@@ -162,47 +201,7 @@ impl
     }
 
     fn setup(&mut self, ctx: &mut DesktopInitContext) {
-        ctx.register_domain(OPS_DOMAIN_ID, "Operations", 10, Self::ROUTE);
-        ctx.register_branch(EDGE_BRANCH_ID, OPS_DOMAIN_ID, None::<String>, "Network", 20);
-        ctx.register_page(
-            Self::PAGE_ID,
-            OPS_DOMAIN_ID,
-            Some(EDGE_BRANCH_ID),
-            "Edge Gateway",
-            "Gateway flow editor, plan generation, runtime execution, and helper references.",
-            Self::ROUTE,
-            20,
-        );
-        ctx.register_route_toolbar_actions(
-            Self::ROUTE,
-            [
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_REFRESH,
-                    "Refresh",
-                    "Refresh gateway panel state",
-                    10,
-                ),
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_LOAD_EXAMPLE,
-                    "Load Example",
-                    "Load a reference gateway plan",
-                    20,
-                ),
-                DesktopToolbarActionSpec::primary(
-                    Self::ACTION_RUN_EXAMPLE,
-                    "Run Example",
-                    "Execute the loaded example gateway plan",
-                    30,
-                ),
-            ],
-        );
-        ctx.register_summary_card(
-            "edge-gateway-summary",
-            "Edge Gateway",
-            "Flow editor/runtime reference with Rust planner and HTTP chain execution.",
-            Self::ROUTE,
-            50,
-        );
+        ctx.register_page_contribution(Self::CONTRIBUTION);
     }
 
     fn on_event(&mut self, event: &DesktopEvent, ctx: &mut DesktopExecContext) -> EventPropagation {

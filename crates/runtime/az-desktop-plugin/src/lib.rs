@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
-use std::{cell::RefCell, cmp::Reverse, collections::BTreeMap, rc::Rc, sync::Arc};
+use std::{borrow::Borrow, cell::RefCell, cmp::Reverse, collections::BTreeMap, rc::Rc, sync::Arc};
 
 use az_assets::{
     AiModelProvider, AiModelProviderUpsert, AiProviderKind, Asset, AssetGraph, AssetKind,
@@ -234,17 +234,57 @@ impl DesktopInitContext {
             });
     }
 
+    /// 为单页面插件注册完整 shell 贡献。
+    ///
+    /// 该方法只收敛 domain、branch、page、summary 与同路由 toolbar action 的机械组合；
+    /// 插件仍在规格里显式声明每个稳定 ID、文案和排序值。
+    pub fn register_page_contribution(&mut self, spec: DesktopPageContributionSpec) {
+        self.register_domain(
+            spec.domain_id,
+            spec.domain_label,
+            spec.domain_order,
+            spec.route,
+        );
+        self.register_branch(
+            spec.branch_id,
+            spec.domain_id,
+            spec.parent_branch_id,
+            spec.branch_label,
+            spec.branch_order,
+        );
+        self.register_page(
+            spec.page_id,
+            spec.domain_id,
+            Some(spec.branch_id),
+            spec.page_title,
+            spec.page_subtitle,
+            spec.route,
+            spec.page_order,
+        );
+        self.register_route_toolbar_actions(spec.route, spec.toolbar_actions);
+        self.register_summary_card(
+            spec.summary_card_id,
+            spec.summary_title,
+            spec.summary,
+            spec.route,
+            spec.summary_order,
+        );
+    }
+
     /// 为同一路由批量注册工具栏动作。
     ///
     /// 插件仍显式列出每个 action 的 ID、文案、顺序和主次关系；这里只收敛重复的
     /// `Some(route)` 样板，避免 setup 阶段被机械注册代码淹没。
-    pub fn register_route_toolbar_actions(
+    pub fn register_route_toolbar_actions<T>(
         &mut self,
         route: impl Into<String>,
-        actions: impl IntoIterator<Item = DesktopToolbarActionSpec>,
-    ) {
+        actions: impl IntoIterator<Item = T>,
+    ) where
+        T: Borrow<DesktopToolbarActionSpec>,
+    {
         let route = route.into();
         for action in actions {
+            let action = action.borrow();
             self.register_toolbar_action(
                 Some(route.as_str()),
                 action.action_id,
@@ -360,6 +400,48 @@ pub struct DesktopPageRegistration {
     pub order: i32,
     /// 当前插件对该页面路由的所有权角色。
     pub role: DesktopPageRole,
+}
+
+/// 单页面插件的 shell 贡献规格。
+///
+/// 适用于一个插件贡献一个页面、一个侧轴分支和一个摘要卡片的常见形态；更复杂的插件
+/// 仍可继续调用底层 `register_*` 方法逐项注册。
+#[apply(plain_copy_eq)]
+pub struct DesktopPageContributionSpec {
+    /// 顶层业务域稳定 ID。
+    pub domain_id: &'static str,
+    /// 顶层业务域展示名称。
+    pub domain_label: &'static str,
+    /// 顶层业务域展示顺序。
+    pub domain_order: i32,
+    /// 侧轴分支稳定 ID。
+    pub branch_id: &'static str,
+    /// 父分支 ID；为空表示业务域根分支。
+    pub parent_branch_id: Option<&'static str>,
+    /// 侧轴分支展示名称。
+    pub branch_label: &'static str,
+    /// 侧轴分支展示顺序。
+    pub branch_order: i32,
+    /// 页面稳定 ID。
+    pub page_id: &'static str,
+    /// 页面标题。
+    pub page_title: &'static str,
+    /// 页面副标题或简短说明。
+    pub page_subtitle: &'static str,
+    /// 页面路由。
+    pub route: &'static str,
+    /// 页面展示顺序。
+    pub page_order: i32,
+    /// 摘要卡片稳定 ID。
+    pub summary_card_id: &'static str,
+    /// 摘要卡片标题。
+    pub summary_title: &'static str,
+    /// 摘要卡片内容。
+    pub summary: &'static str,
+    /// 摘要卡片展示顺序。
+    pub summary_order: i32,
+    /// 绑定到页面路由的工具栏动作。
+    pub toolbar_actions: &'static [DesktopToolbarActionSpec],
 }
 
 /// 工具栏动作注册项。
@@ -918,9 +1000,10 @@ mod tests {
     use super::{
         DesktopBranchRegistration, DesktopContributions, DesktopDomainRegistration, DesktopEvent,
         DesktopExecContext, DesktopHostRegistry, DesktopHostServices, DesktopInitContext,
-        DesktopPageRegistration, DesktopPageRole, DesktopProviderTestResult, DesktopRenderLayer,
-        DesktopShellSnapshot, DesktopSummaryCardRegistration, DesktopToolbarActionRegistration,
-        DesktopToolbarActionSpec, EventPropagation, ListTrackedOptions,
+        DesktopPageContributionSpec, DesktopPageRegistration, DesktopPageRole,
+        DesktopProviderTestResult, DesktopRenderLayer, DesktopShellSnapshot,
+        DesktopSummaryCardRegistration, DesktopToolbarActionRegistration, DesktopToolbarActionSpec,
+        EventPropagation, ListTrackedOptions,
     };
     use uuid::Uuid;
 
@@ -1038,30 +1121,29 @@ mod tests {
     fn init_context_records_plugin_contributions() {
         let mut ctx = DesktopInitContext::new();
         ctx.set_current_plugin("demo");
-        ctx.register_domain("ops", "Operations", 10, "/drive");
-        ctx.register_branch("drive-branch", "ops", None::<String>, "Drive", 10);
-        ctx.register_page(
-            "drive-home",
-            "ops",
-            Some("drive-branch"),
-            "Drive Center",
-            "Sync roots",
-            "/drive",
-            10,
-        );
-        ctx.register_route_toolbar_actions(
-            "/drive",
-            [
-                DesktopToolbarActionSpec::primary(
-                    "drive.refresh",
-                    "Refresh",
-                    "Reload snapshot",
-                    10,
-                ),
-                DesktopToolbarActionSpec::secondary("drive.sync", "Sync", "Run sync", 20),
-            ],
-        );
-        ctx.register_summary_card("drive-card", "Drive Center", "Sync roots", "/drive", 10);
+        const ACTIONS: &[DesktopToolbarActionSpec] = &[
+            DesktopToolbarActionSpec::primary("drive.refresh", "Refresh", "Reload snapshot", 10),
+            DesktopToolbarActionSpec::secondary("drive.sync", "Sync", "Run sync", 20),
+        ];
+        ctx.register_page_contribution(DesktopPageContributionSpec {
+            domain_id: "ops",
+            domain_label: "Operations",
+            domain_order: 10,
+            branch_id: "drive-branch",
+            parent_branch_id: None,
+            branch_label: "Drive",
+            branch_order: 10,
+            page_id: "drive-home",
+            page_title: "Drive Center",
+            page_subtitle: "Sync roots",
+            route: "/drive",
+            page_order: 10,
+            summary_card_id: "drive-card",
+            summary_title: "Drive Center",
+            summary: "Sync roots",
+            summary_order: 10,
+            toolbar_actions: ACTIONS,
+        });
         ctx.register_command("drive.refresh", "Refresh");
 
         let contributions = ctx.into_contributions();

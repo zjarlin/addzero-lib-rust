@@ -6,8 +6,8 @@ pub mod installer_scanner_utils;
 pub mod paths;
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer,
-    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPageContributionSpec,
+    DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use az_software_catalog::SoftwareCatalogDto;
@@ -31,6 +31,45 @@ impl SoftwareCenterPlugin {
     const ACTION_REFRESH: &str = "software-center.refresh";
     const ACTION_SCAN: &str = "software-center.scan-installers";
     const ACTION_ORGANIZE: &str = "software-center.organize-installers";
+    const TOOLBAR_ACTIONS: &[DesktopToolbarActionSpec] = &[
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_REFRESH,
+            "Refresh",
+            "Reload catalog and installer scan",
+            10,
+        ),
+        DesktopToolbarActionSpec::primary(
+            Self::ACTION_SCAN,
+            "Scan",
+            "Scan Downloads and Desktop for installers",
+            20,
+        ),
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_ORGANIZE,
+            "Organize",
+            "Archive detected installers into software-center storage",
+            30,
+        ),
+    ];
+    const CONTRIBUTION: DesktopPageContributionSpec = DesktopPageContributionSpec {
+        domain_id: KNOWLEDGE_DOMAIN_ID,
+        domain_label: "Knowledge",
+        domain_order: 20,
+        branch_id: SOFTWARE_BRANCH_ID,
+        parent_branch_id: None,
+        branch_label: "Software",
+        branch_order: 20,
+        page_id: Self::PAGE_ID,
+        page_title: "Software Center",
+        page_subtitle: "Installer scan, organize/archive, and catalog-linked package detail surfaces.",
+        route: Self::ROUTE,
+        page_order: 20,
+        summary_card_id: "software-center-summary",
+        summary_title: "Software Center",
+        summary: "Installer scan, archive flow, and az_software_catalog linkage.",
+        summary_order: 30,
+        toolbar_actions: Self::TOOLBAR_ACTIONS,
+    };
 
     fn refresh(&mut self, ctx: &DesktopExecContext) -> Result<(), String> {
         let catalog = ctx.services.software_catalog()?;
@@ -131,53 +170,7 @@ impl
     }
 
     fn setup(&mut self, ctx: &mut DesktopInitContext) {
-        ctx.register_domain(KNOWLEDGE_DOMAIN_ID, "Knowledge", 20, Self::ROUTE);
-        ctx.register_branch(
-            SOFTWARE_BRANCH_ID,
-            KNOWLEDGE_DOMAIN_ID,
-            None::<String>,
-            "Software",
-            20,
-        );
-        ctx.register_page(
-            Self::PAGE_ID,
-            KNOWLEDGE_DOMAIN_ID,
-            Some(SOFTWARE_BRANCH_ID),
-            "Software Center",
-            "Installer scan, organize/archive, and catalog-linked package detail surfaces.",
-            Self::ROUTE,
-            20,
-        );
-        ctx.register_route_toolbar_actions(
-            Self::ROUTE,
-            [
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_REFRESH,
-                    "Refresh",
-                    "Reload catalog and installer scan",
-                    10,
-                ),
-                DesktopToolbarActionSpec::primary(
-                    Self::ACTION_SCAN,
-                    "Scan",
-                    "Scan Downloads and Desktop for installers",
-                    20,
-                ),
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_ORGANIZE,
-                    "Organize",
-                    "Archive detected installers into software-center storage",
-                    30,
-                ),
-            ],
-        );
-        ctx.register_summary_card(
-            "software-center-summary",
-            "Software Center",
-            "Installer scan, archive flow, and az_software_catalog linkage.",
-            Self::ROUTE,
-            30,
-        );
+        ctx.register_page_contribution(Self::CONTRIBUTION);
     }
 
     fn on_event(&mut self, event: &DesktopEvent, ctx: &mut DesktopExecContext) -> EventPropagation {

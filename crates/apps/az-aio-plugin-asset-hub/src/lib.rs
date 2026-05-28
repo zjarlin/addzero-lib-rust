@@ -5,8 +5,8 @@ mod skill_scanner;
 
 use az_assets::{AssetKind, AssetUpsert};
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer,
-    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPageContributionSpec,
+    DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
@@ -29,6 +29,40 @@ impl AssetHubPlugin {
     const ACTION_REFRESH: &str = "asset-hub.refresh";
     const ACTION_SCAN_SKILLS: &str = "asset-hub.scan-skills";
     const ACTION_SEED_COMPOSE: &str = "asset-hub.seed-compose";
+    const TOOLBAR_ACTIONS: &[DesktopToolbarActionSpec] = &[
+        DesktopToolbarActionSpec::secondary(Self::ACTION_REFRESH, "Refresh", "Reload assets", 10),
+        DesktopToolbarActionSpec::primary(
+            Self::ACTION_SCAN_SKILLS,
+            "Scan Skills",
+            "Scan ~/.agents/skills and merge into az_assets",
+            20,
+        ),
+        DesktopToolbarActionSpec::secondary(
+            Self::ACTION_SEED_COMPOSE,
+            "Seed Compose",
+            "Insert a compose asset using stable subtype metadata",
+            30,
+        ),
+    ];
+    const CONTRIBUTION: DesktopPageContributionSpec = DesktopPageContributionSpec {
+        domain_id: KNOWLEDGE_DOMAIN_ID,
+        domain_label: "Knowledge",
+        domain_order: 20,
+        branch_id: ASSET_BRANCH_ID,
+        parent_branch_id: None,
+        branch_label: "Assets",
+        branch_order: 10,
+        page_id: Self::PAGE_ID,
+        page_title: "Asset Hub",
+        page_subtitle: "Asset feed, skill scan, compose assets, and subtype-backed metadata.",
+        route: Self::ROUTE,
+        page_order: 10,
+        summary_card_id: "asset-hub-summary",
+        summary_title: "Asset Hub",
+        summary: "Asset editor/feed, skill scan, compose assets, tag filters, and detail surfaces.",
+        summary_order: 20,
+        toolbar_actions: Self::TOOLBAR_ACTIONS,
+    };
 
     fn refresh(&mut self, ctx: &DesktopExecContext) -> Result<(), String> {
         let assets = ctx.services.list_assets(None)?;
@@ -160,53 +194,7 @@ impl
     }
 
     fn setup(&mut self, ctx: &mut DesktopInitContext) {
-        ctx.register_domain(KNOWLEDGE_DOMAIN_ID, "Knowledge", 20, Self::ROUTE);
-        ctx.register_branch(
-            ASSET_BRANCH_ID,
-            KNOWLEDGE_DOMAIN_ID,
-            None::<String>,
-            "Assets",
-            10,
-        );
-        ctx.register_page(
-            Self::PAGE_ID,
-            KNOWLEDGE_DOMAIN_ID,
-            Some(ASSET_BRANCH_ID),
-            "Asset Hub",
-            "Asset feed, skill scan, compose assets, and subtype-backed metadata.",
-            Self::ROUTE,
-            10,
-        );
-        ctx.register_route_toolbar_actions(
-            Self::ROUTE,
-            [
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_REFRESH,
-                    "Refresh",
-                    "Reload assets",
-                    10,
-                ),
-                DesktopToolbarActionSpec::primary(
-                    Self::ACTION_SCAN_SKILLS,
-                    "Scan Skills",
-                    "Scan ~/.agents/skills and merge into az_assets",
-                    20,
-                ),
-                DesktopToolbarActionSpec::secondary(
-                    Self::ACTION_SEED_COMPOSE,
-                    "Seed Compose",
-                    "Insert a compose asset using stable subtype metadata",
-                    30,
-                ),
-            ],
-        );
-        ctx.register_summary_card(
-            "asset-hub-summary",
-            "Asset Hub",
-            "Asset editor/feed, skill scan, compose assets, tag filters, and detail surfaces.",
-            Self::ROUTE,
-            20,
-        );
+        ctx.register_page_contribution(Self::CONTRIBUTION);
     }
 
     fn on_event(&mut self, event: &DesktopEvent, ctx: &mut DesktopExecContext) -> EventPropagation {
