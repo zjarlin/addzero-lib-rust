@@ -1,56 +1,56 @@
 use az_derive_aliases::{apply, error};
 use reqwest::header::{InvalidHeaderName, InvalidHeaderValue};
 
-/// Result alias for Cloudflare Temp Email operations.
+/// 临时邮箱操作的统一结果类型。
 pub type TempMailResult<T> = Result<T, TempMailError>;
 
-/// Errors returned by the Cloudflare Temp Email client.
+/// 临时邮箱客户端返回的错误。
 #[apply(error)]
 pub enum TempMailError {
-    /// Client configuration is internally inconsistent.
+    /// 客户端配置字段组合不一致。
     #[error("invalid config: {0}")]
     InvalidConfig(String),
-    /// The configured worker base URL is not a valid URL.
+    /// 配置的 worker 基础 URL 不是合法 URL。
     #[error("invalid base url `{0}`")]
     InvalidBaseUrl(String),
-    /// A request path could not be joined against the base URL.
+    /// 请求路径无法拼接到基础 URL。
     #[error("invalid request path `{0}`")]
     InvalidPath(String),
-    /// A configured header name is invalid.
+    /// 配置的 header 名称不合法。
     #[error("invalid header name `{name}`: {source}")]
     InvalidHeaderName {
-        /// Header name from caller input.
+        /// 调用方输入的 header 名称。
         name: String,
-        /// Parser error from `reqwest`.
+        /// `reqwest` 返回的解析错误。
         #[source]
         source: InvalidHeaderName,
     },
-    /// A configured header value is invalid.
+    /// 配置的 header 值不合法。
     #[error("invalid header value for `{name}`: {source}")]
     InvalidHeaderValue {
-        /// Header name from caller input.
+        /// 调用方输入的 header 名称。
         name: String,
-        /// Parser error from `reqwest`.
+        /// `reqwest` 返回的解析错误。
         #[source]
         source: InvalidHeaderValue,
     },
-    /// The HTTP transport failed before a usable response was produced.
+    /// 生成可用响应前 HTTP 传输失败。
     #[error("request failed: {0}")]
     Transport(#[from] reqwest::Error),
-    /// A JSON payload failed to decode.
+    /// JSON 载荷解码失败。
     #[error("failed to parse json payload: {0}")]
     Json(#[from] serde_json::Error),
-    /// The worker returned a non-success HTTP status.
+    /// worker 返回了非成功 HTTP 状态码。
     #[error("request to `{url}` returned HTTP {status}: {body}")]
     HttpStatus {
-        /// Final request URL.
+        /// 最终请求 URL。
         url: String,
-        /// HTTP status code.
+        /// HTTP 状态码。
         status: u16,
-        /// Response body, decoded lossily as UTF-8.
+        /// 以 UTF-8 lossy 方式解码的响应体。
         body: String,
     },
-    /// The worker returned syntactically valid JSON with missing required data.
+    /// worker 返回了语法合法但缺少必要数据的 JSON。
     #[error("invalid response: {0}")]
     InvalidResponse(String),
 }

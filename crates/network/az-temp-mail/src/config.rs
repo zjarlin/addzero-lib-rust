@@ -3,23 +3,23 @@ use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-/// HTTP configuration for a Cloudflare Temp Email worker deployment.
+/// 临时邮箱 provider 的 HTTP 客户端配置。
 #[apply(plain_eq)]
 pub struct ApiConfig {
-    /// Base URL of the deployed worker, for example `https://mail.example.com`.
+    /// 已部署服务的基础 URL，例如 `https://mail.example.com`。
     pub base_url: String,
-    /// TCP connect timeout.
+    /// TCP 连接超时。
     pub connect_timeout: Duration,
-    /// Whole request timeout.
+    /// 单次请求总超时。
     pub request_timeout: Duration,
-    /// Optional user agent sent by the client.
+    /// 客户端发送的可选 User-Agent。
     pub user_agent: Option<String>,
-    /// Headers sent on every request.
+    /// 每个请求都会携带的默认 header。
     pub default_headers: BTreeMap<String, String>,
 }
 
 impl ApiConfig {
-    /// Creates a builder with conservative defaults.
+    /// 使用保守默认值创建配置构建器。
     pub fn builder(base_url: impl Into<String>) -> ApiConfigBuilder {
         ApiConfigBuilder {
             base_url: base_url.into(),
@@ -30,7 +30,7 @@ impl ApiConfig {
         }
     }
 
-    /// Validates timeout and base URL fields before I/O starts.
+    /// 在 IO 开始前校验超时和基础 URL 字段。
     pub fn validate(&self) -> TempMailResult<()> {
         if self.base_url.trim().is_empty() {
             return Err(TempMailError::InvalidConfig(
@@ -51,7 +51,7 @@ impl ApiConfig {
     }
 }
 
-/// Builder for [`ApiConfig`].
+/// [`ApiConfig`] 的链式构建器。
 #[apply(plain_clone_debug)]
 pub struct ApiConfigBuilder {
     base_url: String,
@@ -62,42 +62,42 @@ pub struct ApiConfigBuilder {
 }
 
 impl ApiConfigBuilder {
-    /// Sets the TCP connect timeout.
+    /// 设置 TCP 连接超时。
     #[must_use]
     pub fn connect_timeout(mut self, value: Duration) -> Self {
         self.connect_timeout = value;
         self
     }
 
-    /// Sets the whole request timeout.
+    /// 设置单次请求总超时。
     #[must_use]
     pub fn request_timeout(mut self, value: Duration) -> Self {
         self.request_timeout = value;
         self
     }
 
-    /// Sets the user agent header.
+    /// 设置 User-Agent header。
     #[must_use]
     pub fn user_agent(mut self, value: impl Into<String>) -> Self {
         self.user_agent = Some(value.into());
         self
     }
 
-    /// Disables the explicit user agent header.
+    /// 禁用显式 User-Agent header。
     #[must_use]
     pub fn clear_user_agent(mut self) -> Self {
         self.user_agent = None;
         self
     }
 
-    /// Adds a default HTTP header.
+    /// 添加默认 HTTP header。
     #[must_use]
     pub fn default_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.default_headers.insert(name.into(), value.into());
         self
     }
 
-    /// Builds and validates the final config.
+    /// 构建并校验最终配置。
     pub fn build(self) -> TempMailResult<ApiConfig> {
         let config = ApiConfig {
             base_url: self.base_url,

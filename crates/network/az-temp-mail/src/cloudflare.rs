@@ -4,42 +4,41 @@ use crate::{
 };
 use az_derive_aliases::{apply, plain_eq};
 
-/// Consumer-supplied context for initializing a Cloudflare temp-mail worker client
-/// and its default mailbox creation request.
+/// 调用方提供的 Cloudflare 临时邮箱 worker 上下文，用于初始化客户端和默认邮箱创建请求。
 #[apply(plain_eq)]
 pub struct CloudflareTempMailContext {
-    /// Base URL of the deployed worker, for example `https://mail.example.com`.
+    /// 已部署 worker 的基础 URL，例如 `https://mail.example.com`。
     pub base_url: String,
-    /// Optional deployment-specific header value sent as `x-custom-auth`.
+    /// 可选的部署专属认证 header 值，会作为 `x-custom-auth` 发送。
     pub custom_auth: Option<String>,
-    /// Optional preferred mailbox local part.
+    /// 可选的首选邮箱本地部分。
     pub address_name: Option<String>,
-    /// Optional preferred mailbox domain.
+    /// 可选的首选邮箱域名。
     pub address_domain: Option<String>,
-    /// Optional Cloudflare Turnstile token for protected deployments.
+    /// 受保护部署所需的可选 Cloudflare Turnstile token。
     pub cf_token: Option<String>,
-    /// Optional random-subdomain flag for deployments that support it.
+    /// 支持随机子域名部署的可选开关。
     pub enable_random_subdomain: Option<bool>,
 }
 
 impl CloudflareTempMailContext {
-    /// Builds validated HTTP configuration for the Cloudflare worker client.
+    /// 为 Cloudflare worker 客户端构建已校验的 HTTP 配置。
     pub fn api_config(&self) -> TempMailResult<ApiConfig> {
         ApiConfig::try_from(self)
     }
 
-    /// Creates a Cloudflare worker client from this context.
+    /// 根据当前上下文创建 Cloudflare worker 客户端。
     pub fn create_api(&self) -> TempMailResult<CloudflareTempMailApi> {
         CloudflareTempMailApi::new(self.api_config()?)
     }
 
-    /// Builds a mailbox creation request from the context defaults.
+    /// 根据上下文默认值构建邮箱创建请求。
     #[must_use]
     pub fn create_mailbox_request(&self) -> CreateMailboxRequest {
         CreateMailboxRequest::from(self)
     }
 
-    /// Builds a raw `/api/new_address` request from the context defaults.
+    /// 根据上下文默认值构建原始 `/api/new_address` 请求。
     #[must_use]
     pub fn new_address_request(&self) -> NewAddressRequest {
         NewAddressRequest::from(self)

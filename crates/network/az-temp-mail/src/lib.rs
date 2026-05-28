@@ -71,54 +71,54 @@ pub use provider::{
     TempMailProviderFactory, build_temp_mail_provider,
 };
 
-/// Namespace-style entry point for constructing temp-mail clients.
+/// 用于构造临时邮箱客户端的命名空间式入口。
 #[apply(plain_default_copy_eq)]
 pub struct TempMail;
 
 impl TempMail {
-    /// Creates a client for a deployed Cloudflare Temp Email worker.
+    /// 创建已部署 Cloudflare Temp Email worker 的客户端。
     pub fn cloudflare(base_url: impl Into<String>) -> TempMailResult<TempMailApi> {
         create_temp_mail_api(base_url)
     }
 
-    /// Creates a client from explicit configuration.
+    /// 根据显式配置创建客户端。
     pub fn cloudflare_with_config(config: ApiConfig) -> TempMailResult<TempMailApi> {
         TempMailApi::new(config)
     }
 
-    /// Creates a client from a higher-level Cloudflare worker context.
+    /// 根据较高层的 Cloudflare worker 上下文创建客户端。
     pub fn cloudflare_with_context(
         context: &CloudflareTempMailContext,
     ) -> TempMailResult<TempMailApi> {
         context.create_api()
     }
 
-    /// Creates a client for the hosted mail.tm-compatible provider.
+    /// 创建托管 mail.tm 兼容 provider 客户端。
     pub fn mail_tm() -> TempMailResult<MailTmTempMailApi> {
         create_mail_tm_api()
     }
 
-    /// Creates a mail.tm-compatible client from explicit configuration.
+    /// 根据显式配置创建 mail.tm 兼容客户端。
     pub fn mail_tm_with_config(config: ApiConfig) -> TempMailResult<MailTmTempMailApi> {
         MailTmTempMailApi::new(config)
     }
 
-    /// Creates a client for the hosted Emailnator temporary mailbox service.
+    /// 创建托管 Emailnator 临时邮箱服务客户端。
     pub fn emailnator() -> TempMailResult<EmailnatorTempMailApi> {
         create_emailnator_api()
     }
 
-    /// Creates an Emailnator client from explicit configuration.
+    /// 根据显式配置创建 Emailnator 客户端。
     pub fn emailnator_with_config(config: ApiConfig) -> TempMailResult<EmailnatorTempMailApi> {
         EmailnatorTempMailApi::new(config)
     }
 
-    /// Builds a boxed provider from a provider-specific config.
+    /// 根据 provider 专属配置构造 boxed provider。
     pub fn provider(config: TempMailProviderConfig) -> TempMailResult<BoxTempMailProvider> {
         build_temp_mail_provider(config)
     }
 
-    /// Builds a boxed provider through an injected factory.
+    /// 通过注入工厂构造 boxed provider。
     pub fn provider_with_factory(
         factory: &dyn TempMailProviderFactory,
         config: TempMailProviderConfig,

@@ -5,7 +5,7 @@ use az_derive_aliases::{
 };
 use serde_json::Value;
 
-/// Supported concrete temporary email providers.
+/// 当前支持的具体临时邮箱 provider。
 #[apply(serde_code_enum)]
 pub enum TempMailProviderKind {
     /// Self-hosted Cloudflare Worker from `dreamhunter2333/cloudflare_temp_email`.
@@ -16,15 +16,17 @@ pub enum TempMailProviderKind {
     Emailnator,
 }
 
-/// Pagination used by list endpoints. Values are normalized to common provider limits.
+/// 列表端点使用的分页参数；取值会归一化到常见 provider 限制。
 #[apply(plain_copy_eq)]
 pub struct PageRequest {
+    /// 单页数量，构造时会限制到 `1..=100`。
     pub limit: usize,
+    /// 从第几条结果开始读取。
     pub offset: usize,
 }
 
 impl PageRequest {
-    /// Creates a request after clamping `limit` to `1..=100`.
+    /// 创建分页请求，并将 `limit` 限制到 `1..=100`。
     pub const fn new(limit: usize, offset: usize) -> Self {
         Self {
             limit: clamp_limit(limit),
@@ -45,7 +47,7 @@ impl_default!(PageRequest => PageRequest {
     offset: 0,
 });
 
-/// Provider-neutral request for creating a mailbox.
+/// provider 中立的邮箱创建请求。
 #[apply(plain_eq)]
 pub struct CreateMailboxRequest {
     /// Preferred local part. Providers may sanitize it or generate a random one.
@@ -116,67 +118,93 @@ impl CreateMailboxRequest {
     }
 }
 
-/// Public settings returned by `/open_api/settings`.
+/// `/open_api/settings` 返回的公开设置。
 #[apply(serde_camel_partial_eq)]
 pub struct TempMailSettings {
+    /// 站点标题。
     #[serde(default)]
     pub title: String,
+    /// 公开公告。
     #[serde(default)]
     pub announcement: String,
+    /// 地址名前缀规则。
     #[serde(default)]
     pub prefix: String,
+    /// 地址名校验正则。
     #[serde(default)]
     pub address_regex: String,
+    /// 地址名最小长度。
     #[serde(default)]
     pub min_address_len: u32,
+    /// 地址名最大长度。
     #[serde(default)]
     pub max_address_len: u32,
+    /// 默认可用域名列表。
     #[serde(default)]
     pub default_domains: Vec<String>,
+    /// 全部可用域名列表。
     #[serde(default)]
     pub domains: Vec<String>,
+    /// 支持随机子域名的域名列表。
     #[serde(default)]
     pub random_subdomain_domains: Vec<String>,
+    /// 是否需要部署级认证。
     #[serde(default)]
     pub need_auth: bool,
+    /// 管理员联系方式。
     #[serde(default)]
     pub admin_contact: String,
+    /// 是否允许用户创建邮箱。
     #[serde(default)]
     pub enable_user_create_email: bool,
+    /// 是否禁用匿名用户创建邮箱。
     #[serde(default)]
     pub disable_anonymous_user_create_email: bool,
+    /// 是否禁用自定义地址名。
     #[serde(default)]
     pub disable_custom_address_name: bool,
+    /// 是否允许用户删除邮箱。
     #[serde(default)]
     pub enable_user_delete_email: bool,
+    /// 是否启用自动回复。
     #[serde(default)]
     pub enable_auto_reply: bool,
+    /// 是否启用 webhook。
     #[serde(default)]
     pub enable_webhook: bool,
+    /// 是否启用 S3 存储。
     #[serde(default)]
     pub is_s3_enabled: bool,
+    /// 是否启用发信能力。
     #[serde(default)]
     pub enable_send_mail: bool,
+    /// worker 版本号。
     #[serde(default)]
     pub version: String,
+    /// 是否启用地址密码登录。
     #[serde(default)]
     pub enable_address_password: bool,
+    /// 是否启用全局 Turnstile 校验。
     #[serde(default)]
     pub enable_global_turnstile_check: bool,
-    /// Fields from newer deployments that are not yet modeled.
+    /// 新版部署返回但本 crate 尚未建模的字段。
     #[serde(flatten)]
     pub extra: serde_json::Map<String, Value>,
 }
 
-/// Request body for `/api/new_address`.
+/// `/api/new_address` 请求体。
 #[apply(serialize_camel_eq)]
 pub struct NewAddressRequest {
+    /// 首选邮箱本地部分。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// 首选邮箱域名。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub domain: Option<String>,
+    /// Cloudflare Turnstile token。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cf_token: Option<String>,
+    /// 是否请求随机子域名。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enable_random_subdomain: Option<bool>,
 }
@@ -226,28 +254,37 @@ impl_from_match!(&CreateMailboxRequest => NewAddressRequest {
     }
 });
 
-/// Address credential returned by `/api/new_address` and `/api/address_login`.
+/// `/api/new_address` 和 `/api/address_login` 返回的地址凭据。
 #[apply(deserialize_eq)]
 pub struct AddressCredential {
+    /// 后续访问该邮箱所需的 JWT。
     pub jwt: String,
+    /// 完整邮箱地址。
     pub address: String,
+    /// worker 返回的可选地址密码。
     #[serde(default)]
     pub password: Option<String>,
+    /// worker 内部地址 ID。
     pub address_id: u64,
 }
 
-/// Provider-neutral mailbox credential.
+/// provider 中立的邮箱凭据。
 #[apply(plain_eq)]
 pub struct TempMailMailbox {
+    /// 创建该邮箱的 provider。
     pub provider: TempMailProviderKind,
+    /// 完整邮箱地址。
     pub address: String,
+    /// 后续请求使用的 provider 凭据，例如 JWT 或 bearer token。
     pub credential: String,
+    /// provider 账号 ID。
     pub account_id: Option<String>,
+    /// provider 创建或调用方配置的邮箱密码。
     pub password: Option<String>,
 }
 
 impl TempMailMailbox {
-    /// Creates a provider-neutral mailbox from a Cloudflare address credential.
+    /// 根据 Cloudflare 地址凭据创建 provider 中立邮箱。
     pub fn from_cloudflare(value: AddressCredential) -> Self {
         Self {
             provider: TempMailProviderKind::Cloudflare,
@@ -258,7 +295,7 @@ impl TempMailMailbox {
         }
     }
 
-    /// Creates a provider-neutral mailbox for token-based providers.
+    /// 为基于 token 的 provider 创建 provider 中立邮箱。
     pub fn token(
         provider: TempMailProviderKind,
         address: impl Into<String>,
@@ -274,52 +311,70 @@ impl TempMailMailbox {
     }
 }
 
-/// Address settings returned by `/api/settings`.
+/// `/api/settings` 返回的地址设置。
 #[apply(deserialize_eq)]
 pub struct AddressSettings {
+    /// 当前地址。
     pub address: String,
+    /// 当前地址剩余发信额度。
     #[serde(default)]
     pub send_balance: i64,
 }
 
-/// Paginated response shape used by the Cloudflare Temp Email worker.
+/// Cloudflare Temp Email worker 使用的分页响应结构。
 #[apply(deserialize_eq)]
 #[serde(bound(deserialize = "T: ::serde::Deserialize<'de>"))]
 pub struct ListResponse<T> {
+    /// 当前页结果。
     #[serde(default)]
     pub results: Vec<T>,
+    /// provider 报告的总数。
     #[serde(default)]
     pub count: u64,
 }
 
-/// Raw mailbox row from `/api/mails`.
+/// `/api/mails` 返回的原始邮箱记录。
 #[apply(deserialize_eq)]
 pub struct MailRow {
+    /// worker 内部邮件 ID。
     pub id: u64,
+    /// 原始邮件 message-id。
     #[serde(default)]
     pub message_id: Option<String>,
+    /// 发件人地址或原始来源字段。
     #[serde(default)]
     pub source: Option<String>,
+    /// 收件地址。
     #[serde(default)]
     pub address: Option<String>,
+    /// 原始邮件内容。
     #[serde(default)]
     pub raw: Option<String>,
+    /// worker 返回的元数据字符串。
     #[serde(default)]
     pub metadata: Option<String>,
+    /// 创建时间。
     #[serde(default)]
     pub created_at: Option<String>,
+    /// 新版部署返回但本 crate 尚未建模的字段。
     #[serde(flatten)]
     pub extra: serde_json::Map<String, Value>,
 }
 
-/// Provider-neutral message summary.
+/// provider 中立的邮件摘要。
 #[apply(plain_eq)]
 pub struct TempMailMessageSummary {
+    /// provider 消息 ID。
     pub id: String,
+    /// 发件人地址。
     pub from_address: String,
+    /// 发件人显示名。
     pub from_name: String,
+    /// 邮件主题。
     pub subject: String,
+    /// 邮件摘要或预览。
     pub intro: String,
+    /// 创建时间。
     pub created_at: String,
 }
 
@@ -334,17 +389,26 @@ impl_from_match!(MailRow => TempMailMessageSummary {
     }
 });
 
-/// Provider-neutral message detail.
+/// provider 中立的邮件详情。
 #[apply(plain_eq)]
 pub struct TempMailMessageDetail {
+    /// provider 消息 ID。
     pub id: String,
+    /// 发件人地址。
     pub from_address: String,
+    /// 发件人显示名。
     pub from_name: String,
+    /// 收件人列表。
     pub to: Vec<TempMailRecipient>,
+    /// 邮件主题。
     pub subject: String,
+    /// 纯文本正文。
     pub text: String,
+    /// HTML 正文。
     pub html: String,
+    /// 原始邮件内容。
     pub raw: String,
+    /// 创建时间。
     pub created_at: String,
 }
 
@@ -373,65 +437,88 @@ impl_from_match!(MailRow => TempMailMessageDetail {
     }
 });
 
-/// Provider-neutral email recipient.
+/// provider 中立的邮件收件人。
 #[apply(plain_eq)]
 pub struct TempMailRecipient {
+    /// 收件人地址。
     pub address: String,
+    /// 收件人显示名。
     pub name: String,
 }
 
-/// Parsed mailbox row from `/api/parsed_mails`.
+/// `/api/parsed_mails` 返回的已解析邮箱记录。
 #[apply(deserialize_partial_eq)]
 pub struct ParsedMailRow {
+    /// worker 内部邮件 ID。
     pub id: u64,
+    /// 原始邮件 message-id。
     #[serde(default)]
     pub message_id: Option<String>,
+    /// 发件人地址或原始来源字段。
     #[serde(default)]
     pub source: Option<String>,
+    /// 收件地址。
     #[serde(default)]
     pub address: Option<String>,
+    /// 发件人显示字段。
     #[serde(default)]
     pub sender: String,
+    /// 邮件主题。
     #[serde(default)]
     pub subject: String,
+    /// 纯文本正文。
     #[serde(default)]
     pub text: String,
+    /// HTML 正文。
     #[serde(default)]
     pub html: String,
+    /// 附件元数据列表。
     #[serde(default)]
     pub attachments: Vec<ParsedMailAttachment>,
+    /// 创建时间。
     #[serde(default)]
     pub created_at: Option<String>,
+    /// 新版部署返回但本 crate 尚未建模的字段。
     #[serde(flatten)]
     pub extra: serde_json::Map<String, Value>,
 }
 
-/// Parsed attachment metadata returned by `/api/parsed_mails`.
+/// `/api/parsed_mails` 返回的已解析附件元数据。
 #[apply(deserialize_camel_eq)]
 pub struct ParsedMailAttachment {
+    /// 文件名。
     #[serde(default)]
     pub filename: String,
+    /// MIME 类型。
     #[serde(default)]
     pub mime_type: String,
+    /// Content-Disposition 值。
     #[serde(default)]
     pub disposition: String,
+    /// 附件大小。
     #[serde(default)]
     pub size: u64,
 }
 
-/// Request body for `/api/send_mail`.
+/// `/api/send_mail` 请求体。
 #[apply(serialize_eq)]
 pub struct SendMailRequest {
+    /// 发件人显示名。
     pub from_name: String,
+    /// 收件人邮箱。
     pub to_mail: String,
+    /// 收件人显示名。
     pub to_name: String,
+    /// 邮件主题。
     pub subject: String,
+    /// 邮件正文。
     pub content: String,
+    /// `true` 表示正文按 HTML 发送。
     pub is_html: bool,
 }
 
 impl SendMailRequest {
-    /// Creates a minimal plain-text send-mail request.
+    /// 创建最小纯文本发信请求。
     pub fn text(
         to_mail: impl Into<String>,
         subject: impl Into<String>,
@@ -447,7 +534,7 @@ impl SendMailRequest {
         }
     }
 
-    /// Creates a minimal HTML send-mail request.
+    /// 创建最小 HTML 发信请求。
     pub fn html(
         to_mail: impl Into<String>,
         subject: impl Into<String>,
@@ -463,14 +550,14 @@ impl SendMailRequest {
         }
     }
 
-    /// Sets the display name of the sender address.
+    /// 设置发件人显示名。
     #[must_use]
     pub fn from_name(mut self, value: impl Into<String>) -> Self {
         self.from_name = value.into();
         self
     }
 
-    /// Sets the display name of the recipient.
+    /// 设置收件人显示名。
     #[must_use]
     pub fn to_name(mut self, value: impl Into<String>) -> Self {
         self.to_name = value.into();
@@ -478,26 +565,31 @@ impl SendMailRequest {
     }
 }
 
-/// Generic success response returned by mutation endpoints.
+/// 写操作端点返回的通用成功响应。
 #[apply(deserialize_eq)]
 pub struct SuccessResponse {
+    /// 操作是否成功。
     #[serde(default)]
     pub success: bool,
+    /// provider 返回的可选状态文本。
     #[serde(default)]
     pub status: Option<String>,
 }
 
-/// Login request for address-password deployments.
+/// 启用地址密码部署的登录请求。
 #[apply(serialize_eq)]
 pub struct AddressLoginRequest {
+    /// 登录邮箱地址。
     pub email: String,
+    /// 前端兼容格式的密码哈希。
     pub password: String,
+    /// Cloudflare Turnstile token。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cf_token: Option<String>,
 }
 
 impl AddressLoginRequest {
-    /// Creates a login request with a frontend-compatible SHA-256 password hash.
+    /// 使用前端兼容的 SHA-256 密码哈希创建登录请求。
     pub fn hashed(email: impl Into<String>, password_hash: impl Into<String>) -> Self {
         Self {
             email: email.into(),
@@ -506,7 +598,7 @@ impl AddressLoginRequest {
         }
     }
 
-    /// Adds a Cloudflare Turnstile token when required by the deployment.
+    /// 在部署要求时添加 Cloudflare Turnstile token。
     #[must_use]
     pub fn cf_token(mut self, value: impl Into<String>) -> Self {
         self.cf_token = Some(value.into());

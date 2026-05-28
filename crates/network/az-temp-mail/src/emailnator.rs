@@ -23,21 +23,21 @@ static HTTP_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"https?://[^\s<>"{}|\\^`\[\]]+"#).expect("http-link regex should compile")
 });
 
-/// Email generation mode accepted by Emailnator's `/generate-email` endpoint.
+/// Emailnator `/generate-email` 端点接受的邮箱生成模式。
 #[apply(plain_code_enum)]
 pub enum EmailnatorEmailMode {
-    /// Gmail plus-address variant.
+    /// Gmail 加号地址变体。
     #[strum(serialize = "plusGmail")]
     PlusGmail,
-    /// Gmail dot-address variant.
+    /// Gmail 点号地址变体。
     #[strum(serialize = "dotGmail")]
     DotGmail,
 }
 
-/// Request options for generating an Emailnator address.
+/// 生成 Emailnator 地址的请求选项。
 #[apply(plain_eq)]
 pub struct EmailnatorEmailRequest {
-    /// Address generation modes forwarded to Emailnator.
+    /// 转发给 Emailnator 的地址生成模式列表。
     pub modes: Vec<EmailnatorEmailMode>,
 }
 
@@ -49,7 +49,7 @@ impl_default!(EmailnatorEmailRequest => EmailnatorEmailRequest {
 });
 
 impl EmailnatorEmailRequest {
-    /// Creates a request from explicit generation modes.
+    /// 根据显式生成模式创建请求。
     #[must_use]
     pub fn new(modes: impl IntoIterator<Item = EmailnatorEmailMode>) -> Self {
         let modes = modes.into_iter().collect::<Vec<_>>();
@@ -71,7 +71,7 @@ impl EmailnatorEmailRequest {
     }
 }
 
-/// Blocking client for Emailnator's hosted temporary mailbox API.
+/// Emailnator 托管临时邮箱 API 的阻塞客户端。
 #[apply(plain_debug)]
 pub struct EmailnatorTempMailApi {
     http: HttpApiClient,
@@ -79,7 +79,7 @@ pub struct EmailnatorTempMailApi {
 }
 
 impl EmailnatorTempMailApi {
-    /// Creates a client from explicit API configuration.
+    /// 根据显式 API 配置创建客户端。
     pub fn new(config: ApiConfig) -> TempMailResult<Self> {
         Ok(Self {
             http: HttpApiClient::new(config)?,
@@ -87,7 +87,7 @@ impl EmailnatorTempMailApi {
         })
     }
 
-    /// Generates a temporary email address.
+    /// 生成临时邮箱地址。
     pub fn generate_email(&self, request: &EmailnatorEmailRequest) -> TempMailResult<String> {
         let response = self.post_json("/generate-email", &request.request_body())?;
         let response: EmailnatorGenerateEmailResponse = read_json_response(response)?;
@@ -96,7 +96,7 @@ impl EmailnatorTempMailApi {
         })
     }
 
-    /// Lists messages for an Emailnator address.
+    /// 列出 Emailnator 地址中的邮件。
     pub fn fetch_message_list(
         &self,
         email: impl AsRef<str>,
@@ -111,7 +111,7 @@ impl EmailnatorTempMailApi {
             .collect())
     }
 
-    /// Fetches a raw message body for an Emailnator address and message id.
+    /// 按 Emailnator 地址和消息 ID 拉取原始邮件正文。
     pub fn fetch_message_body(
         &self,
         email: impl AsRef<str>,
@@ -206,12 +206,12 @@ impl TempMailProvider for EmailnatorTempMailApi {
     }
 }
 
-/// Creates a client for the hosted Emailnator API.
+/// 创建托管 Emailnator API 客户端。
 pub fn create_emailnator_api() -> TempMailResult<EmailnatorTempMailApi> {
     EmailnatorTempMailApi::new(ApiConfig::builder(DEFAULT_EMAILNATOR_BASE_URL).build()?)
 }
 
-/// Extracts the first HTTP(S) link from text, optionally restricted by keyword.
+/// 从文本中提取第一个 HTTP(S) 链接，并可按关键字限制。
 #[must_use]
 pub fn extract_first_http_link(content: impl AsRef<str>, keyword: Option<&str>) -> Option<String> {
     let keyword = keyword.and_then(|value| trim_non_blank(Some(value)));

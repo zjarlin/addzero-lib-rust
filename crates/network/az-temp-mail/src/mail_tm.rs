@@ -9,28 +9,28 @@ use crate::{ApiConfig, TempMailError, TempMailResult};
 use az_derive_aliases::{apply, deserialize_debug, deserialize_eq, plain_clone_debug};
 use serde_json::{Value, json};
 
-/// Blocking client for the hosted `mail.tm` temporary email API.
+/// 托管 `mail.tm` 临时邮箱 API 的阻塞客户端。
 #[apply(plain_clone_debug)]
 pub struct MailTmTempMailApi {
     http: HttpApiClient,
 }
 
 impl MailTmTempMailApi {
-    /// Creates a client from explicit API configuration.
+    /// 根据显式 API 配置创建客户端。
     pub fn new(config: ApiConfig) -> TempMailResult<Self> {
         Ok(Self {
             http: HttpApiClient::new(config)?,
         })
     }
 
-    /// Lists available domains.
+    /// 列出可用域名。
     pub fn get_domains(&self) -> TempMailResult<Vec<MailTmDomain>> {
         let response = self.http.get("/domains")?.send()?;
         let response: HydraCollection<MailTmDomain> = HttpApiClient::read_json(response)?;
         Ok(response.items)
     }
 
-    /// Creates an account and login token using the first active domain.
+    /// 使用第一个可用域名创建账号和登录 token。
     pub fn create_mailbox_and_login(
         &self,
         prefix: impl AsRef<str>,
@@ -68,7 +68,7 @@ impl MailTmTempMailApi {
         })
     }
 
-    /// Creates a mail.tm account and returns its account id.
+    /// 创建 mail.tm 账号并返回账号 ID。
     pub fn create_account(
         &self,
         address: impl AsRef<str>,
@@ -94,7 +94,7 @@ impl MailTmTempMailApi {
             })
     }
 
-    /// Creates a mail.tm bearer token for an account.
+    /// 为账号创建 mail.tm bearer token。
     pub fn create_token(
         &self,
         address: impl AsRef<str>,
@@ -120,7 +120,7 @@ impl MailTmTempMailApi {
             })
     }
 
-    /// Lists messages using a mail.tm bearer token.
+    /// 使用 mail.tm bearer token 列出邮件。
     pub fn list_messages_by_token(
         &self,
         token: impl AsRef<str>,
@@ -143,7 +143,7 @@ impl MailTmTempMailApi {
         Ok(ListResponse { results, count })
     }
 
-    /// Fetches a message using a mail.tm bearer token.
+    /// 使用 mail.tm bearer token 拉取邮件。
     pub fn get_message_by_token(
         &self,
         token: impl AsRef<str>,
@@ -188,11 +188,10 @@ impl TempMailProvider for MailTmTempMailApi {
     }
 }
 
-/// Creates a client for the hosted `mail.tm` API.
+/// 创建托管 `mail.tm` API 客户端。
 ///
-/// Does NOT set `Accept: application/json` because mail.tm returns a plain
-/// JSON array (instead of the `{"hydra:member": [...]}` collection envelope)
-/// when that header is present, breaking the `HydraCollection` deserializer.
+/// 这里不会设置 `Accept: application/json`，因为 mail.tm 在该 header 存在时会返回纯 JSON 数组，
+/// 而不是 `{"hydra:member": [...]}` 集合包裹，从而破坏 `HydraCollection` 反序列化。
 pub fn create_mail_tm_api() -> TempMailResult<MailTmTempMailApi> {
     let config = ApiConfig::builder("https://api.mail.tm").build()?;
     MailTmTempMailApi::new(config)

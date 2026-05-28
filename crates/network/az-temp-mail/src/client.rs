@@ -12,33 +12,33 @@ use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::header::ACCEPT;
 use serde_json::json;
 
-/// Blocking API client for a `dreamhunter2333/cloudflare_temp_email` deployment.
+/// `dreamhunter2333/cloudflare_temp_email` 部署的阻塞 API 客户端。
 #[apply(plain_clone_debug)]
 pub struct CloudflareTempMailApi {
     http: HttpApiClient,
 }
 
 impl CloudflareTempMailApi {
-    /// Creates a client from explicit worker configuration.
+    /// 根据显式 worker 配置创建客户端。
     pub fn new(config: ApiConfig) -> TempMailResult<Self> {
         Ok(Self {
             http: HttpApiClient::new(config)?,
         })
     }
 
-    /// Reads public worker settings from `/open_api/settings`.
+    /// 从 `/open_api/settings` 读取公开 worker 设置。
     pub fn open_settings(&self) -> TempMailResult<TempMailSettings> {
         let response = self.http.get("/open_api/settings")?.send()?;
         HttpApiClient::read_json(response)
     }
 
-    /// Creates an address through `/api/new_address`.
+    /// 通过 `/api/new_address` 创建地址。
     pub fn new_address(&self, request: &NewAddressRequest) -> TempMailResult<AddressCredential> {
         let response = self.http.post("/api/new_address")?.json(request).send()?;
         HttpApiClient::read_json(response)
     }
 
-    /// Verifies a saved address JWT through `/open_api/credential_login`.
+    /// 通过 `/open_api/credential_login` 校验已保存的地址 JWT。
     pub fn credential_login(&self, credential: impl AsRef<str>) -> TempMailResult<bool> {
         let credential = required_non_blank(credential.as_ref(), "credential")?;
         let response = self
@@ -50,7 +50,7 @@ impl CloudflareTempMailApi {
         Ok(response.success)
     }
 
-    /// Logs in to an address-password deployment.
+    /// 登录启用地址密码的部署。
     pub fn address_login(
         &self,
         request: &AddressLoginRequest,
@@ -59,7 +59,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Logs in by hashing a plain password in the same way as the upstream frontend.
+    /// 按上游前端同样方式哈希明文密码后登录。
     pub fn address_login_plain_password(
         &self,
         email: impl AsRef<str>,
@@ -70,7 +70,7 @@ impl CloudflareTempMailApi {
         self.address_login(&AddressLoginRequest::hashed(email, password_hash))
     }
 
-    /// Changes an address password. The worker expects the frontend SHA-256 hash.
+    /// 修改地址密码；worker 期望收到前端格式的 SHA-256 哈希。
     pub fn change_password(
         &self,
         address_jwt: impl AsRef<str>,
@@ -86,7 +86,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Hashes a plain password and changes the address password.
+    /// 哈希明文密码并修改地址密码。
     pub fn change_plain_password(
         &self,
         address_jwt: impl AsRef<str>,
@@ -95,7 +95,7 @@ impl CloudflareTempMailApi {
         self.change_password(address_jwt, sha256_hex(new_password.as_ref()))
     }
 
-    /// Reads address settings and send balance from `/api/settings`.
+    /// 从 `/api/settings` 读取地址设置和发信余额。
     pub fn address_settings(
         &self,
         address_jwt: impl AsRef<str>,
@@ -108,7 +108,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Lists raw inbox messages from `/api/mails`.
+    /// 从 `/api/mails` 列出原始收件箱邮件。
     pub fn list_mails(
         &self,
         address_jwt: impl AsRef<str>,
@@ -123,7 +123,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Fetches one raw inbox message by id from `/api/mail/:id`.
+    /// 从 `/api/mail/:id` 按 ID 拉取单封原始邮件。
     pub fn get_mail(
         &self,
         address_jwt: impl AsRef<str>,
@@ -136,7 +136,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Lists server-side parsed inbox messages from `/api/parsed_mails`.
+    /// 从 `/api/parsed_mails` 列出服务端解析后的收件箱邮件。
     pub fn list_parsed_mails(
         &self,
         address_jwt: impl AsRef<str>,
@@ -151,7 +151,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Fetches one server-side parsed inbox message by id from `/api/parsed_mail/:id`.
+    /// 从 `/api/parsed_mail/:id` 按 ID 拉取单封服务端解析邮件。
     pub fn get_parsed_mail(
         &self,
         address_jwt: impl AsRef<str>,
@@ -164,7 +164,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Deletes one inbox message from `/api/mails/:id`.
+    /// 从 `/api/mails/:id` 删除单封收件箱邮件。
     pub fn delete_mail(
         &self,
         address_jwt: impl AsRef<str>,
@@ -177,7 +177,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Clears all inbox rows for the current address.
+    /// 清空当前地址的所有收件箱记录。
     pub fn clear_inbox(&self, address_jwt: impl AsRef<str>) -> TempMailResult<SuccessResponse> {
         let response = HttpApiClient::with_bearer_auth(
             self.http.delete("/api/clear_inbox")?,
@@ -187,7 +187,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Deletes the current address and its mailbox data.
+    /// 删除当前地址及其邮箱数据。
     pub fn delete_address(&self, address_jwt: impl AsRef<str>) -> TempMailResult<SuccessResponse> {
         let response = HttpApiClient::with_bearer_auth(
             self.http.delete("/api/delete_address")?,
@@ -197,7 +197,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Requests send-mail access for the current address.
+    /// 为当前地址申请发信权限。
     pub fn request_send_mail_access(
         &self,
         address_jwt: impl AsRef<str>,
@@ -210,7 +210,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Sends mail from the current address through `/api/send_mail`.
+    /// 通过 `/api/send_mail` 从当前地址发信。
     pub fn send_mail(
         &self,
         address_jwt: impl AsRef<str>,
@@ -225,7 +225,7 @@ impl CloudflareTempMailApi {
         HttpApiClient::read_json(response)
     }
 
-    /// Clears sent items for the current address.
+    /// 清空当前地址的已发送记录。
     pub fn clear_sent_items(
         &self,
         address_jwt: impl AsRef<str>,
@@ -239,7 +239,7 @@ impl CloudflareTempMailApi {
     }
 }
 
-/// Creates a Temp Email client for a deployed Cloudflare worker.
+/// 为已部署的 Cloudflare worker 创建 Temp Email 客户端。
 impl TempMailProvider for CloudflareTempMailApi {
     fn provider_kind(&self) -> TempMailProviderKind {
         TempMailProviderKind::Cloudflare
@@ -279,7 +279,7 @@ impl TempMailProvider for CloudflareTempMailApi {
     }
 }
 
-/// Backward-compatible alias for the default concrete temp-mail implementation.
+/// 默认具体临时邮箱实现的向后兼容别名。
 pub type TempMailApi = CloudflareTempMailApi;
 
 pub fn create_temp_mail_api(base_url: impl Into<String>) -> TempMailResult<CloudflareTempMailApi> {

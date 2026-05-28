@@ -9,14 +9,14 @@ use crate::model::{
 };
 use az_derive_aliases::{apply, impl_enum_kind, plain_default_copy_eq, plain_eq};
 
-/// Configuration for one built-in temporary email provider.
+/// 单个内置临时邮箱 provider 的配置。
 #[apply(plain_eq)]
 pub enum TempMailProviderConfig {
-    /// Cloudflare Worker deployment compatible with `dreamhunter2333/cloudflare_temp_email`.
+    /// 兼容 `dreamhunter2333/cloudflare_temp_email` 的 Cloudflare Worker 部署。
     Cloudflare(ApiConfig),
-    /// Hosted or self-hosted mail.tm-compatible API.
+    /// 托管或自托管的 mail.tm 兼容 API。
     MailTm(ApiConfig),
-    /// Hosted Emailnator webmail API.
+    /// 托管的 Emailnator webmail API。
     Emailnator(ApiConfig),
 }
 
@@ -26,26 +26,25 @@ impl_enum_kind!(TempMailProviderConfig => TempMailProviderKind, kind {
     Self::Emailnator(_) => TempMailProviderKind::Emailnator,
 });
 
-/// Common receive-mail contract for temporary email providers.
+/// 临时邮箱 provider 的通用收信契约。
 ///
-/// The trait intentionally models only the stable cross-provider surface:
-/// create an address, list messages, and fetch a message. Provider-specific
-/// capabilities such as Cloudflare send-mail access stay on concrete clients.
+/// 该 trait 只建模稳定的跨 provider 能力：创建地址、列出邮件、拉取单封邮件。
+/// Cloudflare 发信权限等 provider 专属能力保留在具体客户端上。
 pub trait TempMailProvider: Send + Sync {
-    /// Identifies the provider implementation.
+    /// 标识当前 provider 实现。
     fn provider_kind(&self) -> TempMailProviderKind;
 
-    /// Creates a mailbox and returns the provider credential needed later.
+    /// 创建邮箱，并返回后续调用所需的 provider 凭据。
     fn create_mailbox(&self, request: &CreateMailboxRequest) -> TempMailResult<TempMailMailbox>;
 
-    /// Lists messages for a previously created mailbox.
+    /// 列出已创建邮箱中的邮件。
     fn list_messages(
         &self,
         mailbox: &TempMailMailbox,
         page: PageRequest,
     ) -> TempMailResult<ListResponse<TempMailMessageSummary>>;
 
-    /// Fetches a single message by provider message id.
+    /// 按 provider 消息 ID 拉取单封邮件。
     fn get_message(
         &self,
         mailbox: &TempMailMailbox,
@@ -53,17 +52,17 @@ pub trait TempMailProvider: Send + Sync {
     ) -> TempMailResult<Option<TempMailMessageDetail>>;
 }
 
-/// Boxed temporary email provider object used at application boundaries.
+/// 应用边界使用的 boxed 临时邮箱 provider 对象。
 pub type BoxTempMailProvider = Box<dyn TempMailProvider + Send + Sync>;
 
-/// Factory abstraction for dependency-injected temporary email provider creation.
+/// 用于依赖注入式创建临时邮箱 provider 的工厂抽象。
 pub trait TempMailProviderFactory: Send + Sync {
-    /// Build a provider trait object from a provider-specific config.
+    /// 根据 provider 专属配置构造 provider trait object。
     fn build_provider(&self, config: TempMailProviderConfig)
     -> TempMailResult<BoxTempMailProvider>;
 }
 
-/// Factory for the providers compiled into this crate.
+/// 本 crate 内置 provider 的默认工厂。
 #[apply(plain_default_copy_eq)]
 pub struct BuiltinTempMailProviderFactory;
 
@@ -84,7 +83,7 @@ impl TempMailProviderFactory for BuiltinTempMailProviderFactory {
     }
 }
 
-/// Build a provider trait object from a provider-specific config.
+/// 根据 provider 专属配置构造 provider trait object。
 pub fn build_temp_mail_provider(
     config: TempMailProviderConfig,
 ) -> TempMailResult<BoxTempMailProvider> {
