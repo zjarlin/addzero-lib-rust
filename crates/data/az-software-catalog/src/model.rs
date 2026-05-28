@@ -5,113 +5,179 @@ use az_derive_aliases::{
 };
 use uuid::Uuid;
 
+/// 软件可试用或可安装的平台。
+///
+/// `code()` 和 serde wire value 使用稳定小写值，`Display` 用于界面展示。
 #[apply(serde_code_default_ord_display_enum)]
 pub enum SoftwarePlatform {
+    /// macOS 平台。
     #[default]
     #[display("macOS")]
     Macos,
+    /// Windows 平台。
     #[display("Windows")]
     Windows,
+    /// Linux 平台。
     #[display("Linux")]
     Linux,
 }
 
+/// 软件安装方式类型。
+///
+/// 这里的 code 是前后端和持久化共享的安装器类别，不等同于具体命令文本。
 #[apply(serde_code_default_ord_display_enum)]
 pub enum InstallerKind {
+    /// Homebrew 安装。
     #[display("Homebrew")]
     Brew,
+    /// Bun 工具链安装。
     #[display("Bun")]
     Bun,
+    /// Windows winget 安装。
     #[display("winget")]
     Winget,
+    /// Windows Scoop 安装。
     #[display("Scoop")]
     Scoop,
+    /// Windows Chocolatey 安装。
     #[display("Chocolatey")]
     Choco,
+    /// 通过 curl 或直链脚本下载。
     #[display("curl 下载")]
     Curl,
+    /// 直接下载安装包文件；wire value 保持为历史兼容的 `package`。
     #[serde(rename = "package")]
     #[strum(serialize = "package")]
     #[display("安装包")]
     DirectPackage,
+    /// 无法归入固定安装器的自定义命令。
     #[default]
     #[display("自定义")]
     Custom,
 }
 
+/// 单个软件安装方法。
 #[apply(serde_eq)]
 pub struct SoftwareInstallMethodDto {
+    /// 安装方法 ID，缺失时保存流程会生成 UUID。
     pub id: String,
+    /// 该方法适用的平台。
     pub platform: SoftwarePlatform,
+    /// 安装器类别。
     pub kind: InstallerKind,
+    /// 展示标签，例如 `brew` 或 `官方安装包`。
     pub label: String,
+    /// 包管理器中的包名、安装包标识或下载标识。
     pub package_id: String,
+    /// 关联资产库条目的可选 ID。
     pub asset_item_id: Option<String>,
+    /// 实际安装命令或下载命令。
     pub command: String,
+    /// 额外说明。
     pub note: String,
 }
 
+/// 软件目录中的单个软件条目。
 #[apply(serde_eq)]
 pub struct SoftwareEntryDto {
+    /// 软件条目 ID。
     pub id: String,
+    /// 人类可读且 URL 友好的稳定 slug。
     pub slug: String,
+    /// 软件名称。
     pub title: String,
+    /// 厂商或维护者。
     pub vendor: String,
+    /// 简短说明。
     pub summary: String,
+    /// 官方主页 URL。
     pub homepage_url: String,
+    /// 图标 URL。
     pub icon_url: String,
+    /// 已验证或计划试用的平台。
     pub trial_platforms: Vec<SoftwarePlatform>,
+    /// 搜索和分组标签。
     pub tags: Vec<String>,
+    /// 可用安装方法列表。
     pub methods: Vec<SoftwareInstallMethodDto>,
 }
 
+/// 软件目录查询响应。
 #[apply(serde_eq)]
 pub struct SoftwareCatalogDto {
+    /// 当前服务进程识别出的宿主平台。
     pub host_platform: SoftwarePlatform,
+    /// 软件条目列表。
     pub items: Vec<SoftwareEntryDto>,
 }
 
+/// 创建或更新软件条目的输入。
 #[apply(serde_eq_default)]
 pub struct SoftwareEntryInput {
+    /// 已存在条目的 ID；为空时保存流程会创建新条目。
     pub id: Option<String>,
+    /// URL 友好的稳定 slug，保存前会去除首尾空白。
     pub slug: String,
+    /// 软件名称，不能为空。
     pub title: String,
+    /// 厂商或维护者。
     pub vendor: String,
+    /// 简短说明。
     pub summary: String,
+    /// 官方主页 URL。
     pub homepage_url: String,
+    /// 图标 URL。
     pub icon_url: String,
+    /// 试用平台列表，保存前会去重。
     pub trial_platforms: Vec<SoftwarePlatform>,
+    /// 标签列表，保存前会 trim 并去重。
     pub tags: Vec<String>,
+    /// 安装方法列表，保存前会丢弃完全空白的方法。
     pub methods: Vec<SoftwareInstallMethodDto>,
 }
 
+/// 从软件主页抓取元数据的输入。
 #[apply(serde_eq_default)]
 pub struct SoftwareMetadataFetchInput {
+    /// 软件官方主页 URL。
     pub homepage_url: String,
 }
 
+/// 从软件主页推断出的基础元数据。
 #[apply(serde_eq_default)]
 pub struct SoftwareMetadataDto {
+    /// 推断出的软件名称。
     pub title: String,
+    /// 推断出的简短说明。
     pub summary: String,
+    /// 规范化后的主页 URL。
     pub homepage_url: String,
+    /// 推断出的图标 URL。
     pub icon_url: String,
 }
 
+/// 构建软件草稿时的输入。
 #[apply(serde_eq_default)]
 pub struct SoftwareDraftInput {
+    /// 软件官方主页 URL。
     pub homepage_url: String,
+    /// 草稿优先生成安装方法的平台。
     pub preferred_platforms: Vec<SoftwarePlatform>,
 }
 
+/// 软件目录服务返回的统一错误。
 #[apply(error_eq)]
 pub enum SoftwareCatalogError {
+    /// 连接持久化层失败。
     #[error("connect software catalog persistence: {0}")]
     Persistence(String),
+    /// 查询或写入软件目录数据失败。
     #[error("query software catalog rows: {0}")]
     Query(String),
+    /// 抓取软件主页元数据失败。
     #[error("fetch software metadata: {0}")]
     Fetch(String),
+    /// 输入校验或业务规则错误。
     #[error("{0}")]
     Message(String),
 }
@@ -130,8 +196,10 @@ impl SoftwareCatalogError {
     }
 }
 
+/// 软件目录服务使用的结果类型。
 pub type SoftwareCatalogResult<T> = Result<T, SoftwareCatalogError>;
 
+/// 返回当前编译目标对应的平台。
 pub fn current_platform() -> SoftwarePlatform {
     #[cfg(target_os = "windows")]
     {
