@@ -82,14 +82,17 @@ mod tests {
         let message = err.to_string();
 
         assert!(
-            message.contains("environment variable not found") || message.contains("TOASTY_DATABASE_URL"),
+            message.contains("environment variable not found")
+                || message.contains("TOASTY_DATABASE_URL"),
             "unexpected error: {message}"
         );
     }
 
     #[tokio::test]
     async fn run_toasty_crud_rejects_invalid_database_url() {
-        let err = run_toasty_crud("invalid-connection-string").await.unwrap_err();
+        let err = run_toasty_crud("invalid-connection-string")
+            .await
+            .unwrap_err();
         let msg = err.to_string();
 
         assert!(

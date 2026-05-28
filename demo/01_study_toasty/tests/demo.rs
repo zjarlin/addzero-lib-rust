@@ -1,7 +1,7 @@
 #![allow(unsafe_code)]
 
-use study_toasty::{database_url, run_toasty_crud};
 use std::env;
+use study_toasty::{database_url, run_toasty_crud};
 
 #[test]
 fn database_url_reads_env_value() {
@@ -18,5 +18,8 @@ async fn run_toasty_crud_integration_if_env_present() {
     };
 
     let result = run_toasty_crud(&database_url).await;
-    assert!(result.is_ok(), "integration with TOASTY_DATABASE_URL failed: {result:?}");
+    assert!(
+        result.is_ok(),
+        "integration with TOASTY_DATABASE_URL failed: {result:?}"
+    );
 }

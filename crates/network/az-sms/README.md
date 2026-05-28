@@ -1,6 +1,6 @@
 # az-sms
 
-`az-sms` 是一个可复用的短信服务 crate，当前内置 5sim v1 和 Grizzly SMS API client。
+`az-sms` 是一个可复用的短信服务 crate，当前内置 DogeSMS 和 Grizzly SMS API client。
 
 它只封装通用 SMS provider 能力：
 
@@ -30,150 +30,71 @@ az-sms = { path = "../../network/az-sms" }
 az-sms = { path = "/Users/zjarlin/IdeaProjects/zjarlin/addzero-lib-rust/crates/network/az-sms" }
 ```
 
-## 准备 5sim Token
+## DogeSMS / DogSMS
 
-1. 登录 [5sim.net](https://5sim.net)。
-2. 打开个人 profile。
-3. 找到 `Get API key` 或 API token 入口。
-4. 复制 token。
-5. 不要把 token 写进源码、README、测试文件或 Git。
-
-推荐放到环境变量：
-
-```bash
-export FIVESIM_TOKEN='your-5sim-token'
-```
-
-可以先用 curl 验证 token：
-
-```bash
-curl "https://5sim.net/v1/user/profile" \
-  -H "Authorization: Bearer $FIVESIM_TOKEN" \
-  -H "Accept: application/json"
-```
-
-## 查询 Profile
+DogeSMS 使用 Control API：读接口通过 `X-API-Key` 鉴权，创建或取消订单等写接口还必须带 `Idempotency-Key`。本 crate 提供 native DogeSMS 方法，按 1/2/3 调用即可：
 
 ```rust,no_run
-use az_sms::fivesim::FivesimClient;
+use az_sms::dogsms::client::{DogSmsActivationRequest, DogSmsClient};
 
 #[tokio::main]
 async fn main() -> az_sms::error::SmsResult<()> {
-    let token = std::env::var("FIVESIM_TOKEN")
-        .expect("FIVESIM_TOKEN is required");
+    let api_key = std::env::var("DOGSMS_API_KEY")
+        .expect("DOGSMS_API_KEY is required");
 
-    let client = FivesimClient::from_token(token)?;
-    let profile = client.profile().await?;
+    let client = DogSmsClient::from_api_key(api_key)?;
 
-    println!("id: {}", profile.id);
-    println!("balance: {}", profile.balance);
-    Ok(())
-}
-```
+    // 1. 查账户与库存：GET /api/control/balance + GET /api/control/inventory
+    let balance = client.balance().await?;
+    let inventory = client.inventory("telegram", Some("US")).await?;
+    println!("balance: {}", balance.balance);
+    println!("inventory rows: {}", inventory.len());
 
-## 购买一次性号码并等待短信
+    // 2. 创建订单：POST /api/control/activations
+    let request = DogSmsActivationRequest::new("telegram", "US")?.reuse(true);
+    let order = client
+        .create_activation_with_idempotency_key(request, "order-telegram-us-001")
+        .await?;
+    println!("request id: {}", order.request_id);
+    println!("phone: {}", order.number);
 
-```rust,no_run
-use az_sms::fivesim::FivesimClient;
-use az_sms::model::SmsActivationRequest;
-use az_sms::provider::SmsProvider;
-
-#[tokio::main]
-async fn main() -> az_sms::error::SmsResult<()> {
-    let token = std::env::var("FIVESIM_TOKEN")
-        .expect("FIVESIM_TOKEN is required");
-
-    let client = FivesimClient::from_token(token)?;
-    let request = SmsActivationRequest::new("usa", "any", "telegram")?;
-    let order = client.buy_activation_number(request).await?;
-
-    println!("order id: {}", order.id);
-    println!("phone: {}", order.phone);
-
-    let order = match client.wait_for_sms(order.id, Default::default()).await {
-        Ok(order) => order,
-        Err(error) => {
-            let _ = client.cancel_order(order.id).await;
-            return Err(error);
-        }
-    };
-
+    // 3. 查状态/短信或取消：GET /api/control/activations/{requestId}
+    //    PATCH /api/control/activations/{requestId}/cancel
+    let order = client.activation(&order.request_id).await?;
     if let Some(message) = order.sms.first() {
         println!("text: {}", message.text);
         println!("code: {:?}", message.code);
     }
 
-    client.finish_order(order.id).await?;
     Ok(())
 }
 ```
 
-`SmsActivationRequest::new(country, operator, product)` 三个参数对应 5sim 的国家、运营商和产品名：
-
-- `country` 示例：`usa`
-- `operator` 示例：`any`
-- `product` 示例：`telegram`
-
-具体可用值以 5sim 后台和 5sim API 文档为准。
-
-## 购买托管号码
+长期租号使用 native rental API：
 
 ```rust,no_run
-use az_sms::fivesim::FivesimClient;
-use az_sms::model::SmsHostingRequest;
-use az_sms::provider::SmsProvider;
+use az_sms::dogsms::client::{DogSmsClient, DogSmsRentalRequest};
 
-#[tokio::main]
-async fn main() -> az_sms::error::SmsResult<()> {
-    let token = std::env::var("FIVESIM_TOKEN")
-        .expect("FIVESIM_TOKEN is required");
-
-    let client = FivesimClient::from_token(token)?;
-    let order = client
-        .buy_hosting_number(SmsHostingRequest::new("usa", "any", "3hours")?)
+async fn rent(client: &DogSmsClient) -> az_sms::error::SmsResult<()> {
+    let request = DogSmsRentalRequest::new("GB", 3)?.note("project-alpha");
+    let rental = client
+        .create_rental_with_idempotency_key(request, "rent-gb-3m-001")
         .await?;
 
-    println!("order id: {}", order.id);
-    println!("phone: {}", order.phone);
-
-    let inbox = client.inbox(order.id).await?;
-    println!("messages: {}", inbox.total);
-
+    println!("rental id: {}", rental.rental_id);
+    println!("phone: {}", rental.number);
     Ok(())
 }
 ```
 
-## 自定义配置
-
-```rust,no_run
-use az_sms::fivesim::{FivesimClient, FivesimConfig};
-use std::time::Duration;
-
-fn build_client(token: String) -> az_sms::error::SmsResult<FivesimClient> {
-    let config = FivesimConfig::builder(token)
-        .request_timeout(Duration::from_secs(60))
-        .connect_timeout(Duration::from_secs(10))
-        .user_agent("my-app/0.1.0")
-        .build()?;
-
-    FivesimClient::new(config)
-}
-```
-
-默认 base URL 是：
-
-```text
-https://5sim.net/v1/
-```
-
-只有在测试代理、私有网关或 5sim API 版本迁移时才需要覆盖 `base_url`。
+DogeSMS 官方文档中的 activation/rental ID 是字符串，例如 `act-123` 或 `rent-123`，所以推荐优先使用 `az_sms::dogsms::client` native API。`SmsProvider` trait 只支持 `u64` 订单 ID，只有当 DogeSMS 返回纯数字 `requestId` 时才适合通过统一 trait 调用。
 
 ## Grizzly SMS
 
 Grizzly SMS 使用 `api_key` 查询参数，API 形状兼容 sms-activate。一次性号码用同一个 `SmsProvider` trait：
 
 ```rust,no_run
-use az_sms::grizzlysms::GrizzlySmsClient;
+use az_sms::grizzlysms::client::GrizzlySmsClient;
 use az_sms::model::SmsActivationRequest;
 use az_sms::provider::SmsProvider;
 
@@ -199,11 +120,11 @@ Grizzly SMS 官方文档当前没有公开托管/租号 inbox API，因此 `buy_
 需要把 provider 注入到应用服务时，可以使用统一 factory 返回 trait object：
 
 ```rust,no_run
-use az_sms::fivesim::FivesimConfig;
+use az_sms::dogsms::client::DogSmsConfig;
 use az_sms::provider::{SmsProviderConfig, build_sms_provider};
 
-fn provider(token: String) -> az_sms::error::SmsResult<az_sms::provider::BoxSmsProvider> {
-    let config = FivesimConfig::builder(token).build()?;
+fn provider(api_key: String) -> az_sms::error::SmsResult<az_sms::provider::BoxSmsProvider> {
+    let config = DogSmsConfig::builder(api_key).build()?;
     build_sms_provider(SmsProviderConfig::from(config))
 }
 ```
@@ -212,29 +133,39 @@ fn provider(token: String) -> az_sms::error::SmsResult<az_sms::provider::BoxSmsP
 
 ## Live Test
 
-默认测试不会访问 5sim，也不需要 token：
+普通测试不会访问真实 SMS provider：
 
 ```bash
 cargo test -p az-sms
 ```
 
-如果要验证真实 token 和 5sim 认证链路，显式运行 ignored live test：
+DogSMS 的 7 个编号测试文件是 live API 测试，默认 `#[ignore]`，需要真实 `DOGSMS_API_KEY` 后点名执行：
 
 ```bash
-export FIVESIM_TOKEN='your-5sim-token'
-cargo test -p az-sms --test live_fivesim -- --ignored
+DOGSMS_API_KEY='...' cargo test -p az-sms --test dogsms_01_balance -- --ignored --nocapture
+DOGSMS_API_KEY='...' cargo test -p az-sms --test dogsms_02_services -- --ignored --nocapture
+DOGSMS_API_KEY='...' cargo test -p az-sms --test dogsms_03_inventory -- --ignored --nocapture
 ```
 
-当前 live test 只调用 `profile()`，不会购买号码，也不会扣费。
+会创建或变更订单的接口需要确认余额和库存后再运行：
+
+```bash
+DOGSMS_API_KEY='...' cargo test -p az-sms --test dogsms_04_create_activation -- --ignored --nocapture
+DOGSMS_API_KEY='...' DOGSMS_EXISTING_REQUEST_ID='...' cargo test -p az-sms --test dogsms_05_activation_detail -- --ignored --nocapture
+DOGSMS_API_KEY='...' DOGSMS_CANCEL_REQUEST_ID='...' cargo test -p az-sms --test dogsms_06_cancel_activation -- --ignored --nocapture
+DOGSMS_API_KEY='...' cargo test -p az-sms --test dogsms_07_create_rental -- --ignored --nocapture
+```
 
 ## API 入口
 
 常用类型：
 
-- `az_sms::fivesim::FivesimClient`
-- `az_sms::fivesim::FivesimConfig`
-- `az_sms::grizzlysms::GrizzlySmsClient`
-- `az_sms::grizzlysms::GrizzlySmsConfig`
+- `az_sms::dogsms::client::DogSmsClient`
+- `az_sms::dogsms::client::DogSmsConfig`
+- `az_sms::dogsms::client::DogSmsActivationRequest`
+- `az_sms::dogsms::client::DogSmsRentalRequest`
+- `az_sms::grizzlysms::client::GrizzlySmsClient`
+- `az_sms::grizzlysms::client::GrizzlySmsConfig`
 - `az_sms::provider::SmsProvider`
 - `az_sms::provider::SmsProviderKind`
 - `az_sms::provider::SmsProviderConfig`

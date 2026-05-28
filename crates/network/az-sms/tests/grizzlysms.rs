@@ -1,4 +1,4 @@
-use az_sms::grizzlysms::{GrizzlySmsClient, GrizzlySmsConfig};
+use az_sms::grizzlysms::client::{GrizzlySmsClient, GrizzlySmsConfig};
 use az_sms::model::{SmsActivationRequest, SmsOrderStatus};
 use az_sms::provider::SmsProvider;
 use std::sync::{Arc, Mutex};

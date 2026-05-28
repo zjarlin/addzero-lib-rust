@@ -86,10 +86,7 @@ mod tests {
     fn provider_status_display_keeps_optional_prefix() {
         assert_eq!(ProviderStatus { status: None }.to_string(), "");
         assert_eq!(
-            ProviderStatus {
-                status: Some(503)
-            }
-            .to_string(),
+            ProviderStatus { status: Some(503) }.to_string(),
             " HTTP 503"
         );
     }

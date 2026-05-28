@@ -151,7 +151,7 @@ impl AssetGraphApi for EmbeddedAssetGraphApi {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const ASSET_SCHEMA_SQL: &str = include_str!("../server/migrations/0003_admin_asset_graph.sql");
+const ASSET_SCHEMA_SQL: &str = az_persistence::ADMIN_ASSET_GRAPH_SCHEMA_SQL;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[apply(plain_clone)]

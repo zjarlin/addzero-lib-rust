@@ -309,8 +309,7 @@ impl CliMarketApi for EmbeddedCliMarketApi {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const CLI_MARKET_SCHEMA_SQL: &str =
-    include_str!("../server/migrations/0002_clianything_market.sql");
+const CLI_MARKET_SCHEMA_SQL: &str = az_persistence::CLI_MARKET_SCHEMA_SQL;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[apply(plain_clone)]

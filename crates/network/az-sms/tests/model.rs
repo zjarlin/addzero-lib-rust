@@ -45,7 +45,7 @@ fn order_parses_null_sms_as_empty_list() {
     )
     .unwrap();
 
-    // 5sim returns `sms: null` immediately after purchase; callers should see a normal empty list.
+    // Some providers return `sms: null` immediately after purchase; callers should see a normal empty list.
     assert!(order.sms.is_empty());
     assert_eq!(order.status, SmsOrderStatus::Pending);
 }

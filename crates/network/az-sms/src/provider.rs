@@ -1,6 +1,6 @@
+use crate::dogsms::client::{DogSmsClient, DogSmsConfig};
 use crate::error::{SmsError, SmsResult};
-use crate::fivesim::{FivesimClient, FivesimConfig};
-use crate::grizzlysms::{GrizzlySmsClient, GrizzlySmsConfig};
+use crate::grizzlysms::client::{GrizzlySmsClient, GrizzlySmsConfig};
 use crate::model::{
     SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsOrder, WaitForSmsOptions,
 };
@@ -12,10 +12,10 @@ use std::time::Instant;
 /// 内置 SMS provider 标识。
 #[apply(serde_code_enum)]
 pub enum SmsProviderKind {
-    /// 5sim v1 API。
-    #[serde(rename = "5sim")]
-    #[strum(serialize = "5sim")]
-    Fivesim,
+    /// DogeSMS Control API。
+    #[serde(rename = "dogsms")]
+    #[strum(serialize = "dogsms")]
+    DogSms,
     /// Grizzly SMS 兼容 sms-activate 的 API。
     GrizzlySms,
 }
@@ -23,14 +23,14 @@ pub enum SmsProviderKind {
 /// 单个内置 SMS provider 的配置。
 #[apply(from_plain_eq)]
 pub enum SmsProviderConfig {
-    /// 5sim v1 API 配置。
-    Fivesim(FivesimConfig),
+    /// DogeSMS Control API 配置。
+    DogSms(DogSmsConfig),
     /// Grizzly SMS API 配置。
     GrizzlySms(GrizzlySmsConfig),
 }
 
 impl_enum_kind!(SmsProviderConfig => SmsProviderKind, kind {
-    Self::Fivesim(_) => SmsProviderKind::Fivesim,
+    Self::DogSms(_) => SmsProviderKind::DogSms,
     Self::GrizzlySms(_) => SmsProviderKind::GrizzlySms,
 });
 
@@ -50,7 +50,7 @@ pub struct BuiltinSmsProviderFactory;
 impl SmsProviderFactory for BuiltinSmsProviderFactory {
     fn build_provider(&self, config: SmsProviderConfig) -> SmsResult<BoxSmsProvider> {
         match config {
-            SmsProviderConfig::Fivesim(config) => Ok(Box::new(FivesimClient::new(config)?)),
+            SmsProviderConfig::DogSms(config) => Ok(Box::new(DogSmsClient::new(config)?)),
             SmsProviderConfig::GrizzlySms(config) => Ok(Box::new(GrizzlySmsClient::new(config)?)),
         }
     }

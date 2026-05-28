@@ -717,20 +717,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "auto_generate_cdp"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "359220d0b9360b79d17d648d0a3ba1e792ec36bdbc227c8fd0351df3a0415704"
-dependencies = [
- "convert_case 0.8.0",
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "ureq",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1050,33 +1036,6 @@ dependencies = [
  "strum 0.28.0",
  "thiserror 2.0.18",
  "tokio",
- "uuid",
-]
-
-[[package]]
-name = "az-browser-automation"
-version = "2026.5.10"
-dependencies = [
- "async-trait",
- "automod",
- "az-context",
- "az-derive-aliases",
- "az-sms",
- "az-temp-mail",
- "base64 0.22.1",
- "derive_more 2.1.1",
- "dirs 6.0.0",
- "headless_chrome",
- "rand 0.8.6",
- "regex",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "strum 0.28.0",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
  "uuid",
 ]
 
@@ -1781,7 +1740,6 @@ name = "az-sms"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
- "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "reqwest 0.12.28",
@@ -1790,6 +1748,7 @@ dependencies = [
  "strum 0.28.0",
  "thiserror 2.0.18",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -5770,7 +5729,7 @@ dependencies = [
  "tendril 0.4.3",
  "unicase",
  "walkdir",
- "which 6.0.3",
+ "which",
 ]
 
 [[package]]
@@ -5955,29 +5914,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54b4a22553d4242c49fddb9ba998a99962b5cc6f22cb5a3482bec22522403ce4"
 dependencies = [
  "http",
-]
-
-[[package]]
-name = "headless_chrome"
-version = "1.0.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "333344ecb4b6a91ddd2e6a3c4fdb54aaddfbd2c82847f9c58fe42dd88afcf08e"
-dependencies = [
- "anyhow",
- "auto_generate_cdp",
- "base64 0.22.1",
- "derive_builder",
- "log",
- "rand 0.9.4",
- "regex",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tungstenite 0.28.0",
- "url",
- "which 8.0.2",
- "winreg 0.55.0",
 ]
 
 [[package]]
@@ -10746,17 +10682,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "socks"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c3dbbd9ae980613c6dd8e28a9407b50509d3803b57624d5dfe8315218cd58b"
-dependencies = [
- "byteorder",
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "softbuffer"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12742,36 +12667,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
-name = "ureq"
-version = "3.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dea7109cdcd5864d4eeb1b58a1648dc9bf520360d7af16ec26d0a9354bafcfc0"
-dependencies = [
- "base64 0.22.1",
- "flate2",
- "log",
- "percent-encoding",
- "rustls",
- "rustls-pki-types",
- "socks",
- "ureq-proto",
- "utf8-zero",
- "webpki-roots 1.0.7",
-]
-
-[[package]]
-name = "ureq-proto"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e994ba84b0bd1b1b0cf92878b7ef898a5c1760108fe7b6010327e274917a808c"
-dependencies = [
- "base64 0.22.1",
- "http",
- "httparse",
- "log",
-]
-
-[[package]]
 name = "url"
 version = "2.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12834,12 +12729,6 @@ name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
-
-[[package]]
-name = "utf8-zero"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8c0a043c9540bae7c578c88f91dda8bd82e59ae27c21baca69c8b191aaf5a6e"
 
 [[package]]
 name = "utf8_iter"
@@ -13675,15 +13564,6 @@ dependencies = [
  "home",
  "rustix 0.38.44",
  "winsafe",
-]
-
-[[package]]
-name = "which"
-version = "8.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81995fafaaaf6ae47a7d0cc83c67caf92aeb7e5331650ae6ff856f7c0c60c459"
-dependencies = [
- "libc",
 ]
 
 [[package]]

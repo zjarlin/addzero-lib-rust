@@ -11,12 +11,10 @@ export TOASTY_DATABASE_URL='postgresql://neondb_owner:...@ep-wandering-grass-anx
 Run the Toasty ORM path:
 
 ```bash
-cargo +1.94.0 run --manifest-path demo/01_study_toasty/Cargo.toml
+cargo +1.95.0 run --manifest-path demo/01_study_toasty/Cargo.toml
 ```
 
 Notes:
 
-- Latest `toasty 0.6.1` currently requires Rust `1.95`; this repo default is Rust `1.92`, and this machine has `1.94.0` installed.
-- This demo uses `toasty 0.4.0` because it has a PostgreSQL driver available and works with the installed `1.94.0` toolchain.
-- With the Neon pooler URL, SQLx connects successfully in `../02_study_sqlx`; Toasty 0.4 currently fails against the same URL with `early eof`, likely in the older driver TLS/channel-binding path.
-
+- `toasty 0.6.1` requires Rust `1.95`, so this demo and the repo toolchain pin use Rust `1.95.0`.
+- With the Neon pooler URL, SQLx connects successfully in `../02_study_sqlx`; keep Toasty driver behavior verified against the pinned Rust toolchain when changing versions.

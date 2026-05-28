@@ -145,8 +145,7 @@ impl BrandingSettingsApi for EmbeddedBrandingSettingsApi {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const BRANDING_SETTINGS_SCHEMA_SQL: &str =
-    include_str!("../server/migrations/0006_admin_branding_settings.sql");
+const BRANDING_SETTINGS_SCHEMA_SQL: &str = az_persistence::ADMIN_BRANDING_SETTINGS_SCHEMA_SQL;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn load_branding_settings_on_server() -> BrandingSettingsResult<BrandingSettingsDto> {

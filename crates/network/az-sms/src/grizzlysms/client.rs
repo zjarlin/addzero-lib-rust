@@ -633,10 +633,9 @@ where
 {
     let value = Option::<StringOrNumber>::deserialize(deserializer)?;
     match value {
-        Some(StringOrNumber::String(value)) => value
-            .trim()
-            .parse()
-            .map_err(serde::de::Error::custom),
+        Some(StringOrNumber::String(value)) => {
+            value.trim().parse().map_err(serde::de::Error::custom)
+        }
         Some(StringOrNumber::Number(value)) => value
             .as_f64()
             .ok_or_else(|| serde::de::Error::custom("number is not an f64")),

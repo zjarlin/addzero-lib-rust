@@ -435,8 +435,7 @@ impl KnowledgeGraphApi for EmbeddedKnowledgeGraphApi {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const KNOWLEDGE_SCHEMA_SQL: &str =
-    include_str!("../server/migrations/0005_admin_knowledge_graph.sql");
+const KNOWLEDGE_SCHEMA_SQL: &str = az_persistence::ADMIN_KNOWLEDGE_GRAPH_SCHEMA_SQL;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn load_knowledge_feed_on_server() -> KnowledgeGraphResult<KnowledgeFeedDto> {

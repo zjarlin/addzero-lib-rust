@@ -2,8 +2,7 @@ mod auth;
 mod rhai_handlers;
 
 use std::net::SocketAddr;
-use std::path::PathBuf;
-use std::{collections::BTreeMap, env, fs};
+use std::{collections::BTreeMap, env, fs, path::PathBuf};
 
 use anyhow::Result;
 use axum::{
@@ -242,9 +241,25 @@ pub async fn run_migrations() -> Result<()> {
         .connect(&database_url)
         .await?;
 
-    let files = migration_files()?;
+    let migrations = az_persistence::workspace_sql_migrations();
+    let extra_files = extra_migration_files()?;
 
-    for file in &files {
+    for migration in migrations {
+        let name = migration.name;
+        let sql = migration.sql;
+        println!("Running: {name}");
+        for stmt in split_sql_statements(sql) {
+            let trimmed = stmt.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if let Err(e) = sqlx::query(trimmed).execute(&pool).await {
+                eprintln!("  SKIP (may already exist): {e}");
+            }
+        }
+    }
+
+    for file in &extra_files {
         let name = file.file_name().unwrap().to_string_lossy();
         let sql = std::fs::read_to_string(file)?;
         println!("Running: {name}");
@@ -259,14 +274,21 @@ pub async fn run_migrations() -> Result<()> {
         }
     }
 
-    println!("Migrations complete ({} files)", files.len());
+    println!(
+        "Migrations complete ({} files)",
+        migrations.len() + extra_files.len()
+    );
     Ok(())
 }
 
 pub async fn print_migration_status() -> Result<()> {
-    let files = migration_files()?;
-    println!("Migration files: {}", files.len());
-    for file in &files {
+    let migrations = az_persistence::workspace_sql_migrations();
+    let extra_files = extra_migration_files()?;
+    println!("Migration files: {}", migrations.len() + extra_files.len());
+    for migration in migrations {
+        println!(" - {}", migration.name);
+    }
+    for file in &extra_files {
         println!(" - {}", file.file_name().unwrap().to_string_lossy());
     }
 
@@ -291,26 +313,17 @@ pub async fn print_migration_status() -> Result<()> {
     Ok(())
 }
 
-fn migration_files() -> Result<Vec<PathBuf>> {
-    let migration_dir =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/server/migrations");
+fn extra_migration_files() -> Result<Vec<PathBuf>> {
     let extra_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
-
-    let mut files: Vec<_> = std::fs::read_dir(&migration_dir)?
-        .filter_map(|entry| entry.ok())
-        .filter(|entry| entry.path().extension().map_or(false, |ext| ext == "sql"))
-        .map(|entry| entry.path())
-        .collect();
-
-    if extra_dir.exists() {
-        files.extend(
-            std::fs::read_dir(&extra_dir)?
-                .filter_map(|entry| entry.ok())
-                .filter(|entry| entry.path().extension().map_or(false, |ext| ext == "sql"))
-                .map(|entry| entry.path()),
-        );
+    if !extra_dir.exists() {
+        return Ok(Vec::new());
     }
 
+    let mut files: Vec<_> = std::fs::read_dir(&extra_dir)?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "sql"))
+        .map(|entry| entry.path())
+        .collect();
     files.sort();
     Ok(files)
 }
