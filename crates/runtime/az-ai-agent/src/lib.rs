@@ -24,43 +24,60 @@ use az_assets::{
 };
 use az_derive_aliases::{apply, error_eq, plain_default_clone, serde_eq};
 
+/// 采集内容并生成资产候选输出的请求。
 #[apply(serde_eq)]
 pub struct CaptureAssetRequest {
+    /// 待处理的原始内容。
     pub raw_content: String,
+    /// 希望生成的资产类型。
     pub target_kind: AssetKind,
+    /// 可选 prompt 按钮配置。
     pub prompt: Option<AiPromptButton>,
+    /// 可选 AI provider 配置，当前本地规则实现保留该字段供远程模型接入。
     pub provider: Option<AiModelProvider>,
 }
 
+/// 运行单个 prompt 按钮的请求。
 #[apply(serde_eq)]
 pub struct PromptButtonRun {
+    /// prompt 按钮配置。
     pub prompt: AiPromptButton,
+    /// 待处理的原始内容。
     pub raw_content: String,
 }
 
+/// 资产智能代理服务错误。
 #[apply(error_eq)]
 pub enum AssetAgentError {
     #[error("采集内容不能为空")]
     EmptyInput,
 }
 
+/// 资产智能代理服务。
+///
+/// 当前实现使用本地规则生成标题、标签和候选边；远程 LLM 接入点保留在
+/// [`Self::run_with_provider_secret`]。
 #[apply(plain_default_clone)]
 pub struct AssetAgentService;
 
 impl AssetAgentService {
+    /// 创建资产智能代理服务。
     pub fn new() -> Self {
         Self
     }
 
+    /// 返回编译进来的 `rig` provider 类型标记。
     pub fn rig_provider_markers(&self) -> [&'static str; 3] {
         rig_provider_markers()
     }
 
+    /// 根据采集请求生成结构化资产输出。
     pub fn capture_asset(&self, input: CaptureAssetRequest) -> Result<PromptRunOutput> {
         let prompt = input.prompt.as_ref();
         self.run_local_summary(&input.raw_content, input.target_kind, prompt)
     }
 
+    /// 对原始内容进行本地摘要和标签推断。
     pub fn summarize_asset(
         &self,
         raw_content: &str,
@@ -69,11 +86,13 @@ impl AssetAgentService {
         self.run_local_summary(raw_content, target_kind, None)
     }
 
+    /// 从原始内容中提取候选图谱边。
     pub fn extract_graph_edges(&self, raw_content: &str) -> Result<Vec<SuggestedEdge>> {
         let output = self.run_local_summary(raw_content, AssetKind::Note, None)?;
         Ok(output.suggested_edges)
     }
 
+    /// 按 prompt 按钮配置运行内容处理。
     pub fn run_prompt_button(&self, input: PromptButtonRun) -> Result<PromptRunOutput> {
         self.run_local_summary(
             &input.raw_content,
@@ -82,6 +101,9 @@ impl AssetAgentService {
         )
     }
 
+    /// 使用 provider 凭据运行内容处理。
+    ///
+    /// 这是远程 LLM 的依赖注入边界；当前实现仍调用本地规则，避免在无密钥环境下引入网络副作用。
     pub fn run_with_provider_secret(
         &self,
         raw_content: &str,
@@ -118,6 +140,7 @@ impl AssetAgentService {
     }
 }
 
+/// 返回 `rig` 内置 provider 客户端类型名，作为依赖可用性的轻量探针。
 pub fn rig_provider_markers() -> [&'static str; 3] {
     [
         std::any::type_name::<rig::providers::openai::Client>(),
@@ -126,6 +149,7 @@ pub fn rig_provider_markers() -> [&'static str; 3] {
     ]
 }
 
+/// 返回每个 AI provider 的默认模型名。
 pub fn default_model_for(provider: AiProviderKind) -> &'static str {
     match provider {
         AiProviderKind::OpenAi => "gpt-4.1-mini",
@@ -221,6 +245,7 @@ mod tests {
         let output = service
             .summarize_asset("Rust skill 要同步到知识图谱", AssetKind::Note)
             .unwrap();
+        // 本地规则需要同时产出标题、标签和候选边，支撑无远程模型的开发态。
         assert_eq!(output.title, "Rust skill 要同步到知识图谱");
         assert!(output.tags.contains(&"Rust".to_string()));
         assert!(!output.suggested_edges.is_empty());
@@ -229,6 +254,7 @@ mod tests {
     #[test]
     fn rig_markers_should_include_three_provider_clients() {
         let markers = rig_provider_markers();
+        // 类型标记能证明三个 provider 依赖已链接进当前 crate。
         assert!(markers.iter().any(|marker| marker.contains("openai")));
         assert!(markers.iter().any(|marker| marker.contains("anthropic")));
         assert!(markers.iter().any(|marker| marker.contains("gemini")));

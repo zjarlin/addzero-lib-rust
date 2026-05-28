@@ -7,12 +7,20 @@ use ring::{
 };
 use sha2::{Digest, Sha256};
 
+/// 已加密的 provider 密钥。
+///
+/// `ciphertext` 当前格式为 `v1:<nonce-base64>:<payload-base64>`。
 #[apply(serde_eq)]
 pub struct EncryptedSecret {
+    /// 加密主密钥标识。
     pub key_id: String,
+    /// 带版本和 nonce 的密文。
     pub ciphertext: String,
 }
 
+/// API key 加解密工具。
+///
+/// 当前使用 AES-256-GCM；传入 32 字节 base64 主密钥时直接使用，否则对字符串做 SHA-256 派生。
 #[apply(plain_clone)]
 pub struct SecretCipher {
     key_id: String,
@@ -20,6 +28,7 @@ pub struct SecretCipher {
 }
 
 impl SecretCipher {
+    /// 根据主密钥创建加解密器。
     pub fn from_master_key(master_key: &str) -> Result<Self> {
         let trimmed = master_key.trim();
         if trimmed.is_empty() {
@@ -39,10 +48,12 @@ impl SecretCipher {
         })
     }
 
+    /// 返回当前加密主密钥标识。
     pub fn key_id(&self) -> &str {
         &self.key_id
     }
 
+    /// 加密明文密钥。
     pub fn encrypt(&self, plaintext: &str) -> Result<EncryptedSecret> {
         let rng = SystemRandom::new();
         let mut nonce_bytes = [0u8; 12];
@@ -63,6 +74,7 @@ impl SecretCipher {
         })
     }
 
+    /// 解密密钥并返回 UTF-8 明文。
     pub fn decrypt(&self, encrypted: &EncryptedSecret) -> Result<String> {
         let mut parts = encrypted.ciphertext.split(':');
         let version = parts.next().unwrap_or_default();
@@ -96,6 +108,7 @@ mod tests {
     fn secret_cipher_should_roundtrip_api_key() {
         let cipher = SecretCipher::from_master_key("local-dev-master-key").unwrap();
         let encrypted = cipher.encrypt("sk-test").unwrap();
+        // 密钥必须以密文落盘，不能把明文原样写入存储。
         assert_ne!(encrypted.ciphertext, "sk-test");
         assert_eq!(cipher.decrypt(&encrypted).unwrap(), "sk-test");
     }

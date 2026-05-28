@@ -25,6 +25,9 @@ struct MemoryStore {
     prompts: BTreeMap<Uuid, AiPromptButton>,
 }
 
+/// 资产图谱和 AI provider 配置服务。
+///
+/// 服务优先使用 PostgreSQL；没有可用连接时使用内存存储，便于本地开发和测试。
 #[apply(plain_clone)]
 pub struct AssetService {
     pg: Option<PgRepo>,
@@ -33,6 +36,7 @@ pub struct AssetService {
 }
 
 impl AssetService {
+    /// 创建仅使用内存存储的服务实例。
     pub fn memory_only(cipher: Option<SecretCipher>) -> Self {
         Self {
             pg: None,
@@ -41,11 +45,13 @@ impl AssetService {
         }
     }
 
+    /// 连接 PostgreSQL，并创建持久化服务实例。
     pub async fn connect(database_url: &str, master_key: Option<&str>) -> Result<Self> {
         let persistence = PersistenceContext::connect_with_url(database_url).await?;
         Ok(Self::from_persistence(&persistence, master_key))
     }
 
+    /// 尝试连接 PostgreSQL，失败时自动降级到内存模式。
     pub async fn try_attach(database_url: Option<&str>, master_key: Option<&str>) -> Self {
         let cipher = secret_cipher(master_key);
         let Some(url) = database_url.filter(|url| !url.trim().is_empty()) else {
@@ -60,6 +66,7 @@ impl AssetService {
         }
     }
 
+    /// 从已有持久化上下文创建服务实例。
     pub fn from_persistence(persistence: &PersistenceContext, master_key: Option<&str>) -> Self {
         Self {
             pg: Some(PgRepo::new(persistence.db().clone())),
@@ -68,10 +75,12 @@ impl AssetService {
         }
     }
 
+    /// 返回当前服务是否连接到 PostgreSQL。
     pub fn is_pg_online(&self) -> bool {
         self.pg.is_some()
     }
 
+    /// 按类型列出资产；`None` 表示返回全部资产。
     pub async fn list_assets(&self, kind: Option<AssetKind>) -> Result<Vec<Asset>> {
         if let Some(pg) = &self.pg {
             return pg.list_assets(kind).await;
@@ -85,6 +94,7 @@ impl AssetService {
             .collect())
     }
 
+    /// 创建或更新资产节点。
     pub async fn upsert_asset(&self, input: AssetUpsert) -> Result<Asset> {
         if let Some(pg) = &self.pg {
             return pg.upsert_asset(&input).await;
@@ -114,6 +124,7 @@ impl AssetService {
         Ok(asset)
     }
 
+    /// 删除资产，并清理内存模式下关联的边。
     pub async fn delete_asset(&self, id: Uuid) -> Result<()> {
         if let Some(pg) = &self.pg {
             return pg.delete_asset(id).await;
@@ -126,6 +137,7 @@ impl AssetService {
         Ok(())
     }
 
+    /// 返回完整资产图谱快照。
     pub async fn graph(&self) -> Result<AssetGraph> {
         if let Some(pg) = &self.pg {
             return pg.graph().await;
@@ -137,6 +149,7 @@ impl AssetService {
         })
     }
 
+    /// 创建或更新两个资产之间的关系边。
     pub async fn upsert_edge(&self, input: AssetEdgeUpsert) -> Result<AssetEdge> {
         if let Some(pg) = &self.pg {
             return pg.upsert_edge(&input).await;
@@ -171,6 +184,7 @@ impl AssetService {
         Ok(edge)
     }
 
+    /// 列出 AI 模型 provider 配置，不包含明文密钥。
     pub async fn list_providers(&self) -> Result<Vec<AiModelProvider>> {
         if let Some(pg) = &self.pg {
             return pg.list_providers().await;
@@ -183,6 +197,9 @@ impl AssetService {
             .collect())
     }
 
+    /// 创建或更新 AI 模型 provider 配置。
+    ///
+    /// 当 `api_key` 为空时保留已存在的密钥；新密钥必须通过 [`SecretCipher`] 加密后保存。
     pub async fn upsert_provider(&self, input: AiModelProviderUpsert) -> Result<AiModelProvider> {
         let encrypted = match input
             .api_key
@@ -230,6 +247,9 @@ impl AssetService {
         Ok(provider)
     }
 
+    /// 获取指定 provider 的解密运行凭据。
+    ///
+    /// 只有 provider 启用且已保存密钥时才返回值。
     pub async fn provider_secret(
         &self,
         provider: AiProviderKind,
@@ -267,6 +287,7 @@ impl AssetService {
         }))
     }
 
+    /// 列出可用 prompt 按钮配置。
     pub async fn list_prompt_buttons(&self) -> Result<Vec<AiPromptButton>> {
         if let Some(pg) = &self.pg {
             return pg.list_prompt_buttons().await;
@@ -275,6 +296,7 @@ impl AssetService {
         Ok(store.prompts.values().cloned().collect())
     }
 
+    /// 创建或更新 prompt 按钮配置。
     pub async fn upsert_prompt_button(
         &self,
         input: AiPromptButtonUpsert,
@@ -297,6 +319,7 @@ impl AssetService {
         Ok(prompt)
     }
 
+    /// 删除 prompt 按钮配置。
     pub async fn delete_prompt_button(&self, id: Uuid) -> Result<()> {
         if let Some(pg) = &self.pg {
             return pg.delete_prompt_button(id).await;
@@ -361,6 +384,7 @@ mod tests {
             .await
             .unwrap();
         let graph = service.graph().await.unwrap();
+        // 内存模式要覆盖节点和边两个存储表，确保无 PG 时功能仍可用。
         assert_eq!(graph.assets.len(), 2);
         assert_eq!(graph.edges.len(), 1);
     }
@@ -379,6 +403,7 @@ mod tests {
             })
             .await
             .unwrap();
+        // 保存 provider 时只暴露“已配置密钥”标记，不泄露明文。
         assert!(provider.api_key_configured);
         assert_eq!(
             provider.base_url.as_deref(),
