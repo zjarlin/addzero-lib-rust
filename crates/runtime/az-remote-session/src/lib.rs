@@ -21,22 +21,31 @@ use quinn::VarInt;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+/// 远程会话中继操作使用的结果类型。
 pub type RemoteSessionResult<T> = Result<T, RemoteSessionError>;
 
+/// 远程会话中继在设备和会话生命周期中返回的错误。
 #[apply(error_eq)]
 pub enum RemoteSessionError {
+    /// 参与会话的设备尚未注册。
     #[error("device `{0}` was not found")]
     DeviceNotFound(DeviceId),
+    /// 指定会话不存在。
     #[error("session `{0}` was not found")]
     SessionNotFound(SessionId),
+    /// host 设备显式拒绝了会话请求。
     #[error("host `{0}` rejected the request: {1}")]
     SessionRejected(SessionId, String),
 }
 
+/// QUIC 中继运行时配置。
 #[apply(plain_clone_debug)]
 pub struct RelayRuntimeConfig {
+    /// 中继服务监听地址。
     pub bind_addr: String,
+    /// 允许的最大并发会话数。
     pub max_concurrent_sessions: u32,
+    /// 空闲会话超时，单位秒。
     pub idle_timeout_secs: u64,
 }
 
@@ -46,6 +55,9 @@ impl_default!(RelayRuntimeConfig => RelayRuntimeConfig {
     idle_timeout_secs: 30,
 });
 
+/// 内存态远程会话中继服务。
+///
+/// 该类型只维护当前进程内的设备和会话快照；正式持久化、鉴权和网络 IO 由外层服务接入。
 #[apply(plain_default_debug)]
 pub struct RemoteRelayService {
     devices: HashMap<DeviceId, DeviceDescriptor>,
@@ -53,11 +65,13 @@ pub struct RemoteRelayService {
 }
 
 impl RemoteRelayService {
+    /// 创建空的中继服务状态。
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// 注册或覆盖设备，并把设备标记为在线。
     pub fn register_device(&mut self, mut device: DeviceDescriptor) -> DeviceDescriptor {
         device.online_status = OnlineStatus::Online;
         device.last_seen_at = Utc::now();
@@ -65,12 +79,16 @@ impl RemoteRelayService {
         device
     }
 
+    /// 列出当前注册设备，按设备名称排序。
     pub fn list_devices(&self) -> Vec<DeviceDescriptor> {
         let mut devices = self.devices.values().cloned().collect::<Vec<_>>();
         devices.sort_by(|left, right| left.device_name.cmp(&right.device_name));
         devices
     }
 
+    /// 创建 viewer 到 host 的会话请求。
+    ///
+    /// viewer 和 host 都必须已经注册；新会话初始状态为 `Requested`。
     pub fn request_session(
         &mut self,
         viewer_id: DeviceId,
@@ -106,6 +124,9 @@ impl RemoteRelayService {
         Ok(request)
     }
 
+    /// host 对会话请求做授权决策。
+    ///
+    /// 接受时会话进入 `Active`；拒绝时会话进入 `Rejected` 并返回 [`RemoteSessionError::SessionRejected`]。
     pub fn grant_session(
         &mut self,
         session_id: SessionId,
@@ -137,6 +158,7 @@ impl RemoteRelayService {
         Ok(grant)
     }
 
+    /// 更新会话中的最新剪贴板载荷。
     pub fn push_clipboard(
         &mut self,
         session_id: SessionId,
@@ -150,6 +172,7 @@ impl RemoteRelayService {
         Ok(())
     }
 
+    /// 更新会话中的最新视频帧元数据。
     pub fn push_frame(
         &mut self,
         session_id: SessionId,
@@ -163,6 +186,7 @@ impl RemoteRelayService {
         Ok(())
     }
 
+    /// 暂存会话中的待处理文件传输元数据。
     pub fn stage_file_transfer(
         &mut self,
         session_id: SessionId,
@@ -176,6 +200,7 @@ impl RemoteRelayService {
         Ok(())
     }
 
+    /// 获取指定会话的当前快照。
     pub fn session_summary(&self, session_id: SessionId) -> RemoteSessionResult<SessionSummary> {
         self.sessions
             .get(&session_id)
