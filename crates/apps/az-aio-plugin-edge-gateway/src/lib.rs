@@ -205,38 +205,31 @@ impl
     }
 
     fn on_event(&mut self, event: &DesktopEvent, ctx: &mut DesktopExecContext) -> EventPropagation {
-        match event {
-            DesktopEvent::Startup => self.refresh(),
-            DesktopEvent::RouteChanged { route }
-            | DesktopEvent::RefreshRequested { route: Some(route) }
-                if route == Self::ROUTE =>
-            {
-                self.refresh();
-            }
-            DesktopEvent::RefreshRequested { route: None } => self.refresh(),
-            DesktopEvent::ActionInvoked { route, action_id } if route == Self::ROUTE => {
-                let result = match action_id.as_str() {
-                    Self::ACTION_REFRESH => {
-                        self.refresh();
-                        Ok("edge-gateway refreshed".to_string())
-                    }
-                    Self::ACTION_LOAD_EXAMPLE => Ok(self.load_example()),
-                    Self::ACTION_RUN_EXAMPLE => self.run_example(),
-                    _ => Ok(String::new()),
-                };
-                match result {
-                    Ok(message) if !message.is_empty() => {
-                        ctx.notify(message);
-                        return EventPropagation::Stop;
-                    }
-                    Ok(_) => {}
-                    Err(err) => {
-                        ctx.notify(err);
-                        return EventPropagation::Stop;
-                    }
+        if matches!(event, DesktopEvent::Startup) {
+            self.refresh();
+        } else if event.refreshes_route(Self::ROUTE) || event.is_global_refresh() {
+            self.refresh();
+        } else if let Some(action_id) = event.action_id_for_route(Self::ROUTE) {
+            let result = match action_id {
+                Self::ACTION_REFRESH => {
+                    self.refresh();
+                    Ok("edge-gateway refreshed".to_string())
+                }
+                Self::ACTION_LOAD_EXAMPLE => Ok(self.load_example()),
+                Self::ACTION_RUN_EXAMPLE => self.run_example(),
+                _ => Ok(String::new()),
+            };
+            match result {
+                Ok(message) if !message.is_empty() => {
+                    ctx.notify(message);
+                    return EventPropagation::Stop;
+                }
+                Ok(_) => {}
+                Err(err) => {
+                    ctx.notify(err);
+                    return EventPropagation::Stop;
                 }
             }
-            _ => {}
         }
         EventPropagation::Continue
     }

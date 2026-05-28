@@ -212,34 +212,21 @@ impl
     }
 
     fn on_event(&mut self, event: &DesktopEvent, ctx: &mut DesktopExecContext) -> EventPropagation {
-        match event {
-            DesktopEvent::Startup => {
-                let _ = self.refresh(ctx.services.as_ref());
+        if matches!(event, DesktopEvent::Startup) {
+            let _ = self.refresh(ctx.services.as_ref());
+        } else if event.refreshes_route(Self::ROUTE) || event.is_global_refresh() {
+            if let Err(err) = self.refresh(ctx.services.as_ref()) {
+                ctx.notify(err);
             }
-            DesktopEvent::RouteChanged { route }
-            | DesktopEvent::RefreshRequested { route: Some(route) }
-                if route == Self::ROUTE =>
-            {
-                if let Err(err) = self.refresh(ctx.services.as_ref()) {
+        } else if let Some(action_id) = event.action_id_for_route(Self::ROUTE) {
+            match self.handle_action(action_id, ctx) {
+                Ok(true) => return EventPropagation::Stop,
+                Ok(false) => {}
+                Err(err) => {
                     ctx.notify(err);
+                    return EventPropagation::Stop;
                 }
             }
-            DesktopEvent::RefreshRequested { route: None } => {
-                if let Err(err) = self.refresh(ctx.services.as_ref()) {
-                    ctx.notify(err);
-                }
-            }
-            DesktopEvent::ActionInvoked { route, action_id } if route == Self::ROUTE => {
-                match self.handle_action(action_id, ctx) {
-                    Ok(true) => return EventPropagation::Stop,
-                    Ok(false) => {}
-                    Err(err) => {
-                        ctx.notify(err);
-                        return EventPropagation::Stop;
-                    }
-                }
-            }
-            _ => {}
         }
         EventPropagation::Continue
     }

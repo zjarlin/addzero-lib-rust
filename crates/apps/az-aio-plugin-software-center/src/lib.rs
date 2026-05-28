@@ -174,47 +174,34 @@ impl
     }
 
     fn on_event(&mut self, event: &DesktopEvent, ctx: &mut DesktopExecContext) -> EventPropagation {
-        match event {
-            DesktopEvent::Startup => {
-                let _ = self.refresh(ctx);
+        if matches!(event, DesktopEvent::Startup) {
+            let _ = self.refresh(ctx);
+        } else if event.refreshes_route(Self::ROUTE) || event.is_global_refresh() {
+            if let Err(err) = self.refresh(ctx) {
+                ctx.notify(err);
             }
-            DesktopEvent::RouteChanged { route }
-            | DesktopEvent::RefreshRequested { route: Some(route) }
-                if route == Self::ROUTE =>
-            {
-                if let Err(err) = self.refresh(ctx) {
+        } else if let Some(action_id) = event.action_id_for_route(Self::ROUTE) {
+            let result = match action_id {
+                Self::ACTION_REFRESH => self
+                    .refresh(ctx)
+                    .map(|()| "software-center refreshed".to_string()),
+                Self::ACTION_SCAN => self
+                    .refresh(ctx)
+                    .map(|()| format!("scanned {} installers", self.scanned.len())),
+                Self::ACTION_ORGANIZE => self.organize(ctx),
+                _ => Ok(String::new()),
+            };
+            match result {
+                Ok(message) if !message.is_empty() => {
+                    ctx.notify(message);
+                    return EventPropagation::Stop;
+                }
+                Ok(_) => {}
+                Err(err) => {
                     ctx.notify(err);
+                    return EventPropagation::Stop;
                 }
             }
-            DesktopEvent::RefreshRequested { route: None } => {
-                if let Err(err) = self.refresh(ctx) {
-                    ctx.notify(err);
-                }
-            }
-            DesktopEvent::ActionInvoked { route, action_id } if route == Self::ROUTE => {
-                let result = match action_id.as_str() {
-                    Self::ACTION_REFRESH => self
-                        .refresh(ctx)
-                        .map(|()| "software-center refreshed".to_string()),
-                    Self::ACTION_SCAN => self
-                        .refresh(ctx)
-                        .map(|()| format!("scanned {} installers", self.scanned.len())),
-                    Self::ACTION_ORGANIZE => self.organize(ctx),
-                    _ => Ok(String::new()),
-                };
-                match result {
-                    Ok(message) if !message.is_empty() => {
-                        ctx.notify(message);
-                        return EventPropagation::Stop;
-                    }
-                    Ok(_) => {}
-                    Err(err) => {
-                        ctx.notify(err);
-                        return EventPropagation::Stop;
-                    }
-                }
-            }
-            _ => {}
         }
         EventPropagation::Continue
     }

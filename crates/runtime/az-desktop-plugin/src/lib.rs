@@ -822,6 +822,41 @@ pub enum DesktopEvent {
     },
 }
 
+impl DesktopEvent {
+    /// 判断事件是否要求指定路由刷新页面数据。
+    ///
+    /// 同一路由的 `RouteChanged` 和带路由的 `RefreshRequested` 都应该由页面拥有者刷新，
+    /// 该方法把宿主事件协议里的重复守卫收敛到一处。
+    #[must_use]
+    pub fn refreshes_route(&self, expected_route: &str) -> bool {
+        matches!(
+            self,
+            Self::RouteChanged { route }
+                | Self::RefreshRequested { route: Some(route) }
+                    if route == expected_route
+        )
+    }
+
+    /// 判断事件是否是宿主发起的全局刷新请求。
+    #[must_use]
+    pub fn is_global_refresh(&self) -> bool {
+        matches!(self, Self::RefreshRequested { route: None })
+    }
+
+    /// 如果事件是在指定路由触发的动作，返回动作 ID。
+    ///
+    /// 插件仍然显式匹配自己的 action ID；这里仅统一路由守卫，避免每个插件重复拆事件。
+    #[must_use]
+    pub fn action_id_for_route(&self, expected_route: &str) -> Option<&str> {
+        match self {
+            Self::ActionInvoked { route, action_id } if route == expected_route => {
+                Some(action_id.as_str())
+            }
+            _ => None,
+        }
+    }
+}
+
 /// 插件事件处理后返还给宿主的副作用反馈。
 #[apply(plain_default_eq)]
 pub struct DesktopExecFeedback {
@@ -1214,6 +1249,29 @@ mod tests {
         assert_eq!(registry.pages_for_branch("storage").len(), 1);
         assert_eq!(registry.toolbar_actions_for_route("/drive").len(), 1);
         assert_eq!(registry.summary_cards().len(), 1);
+    }
+
+    #[test]
+    fn desktop_event_helpers_keep_route_guards_explicit() {
+        let route_change = DesktopEvent::RouteChanged {
+            route: "/drive".to_string(),
+        };
+        let route_refresh = DesktopEvent::RefreshRequested {
+            route: Some("/drive".to_string()),
+        };
+        let global_refresh = DesktopEvent::RefreshRequested { route: None };
+        let action = DesktopEvent::ActionInvoked {
+            route: "/drive".to_string(),
+            action_id: "drive.sync".to_string(),
+        };
+
+        // 页面插件依赖这些 helper 统一宿主事件守卫，业务 action 仍在插件内显式匹配。
+        assert!(route_change.refreshes_route("/drive"));
+        assert!(route_refresh.refreshes_route("/drive"));
+        assert!(!route_refresh.refreshes_route("/config"));
+        assert!(global_refresh.is_global_refresh());
+        assert_eq!(action.action_id_for_route("/drive"), Some("drive.sync"));
+        assert_eq!(action.action_id_for_route("/config"), None);
     }
 
     #[test]
