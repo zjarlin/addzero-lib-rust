@@ -10,22 +10,22 @@ const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 const DEFAULT_POLL_INTERVAL_SECS: u64 = 2;
 const DEFAULT_POLL_TIMEOUT_SECS: u64 = 300;
 
-/// HTTP and polling configuration for Kiro's AWS Builder ID device flow.
+/// Kiro AWS Builder ID 设备流程的 HTTP 与轮询配置。
 #[apply(plain_eq)]
 pub struct KiroOidcConfig {
-    /// AWS IAM Identity Center OIDC API base URL.
+    /// AWS IAM Identity Center OIDC API 基础 URL。
     pub base_url: String,
-    /// OIDC client name sent to `/client/register`.
+    /// 发送给 `/client/register` 的 OIDC 客户端名称。
     pub client_name: String,
-    /// TCP connect timeout.
+    /// TCP 连接超时。
     pub connect_timeout: Duration,
-    /// Whole request timeout.
+    /// 单次请求总超时。
     pub request_timeout: Duration,
-    /// Poll interval used before the server returns a larger interval.
+    /// 服务端返回更大间隔前使用的轮询间隔。
     pub poll_interval: Duration,
-    /// Maximum time to wait in blocking polling helpers.
+    /// 阻塞式轮询辅助函数的最大等待时间。
     pub poll_timeout: Duration,
-    /// Optional user agent sent by the underlying HTTP client.
+    /// 底层 HTTP 客户端发送的可选 User-Agent。
     pub user_agent: Option<String>,
 }
 
@@ -40,19 +40,19 @@ impl_default!(KiroOidcConfig => KiroOidcConfig {
 });
 
 impl KiroOidcConfig {
-    /// Starts a builder with the default AWS OIDC endpoint.
+    /// 使用默认 AWS OIDC 端点创建构建器。
     #[must_use]
     pub fn builder() -> KiroOidcConfigBuilder {
         KiroOidcConfigBuilder::default()
     }
 
-    /// Returns the default OIDC API base URL.
+    /// 返回默认 OIDC API 基础 URL。
     #[must_use]
     pub const fn default_base_url() -> &'static str {
         DEFAULT_OIDC_BASE_URL
     }
 
-    /// Validates the configuration before constructing a network client.
+    /// 构造网络客户端前校验配置。
     pub fn validate(&self) -> KiroAuthSupportResult<()> {
         if self.base_url.trim().is_empty() {
             return Err(KiroAuthSupportError::InvalidConfig(
@@ -88,70 +88,70 @@ impl KiroOidcConfig {
     }
 }
 
-/// Builder for [`KiroOidcConfig`].
+/// [`KiroOidcConfig`] 的链式构建器。
 #[apply(plain_default_clone_debug)]
 pub struct KiroOidcConfigBuilder {
     config: KiroOidcConfig,
 }
 
 impl KiroOidcConfigBuilder {
-    /// Sets the OIDC API base URL.
+    /// 设置 OIDC API 基础 URL。
     #[must_use]
     pub fn base_url(mut self, value: impl Into<String>) -> Self {
         self.config.base_url = value.into();
         self
     }
 
-    /// Sets the OIDC client name sent during registration.
+    /// 设置注册时发送的 OIDC 客户端名称。
     #[must_use]
     pub fn client_name(mut self, value: impl Into<String>) -> Self {
         self.config.client_name = value.into();
         self
     }
 
-    /// Sets the TCP connect timeout.
+    /// 设置 TCP 连接超时。
     #[must_use]
     pub fn connect_timeout(mut self, value: Duration) -> Self {
         self.config.connect_timeout = value;
         self
     }
 
-    /// Sets the whole request timeout.
+    /// 设置单次请求总超时。
     #[must_use]
     pub fn request_timeout(mut self, value: Duration) -> Self {
         self.config.request_timeout = value;
         self
     }
 
-    /// Sets the initial poll interval.
+    /// 设置初始轮询间隔。
     #[must_use]
     pub fn poll_interval(mut self, value: Duration) -> Self {
         self.config.poll_interval = value;
         self
     }
 
-    /// Sets the blocking poll timeout.
+    /// 设置阻塞式轮询超时。
     #[must_use]
     pub fn poll_timeout(mut self, value: Duration) -> Self {
         self.config.poll_timeout = value;
         self
     }
 
-    /// Sets the user agent sent by the underlying HTTP client.
+    /// 设置底层 HTTP 客户端发送的 User-Agent。
     #[must_use]
     pub fn user_agent(mut self, value: impl Into<String>) -> Self {
         self.config.user_agent = Some(value.into());
         self
     }
 
-    /// Removes the explicit user agent.
+    /// 移除显式 User-Agent。
     #[must_use]
     pub fn clear_user_agent(mut self) -> Self {
         self.config.user_agent = None;
         self
     }
 
-    /// Completes builder validation and returns the final config.
+    /// 完成构建器校验并返回最终配置。
     pub fn build(self) -> KiroAuthSupportResult<KiroOidcConfig> {
         self.config.validate()?;
         Ok(self.config)

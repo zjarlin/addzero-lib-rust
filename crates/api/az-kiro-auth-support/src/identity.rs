@@ -166,24 +166,24 @@ const SURNAMES: &[&str] = &[
     "Roberts",
 ];
 
-/// Gender preference for generated English first names.
+/// 生成英文名时的一线名字性别偏好。
 #[apply(plain_default_copy_eq)]
 pub enum NameGender {
-    /// Pick from the male-name pool.
+    /// 从男性名字池中选择。
     Male,
-    /// Pick from the female-name pool.
+    /// 从女性名字池中选择。
     Female,
-    /// Pick from the combined pool.
+    /// 从合并名字池中选择。
     #[default]
     Random,
 }
 
-/// Options for local English name generation.
+/// 本地英文名生成选项。
 #[apply(plain_copy_eq)]
 pub struct EnglishNameOptions {
-    /// Whether to include a surname.
+    /// 是否包含姓氏。
     pub full_name: bool,
-    /// First-name pool preference.
+    /// 一线名字池偏好。
     pub gender: NameGender,
 }
 
@@ -192,17 +192,17 @@ impl_default!(EnglishNameOptions => EnglishNameOptions {
     gender: NameGender::Random,
 });
 
-/// Generated English name parts.
+/// 生成的英文名组成部分。
 #[apply(plain_eq)]
 pub struct EnglishName {
-    /// First name.
+    /// 名。
     pub first_name: String,
-    /// Optional surname.
+    /// 可选姓氏。
     pub last_name: Option<String>,
 }
 
 impl EnglishName {
-    /// Returns the display form used in registration pages.
+    /// 返回注册页面使用的展示名称。
     #[must_use]
     pub fn display_name(&self) -> String {
         match self.last_name.as_deref() {
@@ -212,12 +212,12 @@ impl EnglishName {
     }
 }
 
-/// Password generation policy matching Kiro/AWS Builder ID complexity needs.
+/// 符合 Kiro/AWS Builder ID 复杂度要求的密码生成策略。
 #[apply(plain_eq)]
 pub struct PasswordPolicy {
-    /// Requested length. Values are clamped to `8..=64`.
+    /// 请求长度；取值会被限制到 `8..=64`。
     pub length: usize,
-    /// Allowed special symbols.
+    /// 允许使用的特殊符号。
     pub symbols: String,
 }
 
@@ -227,7 +227,7 @@ impl_default!(PasswordPolicy => PasswordPolicy {
         .expect("default symbols should be ASCII"),
 });
 
-/// Generates a random English name from the embedded first-name and surname pools.
+/// 从内置名和姓氏池中生成随机英文名。
 pub fn generate_english_name(options: EnglishNameOptions) -> KiroAuthSupportResult<EnglishName> {
     let first_pool = match options.gender {
         NameGender::Male => MALE_NAMES,
@@ -248,7 +248,7 @@ pub fn generate_english_name(options: EnglishNameOptions) -> KiroAuthSupportResu
     })
 }
 
-/// Generates a password with lowercase, uppercase, digit, and symbol coverage.
+/// 生成同时覆盖小写、大写、数字和符号的密码。
 pub fn generate_password(policy: PasswordPolicy) -> KiroAuthSupportResult<String> {
     let length = policy.length.clamp(8, 64);
     let symbols = policy.symbols.as_bytes();
