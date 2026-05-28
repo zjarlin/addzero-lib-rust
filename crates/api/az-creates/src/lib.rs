@@ -96,64 +96,82 @@ pub use tianyancha::{
     TianyanchaHuaweiPageInfo, create_tianyancha_api, create_tianyancha_huawei_api,
 };
 
+/// 第三方 API 客户端创建门面。
+///
+/// `Creates` 不保存状态，只提供统一的默认构造入口；需要测试替身、租户隔离或运行时注入时，
+/// 优先使用 `*_with_config` 或 `*_with_factory` 方法显式传入配置和工厂。
 #[apply(plain_default_copy_eq)]
 pub struct Creates;
 
 impl Creates {
+    /// 使用默认配置创建 Maven Central 客户端。
     pub fn maven_central() -> CreatesResult<MavenCentralApi> {
         create_maven_central_api()
     }
 
+    /// 使用显式配置创建 Maven Central 客户端。
     pub fn maven_central_with_config(config: ApiConfig) -> CreatesResult<MavenCentralApi> {
         MavenCentralApi::new(config)
     }
 
+    /// 创建 Cloudflare Worker 兼容临时邮箱客户端。
     pub fn temp_mail(base_url: impl Into<String>) -> TempMailResult<TempMailApi> {
         create_temp_mail_api(base_url)
     }
 
+    /// 使用显式配置创建 Cloudflare Worker 兼容临时邮箱客户端。
     pub fn temp_mail_with_config(config: TempMailApiConfig) -> TempMailResult<TempMailApi> {
         TempMailApi::new(config)
     }
 
+    /// 创建 Cloudflare Worker 兼容临时邮箱客户端。
     pub fn temp_mail_cloudflare(
         base_url: impl Into<String>,
     ) -> TempMailResult<CloudflareTempMailApi> {
         create_temp_mail_api(base_url)
     }
 
+    /// 使用显式配置创建 Cloudflare Worker 兼容临时邮箱客户端。
     pub fn temp_mail_cloudflare_with_config(
         config: TempMailApiConfig,
     ) -> TempMailResult<CloudflareTempMailApi> {
         CloudflareTempMailApi::new(config)
     }
 
+    /// 创建 `mail.tm` 临时邮箱客户端。
     pub fn temp_mail_mail_tm() -> TempMailResult<MailTmTempMailApi> {
         create_mail_tm_api()
     }
 
+    /// 使用显式配置创建 `mail.tm` 临时邮箱客户端。
     pub fn temp_mail_mail_tm_with_config(
         config: TempMailApiConfig,
     ) -> TempMailResult<MailTmTempMailApi> {
         MailTmTempMailApi::new(config)
     }
 
+    /// 创建 Emailnator 临时邮箱客户端。
     pub fn temp_mail_emailnator() -> TempMailResult<EmailnatorTempMailApi> {
         create_emailnator_api()
     }
 
+    /// 使用显式配置创建 Emailnator 临时邮箱客户端。
     pub fn temp_mail_emailnator_with_config(
         config: TempMailApiConfig,
     ) -> TempMailResult<EmailnatorTempMailApi> {
         EmailnatorTempMailApi::new(config)
     }
 
+    /// 按 provider 配置构建临时邮箱 trait object。
     pub fn temp_mail_provider(
         config: TempMailProviderConfig,
     ) -> TempMailResult<BoxTempMailProvider> {
         build_temp_mail_provider(config)
     }
 
+    /// 通过调用方提供的工厂构建临时邮箱 provider。
+    ///
+    /// 这是临时邮箱能力的依赖注入入口，适合测试替身、自定义 provider 或上层插件化装配。
     pub fn temp_mail_provider_with_factory(
         factory: &dyn TempMailProviderFactory,
         config: TempMailProviderConfig,
@@ -161,10 +179,14 @@ impl Creates {
         factory.build_provider(config)
     }
 
+    /// 按 provider 配置构建短信接码 trait object。
     pub fn sms_provider(config: SmsProviderConfig) -> SmsResult<BoxSmsProvider> {
         build_sms_provider(config)
     }
 
+    /// 通过调用方提供的工厂构建短信接码 provider。
+    ///
+    /// 这是短信能力的依赖注入入口，避免门面层硬编码所有运行时 provider。
     pub fn sms_provider_with_factory(
         factory: &dyn SmsProviderFactory,
         config: SmsProviderConfig,
@@ -172,10 +194,12 @@ impl Creates {
         factory.build_provider(config)
     }
 
+    /// 使用 token 快速创建 5sim 短信接码 provider。
     pub fn fivesim_sms(token: &str) -> SmsResult<BoxSmsProvider> {
         build_fivesim_provider(token)
     }
 
+    /// 通过工厂创建 5sim 短信接码 provider。
     pub fn fivesim_sms_with_factory(
         factory: &dyn SmsProviderFactory,
         token: &str,
@@ -183,10 +207,14 @@ impl Creates {
         build_fivesim_provider_with(factory, token)
     }
 
+    /// 按 sender 配置构建邮件发送 trait object。
     pub fn email_sender(config: EmailSenderConfig) -> Result<BoxEmailSender, EmailError> {
         build_email_sender(config)
     }
 
+    /// 通过调用方提供的工厂构建邮件发送器。
+    ///
+    /// 这是邮件能力的依赖注入入口，适合替换 SMTP 实现或接入自定义 sender。
     pub fn email_sender_with_factory(
         factory: &dyn EmailSenderFactory,
         config: EmailSenderConfig,
@@ -194,10 +222,12 @@ impl Creates {
         factory.build_sender(config)
     }
 
+    /// 使用 SMTP 配置快速创建邮件发送器。
     pub fn smtp_email(config: EmailConfig) -> Result<BoxEmailSender, EmailError> {
         build_email_sender(config.into())
     }
 
+    /// 通过工厂使用 SMTP 配置创建邮件发送器。
     pub fn smtp_email_with_factory(
         factory: &dyn EmailSenderFactory,
         config: EmailConfig,
@@ -205,18 +235,22 @@ impl Creates {
         factory.build_sender(config.into())
     }
 
+    /// 使用默认配置创建网易云音乐搜索客户端。
     pub fn music_search() -> CreatesResult<MusicSearchApi> {
         Ok(create_music_search_api()?)
     }
 
+    /// 使用显式配置创建网易云音乐搜索客户端。
     pub fn music_search_with_config(config: ApiConfig) -> CreatesResult<MusicSearchApi> {
         Ok(MusicSearchApi::new(config)?)
     }
 
+    /// 使用默认配置创建 Suno 音乐生成客户端。
     pub fn suno(api_token: impl Into<String>) -> CreatesResult<SunoApi> {
         Ok(create_suno_api(api_token)?)
     }
 
+    /// 使用显式配置创建 Suno 音乐生成客户端。
     pub fn suno_with_config(
         api_token: impl Into<String>,
         config: ApiConfig,
@@ -224,6 +258,7 @@ impl Creates {
         Ok(SunoApi::new(api_token, config)?)
     }
 
+    /// 使用默认配置创建天眼查普通接口客户端。
     pub fn tianyancha(
         authorization: impl Into<String>,
         auth_token: impl Into<String>,
@@ -231,6 +266,7 @@ impl Creates {
         create_tianyancha_api(authorization, auth_token)
     }
 
+    /// 使用显式配置创建天眼查普通接口客户端。
     pub fn tianyancha_with_config(
         authorization: impl Into<String>,
         auth_token: impl Into<String>,
@@ -239,6 +275,7 @@ impl Creates {
         TianyanchaApi::new(authorization, auth_token, config)
     }
 
+    /// 使用默认配置创建天眼查华为云签名版客户端。
     pub fn tianyancha_huawei(
         access_key: impl Into<String>,
         secret_key: impl Into<String>,
@@ -246,6 +283,7 @@ impl Creates {
         create_tianyancha_huawei_api(access_key, secret_key)
     }
 
+    /// 使用显式配置创建天眼查华为云签名版客户端。
     pub fn tianyancha_huawei_with_config(
         access_key: impl Into<String>,
         secret_key: impl Into<String>,

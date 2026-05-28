@@ -15,6 +15,10 @@ use serde_json::Value;
 use sha2::Sha256;
 use std::collections::BTreeMap;
 
+/// 天眼查普通接口客户端。
+///
+/// 调用方需要提供已获取的 `Authorization` 和 `X-AUTH-TOKEN`；客户端只负责请求构造、
+/// 响应解析和错误映射，不负责凭证获取或刷新。
 #[apply(plain_clone_debug)]
 pub struct TianyanchaApi {
     authorization: String,
@@ -23,6 +27,7 @@ pub struct TianyanchaApi {
 }
 
 impl TianyanchaApi {
+    /// 使用显式凭证和 API 配置创建天眼查普通接口客户端。
     pub fn new(
         authorization: impl Into<String>,
         auth_token: impl Into<String>,
@@ -47,6 +52,9 @@ impl TianyanchaApi {
         })
     }
 
+    /// 按公司名称搜索企业列表。
+    ///
+    /// `page_num` 和 `page_size` 会向上收敛到至少 `1`；空公司名会返回配置错误。
     pub fn search_company(
         &self,
         company_name: impl AsRef<str>,
@@ -73,6 +81,7 @@ impl TianyanchaApi {
         response.into_data("search tianyancha company")
     }
 
+    /// 获取企业基础详情。
     pub fn get_base_info(&self, company_id: i64) -> CreatesResult<TianyanchaCompanyDetail> {
         let path = format!("/services/v3/t/common/baseinfoV5/{company_id}");
         let response =
@@ -90,6 +99,7 @@ impl TianyanchaApi {
     }
 }
 
+/// 使用默认天眼查小程序接口地址和请求头创建客户端。
 pub fn create_tianyancha_api(
     authorization: impl Into<String>,
     auth_token: impl Into<String>,
@@ -108,6 +118,7 @@ pub fn create_tianyancha_api(
     TianyanchaApi::new(authorization, auth_token, config)
 }
 
+/// 使用默认华为云 API Marketplace 地址创建天眼查签名版客户端。
 pub fn create_tianyancha_huawei_api(
     access_key: impl Into<String>,
     secret_key: impl Into<String>,
@@ -118,6 +129,9 @@ pub fn create_tianyancha_huawei_api(
     TianyanchaHuaweiApi::new(access_key, secret_key, config)
 }
 
+/// 天眼查公司搜索响应数据。
+///
+/// 未显式建模的上游字段会进入 `extra`，避免接口扩展时丢失排查信息。
 #[apply(serde_partial_eq_default)]
 pub struct TianyanchaCompanySearchData {
     #[serde(rename = "adviceQuery", default)]
@@ -144,6 +158,7 @@ pub struct TianyanchaCompanySearchData {
     pub extra: BTreeMap<String, Value>,
 }
 
+/// 天眼查搜索列表中的公司摘要。
 #[apply(serde_partial_eq_default)]
 pub struct TianyanchaCompany {
     #[serde(default)]
@@ -174,6 +189,9 @@ pub struct TianyanchaCompany {
     pub extra: BTreeMap<String, Value>,
 }
 
+/// 天眼查企业基础详情。
+///
+/// 字段命名跟随 Rust snake_case，serde rename 保持上游 JSON wire 兼容。
 #[apply(serde_partial_eq_default)]
 pub struct TianyanchaCompanyDetail {
     #[serde(default)]
@@ -226,6 +244,10 @@ pub struct TianyanchaCompanyDetail {
     pub extra: BTreeMap<String, Value>,
 }
 
+/// 天眼查华为云 API Marketplace 签名版客户端。
+///
+/// 客户端在每次请求时生成 `SDK-HMAC-SHA256` 签名头；调用方只传入 AK/SK，
+/// 不需要手写 canonical request。
 #[apply(plain_clone_debug)]
 pub struct TianyanchaHuaweiApi {
     access_key: String,
@@ -258,6 +280,9 @@ impl TianyanchaHuaweiApi {
         })
     }
 
+    /// 通过华为云接口按关键词搜索企业。
+    ///
+    /// `page_num` 和 `page_size` 会向上收敛到至少 `1`；空关键词会返回配置错误。
     pub fn search_companies(
         &self,
         keyword: impl AsRef<str>,
@@ -328,6 +353,7 @@ impl TianyanchaHuaweiApi {
     }
 }
 
+/// 华为云签名版企业搜索响应数据。
 #[apply(serde_eq_default)]
 pub struct TianyanchaHuaweiCompanySearchData {
     #[serde(rename = "companyList", default)]
@@ -338,6 +364,7 @@ pub struct TianyanchaHuaweiCompanySearchData {
     pub page_info: Option<TianyanchaHuaweiPageInfo>,
 }
 
+/// 华为云签名版企业摘要。
 #[apply(serde_eq_default)]
 pub struct TianyanchaHuaweiCompany {
     #[serde(rename = "companyCode", default)]
@@ -354,6 +381,7 @@ pub struct TianyanchaHuaweiCompany {
     pub legal_person: String,
 }
 
+/// 华为云签名版分页信息。
 #[apply(serde_eq_default)]
 pub struct TianyanchaHuaweiPageInfo {
     #[serde(rename = "pageIndex", default)]
