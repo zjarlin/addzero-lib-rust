@@ -54,52 +54,76 @@ use std::collections::BTreeMap;
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// 音乐 API crate 的统一结果类型。
 pub type MusicResult<T> = Result<T, MusicError>;
 
+/// 音乐平台 HTTP 配置、请求和响应解析过程中可能返回的错误。
+///
+/// 该类型保留 `reqwest`、`serde_json` 和 header 解析的源错误链；第三方业务响应码异常统一落到 `InvalidResponse`。
 #[apply(error)]
 pub enum MusicError {
+    /// 本地配置或请求参数不合法。
     #[error("invalid config: {0}")]
     InvalidConfig(String),
+    /// 基础 URL 无法解析。
     #[error("invalid base url `{0}`")]
     InvalidBaseUrl(String),
+    /// 请求路径无法拼接到基础 URL。
     #[error("invalid request path `{0}`")]
     InvalidPath(String),
+    /// 默认请求头名称不合法。
     #[error("invalid header name `{name}`: {source}")]
     InvalidHeaderName {
         name: String,
         #[source]
         source: InvalidHeaderName,
     },
+    /// 默认请求头值不合法。
     #[error("invalid header value for `{name}`: {source}")]
     InvalidHeaderValue {
         name: String,
         #[source]
         source: InvalidHeaderValue,
     },
+    /// HTTP 传输层失败。
     #[error("request failed: {0}")]
     Transport(#[from] reqwest::Error),
+    /// JSON 响应反序列化失败。
     #[error("failed to parse json payload: {0}")]
     Json(#[from] serde_json::Error),
+    /// HTTP 状态码不是 2xx，保留响应 URL、状态码和响应体片段。
     #[error("request to `{url}` returned HTTP {status}: {body}")]
     HttpStatus {
         url: String,
         status: u16,
         body: String,
     },
+    /// 第三方 API 返回成功 HTTP 但业务响应不符合预期。
     #[error("invalid response: {0}")]
     InvalidResponse(String),
 }
 
+/// 第三方音乐 HTTP API 的通用客户端配置。
+///
+/// 配置只描述 HTTP 层行为；网易云 Referer、Suno token 等服务特定约束由工厂函数或对应客户端处理。
 #[apply(plain_eq)]
 pub struct ApiConfig {
+    /// API 基础 URL。
     pub base_url: String,
+    /// TCP/HTTPS 连接超时。
     pub connect_timeout: Duration,
+    /// 单次请求总超时。
     pub request_timeout: Duration,
+    /// 可选 User-Agent；为 `None` 时不主动设置。
     pub user_agent: Option<String>,
+    /// 默认请求头。
     pub default_headers: BTreeMap<String, String>,
 }
 
 impl ApiConfig {
+    /// 创建 HTTP API 配置构建器。
+    ///
+    /// 默认连接超时 10 秒、请求超时 20 秒，并使用 `az-music/<version>` 作为 User-Agent。
     pub fn builder(base_url: impl Into<String>) -> ApiConfigBuilder {
         ApiConfigBuilder {
             base_url: base_url.into(),
@@ -110,6 +134,9 @@ impl ApiConfig {
         }
     }
 
+    /// 校验 HTTP 配置的本地约束。
+    ///
+    /// 该方法不发起网络请求，只检查基础 URL 为空和超时为零这类明显错误。
     pub fn validate(&self) -> MusicResult<()> {
         if self.base_url.trim().is_empty() {
             return Err(MusicError::InvalidConfig(
@@ -130,6 +157,7 @@ impl ApiConfig {
     }
 }
 
+/// `ApiConfig` 的链式构建器。
 #[apply(plain_clone_debug)]
 pub struct ApiConfigBuilder {
     base_url: String,
@@ -140,31 +168,39 @@ pub struct ApiConfigBuilder {
 }
 
 impl ApiConfigBuilder {
+    /// 设置连接超时。
     pub fn connect_timeout(mut self, value: Duration) -> Self {
         self.connect_timeout = value;
         self
     }
 
+    /// 设置请求总超时。
     pub fn request_timeout(mut self, value: Duration) -> Self {
         self.request_timeout = value;
         self
     }
 
+    /// 设置 User-Agent。
     pub fn user_agent(mut self, value: impl Into<String>) -> Self {
         self.user_agent = Some(value.into());
         self
     }
 
+    /// 清除默认 User-Agent。
     pub fn clear_user_agent(mut self) -> Self {
         self.user_agent = None;
         self
     }
 
+    /// 追加默认请求头。
+    ///
+    /// header 名称和值会在构建 HTTP 客户端时校验。
     pub fn default_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.default_headers.insert(name.into(), value.into());
         self
     }
 
+    /// 完成构建并执行本地配置校验。
     pub fn build(self) -> MusicResult<ApiConfig> {
         let config = ApiConfig {
             base_url: self.base_url,
@@ -178,22 +214,29 @@ impl ApiConfigBuilder {
     }
 }
 
+/// 音乐客户端工厂门面。
+///
+/// 该类型不持有状态，只提供默认配置下的网易云音乐和 Suno 客户端创建入口。
 #[apply(plain_default_copy_eq)]
 pub struct Music;
 
 impl Music {
+    /// 使用默认网易云音乐配置创建搜索 API 客户端。
     pub fn netease() -> MusicResult<MusicSearchApi> {
         create_netease_api()
     }
 
+    /// 使用调用方提供的 HTTP 配置创建网易云音乐客户端。
     pub fn netease_with_config(config: ApiConfig) -> MusicResult<MusicSearchApi> {
         MusicSearchApi::new(config)
     }
 
+    /// 使用默认 Suno API 配置和 bearer token 创建客户端。
     pub fn suno(api_token: impl Into<String>) -> MusicResult<SunoApi> {
         create_suno_api(api_token)
     }
 
+    /// 使用调用方提供的 HTTP 配置创建 Suno 客户端。
     pub fn suno_with_config(
         api_token: impl Into<String>,
         config: ApiConfig,
@@ -202,6 +245,9 @@ impl Music {
     }
 }
 
+/// 创建默认网易云音乐搜索客户端。
+///
+/// 默认配置会设置网易云需要的 `Referer` 和浏览器风格 User-Agent。
 pub fn create_netease_api() -> MusicResult<MusicSearchApi> {
     let config = ApiConfig::builder("https://music.163.com/api/")
         .default_header(ACCEPT.as_str(), "application/json")
@@ -214,6 +260,9 @@ pub fn create_netease_api() -> MusicResult<MusicSearchApi> {
     MusicSearchApi::new(config)
 }
 
+/// 创建默认 Suno 客户端。
+///
+/// `api_token` 会作为 bearer token 使用，并在 `Debug` 输出中脱敏。
 pub fn create_suno_api(api_token: impl Into<String>) -> MusicResult<SunoApi> {
     let config = ApiConfig::builder("https://api.vectorengine.ai")
         .default_header(ACCEPT.as_str(), "application/json")
@@ -221,21 +270,34 @@ pub fn create_suno_api(api_token: impl Into<String>) -> MusicResult<SunoApi> {
     SunoApi::new(api_token, config)
 }
 
+/// 网易云音乐搜索类型。
+///
+/// `code()` / `from_code()` 使用 snake_case 机器码；`value()` 返回网易云 `type` 查询参数。
 #[apply(plain_code_default_enum)]
 pub enum MusicSearchType {
+    /// 歌曲搜索，网易云 type=1。
     #[default]
     Song,
+    /// 专辑搜索，网易云 type=10。
     Album,
+    /// 歌手搜索，网易云 type=100。
     Artist,
+    /// 歌单搜索，网易云 type=1000。
     Playlist,
+    /// 用户搜索，网易云 type=1002。
     User,
+    /// MV 搜索，网易云 type=1004。
     Mv,
+    /// 歌词搜索，网易云 type=1006。
     Lyric,
+    /// 电台搜索，网易云 type=1009。
     Radio,
+    /// 视频搜索，网易云 type=1014。
     Video,
 }
 
 impl MusicSearchType {
+    /// 返回网易云搜索接口的 `type` 参数值。
     pub const fn value(self) -> u16 {
         match self {
             Self::Song => 1,
@@ -251,15 +313,21 @@ impl MusicSearchType {
     }
 }
 
+/// 网易云音乐搜索请求。
 #[apply(plain_eq)]
 pub struct MusicSearchRequest {
+    /// 搜索关键词。
     pub keywords: String,
+    /// 搜索类型。
     pub search_type: MusicSearchType,
+    /// 返回数量；实际请求时会至少为 1。
     pub limit: usize,
+    /// 零基分页偏移。
     pub offset: usize,
 }
 
 impl MusicSearchRequest {
+    /// 创建歌曲搜索请求，默认 `limit=30`、`offset=0`。
     pub fn new(keywords: impl Into<String>) -> Self {
         Self {
             keywords: keywords.into(),
@@ -269,36 +337,45 @@ impl MusicSearchRequest {
         }
     }
 
+    /// 设置搜索类型。
     pub fn search_type(mut self, value: MusicSearchType) -> Self {
         self.search_type = value;
         self
     }
 
+    /// 设置返回数量。
     pub fn limit(mut self, value: usize) -> Self {
         self.limit = value;
         self
     }
 
+    /// 设置零基分页偏移。
     pub fn offset(mut self, value: usize) -> Self {
         self.offset = value;
         self
     }
 }
 
+/// 网易云音乐搜索和歌曲信息客户端。
 #[apply(plain_clone_debug)]
 pub struct MusicSearchApi {
     http: HttpApiClient,
 }
 
+/// 网易云音乐客户端的兼容类型别名。
 pub type NeteaseMusicApi = MusicSearchApi;
 
 impl MusicSearchApi {
+    /// 使用指定 HTTP 配置创建网易云音乐客户端。
     pub fn new(config: ApiConfig) -> MusicResult<Self> {
         Ok(Self {
             http: HttpApiClient::new(config)?,
         })
     }
 
+    /// 执行通用网易云搜索。
+    ///
+    /// 空关键词会返回 `MusicError::InvalidConfig`；业务响应码非 200 会返回 `InvalidResponse`。
     pub fn search(&self, request: MusicSearchRequest) -> MusicResult<MusicSearchResult> {
         let keywords = trim_non_blank(Some(request.keywords.as_str())).ok_or_else(|| {
             MusicError::InvalidConfig("music keywords cannot be blank".to_owned())
@@ -318,6 +395,7 @@ impl MusicSearchApi {
         Ok(response.result.unwrap_or_default())
     }
 
+    /// 搜索歌曲。
     pub fn search_songs(
         &self,
         keywords: impl Into<String>,
@@ -334,6 +412,7 @@ impl MusicSearchApi {
             .songs)
     }
 
+    /// 搜索歌手。
     pub fn search_artists(
         &self,
         keywords: impl Into<String>,
@@ -350,6 +429,7 @@ impl MusicSearchApi {
             .artists)
     }
 
+    /// 搜索专辑。
     pub fn search_albums(
         &self,
         keywords: impl Into<String>,
@@ -366,6 +446,7 @@ impl MusicSearchApi {
             .albums)
     }
 
+    /// 搜索歌单。
     pub fn search_playlists(
         &self,
         keywords: impl Into<String>,
@@ -382,6 +463,9 @@ impl MusicSearchApi {
             .playlists)
     }
 
+    /// 获取指定歌曲的歌词响应。
+    ///
+    /// 请求会同时启用原文歌词和翻译歌词参数。
     pub fn get_lyric(&self, song_id: i64) -> MusicResult<LyricResponse> {
         let response = self
             .http
@@ -397,6 +481,9 @@ impl MusicSearchApi {
         Ok(response)
     }
 
+    /// 批量获取歌曲详情。
+    ///
+    /// 空 id 列表直接返回空列表，不发起 HTTP 请求。
     pub fn get_song_detail(&self, song_ids: &[i64]) -> MusicResult<Vec<MusicSong>> {
         if song_ids.is_empty() {
             return Ok(Vec::new());
@@ -416,6 +503,7 @@ impl MusicSearchApi {
         Ok(response.songs)
     }
 
+    /// 按歌名和可选歌手名搜索歌曲，并在本地按歌手名做二次过滤。
     pub fn search_by_song_and_artist(
         &self,
         song_name: impl AsRef<str>,
@@ -440,6 +528,7 @@ impl MusicSearchApi {
             .collect())
     }
 
+    /// 按歌词片段搜索歌曲。
     pub fn search_by_lyric(
         &self,
         lyric_fragment: impl Into<String>,
@@ -453,6 +542,7 @@ impl MusicSearchApi {
             .songs)
     }
 
+    /// 先按歌名/歌手检索首个候选歌曲，再获取歌词。
     pub fn get_lyric_by_song_name(
         &self,
         song_name: impl AsRef<str>,
@@ -465,6 +555,9 @@ impl MusicSearchApi {
         Ok(None)
     }
 
+    /// 按歌词片段搜索歌曲，并为候选歌曲逐个拉取歌词。
+    ///
+    /// 单首歌词获取失败会被跳过；`filter_empty` 为 true 时会过滤空原文歌词。
     pub fn get_lyrics_by_fragment(
         &self,
         lyric_fragment: impl Into<String>,
@@ -493,168 +586,243 @@ impl MusicSearchApi {
     }
 }
 
+/// 网易云音乐搜索接口原始响应。
 #[apply(serde_eq_default)]
 pub struct MusicSearchResponse {
+    /// 网易云业务响应码，通常 200 表示成功。
     #[serde(default)]
     pub code: i32,
+    /// 可选业务消息。
     #[serde(default)]
     pub msg: Option<String>,
+    /// 搜索结果主体。
     #[serde(default)]
     pub result: Option<MusicSearchResult>,
 }
 
+/// 网易云音乐搜索结果集合。
 #[apply(serde_eq_default)]
 pub struct MusicSearchResult {
+    /// 歌曲结果。
     #[serde(default)]
     pub songs: Vec<MusicSong>,
+    /// 歌曲总数。
     #[serde(rename = "songCount", default)]
     pub song_count: Option<i64>,
+    /// 专辑结果。
     #[serde(default)]
     pub albums: Vec<MusicAlbum>,
+    /// 专辑总数。
     #[serde(rename = "albumCount", default)]
     pub album_count: Option<i64>,
+    /// 歌手结果。
     #[serde(default)]
     pub artists: Vec<MusicArtist>,
+    /// 歌手总数。
     #[serde(rename = "artistCount", default)]
     pub artist_count: Option<i64>,
+    /// 歌单结果。
     #[serde(default)]
     pub playlists: Vec<MusicPlaylist>,
+    /// 歌单总数。
     #[serde(rename = "playlistCount", default)]
     pub playlist_count: Option<i64>,
 }
 
+/// 网易云歌曲模型。
+///
+/// 字段兼容搜索接口和歌曲详情接口，支持 `ar` / `al` / `dt` 等网易云短字段别名。
 #[apply(serde_eq_default)]
 pub struct MusicSong {
+    /// 歌曲 id。
     #[serde(default)]
     pub id: i64,
+    /// 歌曲名称。
     #[serde(default)]
     pub name: String,
+    /// 歌手列表。
     #[serde(default, alias = "ar")]
     pub artists: Vec<MusicArtist>,
+    /// 所属专辑。
     #[serde(default, alias = "al")]
     pub album: Option<MusicAlbum>,
+    /// 时长，单位通常为毫秒。
     #[serde(default, alias = "dt")]
     pub duration: Option<i64>,
+    /// 关联 MV id。
     #[serde(rename = "mvid", default)]
     pub mv_id: Option<i64>,
+    /// 版权/付费类型。
     #[serde(default)]
     pub fee: Option<i32>,
+    /// 播放权限信息。
     #[serde(default)]
     pub privilege: Option<MusicPrivilege>,
 }
 
+/// 网易云歌手模型。
 #[apply(serde_eq_default)]
 pub struct MusicArtist {
+    /// 歌手 id。
     #[serde(default)]
     pub id: i64,
+    /// 歌手名称。
     #[serde(default)]
     pub name: String,
+    /// 头像或封面图 URL。
     #[serde(rename = "picUrl", default)]
     pub pic_url: Option<String>,
+    /// 别名列表。
     #[serde(default)]
     pub alias: Vec<String>,
+    /// 专辑数量。
     #[serde(rename = "albumSize", default)]
     pub album_size: Option<i32>,
+    /// 歌曲数量。
     #[serde(rename = "musicSize", default)]
     pub music_size: Option<i32>,
 }
 
+/// 网易云专辑模型。
 #[apply(serde_eq_default)]
 pub struct MusicAlbum {
+    /// 专辑 id。
     #[serde(default)]
     pub id: i64,
+    /// 专辑名称。
     #[serde(default)]
     pub name: String,
+    /// 专辑封面 URL。
     #[serde(rename = "picUrl", default)]
     pub pic_url: Option<String>,
+    /// 专辑歌手。
     #[serde(default)]
     pub artist: Option<MusicArtist>,
+    /// 发布时间戳，沿用上游毫秒时间戳语义。
     #[serde(rename = "publishTime", default)]
     pub publish_time: Option<i64>,
+    /// 专辑歌曲数量。
     #[serde(default)]
     pub size: Option<i32>,
 }
 
+/// 网易云歌单模型。
 #[apply(serde_eq_default)]
 pub struct MusicPlaylist {
+    /// 歌单 id。
     #[serde(default)]
     pub id: i64,
+    /// 歌单名称。
     #[serde(default)]
     pub name: String,
+    /// 封面图 URL。
     #[serde(rename = "coverImgUrl", default)]
     pub cover_img_url: Option<String>,
+    /// 创建者信息。
     #[serde(default)]
     pub creator: Option<MusicCreator>,
+    /// 歌曲数量。
     #[serde(rename = "trackCount", default)]
     pub track_count: Option<i32>,
+    /// 播放次数。
     #[serde(rename = "playCount", default)]
     pub play_count: Option<i64>,
+    /// 歌单描述。
     #[serde(default)]
     pub description: Option<String>,
 }
 
+/// 网易云用户/歌单创建者模型。
 #[apply(serde_eq_default)]
 pub struct MusicCreator {
+    /// 用户 id。
     #[serde(rename = "userId", default)]
     pub user_id: i64,
+    /// 用户昵称。
     #[serde(default)]
     pub nickname: String,
+    /// 用户头像 URL。
     #[serde(rename = "avatarUrl", default)]
     pub avatar_url: Option<String>,
 }
 
+/// 网易云播放权限模型。
 #[apply(serde_eq_default)]
 pub struct MusicPrivilege {
+    /// 权限所属歌曲 id。
     #[serde(default)]
     pub id: Option<i64>,
+    /// 费用/版权类型。
     #[serde(default)]
     pub fee: Option<i32>,
+    /// 上游状态字段。
     #[serde(default)]
     pub st: Option<i32>,
+    /// 可播放码率。
     #[serde(default)]
     pub pl: Option<i32>,
+    /// 可下载码率。
     #[serde(default)]
     pub dl: Option<i32>,
+    /// 最大码率。
     #[serde(default)]
     pub maxbr: Option<i32>,
 }
 
+/// 网易云歌词响应。
 #[apply(serde_eq_default)]
 pub struct LyricResponse {
+    /// 业务响应码。
     #[serde(default)]
     pub code: i32,
+    /// 原文歌词。
     #[serde(default)]
     pub lrc: Option<LyricContent>,
+    /// 翻译歌词。
     #[serde(default)]
     pub tlyric: Option<LyricContent>,
+    /// 罗马音歌词。
     #[serde(default)]
     pub romalrc: Option<LyricContent>,
 }
 
+/// 单段歌词内容。
 #[apply(serde_eq_default)]
 pub struct LyricContent {
+    /// 歌词版本。
     #[serde(default)]
     pub version: Option<i32>,
+    /// 歌词文本，通常包含时间戳行。
     #[serde(default)]
     pub lyric: Option<String>,
 }
 
+/// 网易云歌曲详情响应。
 #[apply(serde_eq_default)]
 pub struct SongDetailResponse {
+    /// 业务响应码。
     #[serde(default)]
     pub code: i32,
+    /// 歌曲列表。
     #[serde(default)]
     pub songs: Vec<MusicSong>,
+    /// 权限列表。
     #[serde(default)]
     pub privileges: Vec<MusicPrivilege>,
 }
 
+/// 歌曲和歌词的组合结果。
 #[apply(serde_eq)]
 pub struct SongWithLyric {
+    /// 歌曲信息。
     pub song: MusicSong,
+    /// 歌词响应。
     pub lyric: LyricResponse,
 }
 
+/// Suno AI 音乐生成客户端。
+///
+/// `api_token` 仅用于 bearer auth，并在 `Debug` 输出中脱敏。
 #[apply(plain_clone_redacted)]
 pub struct SunoApi {
     #[debug(skip)]
@@ -663,6 +831,7 @@ pub struct SunoApi {
 }
 
 impl SunoApi {
+    /// 使用 API token 和 HTTP 配置创建 Suno 客户端。
     pub fn new(api_token: impl Into<String>, config: ApiConfig) -> MusicResult<Self> {
         let api_token = api_token.into();
         if trim_non_blank(Some(api_token.as_str())).is_none() {
@@ -676,6 +845,7 @@ impl SunoApi {
         })
     }
 
+    /// 提交 Suno 音乐生成任务并返回任务 id。
     pub fn generate_music(&self, request: &SunoMusicRequest) -> MusicResult<String> {
         let response = HttpApiClient::with_bearer_auth(
             self.http.post("suno/submit/music")?,
@@ -687,6 +857,7 @@ impl SunoApi {
         response.into_data("generate suno music")
     }
 
+    /// 提交歌词生成请求并返回生成文本。
     pub fn generate_lyrics(&self, prompt: impl AsRef<str>) -> MusicResult<String> {
         let response = HttpApiClient::with_bearer_auth(
             self.http.post("suno/lyrics")?,
@@ -700,6 +871,7 @@ impl SunoApi {
         response.into_data("generate suno lyrics")
     }
 
+    /// 提交歌曲拼接任务并返回任务 id。
     pub fn concat_songs(&self, clip_id: impl AsRef<str>) -> MusicResult<String> {
         let response = HttpApiClient::with_bearer_auth(
             self.http.post("suno/concat")?,
@@ -713,6 +885,9 @@ impl SunoApi {
         response.into_data("concat suno songs")
     }
 
+    /// 查询单个 Suno 任务。
+    ///
+    /// 上游成功但没有 data 时返回 `Ok(None)`。
     pub fn fetch_task(&self, task_id: impl AsRef<str>) -> MusicResult<Option<SunoTask>> {
         let path = format!("suno/fetch/{}", task_id.as_ref().trim());
         let response =
@@ -722,6 +897,9 @@ impl SunoApi {
         response.into_optional_data("fetch suno task")
     }
 
+    /// 批量查询 Suno 任务。
+    ///
+    /// 上游成功但没有 data 时返回空列表。
     pub fn batch_fetch_tasks<I, S>(&self, task_ids: I) -> MusicResult<Vec<SunoTask>>
     where
         I: IntoIterator<Item = S>,
@@ -740,6 +918,7 @@ impl SunoApi {
             .unwrap_or_default())
     }
 
+    /// 使用默认 10 分钟超时和 10 秒轮询间隔等待单个任务完成。
     pub fn wait_for_completion(&self, task_id: impl AsRef<str>) -> MusicResult<SunoTask> {
         self.wait_for_completion_with(
             task_id,
@@ -749,6 +928,9 @@ impl SunoApi {
         )
     }
 
+    /// 使用自定义超时、轮询间隔和状态回调等待单个任务完成。
+    ///
+    /// `complete` 和 `streaming` 视为完成，`error` 会映射为 `MusicError::InvalidResponse`。
     pub fn wait_for_completion_with<F>(
         &self,
         task_id: impl AsRef<str>,
@@ -791,6 +973,7 @@ impl SunoApi {
         }
     }
 
+    /// 使用默认超时和轮询间隔等待一组任务全部完成。
     pub fn wait_for_batch_completion<I, S>(&self, task_ids: I) -> MusicResult<Vec<SunoTask>>
     where
         I: IntoIterator<Item = S>,
@@ -803,6 +986,9 @@ impl SunoApi {
         )
     }
 
+    /// 使用自定义超时和轮询间隔等待一组任务全部完成。
+    ///
+    /// 任一任务进入 `error` 状态会立即返回错误。
     pub fn wait_for_batch_completion_with<I, S>(
         &self,
         task_ids: I,
@@ -847,94 +1033,140 @@ impl SunoApi {
     }
 }
 
+/// Suno 音乐生成请求。
+///
+/// 字段名保持 Suno/VectorEngine HTTP wire contract，不在本地重命名为业务别名。
 #[apply(serde_eq_default)]
 pub struct SunoMusicRequest {
+    /// 模型版本，默认 `chirp-v5`。
     #[serde(default = "default_suno_mv")]
     pub mv: String,
+    /// GPT 描述提示词。
     #[serde(rename = "gpt_description_prompt", default)]
     pub gpt_description_prompt: Option<String>,
+    /// 任务完成回调地址。
     #[serde(rename = "notify_hook", default)]
     pub notify_hook: Option<String>,
+    /// 歌曲标题。
     #[serde(default)]
     pub title: Option<String>,
+    /// 风格标签。
     #[serde(default)]
     pub tags: Option<String>,
+    /// 核心生成提示词。
     pub prompt: String,
+    /// 是否生成纯伴奏。
     #[serde(rename = "make_instrumental", default)]
     pub make_instrumental: Option<bool>,
+    /// 上游任务 id。
     #[serde(rename = "task_id", default)]
     pub task_id: Option<String>,
+    /// 续写来源 clip id。
     #[serde(rename = "continue_clip_id", default)]
     pub continue_clip_id: Option<String>,
+    /// 续写起始位置。
     #[serde(rename = "continue_at", default)]
     pub continue_at: Option<i32>,
+    /// Persona id。
     #[serde(rename = "persona_id", default)]
     pub persona_id: Option<String>,
+    /// 艺人风格来源 clip id。
     #[serde(rename = "artist_clip_id", default)]
     pub artist_clip_id: Option<String>,
+    /// 人声性别。
     #[serde(rename = "vocal_gender", default)]
     pub vocal_gender: Option<String>,
+    /// 生成类型。
     #[serde(rename = "generation_type", default)]
     pub generation_type: Option<String>,
+    /// 负向标签。
     #[serde(rename = "negative_tags", default)]
     pub negative_tags: Option<String>,
+    /// 相关 clip id。
     #[serde(rename = "clip_id", default)]
     pub clip_id: Option<String>,
+    /// 是否执行 infill。
     #[serde(rename = "is_infill", default)]
     pub is_infill: Option<bool>,
+    /// 上游任务模式，默认 `extend`。
     #[serde(default = "default_suno_task")]
     pub task: Option<String>,
 }
 
+/// Suno 歌词生成请求。
 #[apply(serde_eq_default)]
 pub struct GenerateLyricsRequest {
+    /// 歌词提示词。
     pub prompt: String,
 }
 
+/// Suno 批量任务查询请求。
 #[apply(serde_eq_default)]
 pub struct BatchFetchRequest {
+    /// 任务 id 列表。
     #[serde(default)]
     pub ids: Vec<String>,
 }
 
+/// Suno 歌曲拼接请求。
 #[apply(serde_eq_default)]
 pub struct ConcatSongsRequest {
+    /// 要拼接的 clip id。
     #[serde(rename = "clip_id")]
     pub clip_id: String,
 }
 
+/// Suno 任务状态。
+///
+/// 状态字符串直接保留上游值；等待逻辑把 `complete` / `streaming` 视为完成，把 `error` 视为失败。
 #[apply(serde_partial_eq_default)]
 pub struct SunoTask {
+    /// 任务 id。
     #[serde(default)]
     pub id: Option<String>,
+    /// 上游状态字符串。
     #[serde(default)]
     pub status: Option<String>,
+    /// 原始提示词。
     #[serde(default)]
     pub prompt: Option<String>,
+    /// GPT 描述提示词。
     #[serde(rename = "gpt_description_prompt", default)]
     pub gpt_description_prompt: Option<String>,
+    /// 标题。
     #[serde(default)]
     pub title: Option<String>,
+    /// 风格标签。
     #[serde(default)]
     pub tags: Option<String>,
+    /// 模型版本。
     #[serde(default)]
     pub mv: Option<String>,
+    /// 上游类型字段。
     #[serde(default)]
     pub r#type: Option<String>,
+    /// 生成音频时长。
     #[serde(default)]
     pub duration: Option<f64>,
+    /// 音频 URL。
     #[serde(rename = "audio_url", default)]
     pub audio_url: Option<String>,
+    /// 视频 URL。
     #[serde(rename = "video_url", default)]
     pub video_url: Option<String>,
+    /// 创建时间，保持上游字符串格式。
     #[serde(rename = "created_at", default)]
     pub created_at: Option<String>,
+    /// 错误消息。
     #[serde(rename = "error_message", default)]
     pub error_message: Option<String>,
+    /// 错误详情。
     #[serde(default)]
     pub error: Option<String>,
+    /// clip id。
     #[serde(rename = "clip_id", default)]
     pub clip_id: Option<String>,
+    /// 是否为纯伴奏。
     #[serde(rename = "instrumental", default)]
     pub instrumental: Option<bool>,
 }
