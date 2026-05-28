@@ -1,75 +1,74 @@
 use crate::model::SmsOrderStatus;
 use az_derive_aliases::{apply, error, from_copy_eq_display};
 
-/// Result alias for SMS provider operations.
+/// SMS provider 操作的统一结果类型。
 pub type SmsResult<T> = Result<T, SmsError>;
 
-/// Errors that can occur while calling an SMS provider.
+/// 调用 SMS provider 时可能返回的错误。
 #[apply(error)]
 pub enum SmsError {
-    /// Configuration is incomplete or internally inconsistent.
+    /// 配置不完整或字段组合不一致。
     #[error("invalid config: {0}")]
     InvalidConfig(String),
 
-    /// A request object failed local validation before network I/O.
+    /// 请求对象在网络 IO 前未通过本地校验。
     #[error("invalid request: {0}")]
     InvalidRequest(String),
 
-    /// The configured provider base URL is invalid.
+    /// 配置的 provider 基础 URL 不合法。
     #[error("invalid base url `{0}`")]
     InvalidBaseUrl(String),
 
-    /// The provider endpoint could not be built.
+    /// provider 端点无法构造。
     #[error("invalid endpoint: {0}")]
     InvalidEndpoint(String),
 
-    /// HTTP transport failed before a provider response could be parsed.
+    /// 在解析 provider 响应前 HTTP 传输失败。
     #[error("request failed: {0}")]
     Transport(#[from] reqwest::Error),
 
-    /// JSON serialization or deserialization failed.
+    /// JSON 序列化或反序列化失败。
     #[error("failed to parse json payload: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// The provider returned an HTTP error or non-JSON provider error body.
+    /// provider 返回了 HTTP 错误或非 JSON 错误正文。
     #[error("provider error{status}: {message}")]
     ProviderError {
-        /// HTTP status code when one was available.
+        /// 可用时的 HTTP 状态码。
         status: ProviderStatus,
-        /// Provider response body or normalized provider message.
+        /// provider 响应正文或归一化后的 provider 消息。
         message: String,
     },
 
-    /// The selected provider does not expose this operation through its API.
+    /// 所选 provider 的 API 不暴露该操作。
     #[error("{provider} does not support {operation}")]
     UnsupportedOperation {
-        /// Provider name.
+        /// provider 名称。
         provider: &'static str,
-        /// Unsupported operation name.
+        /// 不受支持的操作名称。
         operation: &'static str,
     },
 
-    /// Waiting for an SMS exceeded the requested timeout.
+    /// 等待短信超过了指定超时时间。
     #[error("timed out waiting for SMS on order {order_id} after {timeout_secs}s")]
     Timeout {
-        /// Provider order ID.
+        /// provider 订单 ID。
         order_id: u64,
-        /// Timeout in seconds.
+        /// 秒级超时时间。
         timeout_secs: u64,
     },
 
-    /// The order entered a terminal state before an SMS arrived.
+    /// 订单在短信到达前进入终态。
     #[error("order {order_id} closed before SMS arrived: {status:?}")]
     OrderClosed {
-        /// Provider order ID.
+        /// provider 订单 ID。
         order_id: u64,
-        /// Terminal provider status.
+        /// provider 终态状态。
         status: SmsOrderStatus,
     },
 }
 
-/// Optional provider HTTP status displayed without leaking formatting logic into
-/// error construction sites.
+/// 可选的 provider HTTP 状态码展示包装，避免把格式化逻辑泄漏到错误构造点。
 #[apply(from_copy_eq_display)]
 #[display(
     "{}",

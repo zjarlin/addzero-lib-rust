@@ -9,23 +9,23 @@ use az_derive_aliases::{
 };
 use std::time::Instant;
 
-/// Built-in SMS provider identifiers.
+/// 内置 SMS provider 标识。
 #[apply(serde_code_enum)]
 pub enum SmsProviderKind {
-    /// 5sim v1 API.
+    /// 5sim v1 API。
     #[serde(rename = "5sim")]
     #[strum(serialize = "5sim")]
     Fivesim,
-    /// Grizzly SMS sms-activate-compatible API.
+    /// Grizzly SMS 兼容 sms-activate 的 API。
     GrizzlySms,
 }
 
-/// Configuration for one built-in SMS provider.
+/// 单个内置 SMS provider 的配置。
 #[apply(from_plain_eq)]
 pub enum SmsProviderConfig {
-    /// 5sim v1 API config.
+    /// 5sim v1 API 配置。
     Fivesim(FivesimConfig),
-    /// Grizzly SMS API config.
+    /// Grizzly SMS API 配置。
     GrizzlySms(GrizzlySmsConfig),
 }
 
@@ -34,16 +34,16 @@ impl_enum_kind!(SmsProviderConfig => SmsProviderKind, kind {
     Self::GrizzlySms(_) => SmsProviderKind::GrizzlySms,
 });
 
-/// Boxed provider object used at application boundaries.
+/// 应用边界使用的 boxed provider 对象。
 pub type BoxSmsProvider = Box<dyn SmsProvider + Send + Sync>;
 
-/// Factory abstraction for dependency-injected SMS provider creation.
+/// 用于依赖注入式创建 SMS provider 的工厂抽象。
 pub trait SmsProviderFactory: Send + Sync {
-    /// Build a provider trait object from a provider-specific config.
+    /// 根据 provider 专属配置构造 provider trait object。
     fn build_provider(&self, config: SmsProviderConfig) -> SmsResult<BoxSmsProvider>;
 }
 
-/// Factory for the providers compiled into this crate.
+/// 本 crate 内置 provider 的默认工厂。
 #[apply(plain_default_copy_eq)]
 pub struct BuiltinSmsProviderFactory;
 
@@ -56,36 +56,36 @@ impl SmsProviderFactory for BuiltinSmsProviderFactory {
     }
 }
 
-/// Build a provider trait object from a provider-specific config.
+/// 根据 provider 专属配置构造 provider trait object。
 pub fn build_sms_provider(config: SmsProviderConfig) -> SmsResult<BoxSmsProvider> {
     BuiltinSmsProviderFactory.build_provider(config)
 }
 
-/// Common async interface implemented by SMS providers.
+/// SMS provider 实现的通用异步接口。
 #[async_trait::async_trait]
 pub trait SmsProvider: Send + Sync {
-    /// Buy a one-time activation number.
+    /// 购买一次性短信验证号码。
     async fn buy_activation_number(&self, request: SmsActivationRequest) -> SmsResult<SmsOrder>;
 
-    /// Buy a hosted/rented number when the provider supports it.
+    /// 在 provider 支持时购买托管或租用号码。
     async fn buy_hosting_number(&self, request: SmsHostingRequest) -> SmsResult<SmsOrder>;
 
-    /// Fetch the current order state and attached SMS messages.
+    /// 获取当前订单状态和已关联的短信内容。
     async fn check_order(&self, order_id: u64) -> SmsResult<SmsOrder>;
 
-    /// Mark an order as successfully finished.
+    /// 将订单标记为成功完成。
     async fn finish_order(&self, order_id: u64) -> SmsResult<SmsOrder>;
 
-    /// Cancel an order that should no longer be used.
+    /// 取消不再需要使用的订单。
     async fn cancel_order(&self, order_id: u64) -> SmsResult<SmsOrder>;
 
-    /// Reject an order because the number or received SMS is unusable.
+    /// 因号码或收到的短信不可用而封禁/拒绝订单。
     async fn ban_order(&self, order_id: u64) -> SmsResult<SmsOrder>;
 
-    /// Fetch SMS inbox messages for a hosted/rented order.
+    /// 获取托管或租用订单的短信 inbox。
     async fn inbox(&self, order_id: u64) -> SmsResult<SmsInbox>;
 
-    /// Poll `check_order` until an SMS arrives, the order closes, or the timeout expires.
+    /// 轮询 `check_order`，直到短信到达、订单关闭或超时。
     async fn wait_for_sms(&self, order_id: u64, options: WaitForSmsOptions) -> SmsResult<SmsOrder> {
         options.validate()?;
         let deadline = Instant::now() + options.timeout;

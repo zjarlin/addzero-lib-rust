@@ -6,30 +6,30 @@ use serde::Deserialize;
 use serde::de::{self, Deserializer};
 use std::time::Duration;
 
-/// Request for a one-time SMS activation number.
+/// 一次性短信验证号码购买请求。
 #[apply(serde_eq)]
 pub struct SmsActivationRequest {
-    /// Provider country code, or provider-specific `any`.
+    /// provider 国家代码，或 provider 专属的 `any`。
     pub country: String,
-    /// Provider operator code, or provider-specific `any`.
+    /// provider 运营商代码，或 provider 专属的 `any`。
     pub operator: String,
-    /// Provider product or service name.
+    /// provider 产品或服务名称。
     pub product: String,
-    /// Enable call forwarding when the provider supports it.
+    /// provider 支持时启用来电转发。
     pub forwarding: Option<bool>,
-    /// Existing phone number for provider-specific reuse flows.
+    /// provider 专属复用流程中的已有手机号。
     pub number: Option<String>,
-    /// Request a reusable number when the provider supports it.
+    /// provider 支持时请求可复用号码。
     pub reuse: Option<bool>,
-    /// Request voice verification when the provider supports it.
+    /// provider 支持时请求语音验证。
     pub voice: Option<bool>,
-    /// Provider referral code.
+    /// provider 推荐码。
     #[serde(rename = "ref")]
     pub ref_code: Option<String>,
 }
 
 impl SmsActivationRequest {
-    /// Create a validated activation request.
+    /// 创建已校验的一次性号码请求。
     pub fn new(
         country: impl Into<String>,
         operator: impl Into<String>,
@@ -49,37 +49,37 @@ impl SmsActivationRequest {
         Ok(request)
     }
 
-    /// Set call forwarding.
+    /// 设置来电转发。
     pub fn forwarding(mut self, value: bool) -> Self {
         self.forwarding = Some(value);
         self
     }
 
-    /// Set the provider-specific phone number reuse value.
+    /// 设置 provider 专属的手机号复用值。
     pub fn number(mut self, value: impl Into<String>) -> Self {
         self.number = Some(value.into());
         self
     }
 
-    /// Enable or disable number reuse.
+    /// 启用或禁用号码复用。
     pub fn reuse(mut self, value: bool) -> Self {
         self.reuse = Some(value);
         self
     }
 
-    /// Enable or disable voice verification.
+    /// 启用或禁用语音验证。
     pub fn voice(mut self, value: bool) -> Self {
         self.voice = Some(value);
         self
     }
 
-    /// Set the provider referral code.
+    /// 设置 provider 推荐码。
     pub fn ref_code(mut self, value: impl Into<String>) -> Self {
         self.ref_code = Some(value.into());
         self
     }
 
-    /// Validate local invariants before sending the request to a provider.
+    /// 发送给 provider 前校验本地不变量。
     pub fn validate(&self) -> SmsResult<()> {
         validate_non_blank("country", &self.country)?;
         validate_non_blank("operator", &self.operator)?;
@@ -90,19 +90,19 @@ impl SmsActivationRequest {
     }
 }
 
-/// Request for a longer-lived hosted/rented SMS number.
+/// 长时托管/租用短信号码购买请求。
 #[apply(serde_eq)]
 pub struct SmsHostingRequest {
-    /// Provider country code, or provider-specific `any`.
+    /// provider 国家代码，或 provider 专属的 `any`。
     pub country: String,
-    /// Provider operator code, or provider-specific `any`.
+    /// provider 运营商代码，或 provider 专属的 `any`。
     pub operator: String,
-    /// Provider product or service name.
+    /// provider 产品或服务名称。
     pub product: String,
 }
 
 impl SmsHostingRequest {
-    /// Create a validated hosting request.
+    /// 创建已校验的托管/租用号码请求。
     pub fn new(
         country: impl Into<String>,
         operator: impl Into<String>,
@@ -117,7 +117,7 @@ impl SmsHostingRequest {
         Ok(request)
     }
 
-    /// Validate local invariants before sending the request to a provider.
+    /// 发送给 provider 前校验本地不变量。
     pub fn validate(&self) -> SmsResult<()> {
         validate_non_blank("country", &self.country)?;
         validate_non_blank("operator", &self.operator)?;
@@ -126,28 +126,28 @@ impl SmsHostingRequest {
     }
 }
 
-/// Provider order state.
+/// provider 订单状态。
 #[apply(serde_upper_eq)]
 pub enum SmsOrderStatus {
-    /// Provider is preparing the number.
+    /// provider 正在准备号码。
     Pending,
-    /// SMS has been received or the order is waiting for receipt.
+    /// 已收到短信，或订单正在等待短信回执。
     Received,
-    /// Order was canceled.
+    /// 订单已取消。
     Canceled,
-    /// Provider timed out the order.
+    /// provider 已将订单置为超时。
     Timeout,
-    /// Order was successfully finished.
+    /// 订单已成功完成。
     Finished,
-    /// Order was banned/rejected.
+    /// 订单已被封禁或拒绝。
     Banned,
-    /// Provider returned a status not known by this crate.
+    /// provider 返回了本 crate 尚未识别的状态。
     #[serde(other)]
     Unknown,
 }
 
 impl SmsOrderStatus {
-    /// Whether the status closes the order lifecycle.
+    /// 判断该状态是否会关闭订单生命周期。
     pub const fn is_terminal(&self) -> bool {
         matches!(
             self,
@@ -156,100 +156,100 @@ impl SmsOrderStatus {
     }
 }
 
-/// A single SMS message returned by a provider.
+/// provider 返回的单条短信。
 #[apply(serde_eq)]
 pub struct SmsMessage {
-    /// Provider SMS ID when supplied.
+    /// provider 提供时的短信 ID。
     #[serde(default, alias = "ID", skip_serializing_if = "Option::is_none")]
     pub id: Option<u64>,
-    /// Provider creation timestamp.
+    /// provider 创建时间戳。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
-    /// Sender-side message timestamp.
+    /// 发送方侧消息时间戳。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<String>,
-    /// Sender name or phone number.
+    /// 发送方名称或手机号。
     #[serde(default)]
     pub sender: String,
-    /// Raw SMS body.
+    /// 原始短信正文。
     #[serde(default)]
     pub text: String,
-    /// Provider-extracted verification code, when available.
+    /// provider 可用时提取出的验证码。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
 }
 
-/// SMS provider order data.
+/// SMS provider 订单数据。
 #[apply(serde_partial_eq)]
 pub struct SmsOrder {
-    /// Provider order ID.
+    /// provider 订单 ID。
     pub id: u64,
-    /// Rented phone number.
+    /// 租用到的手机号。
     pub phone: String,
-    /// Provider operator name.
+    /// provider 运营商名称。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub operator: Option<String>,
-    /// Provider product or service name.
+    /// provider 产品或服务名称。
     pub product: String,
-    /// Provider order price.
+    /// provider 订单价格。
     pub price: f64,
-    /// Current provider order status.
+    /// 当前 provider 订单状态。
     pub status: SmsOrderStatus,
-    /// Provider expiry timestamp.
+    /// provider 过期时间戳。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires: Option<String>,
-    /// SMS messages attached to the order.
+    /// 关联到该订单的短信列表。
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub sms: Vec<SmsMessage>,
-    /// Provider creation timestamp.
+    /// provider 创建时间戳。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
-    /// Whether forwarding was enabled.
+    /// 是否启用了转发。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub forwarding: Option<bool>,
-    /// Forwarding destination when enabled.
+    /// 启用转发时的目标号码。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub forwarding_number: Option<String>,
-    /// Provider country name.
+    /// provider 国家名称。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
 }
 
-/// SMS inbox for providers that expose rented-number inboxes.
+/// 暴露租用号码 inbox 的 provider 所返回的 SMS inbox。
 #[apply(serde_eq)]
 pub struct SmsInbox {
-    /// SMS messages returned by the provider.
+    /// provider 返回的短信列表。
     #[serde(rename = "Data", default)]
     pub messages: Vec<SmsMessage>,
-    /// Total messages according to the provider.
+    /// provider 报告的短信总数。
     #[serde(rename = "Total", default)]
     pub total: usize,
 }
 
-/// Minimal provider account profile.
+/// 最小 provider 账号 profile。
 #[apply(serde_partial_eq)]
 pub struct SmsProfile {
-    /// Provider account ID.
+    /// provider 账号 ID。
     pub id: u64,
-    /// Provider account email.
+    /// provider 账号邮箱。
     #[serde(default)]
     pub email: String,
-    /// Current account balance.
+    /// 当前账号余额。
     pub balance: f64,
-    /// Provider rating.
+    /// provider 账号评分。
     #[serde(default)]
     pub rating: f64,
-    /// Frozen balance when the provider exposes it.
+    /// provider 暴露时的冻结余额。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frozen_balance: Option<f64>,
 }
 
-/// Polling options used by [`crate::provider::SmsProvider::wait_for_sms`].
+/// [`crate::provider::SmsProvider::wait_for_sms`] 使用的轮询选项。
 #[apply(plain_copy_eq)]
 pub struct WaitForSmsOptions {
-    /// Maximum time spent polling.
+    /// 最大轮询时长。
     pub timeout: Duration,
-    /// Delay between `check_order` calls.
+    /// 两次 `check_order` 调用之间的等待时间。
     pub interval: Duration,
 }
 
@@ -259,14 +259,14 @@ impl_default!(WaitForSmsOptions => WaitForSmsOptions {
 });
 
 impl WaitForSmsOptions {
-    /// Create polling options and validate that both durations are non-zero.
+    /// 创建轮询选项，并校验两个时长均非零。
     pub fn new(timeout: Duration, interval: Duration) -> SmsResult<Self> {
         let options = Self { timeout, interval };
         options.validate()?;
         Ok(options)
     }
 
-    /// Validate local polling invariants.
+    /// 校验本地轮询不变量。
     pub fn validate(&self) -> SmsResult<()> {
         if self.timeout.is_zero() {
             return Err(SmsError::InvalidRequest(

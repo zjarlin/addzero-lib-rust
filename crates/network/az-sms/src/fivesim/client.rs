@@ -15,23 +15,23 @@ use std::time::Duration;
 
 const DEFAULT_BASE_URL: &str = "https://5sim.net/v1/";
 
-/// Configuration for the 5sim v1 API client.
+/// 5sim v1 API 客户端配置。
 #[apply(plain_eq)]
 pub struct FivesimConfig {
-    /// 5sim API token. It is sent as a bearer token.
+    /// 5sim API token，会作为 bearer token 发送。
     pub api_token: String,
-    /// Base URL for the 5sim API, normally `https://5sim.net/v1/`.
+    /// 5sim API 基础 URL，通常是 `https://5sim.net/v1/`。
     pub base_url: String,
-    /// HTTP connection timeout.
+    /// HTTP 连接超时。
     pub connect_timeout: Duration,
-    /// HTTP request timeout.
+    /// HTTP 请求超时。
     pub request_timeout: Duration,
-    /// Optional user agent.
+    /// 可选 User-Agent。
     pub user_agent: Option<String>,
 }
 
 impl FivesimConfig {
-    /// Start building a config with default 5sim v1 settings.
+    /// 使用默认 5sim v1 设置开始构建配置。
     pub fn builder(api_token: impl Into<String>) -> FivesimConfigBuilder {
         FivesimConfigBuilder {
             api_token: api_token.into(),
@@ -42,7 +42,7 @@ impl FivesimConfig {
         }
     }
 
-    /// Validate local config invariants.
+    /// 校验本地配置不变量。
     pub fn validate(&self) -> SmsResult<()> {
         ensure_non_blank("api_token", &self.api_token)?;
         ensure_non_blank("base_url", &self.base_url)?;
@@ -52,7 +52,7 @@ impl FivesimConfig {
     }
 }
 
-/// Builder for [`FivesimConfig`].
+/// [`FivesimConfig`] 的链式构建器。
 #[apply(plain_eq)]
 pub struct FivesimConfigBuilder {
     api_token: String,
@@ -63,37 +63,37 @@ pub struct FivesimConfigBuilder {
 }
 
 impl FivesimConfigBuilder {
-    /// Override the API base URL.
+    /// 覆盖 API 基础 URL。
     pub fn base_url(mut self, value: impl Into<String>) -> Self {
         self.base_url = value.into();
         self
     }
 
-    /// Set the HTTP connection timeout.
+    /// 设置 HTTP 连接超时。
     pub fn connect_timeout(mut self, value: Duration) -> Self {
         self.connect_timeout = value;
         self
     }
 
-    /// Set the HTTP request timeout.
+    /// 设置 HTTP 请求超时。
     pub fn request_timeout(mut self, value: Duration) -> Self {
         self.request_timeout = value;
         self
     }
 
-    /// Set a custom user agent.
+    /// 设置自定义 User-Agent。
     pub fn user_agent(mut self, value: impl Into<String>) -> Self {
         self.user_agent = Some(value.into());
         self
     }
 
-    /// Remove the default user agent.
+    /// 移除默认 User-Agent。
     pub fn clear_user_agent(mut self) -> Self {
         self.user_agent = None;
         self
     }
 
-    /// Build and validate the config.
+    /// 构建并校验配置。
     pub fn build(self) -> SmsResult<FivesimConfig> {
         let config = FivesimConfig {
             api_token: self.api_token,
@@ -107,7 +107,7 @@ impl FivesimConfigBuilder {
     }
 }
 
-/// 5sim v1 API client.
+/// 5sim v1 API 客户端。
 #[apply(plain_clone_debug)]
 pub struct FivesimClient {
     client: reqwest::Client,
@@ -116,12 +116,12 @@ pub struct FivesimClient {
 }
 
 impl FivesimClient {
-    /// Create a client with the default 5sim v1 base URL.
+    /// 使用默认 5sim v1 基础 URL 创建客户端。
     pub fn from_token(api_token: impl Into<String>) -> SmsResult<Self> {
         Self::new(FivesimConfig::builder(api_token).build()?)
     }
 
-    /// Create a client from an explicit config.
+    /// 使用显式配置创建客户端。
     pub fn new(config: FivesimConfig) -> SmsResult<Self> {
         config.validate()?;
         let base_url = Url::parse(&config.base_url)
@@ -138,7 +138,7 @@ impl FivesimClient {
         })
     }
 
-    /// Fetch the authenticated account profile.
+    /// 获取已认证账号的 profile。
     pub async fn profile(&self) -> SmsResult<SmsProfile> {
         let url = self.endpoint(&["user", "profile"])?;
         self.get_json(url).await

@@ -4,7 +4,7 @@ use crate::{
     provider::{BoxSmsProvider, BuiltinSmsProviderFactory, SmsProviderConfig, SmsProviderFactory},
 };
 
-/// Build a 5sim provider through an injected factory.
+/// 通过注入的工厂构造 5sim provider。
 pub fn build_fivesim_provider_with(
     factory: &dyn SmsProviderFactory,
     token: &str,
@@ -13,7 +13,7 @@ pub fn build_fivesim_provider_with(
     factory.build_provider(SmsProviderConfig::from(config))
 }
 
-/// Build the built-in 5sim provider through the shared SMS factory boundary.
+/// 通过统一 SMS 工厂边界构造内置 5sim provider。
 pub fn build_fivesim_provider(token: &str) -> SmsResult<BoxSmsProvider> {
     build_fivesim_provider_with(&BuiltinSmsProviderFactory, token)
 }

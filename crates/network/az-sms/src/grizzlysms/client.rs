@@ -17,23 +17,23 @@ use std::time::Duration;
 const DEFAULT_BASE_URL: &str = "https://api.grizzlysms.com/stubs/handler_api.php";
 const PROVIDER_NAME: &str = "GrizzlySMS";
 
-/// Configuration for the Grizzly SMS sms-activate-compatible API client.
+/// Grizzly SMS 兼容 sms-activate 的 API 客户端配置。
 #[apply(plain_eq)]
 pub struct GrizzlySmsConfig {
-    /// Grizzly SMS API key. It is sent as the `api_key` query parameter.
+    /// Grizzly SMS API key，会作为 `api_key` 查询参数发送。
     pub api_key: String,
-    /// API handler URL, normally `https://api.grizzlysms.com/stubs/handler_api.php`.
+    /// API handler URL，通常是 `https://api.grizzlysms.com/stubs/handler_api.php`。
     pub base_url: String,
-    /// HTTP connection timeout.
+    /// HTTP 连接超时。
     pub connect_timeout: Duration,
-    /// HTTP request timeout.
+    /// HTTP 请求超时。
     pub request_timeout: Duration,
-    /// Optional user agent.
+    /// 可选 User-Agent。
     pub user_agent: Option<String>,
 }
 
 impl GrizzlySmsConfig {
-    /// Start building a config with default Grizzly SMS API settings.
+    /// 使用默认 Grizzly SMS API 设置开始构建配置。
     pub fn builder(api_key: impl Into<String>) -> GrizzlySmsConfigBuilder {
         GrizzlySmsConfigBuilder {
             api_key: api_key.into(),
@@ -44,7 +44,7 @@ impl GrizzlySmsConfig {
         }
     }
 
-    /// Validate local config invariants.
+    /// 校验本地配置不变量。
     pub fn validate(&self) -> SmsResult<()> {
         ensure_non_blank("api_key", &self.api_key)?;
         ensure_non_blank("base_url", &self.base_url)?;
@@ -54,7 +54,7 @@ impl GrizzlySmsConfig {
     }
 }
 
-/// Builder for [`GrizzlySmsConfig`].
+/// [`GrizzlySmsConfig`] 的链式构建器。
 #[apply(plain_eq)]
 pub struct GrizzlySmsConfigBuilder {
     api_key: String,
@@ -65,37 +65,37 @@ pub struct GrizzlySmsConfigBuilder {
 }
 
 impl GrizzlySmsConfigBuilder {
-    /// Override the API handler URL.
+    /// 覆盖 API handler URL。
     pub fn base_url(mut self, value: impl Into<String>) -> Self {
         self.base_url = value.into();
         self
     }
 
-    /// Set the HTTP connection timeout.
+    /// 设置 HTTP 连接超时。
     pub fn connect_timeout(mut self, value: Duration) -> Self {
         self.connect_timeout = value;
         self
     }
 
-    /// Set the HTTP request timeout.
+    /// 设置 HTTP 请求超时。
     pub fn request_timeout(mut self, value: Duration) -> Self {
         self.request_timeout = value;
         self
     }
 
-    /// Set a custom user agent.
+    /// 设置自定义 User-Agent。
     pub fn user_agent(mut self, value: impl Into<String>) -> Self {
         self.user_agent = Some(value.into());
         self
     }
 
-    /// Remove the default user agent.
+    /// 移除默认 User-Agent。
     pub fn clear_user_agent(mut self) -> Self {
         self.user_agent = None;
         self
     }
 
-    /// Build and validate the config.
+    /// 构建并校验配置。
     pub fn build(self) -> SmsResult<GrizzlySmsConfig> {
         let config = GrizzlySmsConfig {
             api_key: self.api_key,
@@ -109,7 +109,7 @@ impl GrizzlySmsConfigBuilder {
     }
 }
 
-/// Grizzly SMS API client.
+/// Grizzly SMS API 客户端。
 #[apply(plain_clone_debug)]
 pub struct GrizzlySmsClient {
     client: reqwest::Client,
@@ -118,12 +118,12 @@ pub struct GrizzlySmsClient {
 }
 
 impl GrizzlySmsClient {
-    /// Create a client with the default Grizzly SMS API handler URL.
+    /// 使用默认 Grizzly SMS API handler URL 创建客户端。
     pub fn from_api_key(api_key: impl Into<String>) -> SmsResult<Self> {
         Self::new(GrizzlySmsConfig::builder(api_key).build()?)
     }
 
-    /// Create a client from an explicit config.
+    /// 使用显式配置创建客户端。
     pub fn new(config: GrizzlySmsConfig) -> SmsResult<Self> {
         config.validate()?;
         let base_url = Url::parse(&config.base_url)
@@ -140,15 +140,15 @@ impl GrizzlySmsClient {
         })
     }
 
-    /// Fetch the current account balance.
+    /// 获取当前账号余额。
     pub async fn balance(&self) -> SmsResult<f64> {
         let body = self.send_text(self.action_url("getBalance")?).await?;
         parse_balance_response(&body)
     }
 
-    /// Fetch a minimal account profile.
+    /// 获取最小账号 profile。
     ///
-    /// Grizzly SMS exposes balance through this public API but not account id or email.
+    /// Grizzly SMS 通过公开 API 暴露余额，但不暴露账号 ID 或邮箱。
     pub async fn profile(&self) -> SmsResult<SmsProfile> {
         Ok(SmsProfile {
             id: 0,
