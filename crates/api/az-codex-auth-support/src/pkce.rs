@@ -6,20 +6,23 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use reqwest::Url;
 use sha2::{Digest, Sha256};
 
-/// RFC 7636 PKCE material for an OAuth authorization-code flow.
+/// OAuth 授权码流程使用的 RFC 7636 PKCE 材料。
 #[apply(plain_eq)]
 pub struct PkcePair {
+    /// OAuth PKCE code verifier。
     pub code_verifier: String,
+    /// S256 code challenge。
     pub code_challenge: String,
+    /// code challenge method，当前固定为 `S256`。
     pub code_challenge_method: String,
 }
 
-/// Generates a high-entropy OAuth state value.
+/// 生成高熵 OAuth state 值。
 pub fn generate_state() -> CodexAuthSupportResult<String> {
     Ok(URL_SAFE_NO_PAD.encode(random_bytes::<32>()?))
 }
 
-/// Generates a PKCE verifier and S256 challenge.
+/// 生成 PKCE verifier 和 S256 challenge。
 pub fn generate_pkce_pair() -> CodexAuthSupportResult<PkcePair> {
     let code_verifier = URL_SAFE_NO_PAD.encode(random_bytes::<64>()?);
     let digest = Sha256::digest(code_verifier.as_bytes());
@@ -32,7 +35,7 @@ pub fn generate_pkce_pair() -> CodexAuthSupportResult<PkcePair> {
     })
 }
 
-/// Builds a standard OAuth authorize URL using PKCE parameters.
+/// 使用 PKCE 参数构建标准 OAuth authorize URL。
 pub fn build_authorize_url(
     issuer: impl AsRef<str>,
     client_id: impl AsRef<str>,

@@ -1,24 +1,24 @@
 use crate::{CodexAuthSupportError, CodexAuthSupportResult};
 use az_derive_aliases::{apply, plain_code_display_no_default_enum};
 
-/// Automation capabilities intentionally left out of this Rust port.
+/// 这个 Rust 迁移版本刻意排除的自动化能力。
 #[apply(plain_code_display_no_default_enum)]
 pub enum BlockedCapability {
-    /// Bulk creation of OpenAI or ChatGPT accounts.
+    /// 批量创建 OpenAI 或 ChatGPT 账号。
     #[display("automated_openai_registration")]
     AutomatedOpenAiRegistration,
-    /// Reimplementation of Sentinel proof-of-work or anti-abuse challenge generation.
+    /// 重新实现 Sentinel 工作量证明或反滥用挑战生成。
     #[display("sentinel_proof_of_work")]
     SentinelProofOfWork,
-    /// Browser fingerprint impersonation or TLS/client-profile spoofing.
+    /// 浏览器指纹冒充或 TLS/client-profile 伪造。
     #[display("browser_fingerprint_impersonation")]
     BrowserFingerprintImpersonation,
-    /// Bulk OAuth token generation against third-party accounts.
+    /// 面向第三方账号批量生成 OAuth token。
     #[display("bulk_token_generation")]
     BulkTokenGeneration,
 }
 
-/// Returns an explicit error for unsupported automation capabilities.
+/// 对不支持的自动化能力返回显式错误。
 pub fn unsupported_capability(capability: BlockedCapability) -> CodexAuthSupportResult<()> {
     Err(CodexAuthSupportError::UnsupportedCapability { capability })
 }

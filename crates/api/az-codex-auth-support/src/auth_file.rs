@@ -7,39 +7,50 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// OAuth token response fields needed to write a Codex auth file.
+/// 写入 Codex 认证文件所需的 OAuth token 响应字段。
 #[apply(serde_eq_default)]
 pub struct OAuthTokens {
+    /// OAuth access token。
     #[serde(default)]
     pub access_token: String,
+    /// OAuth refresh token。
     #[serde(default)]
     pub refresh_token: String,
+    /// OAuth id token。
     #[serde(default)]
     pub id_token: String,
 }
 
-/// CLIProxyAPI-compatible Codex auth-file content.
+/// 兼容 CLIProxyAPI 的 Codex 认证文件内容。
 #[apply(serde_eq)]
 pub struct CodexAuthFile {
+    /// 认证文件类型，当前固定为 `codex`。
     #[serde(rename = "type")]
     pub kind: String,
+    /// 账号邮箱。
     pub email: String,
+    /// access token 过期时间。
     pub expired: String,
+    /// OAuth id token。
     pub id_token: String,
+    /// ChatGPT 账号 ID。
     pub account_id: String,
+    /// OAuth access token。
     pub access_token: String,
+    /// 上次刷新时间。
     pub last_refresh: String,
+    /// OAuth refresh token。
     pub refresh_token: String,
 }
 
 impl CodexAuthFile {
-    /// Builds a Codex auth file from OAuth tokens using the current time.
+    /// 使用当前时间根据 OAuth token 构建 Codex 认证文件。
     pub fn from_tokens(email: impl Into<String>, tokens: OAuthTokens) -> Self {
         let offset = FixedOffset::east_opt(8 * 60 * 60).expect("valid +08:00 offset");
         Self::from_tokens_at(email, tokens, Utc::now(), offset)
     }
 
-    /// Builds a Codex auth file from OAuth tokens at a deterministic timestamp.
+    /// 使用确定性时间戳根据 OAuth token 构建 Codex 认证文件。
     pub fn from_tokens_at(
         email: impl Into<String>,
         tokens: OAuthTokens,
@@ -81,7 +92,7 @@ impl CodexAuthFile {
         }
     }
 
-    /// Writes this auth file to `dir/<safe email>.json`.
+    /// 将当前认证文件写入 `dir/<safe email>.json`。
     pub fn write_to_dir(
         &self,
         dir: impl AsRef<Path>,
@@ -94,16 +105,16 @@ impl CodexAuthFile {
     }
 }
 
-/// Result metadata for an auth-file write.
+/// 认证文件写入结果元数据。
 #[apply(plain_eq)]
 pub struct AuthFileWriteOutcome {
+    /// 实际写入的文件路径。
     pub path: PathBuf,
 }
 
-/// Decodes a JWT payload without verifying its signature.
+/// 解码 JWT payload，但不校验签名。
 ///
-/// Use this only for non-authoritative metadata extraction, such as deriving
-/// `exp` or account identifiers for local auth-file labels.
+/// 该函数只应用于非权威元数据提取，例如为本地认证文件标签读取 `exp` 或账号标识。
 pub fn decode_jwt_payload(token: &str) -> CodexAuthSupportResult<Value> {
     let parts = token.split('.').collect::<Vec<_>>();
     if parts.len() != 3 {
@@ -123,7 +134,7 @@ pub fn decode_jwt_payload(token: &str) -> CodexAuthSupportResult<Value> {
     Ok(serde_json::from_slice(bytes.as_ref())?)
 }
 
-/// Creates a filesystem-safe auth-file name while preserving readable email labels.
+/// 创建文件系统安全的认证文件名，同时保留可读邮箱标签。
 pub fn safe_auth_filename(email: impl AsRef<str>) -> String {
     let mut stem = email
         .as_ref()

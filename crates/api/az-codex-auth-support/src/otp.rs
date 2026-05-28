@@ -13,10 +13,10 @@ static VERIFICATION_CODE_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     .collect()
 });
 
-/// Extracts a six-digit verification code from plain text or HTML email content.
+/// 从纯文本或 HTML 邮件内容中提取六位验证码。
 ///
-/// The source project skipped `177010` because it is a known layout false positive
-/// in some copied email templates; this helper preserves that guard.
+/// 源项目跳过 `177010`，因为它是部分复制邮件模板中的已知布局误报；
+/// 该辅助函数保留这个防护。
 pub fn extract_verification_code(content: impl AsRef<str>) -> Option<String> {
     let content = content.as_ref();
     if content.trim().is_empty() {

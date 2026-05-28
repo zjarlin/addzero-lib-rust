@@ -7,18 +7,22 @@ const DEFAULT_USER_AGENT: &str = "az-codex-auth-support/0.1";
 const DEFAULT_CONNECT_TIMEOUT_SECS: u64 = 10;
 const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 
-/// Configuration for DuckMail API requests.
+/// DuckMail API 请求配置。
 ///
-/// `auth_token` accepts either a DuckMail bearer token or a `dk_` API key.
-/// Both are transmitted with `Authorization: Bearer ...`, matching DuckMail's
-/// documented API behavior.
+/// `auth_token` 接受 DuckMail bearer token 或 `dk_` API key。
+/// 两者都会按 DuckMail 文档行为通过 `Authorization: Bearer ...` 发送。
 #[apply(plain_eq_redacted)]
 pub struct DuckMailConfig {
+    /// DuckMail API 基础 URL。
     pub base_url: String,
+    /// DuckMail bearer token 或 `dk_` API key。
     #[debug(skip)]
     pub auth_token: Option<String>,
+    /// HTTP User-Agent。
     pub user_agent: Option<String>,
+    /// TCP 连接超时。
     pub connect_timeout: Duration,
+    /// 完整请求超时。
     pub request_timeout: Duration,
 }
 
@@ -31,7 +35,7 @@ impl_default!(DuckMailConfig => DuckMailConfig {
 });
 
 impl DuckMailConfig {
-    /// Starts a DuckMail configuration with the provided API base URL.
+    /// 使用指定 API 基础 URL 创建 DuckMail 配置。
     pub fn builder(base_url: impl Into<String>) -> Self {
         Self {
             base_url: base_url.into(),
@@ -39,42 +43,42 @@ impl DuckMailConfig {
         }
     }
 
-    /// Uses the default DuckMail public API base URL.
+    /// 返回默认 DuckMail 公共 API 基础 URL。
     pub fn default_base_url() -> &'static str {
         DEFAULT_DUCKMAIL_BASE_URL
     }
 
-    /// Sets the DuckMail bearer token or `dk_` API key.
+    /// 设置 DuckMail bearer token 或 `dk_` API key。
     pub fn auth_token(mut self, value: impl Into<String>) -> Self {
         self.auth_token = Some(value.into());
         self
     }
 
-    /// Sets the user agent sent by the underlying HTTP client.
+    /// 设置底层 HTTP 客户端发送的 User-Agent。
     pub fn user_agent(mut self, value: impl Into<String>) -> Self {
         self.user_agent = Some(value.into());
         self
     }
 
-    /// Removes the custom user agent.
+    /// 移除自定义 User-Agent。
     pub fn without_user_agent(mut self) -> Self {
         self.user_agent = None;
         self
     }
 
-    /// Sets the TCP connect timeout.
+    /// 设置 TCP 连接超时。
     pub fn connect_timeout(mut self, value: Duration) -> Self {
         self.connect_timeout = value;
         self
     }
 
-    /// Sets the full request timeout.
+    /// 设置完整请求超时。
     pub fn request_timeout(mut self, value: Duration) -> Self {
         self.request_timeout = value;
         self
     }
 
-    /// Validates the configuration before constructing a network client.
+    /// 构造网络客户端前校验配置。
     pub fn validate(&self) -> CodexAuthSupportResult<()> {
         if self.base_url.trim().is_empty() {
             return Err(CodexAuthSupportError::InvalidConfig(
@@ -94,21 +98,26 @@ impl DuckMailConfig {
         Ok(())
     }
 
-    /// Completes builder validation and returns the final config.
+    /// 完成构建器校验并返回最终配置。
     pub fn build(self) -> CodexAuthSupportResult<Self> {
         self.validate()?;
         Ok(self)
     }
 }
 
-/// Configuration for uploading generated auth JSON files to a CLIProxyAPI management endpoint.
+/// 将生成的认证 JSON 文件上传到 CLIProxyAPI 管理端点的配置。
 #[apply(plain_eq_redacted)]
 pub struct CpaUploadConfig {
+    /// CLIProxyAPI 兼容上传端点 URL。
     pub upload_url: String,
+    /// 管理端 bearer token。
     #[debug(skip)]
     pub bearer_token: Option<String>,
+    /// HTTP User-Agent。
     pub user_agent: Option<String>,
+    /// TCP 连接超时。
     pub connect_timeout: Duration,
+    /// 完整请求超时。
     pub request_timeout: Duration,
 }
 
@@ -135,7 +144,7 @@ mod tests {
 }
 
 impl CpaUploadConfig {
-    /// Starts an upload configuration for a CLIProxyAPI-compatible management endpoint.
+    /// 为 CLIProxyAPI 兼容管理端点创建上传配置。
     pub fn builder(upload_url: impl Into<String>) -> Self {
         Self {
             upload_url: upload_url.into(),
@@ -146,31 +155,31 @@ impl CpaUploadConfig {
         }
     }
 
-    /// Sets the management API bearer token.
+    /// 设置管理 API bearer token。
     pub fn bearer_token(mut self, value: impl Into<String>) -> Self {
         self.bearer_token = Some(value.into());
         self
     }
 
-    /// Sets the user agent sent by the underlying HTTP client.
+    /// 设置底层 HTTP 客户端发送的 User-Agent。
     pub fn user_agent(mut self, value: impl Into<String>) -> Self {
         self.user_agent = Some(value.into());
         self
     }
 
-    /// Sets the TCP connect timeout.
+    /// 设置 TCP 连接超时。
     pub fn connect_timeout(mut self, value: Duration) -> Self {
         self.connect_timeout = value;
         self
     }
 
-    /// Sets the full request timeout.
+    /// 设置完整请求超时。
     pub fn request_timeout(mut self, value: Duration) -> Self {
         self.request_timeout = value;
         self
     }
 
-    /// Validates the configuration before constructing a network client.
+    /// 构造网络客户端前校验配置。
     pub fn validate(&self) -> CodexAuthSupportResult<()> {
         if self.upload_url.trim().is_empty() {
             return Err(CodexAuthSupportError::InvalidConfig(
@@ -190,7 +199,7 @@ impl CpaUploadConfig {
         Ok(())
     }
 
-    /// Completes builder validation and returns the final config.
+    /// 完成构建器校验并返回最终配置。
     pub fn build(self) -> CodexAuthSupportResult<Self> {
         self.validate()?;
         Ok(self)

@@ -6,7 +6,7 @@ use reqwest::blocking::Client;
 use reqwest::blocking::multipart::{Form, Part};
 use std::path::Path;
 
-/// Blocking client for CLIProxyAPI-compatible auth-file upload endpoints.
+/// CLIProxyAPI 兼容认证文件上传端点的阻塞客户端。
 #[apply(plain_clone_debug)]
 pub struct CpaClient {
     config: CpaUploadConfig,
@@ -14,7 +14,7 @@ pub struct CpaClient {
 }
 
 impl CpaClient {
-    /// Creates a management upload client from validated configuration.
+    /// 根据已校验配置创建管理端上传客户端。
     pub fn new(config: CpaUploadConfig) -> CodexAuthSupportResult<Self> {
         let config = config.build()?;
         let mut builder = Client::builder()
@@ -31,7 +31,7 @@ impl CpaClient {
         })
     }
 
-    /// Uploads an existing auth JSON file as multipart field `file`.
+    /// 将已有认证 JSON 文件作为 multipart 字段 `file` 上传。
     pub fn upload_file(&self, path: impl AsRef<Path>) -> CodexAuthSupportResult<()> {
         let form = Form::new().file("file", path.as_ref())?;
         let response = self.request()?.multipart(form).send()?;
@@ -39,7 +39,7 @@ impl CpaClient {
         Ok(())
     }
 
-    /// Serializes and uploads an auth file without first writing it to disk.
+    /// 不落盘，直接序列化并上传认证文件。
     pub fn upload_auth_file(
         &self,
         auth_file: &CodexAuthFile,
