@@ -31,7 +31,7 @@
 | 优先级 | crate | 依据 | 建议动作 |
 | --- | --- | --- | --- |
 | P0 | `az-music`、`az-mqtt`、`az-email` | 网络协议/外部服务 crate 公开面较大，但公开项中文说明几乎为空。 | 优先写协议边界、认证/连接失败语义、脱敏和重试约束。 |
-| P0 | `az-yml`、`az-toml` | 配置 crate 容易成为跨 crate 基础入口，公开 API 文档缺口明显。 | 补环境变量替换、解析失败、格式保真和默认值处理约束。 |
+| P1 | `az-yml`、`az-toml` | 已补一轮 item-level 中文 rustdoc，仍可继续补测试断言意图和 README 场景示例。 | 后续只在新增 API 或发现行为歧义时补充，避免重复注释。 |
 | P1 | `az-excel`、`az-knowledge`、`az-software-catalog` | 数据 crate 入口说明存在，但公开模型和操作缺少中文契约。 | 补数据源边界、导入/导出语义、正式持久化与临时扫描结果的区别。 |
 | P1 | `az-ssh`、`az-remote-session`、`az-cli-repl` | 运行时/远程交互 crate 的失败边界和交互契约需要可审计。 | 补会话生命周期、命令执行、交互输入和错误传播说明。 |
 | P1 | `az-aio-plugin-config-center`、`az-aio-plugin-edge-gateway` | 插件 crate 通过 README 注入入口，但注册规格和 toolbar/page 贡献边界还可继续中文化。 | 给 provider、route、toolbar action、page contribution 的公开常量和函数补简短 rustdoc。 |
@@ -112,6 +112,7 @@
 - `az-derive-aliases`、`gitdb::storage::types`：新增 `serde_string_value_object` / `plain_string_value_object`，把 `TableName`、`RowKey`、`BranchName` 的 `as_str()` / `into_string()` 样板收进功能型 alias，同时保留各自的业务校验。
 - `az-str`：补齐字符串规格化、前后缀处理、命名转换、KMP 匹配、模板格式化、Markdown/HTML 提取、键值对解析和特殊字符转义等公开工具函数的中文 rustdoc，明确空值、UTF-8 字节偏移、宽松数值转换和上下文专用编码器边界。
 - `az-creates`：补齐统一错误类型、`Creates` 门面、Maven Central 包装器、天眼查普通/华为云签名客户端和关键响应 DTO 的中文 rustdoc，明确外部 API 凭证边界、上游响应兼容、provider factory 依赖注入入口和错误链保留方式。
+- `az-yml`、`az-toml`：补齐 YAML 路径查询、环境变量替换、Spring profile 激活、数据库配置提取、Version Catalog 解析/初始化/合并和 TOML 插入宏的中文 rustdoc，明确路径语法、默认值、脱敏、排序输出和非解析式文本插入边界。
 
 ### 继续建议
 

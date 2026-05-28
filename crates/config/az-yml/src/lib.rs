@@ -29,38 +29,57 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// YAML 配置加载、解析和路径访问过程中可能返回的错误。
+///
+/// 该类型保留底层 IO / `serde_yaml` 错误链，调用方可以继续做日志归因或上层错误映射。
 #[apply(error)]
 pub enum YmlError {
+    /// 读取 YAML 文件失败，包含实际访问的文件路径。
     #[error("failed to read yaml file at {path}: {source}")]
     ReadFile {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
+    /// YAML 文件反序列化失败，包含实际访问的文件路径。
     #[error("failed to parse yaml file at {path}: {source}")]
     ParseFile {
         path: PathBuf,
         #[source]
         source: serde_yaml::Error,
     },
+    /// 点号或方括号路径语法不合法。
     #[error("yaml path is invalid: {0}")]
     InvalidPath(String),
+    /// 读取当前工作目录失败，通常来自启动环境或权限问题。
     #[error("failed to read current directory: {0}")]
     CurrentDir(#[source] std::io::Error),
 }
 
+/// YAML 路径中的一个访问片段。
+///
+/// `a.b[0]` 会被拆成两个键片段和一个下标片段，供 `YamlDoc` 在 `serde_yaml::Value` 树上逐层查找。
 #[apply(plain_eq)]
 pub enum YamlPathSegment {
+    /// 映射键访问，支持普通点号键和方括号中的带引号键。
     Key(String),
+    /// 序列下标访问。
     Index(usize),
 }
 
+/// 已解析的 YAML 点号路径。
+///
+/// 路径语法面向配置读取，不尝试覆盖完整 JSONPath；支持 `spring.datasource.url`、
+/// `items[0].name` 和 `spring.datasource["jdbc-url"]` 这类常见 Spring 配置路径。
 #[apply(plain_eq)]
 pub struct YamlPath {
     segments: Vec<YamlPathSegment>,
 }
 
 impl YamlPath {
+    /// 解析字符串路径为可复用的 `YamlPath`。
+    ///
+    /// 空路径、未闭合方括号、非法分隔符等语法问题会返回 `YmlError::InvalidPath`。
     pub fn parse(path: impl AsRef<str>) -> Result<Self, YmlError> {
         let input = path.as_ref().trim();
         if input.is_empty() {
@@ -106,6 +125,9 @@ impl YamlPath {
         Ok(Self { segments })
     }
 
+    /// 返回解析后的路径片段。
+    ///
+    /// 片段按访问顺序排列，调用方可以用于自定义 `serde_yaml::Value` 遍历逻辑。
     pub fn segments(&self) -> &[YamlPathSegment] {
         &self.segments
     }
@@ -113,38 +135,54 @@ impl YamlPath {
 
 impl_from_str_parse!(YamlPath => YmlError);
 
+/// YAML 文档值包装器。
+///
+/// 该类型不改变原始 `serde_yaml::Value` 的结构，只在路径查询和字符串读取时提供更贴近配置文件的便捷语义。
 #[apply(plain_partial_eq)]
 pub struct YamlDoc {
     value: Value,
 }
 
 impl YamlDoc {
+    /// 用已经解析好的 `serde_yaml::Value` 构造文档包装器。
     pub fn from_value(value: Value) -> Self {
         Self { value }
     }
 
+    /// 借用底层 YAML 值。
     pub fn as_value(&self) -> &Value {
         &self.value
     }
 
+    /// 消耗包装器并取回底层 YAML 值。
     pub fn into_inner(self) -> Value {
         self.value
     }
 
+    /// 使用已经解析好的路径查询原始 YAML 值。
     pub fn get_path(&self, path: &YamlPath) -> Option<&Value> {
         lookup_value(&self.value, path)
     }
 
+    /// 解析字符串路径并查询原始 YAML 值。
+    ///
+    /// 路径语法错误会返回 `YmlError::InvalidPath`；路径合法但值不存在时返回 `Ok(None)`。
     pub fn get(&self, path: &str) -> Result<Option<&Value>, YmlError> {
         let parsed = YamlPath::parse(path)?;
         Ok(self.get_path(&parsed))
     }
 
+    /// 解析字符串路径并把标量值转换为字符串。
+    ///
+    /// 仅字符串、数字和布尔值会被转换；映射和序列返回 `None`。返回字符串会经过 `${VAR:default}` 环境变量替换。
     pub fn get_string(&self, path: &str) -> Result<Option<String>, YmlError> {
         let parsed = YamlPath::parse(path)?;
         Ok(self.get_string_at(&parsed))
     }
 
+    /// 使用已解析路径读取字符串标量。
+    ///
+    /// 该方法适合在循环或多次读取中复用 `YamlPath`，避免重复解析路径文本。
     pub fn get_string_at(&self, path: &YamlPath) -> Option<String> {
         self.get_path(path)
             .and_then(stringify_scalar)
@@ -152,7 +190,11 @@ impl YamlDoc {
     }
 }
 
+/// 抽象 YAML 路径查找能力。
+///
+/// 该 trait 让 `YamlDoc`、原始 `serde_yaml::Value` 和它们的引用可以共享 `yaml_get!` 等便捷入口。
 pub trait YamlLookup {
+    /// 使用已解析路径查找 YAML 值。
     fn yaml_lookup(&self, path: &YamlPath) -> Option<&Value>;
 }
 
@@ -177,6 +219,9 @@ where
     }
 }
 
+/// 在任意实现了 `YamlLookup` 的文档上查询路径。
+///
+/// 这是 `yaml_get!` 宏背后的公开函数，适合需要先缓存 `YamlPath` 的调用场景。
 pub fn get_yaml_path_value<'a, T>(doc: &'a T, path: &YamlPath) -> Option<&'a Value>
 where
     T: YamlLookup + ?Sized,
@@ -184,6 +229,9 @@ where
     doc.yaml_lookup(path)
 }
 
+/// 从文件读取 YAML 并反序列化为调用方指定类型。
+///
+/// 文件读取失败映射为 `YmlError::ReadFile`，YAML 解析或反序列化失败映射为 `YmlError::ParseFile`。
 pub fn load_yaml<T, P>(path: P) -> Result<T, YmlError>
 where
     T: DeserializeOwned,
@@ -200,6 +248,7 @@ where
     })
 }
 
+/// 从文件读取 YAML 并保留为可路径查询的 `YamlDoc`。
 pub fn load_yaml_value<P>(path: P) -> Result<YamlDoc, YmlError>
 where
     P: AsRef<Path>,
@@ -207,6 +256,9 @@ where
     load_yaml::<Value, _>(path).map(YamlDoc::from_value)
 }
 
+/// 展开字符串中的 Spring 风格环境变量占位符。
+///
+/// 支持 `${VAR}` 和 `${VAR:default}`。环境变量不存在或内容为空白时使用默认值；未闭合占位符会按原文本保留。
 pub fn env_subst(input: impl AsRef<str>) -> String {
     let source = input.as_ref();
     let mut result = String::with_capacity(source.len());
@@ -241,25 +293,34 @@ pub fn env_subst(input: impl AsRef<str>) -> String {
     result
 }
 
+/// Spring Boot 风格 YAML 配置目录读取器。
+///
+/// 读取边界限定在一个根目录下，资源名会解析为 `*.yml` / `*.yaml`，并支持 `application-{profile}` 激活文件。
 #[apply(plain_eq)]
 pub struct SpringYaml {
     root: PathBuf,
 }
 
 impl SpringYaml {
+    /// 指定配置根目录。
     pub fn from_dir(path: impl Into<PathBuf>) -> Self {
         Self { root: path.into() }
     }
 
+    /// 使用当前工作目录作为配置根目录。
     pub fn from_current_dir() -> Result<Self, YmlError> {
         let root = env::current_dir().map_err(YmlError::CurrentDir)?;
         Ok(Self { root })
     }
 
+    /// 返回配置根目录。
     pub fn root(&self) -> &Path {
         &self.root
     }
 
+    /// 将逻辑资源名解析为实际文件路径。
+    ///
+    /// 不带扩展名时优先查找 `.yml`，再查找 `.yaml`；找不到文件时返回默认候选路径，不主动创建文件。
     pub fn resolve_resource(&self, resource_name: &str) -> PathBuf {
         let base_name = resource_name
             .strip_suffix(".yml")
@@ -291,16 +352,22 @@ impl SpringYaml {
         self.root.join(format!("{base_name}{fallback_extension}"))
     }
 
+    /// 读取指定 YAML 资源的原始文本内容。
     pub fn get_yml_content(&self, resource_name: &str) -> Result<String, YmlError> {
         let path = self.resolve_resource(resource_name);
         fs::read_to_string(&path).map_err(|source| YmlError::ReadFile { path, source })
     }
 
+    /// 读取指定 YAML 资源并解析为 `YamlDoc`。
     pub fn load_named(&self, resource_name: &str) -> Result<YamlDoc, YmlError> {
         let path = self.resolve_resource(resource_name);
         load_yaml_value(path)
     }
 
+    /// 读取当前激活的 Spring Boot 配置。
+    ///
+    /// 先读取 `application.yml` / `application.yaml`，再根据 `spring.profiles.active` 尝试加载
+    /// `application-{profile}.yml` 或 `.yaml`。若 profile 文件不存在，则回退到主配置文档。
     pub fn load_active(&self) -> Result<YamlDoc, YmlError> {
         let primary = self.load_named("application")?;
         let profile = primary
@@ -318,18 +385,30 @@ impl SpringYaml {
     }
 }
 
+/// 从 Spring YAML 中提取出的数据库连接配置。
+///
+/// `Debug` 输出会自动隐藏 `jdbc_password`，避免日志中泄漏明文密码。
 #[apply(plain_eq_redacted)]
 pub struct DatabaseConfig {
+    /// JDBC 或 R2DBC 连接 URL。
     pub jdbc_url: String,
+    /// 数据库用户名；配置缺失或为空白时为 `None`。
     pub jdbc_username: Option<String>,
+    /// 数据库密码；配置缺失或为空白时为 `None`，调试输出会脱敏。
     #[debug(skip)]
     pub jdbc_password: Option<String>,
 }
 
+/// Spring YAML 数据库连接配置读取器。
+///
+/// 支持常见单数据源路径、`master` / `primary` 等命名数据源，以及调用方指定的优先数据源名。
 #[apply(plain_default_copy_eq)]
 pub struct DatabaseConfigReader;
 
 impl DatabaseConfigReader {
+    /// 从配置目录读取激活配置并尝试提取数据库连接信息。
+    ///
+    /// 返回 `Ok(None)` 表示 YAML 可读取但没有发现受支持的数据源路径。
     pub fn read(
         path: impl AsRef<Path>,
         prefer_data_source_name: Option<&str>,
@@ -339,6 +418,9 @@ impl DatabaseConfigReader {
         Self::read_from_doc(&active, prefer_data_source_name)
     }
 
+    /// 从已经加载的 YAML 文档中提取数据库连接信息。
+    ///
+    /// 当指定 `prefer_data_source_name` 时会先查找该命名数据源；未命中时再按内置单数据源和常见命名数据源顺序回退。
     pub fn read_from_doc(
         doc: &YamlDoc,
         prefer_data_source_name: Option<&str>,
@@ -572,6 +654,9 @@ fn stringify_scalar(value: &Value) -> Option<String> {
     }
 }
 
+/// 构造 `YamlPath` 的便捷宏。
+///
+/// 字面量或 token 路径会在运行到宏展开代码时解析；路径非法时 panic，适合测试、常量式配置路径和确定不会来自用户输入的场景。
 #[macro_export]
 macro_rules! yaml_path {
     ($path:literal) => {{
@@ -584,6 +669,9 @@ macro_rules! yaml_path {
     }};
 }
 
+/// 使用路径宏直接查询 YAML 文档。
+///
+/// 该宏组合 `yaml_path!` 与 `get_yaml_path_value`，返回 `Option<&serde_yaml::Value>`，不会执行字符串标量转换。
 #[macro_export]
 macro_rules! yaml_get {
     ($doc:expr, $path:literal) => {{

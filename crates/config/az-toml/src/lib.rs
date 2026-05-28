@@ -28,6 +28,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use toml_edit::{Array, DocumentMut, Item, Table, Value};
 
+/// `libs.versions.toml` 不存在时写入的默认模板。
+///
+/// 模板只用于初始化空文件，调用方后续应通过 `VersionCatalog` 结构化读写实际 catalog 内容。
 pub const DEFAULT_VERSION_CATALOG_TEMPLATE: &str = r#"[versions]
 kotlin = "2.1.0"
 
@@ -41,26 +44,33 @@ kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 spring = ["spring-boot", "spring-core"]
 "#;
 
+/// Version Catalog 文件读写和解析过程中可能返回的错误。
+///
+/// 该类型保留底层 IO / `toml_edit` 错误链，便于上层区分文件系统失败和 TOML 内容失败。
 #[apply(error)]
 pub enum TomlCatalogError {
+    /// 读取 TOML 文件失败。
     #[error("failed to read TOML file at {path}: {source}")]
     ReadFile {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
+    /// 写入 TOML 文件失败，通常来自初始化默认模板。
     #[error("failed to write TOML file at {path}: {source}")]
     WriteFile {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
+    /// 创建目标父目录失败。
     #[error("failed to create parent directory {path}: {source}")]
     CreateDir {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
+    /// TOML 语法或 catalog 结构反序列化失败。
     #[error("failed to parse TOML from {context}: {source}")]
     Parse {
         context: String,
@@ -69,44 +79,73 @@ pub enum TomlCatalogError {
     },
 }
 
+/// Gradle Version Catalog 的结构化表示。
+///
+/// 对应 `libs.versions.toml` 中的 `[versions]`、`[libraries]`、`[plugins]` 和 `[bundles]` 四个顶层分组。
 #[apply(plain_default_eq)]
 pub struct VersionCatalog {
+    /// `[versions]` 分组中的版本别名。
     pub versions: Vec<VersionEntry>,
+    /// `[libraries]` 分组中的依赖坐标。
     pub libraries: Vec<LibraryEntry>,
+    /// `[plugins]` 分组中的 Gradle 插件坐标。
     pub plugins: Vec<PluginEntry>,
+    /// `[bundles]` 分组中的依赖组合。
     pub bundles: Vec<BundleEntry>,
 }
 
+/// `[libraries]` 中的单个依赖条目。
+///
+/// `version` 和 `version_ref` 分别对应 TOML 中的直接版本与 `version.ref` 引用，二者都可能为空。
 #[apply(plain_eq)]
 pub struct LibraryEntry {
+    /// catalog 内部使用的 library key。
     pub key: String,
+    /// Maven group 坐标。
     pub group: String,
+    /// Maven artifact name。
     pub name: String,
+    /// 直接写在条目上的版本号。
     pub version: Option<String>,
+    /// 指向 `[versions]` 的版本引用名。
     pub version_ref: Option<String>,
 }
 
+/// `[plugins]` 中的单个插件条目。
 #[apply(plain_eq)]
 pub struct PluginEntry {
+    /// catalog 内部使用的 plugin key。
     pub key: String,
+    /// Gradle 插件 id。
     pub id: String,
+    /// 直接写在条目上的版本号。
     pub version: Option<String>,
+    /// 指向 `[versions]` 的版本引用名。
     pub version_ref: Option<String>,
 }
 
+/// `[versions]` 中的单个版本别名。
 #[apply(plain_eq)]
 pub struct VersionEntry {
+    /// 版本引用名。
     pub version_ref: String,
+    /// 实际版本字符串。
     pub version: String,
 }
 
+/// `[bundles]` 中的单个依赖组合。
 #[apply(plain_eq)]
 pub struct BundleEntry {
+    /// bundle key。
     pub key: String,
+    /// 该 bundle 引用的 library key 列表。
     pub libraries: Vec<String>,
 }
 
 impl VersionCatalog {
+    /// 从 TOML 字符串解析 Version Catalog。
+    ///
+    /// 该方法接受 Gradle 常见的 `version = "..."` 与 `version.ref = "..."` 两种版本选择方式。
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(input: &str) -> Result<Self, TomlCatalogError> {
         Self::parse_catalog(input)
@@ -168,6 +207,9 @@ impl VersionCatalog {
         })
     }
 
+    /// 从文件路径读取并解析 Version Catalog。
+    ///
+    /// 解析失败时错误上下文会替换为实际文件路径，方便日志定位。
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, TomlCatalogError> {
         let path = path.as_ref();
         let content = fs::read_to_string(path).map_err(|source| TomlCatalogError::ReadFile {
@@ -183,6 +225,9 @@ impl VersionCatalog {
         })
     }
 
+    /// 读取 catalog 文件；当文件不存在时先创建默认模板。
+    ///
+    /// 该方法会创建缺失的父目录，但不会覆盖已经存在的 catalog 文件。
     pub fn load_or_init(path: impl AsRef<Path>) -> Result<Self, TomlCatalogError> {
         let path = path.as_ref();
         if !path.exists() {
@@ -204,6 +249,9 @@ impl VersionCatalog {
         Self::from_path(path)
     }
 
+    /// 序列化为稳定排序的 TOML 文本。
+    ///
+    /// 输出会按 key 排序各分组，适合生成可读 diff；它不保留输入文件里的原始注释和空行布局。
     pub fn to_string_pretty(&self) -> String {
         let mut doc = DocumentMut::new();
 
@@ -254,6 +302,9 @@ impl VersionCatalog {
         doc.to_string()
     }
 
+    /// 合并多个 Version Catalog。
+    ///
+    /// `versions`、`plugins` 和 `bundles` 采用首次出现优先；`libraries` 按 `(group, name)` 去重，后出现条目覆盖先出现条目。
     pub fn merge_many<I>(catalogs: I) -> Self
     where
         I: IntoIterator<Item = VersionCatalog>,
@@ -289,6 +340,9 @@ impl VersionCatalog {
         }
     }
 
+    /// 在 TOML 文本指定表头后插入内容。
+    ///
+    /// 这是同名自由函数的关联函数包装，便于只通过 `VersionCatalog` 使用本 crate 的场景。
     pub fn insert_after_table(content: &str, tag: &str, append_text: &str) -> String {
         insert_after_table(content, tag, append_text)
     }
@@ -296,6 +350,9 @@ impl VersionCatalog {
 
 impl_from_str_parse!(VersionCatalog => TomlCatalogError, VersionCatalog::parse_catalog);
 
+/// 在 TOML 文本指定表头后插入内容。
+///
+/// `tag` 可以是 `plugins` 或 `[plugins]`。找不到表头或表头行没有换行时返回原文本，不尝试解析或重排 TOML。
 pub fn insert_after_table(content: &str, tag: &str, append_text: &str) -> String {
     let normalized_tag = if tag.starts_with('[') {
         tag.to_owned()
@@ -405,6 +462,9 @@ enum RawVersionSelector {
     Reference { r#ref: String },
 }
 
+/// 内联构造 `VersionCatalog` 的声明式宏。
+///
+/// 宏语法贴近 `libs.versions.toml` 的四个分组，适合测试、模板和小型生成器；复杂场景仍建议从 TOML 文本解析。
 #[macro_export]
 macro_rules! catalog {
     () => {
