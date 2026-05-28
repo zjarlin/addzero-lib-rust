@@ -1,5 +1,6 @@
 use az_derive_aliases::{apply, error, serde_code_enum, serde_eq, serde_partial_eq};
 use serde_yaml::Value;
+use strum::EnumProperty;
 use std::time::Duration;
 
 /// TCP 延迟测试的默认并发数上限。
@@ -68,38 +69,36 @@ pub enum ProxyError {
 }
 
 /// 当前支持的代理节点类型。
+#[derive(strum::EnumProperty)]
 #[apply(serde_code_enum)]
 pub enum ProxyType {
     /// Shadowsocks 代理节点。
-    #[strum(serialize = "ss", serialize = "shadowsocks")]
+    #[strum(serialize = "ss", serialize = "shadowsocks", props(clash = "ss"))]
     Ss,
     /// VMess 代理节点。
+    #[strum(props(clash = "vmess"))]
     Vmess,
     /// VLESS 代理节点。
+    #[strum(props(clash = "vless"))]
     Vless,
     /// Trojan 代理节点。
+    #[strum(props(clash = "trojan"))]
     Trojan,
     /// Hysteria2 或 `hy2` 代理节点。
-    #[strum(serialize = "hysteria2", serialize = "hy2")]
+    #[strum(serialize = "hysteria2", serialize = "hy2", props(clash = "hysteria2"))]
     Hysteria2,
     /// TUIC 代理节点。
+    #[strum(props(clash = "tuic"))]
     Tuic,
     /// WireGuard 代理节点。
+    #[strum(props(clash = "wireguard"))]
     Wireguard,
 }
 
 impl ProxyType {
     /// 返回 Clash YAML 中使用的规范 `type` 字符串。
     pub fn as_clash_str(self) -> &'static str {
-        match self {
-            Self::Ss => "ss",
-            Self::Vmess => "vmess",
-            Self::Vless => "vless",
-            Self::Trojan => "trojan",
-            Self::Hysteria2 => "hysteria2",
-            Self::Tuic => "tuic",
-            Self::Wireguard => "wireguard",
-        }
+        self.get_str("clash").expect("ProxyType clash property must exist")
     }
 
     /// 将 Clash YAML 的 `type` 字符串解析为受支持的代理类型。
