@@ -5,8 +5,8 @@ mod skill_scanner;
 
 use az_assets::{AssetKind, AssetUpsert};
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
-    EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer,
+    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
@@ -177,29 +177,28 @@ impl
             Self::ROUTE,
             10,
         );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_REFRESH,
-            "Refresh",
-            "Reload assets",
-            10,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_SCAN_SKILLS,
-            "Scan Skills",
-            "Scan ~/.agents/skills and merge into az_assets",
-            20,
-            true,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_SEED_COMPOSE,
-            "Seed Compose",
-            "Insert a compose asset using stable subtype metadata",
-            30,
-            false,
+        ctx.register_route_toolbar_actions(
+            Self::ROUTE,
+            [
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_REFRESH,
+                    "Refresh",
+                    "Reload assets",
+                    10,
+                ),
+                DesktopToolbarActionSpec::primary(
+                    Self::ACTION_SCAN_SKILLS,
+                    "Scan Skills",
+                    "Scan ~/.agents/skills and merge into az_assets",
+                    20,
+                ),
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_SEED_COMPOSE,
+                    "Seed Compose",
+                    "Insert a compose asset using stable subtype metadata",
+                    30,
+                ),
+            ],
         );
         ctx.register_summary_card(
             "asset-hub-summary",

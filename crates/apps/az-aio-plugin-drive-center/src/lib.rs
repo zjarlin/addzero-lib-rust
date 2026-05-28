@@ -3,7 +3,7 @@
 
 use az_desktop_plugin::{
     DesktopEvent, DesktopExecContext, DesktopHostServices, DesktopInitContext, DesktopRenderLayer,
-    DesktopViewContext, EventPropagation, Plugin,
+    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, IntoElement, div, prelude::*, rgb};
@@ -177,45 +177,40 @@ impl
             Self::ROUTE,
             10,
         );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_REFRESH,
-            "Refresh",
-            "Reload drive snapshot",
-            10,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_SYNC,
-            "Sync",
-            "Run one sync cycle",
-            20,
-            true,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_RETRY,
-            "Retry Queue",
-            "Retry queued sync items",
-            30,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_HOST_SKILLS,
-            "Host Skills",
-            "Host ~/.agents/skills",
-            40,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_UNHOST_SKILLS,
-            "Unhost Skills",
-            "Unhost ~/.agents/skills",
-            50,
-            false,
+        ctx.register_route_toolbar_actions(
+            Self::ROUTE,
+            [
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_REFRESH,
+                    "Refresh",
+                    "Reload drive snapshot",
+                    10,
+                ),
+                DesktopToolbarActionSpec::primary(
+                    Self::ACTION_SYNC,
+                    "Sync",
+                    "Run one sync cycle",
+                    20,
+                ),
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_RETRY,
+                    "Retry Queue",
+                    "Retry queued sync items",
+                    30,
+                ),
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_HOST_SKILLS,
+                    "Host Skills",
+                    "Host ~/.agents/skills",
+                    40,
+                ),
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_UNHOST_SKILLS,
+                    "Unhost Skills",
+                    "Unhost ~/.agents/skills",
+                    50,
+                ),
+            ],
         );
         ctx.register_summary_card(
             "drive-center-summary",

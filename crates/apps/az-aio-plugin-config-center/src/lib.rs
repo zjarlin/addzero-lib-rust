@@ -12,8 +12,8 @@ use std::env;
 use az_ai_agent::default_model_for;
 use az_assets::{AiModelProviderUpsert, AiProviderKind};
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
-    EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer,
+    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
@@ -218,45 +218,40 @@ impl
             Self::ROUTE,
             10,
         );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_REFRESH,
-            "Refresh",
-            "Reload dotfiles, pairing, paths, and providers",
-            10,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_IMPORT_ENV,
-            "Import Env",
-            "Import provider secrets from environment variables",
-            20,
-            true,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_TEST_OPENAI,
-            "Test OpenAI",
-            "Test OpenAI provider connectivity",
-            30,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_TEST_ANTHROPIC,
-            "Test Anthropic",
-            "Test Anthropic provider connectivity",
-            40,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_TEST_GEMINI,
-            "Test Gemini",
-            "Test Gemini provider connectivity",
-            50,
-            false,
+        ctx.register_route_toolbar_actions(
+            Self::ROUTE,
+            [
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_REFRESH,
+                    "Refresh",
+                    "Reload dotfiles, pairing, paths, and providers",
+                    10,
+                ),
+                DesktopToolbarActionSpec::primary(
+                    Self::ACTION_IMPORT_ENV,
+                    "Import Env",
+                    "Import provider secrets from environment variables",
+                    20,
+                ),
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_TEST_OPENAI,
+                    "Test OpenAI",
+                    "Test OpenAI provider connectivity",
+                    30,
+                ),
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_TEST_ANTHROPIC,
+                    "Test Anthropic",
+                    "Test Anthropic provider connectivity",
+                    40,
+                ),
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_TEST_GEMINI,
+                    "Test Gemini",
+                    "Test Gemini provider connectivity",
+                    50,
+                ),
+            ],
         );
         ctx.register_summary_card(
             "config-center-summary",

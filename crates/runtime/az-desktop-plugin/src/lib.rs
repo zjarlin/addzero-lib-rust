@@ -8,7 +8,7 @@ use az_assets::{
     AssetUpsert,
 };
 use az_derive_aliases::{
-    apply, impl_from_match, plain_clone, plain_code_enum, plain_default_eq, plain_eq,
+    apply, impl_from_match, plain_clone, plain_code_enum, plain_copy_eq, plain_default_eq, plain_eq,
 };
 use az_drive_agent::{
     HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem, TrackedItem,
@@ -234,6 +234,28 @@ impl DesktopInitContext {
             });
     }
 
+    /// 为同一路由批量注册工具栏动作。
+    ///
+    /// 插件仍显式列出每个 action 的 ID、文案、顺序和主次关系；这里只收敛重复的
+    /// `Some(route)` 样板，避免 setup 阶段被机械注册代码淹没。
+    pub fn register_route_toolbar_actions(
+        &mut self,
+        route: impl Into<String>,
+        actions: impl IntoIterator<Item = DesktopToolbarActionSpec>,
+    ) {
+        let route = route.into();
+        for action in actions {
+            self.register_toolbar_action(
+                Some(route.as_str()),
+                action.action_id,
+                action.label,
+                action.tooltip,
+                action.order,
+                action.primary,
+            );
+        }
+    }
+
     /// 注册首页或概览区摘要卡片。
     pub fn register_summary_card(
         &mut self,
@@ -357,6 +379,66 @@ pub struct DesktopToolbarActionRegistration {
     pub order: i32,
     /// 是否作为主动作突出展示。
     pub primary: bool,
+}
+
+/// 插件 setup 中声明工具栏动作的轻量规格。
+///
+/// 该类型只描述 action 自身，不携带 route 和 plugin_name；route 由批量注册方法提供，
+/// plugin_name 仍由 [`DesktopInitContext`] 根据当前 setup 插件自动注入。
+#[apply(plain_copy_eq)]
+pub struct DesktopToolbarActionSpec {
+    /// 动作稳定 ID。
+    pub action_id: &'static str,
+    /// 按钮或菜单展示文本。
+    pub label: &'static str,
+    /// 悬停提示或辅助说明。
+    pub tooltip: &'static str,
+    /// 展示顺序，值越小越靠前。
+    pub order: i32,
+    /// 是否作为主动作突出展示。
+    pub primary: bool,
+}
+
+impl DesktopToolbarActionSpec {
+    /// 创建工具栏动作规格。
+    #[must_use]
+    pub const fn new(
+        action_id: &'static str,
+        label: &'static str,
+        tooltip: &'static str,
+        order: i32,
+        primary: bool,
+    ) -> Self {
+        Self {
+            action_id,
+            label,
+            tooltip,
+            order,
+            primary,
+        }
+    }
+
+    /// 创建主工具栏动作规格。
+    #[must_use]
+    pub const fn primary(
+        action_id: &'static str,
+        label: &'static str,
+        tooltip: &'static str,
+        order: i32,
+    ) -> Self {
+        Self::new(action_id, label, tooltip, order, true)
+    }
+
+    /// 创建次级工具栏动作规格。
+    #[must_use]
+    pub const fn secondary(
+        action_id: &'static str,
+        label: &'static str,
+        tooltip: &'static str,
+        order: i32,
+    ) -> Self {
+        Self::new(action_id, label, tooltip, order, false)
+    }
 }
 
 /// 摘要卡片注册项。
@@ -838,7 +920,7 @@ mod tests {
         DesktopExecContext, DesktopHostRegistry, DesktopHostServices, DesktopInitContext,
         DesktopPageRegistration, DesktopPageRole, DesktopProviderTestResult, DesktopRenderLayer,
         DesktopShellSnapshot, DesktopSummaryCardRegistration, DesktopToolbarActionRegistration,
-        EventPropagation, ListTrackedOptions,
+        DesktopToolbarActionSpec, EventPropagation, ListTrackedOptions,
     };
     use uuid::Uuid;
 
@@ -967,13 +1049,17 @@ mod tests {
             "/drive",
             10,
         );
-        ctx.register_toolbar_action(
-            Some("/drive"),
-            "drive.refresh",
-            "Refresh",
-            "Reload snapshot",
-            10,
-            true,
+        ctx.register_route_toolbar_actions(
+            "/drive",
+            [
+                DesktopToolbarActionSpec::primary(
+                    "drive.refresh",
+                    "Refresh",
+                    "Reload snapshot",
+                    10,
+                ),
+                DesktopToolbarActionSpec::secondary("drive.sync", "Sync", "Run sync", 20),
+            ],
         );
         ctx.register_summary_card("drive-card", "Drive Center", "Sync roots", "/drive", 10);
         ctx.register_command("drive.refresh", "Refresh");
@@ -982,7 +1068,13 @@ mod tests {
         // 确认 setup 阶段的注册项会被完整记录，并保留来源插件。
         assert_eq!(contributions.domains.len(), 1);
         assert_eq!(contributions.pages[0].plugin_name, "demo");
+        assert_eq!(contributions.toolbar_actions.len(), 2);
         assert_eq!(contributions.toolbar_actions[0].action_id, "drive.refresh");
+        assert!(contributions.toolbar_actions[0].primary);
+        assert_eq!(
+            contributions.toolbar_actions[1].route.as_deref(),
+            Some("/drive")
+        );
     }
 
     #[test]

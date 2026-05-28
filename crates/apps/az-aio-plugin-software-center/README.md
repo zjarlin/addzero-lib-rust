@@ -25,7 +25,8 @@ az-aio-plugin-software-center = { path = "../az-aio-plugin-software-center" }  #
 本 crate 是桌面插件，由 AIO Desktop 通过 plugin registry 自动发现和加载：
 
 ```rust,no_run
-use az_aio_plugin_software_center::installer_scanner::{installer_matches_catalog, InstallerPackage};
+use az_aio_plugin_software_center::installer_matches_catalog;
+use az_aio_plugin_software_center::installer_scanner::InstallerPackage;
 
 let package = InstallerPackage {
     id: "1".to_string(),

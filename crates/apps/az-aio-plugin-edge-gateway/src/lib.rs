@@ -9,8 +9,8 @@ pub mod gateway_runtime_types;
 use std::collections::BTreeMap;
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
-    EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer,
+    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
@@ -173,29 +173,28 @@ impl
             Self::ROUTE,
             20,
         );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_REFRESH,
-            "Refresh",
-            "Refresh gateway panel state",
-            10,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_LOAD_EXAMPLE,
-            "Load Example",
-            "Load a reference gateway plan",
-            20,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_RUN_EXAMPLE,
-            "Run Example",
-            "Execute the loaded example gateway plan",
-            30,
-            true,
+        ctx.register_route_toolbar_actions(
+            Self::ROUTE,
+            [
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_REFRESH,
+                    "Refresh",
+                    "Refresh gateway panel state",
+                    10,
+                ),
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_LOAD_EXAMPLE,
+                    "Load Example",
+                    "Load a reference gateway plan",
+                    20,
+                ),
+                DesktopToolbarActionSpec::primary(
+                    Self::ACTION_RUN_EXAMPLE,
+                    "Run Example",
+                    "Execute the loaded example gateway plan",
+                    30,
+                ),
+            ],
         );
         ctx.register_summary_card(
             "edge-gateway-summary",

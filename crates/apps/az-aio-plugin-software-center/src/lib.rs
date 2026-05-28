@@ -6,8 +6,8 @@ pub mod installer_scanner_utils;
 pub mod paths;
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer, DesktopViewContext,
-    EventPropagation, Plugin,
+    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopRenderLayer,
+    DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use az_software_catalog::SoftwareCatalogDto;
@@ -109,7 +109,8 @@ fn build_report_lines(catalog: &SoftwareCatalogDto, scanned: &[InstallerPackage]
     lines
 }
 
-fn installer_matches_catalog(package: &InstallerPackage, slug: &str, title: &str) -> bool {
+/// 判断扫描到的安装包是否能匹配软件目录中的 slug 或标题。
+pub fn installer_matches_catalog(package: &InstallerPackage, slug: &str, title: &str) -> bool {
     let normalized_name = package.file_name.to_ascii_lowercase();
     normalized_name.contains(&slug.to_ascii_lowercase())
         || normalized_name.contains(&title.to_ascii_lowercase().replace(' ', ""))
@@ -147,29 +148,28 @@ impl
             Self::ROUTE,
             20,
         );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_REFRESH,
-            "Refresh",
-            "Reload catalog and installer scan",
-            10,
-            false,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_SCAN,
-            "Scan",
-            "Scan Downloads and Desktop for installers",
-            20,
-            true,
-        );
-        ctx.register_toolbar_action(
-            Some(Self::ROUTE),
-            Self::ACTION_ORGANIZE,
-            "Organize",
-            "Archive detected installers into software-center storage",
-            30,
-            false,
+        ctx.register_route_toolbar_actions(
+            Self::ROUTE,
+            [
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_REFRESH,
+                    "Refresh",
+                    "Reload catalog and installer scan",
+                    10,
+                ),
+                DesktopToolbarActionSpec::primary(
+                    Self::ACTION_SCAN,
+                    "Scan",
+                    "Scan Downloads and Desktop for installers",
+                    20,
+                ),
+                DesktopToolbarActionSpec::secondary(
+                    Self::ACTION_ORGANIZE,
+                    "Organize",
+                    "Archive detected installers into software-center storage",
+                    30,
+                ),
+            ],
         );
         ctx.register_summary_card(
             "software-center-summary",
