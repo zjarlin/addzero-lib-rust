@@ -34,8 +34,9 @@
 | P1 | `az-mqtt` | 已补一轮 item-level 中文 rustdoc，QoS、TLS、后台轮询线程、接收超时和自动断开边界已明确。 | 后续新增 MQTT 5 能力或异步 API 时同步补协议兼容说明。 |
 | P1 | `az-email` | 已补一轮 item-level 中文 rustdoc，SMTP 配置、消息构建、sender 注入和默认 sender 边界已明确。 | 后续新增 provider 或发送策略时同步补 `EmailSenderKind` / `EmailSenderConfig` 说明。 |
 | P1 | `az-yml`、`az-toml` | 已补一轮 item-level 中文 rustdoc，仍可继续补测试断言意图和 README 场景示例。 | 后续只在新增 API 或发现行为歧义时补充，避免重复注释。 |
-| P1 | `az-excel`、`az-knowledge`、`az-software-catalog` | 数据 crate 入口说明存在，但公开模型和操作缺少中文契约。 | 补数据源边界、导入/导出语义、正式持久化与临时扫描结果的区别。 |
-| P1 | `az-ssh`、`az-remote-session`、`az-cli-repl` | 运行时/远程交互 crate 的失败边界和交互契约需要可审计。 | 补会话生命周期、命令执行、交互输入和错误传播说明。 |
+| P1 | `az-software-catalog` | 已补一轮 item-level 中文 rustdoc，软件平台/安装器 wire code、DTO 字段、服务启动 seed 和保存归一化边界已明确。 | 后续新增安装器或资产库联动字段时同步补兼容说明和测试。 |
+| P1 | `az-excel`、`az-knowledge` | 数据 crate 入口说明存在，但公开模型和操作仍缺少中文契约。 | 补 Excel 导入/导出语义、知识源扫描/正式持久化与临时扫描结果的区别。 |
+| P1 | `az-ssh`、`az-remote-session`、`az-cli-repl` | 已补一轮 item-level 中文 rustdoc，SSH 会话/文件传输、REPL 解析、远程会话中继生命周期已明确。 | 后续新增交互输入、远程帧类型或连接复用能力时同步补失败边界。 |
 | P1 | `az-aio-plugin-config-center`、`az-aio-plugin-edge-gateway` | 插件 crate 通过 README 注入入口，但注册规格和 toolbar/page 贡献边界还可继续中文化。 | 给 provider、route、toolbar action、page contribution 的公开常量和函数补简短 rustdoc。 |
 | P2 | `az-derive-aliases` | README 已有中文 alias 清单；机械扫描显示宏公开项多，但不应逐个堆重复说明。 | 只维护 README 的功能型 alias 分层，新增 alias 时同步说明“功能组合”，避免按 struct/enum 拆语义宏。 |
 | P2 | `gitdb`、`az-browser-automation` | 总体已补多轮中文说明，但仍有大量英文历史 rustdoc。 | 继续按模块切片替换核心公开项，不做全量机械翻译。 |
@@ -118,6 +119,11 @@
 - `az-email`：补齐 SMTP 配置、邮件消息、sender trait/factory、默认 sender、快捷发送函数和 `lettre::Message` 构建入口的中文 rustdoc，明确密码脱敏、TLS 选择、附件 IO/MIME 推断、进程级默认发送器和临时 sender 创建成本。
 - `az-mqtt`：补齐 QoS、消息/订阅、连接配置、TLS 文件路径、后台轮询线程、接收超时、批量收集和显式断开的中文 rustdoc，明确 `rumqttc` 转换、证书/私钥脱敏、Last Will 校验和 Drop 清理边界。
 - `az-music`：补齐 HTTP 配置、音乐客户端门面、网易云搜索/歌词/详情 API、搜索结果 DTO、Suno token 客户端、任务轮询和生成请求/任务模型的中文 rustdoc，明确第三方业务码、bearer token 脱敏、默认请求头、轮询完成状态和上游 wire 字段保留边界。
+- `az-kiro-auth-support`：补齐 OIDC 配置、设备流程、token 轮询状态、身份/密码生成、验证码提取和不支持自动化能力的中文 rustdoc，明确 AWS Builder ID device flow、User-Agent、轮询终态和安全边界。
+- `az-ssh`：补齐 SSH 错误、连接配置、认证材料脱敏、命令执行结果、会话方法和快捷函数的中文 rustdoc，明确 TCP/握手/认证/命令/SFTP 失败边界。
+- `az-cli-repl`：补齐 REPL 参数类型、参数值、参数定义、错误、命令 trait、执行结果和单行解析入口的中文 rustdoc，明确 `code()`、`Display`、布尔别名、默认值和命令序号规则。
+- `az-remote-session`：补齐远程会话中继结果、错误、运行时配置和服务方法的中文 rustdoc，明确进程内状态、设备注册、会话授权、剪贴板/视频帧/文件暂存和拒绝授权行为。
+- `az-software-catalog`：补齐软件平台、安装器、安装方法、软件条目、目录响应、保存输入、主页元数据、草稿输入、错误和服务入口的中文 rustdoc，明确 `package` wire 兼容、标签/平台去重、空方法过滤和默认 seed 边界。
 
 ### 继续建议
 
