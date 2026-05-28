@@ -17,29 +17,46 @@
 use az_derive_aliases::{apply, error_eq, impl_from_str_parse, plain_eq};
 use std::collections::BTreeMap;
 
+/// Docker Run 到 Compose 转换过程中的错误。
 #[apply(error_eq)]
 pub enum DockerComposeError {
+    /// 输入无法按 shell 规则拆分为参数列表。
     #[error("invalid docker run command")]
     InvalidCommandLine,
+    /// 参数列表中没有找到镜像名。
     #[error("docker image was not found in command")]
     MissingImage,
 }
 
+/// 解析后的 `docker run` 命令结构。
+///
+/// 当前模型只保留生成 Compose 所需的稳定字段；未知长选项会进入 [`Self::other_options`]，
+/// 避免解析阶段直接丢失信息。
 #[apply(plain_eq)]
 pub struct DockerRunCommand {
+    /// 容器镜像名。
     pub image: String,
+    /// `--name` 指定的容器名。
     pub name: Option<String>,
+    /// 端口映射，保留 `host:container` 原始格式。
     pub ports: Vec<String>,
+    /// 环境变量键值对。
     pub environment: BTreeMap<String, String>,
+    /// 卷挂载声明。
     pub volumes: Vec<String>,
+    /// Docker 网络名称。
     pub network: Option<String>,
+    /// 容器重启策略。
     pub restart: Option<String>,
+    /// 当前转换器尚未建模的长选项。
     pub other_options: BTreeMap<String, String>,
 }
 
+/// `docker run` 命令到 Docker Compose YAML 的一行式转换入口。
 pub struct DockerComposeConverter;
 
 impl DockerComposeConverter {
+    /// 将 `docker run` 命令字符串转换为 Compose v3.8 YAML。
     pub fn convert_to_docker_compose(
         docker_run_command: impl AsRef<str>,
     ) -> Result<String, DockerComposeError> {
@@ -50,6 +67,9 @@ impl DockerComposeConverter {
 impl_from_str_parse!(DockerRunCommand => DockerComposeError);
 
 impl DockerRunCommand {
+    /// 按 shell 引号规则解析 `docker run` 命令。
+    ///
+    /// 支持常见短参数、长参数和 `--key=value` 形式；第一个非选项参数会被视为镜像名。
     pub fn parse(command: impl AsRef<str>) -> Result<Self, DockerComposeError> {
         let args = shlex::split(command.as_ref()).ok_or(DockerComposeError::InvalidCommandLine)?;
         let mut args = args.into_iter().peekable();
@@ -124,6 +144,9 @@ impl DockerRunCommand {
         })
     }
 
+    /// 返回 Compose service 名称。
+    ///
+    /// 优先使用 `--name`；未指定时从镜像名去掉 registry 路径和 tag 后推导。
     #[must_use]
     pub fn service_name(&self) -> String {
         self.name.clone().unwrap_or_else(|| {
@@ -138,6 +161,9 @@ impl DockerRunCommand {
         })
     }
 
+    /// 生成最小 Docker Compose v3.8 YAML 文本。
+    ///
+    /// 该函数只做字符串渲染，不执行 Docker，也不创建文件。
     #[must_use]
     pub fn to_docker_compose_yml(&self) -> String {
         let mut yaml = String::new();

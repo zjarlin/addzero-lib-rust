@@ -24,47 +24,50 @@ mod model;
 pub use memory::MyMemoryClient;
 pub use model::{DetectedLanguage, TranslateOptions, TranslateResult};
 
-/// Errors that can occur during translation.
+/// 翻译请求过程中可能出现的错误。
 #[apply(error)]
 pub enum TranslateError {
-    /// HTTP request failed.
+    /// HTTP 请求失败。
     #[error("http error: {0}")]
     Http(#[from] reqwest::Error),
 
-    /// JSON parsing failed.
+    /// 响应 JSON 解析失败。
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// The provider returned an error.
+    /// 翻译服务提供商返回业务错误。
     #[error("provider error: {0}")]
     ProviderError(String),
 
-    /// The specified language pair is not supported.
+    /// 当前服务不支持请求的源语言与目标语言组合。
     #[error("unsupported language pair: {from} -> {to}")]
     UnsupportedLanguage { from: String, to: String },
 
-    /// The source text is too long for the provider.
+    /// 源文本长度超过服务提供商限制。
     #[error("text too long: {length} chars (max {max})")]
     TextTooLong { length: usize, max: usize },
 
-    /// Invalid API key or authentication failure.
+    /// API key 无效或认证失败。
     #[error("authentication failed: {0}")]
     AuthError(String),
 
-    /// Rate limit exceeded.
+    /// 请求触发服务限流。
     #[error("rate limit exceeded, retry after {retry_after_secs}s")]
     RateLimited { retry_after_secs: u64 },
 }
 
-/// Result alias for translation operations.
+/// 翻译接口统一返回类型别名。
 pub type TranslateResult_ = Result<TranslateResult, TranslateError>;
 
-/// Trait implemented by all translation providers.
+/// 所有翻译服务提供商需要实现的统一客户端接口。
+///
+/// 业务代码应依赖这个 trait 做依赖注入；具体 provider 负责处理认证、限流和服务端
+/// 返回格式差异。
 #[async_trait::async_trait]
 pub trait TranslateClient: Send + Sync {
-    /// Translate text from source language to target language.
+    /// 将文本从源语言翻译为目标语言。
     ///
-    /// Language codes follow ISO 639-1 (e.g., "en", "zh-CN", "ja").
+    /// 语言代码遵循 ISO 639-1 或 provider 支持的扩展格式，例如 `en`、`zh-CN`、`ja`。
     async fn translate(
         &self,
         text: &str,
@@ -72,7 +75,7 @@ pub trait TranslateClient: Send + Sync {
         to: &str,
     ) -> Result<TranslateResult, TranslateError>;
 
-    /// Translate text with additional options.
+    /// 使用附加选项执行翻译。
     async fn translate_with_options(
         &self,
         text: &str,
@@ -80,14 +83,14 @@ pub trait TranslateClient: Send + Sync {
         to: &str,
         _options: &TranslateOptions,
     ) -> Result<TranslateResult, TranslateError> {
-        // Default implementation ignores options
+        // 默认实现保持最小 provider 契约：不支持选项的客户端仍可只实现 translate。
         self.translate(text, from, to).await
     }
 
-    /// Detect the language of the given text.
+    /// 检测输入文本的语言。
     async fn detect_language(&self, text: &str) -> Result<DetectedLanguage, TranslateError>;
 
-    /// Get the list of supported language pairs.
+    /// 返回 provider 显式支持的语言对列表。
     fn supported_pairs(&self) -> Vec<(&str, &str)> {
         Vec::new()
     }
@@ -120,7 +123,7 @@ mod tests {
 
     #[test]
     fn default_translate_with_options() {
-        // Verify the default implementation delegates to translate
+        // 验证默认选项入口不改变 provider 的最小 translate 契约。
         struct MockClient;
 
         #[async_trait::async_trait]

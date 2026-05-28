@@ -12,14 +12,19 @@ use az_config_center_contract::{
 };
 use az_derive_aliases::{apply, error_eq};
 
+/// Shell 组件渲染与校验统一返回类型。
 pub type ShellComponentResult<T> = Result<T, ShellComponentError>;
 
 #[apply(error_eq)]
 pub enum ShellComponentError {
+    /// 输入 DTO 不满足当前组件类型的必填字段或命名约束。
     #[error("{0}")]
     Validation(String),
 }
 
+/// 将创建 / 更新请求规范化为完整 Shell 组件快照。
+///
+/// 该函数会修剪空白、丢弃空字符串字段，并预生成 `preview`，供 API 层保存或返回。
 pub fn materialize_component(input: ShellComponentUpsert) -> ShellComponentResult<ShellComponent> {
     validate_upsert(&input)?;
 
@@ -38,6 +43,10 @@ pub fn materialize_component(input: ShellComponentUpsert) -> ShellComponentResul
     Ok(component)
 }
 
+/// 校验创建 / 更新请求是否满足组件类型约束。
+///
+/// `Export` 必须提供 `export_value`，`Alias` 必须提供 `alias_command`，
+/// `Function` 与 `Snippet` 必须提供 `body`。
 pub fn validate_upsert(input: &ShellComponentUpsert) -> ShellComponentResult<()> {
     validate_component_name(&input.name, input.kind)?;
     match input.kind {
@@ -63,6 +72,7 @@ pub fn validate_upsert(input: &ShellComponentUpsert) -> ShellComponentResult<()>
     Ok(())
 }
 
+/// 校验局部更新请求是否至少包含一个可修改字段。
 pub fn validate_patch(input: &ShellComponentPatch) -> ShellComponentResult<()> {
     if input.summary.is_none() && input.enabled.is_none() && input.render_to_output.is_none() {
         return Err(ShellComponentError::Validation(
@@ -75,6 +85,9 @@ pub fn validate_patch(input: &ShellComponentPatch) -> ShellComponentResult<()> {
     Ok(())
 }
 
+/// 校验组件名是否适用于指定组件类型。
+///
+/// 所有组件名都不能留空、包含空白或 `=`；`Export` 还必须符合 shell 变量命名规则。
 pub fn validate_component_name(name: &str, kind: ShellComponentKind) -> ShellComponentResult<()> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
@@ -100,6 +113,7 @@ pub fn validate_component_name(name: &str, kind: ShellComponentKind) -> ShellCom
     Ok(())
 }
 
+/// 将单个组件渲染为可写入 shell 文件的脚本片段。
 pub fn render_component(component: &ShellComponent) -> ShellComponentResult<String> {
     match component.kind {
         ShellComponentKind::Export => {
@@ -150,6 +164,9 @@ pub fn render_component(component: &ShellComponent) -> ShellComponentResult<Stri
     }
 }
 
+/// 按组件类型和名称稳定排序，构建完整 shell 输出内容。
+///
+/// 返回值中的 `written` 固定为 `false`；实际写文件由上层 IO 边界负责。
 pub fn build_output(
     config_path: &str,
     output_path: &str,
@@ -198,6 +215,9 @@ pub fn build_output(
     })
 }
 
+/// 展开常见 home 路径前缀。
+///
+/// 支持 `~`、`~/...`、`$HOME/...` 与 `${HOME}/...`，不访问文件系统。
 pub fn expand_home_path(path: impl AsRef<Path>) -> PathBuf {
     let path = path.as_ref().to_path_buf();
     let raw = path.to_string_lossy();
@@ -283,6 +303,7 @@ mod tests {
     #[test]
     fn validates_export_names() {
         let result = validate_component_name("1BAD", ShellComponentKind::Export);
+        // Export 名最终会进入 shell 环境变量，必须拒绝数字开头。
         assert_eq!(
             result,
             Err(ShellComponentError::Validation(
@@ -413,6 +434,7 @@ mod tests {
         )
         .expect("build should work");
 
+        // 构建输出必须只包含启用且允许渲染的组件，并保持稳定分组顺序。
         assert_eq!(result.included_components, 3);
         assert!(result.content.contains("# exports"));
         assert!(result.content.contains("# aliases"));
@@ -446,6 +468,7 @@ mod tests {
             enabled: None,
             render_to_output: None,
         });
+        // 空 patch 没有可落库的语义，应该在服务层之前被拒绝。
         assert_eq!(
             empty_patch,
             Err(ShellComponentError::Validation(

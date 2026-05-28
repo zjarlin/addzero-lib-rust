@@ -1,64 +1,64 @@
-//! Translation data models.
+//! 翻译 API 的请求选项与响应数据模型。
 
 use az_derive_aliases::{apply, serde_eq_default, serde_partial_eq};
 
-/// Options for translation requests.
+/// 翻译请求的附加选项。
 #[apply(serde_eq_default)]
 pub struct TranslateOptions {
-    /// Whether to preserve formatting (line breaks, etc.).
+    /// 是否尽量保留换行等原文格式。
     pub preserve_formatting: bool,
-    /// Content type hint (e.g., "text/plain", "text/html").
+    /// 内容类型提示，例如 `text/plain` 或 `text/html`。
     pub content_type: Option<String>,
-    /// Maximum number of alternative translations to return.
+    /// 最多返回多少条候选译文。
     pub max_alternatives: Option<u32>,
 }
 
 impl TranslateOptions {
-    /// Create default options.
+    /// 创建默认翻译选项。
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Enable formatting preservation.
+    /// 设置是否保留原文格式。
     pub fn with_preserve_formatting(mut self, preserve: bool) -> Self {
         self.preserve_formatting = preserve;
         self
     }
 
-    /// Set the content type.
+    /// 设置内容类型提示。
     pub fn with_content_type(mut self, ct: impl Into<String>) -> Self {
         self.content_type = Some(ct.into());
         self
     }
 
-    /// Set the maximum number of alternatives.
+    /// 设置候选译文数量上限。
     pub fn with_max_alternatives(mut self, n: u32) -> Self {
         self.max_alternatives = Some(n);
         self
     }
 }
 
-/// Result of a translation request.
+/// 单次翻译请求的结果。
 #[apply(serde_partial_eq)]
 pub struct TranslateResult {
-    /// The translated text.
+    /// 主译文。
     pub translated_text: String,
-    /// The detected or specified source language.
+    /// provider 实际使用或检测到的源语言。
     pub source_language: String,
-    /// The target language.
+    /// 目标语言。
     pub target_language: String,
-    /// Confidence score (0.0–1.0) if available.
+    /// provider 返回的置信度，范围通常为 `0.0..=1.0`。
     pub confidence: Option<f64>,
-    /// Alternative translations, if requested.
+    /// 请求候选译文时返回的备选结果。
     pub alternatives: Vec<String>,
 }
 
-/// Result of language detection.
+/// 语言检测结果。
 #[apply(serde_partial_eq)]
 pub struct DetectedLanguage {
-    /// ISO 639-1 language code.
+    /// ISO 639-1 语言代码，或 provider 使用的兼容代码。
     pub language: String,
-    /// Confidence score (0.0–1.0).
+    /// 检测置信度，范围通常为 `0.0..=1.0`。
     pub confidence: f64,
 }
 

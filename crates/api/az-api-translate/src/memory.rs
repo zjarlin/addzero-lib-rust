@@ -1,8 +1,7 @@
-//! MyMemory free translation API client.
+//! MyMemory 免费翻译 API 客户端。
 //!
-//! [MyMemory](https://mymemory.translated.net/) provides a free translation
-//! API with a daily limit. It supports a wide range of language pairs and
-//! does not require an API key (but a valid email increases the daily quota).
+//! [MyMemory](https://mymemory.translated.net/) 提供带日配额的免费翻译 API。
+//! 该服务支持多种语言对，不要求 API key；传入有效邮箱可提高每日字符额度。
 
 use reqwest::Client;
 
@@ -12,18 +11,18 @@ use az_derive_aliases::{apply, deserialize_debug};
 
 const BASE_URL: &str = "https://api.mymemory.translated.net/get";
 
-/// MyMemory translation API client.
+/// MyMemory 翻译服务客户端。
 ///
-/// Use an email address to increase your daily translation quota.
+/// 该客户端持有可注入的 [`reqwest::Client`]，便于调用方统一配置代理、超时和测试替身。
 pub struct MyMemoryClient {
     client: Client,
     email: String,
 }
 
 impl MyMemoryClient {
-    /// Create a new MyMemory client.
+    /// 使用默认 HTTP client 创建 MyMemory 客户端。
     ///
-    /// Pass a valid email to increase the daily quota from 5000 to 50000 chars.
+    /// 传入有效邮箱可提高 MyMemory 免费日配额。
     pub fn new(email: impl Into<String>) -> Self {
         Self {
             client: Client::new(),
@@ -31,7 +30,9 @@ impl MyMemoryClient {
         }
     }
 
-    /// Create a new client with a custom `reqwest::Client`.
+    /// 使用外部提供的 [`reqwest::Client`] 创建 MyMemory 客户端。
+    ///
+    /// 这是翻译 provider 的依赖注入边界，适合复用全局连接池或在测试中注入 mock transport。
     pub fn with_client(client: Client, email: impl Into<String>) -> Self {
         Self {
             client,
@@ -160,7 +161,7 @@ impl TranslateClient for MyMemoryClient {
                 .matches
                 .unwrap_or_default()
                 .into_iter()
-                .skip(1) // first match is the primary
+                .skip(1) // 第一条 match 与主译文重复，这里只保留真正的候选项。
                 .take(max_alts as usize)
                 .map(|m| m.translation)
                 .collect();
@@ -202,8 +203,7 @@ impl TranslateClient for MyMemoryClient {
     }
 
     async fn detect_language(&self, text: &str) -> Result<DetectedLanguage, TranslateError> {
-        // MyMemory doesn't have a dedicated detection endpoint.
-        // We use a heuristic: translate to English and check if the source was English.
+        // MyMemory 没有专门的语言检测端点；当前保守返回 und，避免伪造检测结果。
         if text.is_empty() {
             return Ok(DetectedLanguage {
                 language: "und".into(),
