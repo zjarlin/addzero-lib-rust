@@ -37,62 +37,111 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 
+/// SSH 连接、认证、命令执行和 SFTP 文件传输返回的统一错误。
 #[apply(error)]
 pub enum SshError {
+    /// 配置在建立 TCP 连接前未通过校验。
     #[error("invalid ssh configuration: {0}")]
     InvalidConfig(String),
+    /// 主机名和端口无法解析为可连接地址。
     #[error("failed to resolve ssh address `{host}:{port}`")]
-    AddressResolution { host: String, port: u16 },
+    AddressResolution {
+        /// 目标 SSH 主机。
+        host: String,
+        /// 目标 SSH 端口。
+        port: u16,
+    },
+    /// TCP 连接阶段失败，保留底层 IO 错误。
     #[error("tcp connection to `{host}:{port}` failed: {source}")]
     TcpConnect {
+        /// 目标 SSH 主机。
         host: String,
+        /// 目标 SSH 端口。
         port: u16,
+        /// 底层 TCP 连接错误。
         #[source]
         source: io::Error,
     },
+    /// SSH 握手失败，通常表示服务端不可用或协议协商失败。
     #[error("ssh handshake failed for `{host}:{port}`: {source}")]
     Handshake {
+        /// 目标 SSH 主机。
         host: String,
+        /// 目标 SSH 端口。
         port: u16,
+        /// libssh2 返回的握手错误。
         #[source]
         source: ssh2::Error,
     },
+    /// 密码或私钥认证失败。
     #[error("ssh authentication failed for `{host}:{port}`: {message}")]
     Authentication {
+        /// 目标 SSH 主机。
         host: String,
+        /// 目标 SSH 端口。
         port: u16,
+        /// 认证失败原因。
         message: String,
     },
+    /// 远程命令正常执行结束但返回非零退出码。
     #[error("ssh command failed with exit code {exit_code}: {stderr}")]
-    CommandFailed { exit_code: i32, stderr: String },
+    CommandFailed {
+        /// 远程进程退出码。
+        exit_code: i32,
+        /// 远程进程标准错误输出。
+        stderr: String,
+    },
+    /// 命令通道创建、执行、读取或关闭过程中失败。
     #[error("ssh command `{command}` failed: {message}")]
-    Execution { command: String, message: String },
+    Execution {
+        /// 失败时正在执行的远程命令。
+        command: String,
+        /// 通道或读取失败原因。
+        message: String,
+    },
+    /// 上传或下载文件/目录时失败。
     #[error("ssh file transfer failed: {message}")]
-    FileTransfer { message: String },
+    FileTransfer {
+        /// 文件传输失败原因。
+        message: String,
+    },
+    /// libssh2 返回的通用错误。
     #[error("ssh library error: {0}")]
     Ssh(#[from] ssh2::Error),
+    /// 本地文件系统或 socket IO 错误。
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
 }
 
+/// SSH crate 内所有公开操作使用的结果类型。
 pub type SshResult<T> = Result<T, SshError>;
 
+/// SSH 连接配置，`Debug` 输出会隐藏密码、私钥路径和私钥口令。
 #[apply(plain_eq_redacted)]
 pub struct SshConfig {
+    /// SSH 主机名或 IP 地址。
     pub host: String,
+    /// SSH 端口，默认 `22`。
     pub port: u16,
+    /// 登录用户名。
     pub username: String,
+    /// 密码认证使用的明文密码；`Debug` 中会被跳过。
     #[debug(skip)]
     pub password: Option<String>,
+    /// 私钥认证使用的本地私钥路径；支持 `~` 和 `~/...` 展开。
     #[debug(skip)]
     pub private_key_path: Option<String>,
+    /// 私钥口令；`Debug` 中会被跳过。
     #[debug(skip)]
     pub private_key_passphrase: Option<String>,
+    /// TCP 连接超时，单位毫秒。
     pub connect_timeout_ms: u32,
+    /// SSH 读写超时，单位毫秒。
     pub read_timeout_ms: u32,
 }
 
 impl SshConfig {
+    /// 创建默认配置构建器，默认端口为 `22`。
     pub fn builder(host: impl Into<String>, username: impl Into<String>) -> SshConfigBuilder {
         Self {
             host: host.into(),
@@ -106,6 +155,7 @@ impl SshConfig {
         }
     }
 
+    /// 校验主机、用户名、端口和认证材料是否完整。
     pub fn validate(&self) -> SshResult<()> {
         if self.host.trim().is_empty() {
             return Err(SshError::InvalidConfig("host cannot be blank".to_owned()));
@@ -128,56 +178,70 @@ impl SshConfig {
         Ok(())
     }
 
+    /// 设置 SSH 端口。
     pub fn port(mut self, value: u16) -> Self {
         self.port = value;
         self
     }
 
+    /// 设置密码认证材料。
     pub fn password(mut self, value: impl Into<String>) -> Self {
         self.password = Some(value.into());
         self
     }
 
+    /// 设置私钥认证使用的本地私钥路径。
     pub fn private_key_path(mut self, value: impl Into<String>) -> Self {
         self.private_key_path = Some(value.into());
         self
     }
 
+    /// 设置私钥认证使用的私钥口令。
     pub fn private_key_passphrase(mut self, value: impl Into<String>) -> Self {
         self.private_key_passphrase = Some(value.into());
         self
     }
 
+    /// 设置 TCP 连接超时，单位毫秒。
     pub fn connect_timeout_ms(mut self, value: u32) -> Self {
         self.connect_timeout_ms = value;
         self
     }
 
+    /// 设置 SSH 读写超时，单位毫秒。
     pub fn read_timeout_ms(mut self, value: u32) -> Self {
         self.read_timeout_ms = value;
         self
     }
 
+    /// 校验并返回最终配置。
     pub fn build(self) -> SshResult<SshConfig> {
         self.validate()?;
         Ok(self)
     }
 }
 
+/// `SshConfig` 自身作为链式构建器使用。
 pub type SshConfigBuilder = SshConfig;
 
+/// 远程命令执行完成后的退出码和输出。
 #[apply(plain_eq)]
 pub struct SshExecutionResult {
+    /// 远程进程退出码。
     pub exit_code: i32,
+    /// 远程进程标准输出。
     pub stdout: String,
+    /// 远程进程标准错误输出。
     pub stderr: String,
 }
 
 impl SshExecutionResult {
+    /// 退出码为 `0` 时返回 `true`。
     pub fn is_success(&self) -> bool {
         self.exit_code == 0
     }
 
+    /// 成功时返回标准输出，否则把退出码和标准错误转换成 [`SshError::CommandFailed`]。
     pub fn get_output_or_throw(&self) -> SshResult<&str> {
         if self.is_success() {
             Ok(&self.stdout)
@@ -190,12 +254,14 @@ impl SshExecutionResult {
     }
 }
 
+/// 已完成认证的阻塞式 SSH 会话。
 pub struct SshSession {
     config: SshConfig,
     session: Session,
 }
 
 impl SshSession {
+    /// 建立 TCP 连接、完成 SSH 握手并按配置进行认证。
     pub fn connect(config: SshConfig) -> SshResult<Self> {
         config.validate()?;
 
@@ -266,14 +332,17 @@ impl SshSession {
         Ok(Self { config, session })
     }
 
+    /// 返回当前会话使用的连接配置。
     pub fn config(&self) -> &SshConfig {
         &self.config
     }
 
+    /// 执行远程命令并在命令结束后一次性返回完整输出。
     pub fn execute_sync(&self, command: &str) -> SshResult<SshExecutionResult> {
         self.run_command(command, |_| {})
     }
 
+    /// 执行远程命令，并在读取 stdout 每一行时调用回调。
     pub fn execute_stream<F>(
         &self,
         command: &str,
@@ -285,6 +354,9 @@ impl SshSession {
         self.run_command(command, on_stdout_line)
     }
 
+    /// 上传本地文件或目录到远端路径。
+    ///
+    /// 当远端路径以 `/` 结尾或已经存在为目录时，会把本地文件名/目录名追加到远端目录下。
     pub fn upload_file(
         &self,
         local_path: impl AsRef<Path>,
@@ -344,6 +416,7 @@ impl SshSession {
         }
     }
 
+    /// 从远端路径下载文件或目录到本地路径。
     pub fn download_file(
         &self,
         remote_path: impl AsRef<str>,
@@ -422,10 +495,12 @@ impl SshSession {
     }
 }
 
+/// 建立一个已认证的 SSH 会话。
 pub fn connect(config: SshConfig) -> SshResult<SshSession> {
     SshSession::connect(config)
 }
 
+/// 建立临时会话并在闭包完成后关闭连接。
 pub fn with_session<T, F>(config: SshConfig, block: F) -> SshResult<T>
 where
     F: FnOnce(&SshSession) -> SshResult<T>,
@@ -434,10 +509,12 @@ where
     block(&session)
 }
 
+/// 建立临时会话并同步执行一条远程命令。
 pub fn execute_sync(config: &SshConfig, command: &str) -> SshResult<SshExecutionResult> {
     with_session(config.clone(), |session| session.execute_sync(command))
 }
 
+/// 建立临时会话并流式执行一条远程命令。
 pub fn execute_stream<F>(
     config: &SshConfig,
     command: &str,
@@ -451,6 +528,7 @@ where
     })
 }
 
+/// 建立临时会话并上传本地文件或目录。
 pub fn upload_file(
     config: &SshConfig,
     local_path: impl AsRef<Path>,
@@ -461,6 +539,7 @@ pub fn upload_file(
     })
 }
 
+/// 建立临时会话并下载远端文件或目录。
 pub fn download_file(
     config: &SshConfig,
     remote_path: impl AsRef<str>,
