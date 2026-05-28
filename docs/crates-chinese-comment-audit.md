@@ -1,6 +1,6 @@
 # crates 中文注释巡检
 
-巡检日期：2026-05-27
+巡检日期：2026-05-27 初检，2026-05-28 复检
 
 本巡检覆盖 `crates/**/Cargo.toml`、各 crate 的 `src/lib.rs` 入口说明、公开宏边界和当前已经落地的 derive alias 使用方式。目标不是把源码刷满中文注释，而是把中文说明放在后续维护者真正会读、且不容易腐烂的位置。
 
@@ -11,6 +11,38 @@
 - 其中 65 个库 crate 使用 `//!` 直接写 crate 级说明，25 个库 crate 使用 `#![doc = include_str!("../README.md")]` 复用 README 作为 rustdoc。
 - `crates/**/*.rs` 当前没有未归档的 `TODO` / `FIXME` 标记。
 - 最值得补中文说明的位置不是普通字段和显而易见的派生，而是公开宏、wire/code enum 约定、插件注册边界、协议/持久化边界、以及会被多个 crate 复用的错误和上下文类型。
+
+## 2026-05-28 复检快照
+
+本轮复检使用仓库当前 `crates/**/*.rs` 做机械扫描，只把结果当作“找补点索引”，不直接等同于文档质量结论。README 注入型 rustdoc、模块级 `//!`、宏展开后的公开项，以及字段级文档不会完全反映在 item-level 命中数里。
+
+| 指标 | 数量 | 说明 |
+| --- | ---: | --- |
+| Cargo manifest | 91 | 来自 `find crates -name Cargo.toml`。 |
+| inline crate doc | 65 | `src/lib.rs` 中存在 `//!` 入口说明。 |
+| README 注入 rustdoc | 25 | `#![doc = include_str!("../README.md")]`。 |
+| 二进制入口 | 1 | `crates/runtime/az-cli`，没有常规 `src/lib.rs`。 |
+| 公开 item 粗扫 | 2747 | 匹配 `pub struct/enum/trait/fn/type/const/static/mod` 和 `#[macro_export]`。 |
+| 已有 item rustdoc | 1814 | 公开 item 前 8 行内存在 `///`。 |
+| 中文 item rustdoc | 639 | item rustdoc 中含中文字符。 |
+
+### 优先补注释队列
+
+| 优先级 | crate | 依据 | 建议动作 |
+| --- | --- | --- | --- |
+| P0 | `az-str` | README 注入入口存在，但公开文本工具函数密集，item-level rustdoc 基本缺失。 | 给字符串规格化、截断、模板替换、命名转换等公开函数补中文契约，说明 Unicode、空串和边界长度语义。 |
+| P0 | `az-creates` | API crate 公开 DTO/客户端入口较多，当前 item-level rustdoc 缺口最大之一。 | 先补外部接口 DTO、错误语义和请求边界，不给普通字段写重复注释。 |
+| P0 | `az-music`、`az-mqtt`、`az-email` | 网络协议/外部服务 crate 公开面较大，但公开项中文说明几乎为空。 | 优先写协议边界、认证/连接失败语义、脱敏和重试约束。 |
+| P0 | `az-yml`、`az-toml` | 配置 crate 容易成为跨 crate 基础入口，公开 API 文档缺口明显。 | 补环境变量替换、解析失败、格式保真和默认值处理约束。 |
+| P1 | `az-excel`、`az-knowledge`、`az-software-catalog` | 数据 crate 入口说明存在，但公开模型和操作缺少中文契约。 | 补数据源边界、导入/导出语义、正式持久化与临时扫描结果的区别。 |
+| P1 | `az-ssh`、`az-remote-session`、`az-cli-repl` | 运行时/远程交互 crate 的失败边界和交互契约需要可审计。 | 补会话生命周期、命令执行、交互输入和错误传播说明。 |
+| P1 | `az-aio-plugin-config-center`、`az-aio-plugin-edge-gateway` | 插件 crate 通过 README 注入入口，但注册规格和 toolbar/page 贡献边界还可继续中文化。 | 给 provider、route、toolbar action、page contribution 的公开常量和函数补简短 rustdoc。 |
+| P2 | `az-derive-aliases` | README 已有中文 alias 清单；机械扫描显示宏公开项多，但不应逐个堆重复说明。 | 只维护 README 的功能型 alias 分层，新增 alias 时同步说明“功能组合”，避免按 struct/enum 拆语义宏。 |
+| P2 | `gitdb`、`az-browser-automation` | 总体已补多轮中文说明，但仍有大量英文历史 rustdoc。 | 继续按模块切片替换核心公开项，不做全量机械翻译。 |
+
+### 巡检判断
+
+当前仓库不缺 crate 级入口说明，真正缺的是“跨 crate 会被调用的公开 API 契约”。后续每轮应选 2 到 4 个 crate 做小批量补注释，并同步跑对应 crate 的 `cargo fmt --check`、`git diff --check`，避免把注释巡检变成不可验证的大面积文本 churn。
 
 ## 注释分层标准
 
