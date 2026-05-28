@@ -6,56 +6,55 @@
 
 use az_derive_aliases::{apply, error};
 
-/// Unified application error type.
+/// 统一应用错误类型。
 ///
-/// Every variant carries a human-readable message and maps to an HTTP status
-/// code via [`AppError::status_code`] as well as a machine-readable error
-/// kind via [`AppError::error_type`].
+/// 每个变体都携带面向人的错误消息，并可通过 [`AppError::status_code`] 映射到 HTTP
+/// 状态码，通过 [`AppError::error_type`] 映射到机器可读的错误分类。
 #[apply(error)]
 pub enum AppError {
-    /// The requested resource was not found (HTTP 404).
+    /// 请求的资源不存在（HTTP 404）。
     #[error("not found: {0}")]
     NotFound(String),
 
-    /// Input failed validation rules (HTTP 422).
+    /// 输入没有通过校验规则（HTTP 422）。
     #[error("validation error: {0}")]
     Validation(String),
 
-    /// Authentication is required (HTTP 401).
+    /// 当前请求需要身份认证（HTTP 401）。
     #[error("unauthorized: {0}")]
     Unauthorized(String),
 
-    /// The authenticated user lacks permission (HTTP 403).
+    /// 已认证用户没有足够权限（HTTP 403）。
     #[error("forbidden: {0}")]
     Forbidden(String),
 
-    /// A resource conflict was detected (HTTP 409).
+    /// 检测到资源冲突（HTTP 409）。
     #[error("conflict: {0}")]
     Conflict(String),
 
-    /// An unexpected internal server error occurred (HTTP 500).
+    /// 发生非预期的服务端内部错误（HTTP 500）。
     #[error("internal error: {0}")]
     Internal(String),
 
-    /// The request was malformed or invalid (HTTP 400).
+    /// 请求格式错误或参数无效（HTTP 400）。
     #[error("bad request: {0}")]
     BadRequest(String),
 
-    /// The operation timed out (HTTP 504).
+    /// 操作超时（HTTP 504）。
     #[error("timeout: {0}")]
     Timeout(String),
 
-    /// An I/O error occurred (HTTP 500).
+    /// 发生 I/O 错误（HTTP 500）。
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// A JSON serialization / deserialization error occurred (HTTP 500).
+    /// 发生 JSON 序列化或反序列化错误（HTTP 500）。
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
 }
 
 impl AppError {
-    /// Returns the corresponding HTTP status code for this error variant.
+    /// 返回该错误变体对应的 HTTP 状态码。
     #[must_use]
     pub fn status_code(&self) -> u16 {
         match self {
@@ -72,7 +71,7 @@ impl AppError {
         }
     }
 
-    /// Returns a short, machine-readable error type identifier.
+    /// 返回短小且机器可读的错误类型标识。
     #[must_use]
     pub fn error_type(&self) -> &'static str {
         match self {
@@ -90,14 +89,14 @@ impl AppError {
     }
 }
 
-/// Convenient result alias using [`AppError`] as the error type.
+/// 使用 [`AppError`] 作为错误类型的便捷返回别名。
 pub type AppResult<T> = Result<T, AppError>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // ── Display messages ──────────────────────────────────────────────
+    // ── Display 文案 ──────────────────────────────────────────────────
 
     #[test]
     fn test_display_not_found() {
@@ -208,7 +207,7 @@ mod tests {
         assert_eq!(json_err.error_type(), "json");
     }
 
-    // ── From conversions ──────────────────────────────────────────────
+    // ── From 转换 ─────────────────────────────────────────────────────
 
     #[test]
     fn test_from_io_error() {
@@ -224,7 +223,7 @@ mod tests {
         assert!(matches!(app_err, AppError::Json(_)));
     }
 
-    // ── AppResult alias ───────────────────────────────────────────────
+    // ── AppResult 别名 ────────────────────────────────────────────────
 
     #[test]
     fn test_app_result_ok() {

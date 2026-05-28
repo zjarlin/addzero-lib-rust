@@ -14,8 +14,7 @@ pub use pg_repo::PgRepo;
 pub use sync::sync_all;
 pub use types::{Skill, SkillSource, SkillUpsert, SyncReport, skill_from_upsert};
 
-/// Top-level facade. Wraps an optional PG repo + a mandatory fs repo and
-/// exposes CRUD operations plus a manual `sync_now()`.
+/// 顶层门面，封装可选 PG 仓库和必选文件系统仓库，并暴露 CRUD 与手动 `sync_now()`。
 pub struct SkillService {
     pg: Option<PgRepo>,
     fs: FsRepo,
@@ -39,8 +38,7 @@ impl SkillService {
         }
     }
 
-    /// Try to attach to PG; on failure, return an fs-only service so the admin
-    /// can still operate offline.
+    /// 尝试连接 PG；失败时返回仅文件系统服务，保证 admin 离线时仍可操作。
     pub async fn try_attach(database_url: Option<&str>, fs: FsRepo) -> Self {
         let Some(url) = database_url.filter(|u| !u.is_empty()) else {
             return Self::fs_only(fs);
@@ -74,8 +72,7 @@ impl SkillService {
             return Ok(fs_skills);
         };
         let pg_skills = pg.list().await.unwrap_or_default();
-        // Merge by name. Prefer PG row data (source-of-truth when online) but
-        // upgrade `source` to Both when both repos hold the record.
+        // 按名称合并。在线时 PG 行数据是事实来源；两侧都有同一记录时，将 `source` 提升为 Both。
         use std::collections::BTreeMap;
         let mut by_name: BTreeMap<String, Skill> = BTreeMap::new();
         for s in fs_skills.drain(..) {
@@ -134,7 +131,7 @@ impl SkillService {
         Ok(())
     }
 
-    /// Run a full reconcile, store the report on the service, and return it.
+    /// 执行完整对账，将报告保存到服务内并返回。
     pub async fn sync_now(&self) -> Result<SyncReport> {
         let report = if let Some(pg) = &self.pg {
             sync_all(pg, &self.fs).await?

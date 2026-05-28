@@ -7,9 +7,8 @@ use crate::fs_repo::FsRepo;
 use crate::pg_repo::PgRepo;
 use crate::types::{Skill, SkillUpsert, SyncReport};
 
-/// Reconcile both repositories. Strategy: union by name; equal hashes are no-ops;
-/// if only one side has a record, copy across; if both differ, the newer
-/// `updated_at` wins (with the loser's name recorded as a conflict for the UI).
+/// 对账两个仓库。策略是按名称取并集：哈希相同则不处理；只有单侧存在时复制到另一侧；
+/// 两侧内容不同时，以较新的 `updated_at` 为准，并把被覆盖方记录为冲突供 UI 提醒。
 pub async fn sync_all(pg: &PgRepo, fs: &FsRepo) -> Result<SyncReport> {
     let mut report = SyncReport::default();
 

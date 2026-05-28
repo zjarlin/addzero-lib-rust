@@ -10,15 +10,15 @@ use crate::types::{Skill, SkillSource, SkillUpsert};
 
 const SCHEMA_SQL: &str = include_str!("../migrations/0001_init.sql");
 
-/// Postgres repository for the `skills` table.
+/// 面向 `skills` 表的 Postgres 仓库。
 #[apply(plain_clone)]
 pub struct PgRepo {
     pool: PgPool,
 }
 
 impl PgRepo {
-    /// Connect to PG with a short timeout. Failure is normal (offline mode);
-    /// callers should treat it as "fall back to fs-only" instead of panicking.
+    /// 用较短超时连接 PG。连接失败属于正常离线场景，调用方应回退到仅文件系统模式，
+    /// 而不是直接 panic。
     pub async fn connect(database_url: &str) -> Result<Self> {
         let pool = PgPoolOptions::new()
             .max_connections(4)
@@ -33,7 +33,7 @@ impl PgRepo {
         &self.pool
     }
 
-    /// Idempotent schema bootstrap. Safe to call on every startup.
+    /// 幂等初始化 schema，可在每次启动时安全调用。
     pub async fn ensure_schema(&self) -> Result<()> {
         sqlx::query(SCHEMA_SQL)
             .execute(&self.pool)
@@ -75,8 +75,8 @@ impl PgRepo {
         Ok(())
     }
 
-    /// Insert or replace by name. The caller decides `updated_at`/`content_hash`
-    /// so we don't double-stamp during sync flows.
+    /// 按名称插入或替换。`updated_at` 和 `content_hash` 由调用方决定，避免同步流程中
+    /// 重复打时间戳。
     pub async fn upsert(
         &self,
         input: &SkillUpsert,

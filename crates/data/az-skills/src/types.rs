@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-/// Where a particular skill record is currently observed to live.
+/// 某条技能记录当前被观测到的存放位置。
 #[apply(serde_code_enum)]
 pub enum SkillSource {
     Postgres,
@@ -22,7 +22,7 @@ impl SkillSource {
     }
 }
 
-/// A skill as it lives in our domain (independent of any single backend).
+/// 领域层中的技能记录，不绑定任一具体后端。
 #[apply(serde_eq)]
 pub struct Skill {
     pub id: Uuid,
@@ -35,7 +35,7 @@ pub struct Skill {
     pub source: SkillSource,
 }
 
-/// Payload for create/update operations.
+/// 创建或更新技能时使用的输入载荷。
 #[apply(serde_eq)]
 pub struct SkillUpsert {
     pub name: String,
@@ -45,7 +45,7 @@ pub struct SkillUpsert {
 }
 
 impl SkillUpsert {
-    /// Compute a stable content hash. Sorted keywords + raw description/body.
+    /// 计算稳定的内容哈希；关键词排序后再拼接原始描述和正文。
     pub fn compute_hash(&self) -> String {
         let mut keywords = self.keywords.clone();
         keywords.sort();
@@ -62,21 +62,18 @@ impl SkillUpsert {
     }
 }
 
-/// Outcome of a sync_all run.
+/// 一次 `sync_all` 执行后的同步结果。
 #[apply(serde_eq_default)]
 pub struct SyncReport {
-    /// PG-only side. Skills that existed in PG but not in fs and were copied
-    /// to fs.
+    /// 仅存在于 PG 的技能，已被复制到文件系统。
     pub added_to_fs: Vec<String>,
-    /// fs-only side. Skills that existed in fs but not in PG and were copied
-    /// to PG.
+    /// 仅存在于文件系统的技能，已被复制到 PG。
     pub added_to_pg: Vec<String>,
-    /// Skills updated in fs because PG had a newer version.
+    /// 因 PG 版本更新而在文件系统侧被更新的技能。
     pub updated_in_fs: Vec<String>,
-    /// Skills updated in PG because fs had a newer version.
+    /// 因文件系统版本更新而在 PG 侧被更新的技能。
     pub updated_in_pg: Vec<String>,
-    /// Skills where both sides had diverged (kept the newer one, but recorded
-    /// here so the UI can warn the operator).
+    /// 两侧内容发生分叉的技能；同步保留较新的版本，同时记录给 UI 提醒操作者。
     pub conflicts: Vec<String>,
     pub finished_at: Option<DateTime<Utc>>,
 }
@@ -90,7 +87,7 @@ impl SyncReport {
     }
 }
 
-/// Helper to build a freshly-stamped Skill from an upsert payload.
+/// 根据 upsert 载荷构造带当前时间戳的新技能记录。
 pub fn skill_from_upsert(input: SkillUpsert, source: SkillSource) -> Skill {
     let content_hash = input.compute_hash();
     Skill {

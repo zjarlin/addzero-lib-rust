@@ -11,15 +11,15 @@ use az_dioxus_components::az_table::{
 };
 use dioxus::prelude::*;
 
-/// Horizontal alignment for headers and cells.
+/// 表头和单元格内容的水平对齐方式。
 #[apply(plain_default_copy_eq)]
 pub enum AzTableAlign {
-    /// Left-aligned content.
+    /// 内容左对齐。
     #[default]
     Start,
-    /// Center-aligned content.
+    /// 内容居中对齐。
     Center,
-    /// Right-aligned content.
+    /// 内容右对齐。
     End,
 }
 
@@ -33,27 +33,27 @@ impl AzTableAlign {
     }
 }
 
-/// Column definition for [`AzTable`].
+/// [`AzTable`] 的列定义。
 #[apply(plain_eq)]
 pub struct AzTableColumn {
-    /// Stable column key used by the consumer.
+    /// 调用方使用的稳定列键。
     pub key: String,
-    /// Header label text.
+    /// 表头展示文本。
     pub header: String,
-    /// Optional class appended to the rendered header cell.
+    /// 追加到渲染后表头单元格上的可选 class。
     pub class: Option<String>,
-    /// Header alignment.
+    /// 表头对齐方式。
     pub align: AzTableAlign,
 }
 
-/// Cell payload for a row in [`AzTable`].
+/// [`AzTable`] 行内的单元格数据。
 #[apply(plain_default_eq)]
 pub struct AzTableCell {
-    /// Visible text content.
+    /// 可见文本内容。
     pub value: String,
-    /// Optional class appended to the rendered data cell.
+    /// 追加到渲染后数据单元格上的可选 class。
     pub class: Option<String>,
-    /// Cell-specific alignment override.
+    /// 单元格级别的对齐覆盖。
     pub align: Option<AzTableAlign>,
 }
 
@@ -65,46 +65,46 @@ impl_from_with_default!(String => AzTableCell {
     value: |source| source,
 });
 
-/// Row payload for [`AzTable`].
+/// [`AzTable`] 的行数据。
 #[apply(plain_eq)]
 pub struct AzTableRow {
-    /// Stable row key used by the consumer.
+    /// 调用方使用的稳定行键。
     pub key: String,
-    /// Rendered cells for the row.
+    /// 该行要渲染的单元格。
     pub cells: Vec<AzTableCell>,
-    /// Optional class appended to the rendered row.
+    /// 追加到渲染后行元素上的可选 class。
     pub class: Option<String>,
 }
 
-/// Props for [`AzTable`].
+/// [`AzTable`] 的组件属性。
 #[apply(dioxus_props)]
 pub struct AzTableProps {
-    /// Column definitions.
+    /// 列定义集合。
     pub columns: Vec<AzTableColumn>,
-    /// Table rows.
+    /// 表格行集合。
     #[props(default)]
     pub rows: Vec<AzTableRow>,
-    /// Optional caption rendered inside `<caption>`.
+    /// 渲染到 `<caption>` 内的可选标题。
     #[props(default)]
     pub caption: Option<String>,
-    /// Optional custom class appended to the root `<table>`.
+    /// 追加到根 `<table>` 上的可选自定义 class。
     #[props(default, into)]
     pub class: String,
-    /// Empty-state copy rendered when `rows` is empty.
+    /// `rows` 为空时渲染的空状态文案。
     #[props(default = String::from("No data"))]
     pub empty_label: String,
-    /// Adds the `az-table--striped` modifier class.
+    /// 添加 `az-table--striped` 修饰 class。
     #[props(default = false)]
     pub striped: bool,
-    /// Adds the `az-table--bordered` modifier class.
+    /// 添加 `az-table--bordered` 修饰 class。
     #[props(default = false)]
     pub bordered: bool,
-    /// Adds the `az-table--dense` modifier class.
+    /// 添加 `az-table--dense` 修饰 class。
     #[props(default = false)]
     pub dense: bool,
 }
 
-/// Renders a complete table from structured column and row data.
+/// 根据结构化列和行数据渲染完整表格。
 pub fn AzTable(props: AzTableProps) -> Element {
     let column_count = effective_column_count(&props.columns, &props.rows);
 
@@ -224,7 +224,7 @@ mod tests {
 
         let normalized = normalize_cells(&row, 2);
 
-        // The table must keep its column geometry stable even when a row has missing values.
+        // 即使某一行缺少值，表格也必须保持稳定的列几何结构。
         assert_eq!(
             normalized,
             vec![AzTableCell::from("Grace"), AzTableCell::default()]
@@ -253,7 +253,7 @@ mod tests {
             class: None,
         }];
 
-        // Declared columns are the source of truth for empty-state colspan and row padding.
+        // 显式声明的列是空状态 colspan 和行补齐逻辑的事实来源。
         assert_eq!(effective_column_count(&columns, &rows), 2);
     }
 }

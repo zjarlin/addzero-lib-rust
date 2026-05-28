@@ -8,10 +8,8 @@ use uuid::Uuid;
 
 use crate::types::{Skill, SkillSource, SkillUpsert};
 
-/// Markers used to make our keyword-rendering idempotent. When we rewrite a
-/// `SKILL.md`'s description, we wrap the rendered keyword sentence with these
-/// HTML comments so a subsequent read knows exactly which segment to strip
-/// before extracting user-authored text.
+/// 用于保证关键词渲染幂等的标记。重写 `SKILL.md` 描述时，渲染出的关键词句会被
+/// 这两个 HTML 注释包住，后续读取即可精确剥离托管片段，再提取用户手写文本。
 const KEYWORDS_START: &str = "<!-- keywords:start -->";
 const KEYWORDS_END: &str = "<!-- keywords:end -->";
 
@@ -21,7 +19,7 @@ struct Frontmatter {
     description: Option<String>,
 }
 
-/// File-system repository against `~/.agents/skills/<name>/SKILL.md`.
+/// 面向 `~/.agents/skills/<name>/SKILL.md` 的文件系统仓库。
 pub struct FsRepo {
     root: PathBuf,
 }
@@ -31,7 +29,7 @@ impl FsRepo {
         Self { root: root.into() }
     }
 
-    /// Default location: `$ADDZERO_SKILLS_FS_ROOT` or `~/.agents/skills`.
+    /// 默认位置：`$ADDZERO_SKILLS_FS_ROOT`，未设置时使用 `~/.agents/skills`。
     pub fn default_root() -> Result<Self> {
         if let Ok(raw) = std::env::var("ADDZERO_SKILLS_FS_ROOT") {
             return Ok(Self::new(PathBuf::from(raw)));
@@ -46,9 +44,8 @@ impl FsRepo {
         &self.root
     }
 
-    /// List all skills under the root. Folders without a parsable `SKILL.md`
-    /// are silently ignored so we don't fail the whole admin on a single
-    /// malformed file.
+    /// 列出根目录下的所有技能。没有可解析 `SKILL.md` 的目录会被跳过，避免单个坏文件
+    /// 让整个 admin 技能面板不可用。
     pub async fn list(&self) -> Result<Vec<Skill>> {
         let mut out = Vec::new();
         if !tokio::fs::try_exists(&self.root).await.unwrap_or(false) {
@@ -97,7 +94,7 @@ impl FsRepo {
         Ok(())
     }
 
-    /// Write a skill atomically: write `SKILL.md.tmp`, rename over `SKILL.md`.
+    /// 原子写入技能：先写 `SKILL.md.tmp`，再重命名覆盖 `SKILL.md`。
     pub async fn upsert(&self, input: &SkillUpsert) -> Result<Skill> {
         let dir = self.root.join(&input.name);
         tokio::fs::create_dir_all(&dir)
@@ -182,8 +179,7 @@ async fn file_updated_at(path: &Path) -> Result<DateTime<Utc>> {
     Ok(modified.into())
 }
 
-/// Split a markdown file into `(frontmatter_yaml, body)`. If there's no
-/// frontmatter, `frontmatter_yaml` is empty.
+/// 将 markdown 文件拆成 `(frontmatter_yaml, body)`；没有 frontmatter 时前者为空。
 fn split_frontmatter(raw: &str) -> (&str, &str) {
     let trimmed = raw.trim_start_matches('\u{feff}');
     let Some(rest) = trimmed.strip_prefix("---") else {
@@ -200,11 +196,9 @@ fn split_frontmatter(raw: &str) -> (&str, &str) {
     }
 }
 
-/// Pull a `keywords` list out of a description that may contain our managed
-/// `<!-- keywords:start --> ... <!-- keywords:end -->` segment, falling back
-/// to a regex over the leading "当用户提到 X、Y、Z 时" pattern. The returned
-/// description has the managed segment (if any) stripped so that round-tripping
-/// is idempotent.
+/// 从描述中提取 `keywords` 列表。优先读取托管的
+/// `<!-- keywords:start --> ... <!-- keywords:end -->` 片段；若不存在，则回退解析
+/// 开头的“当用户提到 X、Y、Z 时”句式。返回的描述会剥离托管片段，保证往返写入幂等。
 fn extract_keywords_from_description(description: &str) -> (Vec<String>, String) {
     if let (Some(start_idx), Some(end_idx)) = (
         description.find(KEYWORDS_START),
@@ -221,7 +215,7 @@ fn extract_keywords_from_description(description: &str) -> (Vec<String>, String)
         }
     }
 
-    // Fallback: regex over a free-form leading sentence such as
+    // 回退策略：用正则解析自由文本开头，例如：
     //   "当用户提到 a、b、c 时使用..."
     let re = Regex::new(r"当用户提到\s*([^，。\n]+?)\s*时").expect("static regex");
     if let Some(caps) = re.captures(description) {
@@ -238,7 +232,7 @@ fn parse_keyword_phrase(inner: &str) -> Vec<String> {
     if trimmed.is_empty() {
         return Vec::new();
     }
-    // Strip a leading "当用户提到 " prefix and a trailing " 时...".
+    // 剥离开头的“当用户提到”和结尾的“时...”，只保留关键词列表。
     let after_prefix = trimmed
         .strip_prefix("当用户提到")
         .map(str::trim_start)
@@ -258,7 +252,7 @@ fn split_keywords(raw: &str) -> Vec<String> {
         .collect()
 }
 
-/// Render a `SkillUpsert` back to a complete `SKILL.md` string.
+/// 将 `SkillUpsert` 渲染回完整的 `SKILL.md` 字符串。
 fn render_skill_md(input: &SkillUpsert) -> String {
     let description = render_description_with_keywords(&input.description, &input.keywords);
     let mut out = String::new();
@@ -276,8 +270,7 @@ fn render_skill_md(input: &SkillUpsert) -> String {
     out
 }
 
-/// Render description so that the keywords sentence lives between our markers.
-/// If there are no keywords, we drop the markers entirely.
+/// 渲染描述，并把关键词句放进托管标记之间。没有关键词时会完全移除标记。
 pub fn render_description_with_keywords(description: &str, keywords: &[String]) -> String {
     let cleaned = strip_managed_block(description).trim().to_string();
     if keywords.is_empty() {
@@ -307,8 +300,7 @@ fn strip_managed_block(description: &str) -> String {
     description.to_string()
 }
 
-/// Quote YAML scalars when needed. We always quote so that colons, leading
-/// punctuation and unicode never trip the parser.
+/// 转义 YAML 标量。这里始终加引号，避免冒号、前导标点和 Unicode 内容误触解析规则。
 fn yaml_escape_scalar(value: &str) -> String {
     let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
     format!("\"{escaped}\"")

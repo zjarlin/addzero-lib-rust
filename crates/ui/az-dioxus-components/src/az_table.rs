@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 
 use crate::class_name::compose_class;
 
-/// Renders a semantic table root with `az-table` variants.
+/// 渲染带有 `az-table` 变体 class 的语义化表格根节点。
 #[allow(non_snake_case)]
 #[component]
 pub fn AzTable(
@@ -29,7 +29,7 @@ pub fn AzTable(
     }
 }
 
-/// Renders a table caption with the `az-table__caption` class.
+/// 渲染带有 `az-table__caption` class 的表格标题。
 #[allow(non_snake_case)]
 #[component]
 pub fn AzTableCaption(children: Element, #[props(default, into)] class: String) -> Element {
@@ -40,7 +40,7 @@ pub fn AzTableCaption(children: Element, #[props(default, into)] class: String) 
     }
 }
 
-/// Renders the semantic table head section.
+/// 渲染语义化表头区域。
 #[allow(non_snake_case)]
 #[component]
 pub fn AzTableHead(children: Element, #[props(default, into)] class: String) -> Element {
@@ -51,7 +51,7 @@ pub fn AzTableHead(children: Element, #[props(default, into)] class: String) -> 
     }
 }
 
-/// Renders the semantic table body section.
+/// 渲染语义化表体区域。
 #[allow(non_snake_case)]
 #[component]
 pub fn AzTableBody(children: Element, #[props(default, into)] class: String) -> Element {
@@ -62,7 +62,7 @@ pub fn AzTableBody(children: Element, #[props(default, into)] class: String) -> 
     }
 }
 
-/// Renders the semantic table footer section.
+/// 渲染语义化表尾区域。
 #[allow(non_snake_case)]
 #[component]
 pub fn AzTableFooter(children: Element, #[props(default, into)] class: String) -> Element {
@@ -73,7 +73,7 @@ pub fn AzTableFooter(children: Element, #[props(default, into)] class: String) -
     }
 }
 
-/// Renders a table row with an optional selected state class.
+/// 渲染表格行，并可附加选中态 class。
 #[allow(non_snake_case)]
 #[component]
 pub fn AzTableRow(
@@ -92,7 +92,7 @@ pub fn AzTableRow(
     }
 }
 
-/// Renders a table header cell with a configurable scope.
+/// 渲染可配置 `scope` 的表头单元格。
 #[allow(non_snake_case)]
 #[component]
 pub fn AzTableHeaderCell(
@@ -112,7 +112,7 @@ pub fn AzTableHeaderCell(
     }
 }
 
-/// Renders a table body or footer cell.
+/// 渲染表体或表尾单元格。
 #[allow(non_snake_case)]
 #[component]
 pub fn AzTableCell(

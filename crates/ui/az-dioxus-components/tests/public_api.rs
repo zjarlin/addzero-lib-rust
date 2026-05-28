@@ -7,7 +7,7 @@ use dioxus::prelude::*;
 
 #[test]
 fn public_components_compile_in_a_single_composition() {
-    // This verifies the public modules are sufficient to compose a full table surface.
+    // 验证公开模块足以组合出完整表格界面，而不需要依赖私有路径。
     let markup = dioxus_ssr::render_element(rsx! {
         AzCard {
             AzTable {

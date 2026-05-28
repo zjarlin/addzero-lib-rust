@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 
 use crate::class_name::compose_class;
 
-/// Renders a lightweight card shell with the `az-card` class contract.
+/// 渲染遵循 `az-card` class 契约的轻量卡片外壳。
 #[allow(non_snake_case)]
 #[component]
 pub fn AzCard(children: Element, #[props(default, into)] class: String) -> Element {

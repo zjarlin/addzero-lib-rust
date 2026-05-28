@@ -1,29 +1,29 @@
-//! Sandbox policy types shared by script and plugin runtimes.
+//! 脚本运行时和插件运行时共享的沙箱策略类型。
 
 use az_derive_aliases::{apply, serde_eq_default};
 
-/// Permission policy for a sandboxed execution context.
+/// 沙箱执行上下文的权限策略。
 #[apply(serde_eq_default)]
 pub struct SandboxPolicy {
-    /// Allowed filesystem paths (empty = deny all).
+    /// 允许访问的文件系统路径；为空表示全部拒绝。
     pub fs_allow: Vec<String>,
-    /// Allowed network hosts/ports (empty = deny all).
+    /// 允许访问的网络主机或端口；为空表示全部拒绝。
     pub net_allow: Vec<String>,
-    /// Allowed commands (empty = deny all).
+    /// 允许执行的命令；为空表示全部拒绝。
     pub cmd_allow: Vec<String>,
-    /// Max memory in MB (0 = unlimited).
+    /// 最大内存，单位 MB；0 表示不限制。
     pub max_memory_mb: u64,
-    /// Max execution time in seconds (0 = unlimited).
+    /// 最大执行时间，单位秒；0 表示不限制。
     pub max_time_secs: u64,
 }
 
 impl SandboxPolicy {
-    /// A permissive policy for trusted scripts.
+    /// 面向可信脚本的宽松策略。
     pub fn permissive() -> Self {
         Self::default()
     }
 
-    /// A restrictive policy that denies everything.
+    /// 拒绝所有外部能力的限制策略。
     pub fn deny_all() -> Self {
         Self {
             fs_allow: vec![],

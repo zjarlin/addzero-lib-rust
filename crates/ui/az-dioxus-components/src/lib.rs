@@ -3,14 +3,14 @@
 
 mod class_name;
 
-/// Card primitives with the `az-card` class contract.
+/// 遵循 `az-card` class 契约的卡片基础组件。
 pub mod az_card;
-/// Table primitives with the `az-table` class contract.
+/// 遵循 `az-table` class 契约的表格基础组件。
 pub mod az_table;
 
-/// Convenience exports for composing the public UI primitives.
+/// 组合公开 UI 基础组件时使用的便捷导出。
 pub mod prelude {
-    //! Convenience exports for the public Dioxus components in this crate.
+    //! 本 crate 公开 Dioxus 组件的便捷导出。
 
     pub use crate::az_card::AzCard;
     pub use crate::az_table::{
