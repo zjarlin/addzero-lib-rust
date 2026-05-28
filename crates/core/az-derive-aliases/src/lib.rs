@@ -450,6 +450,58 @@ macro_rules! serde_eq_hash_ord_display_as_ref {
     };
 }
 
+/// 带 serde、排序、`Display`、`AsRef<str>` 和字符串 helper 的有序字符串值对象。
+#[macro_export]
+macro_rules! serde_string_value_object {
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $name:ident(String);
+    ) => {
+        $crate::serde_eq_hash_ord_display_as_ref! {
+            $(#[$meta])*
+            $vis struct $name(String);
+        }
+
+        $crate::__az_derive_aliases_string_value_object_impl!($name);
+    };
+}
+
+/// 不带 serde、带排序、`Display`、`AsRef<str>` 和字符串 helper 的字符串值对象。
+#[macro_export]
+macro_rules! plain_string_value_object {
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $name:ident(String);
+    ) => {
+        $crate::plain_eq_hash_ord_display! {
+            #[derive(::derive_more::AsRef)]
+            #[as_ref(forward)]
+            $(#[$meta])*
+            $vis struct $name(String);
+        }
+
+        $crate::__az_derive_aliases_string_value_object_impl!($name);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __az_derive_aliases_string_value_object_impl {
+    ($name:ident) => {
+        impl $name {
+            #[must_use]
+            pub fn as_str(&self) -> &str {
+                self.as_ref()
+            }
+
+            #[must_use]
+            pub fn into_string(self) -> String {
+                self.0
+            }
+        }
+    };
+}
+
 /// SQLx row-mapped type with `FromRow`.
 #[macro_export]
 macro_rules! sqlx_from_row {

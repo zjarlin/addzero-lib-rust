@@ -2,7 +2,7 @@
 
 use az_derive_aliases::{
     apply, error_eq, impl_default, plain_copy_eq, plain_copy_eq_hash_ord_display, plain_eq,
-    plain_eq_display, plain_eq_hash_ord_display, serde_eq_hash_ord_display_as_ref,
+    plain_eq_display, plain_string_value_object, serde_string_value_object,
 };
 use git2::Oid;
 use std::path::PathBuf;
@@ -69,7 +69,7 @@ impl TreeId {
 /// 表名会进入 Git 路径，因此这里限制字符集，避免路径穿越，并保持和
 /// 文件系统/Git 引用约束兼容。合法表名长度为 1 到 64，只允许 ASCII
 /// 字母、数字、下划线、连字符，且必须以字母或下划线开头。
-#[apply(serde_eq_hash_ord_display_as_ref)]
+#[apply(serde_string_value_object)]
 #[display("{_0}")]
 pub struct TableName(String);
 
@@ -116,22 +116,13 @@ impl TableName {
 
         Ok(())
     }
-    /// 返回字符串视图。
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// 转换为拥有所有权的字符串。
-    pub fn into_string(self) -> String {
-        self.0
-    }
 }
 
 /// 已验证的行键，也就是主键。
 ///
 /// 行键会作为 JSON 文件名使用，因此需要和表名类似的路径安全约束。
 /// 实际调用中通常由 ULID/UUID 生成，而不是人工输入。
-#[apply(serde_eq_hash_ord_display_as_ref)]
+#[apply(serde_string_value_object)]
 #[display("{_0}")]
 pub struct RowKey(String);
 
@@ -165,16 +156,6 @@ impl RowKey {
         Ok(())
     }
 
-    /// 返回字符串视图。
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// 转换为拥有所有权的字符串。
-    pub fn into_string(self) -> String {
-        self.0
-    }
-
     /// 生成基于 ULID 的新行键。
     pub fn generate() -> Self {
         Self(ulid::Ulid::new().to_string().to_lowercase())
@@ -204,7 +185,7 @@ impl RowPath {
 }
 
 /// Git 分支名，对事务分支有固定前缀约定。
-#[apply(plain_eq_hash_ord_display)]
+#[apply(plain_string_value_object)]
 #[display("{_0}")]
 pub struct BranchName(String);
 
@@ -255,11 +236,6 @@ impl BranchName {
     /// 返回完整 Git ref 路径，例如 `refs/heads/main`。
     pub fn as_ref_path(&self) -> String {
         format!("refs/heads/{}", self.0)
-    }
-
-    /// 返回分支短名。
-    pub fn as_str(&self) -> &str {
-        &self.0
     }
 }
 

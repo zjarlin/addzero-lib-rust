@@ -23,8 +23,8 @@
 | README 注入 rustdoc | 25 | `#![doc = include_str!("../README.md")]`。 |
 | 二进制入口 | 1 | `crates/runtime/az-cli`，没有常规 `src/lib.rs`。 |
 | 公开 item 粗扫 | 2842 | 匹配 `pub struct/enum/trait/fn/type/const/static/mod` 和 `#[macro_export]`。 |
-| 已有 item rustdoc | 1823 | 公开 item 前 8 行内存在 `///`。 |
-| 中文 item rustdoc | 660 | item rustdoc 中含中文字符。 |
+| 已有 item rustdoc | 1820 | 公开 item 前 8 行内存在 `///`。 |
+| 中文 item rustdoc | 657 | item rustdoc 中含中文字符。 |
 
 ### 优先补注释队列
 
@@ -111,6 +111,7 @@
 - `toasty-driver-gitdb`：补齐 Toasty 能力矩阵、driver URL、连接工作线程和 gitdb/toasty 错误转换边界的中文 rustdoc。
 - `az-array`、`az-common`、`az-model`：补齐基础集合工具、本地日期时间工具、实体分页模型 trait 的中文 rustdoc，明确边界条件、时区语义、分页零基 offset 和空分页规则。
 - `az-derive-aliases`、`gitdb::catalog`：新增 `serde_code_display_props_enum` 功能型 alias，并把 `DataType` 的 wire code、SQL 展示名和 `strum::EnumProperty` 元数据关系写进中文 rustdoc，替换手写 SQL 类型 match 表。
+- `az-derive-aliases`、`gitdb::storage::types`：新增 `serde_string_value_object` / `plain_string_value_object`，把 `TableName`、`RowKey`、`BranchName` 的 `as_str()` / `into_string()` 样板收进功能型 alias，同时保留各自的业务校验。
 
 ### 继续建议
 

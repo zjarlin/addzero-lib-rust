@@ -5,12 +5,13 @@ use az_derive_aliases::{
     plain_code_display_message_no_default_enum, plain_code_display_no_default_enum,
     plain_code_enum, plain_copy_eq_hash, plain_copy_eq_hash_display,
     plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
-    plain_eq_hash_display, serde_camel_eq_default, serde_camel_partial_eq_default,
-    serde_code_default_ord_display_enum, serde_code_display_props_enum, serde_code_enum,
-    serde_code_ord_display_enum, serde_code_partial_eq, serde_code_props_enum,
-    serde_eq_copy_display, serde_eq_hash_display, serde_eq_hash_ord_display_as_ref,
-    serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum, serde_partial_eq_display,
-    serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
+    plain_eq_hash_display, plain_string_value_object, serde_camel_eq_default,
+    serde_camel_partial_eq_default, serde_code_default_ord_display_enum,
+    serde_code_display_props_enum, serde_code_enum, serde_code_ord_display_enum,
+    serde_code_partial_eq, serde_code_props_enum, serde_eq_copy_display, serde_eq_hash_display,
+    serde_eq_hash_ord_display_as_ref, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
+    serde_partial_eq_display, serde_string_value_object, serde_upper_eq,
+    serialize_camel_clone_debug, serialize_camel_eq,
 };
 use clap::ValueEnum;
 use serde_json::Value;
@@ -222,6 +223,14 @@ struct SerdeHashDisplayCode(u8);
 #[apply(serde_eq_hash_ord_display_as_ref)]
 #[display("{_0}")]
 struct SerdeStringKey(String);
+
+#[apply(serde_string_value_object)]
+#[display("{_0}")]
+struct SerdeOwnedStringKey(String);
+
+#[apply(plain_string_value_object)]
+#[display("{_0}")]
+struct PlainOwnedStringKey(String);
 
 #[apply(serde_eq_copy_display)]
 struct SerdeCopyDisplayCode(u8);
@@ -562,6 +571,27 @@ fn serde_eq_hash_ord_display_as_ref_should_forward_to_inner_value() {
     assert_eq!(as_str, "users");
     assert_eq!(key.to_string(), "users");
     assert_eq!(serde_json::to_string(&key).unwrap(), r#""users""#);
+}
+
+#[test]
+fn string_value_object_aliases_add_owned_and_borrowed_string_helpers() {
+    let serde_key = SerdeOwnedStringKey("users".to_owned());
+    let plain_key = PlainOwnedStringKey("orders".to_owned());
+
+    assert_eq!(serde_key.as_str(), "users");
+    assert_eq!(
+        <SerdeOwnedStringKey as AsRef<str>>::as_ref(&serde_key),
+        "users"
+    );
+    assert_eq!(serde_key.to_string(), "users");
+    assert_eq!(serde_key.into_string(), "users");
+
+    assert_eq!(plain_key.as_str(), "orders");
+    assert_eq!(
+        <PlainOwnedStringKey as AsRef<str>>::as_ref(&plain_key),
+        "orders"
+    );
+    assert_eq!(plain_key.into_string(), "orders");
 }
 
 #[test]
