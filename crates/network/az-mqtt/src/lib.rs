@@ -64,36 +64,54 @@ use std::sync::{
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+/// MQTT crate 的统一结果类型。
 pub type MqttResult<T> = Result<T, MqttError>;
 
+/// MQTT 配置、消息、订阅和后台轮询过程中可能返回的错误。
+///
+/// 该类型保留 `rumqttc` 和证书文件 IO 的源错误链；后台线程内部轮询错误会被吞掉并继续轮询，显式 API 错误会通过该类型返回。
 #[apply(error)]
 pub enum MqttError {
+    /// 连接配置不完整或字段组合非法。
     #[error("invalid mqtt configuration: {0}")]
     InvalidConfig(String),
+    /// 待发布消息不满足本地校验。
     #[error("invalid mqtt message: {0}")]
     InvalidMessage(String),
+    /// 订阅主题过滤器为空或订阅列表为空。
     #[error("invalid mqtt subscription: {0}")]
     InvalidSubscription(String),
+    /// `rumqttc` 客户端 API 返回的错误。
     #[error("mqtt client error: {0}")]
     Client(#[from] ClientError),
+    /// 读取 TLS CA、客户端证书或私钥文件失败。
     #[error("failed to read `{path}`: {source}")]
     FileRead {
         path: String,
         #[source]
         source: io::Error,
     },
+    /// 接收通道已断开，通常表示后台轮询线程已经结束。
     #[error("mqtt receive channel is disconnected")]
     ReceiveDisconnected,
+    /// 内部互斥锁等状态访问失败。
     #[error("failed to access internal state: {0}")]
     Internal(String),
+    /// 显式断开时后台线程 panic。
     #[error("mqtt background thread panicked")]
     BackgroundThreadPanicked,
 }
 
+/// MQTT 服务质量等级。
+///
+/// `code()` / `from_code()` 使用 snake_case 机器码，并与 `rumqttc::QoS` 保持双向转换。
 #[apply(plain_code_enum)]
 pub enum MqttQoS {
+    /// QoS 0，最多一次投递。
     AtMostOnce,
+    /// QoS 1，至少一次投递。
     AtLeastOnce,
+    /// QoS 2，恰好一次投递。
     ExactlyOnce,
 }
 
@@ -109,15 +127,23 @@ impl_from_match!(QoS => MqttQoS {
     QoS::ExactlyOnce => Self::ExactlyOnce,
 });
 
+/// 待发布的 MQTT 消息。
+///
+/// 该类型同时用于 Last Will 配置；topic 不允许为空，payload 可以是任意字节。
 #[apply(plain_eq)]
 pub struct MqttMessage {
+    /// 发布主题。
     pub topic: String,
+    /// 消息负载字节。
     pub payload: Vec<u8>,
+    /// 发布 QoS。
     pub qos: MqttQoS,
+    /// 是否让 broker 保留该消息。
     pub retain: bool,
 }
 
 impl MqttMessage {
+    /// 创建消息构建器，默认 QoS 为 `AtMostOnce`，`retain` 为 `false`。
     pub fn builder(topic: impl Into<String>) -> MqttMessageBuilder {
         Self {
             topic: topic.into(),
@@ -127,6 +153,9 @@ impl MqttMessage {
         }
     }
 
+    /// 校验消息是否满足本地发送前置条件。
+    ///
+    /// 当前只校验 topic 非空，不校验 topic 是否符合 broker 侧 ACL 或通配符规则。
     pub fn validate(&self) -> MqttResult<()> {
         if self.topic.trim().is_empty() {
             return Err(MqttError::InvalidMessage(
@@ -136,57 +165,79 @@ impl MqttMessage {
         Ok(())
     }
 
+    /// 设置二进制负载。
     pub fn payload(mut self, value: impl Into<Vec<u8>>) -> Self {
         self.payload = value.into();
         self
     }
 
+    /// 设置 UTF-8 字符串负载。
     pub fn payload_str(mut self, value: impl Into<String>) -> Self {
         self.payload = value.into().into_bytes();
         self
     }
 
+    /// 设置发布 QoS。
     pub fn qos(mut self, value: MqttQoS) -> Self {
         self.qos = value;
         self
     }
 
+    /// 设置 retain 标志。
     pub fn retain(mut self, value: bool) -> Self {
         self.retain = value;
         self
     }
 
+    /// 完成构建并执行本地消息校验。
     pub fn build(self) -> MqttResult<MqttMessage> {
         self.validate()?;
         Ok(self)
     }
 }
 
+/// `MqttMessage` 采用自身作为轻量 builder。
 pub type MqttMessageBuilder = MqttMessage;
 
+/// 从 broker 收到的 MQTT 发布消息。
 #[apply(plain_eq)]
 pub struct MqttReceivedMessage {
+    /// 消息主题。
     pub topic: String,
+    /// 原始负载字节。
     pub payload: Vec<u8>,
+    /// broker 投递该消息时的 QoS。
     pub qos: MqttQoS,
+    /// broker 标记的 retain 状态。
     pub retain: bool,
+    /// 是否为重复投递。
     pub duplicate: bool,
+    /// MQTT packet id；QoS 0 通常没有有效 packet id。
     pub packet_id: Option<u16>,
 }
 
 impl MqttReceivedMessage {
+    /// 以 UTF-8 lossy 方式读取负载。
+    ///
+    /// 非 UTF-8 字节会被替换字符处理，适合日志和调试；协议级解析应直接使用 `payload`。
     pub fn payload_as_utf8_lossy(&self) -> String {
         String::from_utf8_lossy(&self.payload).into_owned()
     }
 }
 
+/// MQTT 订阅请求。
+///
+/// `topic_filter` 可以包含 MQTT 通配符，具体合法性和权限仍由 broker 判断。
 #[apply(plain_eq)]
 pub struct MqttSubscription {
+    /// 订阅主题过滤器。
     pub topic_filter: String,
+    /// 订阅 QoS。
     pub qos: MqttQoS,
 }
 
 impl MqttSubscription {
+    /// 创建订阅请求。
     pub fn new(topic_filter: impl Into<String>, qos: MqttQoS) -> Self {
         Self {
             topic_filter: topic_filter.into(),
@@ -194,6 +245,7 @@ impl MqttSubscription {
         }
     }
 
+    /// 校验订阅过滤器的最小本地约束。
     pub fn validate(&self) -> MqttResult<()> {
         if self.topic_filter.trim().is_empty() {
             return Err(MqttError::InvalidSubscription(
@@ -204,29 +256,51 @@ impl MqttSubscription {
     }
 }
 
+/// MQTT 客户端连接配置。
+///
+/// 密码和客户端私钥路径在 `Debug` 输出中会被脱敏；配置 TLS 文件路径时会自动启用 TLS。
 #[apply(plain_eq_redacted)]
 pub struct MqttConfig {
+    /// broker 主机名或 IP。
     pub host: String,
+    /// broker 端口，默认 1883。
     pub port: u16,
+    /// MQTT client id。
     pub client_id: String,
+    /// 可选用户名。
     pub username: Option<String>,
+    /// 可选密码，调试输出会脱敏。
     #[debug(skip)]
     pub password: Option<String>,
+    /// keep-alive 秒数。
     pub keep_alive_secs: u64,
+    /// 是否使用 clean session。
     pub clean_session: bool,
+    /// `rumqttc` 请求通道容量。
     pub request_channel_capacity: usize,
+    /// 最大 inflight 包数量。
     pub inflight: u16,
+    /// 连接超时秒数。
     pub connect_timeout_secs: u64,
+    /// 后台轮询线程的单次接收超时毫秒数。
     pub poll_timeout_ms: u64,
+    /// 是否启用 TLS。
     pub use_tls: bool,
+    /// CA 证书路径；存在时会自动启用 TLS。
     pub ca_path: Option<String>,
+    /// 客户端证书路径，用于双向认证。
     pub client_cert_path: Option<String>,
+    /// 客户端私钥路径，用于双向认证，调试输出会脱敏。
     #[debug(skip)]
     pub client_key_path: Option<String>,
+    /// Last Will 消息。
     pub last_will: Option<MqttMessage>,
 }
 
 impl MqttConfig {
+    /// 创建 MQTT 配置构建器。
+    ///
+    /// 默认端口 1883、clean session、keep-alive 60 秒，不启用 TLS。
     pub fn builder(host: impl Into<String>, client_id: impl Into<String>) -> MqttConfigBuilder {
         Self {
             host: host.into(),
@@ -248,6 +322,9 @@ impl MqttConfig {
         }
     }
 
+    /// 校验连接配置的本地约束。
+    ///
+    /// 该方法不连接 broker，只检查字段为空、成对认证字段、TLS 开关和 Last Will 消息合法性。
     pub fn validate(&self) -> MqttResult<()> {
         if self.host.trim().is_empty() {
             return Err(MqttError::InvalidConfig("host cannot be blank".to_owned()));
@@ -307,62 +384,74 @@ impl MqttConfig {
         Ok(())
     }
 
+    /// 设置 broker 端口。
     pub fn port(mut self, value: u16) -> Self {
         self.port = value;
         self
     }
 
+    /// 设置认证用户名。
     pub fn username(mut self, value: impl Into<String>) -> Self {
         self.username = Some(value.into());
         self
     }
 
+    /// 设置认证密码。
     pub fn password(mut self, value: impl Into<String>) -> Self {
         self.password = Some(value.into());
         self
     }
 
+    /// 设置 keep-alive 秒数。
     pub fn keep_alive_secs(mut self, value: u64) -> Self {
         self.keep_alive_secs = value;
         self
     }
 
+    /// 设置 clean session。
     pub fn clean_session(mut self, value: bool) -> Self {
         self.clean_session = value;
         self
     }
 
+    /// 设置请求通道容量。
     pub fn request_channel_capacity(mut self, value: usize) -> Self {
         self.request_channel_capacity = value;
         self
     }
 
+    /// 设置最大 inflight 包数量。
     pub fn inflight(mut self, value: u16) -> Self {
         self.inflight = value;
         self
     }
 
+    /// 设置连接超时秒数。
     pub fn connect_timeout_secs(mut self, value: u64) -> Self {
         self.connect_timeout_secs = value;
         self
     }
 
+    /// 设置后台轮询线程的接收超时毫秒数。
     pub fn poll_timeout_ms(mut self, value: u64) -> Self {
         self.poll_timeout_ms = value;
         self
     }
 
+    /// 显式设置是否启用 TLS。
     pub fn use_tls(mut self, value: bool) -> Self {
         self.use_tls = value;
         self
     }
 
+    /// 设置 CA 证书路径并自动启用 TLS。
     pub fn ca_path(mut self, value: impl Into<String>) -> Self {
         self.ca_path = Some(value.into());
         self.use_tls = true;
         self
     }
 
+    /// 设置客户端证书和私钥路径并自动启用 TLS。
     pub fn client_auth_paths(
         mut self,
         cert_path: impl Into<String>,
@@ -374,19 +463,25 @@ impl MqttConfig {
         self
     }
 
+    /// 设置 Last Will 消息。
     pub fn last_will(mut self, value: MqttMessage) -> Self {
         self.last_will = Some(value);
         self
     }
 
+    /// 完成构建并执行本地配置校验。
     pub fn build(self) -> MqttResult<MqttConfig> {
         self.validate()?;
         Ok(self)
     }
 }
 
+/// `MqttConfig` 采用自身作为轻量 builder。
 pub type MqttConfigBuilder = MqttConfig;
 
+/// 同步 MQTT 客户端。
+///
+/// 客户端内部持有 `rumqttc::Client` 和一个后台轮询线程；收到的发布消息通过内部通道交给 `receive` 系列方法。
 pub struct MqttClient {
     config: MqttConfig,
     client: Client,
@@ -396,6 +491,9 @@ pub struct MqttClient {
 }
 
 impl MqttClient {
+    /// 连接 broker 并启动后台轮询线程。
+    ///
+    /// 返回成功表示本地 client 已创建并开始轮询；broker 侧认证、网络断开等运行期问题仍可能在后续 API 中暴露。
     pub fn connect(config: MqttConfig) -> MqttResult<Self> {
         config.validate()?;
 
@@ -424,10 +522,12 @@ impl MqttClient {
         })
     }
 
+    /// 返回客户端持有的连接配置。
     pub fn config(&self) -> &MqttConfig {
         &self.config
     }
 
+    /// 发布一条 MQTT 消息。
     pub fn publish(&self, message: &MqttMessage) -> MqttResult<()> {
         message.validate()?;
         self.client.publish(
@@ -439,6 +539,7 @@ impl MqttClient {
         Ok(())
     }
 
+    /// 构建并发布一条 UTF-8 字符串消息。
     pub fn publish_str(
         &self,
         topic: impl Into<String>,
@@ -454,6 +555,7 @@ impl MqttClient {
         self.publish(&message)
     }
 
+    /// 订阅单个 topic filter。
     pub fn subscribe(&self, topic_filter: impl Into<String>, qos: MqttQoS) -> MqttResult<()> {
         let subscription = MqttSubscription::new(topic_filter, qos);
         subscription.validate()?;
@@ -462,6 +564,9 @@ impl MqttClient {
         Ok(())
     }
 
+    /// 批量订阅多个 topic filter。
+    ///
+    /// 空订阅列表会返回 `MqttError::InvalidSubscription`。
     pub fn subscribe_many(
         &self,
         subscriptions: impl IntoIterator<Item = MqttSubscription>,
@@ -483,6 +588,7 @@ impl MqttClient {
         Ok(())
     }
 
+    /// 取消订阅单个 topic filter。
     pub fn unsubscribe(&self, topic_filter: impl Into<String>) -> MqttResult<()> {
         let topic_filter = topic_filter.into();
         if topic_filter.trim().is_empty() {
@@ -494,6 +600,9 @@ impl MqttClient {
         Ok(())
     }
 
+    /// 阻塞接收下一条发布消息。
+    ///
+    /// 如果后台轮询线程已经结束并关闭通道，则返回 `MqttError::ReceiveDisconnected`。
     pub fn receive(&self) -> MqttResult<MqttReceivedMessage> {
         let receiver = self
             .receiver
@@ -502,6 +611,9 @@ impl MqttClient {
         receiver.recv().map_err(|_| MqttError::ReceiveDisconnected)
     }
 
+    /// 在指定超时时间内接收下一条发布消息。
+    ///
+    /// 超时返回 `Ok(None)`；通道断开返回 `MqttError::ReceiveDisconnected`。
     pub fn receive_timeout(&self, timeout: Duration) -> MqttResult<Option<MqttReceivedMessage>> {
         let receiver = self
             .receiver
@@ -514,6 +626,9 @@ impl MqttClient {
         }
     }
 
+    /// 在超时窗口内收集最多 `max_messages` 条消息。
+    ///
+    /// `max_messages` 为 0 时立即返回空列表；该方法不会延长总超时时间。
     pub fn collect_messages(
         &self,
         max_messages: usize,
@@ -537,6 +652,9 @@ impl MqttClient {
         Ok(messages)
     }
 
+    /// 主动断开连接并等待后台轮询线程退出。
+    ///
+    /// `Drop` 也会做清理，但显式调用可以把后台线程 panic 映射为可见错误。
     pub fn disconnect(&self) -> MqttResult<()> {
         self.stop.store(true, Ordering::SeqCst);
         let _ = self.client.disconnect();
