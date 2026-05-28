@@ -25,141 +25,153 @@ use uuid::Uuid;
 
 // ─── Plugin Metadata ────────────────────────────────────────────────
 
-/// Plugin manifest shipped inside every `.azplugin` bundle.
+/// 每个 `.azplugin` 包内携带的插件清单。
+///
+/// 清单是插件进入宿主前的静态契约，宿主会据此完成版本、入口点、扩展点和权限检查。
 #[apply(serde_eq)]
 pub struct PluginManifest {
-    /// Unique plugin identifier (e.g. "com.addzero.rhai-engine").
+    /// 全局唯一插件标识，例如 `com.addzero.rhai-engine`。
     pub id: String,
-    /// Human-readable name.
+    /// 面向用户展示的插件名称。
     pub name: String,
-    /// Semver version.
+    /// 插件自身的 SemVer 版本。
     pub version: String,
-    /// Short description.
+    /// 插件能力摘要。
     pub description: String,
-    /// Plugin author/organization.
+    /// 插件作者或组织。
     pub author: String,
-    /// Minimum AIO platform version required.
+    /// 插件要求的最低 AIO 平台版本。
     pub min_platform_version: String,
-    /// WASM binary entry point.
+    /// WASM 二进制入口路径或入口符号。
     pub entry: String,
-    /// Extension points this plugin contributes to.
+    /// 插件声明要挂载的扩展点。
     pub extension_points: Vec<ExtensionPoint>,
-    /// Permissions requested by this plugin.
+    /// 插件请求的宿主权限。
     pub permissions: Vec<String>,
-    /// Arbitrary metadata key-value pairs.
+    /// 扩展元数据键值对。
     pub metadata: BTreeMap<String, String>,
 }
 
-/// Where this plugin hooks into the platform.
+/// 插件可挂载到平台的扩展点。
 #[apply(serde_kebab_eq)]
 pub enum ExtensionPoint {
-    /// Adds a new script engine (Rhai, Python, etc.).
+    /// 注册新的脚本引擎，例如 Rhai 或 Python。
     ScriptEngine,
-    /// Adds AI capabilities (LLM provider, prompt template).
+    /// 注册 AI 能力，例如 LLM provider 或 prompt 模板。
     AiProvider,
-    /// Adds menu items or UI pages.
+    /// 注入菜单项或 UI 页面。
     UiContribution,
-    /// Adds task flow node types.
+    /// 注册任务流节点类型。
     TaskNode,
-    /// Adds CLI command.
+    /// 注册 CLI 命令。
     CliCommand,
-    /// Adds a low-code template generator.
+    /// 注册低代码模板生成器。
     TemplateGenerator,
-    /// Custom extension point (free-form string).
+    /// 自定义扩展点名称。
     Custom(String),
 }
 
 // ─── Plugin Lifecycle ───────────────────────────────────────────────
 
-/// State of a plugin within the runtime.
+/// 插件在宿主运行时中的生命周期状态。
 #[apply(serde_kebab_code_enum)]
 pub enum PluginState {
-    /// Plugin is installed but not active.
+    /// 插件已安装但尚未激活。
     Installed,
-    /// Plugin is running and contributing extensions.
+    /// 插件已运行并正在贡献扩展能力。
     Active,
-    /// Plugin has been paused (extensions unavailable).
+    /// 插件已暂停，扩展能力不可用。
     Disabled,
-    /// Plugin encountered an error.
+    /// 插件进入错误状态。
     Error,
 }
 
-/// Runtime handle for a loaded plugin.
+/// 宿主加载插件后返回的运行时句柄。
 #[apply(serde_eq)]
 pub struct PluginHandle {
+    /// 本次加载生成的运行时实例 id。
     pub id: Uuid,
+    /// 插件静态清单。
     pub manifest: PluginManifest,
+    /// 插件当前生命周期状态。
     pub state: PluginState,
 }
 
 // ─── Extension Trait (the core contract) ────────────────────────────
 
-/// Every WASM plugin must implement this trait.
-/// This is the **host-side view** — the Wasmtime runtime calls these
-/// methods through the WIT interface.
+/// 所有 WASM 插件都必须满足的宿主侧生命周期契约。
+///
+/// 这是宿主观察到的 trait 形态；具体 Wasmtime/WIT 绑定负责把 WASM 调用桥接到这些生命周期方法。
 pub trait Plugin: Send + Sync {
-    /// Called when the plugin is loaded.
+    /// 插件被加载到宿主时调用。
     fn on_load(&mut self) -> Result<(), PluginError>;
 
-    /// Called when the plugin is activated (start contributing extensions).
+    /// 插件被启用、开始贡献扩展能力时调用。
     fn on_enable(&mut self) -> Result<(), PluginError>;
 
-    /// Called when the plugin is deactivated.
+    /// 插件被禁用、停止贡献扩展能力时调用。
     fn on_disable(&mut self) -> Result<(), PluginError>;
 
-    /// Called when the plugin is unloaded.
+    /// 插件从宿主卸载前调用。
     fn on_unload(&mut self) -> Result<(), PluginError>;
 
-    /// Return the plugin's manifest.
+    /// 返回插件清单。
     fn manifest(&self) -> &PluginManifest;
 
-    /// Return the current state.
+    /// 返回插件当前状态。
     fn state(&self) -> PluginState;
 }
 
 // ─── Plugin Registry (host-side) ────────────────────────────────────
 
-/// The plugin registry manages the lifecycle of all loaded plugins.
+/// 宿主侧插件注册表，负责统一管理已加载插件的生命周期。
 pub trait PluginRegistry: Send + Sync {
-    /// Load a plugin from its WASM binary and manifest.
+    /// 根据插件清单和 WASM 字节加载插件。
     fn load(
         &self,
         manifest: PluginManifest,
         wasm_bytes: Vec<u8>,
     ) -> Result<PluginHandle, PluginError>;
 
-    /// Unload a plugin by its runtime id.
+    /// 按运行时 id 卸载插件。
     fn unload(&self, id: &Uuid) -> Result<(), PluginError>;
 
-    /// Enable a loaded plugin.
+    /// 启用已加载插件。
     fn enable(&self, id: &Uuid) -> Result<(), PluginError>;
 
-    /// Disable a loaded plugin.
+    /// 禁用已加载插件。
     fn disable(&self, id: &Uuid) -> Result<(), PluginError>;
 
-    /// List all loaded plugins.
+    /// 列出当前已加载插件。
     fn list(&self) -> Vec<PluginHandle>;
 }
 
 // ─── Error ──────────────────────────────────────────────────────────
 
+/// 插件加载、权限校验和运行期生命周期操作错误。
 #[apply(error_eq)]
 pub enum PluginError {
+    /// 请求的插件不存在。
     #[error("plugin not found: {0}")]
     NotFound(String),
 
+    /// 同一插件已被加载。
     #[error("plugin already loaded: {0}")]
     AlreadyLoaded(String),
 
+    /// 宿主不支持插件声明的扩展点。
     #[error("unsupported extension point: {0}")]
     UnsupportedExtension(String),
 
+    /// 插件请求的权限被宿主策略拒绝。
     #[error("permission denied: {0}")]
     PermissionDenied(String),
 
+    /// WASM 运行时或绑定层返回错误。
     #[error("WASM error: {0}")]
     Wasm(String),
 
+    /// 其他插件生命周期错误。
     #[error("{0}")]
     Other(String),
 }
@@ -170,12 +182,14 @@ mod tests {
 
     #[test]
     fn plugin_state_codes_follow_manifest_values() {
+        // 状态 code 是插件清单和宿主持久化之间的稳定 wire 值。
         assert_eq!(PluginState::Installed.code(), "installed");
         assert_eq!(PluginState::from_code("active"), Some(PluginState::Active));
     }
 
     #[test]
     fn extension_points_keep_manifest_wire_values() {
+        // 扩展点使用 kebab-case，确保 JSON 清单可读且跨语言稳定。
         assert_eq!(
             serde_json::to_string(&ExtensionPoint::ScriptEngine).expect("serialize"),
             r#""script-engine""#

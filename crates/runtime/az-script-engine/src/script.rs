@@ -1,4 +1,7 @@
-//! Common contracts for embeddable script engines.
+//! 可嵌入脚本引擎的通用契约。
+//!
+//! 本模块只定义脚本运行请求、输出、引擎 trait、工厂和注册表。具体 Rhai、Python、
+//! Bash 等运行器放在各自实现 crate 中，通过 [`ScriptEngineFactory`] 注入宿主。
 
 use az_derive_aliases::{apply, error_eq, plain_default, serde_eq, serde_lower_code_enum};
 use az_sandbox::sandbox::SandboxPolicy;
@@ -8,7 +11,7 @@ use std::pin::Pin;
 
 // ─── Script Types ───────────────────────────────────────────────────
 
-/// Supported script languages.
+/// 平台当前识别的脚本语言。
 #[apply(serde_lower_code_enum)]
 pub enum ScriptLang {
     Curl,
@@ -18,96 +21,99 @@ pub enum ScriptLang {
     Bash,
 }
 
-/// Input to a script execution.
+/// 一次脚本执行的输入。
 #[apply(serde_eq)]
 pub struct ScriptInput {
-    /// The script source code.
+    /// 脚本源码。
     pub source: String,
-    /// Script language.
+    /// 脚本语言。
     pub lang: ScriptLang,
-    /// Variables passed into the script scope.
+    /// 注入脚本作用域的变量。
     pub vars: BTreeMap<String, serde_json::Value>,
-    /// Sandbox policy for this execution.
+    /// 本次执行使用的沙箱策略。
     pub policy: SandboxPolicy,
-    /// Timeout in seconds (0 = no timeout).
+    /// 执行超时时间，单位秒；`0` 表示不设置超时。
     pub timeout_secs: u64,
 }
 
-/// Output from a script execution.
+/// 一次脚本执行的输出。
 #[apply(serde_eq)]
 pub struct ScriptOutput {
-    /// Exit code (0 = success).
+    /// 进程式执行语义下的退出码，`0` 表示成功。
     pub exit_code: i32,
-    /// Captured stdout.
+    /// 捕获到的标准输出。
     pub stdout: String,
-    /// Captured stderr.
+    /// 捕获到的标准错误。
     pub stderr: String,
-    /// Variables exported from the script scope.
+    /// 脚本执行后导出的变量。
     pub vars: BTreeMap<String, serde_json::Value>,
-    /// Execution duration in milliseconds.
+    /// 执行耗时，单位毫秒。
     pub duration_ms: u64,
 }
 
 // ─── Engine Trait ───────────────────────────────────────────────────
 
-/// Future returned by script execution methods.
+/// 脚本异步执行方法返回的 boxed future。
 pub type ScriptFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-/// Unified script engine trait.
+/// 统一脚本引擎接口。
 ///
-/// Implementations: RhaiEngine, PythonEngine, TypeScriptEngine, BashEngine.
+/// 宿主只依赖这个 trait 调度脚本；具体实现可以来自内置 crate，也可以来自插件工厂。
 pub trait ScriptEngine: Send + Sync {
-    /// The language this engine handles.
+    /// 当前引擎负责的脚本语言。
     fn lang(&self) -> ScriptLang;
 
-    /// Execute a script synchronously (blocking the calling thread).
-    /// For async execution, use `run_async`.
+    /// 同步执行脚本，会阻塞当前调用线程。
+    ///
+    /// 异步宿主应优先调用 [`ScriptEngine::run_async`]。
     fn run(&self, input: ScriptInput) -> ScriptOutput;
 
-    /// Execute a script asynchronously.
+    /// 异步执行脚本。
     fn run_async<'a>(&'a self, input: ScriptInput) -> ScriptFuture<'a, ScriptOutput>;
 }
 
-/// Boxed script engine implementation.
+/// boxed 脚本引擎 trait object。
 pub type BoxScriptEngine = Box<dyn ScriptEngine>;
 
-/// Factory boundary for plugin crates that provide script engines.
+/// 脚本引擎 provider 的工厂边界。
+///
+/// 插件 crate 或宿主适配层通过工厂交付新引擎实例，避免注册表持有具体实现类型。
 pub trait ScriptEngineFactory: Send + Sync {
-    /// Language produced by this factory.
+    /// 当前工厂生产的脚本语言。
     fn lang(&self) -> ScriptLang;
 
-    /// Build a fresh script engine instance.
+    /// 构建一个新的脚本引擎实例。
     fn build(&self) -> BoxScriptEngine;
 }
 
 // ─── Engine Registry ────────────────────────────────────────────────
 
-/// A registry of all available script engines.
+/// 可用脚本引擎注册表。
 pub trait ScriptEngineRegistry: Send + Sync {
-    /// Register a script engine.
+    /// 注册或替换脚本引擎。
     fn register(&mut self, engine: BoxScriptEngine);
 
-    /// Get an engine for the given language.
+    /// 按语言获取脚本引擎。
     fn get(&self, lang: ScriptLang) -> Option<&dyn ScriptEngine>;
 
-    /// List all registered languages.
+    /// 列出已注册脚本语言。
     fn languages(&self) -> Vec<ScriptLang>;
 }
 
-/// In-memory script engine registry for hosts that compose engines directly.
+/// 面向直接组合场景的内存脚本引擎注册表。
 #[apply(plain_default)]
 pub struct InMemoryScriptEngineRegistry {
     engines: Vec<Box<dyn ScriptEngine>>,
 }
 
 impl InMemoryScriptEngineRegistry {
-    /// Create an empty registry.
+    /// 创建空注册表。
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Create a registry preloaded with engine implementations.
+    /// 使用已有引擎实例创建注册表。
     #[must_use]
     pub fn with_engines(engines: Vec<BoxScriptEngine>) -> Self {
         let mut registry = Self::new();
@@ -117,7 +123,7 @@ impl InMemoryScriptEngineRegistry {
         registry
     }
 
-    /// Create a registry by asking each plugin factory for an engine.
+    /// 通过一组工厂创建注册表。
     #[must_use]
     pub fn with_factories(factories: &[&dyn ScriptEngineFactory]) -> Self {
         let mut registry = Self::new();
@@ -127,13 +133,13 @@ impl InMemoryScriptEngineRegistry {
         registry
     }
 
-    /// Build and register one engine through its factory contract.
+    /// 通过工厂契约构建并注册一个引擎。
     pub fn register_from_factory(&mut self, factory: &dyn ScriptEngineFactory) {
         register_engine_factory(self, factory);
     }
 }
 
-/// Build an engine through a factory and register it into any script engine registry.
+/// 通过工厂构建引擎，并注册到任意脚本引擎注册表。
 pub fn register_engine_factory(
     registry: &mut dyn ScriptEngineRegistry,
     factory: &dyn ScriptEngineFactory,
@@ -180,17 +186,22 @@ impl ScriptEngineRegistry for InMemoryScriptEngineRegistry {
 
 // ─── Error ──────────────────────────────────────────────────────────
 
+/// 脚本引擎选择、沙箱校验和执行阶段的错误。
 #[apply(error_eq)]
 pub enum ScriptError {
+    /// 没有注册可处理该语言的引擎。
     #[error("unsupported language: {0:?}")]
     UnsupportedLanguage(ScriptLang),
 
+    /// 脚本执行超过指定超时时间。
     #[error("script execution timed out after {0}s")]
     Timeout(u64),
 
+    /// 请求的操作违反沙箱策略。
     #[error("sandbox policy violation: {0}")]
     SandboxViolation(String),
 
+    /// 具体引擎返回执行错误。
     #[error("engine error: {0}")]
     Engine(String),
 }
@@ -248,6 +259,7 @@ mod tests {
 
     #[test]
     fn script_lang_codes_follow_lowercase_wires() {
+        // 语言 code 是 API、插件清单和持久化配置之间的稳定 wire 值。
         assert_eq!(ScriptLang::TypeScript.code(), "typescript");
         assert_eq!(ScriptLang::from_code("bash"), Some(ScriptLang::Bash));
         assert_eq!(
@@ -272,6 +284,7 @@ mod tests {
             result: "rhai-v2",
         }));
 
+        // 注册同语言引擎时应替换旧实例，同时语言列表保持 enum 声明顺序。
         assert_eq!(
             registry.languages(),
             vec![ScriptLang::Rhai, ScriptLang::Bash]
@@ -305,6 +318,7 @@ mod tests {
 
         let registry = InMemoryScriptEngineRegistry::with_factories(&[&bash, &rhai]);
 
+        // 工厂注入应与直接注册保持一致，宿主不需要知道具体引擎类型。
         assert_eq!(
             registry.languages(),
             vec![ScriptLang::Rhai, ScriptLang::Bash]
@@ -340,6 +354,7 @@ mod tests {
         registry.register_from_factory(&first);
         registry.register_from_factory(&second);
 
+        // 同一语言只能保留一个活跃引擎，后注册的工厂覆盖旧实例。
         assert_eq!(registry.languages(), vec![ScriptLang::Rhai]);
         assert_eq!(
             registry
