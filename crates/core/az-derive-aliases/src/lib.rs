@@ -11,7 +11,7 @@ macro_rules! __az_derive_aliases_derive {
     };
 }
 
-/// Deserializable response/input type with debug formatting.
+/// 带 `Debug` 和 `Deserialize` 的可反序列化响应/输入类型。
 #[macro_export]
 macro_rules! deserialize_debug {
     ($item:item) => {
@@ -19,7 +19,7 @@ macro_rules! deserialize_debug {
     };
 }
 
-/// Deserializable response/input type with clone support and debug formatting.
+/// 带 `Clone`、`Debug` 和 `Deserialize` 的可反序列化响应/输入类型。
 #[macro_export]
 macro_rules! deserialize_clone_debug {
     ($item:item) => {
@@ -30,7 +30,7 @@ macro_rules! deserialize_clone_debug {
     };
 }
 
-/// Deserializable camelCase response/input type with clone support and debug formatting.
+/// 带 camelCase serde 约定、`Clone`、`Debug` 和 `Deserialize` 的响应/输入类型。
 #[macro_export]
 macro_rules! deserialize_camel_clone_debug {
     ($item:item) => {
@@ -41,7 +41,7 @@ macro_rules! deserialize_camel_clone_debug {
     };
 }
 
-/// Serializable request/output type with debug formatting.
+/// 带 `Debug` 和 `Serialize` 的可序列化请求/输出类型。
 #[macro_export]
 macro_rules! serialize_debug {
     ($item:item) => {
@@ -49,7 +49,7 @@ macro_rules! serialize_debug {
     };
 }
 
-/// Serializable request/output type with clone support and debug formatting.
+/// 带 `Clone`、`Debug` 和 `Serialize` 的可序列化请求/输出类型。
 #[macro_export]
 macro_rules! serialize_clone_debug {
     ($item:item) => {
@@ -60,7 +60,7 @@ macro_rules! serialize_clone_debug {
     };
 }
 
-/// Serializable camelCase request/output type with clone support and debug formatting.
+/// 带 camelCase serde 约定、`Clone`、`Debug` 和 `Serialize` 的请求/输出类型。
 #[macro_export]
 macro_rules! serialize_camel_clone_debug {
     ($item:item) => {
@@ -71,7 +71,7 @@ macro_rules! serialize_camel_clone_debug {
     };
 }
 
-/// Serializable request/output type with equality and debug traits.
+/// 带序列化、相等和调试 trait 的请求/输出类型。
 #[macro_export]
 macro_rules! serialize_eq {
     ($item:item) => {
@@ -82,7 +82,7 @@ macro_rules! serialize_eq {
     };
 }
 
-/// Serializable small request/output type with `Copy`, equality, and debug traits.
+/// 带 `Copy`、序列化、相等和调试 trait 的小型请求/输出类型。
 #[macro_export]
 macro_rules! serialize_copy_eq {
     ($item:item) => {
@@ -93,7 +93,7 @@ macro_rules! serialize_copy_eq {
     };
 }
 
-/// Serializable request/output type with partial equality and debug traits.
+/// 带序列化、部分相等和调试 trait 的请求/输出类型。
 #[macro_export]
 macro_rules! serialize_partial_eq {
     ($item:item) => {
@@ -104,7 +104,7 @@ macro_rules! serialize_partial_eq {
     };
 }
 
-/// Serializable camelCase request/output type with equality and debug traits.
+/// 带 camelCase serde 约定、相等和调试 trait 的请求/输出类型。
 #[macro_export]
 macro_rules! serialize_camel_eq {
     ($item:item) => {
@@ -115,7 +115,7 @@ macro_rules! serialize_camel_eq {
     };
 }
 
-/// Serializable camelCase request/output type with partial equality and debug traits.
+/// 带 camelCase serde 约定、部分相等和调试 trait 的请求/输出类型。
 #[macro_export]
 macro_rules! serialize_camel_partial_eq {
     ($item:item) => {
@@ -126,7 +126,7 @@ macro_rules! serialize_camel_partial_eq {
     };
 }
 
-/// Serde-friendly kebab-case data type with equality and debug traits.
+/// 带 kebab-case serde 约定、相等和调试 trait 的数据类型。
 #[macro_export]
 macro_rules! serde_kebab_eq {
     ($item:item) => {
@@ -137,7 +137,7 @@ macro_rules! serde_kebab_eq {
     };
 }
 
-/// Serde-friendly uppercase data type with equality and debug traits.
+/// 带 UPPERCASE serde 约定、相等和调试 trait 的数据类型。
 #[macro_export]
 macro_rules! serde_upper_eq {
     ($item:item) => {
@@ -148,7 +148,7 @@ macro_rules! serde_upper_eq {
     };
 }
 
-/// Deserializable response/input type with equality and debug traits.
+/// 带反序列化、相等和调试 trait 的响应/输入类型。
 #[macro_export]
 macro_rules! deserialize_eq {
     ($item:item) => {
@@ -159,7 +159,7 @@ macro_rules! deserialize_eq {
     };
 }
 
-/// Deserializable response/input type with partial equality and debug traits.
+/// 带反序列化、部分相等和调试 trait 的响应/输入类型。
 #[macro_export]
 macro_rules! deserialize_partial_eq {
     ($item:item) => {
@@ -170,7 +170,7 @@ macro_rules! deserialize_partial_eq {
     };
 }
 
-/// Deserializable camelCase response/input type with equality and debug traits.
+/// 带 camelCase serde 约定、反序列化、相等和调试 trait 的响应/输入类型。
 #[macro_export]
 macro_rules! deserialize_camel_eq {
     ($item:item) => {
@@ -181,7 +181,7 @@ macro_rules! deserialize_camel_eq {
     };
 }
 
-/// Deserializable camelCase response/input type with partial equality and debug traits.
+/// 带 camelCase serde 约定、反序列化、部分相等和调试 trait 的响应/输入类型。
 #[macro_export]
 macro_rules! deserialize_camel_partial_eq {
     ($item:item) => {
@@ -192,7 +192,7 @@ macro_rules! deserialize_camel_partial_eq {
     };
 }
 
-/// Lightweight conversion type with `derive_more::From`, debug, and equality.
+/// 带 `derive_more::From`、调试和相等 trait 的轻量转换类型。
 #[macro_export]
 macro_rules! from_eq {
     ($item:item) => {
@@ -200,7 +200,7 @@ macro_rules! from_eq {
     };
 }
 
-/// Lightweight conversion type with `derive_more::From` and full equality.
+/// 带 `derive_more::From` 和完整相等 trait 的轻量转换类型。
 #[macro_export]
 macro_rules! from_plain_eq {
     ($item:item) => {
@@ -211,7 +211,7 @@ macro_rules! from_plain_eq {
     };
 }
 
-/// Lightweight `Copy` conversion type with `derive_more::From` and full equality.
+/// 带 `Copy`、`derive_more::From` 和完整相等 trait 的轻量转换类型。
 #[macro_export]
 macro_rules! from_copy_eq {
     ($item:item) => {
@@ -222,7 +222,7 @@ macro_rules! from_copy_eq {
     };
 }
 
-/// Lightweight conversion/value type with `derive_more::From` and `Display`.
+/// 带 `derive_more::From` 和 `Display` 的轻量转换/值类型。
 #[macro_export]
 macro_rules! from_display {
     ($item:item) => {
@@ -233,7 +233,7 @@ macro_rules! from_display {
     };
 }
 
-/// Comparable error type with `thiserror` plus common equality/debug traits.
+/// 带 `thiserror` 以及常用相等/调试 trait 的可比较错误类型。
 #[macro_export]
 macro_rules! error_eq {
     ($item:item) => {
@@ -244,7 +244,7 @@ macro_rules! error_eq {
     };
 }
 
-/// Small comparable error type with `thiserror`, `Copy`, and common equality/debug traits.
+/// 带 `thiserror`、`Copy` 以及常用相等/调试 trait 的小型可比较错误类型。
 #[macro_export]
 macro_rules! error_copy_eq {
     ($item:item) => {
@@ -255,7 +255,7 @@ macro_rules! error_copy_eq {
     };
 }
 
-/// Basic library error type with `thiserror` and debug formatting.
+/// 带 `thiserror` 和调试格式化的基础库错误类型。
 #[macro_export]
 macro_rules! error {
     ($item:item) => {
@@ -263,7 +263,7 @@ macro_rules! error {
     };
 }
 
-/// Implements `From` by matching explicit source patterns to target expressions.
+/// 通过显式源 pattern 到目标表达式的映射实现 `From`。
 #[macro_export]
 macro_rules! impl_from_match {
     ($source:ty => $target:ty { $($pattern:pat => $expr:expr),+ $(,)? }) => {
@@ -277,7 +277,7 @@ macro_rules! impl_from_match {
     };
 }
 
-/// Implements a const inherent method that maps enum config patterns to kind expressions.
+/// 实现一个 const 固有方法，将配置枚举 pattern 映射到 kind 表达式。
 #[macro_export]
 macro_rules! impl_enum_kind {
     ($source:ty => $target:ty, $method:ident { $($pattern:pat => $kind:expr),+ $(,)? }) => {
@@ -292,7 +292,7 @@ macro_rules! impl_enum_kind {
     };
 }
 
-/// Implements `Default` by returning an explicit expression.
+/// 通过返回显式表达式实现 `Default`。
 #[macro_export]
 macro_rules! impl_default {
     ($target:ty => $expr:expr $(,)?) => {
@@ -304,7 +304,7 @@ macro_rules! impl_default {
     };
 }
 
-/// Implements `From` for structs where one field comes from the source and the rest use `Default`.
+/// 为“一个字段来自源值，其余字段使用 `Default`”的结构体实现 `From`。
 #[macro_export]
 macro_rules! impl_from_with_default {
     ($source:ty => $target:ty { $field:ident: |$value:ident| $expr:expr $(,)? }) => {
@@ -319,7 +319,7 @@ macro_rules! impl_from_with_default {
     };
 }
 
-/// Implements `FromStr` by delegating to an inherent parser such as `Self::parse`.
+/// 通过委托到 `Self::parse` 等固有解析函数实现 `FromStr`。
 #[macro_export]
 macro_rules! impl_from_str_parse {
     ($target:ty => $error:ty, $parse:path $(,)?) => {
@@ -342,7 +342,7 @@ macro_rules! impl_from_str_parse {
     };
 }
 
-/// Implements `TryFrom<&str>` by delegating to an inherent parser such as `Self::parse`.
+/// 通过委托到 `Self::parse` 等固有解析函数实现 `TryFrom<&str>`。
 #[macro_export]
 macro_rules! impl_try_from_str_parse {
     ($target:ty => $error:ty, $parse:path $(,)?) => {
@@ -365,7 +365,7 @@ macro_rules! impl_try_from_str_parse {
     };
 }
 
-/// Serde-friendly data type with equality and debug traits.
+/// 带 serde、相等和调试 trait 的数据类型。
 #[macro_export]
 macro_rules! serde_eq {
     ($item:item) => {
@@ -383,7 +383,7 @@ macro_rules! serde_eq {
     };
 }
 
-/// Serde-friendly camelCase data type with equality and debug traits.
+/// 带 camelCase serde 约定、相等和调试 trait 的数据类型。
 #[macro_export]
 macro_rules! serde_camel_eq {
     ($item:item) => {
@@ -394,7 +394,7 @@ macro_rules! serde_camel_eq {
     };
 }
 
-/// Serde-friendly identity type with equality, debug, and hash traits.
+/// 带 serde、相等、调试和 hash trait 的标识类型。
 #[macro_export]
 macro_rules! serde_eq_hash {
     ($item:item) => {
@@ -405,7 +405,7 @@ macro_rules! serde_eq_hash {
     };
 }
 
-/// Serde-friendly identity type with equality, debug, hash, and `Display`.
+/// 带 serde、相等、调试、hash 和 `Display` 的标识类型。
 #[macro_export]
 macro_rules! serde_eq_hash_display {
     ($item:item) => {
@@ -416,7 +416,7 @@ macro_rules! serde_eq_hash_display {
     };
 }
 
-/// Serde-friendly ordered identity type with equality, debug, hash, and ordering traits.
+/// 带 serde、相等、调试、hash 和排序 trait 的有序标识类型。
 #[macro_export]
 macro_rules! serde_eq_hash_ord {
     ($item:item) => {
@@ -427,7 +427,7 @@ macro_rules! serde_eq_hash_ord {
     };
 }
 
-/// Serde-friendly ordered identity type with equality, debug, hash, ordering, and `Display`.
+/// 带 serde、相等、调试、hash、排序和 `Display` 的有序标识类型。
 #[macro_export]
 macro_rules! serde_eq_hash_ord_display {
     ($item:item) => {
@@ -438,7 +438,7 @@ macro_rules! serde_eq_hash_ord_display {
     };
 }
 
-/// Serde-friendly ordered identity type with equality, hash, `Display`, and forwarded `AsRef`.
+/// 带 serde、相等、hash、`Display` 和转发式 `AsRef` 的有序标识类型。
 #[macro_export]
 macro_rules! serde_eq_hash_ord_display_as_ref {
     ($item:item) => {
@@ -502,7 +502,7 @@ macro_rules! __az_derive_aliases_string_value_object_impl {
     };
 }
 
-/// SQLx row-mapped type with `FromRow`.
+/// 带 SQLx `FromRow` 的行映射类型。
 #[macro_export]
 macro_rules! sqlx_from_row {
     ($item:item) => {
@@ -510,7 +510,7 @@ macro_rules! sqlx_from_row {
     };
 }
 
-/// Shaku component type with `Component`.
+/// 带 Shaku `Component` 的组件类型。
 #[macro_export]
 macro_rules! shaku_component {
     ($item:item) => {
@@ -518,7 +518,7 @@ macro_rules! shaku_component {
     };
 }
 
-/// Serde-friendly data type with equality traits and no generated `Debug`.
+/// 带 serde 和相等 trait、但不生成 `Debug` 的数据类型。
 #[macro_export]
 macro_rules! serde_eq_no_debug {
     ($item:item) => {
@@ -535,7 +535,7 @@ macro_rules! serde_eq_no_debug {
     };
 }
 
-/// Serde-friendly data type with equality traits and redacted `Debug`.
+/// 带 serde、相等 trait 和脱敏 `Debug` 的数据类型。
 #[macro_export]
 macro_rules! serde_eq_redacted {
     ($item:item) => {
@@ -553,7 +553,7 @@ macro_rules! serde_eq_redacted {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, `Eq`, and `PartialEq`.
+/// 带 `Clone`、`Debug`、`Eq` 和 `PartialEq` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_eq {
     ($item:item) => {
@@ -561,7 +561,7 @@ macro_rules! plain_eq {
     };
 }
 
-/// Plain structural type with `Clone` only.
+/// 仅带 `Clone` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_clone {
     ($item:item) => {
@@ -569,7 +569,7 @@ macro_rules! plain_clone {
     };
 }
 
-/// Plain structural type with `Clone` and `Copy`.
+/// 带 `Clone` 和 `Copy` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_copy {
     ($item:item) => {
@@ -577,7 +577,7 @@ macro_rules! plain_copy {
     };
 }
 
-/// Plain structural type with `Default` only.
+/// 仅带 `Default` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_default {
     ($item:item) => {
@@ -585,7 +585,7 @@ macro_rules! plain_default {
     };
 }
 
-/// Plain structural type with `Debug` only.
+/// 仅带 `Debug` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_debug {
     ($item:item) => {
@@ -593,7 +593,7 @@ macro_rules! plain_debug {
     };
 }
 
-/// Plain structural type with `Clone` and `Debug`.
+/// 带 `Clone` 和 `Debug` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_clone_debug {
     ($item:item) => {
@@ -601,7 +601,7 @@ macro_rules! plain_clone_debug {
     };
 }
 
-/// Plain structural type with `Debug` and `Default`.
+/// 带 `Debug` 和 `Default` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_default_debug {
     ($item:item) => {
@@ -612,7 +612,7 @@ macro_rules! plain_default_debug {
     };
 }
 
-/// Plain structural type with `Clone` and `Default`.
+/// 带 `Clone` 和 `Default` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_default_clone {
     ($item:item) => {
@@ -623,7 +623,7 @@ macro_rules! plain_default_clone {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, and `Default`.
+/// 带 `Clone`、`Debug` 和 `Default` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_default_clone_debug {
     ($item:item) => {
@@ -634,7 +634,7 @@ macro_rules! plain_default_clone_debug {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, and `Display`.
+/// 带 `Clone`、`Debug` 和 `Display` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_clone_debug_display {
     ($item:item) => {
@@ -645,7 +645,7 @@ macro_rules! plain_clone_debug_display {
     };
 }
 
-/// Plain structural type with `Clone`, `Eq`, and `PartialEq` but no generated `Debug`.
+/// 带 `Clone`、`Eq` 和 `PartialEq`、但不生成 `Debug` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_eq_no_debug {
     ($item:item) => {
@@ -653,7 +653,7 @@ macro_rules! plain_eq_no_debug {
     };
 }
 
-/// Plain structural type with equality traits and redacted `Debug`.
+/// 带相等 trait 和脱敏 `Debug` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_eq_redacted {
     ($item:item) => {
@@ -661,7 +661,7 @@ macro_rules! plain_eq_redacted {
     };
 }
 
-/// Plain structural type with `Clone` and redacted `Debug`.
+/// 带 `Clone` 和脱敏 `Debug` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_clone_redacted {
     ($item:item) => {
@@ -669,7 +669,7 @@ macro_rules! plain_clone_redacted {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, `Eq`, `Hash`, and `PartialEq`.
+/// 带 `Clone`、`Debug`、`Eq`、`Hash` 和 `PartialEq` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_eq_hash {
     ($item:item) => {
@@ -680,7 +680,7 @@ macro_rules! plain_eq_hash {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, `Eq`, `Hash`, `PartialEq`, and `Display`.
+/// 带 `Clone`、`Debug`、`Eq`、`Hash`、`PartialEq` 和 `Display` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_eq_hash_display {
     ($item:item) => {
@@ -691,7 +691,7 @@ macro_rules! plain_eq_hash_display {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, and `PartialEq`.
+/// 带 `Clone`、`Debug` 和 `PartialEq` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_partial_eq {
     ($item:item) => {
@@ -699,7 +699,7 @@ macro_rules! plain_partial_eq {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, `PartialEq`, and `Display`.
+/// 带 `Clone`、`Debug`、`PartialEq` 和 `Display` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_partial_eq_display {
     ($item:item) => {
@@ -710,7 +710,7 @@ macro_rules! plain_partial_eq_display {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, `Default`, `Eq`, and `PartialEq`.
+/// 带 `Clone`、`Debug`、`Default`、`Eq` 和 `PartialEq` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_default_eq {
     ($item:item) => {
@@ -721,7 +721,7 @@ macro_rules! plain_default_eq {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, `Default`, and `PartialEq`.
+/// 带 `Clone`、`Debug`、`Default` 和 `PartialEq` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_default_partial_eq {
     ($item:item) => {
@@ -732,7 +732,7 @@ macro_rules! plain_default_partial_eq {
     };
 }
 
-/// Plain structural type with `Clone`, `Copy`, `Debug`, `Eq`, and `PartialEq`.
+/// 带 `Clone`、`Copy`、`Debug`、`Eq` 和 `PartialEq` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_copy_eq {
     ($item:item) => {
@@ -740,7 +740,7 @@ macro_rules! plain_copy_eq {
     };
 }
 
-/// Plain structural type with `Clone`, `Copy`, `Debug`, `Eq`, `PartialEq`, and `Display`.
+/// 带 `Clone`、`Copy`、`Debug`、`Eq`、`PartialEq` 和 `Display` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_copy_eq_display {
     ($item:item) => {
@@ -751,7 +751,7 @@ macro_rules! plain_copy_eq_display {
     };
 }
 
-/// Plain structural type with `Clone`, `Copy`, `Debug`, `Eq`, `Hash`, and `PartialEq`.
+/// 带 `Clone`、`Copy`、`Debug`、`Eq`、`Hash` 和 `PartialEq` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_copy_eq_hash {
     ($item:item) => {
@@ -762,8 +762,7 @@ macro_rules! plain_copy_eq_hash {
     };
 }
 
-/// Plain structural type with `Clone`, `Copy`, `Debug`, `Eq`, `Hash`, `PartialEq`, `PartialOrd`,
-/// `Ord`, and `Display`.
+/// 带 `Clone`、`Copy`、`Debug`、`Eq`、`Hash`、`PartialEq`、`PartialOrd`、`Ord` 和 `Display` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_copy_eq_hash_ord_display {
     ($item:item) => {
@@ -774,8 +773,7 @@ macro_rules! plain_copy_eq_hash_ord_display {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, `Eq`, `Hash`, `PartialEq`, `PartialOrd`, `Ord`,
-/// and `Display`.
+/// 带 `Clone`、`Debug`、`Eq`、`Hash`、`PartialEq`、`PartialOrd`、`Ord` 和 `Display` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_eq_hash_ord_display {
     ($item:item) => {
@@ -786,7 +784,7 @@ macro_rules! plain_eq_hash_ord_display {
     };
 }
 
-/// Plain structural type with `Clone`, `Copy`, `Debug`, `Eq`, `Hash`, `PartialEq`, and `Display`.
+/// 带 `Clone`、`Copy`、`Debug`、`Eq`、`Hash`、`PartialEq` 和 `Display` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_copy_eq_hash_display {
     ($item:item) => {
@@ -797,7 +795,7 @@ macro_rules! plain_copy_eq_hash_display {
     };
 }
 
-/// Plain structural type with `Clone`, `Debug`, `Eq`, `PartialEq`, and `Display`.
+/// 带 `Clone`、`Debug`、`Eq`、`PartialEq` 和 `Display` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_eq_display {
     ($item:item) => {
@@ -808,7 +806,7 @@ macro_rules! plain_eq_display {
     };
 }
 
-/// Plain structural type with `Clone`, `Copy`, `Debug`, `Default`, `Eq`, and `PartialEq`.
+/// 带 `Clone`、`Copy`、`Debug`、`Default`、`Eq` 和 `PartialEq` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_default_copy_eq {
     ($item:item) => {
@@ -819,7 +817,7 @@ macro_rules! plain_default_copy_eq {
     };
 }
 
-/// Plain structural type with `Clone`, `Copy`, `Debug`, `Default`, `Eq`, `PartialEq`, and `Display`.
+/// 带 `Clone`、`Copy`、`Debug`、`Default`、`Eq`、`PartialEq` 和 `Display` 的纯内存结构类型。
 #[macro_export]
 macro_rules! plain_default_copy_eq_display {
     ($item:item) => {
@@ -830,7 +828,7 @@ macro_rules! plain_default_copy_eq_display {
     };
 }
 
-/// Clap parser type with `Debug` and `Parser`.
+/// 带 `Debug` 和 Clap `Parser` 的解析器类型。
 #[macro_export]
 macro_rules! clap_parser {
     ($item:item) => {
@@ -838,7 +836,7 @@ macro_rules! clap_parser {
     };
 }
 
-/// Clap args type with `Debug` and `Args`.
+/// 带 `Debug` 和 Clap `Args` 的参数类型。
 #[macro_export]
 macro_rules! clap_args {
     ($item:item) => {
@@ -846,7 +844,7 @@ macro_rules! clap_args {
     };
 }
 
-/// Clap args type with `Debug`, `Args`, `Clone`, and `Default`.
+/// 带 `Debug`、Clap `Args`、`Clone` 和 `Default` 的参数类型。
 #[macro_export]
 macro_rules! clap_args_default_clone {
     ($item:item) => {
@@ -857,7 +855,7 @@ macro_rules! clap_args_default_clone {
     };
 }
 
-/// Clap subcommand type with `Debug` and `Subcommand`.
+/// 带 `Debug` 和 Clap `Subcommand` 的子命令类型。
 #[macro_export]
 macro_rules! clap_subcommand {
     ($item:item) => {
@@ -865,7 +863,7 @@ macro_rules! clap_subcommand {
     };
 }
 
-/// Dioxus props type with `Clone` and `PartialEq`.
+/// 带 Dioxus `Props`、`Clone` 和 `PartialEq` 的属性类型。
 #[macro_export]
 macro_rules! dioxus_props {
     ($item:item) => {
@@ -873,7 +871,7 @@ macro_rules! dioxus_props {
     };
 }
 
-/// Clap value enum with `Debug`, `Clone`, `Copy`, and equality traits.
+/// 带 `Debug`、`Clone`、`Copy` 和相等 trait 的 Clap value enum。
 #[macro_export]
 macro_rules! clap_value_enum {
     ($item:item) => {
@@ -884,7 +882,7 @@ macro_rules! clap_value_enum {
     };
 }
 
-/// SeaORM entity model with `Clone`, `Debug`, and `PartialEq`.
+/// 带 `Clone`、`Debug`、`PartialEq` 和 SeaORM `DeriveEntityModel` 的实体模型。
 #[macro_export]
 macro_rules! seaorm_entity_model {
     ($item:item) => {
@@ -892,7 +890,7 @@ macro_rules! seaorm_entity_model {
     };
 }
 
-/// SeaORM entity model with `Clone`, `Debug`, `PartialEq`, and `Eq`.
+/// 带 `Clone`、`Debug`、`PartialEq`、`Eq` 和 SeaORM `DeriveEntityModel` 的实体模型。
 #[macro_export]
 macro_rules! seaorm_entity_model_eq {
     ($item:item) => {
@@ -903,7 +901,7 @@ macro_rules! seaorm_entity_model_eq {
     };
 }
 
-/// SeaORM relation enum with the standard iterator and debug traits.
+/// 带 SeaORM 关系派生、标准迭代和调试 trait 的关系枚举。
 #[macro_export]
 macro_rules! seaorm_relation {
     ($item:item) => {
@@ -911,7 +909,7 @@ macro_rules! seaorm_relation {
     };
 }
 
-/// Serde-friendly small data type with equality, debug, and `Copy`.
+/// 带 serde、相等、调试和 `Copy` 的小型数据类型。
 #[macro_export]
 macro_rules! serde_eq_copy {
     ($item:item) => {
@@ -922,7 +920,7 @@ macro_rules! serde_eq_copy {
     };
 }
 
-/// Serde-friendly small data type with equality, debug, `Copy`, and `Display`.
+/// 带 serde、相等、调试、`Copy` 和 `Display` 的小型数据类型。
 #[macro_export]
 macro_rules! serde_eq_copy_display {
     ($item:item) => {
@@ -933,7 +931,7 @@ macro_rules! serde_eq_copy_display {
     };
 }
 
-/// `Copy` value wrapper with `derive_more::From`, debug, equality, and `Display`.
+/// 带 `Copy`、`derive_more::From`、调试、相等和 `Display` 的值包装类型。
 #[macro_export]
 macro_rules! from_copy_eq_display {
     ($item:item) => {
@@ -944,7 +942,7 @@ macro_rules! from_copy_eq_display {
     };
 }
 
-/// Serde-friendly small data type with equality, debug, `Copy`, `Default`, and hash traits.
+/// 带 serde、相等、调试、`Copy`、`Default` 和 hash trait 的小型数据类型。
 #[macro_export]
 macro_rules! serde_eq_default_copy {
     ($item:item) => {
@@ -955,7 +953,7 @@ macro_rules! serde_eq_default_copy {
     };
 }
 
-/// Ordered serde-friendly small data type with equality, debug, `Copy`, `Default`, and hash traits.
+/// 带 serde、相等、调试、`Copy`、`Default`、hash 和排序 trait 的有序小型数据类型。
 #[macro_export]
 macro_rules! serde_eq_default_copy_ord {
     ($item:item) => {
@@ -966,7 +964,7 @@ macro_rules! serde_eq_default_copy_ord {
     };
 }
 
-/// Serde-friendly data type with equality, debug, and `Default`.
+/// 带 serde、相等、调试和 `Default` 的数据类型。
 #[macro_export]
 macro_rules! serde_eq_default {
     ($item:item) => {
@@ -977,7 +975,7 @@ macro_rules! serde_eq_default {
     };
 }
 
-/// Serde-friendly camelCase data type with equality, debug, and `Default`.
+/// 带 camelCase serde 约定、相等、调试和 `Default` 的数据类型。
 #[macro_export]
 macro_rules! serde_camel_eq_default {
     ($item:item) => {
@@ -988,7 +986,7 @@ macro_rules! serde_camel_eq_default {
     };
 }
 
-/// Serde-friendly data type with partial equality and debug traits.
+/// 带 serde、部分相等和调试 trait 的数据类型。
 #[macro_export]
 macro_rules! serde_partial_eq {
     ($item:item) => {
@@ -1005,7 +1003,7 @@ macro_rules! serde_partial_eq {
     };
 }
 
-/// Serde-friendly camelCase data type with partial equality and debug traits.
+/// 带 camelCase serde 约定、部分相等和调试 trait 的数据类型。
 #[macro_export]
 macro_rules! serde_camel_partial_eq {
     ($item:item) => {
@@ -1016,7 +1014,7 @@ macro_rules! serde_camel_partial_eq {
     };
 }
 
-/// Serde-friendly snake_case data type with partial equality and debug traits.
+/// 带 snake_case serde 约定、部分相等和调试 trait 的数据类型。
 #[macro_export]
 macro_rules! serde_code_partial_eq {
     ($item:item) => {
@@ -1027,7 +1025,7 @@ macro_rules! serde_code_partial_eq {
     };
 }
 
-/// Serde-friendly data type with partial equality, debug, and `Default`.
+/// 带 serde、部分相等、调试和 `Default` 的数据类型。
 #[macro_export]
 macro_rules! serde_partial_eq_default {
     ($item:item) => {
@@ -1038,7 +1036,7 @@ macro_rules! serde_partial_eq_default {
     };
 }
 
-/// Serde-friendly camelCase data type with partial equality, debug, and `Default`.
+/// 带 camelCase serde 约定、部分相等、调试和 `Default` 的数据类型。
 #[macro_export]
 macro_rules! serde_camel_partial_eq_default {
     ($item:item) => {
@@ -1049,7 +1047,7 @@ macro_rules! serde_camel_partial_eq_default {
     };
 }
 
-/// Serde-friendly data type with partial equality, debug, and `Display`.
+/// 带 serde、部分相等、调试和 `Display` 的数据类型。
 #[macro_export]
 macro_rules! serde_partial_eq_display {
     ($item:item) => {
@@ -1060,7 +1058,7 @@ macro_rules! serde_partial_eq_display {
     };
 }
 
-/// Code-backed data type with snake_case serde, string conversion, and hash derives.
+/// 带 snake_case serde、字符串转换和 hash 派生的代码类型。
 #[macro_export]
 macro_rules! serde_code {
     ($item:item) => {
@@ -1140,7 +1138,7 @@ macro_rules! __az_derive_aliases_code_default_enum_impl {
     };
 }
 
-/// Code-backed data type with kebab-case serde, string conversion, and hash derives.
+/// 带 kebab-case serde、字符串转换和 hash 派生的代码类型。
 #[macro_export]
 macro_rules! serde_kebab_code {
     ($item:item) => {
@@ -1148,7 +1146,7 @@ macro_rules! serde_kebab_code {
     };
 }
 
-/// Code-backed data type with lowercase serde, string conversion, and hash derives.
+/// 带 lowercase serde、字符串转换和 hash 派生的代码类型。
 #[macro_export]
 macro_rules! serde_lower_code {
     ($item:item) => {
@@ -1156,7 +1154,7 @@ macro_rules! serde_lower_code {
     };
 }
 
-/// Code-backed data type with snake_case serde, custom `Display`, and hash derives.
+/// 带 snake_case serde、自定义 `Display` 和 hash 派生的代码类型。
 #[macro_export]
 macro_rules! serde_code_display {
     ($item:item) => {
@@ -1169,7 +1167,7 @@ macro_rules! serde_code_display {
     };
 }
 
-/// Code-backed enum with lowercase serde, string conversion, variant list, and `code` helpers.
+/// 带 lowercase serde、字符串转换、变体列表和 `code` helper 的代码枚举。
 #[macro_export]
 macro_rules! serde_lower_code_enum {
     (
@@ -1189,7 +1187,7 @@ macro_rules! serde_lower_code_enum {
     };
 }
 
-/// Code-backed enum with snake_case serde, string conversion, variant list, and `code` helpers.
+/// 带 snake_case serde、字符串转换、变体列表和 `code` helper 的代码枚举。
 #[macro_export]
 macro_rules! serde_code_enum {
     (
@@ -1247,7 +1245,7 @@ macro_rules! serde_code_display_props_enum {
     };
 }
 
-/// Code-backed enum with kebab-case serde, string conversion, variant list, and `code` helpers.
+/// 带 kebab-case serde、字符串转换、变体列表和 `code` helper 的代码枚举。
 #[macro_export]
 macro_rules! serde_kebab_code_enum {
     (
@@ -1267,7 +1265,7 @@ macro_rules! serde_kebab_code_enum {
     };
 }
 
-/// Code-backed enum with snake_case serde, custom `Display`, variant list, and `code` helpers.
+/// 带 snake_case serde、自定义 `Display`、变体列表和 `code` helper 的代码枚举。
 #[macro_export]
 macro_rules! serde_code_display_enum {
     (
@@ -1287,7 +1285,7 @@ macro_rules! serde_code_display_enum {
     };
 }
 
-/// Plain code-backed enum with snake_case string conversion, custom `Display`, and variant list.
+/// 带 snake_case 字符串转换、自定义 `Display` 和变体列表的纯内存代码枚举。
 #[macro_export]
 macro_rules! plain_code_display_enum {
     (
@@ -1332,7 +1330,7 @@ macro_rules! __az_derive_aliases_plain_code {
     };
 }
 
-/// Plain code-backed enum with snake_case string conversion and variant list.
+/// 带 snake_case 字符串转换和变体列表的纯内存代码枚举。
 #[macro_export]
 macro_rules! plain_code_enum {
     (
@@ -1353,7 +1351,7 @@ macro_rules! plain_code_enum {
     };
 }
 
-/// Plain code-backed enum with `Default`, snake_case string conversion, and variant list.
+/// 带 `Default`、snake_case 字符串转换和变体列表的纯内存代码枚举。
 #[macro_export]
 macro_rules! plain_code_default_enum {
     (
@@ -1374,7 +1372,7 @@ macro_rules! plain_code_default_enum {
     };
 }
 
-/// Plain code-backed enum with custom `Display`, explicit string conversion, and variant list.
+/// 带自定义 `Display`、显式字符串转换和变体列表的纯内存代码枚举。
 #[macro_export]
 macro_rules! plain_code_display_no_default_enum {
     (
@@ -1395,7 +1393,7 @@ macro_rules! plain_code_display_no_default_enum {
     };
 }
 
-/// Plain code-backed enum with custom `Display`, variant messages, and no generated `Default`.
+/// 带自定义 `Display`、变体说明文案且不生成 `Default` 的纯内存代码枚举。
 #[macro_export]
 macro_rules! plain_code_display_message_no_default_enum {
     (
@@ -1414,7 +1412,7 @@ macro_rules! plain_code_display_message_no_default_enum {
     };
 }
 
-/// Code-backed enum usable as both a Clap `ValueEnum` and a serde/string code enum.
+/// 同时可作为 Clap `ValueEnum` 和 serde/string code enum 使用的代码枚举。
 #[macro_export]
 macro_rules! clap_code_enum {
     (
@@ -1433,7 +1431,7 @@ macro_rules! clap_code_enum {
     };
 }
 
-/// Code-backed data type with snake_case serde, string conversion, `Default`, and hash derives.
+/// 带 snake_case serde、字符串转换、`Default` 和 hash 派生的代码类型。
 #[macro_export]
 macro_rules! serde_code_default {
     ($item:item) => {
@@ -1444,7 +1442,7 @@ macro_rules! serde_code_default {
     };
 }
 
-/// Code-backed enum with snake_case serde, `Default`, variant list, and `code` helpers.
+/// 带 snake_case serde、`Default`、变体列表和 `code` helper 的代码枚举。
 #[macro_export]
 macro_rules! serde_code_default_enum {
     (
@@ -1465,7 +1463,7 @@ macro_rules! serde_code_default_enum {
     };
 }
 
-/// Ordered code-backed data type for cases that need `Ord`/`PartialOrd` and hash derives.
+/// 面向需要 `Ord`/`PartialOrd` 和 hash 派生场景的有序代码类型。
 #[macro_export]
 macro_rules! serde_code_ord {
     ($item:item) => {
@@ -1476,7 +1474,7 @@ macro_rules! serde_code_ord {
     };
 }
 
-/// Ordered code-backed data type with snake_case serde, `Default`, custom `Display`, and hash derives.
+/// 带 snake_case serde、`Default`、自定义 `Display` 和 hash 派生的有序代码类型。
 #[macro_export]
 macro_rules! serde_code_default_ord_display {
     ($item:item) => {
@@ -1489,7 +1487,7 @@ macro_rules! serde_code_default_ord_display {
     };
 }
 
-/// Ordered code-backed data type with custom `Display` and hash derives.
+/// 带自定义 `Display` 和 hash 派生的有序代码类型。
 #[macro_export]
 macro_rules! serde_code_ord_display {
     ($item:item) => {
@@ -1502,7 +1500,7 @@ macro_rules! serde_code_ord_display {
     };
 }
 
-/// Ordered code-backed enum with snake_case serde, `Default`, custom `Display`, variant list, and `code` helpers.
+/// 带 snake_case serde、`Default`、自定义 `Display`、变体列表和 `code` helper 的有序代码枚举。
 #[macro_export]
 macro_rules! serde_code_default_ord_display_enum {
     (
@@ -1523,7 +1521,7 @@ macro_rules! serde_code_default_ord_display_enum {
     };
 }
 
-/// Ordered code-backed enum with snake_case serde, variant list, and `code` helpers.
+/// 带 snake_case serde、变体列表和 `code` helper 的有序代码枚举。
 #[macro_export]
 macro_rules! serde_code_ord_enum {
     (
@@ -1543,7 +1541,7 @@ macro_rules! serde_code_ord_enum {
     };
 }
 
-/// Ordered code-backed enum with snake_case serde, custom `Display`, variant list, and `code` helpers.
+/// 带 snake_case serde、自定义 `Display`、变体列表和 `code` helper 的有序代码枚举。
 #[macro_export]
 macro_rules! serde_code_ord_display_enum {
     (
@@ -1563,7 +1561,7 @@ macro_rules! serde_code_ord_display_enum {
     };
 }
 
-/// Ordered code-backed data type with `Default` and hash derives.
+/// 带 `Default` 和 hash 派生的有序代码类型。
 #[macro_export]
 macro_rules! serde_code_default_ord {
     ($item:item) => {
@@ -1574,7 +1572,7 @@ macro_rules! serde_code_default_ord {
     };
 }
 
-/// Ordered code-backed enum with `Default`, variant list, and `code` helpers.
+/// 带 `Default`、变体列表和 `code` helper 的有序代码枚举。
 #[macro_export]
 macro_rules! serde_code_default_ord_enum {
     (
