@@ -28,19 +28,30 @@ use az_remote_model::{
 use chrono::Utc;
 use uuid::Uuid;
 
+/// 远程宿主平台适配层统一返回类型。
 pub type HostResult<T> = Result<T, HostError>;
 
+/// 宿主平台适配错误。
 #[apply(error_eq)]
 pub enum HostError {
+    /// 当前平台适配器不可用。
     #[error("platform adapter is unavailable: {0}")]
     Unavailable(String),
 }
 
+/// 远程宿主端平台适配器接口。
+///
+/// 不同操作系统可通过该 trait 注入设备描述和权限提示，信令层只依赖统一契约。
 pub trait HostPlatformAdapter {
+    /// 生成当前宿主设备描述。
     fn descriptor(&self, device_name: &str) -> HostResult<DeviceDescriptor>;
+    /// 返回当前平台需要用户授予的权限提示。
     fn permission_hint(&self) -> &'static str;
 }
 
+/// 默认宿主平台适配器。
+///
+/// 该实现只做平台检测和设备描述组装，不执行真实屏幕捕获或输入控制。
 #[apply(plain_default_copy_eq)]
 pub struct MockHostPlatformAdapter;
 
@@ -69,6 +80,7 @@ impl HostPlatformAdapter for MockHostPlatformAdapter {
     }
 }
 
+/// 检测当前编译目标和运行会话对应的远控平台。
 #[must_use]
 pub fn current_platform() -> RemotePlatform {
     if cfg!(target_os = "macos") {

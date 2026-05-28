@@ -11,13 +11,18 @@ use az_desktop_plugin::{
 pub use az_derive_aliases as __az_desktop_plugin_registry_derive_aliases;
 pub use inventory;
 
+/// 分布式 desktop 插件注册项。
 #[apply(plain_copy)]
 pub struct DesktopPluginRegistration {
+    /// 构造 boxed desktop plugin 的函数指针。
     pub constructor: fn() -> Box<DesktopPlugin>,
 }
 
 inventory::collect!(DesktopPluginRegistration);
 
+/// 从 `inventory` 分布式注册表加载全部 desktop 插件。
+///
+/// 返回列表按插件名排序，保证宿主 shell 每次启动时顺序稳定。
 pub fn load_plugins() -> Vec<Box<DesktopPlugin>> {
     let mut plugins: Vec<_> = inventory::iter::<DesktopPluginRegistration>
         .into_iter()
@@ -27,7 +32,7 @@ pub fn load_plugins() -> Vec<Box<DesktopPlugin>> {
     plugins
 }
 
-/// Builds a default-constructible desktop plugin as a boxed plugin trait object.
+/// 将可默认构造的 desktop 插件包装成 boxed trait object。
 pub fn default_desktop_plugin_constructor<P>() -> Box<DesktopPlugin>
 where
     P: Default
@@ -42,7 +47,7 @@ where
     Box::new(P::default())
 }
 
-/// Registers a default-constructible desktop plugin in the distributed registry.
+/// 将可默认构造的 desktop 插件注册到分布式注册表。
 #[macro_export]
 macro_rules! register_desktop_plugin {
     ($plugin_ty:ty $(,)?) => {
@@ -54,7 +59,7 @@ macro_rules! register_desktop_plugin {
     };
 }
 
-/// Declares a default-constructible desktop plugin and registers it in the distributed registry.
+/// 声明一个可默认构造的 desktop 插件，并注册到分布式注册表。
 #[macro_export]
 macro_rules! declare_desktop_plugin {
     (
@@ -145,6 +150,7 @@ mod tests {
                 _ => None,
             })
             .collect::<Vec<_>>();
+        // registry 加载顺序需要稳定，避免 shell 导航在启动间跳动。
         assert_eq!(names, vec!["alpha", "beta"]);
     }
 }
