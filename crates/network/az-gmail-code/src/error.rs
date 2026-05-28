@@ -1,51 +1,51 @@
 use az_derive_aliases::{apply, error};
 
-/// Result alias for Gmail verification-code operations.
+/// Gmail 验证码操作的统一结果类型。
 pub type GmailCodeResult<T> = Result<T, GmailCodeError>;
 
-/// Errors returned by Gmail API and verification-code parsing helpers.
+/// Gmail API 调用和验证码解析辅助函数返回的错误。
 #[apply(error)]
 pub enum GmailCodeError {
-    /// Client configuration failed validation before a request was sent.
+    /// 客户端配置在发送请求前未通过校验。
     #[error("invalid config: {0}")]
     InvalidConfig(String),
-    /// The configured Gmail API base URL cannot be parsed.
+    /// 配置的 Gmail API 基础 URL 无法解析。
     #[error("invalid base url `{0}`")]
     InvalidBaseUrl(String),
-    /// A Gmail API path could not be joined against the base URL.
+    /// Gmail API 路径无法拼接到基础 URL。
     #[error("invalid request path `{0}`")]
     InvalidPath(String),
-    /// Network transport failed or the response body could not be read.
+    /// 网络传输失败或响应体读取失败。
     #[error("request failed: {0}")]
     Transport(#[from] reqwest::Error),
-    /// JSON serialization or deserialization failed.
+    /// JSON 序列化或反序列化失败。
     #[error("failed to process json payload: {0}")]
     Json(#[from] serde_json::Error),
-    /// Gmail returned a non-success HTTP status.
+    /// Gmail 返回了非成功 HTTP 状态码。
     #[error("request to `{url}` returned HTTP {status}: {body}")]
     HttpStatus {
-        /// Final request URL.
+        /// 最终请求 URL。
         url: String,
-        /// HTTP status code.
+        /// HTTP 状态码。
         status: u16,
-        /// Response body decoded lossily as UTF-8.
+        /// 以 UTF-8 lossy 方式解码的响应体。
         body: String,
     },
-    /// A Gmail message body part had invalid base64url content.
+    /// Gmail 邮件正文 part 包含非法 base64url 内容。
     #[error("failed to decode Gmail message body for part `{part_id}`: {source}")]
     BodyDecode {
-        /// Gmail message part id, or a synthesized id for the root body.
+        /// Gmail 邮件 part ID，或为根正文合成的 ID。
         part_id: String,
-        /// Base64 decoder source error.
+        /// Base64 解码器源错误。
         #[source]
         source: base64::DecodeError,
     },
-    /// A decoded body part was not valid UTF-8.
+    /// 解码后的正文 part 不是合法 UTF-8。
     #[error("Gmail message body for part `{part_id}` is not valid UTF-8: {source}")]
     BodyUtf8 {
-        /// Gmail message part id, or a synthesized id for the root body.
+        /// Gmail 邮件 part ID，或为根正文合成的 ID。
         part_id: String,
-        /// UTF-8 decoder source error.
+        /// UTF-8 解码器源错误。
         #[source]
         source: std::string::FromUtf8Error,
     },

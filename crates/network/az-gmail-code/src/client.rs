@@ -7,7 +7,7 @@ use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 
-/// Blocking Gmail API client for reading verification codes from an authorized mailbox.
+/// 从已授权邮箱读取验证码的阻塞式 Gmail API 客户端。
 #[apply(plain_clone_debug)]
 pub struct GmailCodeClient {
     base_url: Url,
@@ -17,12 +17,12 @@ pub struct GmailCodeClient {
 }
 
 impl GmailCodeClient {
-    /// Creates a client with default Gmail API settings and the required OAuth access token.
+    /// 使用默认 Gmail API 设置和必填 OAuth 访问令牌创建客户端。
     pub fn new(access_token: impl Into<String>) -> GmailCodeResult<Self> {
         Self::with_config(GmailCodeConfig::builder(access_token).build()?)
     }
 
-    /// Creates a client from explicit configuration.
+    /// 使用显式配置创建客户端。
     pub fn with_config(config: GmailCodeConfig) -> GmailCodeResult<Self> {
         config.validate()?;
         let base_url = Url::parse(&config.base_url)
@@ -43,7 +43,7 @@ impl GmailCodeClient {
         })
     }
 
-    /// Searches Gmail messages using the query object and returns matching message ids.
+    /// 使用查询对象搜索 Gmail 邮件，并返回匹配的邮件 ID。
     pub fn list_message_ids(&self, query: &GmailCodeQuery) -> GmailCodeResult<Vec<String>> {
         let response = self.list_messages(query)?;
         Ok(response
@@ -53,7 +53,7 @@ impl GmailCodeClient {
             .collect())
     }
 
-    /// Fetches one Gmail message by id with `format=full`.
+    /// 按邮件 ID 拉取 `format=full` 的 Gmail 邮件详情。
     pub fn get_message(&self, message_id: impl AsRef<str>) -> GmailCodeResult<GmailMessage> {
         let message_id = message_id.as_ref();
         let path = format!(
@@ -68,10 +68,9 @@ impl GmailCodeClient {
         Self::read_json(response)
     }
 
-    /// Finds the latest verification code from messages matching the query.
+    /// 从匹配查询的邮件中查找最新验证码。
     ///
-    /// Gmail returns list results newest-first for typical searches, so this method
-    /// inspects messages in listed order and returns the first code found.
+    /// Gmail 常规搜索结果通常按新到旧排序，因此该方法按列表顺序检查邮件，并返回第一个命中的验证码。
     pub fn find_latest_code(
         &self,
         query: GmailCodeQuery,

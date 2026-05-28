@@ -18,17 +18,17 @@ static DEFAULT_CODE_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     .collect()
 });
 
-/// Controls numeric verification-code extraction.
+/// 控制数字验证码提取范围的选项。
 #[apply(plain_copy_eq)]
 pub struct ExtractCodeOptions {
-    /// Minimum digit count after separators are removed.
+    /// 移除分隔符后的最小数字位数。
     pub min_digits: usize,
-    /// Maximum digit count after separators are removed.
+    /// 移除分隔符后的最大数字位数。
     pub max_digits: usize,
 }
 
 impl ExtractCodeOptions {
-    /// Creates extraction options. Values are normalized to a practical OTP range.
+    /// 创建提取选项；取值会被归一化到实用 OTP 范围。
     #[must_use]
     pub const fn new(min_digits: usize, max_digits: usize) -> Self {
         let min_digits = if min_digits < 3 { 3 } else { min_digits };
@@ -49,22 +49,22 @@ impl_default!(ExtractCodeOptions => ExtractCodeOptions {
     max_digits: 8,
 });
 
-/// Decoded message body candidate inspected for verification codes.
+/// 已解码、待检查验证码的邮件正文候选。
 #[apply(plain_eq)]
 pub struct MessageBodyCandidate {
-    /// MIME type of the Gmail body part.
+    /// Gmail 正文 part 的 MIME 类型。
     pub mime_type: String,
-    /// Decoded text content.
+    /// 解码后的文本内容。
     pub text: String,
 }
 
-/// Extracts a 4-8 digit verification code from plain text or HTML.
+/// 从纯文本或 HTML 中提取 4 到 8 位数字验证码。
 #[must_use]
 pub fn extract_verification_code(content: impl AsRef<str>) -> Option<String> {
     extract_verification_code_with_options(content, ExtractCodeOptions::default())
 }
 
-/// Extracts a numeric verification code using custom digit-length options.
+/// 使用自定义数字长度选项提取数字验证码。
 #[must_use]
 pub fn extract_verification_code_with_options(
     content: impl AsRef<str>,
@@ -93,7 +93,7 @@ pub fn extract_verification_code_with_options(
     None
 }
 
-/// Collects decoded text/plain and text/html body candidates from a Gmail message.
+/// 从 Gmail 邮件中收集已解码的 `text/plain` 和 `text/html` 正文候选。
 pub fn collect_message_body_candidates(
     message: &GmailMessage,
 ) -> GmailCodeResult<Vec<MessageBodyCandidate>> {

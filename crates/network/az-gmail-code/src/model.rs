@@ -2,20 +2,20 @@ use az_derive_aliases::{apply, plain_eq, serde_eq};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-/// Verification code extracted from a Gmail message.
+/// 从 Gmail 邮件中提取出的验证码。
 #[apply(plain_eq)]
 pub struct ExtractedGmailCode {
-    /// Numeric verification code.
+    /// 数字验证码。
     pub code: String,
-    /// Gmail message id containing the code.
+    /// 包含该验证码的 Gmail 邮件 ID。
     pub message_id: String,
-    /// Optional thread id returned by Gmail.
+    /// Gmail 返回的可选会话 ID。
     pub thread_id: Option<String>,
-    /// Best-effort sender header.
+    /// 尽力读取到的发件人 header。
     pub from: Option<String>,
-    /// Best-effort subject header.
+    /// 尽力读取到的主题 header。
     pub subject: Option<String>,
-    /// MIME type of the body candidate that produced the code.
+    /// 命中该验证码的正文候选 MIME 类型。
     pub source_mime_type: String,
 }
 
@@ -36,55 +36,55 @@ pub(crate) struct GmailMessageSummary {
     pub(crate) thread_id: Option<String>,
 }
 
-/// Gmail message shape needed for verification-code extraction.
+/// 验证码提取所需的 Gmail 邮件结构。
 #[apply(serde_eq)]
 pub struct GmailMessage {
-    /// Gmail message id.
+    /// Gmail 邮件 ID。
     pub id: String,
-    /// Optional Gmail thread id.
+    /// 可选的 Gmail 会话 ID。
     #[serde(default, rename = "threadId")]
     pub thread_id: Option<String>,
-    /// MIME tree root.
+    /// MIME 树根节点。
     #[serde(default)]
     pub payload: Option<GmailMessagePart>,
-    /// Short text snippet returned by Gmail.
+    /// Gmail 返回的短文本摘要。
     #[serde(default)]
     pub snippet: Option<String>,
-    /// Extra Gmail fields not modeled by this crate.
+    /// 本 crate 未建模的额外 Gmail 字段。
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
 
 impl GmailMessage {
-    /// Returns a header value from the root payload, case-insensitively.
+    /// 从根 payload 中按不区分大小写的名称读取 header 值。
     #[must_use]
     pub fn header(&self, name: &str) -> Option<&str> {
         self.payload.as_ref()?.header(name)
     }
 }
 
-/// One part of a Gmail MIME message tree.
+/// Gmail MIME 邮件树中的单个 part。
 #[apply(serde_eq)]
 pub struct GmailMessagePart {
-    /// Gmail part id.
+    /// Gmail part ID。
     #[serde(default, rename = "partId")]
     pub part_id: Option<String>,
-    /// MIME type, for example `text/plain` or `text/html`.
+    /// MIME 类型，例如 `text/plain` 或 `text/html`。
     #[serde(default, rename = "mimeType")]
     pub mime_type: String,
-    /// Message headers for this part.
+    /// 该 part 的邮件 header 列表。
     #[serde(default)]
     pub headers: Vec<GmailMessageHeader>,
-    /// Body metadata and inline payload.
+    /// 正文元数据和内联载荷。
     #[serde(default)]
     pub body: Option<GmailMessagePartBody>,
-    /// Child MIME parts.
+    /// 子 MIME parts。
     #[serde(default)]
     pub parts: Vec<GmailMessagePart>,
 }
 
 impl GmailMessagePart {
-    /// Returns a header value from this part, case-insensitively.
+    /// 从该 part 中按不区分大小写的名称读取 header 值。
     #[must_use]
     pub fn header(&self, name: &str) -> Option<&str> {
         self.headers
@@ -94,22 +94,25 @@ impl GmailMessagePart {
     }
 }
 
-/// Gmail MIME header.
+/// Gmail MIME header。
 #[apply(serde_eq)]
 pub struct GmailMessageHeader {
-    /// Header name.
+    /// Header 名称。
     pub name: String,
-    /// Header value.
+    /// Header 值。
     pub value: String,
 }
 
-/// Gmail message body metadata and inline payload.
+/// Gmail 邮件正文元数据和内联载荷。
 #[apply(serde_eq)]
 pub struct GmailMessagePartBody {
+    /// Gmail API 返回的 base64url 编码正文；附件正文可能为空。
     #[serde(default)]
     pub data: Option<String>,
+    /// Gmail API 报告的正文大小。
     #[serde(default)]
     pub size: Option<u64>,
+    /// 外部附件正文 ID；本 crate 当前不自动拉取附件内容。
     #[serde(default, rename = "attachmentId")]
     pub attachment_id: Option<String>,
 }
