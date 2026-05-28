@@ -1,38 +1,51 @@
-//! Data types and constraints for schema definitions.
+//! GitDB schema 中的数据类型、列约束和列定义。
 
 use std::fmt;
 
-use az_derive_aliases::{apply, serde_code_display_enum, serde_code_partial_eq, serde_partial_eq};
+use az_derive_aliases::{
+    apply, serde_code_display_props_enum, serde_code_partial_eq, serde_partial_eq,
+};
 use serde_json::Value;
+use strum::EnumProperty;
 
-/// SQL-like data types supported by GitDB.
-#[apply(serde_code_display_enum)]
+/// GitDB 支持的 SQL 风格列类型。
+///
+/// `code()` 和 serde wire value 保持小写 snake_case，`Display`/`sql_name()` 保持 SQL 大写名称，
+/// SQL 名通过 `strum::EnumProperty` 记录，避免另维护一张手写 match 表。
+#[apply(serde_code_display_props_enum)]
 pub enum DataType {
-    /// Text/string data (VARCHAR in SQL).
+    /// 文本/字符串数据，对应 SQL 的 `TEXT`。
     #[display("TEXT")]
+    #[strum(props(sql = "TEXT"))]
     Text,
-    /// Integer numbers (BIGINT in SQL).
+    /// 整数数据，对应 SQL 的 `INTEGER`。
     #[display("INTEGER")]
+    #[strum(props(sql = "INTEGER"))]
     Integer,
-    /// Floating point numbers (DOUBLE in SQL).
+    /// 浮点数数据，对应 SQL 的 `REAL`。
     #[display("REAL")]
+    #[strum(props(sql = "REAL"))]
     Float,
-    /// Boolean values.
+    /// 布尔值，对应 SQL 的 `BOOLEAN`。
     #[display("BOOLEAN")]
+    #[strum(props(sql = "BOOLEAN"))]
     Boolean,
-    /// JSON objects or arrays.
+    /// JSON 对象或数组，对应 SQL 的 `JSON`。
     #[display("JSON")]
+    #[strum(props(sql = "JSON"))]
     Json,
-    /// Timestamps (stored as ISO 8601 strings).
+    /// 时间戳，当前以 ISO 8601 字符串存储，对应 SQL 的 `TIMESTAMP`。
     #[display("TIMESTAMP")]
+    #[strum(props(sql = "TIMESTAMP"))]
     Timestamp,
-    /// UUIDs (stored as strings).
+    /// UUID，当前以字符串存储，对应 SQL 的 `UUID`。
     #[display("UUID")]
+    #[strum(props(sql = "UUID"))]
     Uuid,
 }
 
 impl DataType {
-    /// Check if a JSON value matches this data type.
+    /// 判断 JSON 值是否符合当前列类型。
     pub fn matches(&self, value: &Value) -> bool {
         match (self, value) {
             (DataType::Text, Value::String(_)) => true,
@@ -41,87 +54,80 @@ impl DataType {
             (DataType::Boolean, Value::Bool(_)) => true,
             (DataType::Json, Value::Object(_) | Value::Array(_)) => true,
             (DataType::Timestamp, Value::String(s)) => {
-                // Basic ISO 8601 check
+                // 只做轻量格式守卫；真正的时区和精度语义留给上层字段约束。
                 chrono::DateTime::parse_from_rfc3339(s).is_ok()
                     || chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").is_ok()
             }
             (DataType::Uuid, Value::String(s)) => {
-                // Basic UUID format check (8-4-4-4-12)
+                // 这里守住 8-4-4-4-12 的基础形状，不在 catalog 层做完整 UUID 解析。
                 s.len() == 36 && s.chars().filter(|c| *c == '-').count() == 4
             }
             _ => false,
         }
     }
 
-    /// Get the SQL name for this type.
+    /// 返回用于 SQL 展示和 DDL 拼装的大写类型名。
     pub fn sql_name(&self) -> &'static str {
-        match self {
-            DataType::Text => "TEXT",
-            DataType::Integer => "INTEGER",
-            DataType::Float => "REAL",
-            DataType::Boolean => "BOOLEAN",
-            DataType::Json => "JSON",
-            DataType::Timestamp => "TIMESTAMP",
-            DataType::Uuid => "UUID",
-        }
+        self.get_str("sql")
+            .expect("DataType sql property must exist")
     }
 }
 
-/// Column constraints.
+/// 列约束。
 #[apply(serde_code_partial_eq)]
 #[derive(derive_more::Display)]
 pub enum Constraint {
-    /// Column cannot be null.
+    /// 列值不能为空。
     #[display("NOT NULL")]
     NotNull,
-    /// Column values must be unique across all rows.
+    /// 列值在所有行中必须唯一。
     #[display("UNIQUE")]
     Unique,
-    /// Column is the primary key (implies NotNull + Unique).
+    /// 主键约束，语义上同时包含非空和唯一。
     #[display("PRIMARY KEY")]
     PrimaryKey,
-    /// Default value for the column.
+    /// 列默认值。
     #[display("DEFAULT {_0}")]
     Default(Value),
-    /// Check constraint (expression stored as string for now).
+    /// CHECK 约束，当前表达式以字符串形式保存。
     #[display("CHECK ({_0})")]
     Check(String),
 }
 
 impl Constraint {
-    /// Check if this is a NOT NULL constraint.
+    /// 判断约束是否要求非空。
     pub fn is_not_null(&self) -> bool {
         matches!(self, Constraint::NotNull | Constraint::PrimaryKey)
     }
 
-    /// Check if this is a UNIQUE constraint.
+    /// 判断约束是否要求唯一。
     pub fn is_unique(&self) -> bool {
         matches!(self, Constraint::Unique | Constraint::PrimaryKey)
     }
 
-    /// Get the SQL representation of this constraint.
+    /// 返回约束的 SQL 片段展示。
     pub fn sql_name(&self) -> String {
         self.to_string()
     }
 }
 
-/// Full column definition including name, type, and constraints.
+/// 完整列定义，包含列名、类型、约束和可选说明。
 #[apply(serde_partial_eq)]
 pub struct ColumnDef {
-    /// Column name.
+    /// 列名。
     pub name: String,
-    /// Data type.
+    /// 列数据类型。
     pub data_type: DataType,
-    /// Constraints on this column.
+    /// 作用在该列上的约束列表。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub constraints: Vec<Constraint>,
-    /// Optional column description/comment.
+    /// 可选列说明。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
 
 impl ColumnDef {
-    /// Create a new column definition.
+    /// 创建不带约束的列定义。
     pub fn new(name: impl Into<String>, data_type: DataType) -> Self {
         Self {
             name: name.into(),
@@ -131,29 +137,29 @@ impl ColumnDef {
         }
     }
 
-    /// Add a constraint to this column.
+    /// 以 builder 风格追加一个列约束。
     pub fn with_constraint(mut self, constraint: Constraint) -> Self {
         self.constraints.push(constraint);
         self
     }
 
-    /// Set the description.
+    /// 设置列说明。
     pub fn with_description(mut self, desc: impl Into<String>) -> Self {
         self.description = Some(desc.into());
         self
     }
 
-    /// Check if this column is nullable.
+    /// 判断该列是否允许为空。
     pub fn is_nullable(&self) -> bool {
         !self.constraints.iter().any(|c| c.is_not_null())
     }
 
-    /// Check if this column must be unique.
+    /// 判断该列是否必须唯一。
     pub fn is_unique(&self) -> bool {
         self.constraints.iter().any(|c| c.is_unique())
     }
 
-    /// Get the default value, if any.
+    /// 返回列默认值；没有 `DEFAULT` 约束时返回 `None`。
     pub fn default_value(&self) -> Option<&Value> {
         self.constraints.iter().find_map(|c| {
             if let Constraint::Default(v) = c {
@@ -164,7 +170,7 @@ impl ColumnDef {
         })
     }
 
-    /// Validate a value against this column definition.
+    /// 按列类型、非空约束和默认值约束校验输入值。
     pub fn validate(&self, value: Option<&Value>) -> Result<(), String> {
         match value {
             Some(v) => {

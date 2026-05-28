@@ -6,10 +6,11 @@ use az_derive_aliases::{
     plain_code_enum, plain_copy_eq_hash, plain_copy_eq_hash_display,
     plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
     plain_eq_hash_display, serde_camel_eq_default, serde_camel_partial_eq_default,
-    serde_code_default_ord_display_enum, serde_code_enum, serde_code_ord_display_enum,
-    serde_code_partial_eq, serde_code_props_enum, serde_eq_copy_display, serde_eq_hash_display,
-    serde_eq_hash_ord_display_as_ref, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
-    serde_partial_eq_display, serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
+    serde_code_default_ord_display_enum, serde_code_display_props_enum, serde_code_enum,
+    serde_code_ord_display_enum, serde_code_partial_eq, serde_code_props_enum,
+    serde_eq_copy_display, serde_eq_hash_display, serde_eq_hash_ord_display_as_ref,
+    serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum, serde_partial_eq_display,
+    serde_upper_eq, serialize_camel_clone_debug, serialize_camel_eq,
 };
 use clap::ValueEnum;
 use serde_json::Value;
@@ -81,6 +82,13 @@ enum PropertyCode {
     ReadyNow,
     #[strum(props(wire = "paused_now", priority = 3))]
     PausedNow,
+}
+
+#[apply(serde_code_display_props_enum)]
+enum DisplayPropertyCode {
+    #[display("READY")]
+    #[strum(props(sql = "READY"))]
+    ReadyNow,
 }
 
 #[apply(serde_kebab_code_enum)]
@@ -337,6 +345,17 @@ fn serde_code_props_enum_adds_variant_metadata() {
     assert_eq!(PropertyCode::ReadyNow.get_str("wire"), Some("ready_now"));
     assert_eq!(PropertyCode::ReadyNow.get_int("priority"), Some(7));
     assert_eq!(PropertyCode::ALL.len(), 2);
+}
+
+#[test]
+fn serde_code_display_props_enum_keeps_code_display_and_props_separate() {
+    assert_eq!(DisplayPropertyCode::ReadyNow.code(), "ready_now");
+    assert_eq!(DisplayPropertyCode::ReadyNow.to_string(), "READY");
+    assert_eq!(DisplayPropertyCode::ReadyNow.get_str("sql"), Some("READY"));
+    assert_eq!(
+        serde_json::to_value(DisplayPropertyCode::ReadyNow).unwrap(),
+        serde_json::json!("ready_now")
+    );
 }
 
 #[test]

@@ -1157,7 +1157,7 @@ macro_rules! serde_code_enum {
     };
 }
 
-/// Code-backed enum with snake_case serde, `strum::EnumProperty`, variant list, and `code` helpers.
+/// 带 snake_case serde、`strum::EnumProperty`、变体列表和 `code` helper 的代码枚举。
 #[macro_export]
 macro_rules! serde_code_props_enum {
     (
@@ -1167,6 +1167,25 @@ macro_rules! serde_code_props_enum {
         }
     ) => {
         $crate::serde_code_enum! {
+            #[derive(::strum::EnumProperty)]
+            $(#[$meta])*
+            $vis enum $name {
+                $($body)*
+            }
+        }
+    };
+}
+
+/// 带 snake_case serde、自定义 `Display`、`strum::EnumProperty` 和 `code` helper 的代码枚举。
+#[macro_export]
+macro_rules! serde_code_display_props_enum {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($body:tt)*
+        }
+    ) => {
+        $crate::serde_code_display_enum! {
             #[derive(::strum::EnumProperty)]
             $(#[$meta])*
             $vis enum $name {
