@@ -6,8 +6,9 @@ pub mod installer_scanner_utils;
 pub mod paths;
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPageContributionSpec,
-    DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
+    DesktopActionOutcome, DesktopEvent, DesktopExecContext, DesktopInitContext,
+    DesktopPageContributionSpec, DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext,
+    EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use az_software_catalog::SoftwareCatalogDto;
@@ -79,11 +80,13 @@ impl SoftwareCenterPlugin {
         Ok(())
     }
 
-    fn organize(&mut self, ctx: &DesktopExecContext) -> Result<String, String> {
+    fn organize(&mut self, ctx: &DesktopExecContext) -> Result<DesktopActionOutcome, String> {
         let organized = organize_installers().map_err(|err| err.to_string())?;
         let count = organized.len();
         self.refresh(ctx)?;
-        Ok(format!("organized {count} installers into archive targets"))
+        Ok(DesktopActionOutcome::notified(format!(
+            "organized {count} installers into archive targets"
+        )))
     }
 
     fn render_report(&self) -> AnyElement {
@@ -181,27 +184,20 @@ impl
                 ctx.notify(err);
             }
         } else if let Some(action_id) = event.action_id_for_route(Self::ROUTE) {
-            let result = match action_id {
+            let outcome = match action_id {
                 Self::ACTION_REFRESH => self
                     .refresh(ctx)
-                    .map(|()| "software-center refreshed".to_string()),
-                Self::ACTION_SCAN => self
-                    .refresh(ctx)
-                    .map(|()| format!("scanned {} installers", self.scanned.len())),
+                    .map(|()| DesktopActionOutcome::notified("software-center refreshed")),
+                Self::ACTION_SCAN => self.refresh(ctx).map(|()| {
+                    DesktopActionOutcome::notified(format!(
+                        "scanned {} installers",
+                        self.scanned.len()
+                    ))
+                }),
                 Self::ACTION_ORGANIZE => self.organize(ctx),
-                _ => Ok(String::new()),
+                _ => Ok(DesktopActionOutcome::Ignored),
             };
-            match result {
-                Ok(message) if !message.is_empty() => {
-                    ctx.notify(message);
-                    return EventPropagation::Stop;
-                }
-                Ok(_) => {}
-                Err(err) => {
-                    ctx.notify(err);
-                    return EventPropagation::Stop;
-                }
-            }
+            return ctx.apply_action_outcome(outcome);
         }
         EventPropagation::Continue
     }

@@ -12,8 +12,9 @@ use std::env;
 use az_ai_agent::default_model_for;
 use az_assets::{AiModelProviderUpsert, AiProviderKind};
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPageContributionSpec,
-    DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
+    DesktopActionOutcome, DesktopEvent, DesktopExecContext, DesktopInitContext,
+    DesktopPageContributionSpec, DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext,
+    EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
@@ -143,7 +144,10 @@ impl ConfigCenterPlugin {
         Ok(())
     }
 
-    fn import_env_providers(&mut self, ctx: &DesktopExecContext) -> Result<String, String> {
+    fn import_env_providers(
+        &mut self,
+        ctx: &DesktopExecContext,
+    ) -> Result<DesktopActionOutcome, String> {
         let imported = [
             (
                 AiProviderKind::OpenAi,
@@ -181,17 +185,17 @@ impl ConfigCenterPlugin {
         .collect::<Result<Vec<_>, _>>()?;
 
         self.refresh(ctx)?;
-        Ok(format!(
+        Ok(DesktopActionOutcome::notified(format!(
             "imported {} provider configs from env",
             imported.len()
-        ))
+        )))
     }
 
     fn test_provider(
         &mut self,
         provider: AiProviderKind,
         ctx: &DesktopExecContext,
-    ) -> Result<String, String> {
+    ) -> Result<DesktopActionOutcome, String> {
         let result = ctx.services.test_provider(provider)?;
         self.last_test_lines = vec![
             format!("  - provider: {}", result.provider),
@@ -199,7 +203,10 @@ impl ConfigCenterPlugin {
             format!("  - message: {}", result.message),
         ];
         self.refresh(ctx)?;
-        Ok(format!("tested {}", provider.as_str()))
+        Ok(DesktopActionOutcome::notified(format!(
+            "tested {}",
+            provider.as_str()
+        )))
     }
 
     fn render_report(&self) -> AnyElement {
@@ -263,27 +270,17 @@ impl
                 ctx.notify(err);
             }
         } else if let Some(action_id) = event.action_id_for_route(Self::ROUTE) {
-            let result = match action_id {
+            let outcome = match action_id {
                 Self::ACTION_REFRESH => self
                     .refresh(ctx)
-                    .map(|()| "config-center refreshed".to_string()),
+                    .map(|()| DesktopActionOutcome::notified("config-center refreshed")),
                 Self::ACTION_IMPORT_ENV => self.import_env_providers(ctx),
                 Self::ACTION_TEST_OPENAI => self.test_provider(AiProviderKind::OpenAi, ctx),
                 Self::ACTION_TEST_ANTHROPIC => self.test_provider(AiProviderKind::Anthropic, ctx),
                 Self::ACTION_TEST_GEMINI => self.test_provider(AiProviderKind::Gemini, ctx),
-                _ => Ok(String::new()),
+                _ => Ok(DesktopActionOutcome::Ignored),
             };
-            match result {
-                Ok(message) if !message.is_empty() => {
-                    ctx.notify(message);
-                    return EventPropagation::Stop;
-                }
-                Ok(_) => {}
-                Err(err) => {
-                    ctx.notify(err);
-                    return EventPropagation::Stop;
-                }
-            }
+            return ctx.apply_action_outcome(outcome);
         }
         EventPropagation::Continue
     }

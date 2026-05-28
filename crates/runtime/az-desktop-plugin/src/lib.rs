@@ -857,6 +857,34 @@ impl DesktopEvent {
     }
 }
 
+/// 插件动作处理后的标准结果。
+///
+/// 页面插件仍然自己匹配 action ID；该类型只统一“是否消费事件”和“是否通知用户”的返回约定，
+/// 避免用空字符串或裸布尔值表达动作结果。
+#[apply(plain_eq)]
+pub enum DesktopActionOutcome {
+    /// 当前插件没有处理这个动作，事件可以继续传播。
+    Ignored,
+    /// 动作已经处理完成，但不需要额外提示。
+    Handled,
+    /// 动作已经处理完成，并请求宿主展示提示。
+    Notified(String),
+}
+
+impl DesktopActionOutcome {
+    /// 创建带提示的动作结果。
+    #[must_use]
+    pub fn notified(message: impl Into<String>) -> Self {
+        Self::Notified(message.into())
+    }
+
+    /// 动作是否已经被当前插件消费。
+    #[must_use]
+    pub fn is_handled(&self) -> bool {
+        !matches!(self, Self::Ignored)
+    }
+}
+
 /// 插件事件处理后返还给宿主的副作用反馈。
 #[apply(plain_default_eq)]
 pub struct DesktopExecFeedback {
@@ -916,6 +944,25 @@ impl DesktopExecContext {
     /// 请求宿主跳转到指定路由。
     pub fn navigate_to(&self, route: impl Into<String>) {
         self.feedback.borrow_mut().route_override = Some(route.into());
+    }
+
+    /// 将标准动作结果转换为宿主反馈和事件传播策略。
+    pub fn apply_action_outcome(
+        &self,
+        outcome: Result<DesktopActionOutcome, String>,
+    ) -> EventPropagation {
+        match outcome {
+            Ok(DesktopActionOutcome::Ignored) => EventPropagation::Continue,
+            Ok(DesktopActionOutcome::Handled) => EventPropagation::Stop,
+            Ok(DesktopActionOutcome::Notified(message)) => {
+                self.notify(message);
+                EventPropagation::Stop
+            }
+            Err(err) => {
+                self.notify(err);
+                EventPropagation::Stop
+            }
+        }
     }
 }
 
@@ -1033,12 +1080,12 @@ mod tests {
     use std::sync::Arc;
 
     use super::{
-        DesktopBranchRegistration, DesktopContributions, DesktopDomainRegistration, DesktopEvent,
-        DesktopExecContext, DesktopHostRegistry, DesktopHostServices, DesktopInitContext,
-        DesktopPageContributionSpec, DesktopPageRegistration, DesktopPageRole,
-        DesktopProviderTestResult, DesktopRenderLayer, DesktopShellSnapshot,
-        DesktopSummaryCardRegistration, DesktopToolbarActionRegistration, DesktopToolbarActionSpec,
-        EventPropagation, ListTrackedOptions,
+        DesktopActionOutcome, DesktopBranchRegistration, DesktopContributions,
+        DesktopDomainRegistration, DesktopEvent, DesktopExecContext, DesktopHostRegistry,
+        DesktopHostServices, DesktopInitContext, DesktopPageContributionSpec,
+        DesktopPageRegistration, DesktopPageRole, DesktopProviderTestResult, DesktopRenderLayer,
+        DesktopShellSnapshot, DesktopSummaryCardRegistration, DesktopToolbarActionRegistration,
+        DesktopToolbarActionSpec, EventPropagation, ListTrackedOptions,
     };
     use uuid::Uuid;
 
@@ -1272,6 +1319,38 @@ mod tests {
         assert!(global_refresh.is_global_refresh());
         assert_eq!(action.action_id_for_route("/drive"), Some("drive.sync"));
         assert_eq!(action.action_id_for_route("/config"), None);
+    }
+
+    #[test]
+    fn action_outcome_updates_feedback_and_propagation() {
+        let services: Arc<dyn DesktopHostServices> = Arc::new(FakeServices);
+        let (ctx, feedback) = DesktopExecContext::new(
+            services,
+            DesktopShellSnapshot {
+                current_route: "/drive".to_string(),
+                ..DesktopShellSnapshot::default()
+            },
+        );
+
+        // 未处理动作继续传播；已处理和错误都停止传播，提示通过反馈通道交给宿主。
+        assert_eq!(
+            ctx.apply_action_outcome(Ok(DesktopActionOutcome::Ignored)),
+            EventPropagation::Continue
+        );
+        assert_eq!(
+            ctx.apply_action_outcome(Ok(DesktopActionOutcome::Handled)),
+            EventPropagation::Stop
+        );
+        assert_eq!(
+            ctx.apply_action_outcome(Ok(DesktopActionOutcome::notified("done"))),
+            EventPropagation::Stop
+        );
+        assert_eq!(feedback.borrow().notice.as_deref(), Some("done"));
+        assert_eq!(
+            ctx.apply_action_outcome(Err("failed".to_string())),
+            EventPropagation::Stop
+        );
+        assert_eq!(feedback.borrow().notice.as_deref(), Some("failed"));
     }
 
     #[test]

@@ -5,8 +5,9 @@ mod skill_scanner;
 
 use az_assets::{AssetKind, AssetUpsert};
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPageContributionSpec,
-    DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
+    DesktopActionOutcome, DesktopEvent, DesktopExecContext, DesktopInitContext,
+    DesktopPageContributionSpec, DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext,
+    EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
@@ -104,7 +105,7 @@ impl AssetHubPlugin {
         Ok(())
     }
 
-    fn scan_skills(&mut self, ctx: &DesktopExecContext) -> Result<String, String> {
+    fn scan_skills(&mut self, ctx: &DesktopExecContext) -> Result<DesktopActionOutcome, String> {
         let skills = scan_skill_assets().map_err(|err| err.to_string())?;
         let total = skills.len();
         for skill in skills {
@@ -125,10 +126,15 @@ impl AssetHubPlugin {
             })?;
         }
         self.refresh(ctx)?;
-        Ok(format!("merged {total} scanned skills into az_assets"))
+        Ok(DesktopActionOutcome::notified(format!(
+            "merged {total} scanned skills into az_assets"
+        )))
     }
 
-    fn seed_compose_asset(&mut self, ctx: &DesktopExecContext) -> Result<String, String> {
+    fn seed_compose_asset(
+        &mut self,
+        ctx: &DesktopExecContext,
+    ) -> Result<DesktopActionOutcome, String> {
         ctx.services.upsert_asset(AssetUpsert {
             id: None,
             kind: AssetKind::Package,
@@ -144,7 +150,9 @@ impl AssetHubPlugin {
             }),
         })?;
         self.refresh(ctx)?;
-        Ok("seeded compose asset into az_assets".to_string())
+        Ok(DesktopActionOutcome::notified(
+            "seeded compose asset into az_assets",
+        ))
     }
 
     fn render_report(&self) -> AnyElement {
@@ -208,22 +216,12 @@ impl
             let outcome = match action_id {
                 Self::ACTION_REFRESH => self
                     .refresh(ctx)
-                    .map(|()| "asset-hub refreshed".to_string()),
+                    .map(|()| DesktopActionOutcome::notified("asset-hub refreshed")),
                 Self::ACTION_SCAN_SKILLS => self.scan_skills(ctx),
                 Self::ACTION_SEED_COMPOSE => self.seed_compose_asset(ctx),
-                _ => Ok(String::new()),
+                _ => Ok(DesktopActionOutcome::Ignored),
             };
-            match outcome {
-                Ok(message) if !message.is_empty() => {
-                    ctx.notify(message);
-                    return EventPropagation::Stop;
-                }
-                Ok(_) => {}
-                Err(err) => {
-                    ctx.notify(err);
-                    return EventPropagation::Stop;
-                }
-            }
+            return ctx.apply_action_outcome(outcome);
         }
         EventPropagation::Continue
     }

@@ -9,8 +9,9 @@ pub mod gateway_runtime_types;
 use std::collections::BTreeMap;
 
 use az_desktop_plugin::{
-    DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPageContributionSpec,
-    DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext, EventPropagation, Plugin,
+    DesktopActionOutcome, DesktopEvent, DesktopExecContext, DesktopInitContext,
+    DesktopPageContributionSpec, DesktopRenderLayer, DesktopToolbarActionSpec, DesktopViewContext,
+    EventPropagation, Plugin,
 };
 use az_desktop_plugin_registry::declare_desktop_plugin;
 use gpui::{AnyElement, FontWeight, IntoElement, div, prelude::*, rgb};
@@ -112,13 +113,13 @@ impl EdgeGatewayPlugin {
         self.lines = lines;
     }
 
-    fn load_example(&mut self) -> String {
+    fn load_example(&mut self) -> DesktopActionOutcome {
         self.plan = Some(example_plan());
         self.refresh();
-        "loaded gateway example plan".to_string()
+        DesktopActionOutcome::notified("loaded gateway example plan")
     }
 
-    fn run_example(&mut self) -> Result<String, String> {
+    fn run_example(&mut self) -> Result<DesktopActionOutcome, String> {
         let plan = self.plan.clone().unwrap_or_else(example_plan);
         let runtime = tokio::runtime::Runtime::new().map_err(|err| err.to_string())?;
         let result = runtime
@@ -128,7 +129,7 @@ impl EdgeGatewayPlugin {
         self.plan = Some(plan);
         self.result = Some(result);
         self.refresh();
-        Ok(message)
+        Ok(DesktopActionOutcome::notified(message))
     }
 
     fn render_report(&self) -> AnyElement {
@@ -210,26 +211,16 @@ impl
         } else if event.refreshes_route(Self::ROUTE) || event.is_global_refresh() {
             self.refresh();
         } else if let Some(action_id) = event.action_id_for_route(Self::ROUTE) {
-            let result = match action_id {
+            let outcome = match action_id {
                 Self::ACTION_REFRESH => {
                     self.refresh();
-                    Ok("edge-gateway refreshed".to_string())
+                    Ok(DesktopActionOutcome::notified("edge-gateway refreshed"))
                 }
                 Self::ACTION_LOAD_EXAMPLE => Ok(self.load_example()),
                 Self::ACTION_RUN_EXAMPLE => self.run_example(),
-                _ => Ok(String::new()),
+                _ => Ok(DesktopActionOutcome::Ignored),
             };
-            match result {
-                Ok(message) if !message.is_empty() => {
-                    ctx.notify(message);
-                    return EventPropagation::Stop;
-                }
-                Ok(_) => {}
-                Err(err) => {
-                    ctx.notify(err);
-                    return EventPropagation::Stop;
-                }
-            }
+            return ctx.apply_action_outcome(outcome);
         }
         EventPropagation::Continue
     }
