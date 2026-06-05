@@ -62,10 +62,9 @@ impl CodexPlugin for SkillsPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "builtin/skills".to_string(),
-            name: "Skill Scanner".to_string(),
+            name: "技能扫描器".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
-            description: "Scans Codex system skills and user agent skills, including symlinks."
-                .to_string(),
+            description: "扫描 Codex 系统技能和用户技能，支持软链接。".to_string(),
             activation: PluginActivation::Eager,
             priority: 800,
             dependencies: vec![PluginDependency {
@@ -76,7 +75,7 @@ impl CodexPlugin for SkillsPlugin {
             permissions: self
                 .roots
                 .iter()
-                .map(|root| format!("read {}", root.path.display()))
+                .map(|root| format!("读取 {}", root.path.display()))
                 .collect(),
             kind: PluginKind::Native,
         }
@@ -119,7 +118,7 @@ pub fn scan_skill_roots(roots: &[SkillRoot]) -> CatalogProviderContribution {
 
     CatalogProviderContribution {
         id: "skills.local-roots".to_string(),
-        label: "Skills".to_string(),
+        label: "技能".to_string(),
         order: 20,
         items,
     }
@@ -173,10 +172,10 @@ fn load_skill_catalog_item(
         .file_name()
         .and_then(|name| name.to_str())
         .map(skill_name_from_dir)
-        .unwrap_or_else(|| "Unnamed Skill".to_string());
+        .unwrap_or_else(|| "未命名技能".to_string());
     let name = front_matter_value(&content, "name").unwrap_or(fallback_name);
     let description = front_matter_value(&content, "description")
-        .unwrap_or_else(|| "No description in SKILL.md".to_string());
+        .unwrap_or_else(|| "SKILL.md 未提供描述".to_string());
     let tags = classify_skill_tags(&name, &description, &canonical_skill_file, &content);
 
     Some(CatalogItemContribution {

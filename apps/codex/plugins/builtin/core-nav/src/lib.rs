@@ -12,9 +12,9 @@ impl CodexPlugin for CoreNavPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "builtin/core-nav".to_string(),
-            name: "Core Navigation".to_string(),
+            name: "核心导航".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
-            description: "Codex desktop left rail and placeholder page descriptors.".to_string(),
+            description: "提供 Codex 桌面端左侧导航和占位页面描述。".to_string(),
             activation: PluginActivation::Eager,
             priority: 1_000,
             dependencies: Vec::new(),
@@ -42,7 +42,7 @@ impl CodexPlugin for CoreNavPlugin {
                 PageContribution {
                     route: "/plugins".to_string(),
                     title: "插件与技能".to_string(),
-                    subtitle: "查看本地插件、Wasm 组件和 Skills。".to_string(),
+                    subtitle: "查看本地插件、外部组件和技能。".to_string(),
                     renderer: PageRenderer::Catalog,
                     placeholder_mark: "⌘".to_string(),
                     order: 30,

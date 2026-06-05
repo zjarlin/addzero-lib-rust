@@ -1899,6 +1899,10 @@ button {
   font-size: 12px;
 }
 
+.settings-form-row--wide {
+  max-width: 720px;
+}
+
 .settings-input {
   width: 100%;
   min-width: 0;
@@ -2066,6 +2070,46 @@ button {
 
 .settings-note--wide {
   margin-top: 0;
+}
+
+.settings-project-list {
+  display: grid;
+  gap: 9px;
+}
+
+.settings-project-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.settings-project-row strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.settings-project-row p {
+  margin: 4px 0 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-project-row code {
+  display: block;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .settings-summary-grid {

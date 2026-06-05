@@ -5,6 +5,7 @@ use crate::shell_manager::{ShellManagerPage, ShellManagerRoutePage, ShellPageMod
 use crate::sidebar::{
     SidebarActionButton, SidebarItemModel, SidebarSectionModel, SidebarSectionView,
 };
+use az_git::{GitAccountConfigStore, GitProjectBinding};
 use codex_plugin_api::{
     CatalogItemContribution, CatalogItemKind, CatalogSource, CatalogTagContribution,
     CatalogTagGroup, PageContribution, PageRenderer, ToolbarActionContribution,
@@ -27,8 +28,8 @@ const PROJECT_ITEMS: [&str; 7] = [
 ];
 
 const RECENT_THREADS: [&str; 3] = [
-    "Finish the Dioxus button pass-through example",
-    "Wire the new icon into the AIO toolbar",
+    "修复 Dioxus 按钮事件透传示例",
+    "把新图标接入 AIO 工具栏",
     "将你常用的应用连接到 Codex",
 ];
 
@@ -52,7 +53,7 @@ impl SourceFilter {
             Self::Local => "本地",
             Self::System => "系统",
             Self::User => "用户",
-            Self::Wasm => "Wasm",
+            Self::Wasm => "外部组件",
         }
     }
 
@@ -330,10 +331,7 @@ fn AppSidebar(
             SidebarItemModel::primary(item.route.clone(), item.label.clone(), item.icon.clone())
         })
         .collect::<Vec<_>>();
-    let project_items = PROJECT_ITEMS
-        .iter()
-        .map(|project| SidebarItemModel::project(format!("project:{project}"), *project))
-        .collect::<Vec<_>>();
+    let project_items = sidebar_project_items();
     let recent_items = RECENT_THREADS
         .iter()
         .enumerate()
@@ -367,6 +365,32 @@ fn AppSidebar(
             }
         }
     }
+}
+
+fn sidebar_project_items() -> Vec<SidebarItemModel> {
+    let project_bindings = load_project_bindings();
+    if project_bindings.is_empty() {
+        return PROJECT_ITEMS
+            .iter()
+            .map(|project| SidebarItemModel::project(format!("project:{project}"), *project))
+            .collect();
+    }
+
+    project_bindings
+        .into_iter()
+        .map(|project| {
+            SidebarItemModel::project(format!("project:{}", project.local_path), project.name)
+                .with_detail(project.owner)
+        })
+        .collect()
+}
+
+fn load_project_bindings() -> Vec<GitProjectBinding> {
+    GitAccountConfigStore::default_store()
+        .ok()
+        .and_then(|store| store.load().ok())
+        .map(|config| config.project_bindings)
+        .unwrap_or_default()
 }
 
 #[allow(non_snake_case)]
@@ -455,7 +479,7 @@ fn PluginCatalogPage(snapshot: Signal<HostSnapshot>) -> Element {
     rsx! {
         div { class: "catalog-page",
             div { class: "catalog-toolbar",
-                div { class: "segmented segmented--plugin-menu", role: "tablist", aria_label: "Plugin menu",
+                div { class: "segmented segmented--plugin-menu", role: "tablist", aria_label: "插件菜单",
                     for tab in PluginMenuView::ALL {
                         button {
                             class: segmented_class(tab == view),
@@ -464,8 +488,7 @@ fn PluginCatalogPage(snapshot: Signal<HostSnapshot>) -> Element {
                                 active_view.set(tab);
                                 source_filter.set(SourceFilter::All);
                                 skill_tag_filter.set(SKILL_TAG_ALL_ID.to_string());
-                                // Shell metadata is intentionally nested under the plugin menu, so only
-                                // catalog-backed tabs need to reset the selected catalog descriptor.
+                                // 命令和环境变量嵌在插件菜单里；只有目录页签需要重置选中的描述符。
                                 if let Some(kind) = tab.catalog_kind() {
                                     selected_item_id.set(first_item_id(kind, &snapshot.read().catalog_items));
                                 }
@@ -996,7 +1019,7 @@ fn CatalogDetail(
             }
             div { class: "catalog-detail__block",
                 h3 { "运行方式" }
-                p { "当前页面只渲染插件贡献描述符；native builtin 和外部 WIT 组件由 host 统一装配。" }
+                p { "当前页面只渲染插件贡献描述符；内置插件和外部二进制组件由宿主统一装配。" }
             }
         }
     }

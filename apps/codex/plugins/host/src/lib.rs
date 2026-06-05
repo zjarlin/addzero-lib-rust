@@ -272,19 +272,19 @@ fn failed_wasm_descriptor(path: &Path) -> PluginDescriptor {
     let name = path
         .file_stem()
         .and_then(|name| name.to_str())
-        .unwrap_or("failed-wasm")
+        .unwrap_or("外部组件加载失败")
         .to_string();
 
     PluginDescriptor {
         id: format!("wasm/{}", sanitize_id(&path.display().to_string())),
         name,
-        version: "unknown".to_string(),
-        description: "Wasm component failed during descriptor discovery.".to_string(),
+        version: "未知".to_string(),
+        description: "外部组件描述符发现失败。".to_string(),
         activation: PluginActivation::Eager,
         priority: 0,
         dependencies: Vec::new(),
         capabilities: Vec::new(),
-        permissions: vec![format!("read {}", path.display())],
+        permissions: vec![format!("读取 {}", path.display())],
         kind: PluginKind::WasmComponent,
     }
 }

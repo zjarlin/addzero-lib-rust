@@ -236,7 +236,7 @@ impl SidebarSectionModel {
     fn aria_label(&self) -> String {
         self.heading
             .clone()
-            .unwrap_or_else(|| "Primary navigation".to_string())
+            .unwrap_or_else(|| "主导航".to_string())
     }
 }
 

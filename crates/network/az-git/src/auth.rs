@@ -1,4 +1,9 @@
-use std::{collections::HashMap, process::Command};
+use std::{
+    collections::HashMap,
+    process::Command,
+    thread,
+    time::{Duration, Instant},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -67,21 +72,52 @@ pub trait CommandRunner {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SystemCommandRunner;
 
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(15);
+const COMMAND_POLL_INTERVAL: Duration = Duration::from_millis(25);
+
 impl CommandRunner for SystemCommandRunner {
     fn run(&self, program: &str, args: &[&str]) -> Result<CommandOutput> {
-        let output = Command::new(program)
-            .args(args)
-            .output()
-            .map_err(|source| AzGitError::Command {
+        let mut child =
+            Command::new(program)
+                .args(args)
+                .spawn()
+                .map_err(|source| AzGitError::Command {
+                    program: program.to_string(),
+                    source,
+                })?;
+        let started_at = Instant::now();
+
+        loop {
+            match child.try_wait().map_err(|source| AzGitError::Command {
                 program: program.to_string(),
                 source,
-            })?;
+            })? {
+                Some(_) => {
+                    let output =
+                        child
+                            .wait_with_output()
+                            .map_err(|source| AzGitError::Command {
+                                program: program.to_string(),
+                                source,
+                            })?;
 
-        Ok(CommandOutput {
-            status_success: output.status.success(),
-            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        })
+                    return Ok(CommandOutput {
+                        status_success: output.status.success(),
+                        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                    });
+                }
+                None if started_at.elapsed() >= COMMAND_TIMEOUT => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(AzGitError::CommandTimeout {
+                        program: program.to_string(),
+                        timeout_ms: COMMAND_TIMEOUT.as_millis() as u64,
+                    });
+                }
+                None => thread::sleep(COMMAND_POLL_INTERVAL),
+            }
+        }
     }
 }
 
@@ -145,7 +181,7 @@ where
                     state: AuthState::NotDetected,
                     username: None,
                     source: None,
-                    message: format!("gh CLI unavailable: {error}"),
+                    message: format!("未检测到 gh 命令行或无法执行：{error}"),
                 };
             }
         };
@@ -166,7 +202,7 @@ where
                 state: AuthState::NotDetected,
                 username: None,
                 source: Some("gh".to_string()),
-                message: "gh is installed but no active github.com session was found".to_string(),
+                message: "已检测到 gh，但没有可用的 github.com 登录态。".to_string(),
             },
             None => AuthSession {
                 method: AuthMethod::GhCli,
@@ -196,7 +232,7 @@ fn login_flows(provider: GitHostingProvider) -> Vec<AuthLoginFlow> {
                 info.host.to_string(),
             ]),
             stores_secret: false,
-            description: "检测到 gh 后优先复用本机 keyring 中的 GitHub 登录态。".to_string(),
+            description: "检测到 gh 后优先复用本机系统凭据中的 GitHub 登录态。".to_string(),
         });
     }
 
@@ -210,12 +246,12 @@ fn login_flows(provider: GitHostingProvider) -> Vec<AuthLoginFlow> {
     });
     flows.push(AuthLoginFlow {
         method: AuthMethod::Token,
-        label: "Token 登录".to_string(),
+        label: "令牌登录".to_string(),
         url: Some(info.token_url.to_string()),
         command: None,
         stores_secret: true,
-        // Tokens need a keychain-backed store before persistence is acceptable.
-        description: "本版只提供 token 入口，不把 token 明文写入配置文件。".to_string(),
+        // 令牌必须先接入系统凭据存储，才允许进入持久化路径。
+        description: "本版只提供令牌入口，不把令牌明文写入配置文件。".to_string(),
     });
 
     flows
@@ -248,16 +284,13 @@ impl GhAccount {
     }
 
     fn message(&self) -> String {
-        let protocol = self.git_protocol.as_deref().unwrap_or("unknown");
+        let protocol = self.git_protocol.as_deref().unwrap_or("未知");
         if self.state == "success" {
-            let scopes = self.scopes.as_deref().unwrap_or("unknown");
-            format!("active gh session using {protocol}; scopes: {scopes}")
+            let scopes = self.scopes.as_deref().unwrap_or("未知");
+            format!("已复用 gh 登录态，协议：{protocol}；权限范围：{scopes}")
         } else {
-            let error = self.error.as_deref().unwrap_or("unknown status error");
-            format!(
-                "active gh session using {protocol}; status {}: {error}",
-                self.state
-            )
+            let error = self.error.as_deref().unwrap_or("未知状态错误");
+            format!("检测到 gh 登录态，协议：{protocol}；状态 {}：{error}", self.state)
         }
     }
 }

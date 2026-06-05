@@ -198,7 +198,7 @@ impl CatalogSource {
             Self::Local => "本地",
             Self::System => "系统",
             Self::User => "用户",
-            Self::Wasm => "Wasm",
+            Self::Wasm => "外部组件",
         }
     }
 }
@@ -234,10 +234,10 @@ pub enum ShellEntryKind {
 impl ShellEntryKind {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Alias => "Alias",
-            Self::Export => "Export",
-            Self::Function => "Function",
-            Self::ScriptSnippet => "Shell",
+            Self::Alias => "别名",
+            Self::Export => "环境变量",
+            Self::Function => "函数",
+            Self::ScriptSnippet => "脚本片段",
         }
     }
 
@@ -292,27 +292,27 @@ pub trait CodexPlugin: Send {
 
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum PluginError {
-    #[error("duplicate plugin id: {0}")]
+    #[error("插件 ID 重复：{0}")]
     DuplicateId(String),
-    #[error("missing dependency `{dependency}` for plugin `{plugin}`")]
+    #[error("插件 `{plugin}` 缺少依赖 `{dependency}`")]
     MissingDependency { plugin: String, dependency: String },
-    #[error("dependency cycle contains plugin `{0}`")]
+    #[error("依赖环包含插件 `{0}`")]
     DependencyCycle(String),
-    #[error("plugin `{plugin}` failed during {phase}: {message}")]
+    #[error("插件 `{plugin}` 在 {phase} 阶段失败：{message}")]
     Lifecycle {
         plugin: String,
         phase: String,
         message: String,
     },
-    #[error("wasm component error for `{plugin}`: {message}")]
+    #[error("外部组件 `{plugin}` 运行失败：{message}")]
     Wasm { plugin: String, message: String },
-    #[error("io error for `{plugin}` at `{path}`: {message}")]
+    #[error("插件 `{plugin}` 访问 `{path}` 失败：{message}")]
     Io {
         plugin: String,
         path: String,
         message: String,
     },
-    #[error("descriptor decode error: {0}")]
+    #[error("描述符解析失败：{0}")]
     Descriptor(String),
 }
 

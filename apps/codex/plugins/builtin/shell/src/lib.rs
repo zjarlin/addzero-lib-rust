@@ -54,22 +54,20 @@ impl Default for ShellPlugin {
 impl CodexPlugin for ShellPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         let mut permissions = vec![
-            format!("read {}", self.source_root.display()),
-            format!("write {}", self.output_path.display()),
+            format!("读取 {}", self.source_root.display()),
+            format!("写入 {}", self.output_path.display()),
         ];
         permissions.extend(
             self.extra_cli_roots
                 .iter()
-                .map(|root| format!("read {}", root.display())),
+                .map(|root| format!("读取 {}", root.display())),
         );
 
         PluginDescriptor {
             id: PLUGIN_ID.to_string(),
-            name: "Shell Metadata".to_string(),
+            name: "终端元数据".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
-            description:
-                "Scans shell fragments and user CLI scripts for the desktop shell manager."
-                    .to_string(),
+            description: "扫描终端片段和用户命令脚本，供桌面端命令管理器使用。".to_string(),
             activation: PluginActivation::Eager,
             priority: 700,
             dependencies: vec![PluginDependency {
@@ -654,8 +652,7 @@ fn pending_generated_file(
         entry_count: scan.entries.len(),
         backup_path: None,
         status: GeneratedFileStatus::Generated,
-        message: "Shell entries are scanned; ~/.add_fn is managed by the visual shell manager."
-            .to_string(),
+        message: "已扫描命令行和环境变量条目；~/.add_fn 由可视化命令管理器托管。".to_string(),
     }
 }
 
@@ -674,9 +671,9 @@ fn managed_generated_file(
         backup_path: None,
         status: GeneratedFileStatus::Generated,
         message: format!(
-            "Scanned {} entries from {} shell files. ~/.add_fn is only rewritten by the visual manager.",
+            "已从 {} 个终端文件扫描出 {} 个条目；~/.add_fn 只会由可视化命令管理器重写。",
+            scan.file_count,
             scan.entries.len(),
-            scan.file_count
         ),
     }
 }

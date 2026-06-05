@@ -24,14 +24,14 @@ mod component {
             contributions_to_json(&ContributionSet {
                 nav_items: vec![NavItemContribution {
                     id: "hello-wasm.nav".to_string(),
-                    label: "Wasm 示例".to_string(),
+                    label: "外部组件示例".to_string(),
                     icon: "◇".to_string(),
                     route: "/hello-wasm".to_string(),
                     order: 900,
                 }],
                 pages: vec![PageContribution {
                     route: "/hello-wasm".to_string(),
-                    title: "Hello Wasm".to_string(),
+                    title: "外部组件示例".to_string(),
                     subtitle: "外部 WIT 组件已通过描述符接入。".to_string(),
                     renderer: PageRenderer::Placeholder,
                     placeholder_mark: "◇".to_string(),
@@ -40,13 +40,13 @@ mod component {
                 toolbar_actions: Vec::new(),
                 catalog_providers: vec![CatalogProviderContribution {
                     id: "hello-wasm.catalog".to_string(),
-                    label: "Wasm".to_string(),
+                    label: "外部组件".to_string(),
                     order: 90,
                     items: vec![CatalogItemContribution {
                         id: "hello-wasm.catalog.item".to_string(),
-                        name: "Hello Wasm".to_string(),
-                        description: "Minimal component-model plugin descriptor.".to_string(),
-                        section: "Wasm".to_string(),
+                        name: "外部组件示例".to_string(),
+                        description: "最小化组件模型插件描述符。".to_string(),
+                        section: "外部组件".to_string(),
                         icon: "◇".to_string(),
                         accent_class: "plugin-icon--git".to_string(),
                         kind: CatalogItemKind::Plugin,
@@ -84,10 +84,9 @@ mod component {
     fn descriptor() -> PluginDescriptor {
         PluginDescriptor {
             id: "examples/hello-wasm".to_string(),
-            name: "Hello Wasm".to_string(),
+            name: "外部组件示例".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
-            description: "Minimal WIT component proving descriptor-based plugin loading."
-                .to_string(),
+            description: "用于验证描述符式插件加载的最小 WIT 组件。".to_string(),
             activation: PluginActivation::Eager,
             priority: 100,
             dependencies: Vec::new(),
@@ -102,5 +101,5 @@ mod component {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn build_hint() -> &'static str {
-    "Build this crate for wasm32 plus component tooling, then load it through codex-plugin-host."
+    "请把该 crate 构建为 wasm32 组件，再通过 codex-plugin-host 加载。"
 }

@@ -19,7 +19,7 @@ fn main() {
                 eprintln!("{message}");
             }
             Err(error) => {
-                eprintln!("shell manager deploy failed: {error}");
+                eprintln!("命令和环境变量部署失败：{error}");
                 std::process::exit(1);
             }
         }

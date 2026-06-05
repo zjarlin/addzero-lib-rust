@@ -24,7 +24,7 @@ const STORE_FILE: &str = "shell-manager.json";
 const ADD_FN_MARKER: &str = "# Codex-Add-Fn: visual-manager-v1";
 const SECTION_DELIMITER: &str = "#####";
 const SHELL_SEARCH_PLACEHOLDER: &str =
-    "keyword:addhost; tag:rust,java; def:fun,export,alias; source:~/.config";
+    "关键词:addhost；标签:rust,java；定义:fun,export,alias；来源:~/.config";
 const SHELL_HELPERS: &str = r#"shell_prepend_path() {
   [ -n "${1:-}" ] || return 0
   case ":${PATH:-}:" in
@@ -234,19 +234,19 @@ fn ShellGeneratedSummary(generated_file: Option<GeneratedFileContribution>) -> E
     rsx! {
         section { class: "metadata-summary",
             div { class: "metadata-summary__main",
-                p { class: "metadata-summary__eyebrow", "Source file" }
+                p { class: "metadata-summary__eyebrow", "源文件" }
                 h2 { "{generated_path}" }
                 p { "{generated_file.message}" }
             }
             div { class: "metadata-summary__meta",
                 span { class: status_class, "{status_label}" }
-                span { "{generated_file.entry_count} entries" }
-                span { "delimiter {generated_file.section_delimiter}" }
+                span { "{generated_file.entry_count} 个条目" }
+                span { "分隔符 {generated_file.section_delimiter}" }
                 if generated_file.deprecated_source_root {
-                    span { "deprecated {source_root}" }
+                    span { "旧来源 {source_root}" }
                 }
                 if let Some(backup_path) = backup_path.as_ref() {
-                    span { "backup {backup_path}" }
+                    span { "备份 {backup_path}" }
                 }
             }
         }
@@ -624,7 +624,7 @@ pub fn deploy_saved_shell_manager_store() -> io::Result<String> {
     let store = load_shell_manager_store(&store_path)?;
     if store.items.is_empty() {
         return Err(io::Error::other(format!(
-            "shell manager store is empty: {}",
+            "命令和环境变量托管配置为空：{}",
             store_path.display()
         )));
     }
@@ -640,7 +640,7 @@ pub fn deploy_saved_shell_manager_store() -> io::Result<String> {
     save_shell_manager_store(&store_path, &normalized_store)?;
 
     Ok(format!(
-        "deployed {} active shell items to {}{}",
+        "已部署 {} 个有效条目到 {}{}",
         report.item_count,
         report.output_path_display(),
         report.backup_suffix()
@@ -781,30 +781,32 @@ impl ShellManagedItem {
 
     fn matches_filter(&self, key: &str, values: &[String]) -> bool {
         match key {
-            "keyword" | "q" | "text" => {
+            "keyword" | "q" | "text" | "关键词" | "全文" | "文本" => {
                 self.matches_any_value(values, |item, value| item.matches_keyword(value))
             }
-            "tag" | "tags" => self.matches_any_value(values, |item, value| {
+            "tag" | "tags" | "标签" => self.matches_any_value(values, |item, value| {
                 item.tags.iter().any(|tag| eq_ci(tag, value))
             }),
-            "def" | "kind" | "type" => self.matches_any_value(values, |item, value| {
+            "def" | "kind" | "type" | "定义" | "类型" => self.matches_any_value(values, |item, value| {
                 shell_kind_search_keys(item.kind)
                     .iter()
                     .any(|key| eq_ci(key, value))
             }),
-            "name" => self.matches_any_value(values, |item, value| contains_ci(&item.name, value)),
-            "section" => {
+            "name" | "名称" => {
+                self.matches_any_value(values, |item, value| contains_ci(&item.name, value))
+            }
+            "section" | "group" | "分组" => {
                 self.matches_any_value(values, |item, value| contains_ci(&item.section, value))
             }
-            "source" | "path" => self.matches_any_value(values, |item, value| {
+            "source" | "path" | "来源" | "识别" | "识别路径" => self.matches_any_value(values, |item, value| {
                 contains_ci(&item.source_path, value) || contains_ci(&item.source_display(), value)
             }),
-            "deploy" | "deployment" => self.matches_any_value(values, |item, value| {
+            "deploy" | "deployment" | "部署" | "部署路径" => self.matches_any_value(values, |item, value| {
                 item.deployment_paths.iter().any(|path| {
                     contains_ci(path, value) || contains_ci(&compact_home_path_str(path), value)
                 })
             }),
-            "body" | "content" => {
+            "body" | "content" | "内容" => {
                 self.matches_any_value(values, |item, value| contains_ci(&item.body, value))
             }
             _ => self.matches_any_value(values, |item, value| item.matches_keyword(value)),
@@ -927,12 +929,11 @@ fn shell_kind_order(kind: ShellEntryKind) -> u8 {
 fn render_add_fn(items: &[ShellManagedItem]) -> String {
     let mut output = String::new();
     let names = ShellNameIndex::from_items(items);
-    output.push_str("# Generated by Codex desktop visual shell manager.\n");
+    output.push_str("# 由 Codex 桌面端可视化命令管理器生成。\n");
     output.push_str(ADD_FN_MARKER);
     output.push('\n');
-    output
-        .push_str("# Canonical source for CLI aliases, exports, functions, and shell snippets.\n");
-    output.push_str("# Do not edit this file by hand; use the Codex desktop shell manager.\n\n");
+    output.push_str("# 命令别名、环境变量、函数和脚本片段的唯一生效文件。\n");
+    output.push_str("# 请不要手工编辑本文件；请使用 Codex 桌面端命令管理器修改。\n\n");
     output.push_str("__add_fn_mode=\"${ADD_FN_MODE:-interactive}\"\n\n");
     output.push_str(&format!("{SECTION_DELIMITER} helpers\n"));
     output.push_str(SHELL_HELPERS);
@@ -1024,9 +1025,9 @@ fn syntax_check_shell(shell: &str, path: &Path) -> io::Result<()> {
         .collect::<Vec<_>>()
         .join("\n");
     let message = if detail.is_empty() {
-        format!("{shell} -n failed with status {}", output.status)
+        format!("{shell} -n 检查失败，状态为 {}", output.status)
     } else {
-        format!("{shell} -n failed:\n{detail}")
+        format!("{shell} -n 检查失败：\n{detail}")
     };
     Err(io::Error::other(message))
 }
@@ -1050,7 +1051,7 @@ fn render_direct_section<P>(
         if kind == ShellEntryKind::Alias && names.functions.contains(&item.name) {
             continue;
         }
-        output.push_str(&format!("# source: {}\n", item.source_display()));
+        output.push_str(&format!("# 来源：{}\n", item.source_display()));
         if kind == ShellEntryKind::Function {
             output.push_str(&format!("unalias {} 2>/dev/null || true\n", item.name));
         }
@@ -1076,7 +1077,7 @@ fn render_snippet_section<P>(
         if is_bin_script_section(&item.section) && names.aliases.contains(&item.name) {
             continue;
         }
-        output.push_str(&format!("# source: {}\n", item.source_display()));
+        output.push_str(&format!("# 来源：{}\n", item.source_display()));
         if is_bin_script_section(&item.section) {
             render_script_function(output, item);
         } else {
@@ -1493,36 +1494,36 @@ fn shell_item_sections(items: &[ShellManagedItem]) -> Vec<String> {
 
 fn shell_search_fields() -> Vec<AzGrammarSearchField> {
     vec![
-        AzGrammarSearchField::new("keyword", "关键词"),
-        AzGrammarSearchField::new("tag", "标签"),
-        AzGrammarSearchField::new("def", "定义类型"),
-        AzGrammarSearchField::new("section", "分组"),
-        AzGrammarSearchField::new("source", "识别路径"),
-        AzGrammarSearchField::new("deploy", "部署路径"),
-        AzGrammarSearchField::new("body", "内容"),
+        AzGrammarSearchField::new("关键词", "全文匹配"),
+        AzGrammarSearchField::new("标签", "多标签"),
+        AzGrammarSearchField::new("定义", "别名 / 函数 / 环境变量"),
+        AzGrammarSearchField::new("分组", "来源分组"),
+        AzGrammarSearchField::new("来源", "识别路径"),
+        AzGrammarSearchField::new("部署", "部署路径"),
+        AzGrammarSearchField::new("内容", "脚本内容"),
     ]
 }
 
 fn default_shell_tags(kind: ShellEntryKind, section: &str, is_user_created: bool) -> Vec<String> {
-    let mut tags = vec![shell_kind_search_keys(kind)[0].to_string()];
+    let mut tags = vec![shell_kind_default_tag(kind).to_string()];
 
     if is_user_created {
-        tags.push("manual".to_string());
+        tags.push("手动".to_string());
     } else {
-        tags.push("scanned".to_string());
+        tags.push("扫描".to_string());
     }
 
     if is_profile_section(section) {
-        tags.push("profile".to_string());
+        tags.push("登录环境".to_string());
     }
     if is_bin_script_section(section) {
-        tags.push("bin".to_string());
+        tags.push("脚本目录".to_string());
     }
     if is_zsh_section(section) {
         tags.push("zsh".to_string());
     }
     if section.contains("local") {
-        tags.push("local".to_string());
+        tags.push("本地".to_string());
     }
 
     dedupe_non_empty(tags)
@@ -1548,7 +1549,7 @@ fn normalize_tag(tag: &str) -> String {
         .trim_start_matches('#')
         .chars()
         .filter_map(|char| {
-            if char.is_ascii_alphanumeric() || char == '_' || char == '-' {
+            if char.is_alphanumeric() || char == '_' || char == '-' {
                 Some(char.to_ascii_lowercase())
             } else if char.is_whitespace() {
                 Some('-')
@@ -1559,12 +1560,21 @@ fn normalize_tag(tag: &str) -> String {
         .collect()
 }
 
+fn shell_kind_default_tag(kind: ShellEntryKind) -> &'static str {
+    match kind {
+        ShellEntryKind::Alias => "别名",
+        ShellEntryKind::Export => "环境变量",
+        ShellEntryKind::Function => "函数",
+        ShellEntryKind::ScriptSnippet => "脚本片段",
+    }
+}
+
 fn shell_kind_search_keys(kind: ShellEntryKind) -> &'static [&'static str] {
     match kind {
-        ShellEntryKind::Alias => &["alias", "cmd", "cli", "command"],
-        ShellEntryKind::Export => &["export", "env", "var"],
-        ShellEntryKind::Function => &["fun", "function", "fn", "cli"],
-        ShellEntryKind::ScriptSnippet => &["snippet", "script", "sh"],
+        ShellEntryKind::Alias => &["别名", "命令", "alias", "cmd", "cli", "command"],
+        ShellEntryKind::Export => &["环境变量", "变量", "export", "env", "var"],
+        ShellEntryKind::Function => &["函数", "fun", "function", "fn", "cli"],
+        ShellEntryKind::ScriptSnippet => &["脚本片段", "脚本", "snippet", "script", "sh"],
     }
 }
 
@@ -1644,8 +1654,8 @@ fn generated_status_class(status: GeneratedFileStatus) -> &'static str {
 
 fn generated_status_label(status: GeneratedFileStatus) -> &'static str {
     match status {
-        GeneratedFileStatus::Generated => "generated",
-        GeneratedFileStatus::Failed => "failed",
+        GeneratedFileStatus::Generated => "已生成",
+        GeneratedFileStatus::Failed => "失败",
     }
 }
 
