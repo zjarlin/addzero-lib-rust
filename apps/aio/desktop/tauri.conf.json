@@ -4,10 +4,10 @@
   "version": "2026.5.10",
   "identifier": "site.addzero.aio",
   "build": {
-    "beforeDevCommand": "npm --prefix ../front run dev",
+    "beforeDevCommand": "npm --prefix front run dev",
     "devUrl": "http://127.0.0.1:5173",
-    "beforeBuildCommand": "npm --prefix ../front run build",
-    "frontendDist": "../front/dist"
+    "beforeBuildCommand": "npm --prefix front run build",
+    "frontendDist": "front/dist"
   },
   "app": {
     "windows": [

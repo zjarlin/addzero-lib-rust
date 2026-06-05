@@ -1,0 +1,21 @@
+[package]
+name = "codex-plugin-shell"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Built-in Codex shell metadata scanner and ~/.add_fn generator."
+
+[dependencies]
+codex-plugin-api = { path = "../../api" }
+
+[dev-dependencies]
+tempfile = "3.23.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

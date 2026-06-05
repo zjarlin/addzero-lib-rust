@@ -1,0 +1,18 @@
+[package]
+name = "codex-plugin-skills"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Built-in Codex skill catalog scanner."
+
+[dependencies]
+codex-plugin-api = { path = "../../api" }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

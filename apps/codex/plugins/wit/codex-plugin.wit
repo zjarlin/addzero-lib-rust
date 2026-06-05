@@ -1,0 +1,11 @@
+package codex:plugin;
+
+world codex-plugin {
+  export describe: func() -> result<string, string>;
+  export contributions: func() -> result<string, string>;
+
+  export on-load: func() -> result<_, string>;
+  export on-enable: func() -> result<_, string>;
+  export on-disable: func() -> result<_, string>;
+  export on-unload: func() -> result<_, string>;
+}

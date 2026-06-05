@@ -13,13 +13,13 @@ az-derive-aliases.workspace = true
 az-config-center-contract.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-tauri = "2.11.2"
+tauri = { version = "2.11.2", features = [] }
 tokio.workspace = true
 uuid.workspace = true
 rfd = "0.17.2"
 
 [build-dependencies]
-tauri-build = "2.6.2"
+tauri-build = { version = "2.6.2", features = [] }
 
 [dev-dependencies]
 tempfile.workspace = true

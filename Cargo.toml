@@ -16,6 +16,8 @@ members = [
     "crates/ui/az-dioxus-components",
 ]
 exclude = [
+    "apps/codex/desktop",
+    "crates/network/az-browser-automation",
     "crates/runtime/az-admin-domain-audit",
     "crates/ui/az-remote-ui",
     "crates/ui/dioxus-components",
@@ -47,6 +49,7 @@ inventory = "0.3.21"
 lettre = "0.11.19"
 md5 = "0.8.0"
 log = "0.4.28"
+loro = "1.12.0"
 macro_rules_attribute = "0.2.2"
 mime_guess = "2.0.5"
 pinyin = "0.11.0"
