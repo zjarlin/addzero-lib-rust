@@ -1317,13 +1317,99 @@ button {
   margin-top: 2px;
 }
 
+.shell-manager__controls .az-grammar-search {
+  display: grid;
+  gap: 8px;
+}
+
+.az-grammar-search__box {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-subtle);
+}
+
+.az-grammar-search__icon {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.az-grammar-search__input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.az-grammar-search__input::placeholder {
+  color: var(--text-subtle);
+}
+
+.az-grammar-search__tokens,
+.az-grammar-search__fields,
+.shell-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.az-grammar-search__token,
+.az-grammar-search__field,
+.shell-tag-chip {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.az-grammar-search__token {
+  border-color: rgba(47, 155, 255, 0.26);
+  background: rgba(47, 155, 255, 0.12);
+}
+
+.az-grammar-search__token--term {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.az-grammar-search__token-key,
+.az-grammar-search__field-key {
+  color: #d7ecff;
+  font-weight: 700;
+}
+
+.az-grammar-search__token-separator {
+  color: var(--text-subtle);
+}
+
+.az-grammar-search__field-label {
+  color: var(--text-subtle);
+}
+
 .shell-manager-grid {
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
 }
 
 .shell-managed-card {
-  min-height: 430px;
-  grid-template-rows: auto auto minmax(116px, auto) auto auto;
+  min-height: 488px;
+  grid-template-rows: auto auto minmax(116px, auto) auto auto auto;
   gap: 12px;
 }
 
@@ -1405,6 +1491,16 @@ button {
   padding: 9px;
   font-family: "SF Mono", Menlo, Consolas, monospace;
   line-height: 1.45;
+}
+
+.shell-tag-editor {
+  align-content: start;
+}
+
+.shell-tag-chip {
+  border-color: rgba(116, 209, 155, 0.24);
+  background: rgba(116, 209, 155, 0.1);
+  color: #bdeccc;
 }
 
 .shell-form-field input:focus,

@@ -3,6 +3,7 @@
 mod app;
 mod settings;
 mod shell_manager;
+mod shell_manager_store;
 mod sidebar;
 
 use app::App;

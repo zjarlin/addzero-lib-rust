@@ -5,6 +5,7 @@
 当前首批组件：
 
 - `AzCard`
+- `AzGrammarSearchInput`
 - `AzTable`
 - `AzTableCaption`
 - `AzTableHead`
@@ -16,12 +17,22 @@
 
 ## 使用
 
-```rust
+```rust,no_run
 use az_dioxus_components::prelude::*;
 use dioxus::prelude::*;
 
 let _ = rsx! {
     AzCard {
+        AzGrammarSearchInput {
+            value: "keyword:addhost; tag:rust,java; def:fun,export,alias".to_string(),
+            placeholder: "keyword:addhost; tag:rust,java; def:fun,export,alias",
+            fields: vec![
+                AzGrammarSearchField::new("keyword", "关键词"),
+                AzGrammarSearchField::new("tag", "标签"),
+                AzGrammarSearchField::new("def", "定义"),
+            ],
+            oninput: move |_| {},
+        }
         AzTable {
             striped: true,
             AzTableCaption { "Runtime nodes" }
@@ -60,6 +71,12 @@ cargo test -p az-dioxus-components --test az_table
 
 ```bash
 cargo test -p az-dioxus-components --test az_card
+```
+
+只跑语法式搜索组件测试：
+
+```bash
+cargo test -p az-dioxus-components --test az_grammar_search
 ```
 
 ## 预览 GUI

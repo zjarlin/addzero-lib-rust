@@ -10,6 +10,7 @@ repository = "https://github.com/zjarlin/addzero-lib-rust"
 description = "Dioxus desktop shell inspired by the Codex desktop app."
 
 [dependencies]
+az-dioxus-components = { path = "../../../crates/ui/az-dioxus-components" }
 az-git = { path = "../../../crates/network/az-git" }
 codex-plugin-api = { path = "../plugins/api" }
 codex-plugin-host = { path = "../plugins/host" }
@@ -26,6 +27,12 @@ dioxus = { version = "0.7.9", default-features = false, features = [
 ] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
+sqlx = { version = "0.8.6", default-features = false, features = [
+    "postgres",
+    "runtime-tokio-rustls",
+] }
+tokio = { version = "1.47.1", features = ["rt"] }
+url = "2.5.7"
 
 [workspace]
 resolver = "2"

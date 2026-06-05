@@ -8,6 +8,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use az_dioxus_components::az_grammar_search::{
+    AzGrammarSearchField, AzGrammarSearchInput, GrammarSearchQuery, parse_grammar_search_query,
+};
 use codex_plugin_api::{
     GeneratedFileContribution, GeneratedFileStatus, ShellEntryContribution, ShellEntryKind,
 };
@@ -15,9 +18,13 @@ use codex_plugin_host::HostSnapshot;
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::shell_manager_store::{load_shell_manager_store, save_shell_manager_store};
+
 const STORE_FILE: &str = "shell-manager.json";
 const ADD_FN_MARKER: &str = "# Codex-Add-Fn: visual-manager-v1";
 const SECTION_DELIMITER: &str = "#####";
+const SHELL_SEARCH_PLACEHOLDER: &str =
+    "keyword:addhost; tag:rust,java; def:fun,export,alias; source:~/.config";
 const SHELL_HELPERS: &str = r#"shell_prepend_path() {
   [ -n "${1:-}" ] || return 0
   case ":${PATH:-}:" in
@@ -114,8 +121,9 @@ pub fn ShellManagerPage(
 ) -> Element {
     let mut manager = use_signal(|| ShellManagerState::load(&snapshot.read()));
     let state = manager.read().clone();
-    let query_text = query.read().trim().to_lowercase();
-    let visible_items = state.visible_items(mode, &query_text);
+    let query_text = query.read().clone();
+    let parsed_query = parse_grammar_search_query(&query_text);
+    let visible_items = state.visible_items(mode, &parsed_query);
     let generated_file = snapshot.read().generated_files.first().cloned();
     let deployable_count = state.deployable_count(mode);
     let recognized_count = state.recognized_count(mode);
@@ -166,13 +174,11 @@ pub fn ShellManagerPage(
             }
 
             div { class: "metadata-controls shell-manager__controls",
-                label { class: "catalog-search",
-                    span { "⌕" }
-                    input {
-                        value: "{query.read()}",
-                        placeholder: "搜索名称、来源、内容或部署路径",
-                        oninput: move |event| query.set(event.value()),
-                    }
+                AzGrammarSearchInput {
+                    value: query_text,
+                    placeholder: SHELL_SEARCH_PLACEHOLDER.to_string(),
+                    fields: shell_search_fields(),
+                    oninput: move |value| query.set(value),
                 }
             }
 
@@ -218,12 +224,18 @@ fn ShellGeneratedSummary(generated_file: Option<GeneratedFileContribution>) -> E
     });
     let status_class = generated_status_class(generated_file.status);
     let status_label = generated_status_label(generated_file.status);
+    let generated_path = compact_home_path_str(&generated_file.path);
+    let source_root = compact_home_path_str(&generated_file.source_root);
+    let backup_path = generated_file
+        .backup_path
+        .as_deref()
+        .map(compact_home_path_str);
 
     rsx! {
         section { class: "metadata-summary",
             div { class: "metadata-summary__main",
                 p { class: "metadata-summary__eyebrow", "Source file" }
-                h2 { "{generated_file.path}" }
+                h2 { "{generated_path}" }
                 p { "{generated_file.message}" }
             }
             div { class: "metadata-summary__meta",
@@ -231,9 +243,9 @@ fn ShellGeneratedSummary(generated_file: Option<GeneratedFileContribution>) -> E
                 span { "{generated_file.entry_count} entries" }
                 span { "delimiter {generated_file.section_delimiter}" }
                 if generated_file.deprecated_source_root {
-                    span { "deprecated {generated_file.source_root}" }
+                    span { "deprecated {source_root}" }
                 }
-                if let Some(backup_path) = generated_file.backup_path.as_ref() {
+                if let Some(backup_path) = backup_path.as_ref() {
                     span { "backup {backup_path}" }
                 }
             }
@@ -252,6 +264,9 @@ fn ShellManagedCard(item: ShellManagedItem, manager: Signal<ShellManagerState>) 
     } else {
         "shell-path-box"
     };
+    let source_display = item.source_display();
+    let deployment_paths = item.deployment_path_displays();
+    let tag_input = item.tags.join(",");
 
     rsx! {
         article { class: "metadata-card shell-managed-card",
@@ -302,15 +317,34 @@ fn ShellManagedCard(item: ShellManagedItem, manager: Signal<ShellManagerState>) 
                 }
             }
 
+            label { class: "shell-form-field shell-tag-editor",
+                span { "标签" }
+                input {
+                    value: "{tag_input}",
+                    placeholder: "rust,java,go,project",
+                    oninput: {
+                        let item_id = item_id.clone();
+                        move |event| manager.write().update_tags(&item_id, event.value())
+                    },
+                }
+                if !item.tags.is_empty() {
+                    div { class: "shell-tag-list",
+                        for tag in item.tags.iter() {
+                            span { class: "shell-tag-chip", "{tag}" }
+                        }
+                    }
+                }
+            }
+
             div { class: "shell-path-compare",
                 div { class: source_class,
                     span { "识别路径" }
-                    code { "{item.source_display()}" }
+                    code { "{source_display}" }
                 }
                 div { class: "shell-path-box",
                     span { "部署路径" }
                     div { class: "shell-path-list",
-                        for path in item.deployment_paths.iter() {
+                        for path in deployment_paths {
                             span { class: "shell-path-chip", "{path}" }
                         }
                     }
@@ -335,7 +369,7 @@ pub struct ShellManagerState {
 impl ShellManagerState {
     fn load(snapshot: &HostSnapshot) -> Self {
         let store_path = shell_manager_store_path();
-        let store = load_store(&store_path).unwrap_or_default();
+        let store = load_shell_manager_store(&store_path).unwrap_or_default();
         let mut state = Self {
             store_path,
             items: store.items,
@@ -389,7 +423,11 @@ impl ShellManagerState {
         self.message_kind = ShellManagerMessageKind::Info;
     }
 
-    fn visible_items(&self, mode: ShellPageMode, query: &str) -> Vec<ShellManagedItem> {
+    fn visible_items(
+        &self,
+        mode: ShellPageMode,
+        query: &GrammarSearchQuery,
+    ) -> Vec<ShellManagedItem> {
         self.items
             .iter()
             .filter(|item| !item.deleted && item.mode() == mode && item.matches_query(query))
@@ -424,7 +462,7 @@ impl ShellManagerState {
     }
 
     fn canonical_path_display(&self) -> String {
-        canonical_add_fn_path().display().to_string()
+        compact_home_path(&canonical_add_fn_path())
     }
 
     fn create_item(&mut self, mode: ShellPageMode) {
@@ -448,6 +486,7 @@ impl ShellManagerState {
                 body: mode.default_body().to_string(),
                 deployment_paths: vec![canonical_add_fn_path().display().to_string()],
                 draft_path: canonical_add_fn_path().display().to_string(),
+                tags: default_shell_tags(mode.default_kind(), "user-managed", true),
                 is_user_created: true,
                 source_missing: false,
                 deleted: false,
@@ -466,6 +505,12 @@ impl ShellManagerState {
     fn update_body(&mut self, item_id: &str, body: String) {
         if let Some(item) = self.find_item_mut(item_id) {
             item.body = body;
+        }
+    }
+
+    fn update_tags(&mut self, item_id: &str, tags: String) {
+        if let Some(item) = self.find_item_mut(item_id) {
+            item.tags = parse_shell_tags(&tags);
         }
     }
 
@@ -501,7 +546,7 @@ impl ShellManagerState {
                     "已部署 {}，并同步全部 {} 个有效项到 {}{}。",
                     item.name,
                     report.item_count,
-                    report.output_path.display(),
+                    report.output_path_display(),
                     report.backup_suffix()
                 ));
                 self.message_kind = ShellManagerMessageKind::Success;
@@ -526,7 +571,7 @@ impl ShellManagerState {
                 self.message = Some(format!(
                     "一键部署完成，已同步 {} 个有效项到 {}{}。",
                     report.item_count,
-                    report.output_path.display(),
+                    report.output_path_display(),
                     report.backup_suffix()
                 ));
                 self.message_kind = ShellManagerMessageKind::Success;
@@ -564,23 +609,19 @@ impl ShellManagerState {
     }
 
     fn save_to_disk(&self) -> io::Result<()> {
-        if let Some(parent) = self.store_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
         let mut items = self.items.clone();
         normalize_deployment_paths(&mut items);
         let store = ShellManagerStore {
             items,
             deleted_source_ids: self.deleted_source_ids.iter().cloned().collect(),
         };
-        let content = serde_json::to_string_pretty(&store)?;
-        fs::write(&self.store_path, content)
+        save_shell_manager_store(&self.store_path, &store)
     }
 }
 
 pub fn deploy_saved_shell_manager_store() -> io::Result<String> {
     let store_path = shell_manager_store_path();
-    let store = load_store(&store_path)?;
+    let store = load_shell_manager_store(&store_path)?;
     if store.items.is_empty() {
         return Err(io::Error::other(format!(
             "shell manager store is empty: {}",
@@ -596,13 +637,12 @@ pub fn deploy_saved_shell_manager_store() -> io::Result<String> {
         items,
         deleted_source_ids: store.deleted_source_ids,
     };
-    let content = serde_json::to_string_pretty(&normalized_store)?;
-    fs::write(&store_path, content)?;
+    save_shell_manager_store(&store_path, &normalized_store)?;
 
     Ok(format!(
         "deployed {} active shell items to {}{}",
         report.item_count,
-        report.output_path.display(),
+        report.output_path_display(),
         report.backup_suffix()
     ))
 }
@@ -615,11 +655,17 @@ enum ShellManagerMessageKind {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct ShellManagerStore {
+pub(crate) struct ShellManagerStore {
     #[serde(default)]
     items: Vec<ShellManagedItem>,
     #[serde(default)]
     deleted_source_ids: Vec<String>,
+}
+
+impl ShellManagerStore {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.items.is_empty() && self.deleted_source_ids.is_empty()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -635,6 +681,8 @@ struct ShellManagedItem {
     deployment_paths: Vec<String>,
     #[serde(default)]
     draft_path: String,
+    #[serde(default)]
+    tags: Vec<String>,
     #[serde(default)]
     is_user_created: bool,
     #[serde(default)]
@@ -659,6 +707,7 @@ impl ShellManagedItem {
             body: shell_body_from_source(entry).unwrap_or_else(|| entry.preview.clone()),
             deployment_paths: vec![canonical_path.clone()],
             draft_path: canonical_path,
+            tags: default_shell_tags(entry.kind, &entry.section, false),
             is_user_created: false,
             deleted: false,
             source_missing: false,
@@ -670,6 +719,10 @@ impl ShellManagedItem {
         self.body = saved.body;
         self.deployment_paths = saved.deployment_paths;
         self.draft_path = saved.draft_path;
+        self.tags = merge_shell_tags(
+            saved.tags,
+            default_shell_tags(self.kind, &self.section, false),
+        );
         self.is_user_created = saved.is_user_created;
         self.deleted = saved.deleted;
         self.source_missing = false;
@@ -684,23 +737,85 @@ impl ShellManagedItem {
     }
 
     fn source_display(&self) -> String {
+        let source_path = compact_home_path_str(&self.source_path);
         if self.line_start == 0 {
-            self.source_path.clone()
+            source_path
         } else {
-            format!("{}:{}", self.source_path, self.line_start)
+            format!("{}:{}", source_path, self.line_start)
         }
     }
 
-    fn matches_query(&self, query: &str) -> bool {
-        query.is_empty()
-            || self.name.to_lowercase().contains(query)
-            || self.section.to_lowercase().contains(query)
-            || self.source_path.to_lowercase().contains(query)
-            || self.body.to_lowercase().contains(query)
-            || self
-                .deployment_paths
+    fn deployment_path_displays(&self) -> Vec<String> {
+        self.deployment_paths
+            .iter()
+            .map(|path| compact_home_path_str(path))
+            .collect()
+    }
+
+    fn matches_query(&self, query: &GrammarSearchQuery) -> bool {
+        if query.is_empty() {
+            return true;
+        }
+
+        query
+            .terms
+            .iter()
+            .all(|term| self.matches_keyword(&term.value))
+            && query
+                .filters
                 .iter()
-                .any(|path| path.to_lowercase().contains(query))
+                .all(|filter| self.matches_filter(&filter.key, &filter.values))
+    }
+
+    fn matches_keyword(&self, value: &str) -> bool {
+        contains_ci(&self.name, value)
+            || contains_ci(&self.section, value)
+            || contains_ci(&self.source_path, value)
+            || contains_ci(&self.source_display(), value)
+            || contains_ci(&self.body, value)
+            || self.tags.iter().any(|tag| contains_ci(tag, value))
+            || self.deployment_paths.iter().any(|path| {
+                contains_ci(path, value) || contains_ci(&compact_home_path_str(path), value)
+            })
+    }
+
+    fn matches_filter(&self, key: &str, values: &[String]) -> bool {
+        match key {
+            "keyword" | "q" | "text" => {
+                self.matches_any_value(values, |item, value| item.matches_keyword(value))
+            }
+            "tag" | "tags" => self.matches_any_value(values, |item, value| {
+                item.tags.iter().any(|tag| eq_ci(tag, value))
+            }),
+            "def" | "kind" | "type" => self.matches_any_value(values, |item, value| {
+                shell_kind_search_keys(item.kind)
+                    .iter()
+                    .any(|key| eq_ci(key, value))
+            }),
+            "name" => self.matches_any_value(values, |item, value| contains_ci(&item.name, value)),
+            "section" => {
+                self.matches_any_value(values, |item, value| contains_ci(&item.section, value))
+            }
+            "source" | "path" => self.matches_any_value(values, |item, value| {
+                contains_ci(&item.source_path, value) || contains_ci(&item.source_display(), value)
+            }),
+            "deploy" | "deployment" => self.matches_any_value(values, |item, value| {
+                item.deployment_paths.iter().any(|path| {
+                    contains_ci(path, value) || contains_ci(&compact_home_path_str(path), value)
+                })
+            }),
+            "body" | "content" => {
+                self.matches_any_value(values, |item, value| contains_ci(&item.body, value))
+            }
+            _ => self.matches_any_value(values, |item, value| item.matches_keyword(value)),
+        }
+    }
+
+    fn matches_any_value<P>(&self, values: &[String], predicate: P) -> bool
+    where
+        P: Fn(&Self, &str) -> bool,
+    {
+        values.iter().any(|value| predicate(self, value))
     }
 }
 
@@ -761,8 +876,12 @@ impl DeployReport {
     fn backup_suffix(&self) -> String {
         self.backup_path
             .as_ref()
-            .map(|path| format!("；已备份旧文件到 {}", path.display()))
+            .map(|path| format!("；已备份旧文件到 {}", compact_home_path(path)))
             .unwrap_or_default()
+    }
+
+    fn output_path_display(&self) -> String {
+        compact_home_path(&self.output_path)
     }
 }
 
@@ -1372,12 +1491,89 @@ fn shell_item_sections(items: &[ShellManagedItem]) -> Vec<String> {
     sections
 }
 
-fn load_store(path: &Path) -> io::Result<ShellManagerStore> {
-    if !path.exists() {
-        return Ok(ShellManagerStore::default());
+fn shell_search_fields() -> Vec<AzGrammarSearchField> {
+    vec![
+        AzGrammarSearchField::new("keyword", "关键词"),
+        AzGrammarSearchField::new("tag", "标签"),
+        AzGrammarSearchField::new("def", "定义类型"),
+        AzGrammarSearchField::new("section", "分组"),
+        AzGrammarSearchField::new("source", "识别路径"),
+        AzGrammarSearchField::new("deploy", "部署路径"),
+        AzGrammarSearchField::new("body", "内容"),
+    ]
+}
+
+fn default_shell_tags(kind: ShellEntryKind, section: &str, is_user_created: bool) -> Vec<String> {
+    let mut tags = vec![shell_kind_search_keys(kind)[0].to_string()];
+
+    if is_user_created {
+        tags.push("manual".to_string());
+    } else {
+        tags.push("scanned".to_string());
     }
-    let content = fs::read_to_string(path)?;
-    serde_json::from_str(&content).map_err(io::Error::other)
+
+    if is_profile_section(section) {
+        tags.push("profile".to_string());
+    }
+    if is_bin_script_section(section) {
+        tags.push("bin".to_string());
+    }
+    if is_zsh_section(section) {
+        tags.push("zsh".to_string());
+    }
+    if section.contains("local") {
+        tags.push("local".to_string());
+    }
+
+    dedupe_non_empty(tags)
+}
+
+fn parse_shell_tags(input: &str) -> Vec<String> {
+    dedupe_non_empty(
+        input
+            .split([',', '，', ';', '；', ' ', '\n', '\t'])
+            .map(normalize_tag)
+            .collect(),
+    )
+}
+
+fn merge_shell_tags(saved_tags: Vec<String>, default_tags: Vec<String>) -> Vec<String> {
+    let mut merged = default_tags;
+    merged.extend(saved_tags.into_iter().map(|tag| normalize_tag(&tag)));
+    dedupe_non_empty(merged)
+}
+
+fn normalize_tag(tag: &str) -> String {
+    tag.trim()
+        .trim_start_matches('#')
+        .chars()
+        .filter_map(|char| {
+            if char.is_ascii_alphanumeric() || char == '_' || char == '-' {
+                Some(char.to_ascii_lowercase())
+            } else if char.is_whitespace() {
+                Some('-')
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn shell_kind_search_keys(kind: ShellEntryKind) -> &'static [&'static str] {
+    match kind {
+        ShellEntryKind::Alias => &["alias", "cmd", "cli", "command"],
+        ShellEntryKind::Export => &["export", "env", "var"],
+        ShellEntryKind::Function => &["fun", "function", "fn", "cli"],
+        ShellEntryKind::ScriptSnippet => &["snippet", "script", "sh"],
+    }
+}
+
+fn contains_ci(value: &str, query: &str) -> bool {
+    value.to_lowercase().contains(&query.to_lowercase())
+}
+
+fn eq_ci(value: &str, query: &str) -> bool {
+    value.eq_ignore_ascii_case(query)
 }
 
 fn shell_manager_store_path() -> PathBuf {
@@ -1392,6 +1588,33 @@ fn home_dir() -> PathBuf {
     env::var_os("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
+}
+
+fn compact_home_path(path: &Path) -> String {
+    compact_home_path_str(&path.display().to_string())
+}
+
+fn compact_home_path_str(path: &str) -> String {
+    let path = path.trim();
+    if path.is_empty()
+        || path == "~"
+        || path == "$HOME"
+        || path.starts_with("~/")
+        || path.starts_with("$HOME/")
+    {
+        return path.to_string();
+    }
+
+    let home = home_dir();
+    let Ok(relative_path) = Path::new(path).strip_prefix(&home) else {
+        return path.to_string();
+    };
+
+    if relative_path.as_os_str().is_empty() {
+        "~".to_string()
+    } else {
+        format!("~/{}", relative_path.display())
+    }
 }
 
 fn dedupe_non_empty(values: Vec<String>) -> Vec<String> {
@@ -1456,6 +1679,7 @@ mod tests {
             body: body.to_string(),
             deployment_paths: vec![canonical_add_fn_path().display().to_string()],
             draft_path: canonical_add_fn_path().display().to_string(),
+            tags: default_shell_tags(kind, section, true),
             is_user_created: true,
             deleted: false,
             source_missing: false,
@@ -1596,6 +1820,45 @@ mod tests {
 
         assert!(!output.contains("ENABLE_LEGACY_ADD_FN"));
         assert!(!output.contains("[ -f \"$HOME/.add_fn\" ] && . \"$HOME/.add_fn\""));
+    }
+
+    #[test]
+    fn compact_home_path_shortens_current_home_paths() {
+        let home = home_dir();
+        let add_fn_path = home.join(".add_fn");
+        let config_path = home.join(".config").join("shell");
+
+        assert_eq!(compact_home_path(&add_fn_path), "~/.add_fn");
+        assert_eq!(
+            compact_home_path_str(&config_path.display().to_string()),
+            "~/.config/shell"
+        );
+        assert_eq!(compact_home_path_str("~/.add_fn"), "~/.add_fn");
+        assert_eq!(compact_home_path_str("$HOME/.add_fn"), "$HOME/.add_fn");
+    }
+
+    #[test]
+    fn grammar_query_filters_by_keyword_tags_and_definition_type() {
+        let mut alias = test_item(
+            "managed.alias.addhost",
+            ShellEntryKind::Alias,
+            "addhost",
+            "manual",
+            "alias addhost='ssh addzero'\n",
+        );
+        alias.tags = parse_shell_tags("rust,java,ops");
+        let mut export = test_item(
+            "managed.env.java_home",
+            ShellEntryKind::Export,
+            "JAVA_HOME",
+            "profile.d",
+            "export JAVA_HOME=/Library/Java\n",
+        );
+        export.tags = parse_shell_tags("java,env");
+        let query = parse_grammar_search_query("keyword:addhost; tag:rust,java; def:alias");
+
+        assert!(alias.matches_query(&query));
+        assert!(!export.matches_query(&query));
     }
 
     #[test]
