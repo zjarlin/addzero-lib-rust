@@ -14,7 +14,7 @@ use url::Url;
 const CODEX_DATABASE_NAME: &str = "rs-aio";
 const STORE_KEY: &str = "default";
 const STORE_TABLE: &str = "codex_shell_manager_store";
-const LOCAL_AIO_ENV_FILE: &str = ".config/aio/aio.env";
+const CODEX_ENV_FILE: &str = ".config/addzero/codex/codex.env";
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(900);
 
 pub(crate) fn load_shell_manager_store(json_path: &Path) -> io::Result<ShellManagerStore> {
@@ -172,13 +172,9 @@ fn write_json_store(path: &Path, store: &ShellManagerStore) -> io::Result<()> {
 
 fn codex_database_url() -> Option<String> {
     env_database_url("CODEX_DATABASE_URL")
+        .or_else(read_codex_env_database_url)
         .filter(|value| is_postgres_url(value))
-        .or_else(|| {
-            env_database_url("MSC_AIO_DATABASE_URL")
-                .or_else(|| env_database_url("DATABASE_URL"))
-                .or_else(read_aio_env_database_url)
-                .and_then(|value| database_url_for_database(&value, CODEX_DATABASE_NAME).ok())
-        })
+        .and_then(|value| database_url_for_database(&value, CODEX_DATABASE_NAME).ok())
 }
 
 fn env_database_url(key: &str) -> Option<String> {
@@ -188,12 +184,12 @@ fn env_database_url(key: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-fn read_aio_env_database_url() -> Option<String> {
-    let path = home_dir()?.join(LOCAL_AIO_ENV_FILE);
+fn read_codex_env_database_url() -> Option<String> {
+    let path = home_dir()?.join(CODEX_ENV_FILE);
     let content = fs::read_to_string(path).ok()?;
     let values = parse_env_pairs(&content);
     values
-        .get("MSC_AIO_DATABASE_URL")
+        .get("CODEX_DATABASE_URL")
         .or_else(|| values.get("DATABASE_URL"))
         .cloned()
         .filter(|value| is_postgres_url(value))
@@ -293,10 +289,10 @@ mod tests {
     #[test]
     fn parse_env_pairs_reads_quoted_database_url() {
         let values =
-            parse_env_pairs("MSC_AIO_DATABASE_URL='postgresql://postgres:secret@localhost/aio'\n");
+            parse_env_pairs("CODEX_DATABASE_URL='postgresql://postgres:secret@localhost/aio'\n");
 
         assert_eq!(
-            values.get("MSC_AIO_DATABASE_URL").map(String::as_str),
+            values.get("CODEX_DATABASE_URL").map(String::as_str),
             Some("postgresql://postgres:secret@localhost/aio")
         );
     }
