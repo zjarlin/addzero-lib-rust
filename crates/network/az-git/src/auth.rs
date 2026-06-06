@@ -290,7 +290,10 @@ impl GhAccount {
             format!("已复用 gh 登录态，协议：{protocol}；权限范围：{scopes}")
         } else {
             let error = self.error.as_deref().unwrap_or("未知状态错误");
-            format!("检测到 gh 登录态，协议：{protocol}；状态 {}：{error}", self.state)
+            format!(
+                "检测到 gh 登录态，协议：{protocol}；状态 {}：{error}",
+                self.state
+            )
         }
     }
 }

@@ -168,8 +168,7 @@ fn parse_filter_token(token: &str) -> Option<(&str, &str)> {
 
 fn is_filter_key(key: &str) -> bool {
     key.chars().all(|char| {
-        !char.is_whitespace()
-            && !matches!(char, ':' | '：' | ';' | '；' | ',' | '，' | '\'' | '"')
+        !char.is_whitespace() && !matches!(char, ':' | '：' | ';' | '；' | ',' | '，' | '\'' | '"')
     })
 }
 
