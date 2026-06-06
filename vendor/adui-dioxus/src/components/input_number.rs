@@ -433,8 +433,8 @@ mod input_number_tests {
 
     #[test]
     fn format_value_with_precision() {
-        let result = format_value(Some(3.14159), Some(2));
-        assert_eq!(result, "3.14");
+        let result = format_value(Some(3.15159), Some(2));
+        assert_eq!(result, "3.15");
     }
 
     #[test]

@@ -214,9 +214,9 @@ mod tests {
 
         assert!(DataType::Integer.matches(&json!(42)));
         assert!(DataType::Integer.matches(&json!(-17)));
-        assert!(!DataType::Integer.matches(&json!(3.14)));
+        assert!(!DataType::Integer.matches(&json!(3.5)));
 
-        assert!(DataType::Float.matches(&json!(3.14)));
+        assert!(DataType::Float.matches(&json!(3.5)));
         assert!(DataType::Float.matches(&json!(42)));
 
         assert!(DataType::Boolean.matches(&json!(true)));

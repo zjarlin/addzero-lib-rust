@@ -346,8 +346,8 @@ mod tests {
 
     #[test]
     fn value_from_form_number_float() {
-        let val = Some(Value::Number(serde_json::Number::from_f64(3.14).unwrap()));
-        assert_eq!(value_from_form(val), Some("3.14".to_string()));
+        let val = Some(Value::Number(serde_json::Number::from_f64(3.5).unwrap()));
+        assert_eq!(value_from_form(val), Some("3.5".to_string()));
     }
 
     #[test]

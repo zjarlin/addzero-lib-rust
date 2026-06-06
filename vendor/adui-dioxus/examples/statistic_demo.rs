@@ -102,7 +102,7 @@ fn StatisticDemo() -> Element {
                             children: rsx! {
                                 Statistic {
                                     title: Some(rsx!("Conversion")),
-                                    value: Some(3.14159),
+                                    value: Some(3.15159),
                                     precision: Some(2),
                                     suffix: Some(rsx!("%")),
                                 }

@@ -337,10 +337,10 @@ pub fn find_vertical_merge_ranges_for_column(rows: &[Vec<CellValue>], column: us
         }
     }
 
-    if let (Some(range_start), Some(_)) = (start, last_value) {
-        if rows.len().saturating_sub(range_start) > 1 {
-            ranges.push(Range::new(range_start, column, rows.len() - 1, column));
-        }
+    if let (Some(range_start), Some(_)) = (start, last_value)
+        && rows.len().saturating_sub(range_start) > 1
+    {
+        ranges.push(Range::new(range_start, column, rows.len() - 1, column));
     }
 
     ranges
@@ -1167,7 +1167,7 @@ mod tests {
 
     #[test]
     fn cell_value_display_string_float() {
-        assert_eq!(CellValue::Number(3.14).to_string(), "3.14");
+        assert_eq!(CellValue::Number(3.5).to_string(), "3.5");
         assert_eq!(CellValue::Number(-2.5).to_string(), "-2.5");
     }
 

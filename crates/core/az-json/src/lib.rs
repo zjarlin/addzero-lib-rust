@@ -80,8 +80,8 @@ pub fn get_i64(json: &Value, path: &str) -> Option<i64> {
 /// use serde_json::json;
 /// use az_json::get_f64;
 ///
-/// let data = json!({ "pi": 3.14 });
-/// assert_eq!(get_f64(&data, "pi"), Some(3.14));
+/// let data = json!({ "ratio": 3.5 });
+/// assert_eq!(get_f64(&data, "ratio"), Some(3.5));
 /// ```
 pub fn get_f64(json: &Value, path: &str) -> Option<f64> {
     get_value(json, path).and_then(|v| v.as_f64())
@@ -233,15 +233,15 @@ mod tests {
 
     #[test]
     fn get_i64_extracts_integer() {
-        let data = json!({ "count": 42, "pi": 3.14 });
+        let data = json!({ "count": 42, "ratio": 3.5 });
         assert_eq!(get_i64(&data, "count"), Some(42));
-        assert_eq!(get_i64(&data, "pi"), None);
+        assert_eq!(get_i64(&data, "ratio"), None);
     }
 
     #[test]
     fn get_f64_extracts_float() {
-        let data = json!({ "pi": 3.14, "count": 42 });
-        assert_eq!(get_f64(&data, "pi"), Some(3.14));
+        let data = json!({ "ratio": 3.5, "count": 42 });
+        assert_eq!(get_f64(&data, "ratio"), Some(3.5));
         assert_eq!(get_f64(&data, "count"), Some(42.0));
     }
 

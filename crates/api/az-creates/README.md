@@ -12,7 +12,7 @@
 - 天眼查普通接口
 - 天眼查华为云签名接口
 - 临时邮箱：Cloudflare Worker、mail.tm、Emailnator，以及 provider factory 注入入口
-- 短信接码：5sim、Grizzly SMS，以及 provider factory 注入入口
+- 短信接码：DogeSMS、Grizzly SMS，以及 provider factory 注入入口
 - 邮件发送：SMTP sender，以及 sender factory 注入入口
 
 ## 添加依赖
@@ -257,18 +257,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use az_creates::{
-    BuiltinSmsProviderFactory, Creates, FivesimConfig, SmsProviderConfig, SmsProviderFactory,
+    BuiltinSmsProviderFactory, Creates, DogSmsConfig, GrizzlySmsConfig, SmsProviderConfig, SmsProviderFactory,
     SmsProviderKind,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = FivesimConfig::builder("token").build()?;
+    let config = DogSmsConfig::builder("token").build()?;
     let provider = Creates::sms_provider(SmsProviderConfig::from(config))?;
-    assert_eq!(provider.provider_kind(), SmsProviderKind::Fivesim);
+    assert_eq!(provider.provider_kind(), SmsProviderKind::DogSms);
 
     let factory: &dyn SmsProviderFactory = &BuiltinSmsProviderFactory;
-    let provider = Creates::fivesim_sms_with_factory(factory, "token")?;
-    assert_eq!(provider.provider_kind(), SmsProviderKind::Fivesim);
+    let grizzly = GrizzlySmsConfig::builder("token").build()?;
+    let provider = Creates::sms_provider_with_factory(factory, grizzly.into())?;
+    assert_eq!(provider.provider_kind(), SmsProviderKind::GrizzlySms);
     Ok(())
 }
 ```
@@ -277,8 +278,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 - `sms_provider`
 - `sms_provider_with_factory`
-- `fivesim_sms`
-- `fivesim_sms_with_factory`
 
 ## Email sender
 

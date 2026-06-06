@@ -5,7 +5,8 @@ pub(crate) fn compose_class(base: &str, extra: &str, modifiers: &[(&str, bool)])
     classes.extend(
         modifiers
             .iter()
-            .filter_map(|(name, enabled)| enabled.then(|| (*name).to_string())),
+            .filter(|(_, enabled)| *enabled)
+            .map(|(name, _)| (*name).to_string()),
     );
 
     if !extra.is_empty() {

@@ -293,16 +293,15 @@ impl SmsProvider for GrizzlySmsClient {
             .unwrap_or_else(|| synthetic_order(order_id, snapshot.status.clone()));
 
         order.status = snapshot.status.clone();
-        if matches!(snapshot.status, SmsOrderStatus::Received) {
-            if let Some(message) = self
+        if matches!(snapshot.status, SmsOrderStatus::Received)
+            && let Some(message) = self
                 .status_v2_message(order_id)
                 .await
                 .ok()
                 .flatten()
                 .or_else(|| snapshot.message())
-            {
-                order.sms = vec![message];
-            }
+        {
+            order.sms = vec![message];
         }
 
         Ok(order)
@@ -367,7 +366,7 @@ fn parse_number_response(body: &str) -> SmsResult<GrizzlyNumberV2Response> {
                 });
             }
             if looks_like_provider_message(body) {
-                Err(provider_error(None, body.to_owned()))
+                Err(provider_error(None, body))
             } else {
                 Err(SmsError::Json(error))
             }
@@ -390,7 +389,7 @@ fn parse_access_number(body: &str) -> Option<(u64, String)> {
 
 fn parse_balance_response(body: &str) -> SmsResult<f64> {
     let Some(balance) = body.trim().strip_prefix("ACCESS_BALANCE:") else {
-        return Err(provider_error(None, body.to_owned()));
+        return Err(provider_error(None, body));
     };
     balance
         .trim()
@@ -401,7 +400,7 @@ fn parse_balance_response(body: &str) -> SmsResult<f64> {
 fn parse_set_status_response(body: &str) -> SmsResult<()> {
     match body.trim() {
         "ACCESS_READY" | "ACCESS_RETRY_GET" | "ACCESS_ACTIVATION" | "ACCESS_CANCEL" => Ok(()),
-        _ => Err(provider_error(None, body.to_owned())),
+        _ => Err(provider_error(None, body)),
     }
 }
 
@@ -436,7 +435,7 @@ fn parse_status_response(body: &str) -> SmsResult<GrizzlyStatusSnapshot> {
         });
     }
 
-    Err(provider_error(None, body.to_owned()))
+    Err(provider_error(None, body))
 }
 
 #[apply(plain_eq)]

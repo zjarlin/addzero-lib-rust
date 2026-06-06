@@ -525,9 +525,10 @@ pub struct DogSmsInventoryItem {
 }
 
 /// DogeSMS activation lifecycle status.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum DogSmsActivationStatus {
     /// Order is allocated or waiting for SMS delivery.
+    #[default]
     Pending,
     /// SMS content has arrived.
     Received,
@@ -539,12 +540,6 @@ pub enum DogSmsActivationStatus {
     Finished,
     /// Provider returned a status this crate does not yet classify.
     Unknown(String),
-}
-
-impl Default for DogSmsActivationStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
 }
 
 impl DogSmsActivationStatus {

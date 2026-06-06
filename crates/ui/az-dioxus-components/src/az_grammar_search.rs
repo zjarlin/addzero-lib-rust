@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::class_name::compose_class;
+use crate::util::class_name::compose_class;
 
 /// 描述语法式搜索框可提示的一个过滤维度。
 #[derive(Clone, Debug, Eq, PartialEq)]

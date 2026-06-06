@@ -148,22 +148,19 @@ fn creates_facade_builds_emailnator_client() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn creates_facade_builds_sms_provider() -> Result<(), Box<dyn Error>> {
-    let fivesim = FivesimConfig::builder("token").build()?;
+    let dogsms = DogSmsConfig::builder("token").build()?;
     assert_eq!(
-        SmsProviderConfig::from(fivesim.clone()).kind(),
-        SmsProviderKind::Fivesim
+        SmsProviderConfig::from(dogsms.clone()).kind(),
+        SmsProviderKind::DogSms
     );
 
-    let provider = Creates::sms_provider(fivesim.into())?;
+    let provider = Creates::sms_provider(dogsms.into())?;
     drop(provider);
 
     let factory: &dyn SmsProviderFactory = &BuiltinSmsProviderFactory;
     let grizzly = GrizzlySmsConfig::builder("api-key").build()?;
     let provider = Creates::sms_provider_with_factory(factory, grizzly.into())?;
     drop(provider);
-
-    let fivesim = Creates::fivesim_sms_with_factory(factory, "token")?;
-    drop(fivesim);
 
     Ok(())
 }

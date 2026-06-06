@@ -11,7 +11,7 @@
 //!   代理版（`TianyanchaHuaweiApi`）两种接入方式，支持公司搜索与详情查询。
 //! - **临时邮箱**（re-export 自 `az-temp-mail`）—— 创建临时邮箱、收发邮件、管理地址等，
 //!   支持 Cloudflare、mail.tm、Emailnator 三种后端和 provider factory 注入。
-//! - **短信接码**（re-export 自 `az-sms`）—— 统一 5sim、Grizzly SMS 等 provider 的
+//! - **短信接码**（re-export 自 `az-sms`）—— 统一 DogeSMS、Grizzly SMS 等 provider 的
 //!   trait-object 工厂边界，供注册/验证流程依赖注入。
 //! - **邮件发送**（re-export 自 `az-email`）—— 统一 SMTP sender 与 sender factory，
 //!   供通知、验证码和工作流消息发送依赖注入。
@@ -59,10 +59,13 @@ pub use az_music::{
     create_netease_api as create_music_search_api, create_suno_api,
 };
 pub use az_sms::{
+    dogsms::client::{
+        DogSmsActivationOrder, DogSmsActivationRequest, DogSmsActivationStatus, DogSmsBalance,
+        DogSmsClient, DogSmsConfig, DogSmsConfigBuilder, DogSmsInventoryItem, DogSmsMessage,
+        DogSmsRentalOrder, DogSmsRentalRequest, DogSmsService,
+    },
     error::{SmsError, SmsResult},
-    fivesim::{FivesimClient, FivesimConfig, FivesimConfigBuilder},
-    fivesim_factory::{build_fivesim_provider, build_fivesim_provider_with},
-    grizzlysms::{GrizzlySmsClient, GrizzlySmsConfig, GrizzlySmsConfigBuilder},
+    grizzlysms::client::{GrizzlySmsClient, GrizzlySmsConfig, GrizzlySmsConfigBuilder},
     model::{
         SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsMessage, SmsOrder, SmsOrderStatus,
         SmsProfile, WaitForSmsOptions,
@@ -192,19 +195,6 @@ impl Creates {
         config: SmsProviderConfig,
     ) -> SmsResult<BoxSmsProvider> {
         factory.build_provider(config)
-    }
-
-    /// 使用 token 快速创建 5sim 短信接码 provider。
-    pub fn fivesim_sms(token: &str) -> SmsResult<BoxSmsProvider> {
-        build_fivesim_provider(token)
-    }
-
-    /// 通过工厂创建 5sim 短信接码 provider。
-    pub fn fivesim_sms_with_factory(
-        factory: &dyn SmsProviderFactory,
-        token: &str,
-    ) -> SmsResult<BoxSmsProvider> {
-        build_fivesim_provider_with(factory, token)
     }
 
     /// 按 sender 配置构建邮件发送 trait object。
