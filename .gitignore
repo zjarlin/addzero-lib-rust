@@ -27,3 +27,6 @@ dist
 out
 crates/storage/gitdb/data/gitdb
 .syncthing.*
+*.sync-conflict-*
+*sync-conflict*
+.vscode/
