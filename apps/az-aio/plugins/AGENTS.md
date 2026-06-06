@@ -3,8 +3,10 @@
 ## Naming
 
 - The platform name is `az-platform`.
-- Feature plugins are named by capability group, not by frontend/backend or implementation role.
-- Planned feature plugin IDs are:
+- Plugins are named by domain or capability group, not by frontend/backend, runtime origin, or implementation role.
+- Planned plugin IDs are:
+  - `navigation`
+  - `catalog`
   - `settings`
   - `search`
   - `projects`
@@ -13,12 +15,14 @@
   - `git/envs`
   - `git/notes`
 - `git/notes` is a reserved placeholder until note functionality is implemented.
-- Transitional builtins such as `builtin/core-nav` and `builtin/catalog` must not become the naming pattern for business plugins.
+- Do not introduce `builtin/*`, `native/*`, or `external/*` plugin identities. A plugin shipped with the app and a plugin installed later must use the same packaged Wasm loading path.
 
 ## Contribution Contracts
 
 - Every plugin must declare frontend UI placement through `UiContribution`.
 - Required slot semantics:
+  - `navigation` contributes shell navigation and app-level route metadata.
+  - `catalog` contributes plugin catalog content and catalog toolbar actions.
   - `settings` contributes `settings-content`.
   - `search` contributes a search route/content surface.
   - `projects` contributes both `project-sidebar` and `project-content`.
@@ -37,20 +41,20 @@
 
 ## Wasm And Xtask
 
-- Every planned feature plugin must be independently addressable by `cargo xtask az-platform plugin <command> <plugin>`.
+- Every planned plugin must be independently addressable by `cargo xtask az-platform plugin <command> <plugin>`.
 - Supported aggregate checks must include:
   - `cargo xtask az-platform plugin build all`
   - `cargo xtask az-platform plugin build-wasm all`
   - `cargo xtask az-platform plugin package all`
   - `cargo xtask az-platform plugin sandbox all`
-- `sandbox <plugin>` must run the packaged manifest path, not only a native in-repo host path.
+- `sandbox <plugin>` must run the packaged manifest path, not an in-repo linked plugin path.
 - Packaged manifests live under `target/az-platform/plugins/<plugin>/az-plugin.json`.
-- Wasm components with native-only host behavior may export descriptor, UI contributions, backend API contracts, and sandbox debug metadata without reading or writing host paths directly.
-- Wasm descriptors should not keep native-only dependencies that prevent single-plugin sandbox loading.
+- Plugins with host filesystem behavior export descriptor, UI contributions, backend API contracts, and sandbox debug metadata from Wasm; actual filesystem work must be routed through platform host APIs.
+- Wasm descriptors must not keep host-only dependencies that prevent single-plugin sandbox loading.
 
 ## Frontend And Backend Packaging
 
-- A single business plugin can contain frontend and backend contracts together.
+- A single plugin can contain frontend and backend contracts together.
 - Generated packages must include:
   - `az-plugin.json`
   - `frontend/az-frontend.json`

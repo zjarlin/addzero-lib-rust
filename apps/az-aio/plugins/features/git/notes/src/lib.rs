@@ -20,7 +20,7 @@ impl AzAioPlugin for GitNotesPlugin {
             dependencies: Vec::new(),
             capabilities: vec!["notes-placeholder".to_string()],
             permissions: Vec::new(),
-            kind: PluginKind::Native,
+            kind: PluginKind::WasmComponent,
         }
     }
 
@@ -48,7 +48,7 @@ impl AzAioPlugin for GitNotesPlugin {
 
 #[cfg(target_arch = "wasm32")]
 mod component {
-    use az_aio_plugin_api::{AzAioPlugin, PluginKind, contributions_to_json, descriptor_to_json};
+    use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
 
     use super::GitNotesPlugin;
 
@@ -61,9 +61,7 @@ mod component {
 
     impl Guest for GitNotesWasm {
         fn describe() -> Result<String, String> {
-            let mut descriptor = GitNotesPlugin.descriptor();
-            descriptor.kind = PluginKind::WasmComponent;
-            descriptor_to_json(&descriptor).map_err(|error| error.to_string())
+            descriptor_to_json(&GitNotesPlugin.descriptor()).map_err(|error| error.to_string())
         }
 
         fn contributions() -> Result<String, String> {

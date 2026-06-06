@@ -9,15 +9,7 @@ description = "App-local AZ AIO plugin host and contribution aggregator."
 
 [dependencies]
 az-aio-plugin-api = { path = "../api" }
-az-aio-plugin-catalog = { path = "../builtin/catalog" }
-az-aio-plugin-core-nav = { path = "../builtin/core-nav" }
-az-aio-plugin-git-clis = { path = "../features/git/clis" }
-az-aio-plugin-git-envs = { path = "../features/git/envs" }
-az-aio-plugin-git-notes = { path = "../features/git/notes" }
-az-aio-plugin-git-skills = { path = "../features/git/skills" }
-az-aio-plugin-projects = { path = "../features/projects" }
-az-aio-plugin-search = { path = "../features/search" }
-az-aio-plugin-settings = { path = "../features/settings" }
+dirs = "6"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 thiserror = "2.0.17"

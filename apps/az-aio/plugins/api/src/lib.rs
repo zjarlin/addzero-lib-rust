@@ -13,7 +13,6 @@ pub enum PluginActivation {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginKind {
-    Native,
     WasmComponent,
 }
 
@@ -76,7 +75,6 @@ pub struct PluginBundleArtifact {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginBundleArtifactKind {
-    NativeCrate,
     WasmComponent,
     FrontendBundle,
     BackendBundle,
@@ -261,7 +259,7 @@ pub struct PageContribution {
     pub route: String,
     pub title: String,
     pub subtitle: String,
-    pub renderer: PageRenderer,
+    pub renderer_id: String,
     pub placeholder_mark: String,
     pub order: i32,
 }
@@ -310,16 +308,6 @@ pub struct BackendApiContribution {
     pub label: String,
     pub description: String,
     pub order: i32,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum PageRenderer {
-    Placeholder,
-    Catalog,
-    CliCatalog,
-    EnvVars,
-    AzPlatformSandbox,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -415,7 +403,7 @@ impl CatalogSource {
             Self::Local => "本地",
             Self::System => "系统",
             Self::User => "用户",
-            Self::Wasm => "外部组件",
+            Self::Wasm => "Wasm 组件",
         }
     }
 }
@@ -524,6 +512,8 @@ pub enum PluginError {
     DuplicateId(String),
     #[error("插件 `{plugin}` 缺少依赖 `{dependency}`")]
     MissingDependency { plugin: String, dependency: String },
+    #[error("插件 `{plugin}` 依赖 `{dependency}` 未成功加载")]
+    DependencyFailed { plugin: String, dependency: String },
     #[error("依赖环包含插件 `{0}`")]
     DependencyCycle(String),
     #[error("插件 `{plugin}` 在 {phase} 阶段失败：{message}")]
@@ -532,7 +522,7 @@ pub enum PluginError {
         phase: String,
         message: String,
     },
-    #[error("外部组件 `{plugin}` 运行失败：{message}")]
+    #[error("Wasm 组件 `{plugin}` 运行失败：{message}")]
     Wasm { plugin: String, message: String },
     #[error("插件 `{plugin}` 访问 `{path}` 失败：{message}")]
     Io {

@@ -1,9 +1,9 @@
 #![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
 
 use az_aio_plugin_api::{
-    AzAioPlugin, BackendApiContribution, ContributionSet, PluginActivation, PluginDescriptor,
-    PluginKind, SettingsDefaultContribution, SettingsSectionContribution, UiContribution,
-    UiContributionSlot,
+    AzAioPlugin, BackendApiContribution, ContributionSet, PageContribution, PluginActivation,
+    PluginDescriptor, PluginKind, SettingsDefaultContribution, SettingsSectionContribution,
+    UiContribution, UiContributionSlot,
 };
 
 const PROJECT_DEFAULT_SYNC_ROOT: &str = "az-sync/workspace";
@@ -27,14 +27,21 @@ impl AzAioPlugin for SettingsPlugin {
                 "backend-api".to_string(),
             ],
             permissions: Vec::new(),
-            kind: PluginKind::Native,
+            kind: PluginKind::WasmComponent,
         }
     }
 
     fn contributions(&self) -> Result<ContributionSet, az_aio_plugin_api::PluginError> {
         Ok(ContributionSet {
             nav_items: Vec::new(),
-            pages: Vec::new(),
+            pages: vec![PageContribution {
+                route: "/settings".to_string(),
+                title: "设置".to_string(),
+                subtitle: "管理 AZ AIO 设置和项目默认目录。".to_string(),
+                renderer_id: "settings.page".to_string(),
+                placeholder_mark: "⚙".to_string(),
+                order: 90,
+            }],
             ui_contributions: vec![ui_contribution(
                 "settings.ui.project-defaults",
                 UiContributionSlot::SettingsContent,
@@ -109,7 +116,7 @@ fn backend_api(
 
 #[cfg(target_arch = "wasm32")]
 mod component {
-    use az_aio_plugin_api::{AzAioPlugin, PluginKind, contributions_to_json, descriptor_to_json};
+    use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
 
     use super::SettingsPlugin;
 
@@ -122,9 +129,7 @@ mod component {
 
     impl Guest for SettingsWasm {
         fn describe() -> Result<String, String> {
-            let mut descriptor = SettingsPlugin.descriptor();
-            descriptor.kind = PluginKind::WasmComponent;
-            descriptor_to_json(&descriptor).map_err(|error| error.to_string())
+            descriptor_to_json(&SettingsPlugin.descriptor()).map_err(|error| error.to_string())
         }
 
         fn contributions() -> Result<String, String> {

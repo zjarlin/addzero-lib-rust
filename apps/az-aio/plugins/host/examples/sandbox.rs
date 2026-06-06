@@ -3,7 +3,9 @@
 use std::{env, path::PathBuf, process::ExitCode};
 
 use az_aio_plugin_api::PluginSandboxDebugReport;
-use az_aio_plugin_host::{PluginHost, PluginRuntimeRecord, WasmComponentPlugin};
+use az_aio_plugin_host::{
+    PluginHost, PluginRuntimeRecord, WasmComponentPlugin, default_plugin_host,
+};
 use serde::Serialize;
 
 #[derive(Clone, Copy)]
@@ -45,7 +47,7 @@ fn run() -> Result<(), String> {
             .with_plugin(Box::new(plugin))
             .load_snapshot()
     } else {
-        PluginHost::with_builtin_plugins().load_snapshot()
+        default_plugin_host().load_snapshot()
     };
     let plugin_id = args
         .plugin_id

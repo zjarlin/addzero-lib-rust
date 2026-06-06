@@ -1,9 +1,8 @@
-#![forbid(unsafe_code)]
+#![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
 
 use az_aio_plugin_api::{
-    AzAioPlugin, ContributionSet, NavItemContribution, PageContribution, PageRenderer,
-    PluginActivation, PluginDescriptor, PluginKind, SettingsSectionContribution, UiContribution,
-    UiContributionSlot,
+    AzAioPlugin, ContributionSet, NavItemContribution, PageContribution, PluginActivation,
+    PluginDescriptor, PluginKind, SettingsSectionContribution, UiContribution, UiContributionSlot,
 };
 
 #[derive(Default)]
@@ -12,10 +11,10 @@ pub struct CoreNavPlugin;
 impl AzAioPlugin for CoreNavPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
-            id: "builtin/core-nav".to_string(),
-            name: "核心导航".to_string(),
+            id: "navigation".to_string(),
+            name: "导航".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
-            description: "提供 AZ AIO 桌面端左侧导航和占位页面描述。".to_string(),
+            description: "提供 AZ AIO 桌面端左侧导航和基础路由描述。".to_string(),
             activation: PluginActivation::Eager,
             priority: 1_000,
             dependencies: Vec::new(),
@@ -25,7 +24,7 @@ impl AzAioPlugin for CoreNavPlugin {
                 "settings-sections".to_string(),
             ],
             permissions: Vec::new(),
-            kind: PluginKind::Native,
+            kind: PluginKind::WasmComponent,
         }
     }
 
@@ -48,8 +47,8 @@ impl AzAioPlugin for CoreNavPlugin {
                 PageContribution {
                     route: "/plugins".to_string(),
                     title: "插件与技能".to_string(),
-                    subtitle: "查看本地插件、外部组件和技能。".to_string(),
-                    renderer: PageRenderer::Catalog,
+                    subtitle: "查看本地插件包、组件和技能。".to_string(),
+                    renderer_id: "catalog".to_string(),
                     placeholder_mark: "⌘".to_string(),
                     order: 30,
                 },
@@ -57,7 +56,7 @@ impl AzAioPlugin for CoreNavPlugin {
                     route: "/az-platform".to_string(),
                     title: "az-platform".to_string(),
                     subtitle: "插件贡献点和后端接口沙箱。".to_string(),
-                    renderer: PageRenderer::AzPlatformSandbox,
+                    renderer_id: "az-platform-sandbox".to_string(),
                     placeholder_mark: "◇".to_string(),
                     order: 35,
                 },
@@ -102,6 +101,51 @@ impl AzAioPlugin for CoreNavPlugin {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+mod component {
+    use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
+
+    use super::CoreNavPlugin;
+
+    wit_bindgen::generate!({
+        path: "../../wit",
+        world: "az-aio-plugin",
+    });
+
+    struct NavigationWasm;
+
+    impl Guest for NavigationWasm {
+        fn describe() -> Result<String, String> {
+            descriptor_to_json(&CoreNavPlugin.descriptor()).map_err(|error| error.to_string())
+        }
+
+        fn contributions() -> Result<String, String> {
+            let contributions = CoreNavPlugin
+                .contributions()
+                .map_err(|error| error.to_string())?;
+            contributions_to_json(&contributions).map_err(|error| error.to_string())
+        }
+
+        fn on_load() -> Result<(), String> {
+            Ok(())
+        }
+
+        fn on_enable() -> Result<(), String> {
+            Ok(())
+        }
+
+        fn on_disable() -> Result<(), String> {
+            Ok(())
+        }
+
+        fn on_unload() -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    export!(NavigationWasm);
+}
+
 fn ui_contribution(
     id: &str,
     slot: UiContributionSlot,
@@ -141,7 +185,7 @@ fn placeholder_page(
         route: route.to_string(),
         title: title.to_string(),
         subtitle: subtitle.to_string(),
-        renderer: PageRenderer::Placeholder,
+        renderer_id: "placeholder".to_string(),
         placeholder_mark: mark.to_string(),
         order,
     }

@@ -9,8 +9,8 @@ use std::{
 use az_aio_plugin_api::{
     AzAioPlugin, BackendApiContribution, CatalogItemContribution, CatalogItemKind,
     CatalogProviderContribution, CatalogSource, CatalogTagContribution, CatalogTagGroup,
-    ContributionSet, PluginActivation, PluginDependency, PluginDescriptor, PluginKind,
-    UiContribution, UiContributionSlot,
+    ContributionSet, PluginActivation, PluginDescriptor, PluginKind, UiContribution,
+    UiContributionSlot,
 };
 
 const SYSTEM_SKILLS_ROOT: &str = "/Users/zjarlin/.codex/skills/.system";
@@ -68,17 +68,14 @@ impl AzAioPlugin for GitSkillsPlugin {
             description: "扫描 Codex 系统技能和用户技能，支持软链接。".to_string(),
             activation: PluginActivation::Eager,
             priority: 800,
-            dependencies: vec![PluginDependency {
-                id: "builtin/catalog".to_string(),
-                optional: false,
-            }],
+            dependencies: Vec::new(),
             capabilities: vec!["catalog-provider".to_string(), "skill-scan".to_string()],
             permissions: self
                 .roots
                 .iter()
                 .map(|root| format!("读取 {}", root.path.display()))
                 .collect(),
-            kind: PluginKind::Native,
+            kind: PluginKind::WasmComponent,
         }
     }
 
@@ -450,7 +447,7 @@ fn folded_front_matter_value(lines: &[&str], start_index: usize) -> Option<Strin
 
 #[cfg(target_arch = "wasm32")]
 mod component {
-    use az_aio_plugin_api::{AzAioPlugin, PluginKind, contributions_to_json, descriptor_to_json};
+    use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
 
     use super::{GitSkillsPlugin, wasm_contribution_set};
 
@@ -463,10 +460,8 @@ mod component {
 
     impl Guest for GitSkillsWasm {
         fn describe() -> Result<String, String> {
-            let mut descriptor = GitSkillsPlugin::new(Vec::new()).descriptor();
-            descriptor.dependencies = Vec::new();
-            descriptor.kind = PluginKind::WasmComponent;
-            descriptor_to_json(&descriptor).map_err(|error| error.to_string())
+            descriptor_to_json(&GitSkillsPlugin::new(Vec::new()).descriptor())
+                .map_err(|error| error.to_string())
         }
 
         fn contributions() -> Result<String, String> {

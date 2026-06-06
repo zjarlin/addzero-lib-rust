@@ -24,7 +24,7 @@ impl AzAioPlugin for GitEnvsPlugin {
                 "sandbox-panel".to_string(),
             ],
             permissions: Vec::new(),
-            kind: PluginKind::Native,
+            kind: PluginKind::WasmComponent,
         }
     }
 
@@ -59,7 +59,7 @@ impl AzAioPlugin for GitEnvsPlugin {
 
 #[cfg(target_arch = "wasm32")]
 mod component {
-    use az_aio_plugin_api::{AzAioPlugin, PluginKind, contributions_to_json, descriptor_to_json};
+    use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
 
     use super::GitEnvsPlugin;
 
@@ -72,9 +72,7 @@ mod component {
 
     impl Guest for GitEnvsWasm {
         fn describe() -> Result<String, String> {
-            let mut descriptor = GitEnvsPlugin.descriptor();
-            descriptor.kind = PluginKind::WasmComponent;
-            descriptor_to_json(&descriptor).map_err(|error| error.to_string())
+            descriptor_to_json(&GitEnvsPlugin.descriptor()).map_err(|error| error.to_string())
         }
 
         fn contributions() -> Result<String, String> {

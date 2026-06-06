@@ -2,8 +2,7 @@
 
 use az_aio_plugin_api::{
     AzAioPlugin, BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
-    PageRenderer, PluginActivation, PluginDescriptor, PluginKind, UiContribution,
-    UiContributionSlot,
+    PluginActivation, PluginDescriptor, PluginKind, UiContribution, UiContributionSlot,
 };
 
 #[derive(Default)]
@@ -25,7 +24,7 @@ impl AzAioPlugin for ProjectsPlugin {
                 "backend-api".to_string(),
             ],
             permissions: Vec::new(),
-            kind: PluginKind::Native,
+            kind: PluginKind::WasmComponent,
         }
     }
 
@@ -42,7 +41,7 @@ impl AzAioPlugin for ProjectsPlugin {
                 route: "/projects".to_string(),
                 title: "项目".to_string(),
                 subtitle: "管理本地工作区、同步目录和项目上下文。".to_string(),
-                renderer: PageRenderer::Placeholder,
+                renderer_id: "placeholder".to_string(),
                 placeholder_mark: "▦".to_string(),
                 order: 25,
             }],
@@ -119,7 +118,7 @@ fn backend_api(
 
 #[cfg(target_arch = "wasm32")]
 mod component {
-    use az_aio_plugin_api::{AzAioPlugin, PluginKind, contributions_to_json, descriptor_to_json};
+    use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
 
     use super::ProjectsPlugin;
 
@@ -132,9 +131,7 @@ mod component {
 
     impl Guest for ProjectsWasm {
         fn describe() -> Result<String, String> {
-            let mut descriptor = ProjectsPlugin.descriptor();
-            descriptor.kind = PluginKind::WasmComponent;
-            descriptor_to_json(&descriptor).map_err(|error| error.to_string())
+            descriptor_to_json(&ProjectsPlugin.descriptor()).map_err(|error| error.to_string())
         }
 
         fn contributions() -> Result<String, String> {

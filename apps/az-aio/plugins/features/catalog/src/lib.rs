@@ -1,9 +1,9 @@
-#![forbid(unsafe_code)]
+#![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
 
 use az_aio_plugin_api::{
     AzAioPlugin, CatalogItemContribution, CatalogItemKind, CatalogProviderContribution,
-    CatalogSource, ContributionSet, PluginActivation, PluginDependency, PluginDescriptor,
-    PluginKind, ToolbarActionContribution, UiContribution, UiContributionSlot,
+    CatalogSource, ContributionSet, PluginActivation, PluginDescriptor, PluginKind,
+    ToolbarActionContribution, UiContribution, UiContributionSlot,
 };
 
 #[derive(Default)]
@@ -12,22 +12,19 @@ pub struct CatalogPlugin;
 impl AzAioPlugin for CatalogPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
-            id: "builtin/catalog".to_string(),
+            id: "catalog".to_string(),
             name: "插件目录".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
-            description: "提供插件、技能和外部组件的目录描述。".to_string(),
+            description: "提供插件、技能和组件的目录描述。".to_string(),
             activation: PluginActivation::Eager,
             priority: 900,
-            dependencies: vec![PluginDependency {
-                id: "builtin/core-nav".to_string(),
-                optional: false,
-            }],
+            dependencies: Vec::new(),
             capabilities: vec![
                 "catalog-provider".to_string(),
                 "toolbar-actions".to_string(),
             ],
             permissions: Vec::new(),
-            kind: PluginKind::Native,
+            kind: PluginKind::WasmComponent,
         }
     }
 
@@ -116,6 +113,51 @@ impl AzAioPlugin for CatalogPlugin {
             generated_files: Vec::new(),
         })
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+mod component {
+    use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
+
+    use super::CatalogPlugin;
+
+    wit_bindgen::generate!({
+        path: "../../wit",
+        world: "az-aio-plugin",
+    });
+
+    struct CatalogWasm;
+
+    impl Guest for CatalogWasm {
+        fn describe() -> Result<String, String> {
+            descriptor_to_json(&CatalogPlugin.descriptor()).map_err(|error| error.to_string())
+        }
+
+        fn contributions() -> Result<String, String> {
+            let contributions = CatalogPlugin
+                .contributions()
+                .map_err(|error| error.to_string())?;
+            contributions_to_json(&contributions).map_err(|error| error.to_string())
+        }
+
+        fn on_load() -> Result<(), String> {
+            Ok(())
+        }
+
+        fn on_enable() -> Result<(), String> {
+            Ok(())
+        }
+
+        fn on_disable() -> Result<(), String> {
+            Ok(())
+        }
+
+        fn on_unload() -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    export!(CatalogWasm);
 }
 
 fn ui_contribution(

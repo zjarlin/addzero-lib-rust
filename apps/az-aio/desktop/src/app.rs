@@ -7,19 +7,20 @@ use crate::sidebar::{
 };
 use az_aio_plugin_api::{
     CatalogItemContribution, CatalogItemKind, CatalogSource, CatalogTagContribution,
-    CatalogTagGroup, ContributionSet, PageContribution, PageRenderer, PluginActivation,
-    PluginBackendBundle, PluginFrontendBundle, PluginKind, PluginSandboxBackendApiDebug,
-    PluginSandboxDebugReport, PluginSandboxUiContributionDebug, PluginState,
-    ToolbarActionContribution,
+    CatalogTagGroup, ContributionSet, PageContribution, PluginActivation, PluginBackendBundle,
+    PluginFrontendBundle, PluginKind, PluginSandboxBackendApiDebug, PluginSandboxDebugReport,
+    PluginSandboxUiContributionDebug, PluginState, ToolbarActionContribution,
 };
 use az_aio_plugin_host::{
     HostSnapshot, PluginContributionRecord, PluginRuntimeRecord, load_az_aio_plugin_snapshot,
+    set_plugin_enabled,
 };
 use az_dioxus_components::prelude::{
     AzDataTable, AzDataTableAlign, AzDataTableCell, AzDataTableColumn, AzDataTableRow,
 };
 use az_git::{GitAccountConfigStore, GitProjectBinding};
 use dioxus::prelude::*;
+use dioxus::signals::SyncStorage;
 
 const APP_CSS: Asset = asset!("/assets/app.css");
 const DEFAULT_ROUTE: &str = "/plugins";
@@ -41,6 +42,12 @@ const RECENT_THREADS: [&str; 3] = [
     "将你常用的应用连接到 AZ AIO",
 ];
 
+struct PluginSnapshotRefresh {
+    selected_kind: Option<CatalogItemKind>,
+    selected_item_id: Option<Signal<String, SyncStorage>>,
+    enabled_items: Signal<Vec<String>, SyncStorage>,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SourceFilter {
     All,
@@ -61,7 +68,7 @@ impl SourceFilter {
             Self::Local => "本地",
             Self::System => "系统",
             Self::User => "用户",
-            Self::Wasm => "外部组件",
+            Self::Wasm => "Wasm 组件",
         }
     }
 
@@ -200,13 +207,28 @@ const SKILL_TAG_OPTIONS: [SkillTagOption; 9] = [
 #[allow(non_snake_case)]
 #[component]
 pub fn App() -> Element {
-    let snapshot = use_signal(load_az_aio_plugin_snapshot);
+    let snapshot = use_signal_sync(HostSnapshot::default);
+    let snapshot_ready = use_signal_sync(|| false);
     let mut active_route = use_signal(|| DEFAULT_ROUTE.to_string());
     let mut last_app_route = use_signal(|| DEFAULT_ROUTE.to_string());
     let mut sidebar_collapsed = use_signal(|| false);
 
+    use_hook({
+        let snapshot = snapshot;
+        let snapshot_ready = snapshot_ready;
+        move || refresh_plugin_snapshot_async(snapshot, Some(snapshot_ready), None)
+    });
+
+    if !*snapshot_ready.read() {
+        return rsx! {
+            document::Link { rel: "stylesheet", href: APP_CSS }
+            PluginShellSkeleton {}
+        };
+    }
+
     let snapshot_value = snapshot.read().clone();
-    let selected_route = active_route.read().clone();
+    let requested_route = active_route.read().clone();
+    let selected_route = requested_route.clone();
     let selected_page = selected_page(&snapshot_value.pages, &selected_route);
     let is_sidebar_collapsed = *sidebar_collapsed.read();
     let shell_class = if is_sidebar_collapsed {
@@ -214,21 +236,11 @@ pub fn App() -> Element {
     } else {
         "az-aio-shell"
     };
-    let body_class = if uses_scroll_body(selected_page.renderer) {
+    let body_class = if uses_scroll_body(&selected_page.renderer_id) {
         "workspace__body workspace__body--catalog"
     } else {
         "workspace__body"
     };
-
-    if selected_route == SETTINGS_ROUTE {
-        let return_route = last_app_route.read().clone();
-        return rsx! {
-            document::Link { rel: "stylesheet", href: APP_CSS }
-            SettingsPage {
-                on_return: move |_| active_route.set(return_route.clone()),
-            }
-        };
-    }
 
     rsx! {
         document::Link { rel: "stylesheet", href: APP_CSS }
@@ -247,29 +259,31 @@ pub fn App() -> Element {
                     last_app_route.set(route.clone());
                     active_route.set(route);
                 },
-                on_settings_select: move |_| active_route.set(SETTINGS_ROUTE.to_string()),
             }
             section { class: "workspace",
                 HeaderBar {}
                 div { class: body_class,
-                    match selected_page.renderer {
-                        PageRenderer::Catalog => rsx! { PluginCatalogPage { snapshot } },
-                        PageRenderer::CliCatalog => rsx! {
+                    match selected_page.renderer_id.as_str() {
+                        "catalog" => rsx! { PluginCatalogPage { snapshot } },
+                        "git.clis.manager" | "cli-catalog" => rsx! {
                             ShellManagerRoutePage {
                                 snapshot,
                                 mode: ShellPageMode::Cli,
                             }
                         },
-                        PageRenderer::EnvVars => rsx! {
+                        "git.envs.manager" | "env-vars" => rsx! {
                             ShellManagerRoutePage {
                                 snapshot,
                                 mode: ShellPageMode::Env,
                             }
                         },
-                        PageRenderer::AzPlatformSandbox => rsx! {
+                        "az-platform-sandbox" => rsx! {
                             AzPlatformSandboxPage { snapshot }
                         },
-                        PageRenderer::Placeholder => rsx! {
+                        "settings.page" => rsx! {
+                            SettingsPage {}
+                        },
+                        _ => rsx! {
                             EmptyPanel {
                                 title: selected_page.title.clone(),
                                 mark: selected_page.placeholder_mark.clone(),
@@ -282,11 +296,8 @@ pub fn App() -> Element {
     }
 }
 
-fn uses_scroll_body(renderer: PageRenderer) -> bool {
-    matches!(
-        renderer,
-        PageRenderer::Catalog | PageRenderer::AzPlatformSandbox
-    )
+fn uses_scroll_body(renderer_id: &str) -> bool {
+    matches!(renderer_id, "catalog" | "az-platform-sandbox")
 }
 
 fn selected_page(pages: &[PageContribution], active_route: &str) -> PageContribution {
@@ -299,10 +310,97 @@ fn selected_page(pages: &[PageContribution], active_route: &str) -> PageContribu
             route: DEFAULT_ROUTE.to_string(),
             title: "暂未开放".to_string(),
             subtitle: String::new(),
-            renderer: PageRenderer::Placeholder,
+            renderer_id: "placeholder".to_string(),
             placeholder_mark: "⌘".to_string(),
             order: 0,
         })
+}
+
+#[allow(non_snake_case)]
+#[component]
+fn PluginShellSkeleton() -> Element {
+    let primary_rows = [0, 1, 2, 3, 4, 5];
+    let project_rows = [0, 1, 2, 3, 4];
+    let catalog_rows = [0, 1, 2, 3];
+
+    rsx! {
+        main { class: "az-aio-shell plugin-shell-skeleton",
+            div { class: "titlebar-controls",
+                div { class: "skeleton-icon" }
+                div { class: "skeleton-icon skeleton-icon--small" }
+                div { class: "skeleton-icon skeleton-icon--small" }
+            }
+            aside { class: "sidebar skeleton-sidebar",
+                div { class: "sidebar__section sidebar__section--primary",
+                    nav { class: "sidebar-tree sidebar-tree--primary", aria_label: "加载主导航",
+                        for row in primary_rows {
+                            div { key: "{row}", class: "skeleton-nav-row",
+                                span { class: "skeleton-glyph" }
+                                span { class: "skeleton-line skeleton-line--nav" }
+                            }
+                        }
+                    }
+                }
+                div { class: "sidebar__section",
+                    p { class: "sidebar__heading", "项目" }
+                    nav { class: "sidebar-tree", aria_label: "加载项目",
+                        for row in project_rows {
+                            div { key: "{row}", class: "skeleton-nav-row skeleton-nav-row--project",
+                                span { class: "skeleton-glyph skeleton-glyph--thin" }
+                                span { class: "skeleton-line skeleton-line--project" }
+                            }
+                        }
+                    }
+                }
+                div { class: "sidebar__footer",
+                    div { class: "skeleton-nav-row",
+                        span { class: "skeleton-glyph" }
+                        span { class: "skeleton-line skeleton-line--nav" }
+                    }
+                }
+            }
+            section { class: "workspace",
+                HeaderBar {}
+                div { class: "workspace__body workspace__body--catalog skeleton-workspace",
+                    div { class: "skeleton-catalog",
+                        div { class: "skeleton-toolbar",
+                            div { class: "skeleton-tabs" }
+                            div { class: "skeleton-actions" }
+                        }
+                        div { class: "skeleton-hero" }
+                        div { class: "skeleton-filter-row",
+                            div { class: "skeleton-search" }
+                            div { class: "skeleton-chip" }
+                            div { class: "skeleton-chip" }
+                            div { class: "skeleton-chip" }
+                        }
+                        div { class: "skeleton-content-grid",
+                            section { class: "skeleton-list",
+                                for row in catalog_rows {
+                                    div { key: "{row}", class: "skeleton-card-row",
+                                        div { class: "skeleton-card-icon" }
+                                        div { class: "skeleton-card-copy",
+                                            div { class: "skeleton-line skeleton-line--title" }
+                                            div { class: "skeleton-line skeleton-line--body" }
+                                        }
+                                        div { class: "skeleton-button" }
+                                    }
+                                }
+                            }
+                            aside { class: "skeleton-detail",
+                                div { class: "skeleton-card-icon skeleton-card-icon--large" }
+                                div { class: "skeleton-line skeleton-line--detail-title" }
+                                div { class: "skeleton-line skeleton-line--body" }
+                                div { class: "skeleton-detail-actions" }
+                                div { class: "skeleton-line skeleton-line--body" }
+                                div { class: "skeleton-line skeleton-line--body-short" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[allow(non_snake_case)]
@@ -336,7 +434,6 @@ fn AppSidebar(
     snapshot: HostSnapshot,
     active_route: String,
     on_route_select: EventHandler<String>,
-    on_settings_select: EventHandler<()>,
 ) -> Element {
     let primary_items = snapshot
         .nav_items
@@ -351,7 +448,6 @@ fn AppSidebar(
         .enumerate()
         .map(|(index, thread)| SidebarItemModel::thread(format!("thread:{index}"), *thread))
         .collect::<Vec<_>>();
-    let settings_item = SidebarItemModel::settings_action(SETTINGS_ROUTE, "设置");
 
     rsx! {
         aside { class: "sidebar",
@@ -370,15 +466,21 @@ fn AppSidebar(
                 active_id: active_route.clone(),
                 on_select: move |_route: String| {},
             }
-            div { class: "sidebar__footer",
-                SidebarActionButton {
-                    item: settings_item,
-                    selected: false,
-                    on_select: move |_| on_settings_select.call(()),
+            if route_available(&snapshot, SETTINGS_ROUTE) {
+                div { class: "sidebar__footer",
+                    SidebarActionButton {
+                        item: SidebarItemModel::settings_action(SETTINGS_ROUTE, "设置"),
+                        selected: active_route == SETTINGS_ROUTE,
+                        on_select: move |route| on_route_select.call(route),
+                    }
                 }
             }
         }
     }
+}
+
+fn route_available(snapshot: &HostSnapshot, route: &str) -> bool {
+    snapshot.pages.iter().any(|page| page.route == route)
 }
 
 fn sidebar_project_items() -> Vec<SidebarItemModel> {
@@ -427,7 +529,7 @@ fn HeaderBar() -> Element {
 
 #[allow(non_snake_case)]
 #[component]
-fn PluginCatalogPage(snapshot: Signal<HostSnapshot>) -> Element {
+fn PluginCatalogPage(snapshot: Signal<HostSnapshot, SyncStorage>) -> Element {
     let mut active_view = use_signal(|| PluginMenuView::Plugin);
     let mut source_filter = use_signal(|| SourceFilter::All);
     let mut status_filter = use_signal(|| StatusFilter::All);
@@ -435,8 +537,8 @@ fn PluginCatalogPage(snapshot: Signal<HostSnapshot>) -> Element {
     let mut query = use_signal(String::new);
     let initial_selected_id =
         first_item_id(CatalogItemKind::Plugin, &snapshot.read().catalog_items);
-    let mut selected_item_id = use_signal(move || initial_selected_id.clone());
-    let mut enabled_items = use_signal(|| enabled_item_ids(&snapshot.read().catalog_items));
+    let mut selected_item_id = use_signal_sync(move || initial_selected_id.clone());
+    let enabled_items = use_signal_sync(|| enabled_item_ids(&snapshot.read().catalog_items));
 
     let host_snapshot = snapshot.read().clone();
     let view = *active_view.read();
@@ -468,6 +570,7 @@ fn PluginCatalogPage(snapshot: Signal<HostSnapshot>) -> Element {
     });
     let selected_item = selected_catalog_item(selected_kind, &visible_items, &selected_id);
     let effective_selected_id = selected_item.id.clone();
+    let selected_item_kind = selected_item.kind;
     let selected_enabled = item_enabled(&enabled_ids, &selected_item.id);
     let catalog_result_count = visible_items.len();
     let visible_enabled_count = visible_items
@@ -523,12 +626,15 @@ fn PluginCatalogPage(snapshot: Signal<HostSnapshot>) -> Element {
                                     r#type: "button",
                                     onclick: move |_| {
                                         if action_id == "catalog.refresh" {
-                                            let next_snapshot = load_az_aio_plugin_snapshot();
-                                            if let Some(kind) = active_view.catalog_kind() {
-                                                selected_item_id.set(first_item_id(kind, &next_snapshot.catalog_items));
-                                            }
-                                            enabled_items.set(enabled_item_ids(&next_snapshot.catalog_items));
-                                            snapshot.set(next_snapshot);
+                                            refresh_plugin_snapshot_async(
+                                                snapshot,
+                                                None,
+                                                Some(PluginSnapshotRefresh {
+                                                    selected_kind: active_view.catalog_kind(),
+                                                    selected_item_id: Some(selected_item_id),
+                                                    enabled_items,
+                                                }),
+                                            );
                                         }
                                     },
                                     "{action.icon} {action.label}"
@@ -657,12 +763,24 @@ fn PluginCatalogPage(snapshot: Signal<HostSnapshot>) -> Element {
                                         h2 { "{section}" }
                                         div { class: "catalog-section__grid",
                                             for item in visible_items.iter().filter(|item| item.section == section) {
-                                                CatalogCard {
-                                                    item: item.clone(),
-                                                    installed: item_enabled(&enabled_ids, &item.id),
-                                                    selected: item.id == effective_selected_id,
-                                                    on_select: move |id| selected_item_id.set(id),
-                                                    on_toggle: move |id| toggle_enabled(enabled_items, id),
+                                                {
+                                                    let item_kind = item.kind;
+                                                    rsx! {
+                                                        CatalogCard {
+                                                            item: item.clone(),
+                                                            installed: item_enabled(&enabled_ids, &item.id),
+                                                            selected: item.id == effective_selected_id,
+                                                            on_select: move |id| selected_item_id.set(id),
+                                                            on_toggle: move |id| {
+                                                                toggle_catalog_item_enabled(
+                                                                    snapshot,
+                                                                    enabled_items,
+                                                                    item_kind,
+                                                                    id,
+                                                                )
+                                                            },
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -674,7 +792,14 @@ fn PluginCatalogPage(snapshot: Signal<HostSnapshot>) -> Element {
                     CatalogDetail {
                         item: selected_item.clone(),
                         installed: selected_enabled,
-                        on_toggle: move |id| toggle_enabled(enabled_items, id),
+                        on_toggle: move |id| {
+                            toggle_catalog_item_enabled(
+                                snapshot,
+                                enabled_items,
+                                selected_item_kind,
+                                id,
+                            )
+                        },
                     }
                 }
             } else if let Some(mode) = view.shell_mode() {
@@ -830,16 +955,55 @@ fn item_enabled(enabled_ids: &[String], item_id: &str) -> bool {
     enabled_ids.iter().any(|id| id == item_id)
 }
 
-fn toggle_enabled(mut enabled_items: Signal<Vec<String>>, item_id: String) {
+fn toggle_catalog_item_enabled(
+    snapshot: Signal<HostSnapshot, SyncStorage>,
+    enabled_items: Signal<Vec<String>, SyncStorage>,
+    kind: CatalogItemKind,
+    item_id: String,
+) {
+    let next_enabled = !item_enabled(&enabled_items.read(), &item_id);
+    if kind != CatalogItemKind::Plugin {
+        set_item_enabled(enabled_items, item_id, next_enabled);
+        return;
+    }
+
+    if let Err(error) = set_plugin_enabled(&item_id, next_enabled) {
+        eprintln!("保存插件启用状态失败：{error}");
+        return;
+    }
+
+    refresh_plugin_snapshot_async(
+        snapshot,
+        None,
+        Some(PluginSnapshotRefresh {
+            selected_kind: Some(kind),
+            selected_item_id: None,
+            enabled_items,
+        }),
+    );
+}
+
+fn set_item_enabled(
+    mut enabled_items: Signal<Vec<String>, SyncStorage>,
+    item_id: String,
+    enabled: bool,
+) {
     let mut items = enabled_items.write();
-    if let Some(index) = items.iter().position(|id| id == &item_id) {
-        items.remove(index);
-    } else {
+    if enabled {
+        if items.iter().any(|id| id == &item_id) {
+            return;
+        }
         items.push(item_id);
+    } else if let Some(index) = items.iter().position(|id| id == &item_id) {
+        items.remove(index);
     }
 }
 
-fn set_items_enabled(mut enabled_items: Signal<Vec<String>>, item_ids: Vec<String>, enabled: bool) {
+fn set_items_enabled(
+    mut enabled_items: Signal<Vec<String>, SyncStorage>,
+    item_ids: Vec<String>,
+    enabled: bool,
+) {
     let mut items = enabled_items.write();
     if enabled {
         for item_id in item_ids {
@@ -850,6 +1014,30 @@ fn set_items_enabled(mut enabled_items: Signal<Vec<String>>, item_ids: Vec<Strin
     } else {
         items.retain(|id| !item_ids.iter().any(|item_id| item_id == id));
     }
+}
+
+fn refresh_plugin_snapshot_async(
+    mut snapshot: Signal<HostSnapshot, SyncStorage>,
+    snapshot_ready: Option<Signal<bool, SyncStorage>>,
+    refresh: Option<PluginSnapshotRefresh>,
+) {
+    std::thread::spawn(move || {
+        let next_snapshot = load_az_aio_plugin_snapshot();
+        if let Some(mut refresh) = refresh {
+            if let (Some(kind), Some(mut selected_item_id)) =
+                (refresh.selected_kind, refresh.selected_item_id)
+            {
+                selected_item_id.set(first_item_id(kind, &next_snapshot.catalog_items));
+            }
+            refresh
+                .enabled_items
+                .set(enabled_item_ids(&next_snapshot.catalog_items));
+        }
+        snapshot.set(next_snapshot);
+        if let Some(mut snapshot_ready) = snapshot_ready {
+            snapshot_ready.set(true);
+        }
+    });
 }
 
 fn item_is_visible(
@@ -1033,7 +1221,7 @@ fn CatalogDetail(
             }
             div { class: "catalog-detail__block",
                 h3 { "运行方式" }
-                p { "当前页面只渲染插件贡献描述符；内置插件和外部二进制组件由宿主统一装配。" }
+                p { "当前页面渲染插件贡献描述符；所有插件都由运行时 Wasm 包机制装配。" }
             }
         }
     }
@@ -1041,7 +1229,7 @@ fn CatalogDetail(
 
 #[allow(non_snake_case)]
 #[component]
-fn AzPlatformSandboxPage(snapshot: Signal<HostSnapshot>) -> Element {
+fn AzPlatformSandboxPage(snapshot: Signal<HostSnapshot, SyncStorage>) -> Element {
     let initial_selected_plugin_id = first_plugin_id(&snapshot.read());
     let mut selected_plugin_id = use_signal(move || initial_selected_plugin_id.clone());
 
@@ -1435,7 +1623,6 @@ fn plugin_activation_label(activation: &PluginActivation) -> &'static str {
 
 fn plugin_kind_label(kind: &PluginKind) -> &'static str {
     match kind {
-        PluginKind::Native => "native",
         PluginKind::WasmComponent => "wasm-component",
     }
 }

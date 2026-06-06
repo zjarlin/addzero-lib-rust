@@ -16,6 +16,7 @@ use az_dioxus_components::az_grammar_search::{
     AzGrammarSearchField, AzGrammarSearchInput, GrammarSearchQuery, parse_grammar_search_query,
 };
 use dioxus::prelude::*;
+use dioxus::signals::SyncStorage;
 use serde::{Deserialize, Serialize};
 
 use crate::shell_manager_store::{load_shell_manager_store, save_shell_manager_store};
@@ -103,7 +104,10 @@ impl ShellPageMode {
 
 #[allow(non_snake_case)]
 #[component]
-pub fn ShellManagerRoutePage(snapshot: Signal<HostSnapshot>, mode: ShellPageMode) -> Element {
+pub fn ShellManagerRoutePage(
+    snapshot: Signal<HostSnapshot, SyncStorage>,
+    mode: ShellPageMode,
+) -> Element {
     let query = use_signal(String::new);
     rsx! {
         div { class: "metadata-page",
@@ -115,7 +119,7 @@ pub fn ShellManagerRoutePage(snapshot: Signal<HostSnapshot>, mode: ShellPageMode
 #[allow(non_snake_case)]
 #[component]
 pub fn ShellManagerPage(
-    snapshot: Signal<HostSnapshot>,
+    snapshot: Signal<HostSnapshot, SyncStorage>,
     mode: ShellPageMode,
     query: Signal<String>,
 ) -> Element {

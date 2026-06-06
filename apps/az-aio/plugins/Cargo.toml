@@ -3,16 +3,16 @@ resolver = "2"
 members = [
     "api",
     "host",
-    "builtin/catalog",
-    "builtin/core-nav",
-    "examples/hello-wasm",
+    "features/catalog",
     "features/git/clis",
     "features/git/envs",
     "features/git/notes",
     "features/git/skills",
+    "features/navigation",
     "features/projects",
     "features/search",
     "features/settings",
+    "features/sync",
 ]
 
 [workspace.package]

@@ -4,14 +4,16 @@
 
 The plugin runtime platform is `az-platform`.
 
-`az-platform` is the AZ AIO equivalent of an IDE platform: the desktop shell owns layout, runtime loading, sandboxing, shared UI components, and backend API routing, while feature plugins contribute UI and API surfaces.
+`az-platform` is the AZ AIO equivalent of an IDE platform: the desktop shell owns layout, runtime loading, sandboxing, shared UI components, and backend API routing, while plugins contribute UI and API surfaces.
 
 ## Plugin Naming
 
-Plugins under `apps/az-aio/plugins` must be named by feature group, not by implementation role.
+Plugins under `apps/az-aio/plugins` must be named by domain or capability group, not by implementation role or runtime origin.
 
-Planned feature groups:
+Planned plugin groups:
 
+- `navigation`
+- `catalog`
 - `settings`
 - `search`
 - `projects`
@@ -26,7 +28,7 @@ Planned `git` subplugins:
 
 `git/notes` is reserved for future note functionality and is not implemented yet.
 
-Implementation names such as `core-nav`, `catalog`, or `shell` are transitional only. They should be split or renamed into the feature groups above as the wasm runtime plugin work proceeds.
+Do not introduce `builtin/*`, `native/*`, or `external/*` plugin identities. A plugin shipped with the app and a plugin installed later must use the same packaged Wasm loading path.
 
 ## UI Contribution Contract
 
@@ -84,11 +86,11 @@ The current sandbox contract exposes a structured `sandbox_debug` report in each
 - Backend API debug rows with method, path, label, description, and a request hint such as `GET /api/projects`.
 - Settings default rows such as `projects.default_sync_root = az-sync/workspace`.
 
-The host sandbox example also emits the same report in `--json` mode so native plugins, packaged manifests, and wasm components can be compared without reparsing table output.
+The host sandbox example also emits the same report in `--json` mode so packaged manifests and wasm components can be compared without reparsing table output.
 
 ## Wasm Runtime Direction
 
-The long-term target is wasm runtime plugins.
+The target is runtime Wasm plugins.
 
 Each plugin must eventually have:
 
@@ -97,7 +99,7 @@ Each plugin must eventually have:
 - frontend and backend code packaged as one independently runnable plugin artifact
 - sandbox execution through `az-platform`
 
-The current native plugins are transitional and should be moved toward this runtime model step by step.
+The main application must not link plugin crates directly. Shipped plugins are packaged Wasm plugins discovered through the same manifest/component loader as user-installed plugins.
 
 ## Xtask Requirements
 
@@ -136,7 +138,7 @@ The first implementation slice adds explicit runtime contribution models:
 - `UiContributionSlot`
 - `BackendApiContribution`
 
-These models let native and wasm plugins declare frontend contribution positions and backend API surfaces before the full sandbox renderer is implemented.
+These models let runtime Wasm plugins declare frontend contribution positions and backend API surfaces before the full sandbox renderer is implemented.
 
 The first sandbox slice also keeps every plugin's own `ContributionSet` in the host snapshot. This lets `az-platform` inspect a selected plugin without inferring ownership from contribution IDs.
 
@@ -158,9 +160,9 @@ Desktop route:
 /az-platform
 ```
 
-The desktop sandbox page lists plugins, UI contribution slots, backend APIs, capabilities, permissions, and lifecycle state. It is the current native debug surface that should evolve into wasm plugin contribution debugging.
+The desktop sandbox page lists plugins, UI contribution slots, backend APIs, capabilities, permissions, and lifecycle state.
 
-The first packaging slice writes an `az-plugin.json` bundle manifest under `target/az-platform/plugins/<plugin>/`. The manifest contains the actual plugin descriptor, contribution set, native crate artifact metadata, wasm component artifact metadata, and the sandbox command that can run the plugin through `az-platform`. The same sandbox command can also read a manifest path directly, so generated plugin bundles can be inspected without inferring contribution ownership from the host snapshot.
+The packaging slice writes an `az-plugin.json` bundle manifest under `target/az-platform/plugins/<plugin>/`. The manifest contains the actual plugin descriptor, contribution set, wasm component artifact metadata, and the sandbox command that can run the plugin through `az-platform`. The same sandbox command can also read a manifest path directly, so generated plugin bundles can be inspected without inferring contribution ownership from the host snapshot.
 
 The package command also writes frontend and backend contract artifacts:
 
@@ -171,8 +173,8 @@ target/az-platform/plugins/<plugin>/backend/az-backend.json
 
 The frontend artifact contains UI-facing contributions such as nav items, pages, UI slots, toolbar actions, catalog providers, and settings sections. The backend artifact contains backend API routes, shell entries, and generated-file contracts. These JSON artifacts are the current package boundary until real frontend bundles and backend binaries are introduced.
 
-Running `cargo xtask az-platform plugin sandbox <plugin>` first packages that feature-group plugin, then runs the generated `target/az-platform/plugins/<plugin>/az-plugin.json` through the packaged sandbox path. Running `cargo xtask az-platform plugin sandbox all` repeats that packaged sandbox flow for every planned feature plugin. Running `cargo xtask az-platform plugin sandbox target/az-platform/plugins/<plugin>/az-plugin.json` inspects an existing package manifest, prints the frontend/backend bundle contracts, and loads the packaged `.component.wasm` through the `az-platform` host sandbox. This makes the generated plugin package independently runnable from either the plugin name or manifest path instead of relying on the native in-repo plugin target.
+Running `cargo xtask az-platform plugin sandbox <plugin>` first packages that plugin, then runs the generated `target/az-platform/plugins/<plugin>/az-plugin.json` through the packaged sandbox path. Running `cargo xtask az-platform plugin sandbox all` repeats that packaged sandbox flow for every planned plugin. Running `cargo xtask az-platform plugin sandbox target/az-platform/plugins/<plugin>/az-plugin.json` inspects an existing package manifest, prints the frontend/backend bundle contracts, and loads the packaged `.component.wasm` through the `az-platform` host sandbox. This makes the generated plugin package independently runnable from either the plugin name or manifest path.
 
-The first feature wasm slice covered `projects`. The second slice extends the same WIT `az-aio-plugin` component export to all planned feature-group plugins: `settings`, `search`, `projects`, `git/skills`, `git/clis`, `git/envs`, and reserved `git/notes`. Each one can now be targeted through `cargo xtask az-platform plugin build-wasm <plugin>` and packaged into a manifest with a `.component.wasm` artifact.
+The same WIT `az-aio-plugin` component export applies to all planned plugins: `navigation`, `catalog`, `settings`, `search`, `projects`, `sync`, `git/skills`, `git/clis`, `git/envs`, and reserved `git/notes`. Each one can now be targeted through `cargo xtask az-platform plugin build-wasm <plugin>` and packaged into a manifest with a `.component.wasm` artifact.
 
-Plugins with host filesystem behavior, such as `git/skills` and `git/clis`, keep native scanning in the native runtime path. Their wasm components currently export descriptor, UI contribution slots, and backend API contracts only; the backend implementation must be routed through `az-platform` instead of reading or writing host paths directly from wasm. These wasm descriptors deliberately omit native-only dependencies such as `builtin/catalog`, so each packaged component can be loaded in a single-plugin sandbox.
+Plugins with host filesystem behavior, such as `git/skills` and `git/clis`, export descriptor, UI contribution slots, and backend API contracts from Wasm; the backend implementation must be routed through `az-platform` host APIs instead of reading or writing host paths directly from Wasm.

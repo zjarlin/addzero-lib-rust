@@ -7,8 +7,8 @@ use std::{
 
 use az_aio_plugin_api::{
     AzAioPlugin, BackendApiContribution, ContributionSet, GeneratedFileContribution,
-    GeneratedFileStatus, PluginActivation, PluginDependency, PluginDescriptor, PluginKind,
-    ShellEntryContribution, ShellEntryKind, UiContribution, UiContributionSlot,
+    GeneratedFileStatus, PluginActivation, PluginDescriptor, PluginKind, ShellEntryContribution,
+    ShellEntryKind, UiContribution, UiContributionSlot,
 };
 
 const PLUGIN_ID: &str = "git/clis";
@@ -64,7 +64,7 @@ impl AzAioPlugin for GitClisPlugin {
                 .map(|root| format!("读取 {}", root.display())),
         );
 
-        plugin_descriptor(permissions, PluginKind::Native)
+        plugin_descriptor(permissions, PluginKind::WasmComponent)
     }
 
     fn on_enable(&mut self) -> Result<(), az_aio_plugin_api::PluginError> {
@@ -111,10 +111,7 @@ fn plugin_descriptor(permissions: Vec<String>, kind: PluginKind) -> PluginDescri
         description: "扫描终端片段和用户命令脚本，供桌面端命令管理器使用。".to_string(),
         activation: PluginActivation::Eager,
         priority: 700,
-        dependencies: vec![PluginDependency {
-            id: "builtin/catalog".to_string(),
-            optional: false,
-        }],
+        dependencies: Vec::new(),
         capabilities: vec![
             "shell-scan".to_string(),
             "cli-page".to_string(),
@@ -792,9 +789,8 @@ mod component {
 
     impl Guest for GitClisWasm {
         fn describe() -> Result<String, String> {
-            let mut descriptor = plugin_descriptor(Vec::new(), PluginKind::WasmComponent);
-            descriptor.dependencies = Vec::new();
-            descriptor_to_json(&descriptor).map_err(|error| error.to_string())
+            descriptor_to_json(&plugin_descriptor(Vec::new(), PluginKind::WasmComponent))
+                .map_err(|error| error.to_string())
         }
 
         fn contributions() -> Result<String, String> {

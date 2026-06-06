@@ -159,23 +159,14 @@ fn run_plugin_cargo_command(command: &str, plugin: &PluginTarget) -> Result<(), 
 }
 
 fn run_plugin_package(plugin: &PluginTarget) -> Result<(), XtaskError> {
-    run_plugin_cargo_command("build", plugin)?;
+    let component_path = run_plugin_wasm_build(plugin)?;
     let mut artifacts = vec![PluginBundleArtifact {
-        kind: PluginBundleArtifactKind::NativeCrate,
-        name: plugin.package.to_string(),
+        kind: PluginBundleArtifactKind::WasmComponent,
+        name: format!("{}.component.wasm", plugin.package),
         source: plugin.source_path.to_string(),
-        path: None,
+        path: Some(component_path.display().to_string()),
     }];
-    if plugin.wasm_artifact_stem.is_some() {
-        let component_path = run_plugin_wasm_build(plugin)?;
-        artifacts.push(PluginBundleArtifact {
-            kind: PluginBundleArtifactKind::WasmComponent,
-            name: format!("{}.component.wasm", plugin.package),
-            source: plugin.source_path.to_string(),
-            path: Some(component_path.display().to_string()),
-        });
-    }
-    let snapshot = load_plugin_sandbox_snapshot(plugin)?;
+    let snapshot = load_wasm_sandbox_snapshot(plugin.name, &component_path)?;
     let bundle_dir = plugin_bundle_dir(plugin);
     let frontend_bundle_path = write_frontend_bundle(plugin, &snapshot.contributions, &bundle_dir)?;
     artifacts.push(PluginBundleArtifact {
@@ -409,39 +400,6 @@ fn print_json_block<T: Serialize>(label: &str, value: &T) -> Result<(), XtaskErr
     Ok(())
 }
 
-fn load_plugin_sandbox_snapshot(
-    plugin: &PluginTarget,
-) -> Result<PluginSandboxSnapshot, XtaskError> {
-    let repo_root = repo_root();
-    let output = Command::new("cargo")
-        .arg("run")
-        .arg("--manifest-path")
-        .arg(repo_root.join(PLUGINS_MANIFEST))
-        .arg("-p")
-        .arg("az-aio-plugin-host")
-        .arg("--example")
-        .arg("sandbox")
-        .arg("--")
-        .arg("--json")
-        .arg(plugin.name)
-        .env("CARGO_TARGET_DIR", target_root())
-        .output()
-        .map_err(XtaskError::Io)?;
-
-    if !output.status.success() {
-        return Err(XtaskError::CommandOutput {
-            command: format!(
-                "cargo run -p az-aio-plugin-host --example sandbox -- --json {}",
-                plugin.name
-            ),
-            status: output.status,
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
-    }
-
-    serde_json::from_slice(&output.stdout).map_err(XtaskError::Json)
-}
-
 fn load_wasm_sandbox_snapshot(
     plugin_id: &str,
     wasm_file: &Path,
@@ -529,6 +487,20 @@ struct PluginTarget {
 
 const PLUGIN_TARGETS: &[PluginTarget] = &[
     PluginTarget {
+        name: "navigation",
+        package: "az-aio-plugin-core-nav",
+        source_path: "apps/az-aio/plugins/features/navigation",
+        wasm_artifact_stem: Some("az_aio_plugin_core_nav"),
+        aliases: &["core-nav"],
+    },
+    PluginTarget {
+        name: "catalog",
+        package: "az-aio-plugin-catalog",
+        source_path: "apps/az-aio/plugins/features/catalog",
+        wasm_artifact_stem: Some("az_aio_plugin_catalog"),
+        aliases: &[],
+    },
+    PluginTarget {
         name: "settings",
         package: "az-aio-plugin-settings",
         source_path: "apps/az-aio/plugins/features/settings",
@@ -547,6 +519,13 @@ const PLUGIN_TARGETS: &[PluginTarget] = &[
         package: "az-aio-plugin-projects",
         source_path: "apps/az-aio/plugins/features/projects",
         wasm_artifact_stem: Some("az_aio_plugin_projects"),
+        aliases: &[],
+    },
+    PluginTarget {
+        name: "sync",
+        package: "az-aio-plugin-sync",
+        source_path: "apps/az-aio/plugins/features/sync",
+        wasm_artifact_stem: Some("az_aio_plugin_sync"),
         aliases: &[],
     },
     PluginTarget {

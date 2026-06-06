@@ -2,8 +2,7 @@
 
 use az_aio_plugin_api::{
     AzAioPlugin, BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
-    PageRenderer, PluginActivation, PluginDescriptor, PluginKind, UiContribution,
-    UiContributionSlot,
+    PluginActivation, PluginDescriptor, PluginKind, UiContribution, UiContributionSlot,
 };
 
 #[derive(Default)]
@@ -21,7 +20,7 @@ impl AzAioPlugin for SearchPlugin {
             dependencies: Vec::new(),
             capabilities: vec!["nav-items".to_string(), "search-content".to_string()],
             permissions: Vec::new(),
-            kind: PluginKind::Native,
+            kind: PluginKind::WasmComponent,
         }
     }
 
@@ -38,7 +37,7 @@ impl AzAioPlugin for SearchPlugin {
                 route: "/search".to_string(),
                 title: "搜索".to_string(),
                 subtitle: "跨插件、项目和本地资源搜索。".to_string(),
-                renderer: PageRenderer::Placeholder,
+                renderer_id: "placeholder".to_string(),
                 placeholder_mark: "⌕".to_string(),
                 order: 20,
             }],
@@ -69,7 +68,7 @@ impl AzAioPlugin for SearchPlugin {
 
 #[cfg(target_arch = "wasm32")]
 mod component {
-    use az_aio_plugin_api::{AzAioPlugin, PluginKind, contributions_to_json, descriptor_to_json};
+    use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
 
     use super::SearchPlugin;
 
@@ -82,9 +81,7 @@ mod component {
 
     impl Guest for SearchWasm {
         fn describe() -> Result<String, String> {
-            let mut descriptor = SearchPlugin.descriptor();
-            descriptor.kind = PluginKind::WasmComponent;
-            descriptor_to_json(&descriptor).map_err(|error| error.to_string())
+            descriptor_to_json(&SearchPlugin.descriptor()).map_err(|error| error.to_string())
         }
 
         fn contributions() -> Result<String, String> {

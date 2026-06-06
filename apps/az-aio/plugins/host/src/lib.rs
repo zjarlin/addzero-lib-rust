@@ -4,27 +4,24 @@ mod wasm_component;
 
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
-    fs,
-    path::Path,
+    fs, io,
+    path::{Path, PathBuf},
+    thread,
 };
 
 use az_aio_plugin_api::{
     AzAioPlugin, BackendApiContribution, CatalogItemContribution, CatalogItemKind, CatalogSource,
     ContributionSet, GeneratedFileContribution, NavItemContribution, PageContribution,
-    PluginActivation, PluginDependency, PluginDescriptor, PluginError, PluginKind, PluginState,
-    SettingsSectionContribution, ShellEntryContribution, ToolbarActionContribution, UiContribution,
+    PluginActivation, PluginBundleArtifactKind, PluginBundleManifest, PluginDependency,
+    PluginDescriptor, PluginError, PluginKind, PluginState, SettingsSectionContribution,
+    ShellEntryContribution, ToolbarActionContribution, UiContribution,
 };
-use az_aio_plugin_catalog::CatalogPlugin;
-use az_aio_plugin_core_nav::CoreNavPlugin;
-use az_aio_plugin_git_clis::GitClisPlugin;
-use az_aio_plugin_git_envs::GitEnvsPlugin;
-use az_aio_plugin_git_notes::GitNotesPlugin;
-use az_aio_plugin_git_skills::GitSkillsPlugin;
-use az_aio_plugin_projects::ProjectsPlugin;
-use az_aio_plugin_search::SearchPlugin;
-use az_aio_plugin_settings::SettingsPlugin;
+use serde::{Deserialize, Serialize};
 
 pub use wasm_component::WasmComponentPlugin;
+
+const PLUGIN_STATE_FILE: &str = "plugin-state.json";
+const PLUGIN_MANIFEST_FILE: &str = "az-plugin.json";
 
 pub struct PluginHost {
     plugins: Vec<Box<dyn AzAioPlugin>>,
@@ -49,33 +46,21 @@ impl PluginHost {
         self
     }
 
-    pub fn with_builtin_plugins() -> Self {
-        Self::new().with_plugins([
-            Box::<CoreNavPlugin>::default() as Box<dyn AzAioPlugin>,
-            Box::<SettingsPlugin>::default() as Box<dyn AzAioPlugin>,
-            Box::<SearchPlugin>::default() as Box<dyn AzAioPlugin>,
-            Box::<ProjectsPlugin>::default() as Box<dyn AzAioPlugin>,
-            Box::<CatalogPlugin>::default() as Box<dyn AzAioPlugin>,
-            Box::<GitSkillsPlugin>::default() as Box<dyn AzAioPlugin>,
-            Box::<GitClisPlugin>::default() as Box<dyn AzAioPlugin>,
-            Box::<GitEnvsPlugin>::default() as Box<dyn AzAioPlugin>,
-            Box::<GitNotesPlugin>::default() as Box<dyn AzAioPlugin>,
-        ])
-    }
-
     pub fn with_wasm_components_from_dir(mut self, dir: impl AsRef<Path>) -> Self {
         let dir = dir.as_ref();
         let Ok(entries) = fs::read_dir(dir) else {
             return self;
         };
 
-        for entry in entries.filter_map(Result::ok) {
-            let path = entry.path();
-            if !is_wasm_component_file(&path) {
-                continue;
-            }
+        let mut paths = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| is_wasm_component_file(path))
+            .collect::<Vec<_>>();
+        paths.sort();
 
-            match WasmComponentPlugin::from_file(&path) {
+        for (path, result) in load_wasm_components(paths) {
+            match result {
                 Ok(plugin) => self.plugins.push(Box::new(plugin)),
                 Err(error) => self.records.push(failed_record(
                     failed_wasm_descriptor(&path),
@@ -87,8 +72,33 @@ impl PluginHost {
         self
     }
 
+    pub fn with_packaged_plugins_from_dir(mut self, dir: impl AsRef<Path>) -> Self {
+        let dir = dir.as_ref();
+        let mut manifests = Vec::new();
+        collect_plugin_manifests(dir, &mut manifests);
+        manifests.sort();
+
+        for (_, result) in load_packaged_plugins(manifests) {
+            match result {
+                Ok(plugin) => self.plugins.push(Box::new(plugin)),
+                Err((descriptor, error)) => self.records.push(failed_record(descriptor, error)),
+            }
+        }
+
+        self
+    }
+
     pub fn load_snapshot(self) -> HostSnapshot {
-        HostLoader::new(self.plugins, self.records).load()
+        HostLoader::new(self.plugins, self.records, BTreeSet::new()).load()
+    }
+
+    pub fn load_snapshot_with_enablement(self, enablement: &PluginEnablementStore) -> HostSnapshot {
+        HostLoader::new(
+            self.plugins,
+            self.records,
+            enablement.disabled_plugin_ids.clone(),
+        )
+        .load()
     }
 }
 
@@ -99,7 +109,67 @@ impl Default for PluginHost {
 }
 
 pub fn load_az_aio_plugin_snapshot() -> HostSnapshot {
-    PluginHost::with_builtin_plugins().load_snapshot()
+    let enablement = load_plugin_enablement();
+    default_plugin_host().load_snapshot_with_enablement(&enablement)
+}
+
+pub fn default_plugin_host() -> PluginHost {
+    default_plugin_package_dirs()
+        .into_iter()
+        .fold(PluginHost::new(), |host, dir| {
+            host.with_packaged_plugins_from_dir(dir)
+        })
+}
+
+pub fn default_plugin_package_dirs() -> Vec<PathBuf> {
+    let mut dirs = vec![repo_packaged_plugins_dir()];
+    if let Some(config_dir) = dirs::config_dir() {
+        dirs.push(config_dir.join("addzero").join("az-aio").join("plugins"));
+    }
+    dirs
+}
+
+pub fn load_plugin_enablement() -> PluginEnablementStore {
+    read_plugin_enablement_store(&plugin_enablement_store_path()).unwrap_or_default()
+}
+
+pub fn set_plugin_enabled(plugin_id: &str, enabled: bool) -> io::Result<()> {
+    set_plugin_enabled_at(&plugin_enablement_store_path(), plugin_id, enabled)
+}
+
+pub fn set_plugin_enabled_at(
+    path: impl AsRef<Path>,
+    plugin_id: &str,
+    enabled: bool,
+) -> io::Result<()> {
+    let path = path.as_ref();
+    let mut store = read_plugin_enablement_store(path).unwrap_or_default();
+    if enabled {
+        store.disabled_plugin_ids.remove(plugin_id);
+    } else {
+        store.disabled_plugin_ids.insert(plugin_id.to_string());
+    }
+    write_plugin_enablement_store(path, &store)
+}
+
+pub fn plugin_enablement_store_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| home_dir().join(".config"))
+        .join("addzero")
+        .join("az-aio")
+        .join(PLUGIN_STATE_FILE)
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PluginEnablementStore {
+    #[serde(default)]
+    pub disabled_plugin_ids: BTreeSet<String>,
+}
+
+impl PluginEnablementStore {
+    pub fn plugin_enabled(&self, plugin_id: &str) -> bool {
+        !self.disabled_plugin_ids.contains(plugin_id)
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -135,15 +205,25 @@ struct PluginSlot {
     descriptor: PluginDescriptor,
 }
 
+struct SlotActivationResult {
+    record: PluginRuntimeRecord,
+    plugin_contribution: Option<PluginContributionRecord>,
+}
+
 struct HostLoader {
     slots: Vec<PluginSlot>,
     records: Vec<PluginRuntimeRecord>,
+    disabled_plugin_ids: BTreeSet<String>,
     contributions: ContributionSet,
     plugin_contributions: Vec<PluginContributionRecord>,
 }
 
 impl HostLoader {
-    fn new(plugins: Vec<Box<dyn AzAioPlugin>>, records: Vec<PluginRuntimeRecord>) -> Self {
+    fn new(
+        plugins: Vec<Box<dyn AzAioPlugin>>,
+        records: Vec<PluginRuntimeRecord>,
+        disabled_plugin_ids: BTreeSet<String>,
+    ) -> Self {
         let mut seen = records
             .iter()
             .map(|record| record.descriptor.id.clone())
@@ -166,13 +246,20 @@ impl HostLoader {
         Self {
             slots,
             records,
+            disabled_plugin_ids,
             contributions: ContributionSet::default(),
             plugin_contributions: Vec::new(),
         }
     }
 
     fn load(mut self) -> HostSnapshot {
-        let (order, failures) = activation_order(&self.slots);
+        let disabled_indexes = self.disabled_slot_indexes();
+        for index in &disabled_indexes {
+            self.records
+                .push(disabled_record(self.slots[*index].descriptor.clone()));
+        }
+
+        let (layers, failures) = activation_layers(&self.slots, &disabled_indexes);
         for (index, error) in failures {
             self.records.push(failed_record(
                 self.slots[index].descriptor.clone(),
@@ -180,64 +267,90 @@ impl HostLoader {
             ));
         }
 
-        for index in order {
-            if self
-                .records
-                .iter()
-                .any(|record| record.descriptor.id == self.slots[index].descriptor.id)
-            {
-                continue;
+        let mut loaded_dependency_ids = HashSet::new();
+        let mut slots = std::mem::take(&mut self.slots)
+            .into_iter()
+            .map(Some)
+            .collect::<Vec<_>>();
+
+        for layer in layers {
+            let ready_indexes = self.ready_layer_indexes(&slots, &layer, &loaded_dependency_ids);
+            for result in activate_layer(&mut slots, ready_indexes) {
+                let loaded = matches!(
+                    result.record.state,
+                    PluginState::Active | PluginState::Loaded
+                );
+                let plugin_id = result.record.descriptor.id.clone();
+                self.ingest_activation_result(result);
+                if loaded {
+                    loaded_dependency_ids.insert(plugin_id);
+                }
             }
-            self.activate_slot(index);
         }
 
         self.snapshot()
     }
 
-    fn activate_slot(&mut self, index: usize) {
-        let descriptor = self.slots[index].descriptor.clone();
-        let plugin = &mut self.slots[index].plugin;
-        if let Err(error) = plugin.on_load() {
-            self.records.push(failed_record(
-                descriptor.clone(),
-                lifecycle_message(&descriptor.id, "on-load", error),
-            ));
-            return;
-        }
+    fn disabled_slot_indexes(&self) -> BTreeSet<usize> {
+        self.slots
+            .iter()
+            .enumerate()
+            .filter_map(|(index, slot)| {
+                self.disabled_plugin_ids
+                    .contains(&slot.descriptor.id)
+                    .then_some(index)
+            })
+            .collect()
+    }
 
-        if descriptor.activation == PluginActivation::Eager {
-            if let Err(error) = plugin.on_enable() {
+    fn ready_layer_indexes(
+        &mut self,
+        slots: &[Option<PluginSlot>],
+        layer: &[usize],
+        loaded_dependency_ids: &HashSet<String>,
+    ) -> Vec<usize> {
+        let mut ready_indexes = Vec::new();
+
+        for index in layer {
+            let Some(slot) = slots[*index].as_ref() else {
+                continue;
+            };
+            if self
+                .records
+                .iter()
+                .any(|record| record.descriptor.id == slot.descriptor.id)
+            {
+                continue;
+            }
+
+            if let Some(dependency) = first_unloaded_required_dependency(
+                &slot.descriptor.dependencies,
+                loaded_dependency_ids,
+            ) {
                 self.records.push(failed_record(
-                    descriptor.clone(),
-                    lifecycle_message(&descriptor.id, "on-enable", error),
+                    slot.descriptor.clone(),
+                    PluginError::DependencyFailed {
+                        plugin: slot.descriptor.id.clone(),
+                        dependency,
+                    }
+                    .to_string(),
                 ));
-                return;
+                continue;
             }
+
+            ready_indexes.push(*index);
         }
 
-        match plugin.contributions() {
-            Ok(contributions) => {
-                self.plugin_contributions.push(PluginContributionRecord {
-                    plugin_id: descriptor.id.clone(),
-                    contributions: contributions.clone(),
-                });
-                self.contributions.merge(contributions);
-                let state = if descriptor.activation == PluginActivation::Eager {
-                    PluginState::Active
-                } else {
-                    PluginState::Loaded
-                };
-                self.records.push(PluginRuntimeRecord {
-                    descriptor,
-                    state,
-                    error: None,
-                });
-            }
-            Err(error) => self.records.push(failed_record(
-                descriptor.clone(),
-                lifecycle_message(&descriptor.id, "contributions", error),
-            )),
+        ready_indexes
+    }
+
+    fn ingest_activation_result(&mut self, result: SlotActivationResult) {
+        if let Some(plugin_contribution) = result.plugin_contribution {
+            self.contributions
+                .merge(plugin_contribution.contributions.clone());
+            self.plugin_contributions.push(plugin_contribution);
         }
+        self.records.push(result.record);
     }
 
     fn snapshot(mut self) -> HostSnapshot {
@@ -295,24 +408,145 @@ fn failed_record(descriptor: PluginDescriptor, error: String) -> PluginRuntimeRe
     }
 }
 
+fn collect_plugin_manifests(dir: &Path, manifests: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_plugin_manifests(&path, manifests);
+        } else if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name == PLUGIN_MANIFEST_FILE)
+        {
+            manifests.push(path);
+        }
+    }
+}
+
+fn load_packaged_plugin(
+    manifest_path: &Path,
+) -> Result<WasmComponentPlugin, (PluginDescriptor, String)> {
+    let manifest = read_plugin_bundle_manifest(manifest_path)?;
+    let Some(component_path) = wasm_component_artifact_path(manifest_path, &manifest) else {
+        return Err((
+            manifest.descriptor,
+            PluginError::Wasm {
+                plugin: manifest.bundle_id,
+                message: "package does not declare a wasm component artifact".to_string(),
+            }
+            .to_string(),
+        ));
+    };
+
+    WasmComponentPlugin::from_file(&component_path)
+        .map_err(|error| (manifest.descriptor, error.to_string()))
+}
+
+fn load_packaged_plugins(
+    manifests: Vec<PathBuf>,
+) -> Vec<(
+    PathBuf,
+    Result<WasmComponentPlugin, (PluginDescriptor, String)>,
+)> {
+    thread::scope(|scope| {
+        manifests
+            .into_iter()
+            .map(|manifest_path| {
+                scope.spawn(move || {
+                    let result = load_packaged_plugin(&manifest_path);
+                    (manifest_path, result)
+                })
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|handle| handle.join().expect("plugin package loader panicked"))
+            .collect()
+    })
+}
+
+fn load_wasm_components(
+    paths: Vec<PathBuf>,
+) -> Vec<(PathBuf, Result<WasmComponentPlugin, PluginError>)> {
+    thread::scope(|scope| {
+        paths
+            .into_iter()
+            .map(|path| {
+                scope.spawn(move || {
+                    let result = WasmComponentPlugin::from_file(&path);
+                    (path, result)
+                })
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|handle| handle.join().expect("wasm component loader panicked"))
+            .collect()
+    })
+}
+
+fn read_plugin_bundle_manifest(
+    manifest_path: &Path,
+) -> Result<PluginBundleManifest, (PluginDescriptor, String)> {
+    let fallback = failed_package_descriptor(manifest_path);
+    let contents = fs::read_to_string(manifest_path)
+        .map_err(|error| (fallback.clone(), package_io_error(manifest_path, error)))?;
+    serde_json::from_str(&contents).map_err(|error| {
+        (
+            fallback,
+            PluginError::Descriptor(format!(
+                "package manifest `{}` is invalid: {error}",
+                manifest_path.display()
+            ))
+            .to_string(),
+        )
+    })
+}
+
+fn wasm_component_artifact_path(
+    manifest_path: &Path,
+    manifest: &PluginBundleManifest,
+) -> Option<PathBuf> {
+    manifest
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.kind == PluginBundleArtifactKind::WasmComponent)
+        .and_then(|artifact| artifact.path.as_deref())
+        .map(PathBuf::from)
+        .map(|path| {
+            if path.is_absolute() {
+                path
+            } else {
+                manifest_path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join(path)
+            }
+        })
+}
+
+fn disabled_record(descriptor: PluginDescriptor) -> PluginRuntimeRecord {
+    PluginRuntimeRecord {
+        descriptor,
+        state: PluginState::Disabled,
+        error: None,
+    }
+}
+
 fn is_wasm_component_file(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| extension.eq_ignore_ascii_case("wasm"))
 }
 
-fn failed_wasm_descriptor(path: &Path) -> PluginDescriptor {
-    let name = path
-        .file_stem()
-        .and_then(|name| name.to_str())
-        .unwrap_or("外部组件加载失败")
-        .to_string();
-
+fn failed_package_descriptor(path: &Path) -> PluginDescriptor {
     PluginDescriptor {
-        id: format!("wasm/{}", sanitize_id(&path.display().to_string())),
-        name,
+        id: format!("package/{}", sanitize_id(&path.display().to_string())),
+        name: "插件包加载失败".to_string(),
         version: "未知".to_string(),
-        description: "外部组件描述符发现失败。".to_string(),
+        description: "插件包 manifest 读取或解析失败。".to_string(),
         activation: PluginActivation::Eager,
         priority: 0,
         dependencies: Vec::new(),
@@ -322,7 +556,40 @@ fn failed_wasm_descriptor(path: &Path) -> PluginDescriptor {
     }
 }
 
-fn activation_order(slots: &[PluginSlot]) -> (Vec<usize>, Vec<(usize, PluginError)>) {
+fn package_io_error(path: &Path, error: io::Error) -> String {
+    PluginError::Io {
+        plugin: path.display().to_string(),
+        path: path.display().to_string(),
+        message: error.to_string(),
+    }
+    .to_string()
+}
+
+fn failed_wasm_descriptor(path: &Path) -> PluginDescriptor {
+    let name = path
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("Wasm 组件加载失败")
+        .to_string();
+
+    PluginDescriptor {
+        id: format!("wasm/{}", sanitize_id(&path.display().to_string())),
+        name,
+        version: "未知".to_string(),
+        description: "Wasm 组件描述符发现失败。".to_string(),
+        activation: PluginActivation::Eager,
+        priority: 0,
+        dependencies: Vec::new(),
+        capabilities: Vec::new(),
+        permissions: vec![format!("读取 {}", path.display())],
+        kind: PluginKind::WasmComponent,
+    }
+}
+
+fn activation_layers(
+    slots: &[PluginSlot],
+    disabled_indexes: &BTreeSet<usize>,
+) -> (Vec<Vec<usize>>, Vec<(usize, PluginError)>) {
     let mut failures = Vec::new();
     let id_to_index = slots
         .iter()
@@ -338,15 +605,28 @@ fn activation_order(slots: &[PluginSlot]) -> (Vec<usize>, Vec<(usize, PluginErro
             .iter()
             .filter(|dep| !dep.optional)
         {
-            if !id_to_index.contains_key(&dependency.id) {
-                failed.insert(index);
-                failures.push((
-                    index,
-                    PluginError::MissingDependency {
-                        plugin: slot.descriptor.id.clone(),
-                        dependency: dependency.id.clone(),
-                    },
-                ));
+            match id_to_index.get(&dependency.id) {
+                Some(dependency_index) if disabled_indexes.contains(dependency_index) => {
+                    failed.insert(index);
+                    failures.push((
+                        index,
+                        PluginError::MissingDependency {
+                            plugin: slot.descriptor.id.clone(),
+                            dependency: dependency.id.clone(),
+                        },
+                    ));
+                }
+                Some(_) => {}
+                None => {
+                    failed.insert(index);
+                    failures.push((
+                        index,
+                        PluginError::MissingDependency {
+                            plugin: slot.descriptor.id.clone(),
+                            dependency: dependency.id.clone(),
+                        },
+                    ));
+                }
             }
         }
     }
@@ -354,17 +634,24 @@ fn activation_order(slots: &[PluginSlot]) -> (Vec<usize>, Vec<(usize, PluginErro
     let mut remaining = slots
         .iter()
         .enumerate()
-        .filter_map(|(index, _)| (!failed.contains(&index)).then_some(index))
+        .filter_map(|(index, _)| {
+            (!failed.contains(&index) && !disabled_indexes.contains(&index)).then_some(index)
+        })
         .collect::<BTreeSet<_>>();
-    let mut ordered = Vec::new();
     let mut activated_ids = HashSet::new();
+    let mut layers = Vec::new();
 
     while !remaining.is_empty() {
         let mut ready = remaining
             .iter()
             .copied()
             .filter(|index| {
-                dependencies_ready(&slots[*index].descriptor.dependencies, &activated_ids)
+                dependency_order_ready(
+                    &slots[*index].descriptor,
+                    &id_to_index,
+                    disabled_indexes,
+                    &activated_ids,
+                )
             })
             .collect::<Vec<_>>();
 
@@ -386,21 +673,158 @@ fn activation_order(slots: &[PluginSlot]) -> (Vec<usize>, Vec<(usize, PluginErro
                 .then(slots[*left].descriptor.id.cmp(&slots[*right].descriptor.id))
         });
 
+        let mut layer = Vec::new();
         for index in ready {
             remaining.remove(&index);
             activated_ids.insert(slots[index].descriptor.id.clone());
-            ordered.push(index);
+            layer.push(index);
+        }
+        layers.push(layer);
+    }
+
+    (layers, failures)
+}
+
+fn activate_layer(
+    slots: &mut [Option<PluginSlot>],
+    indexes: Vec<usize>,
+) -> Vec<SlotActivationResult> {
+    let mut indexed_results = thread::scope(|scope| {
+        indexes
+            .into_iter()
+            .enumerate()
+            .filter_map(|(order, index)| slots[index].take().map(|slot| (order, slot)))
+            .map(|(order, slot)| scope.spawn(move || (order, activate_slot(slot))))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|handle| handle.join().expect("plugin activation worker panicked"))
+            .collect::<Vec<_>>()
+    });
+
+    indexed_results.sort_by_key(|(index, _)| *index);
+    indexed_results
+        .into_iter()
+        .map(|(_, result)| result)
+        .collect()
+}
+
+fn activate_slot(mut slot: PluginSlot) -> SlotActivationResult {
+    let descriptor = slot.descriptor.clone();
+    if let Err(error) = slot.plugin.on_load() {
+        return SlotActivationResult {
+            record: failed_record(
+                descriptor.clone(),
+                lifecycle_message(&descriptor.id, "on-load", error),
+            ),
+            plugin_contribution: None,
+        };
+    }
+
+    if descriptor.activation == PluginActivation::Eager {
+        if let Err(error) = slot.plugin.on_enable() {
+            return SlotActivationResult {
+                record: failed_record(
+                    descriptor.clone(),
+                    lifecycle_message(&descriptor.id, "on-enable", error),
+                ),
+                plugin_contribution: None,
+            };
         }
     }
 
-    (ordered, failures)
+    match slot.plugin.contributions() {
+        Ok(contributions) => {
+            let state = if descriptor.activation == PluginActivation::Eager {
+                PluginState::Active
+            } else {
+                PluginState::Loaded
+            };
+            SlotActivationResult {
+                record: PluginRuntimeRecord {
+                    descriptor: descriptor.clone(),
+                    state,
+                    error: None,
+                },
+                plugin_contribution: Some(PluginContributionRecord {
+                    plugin_id: descriptor.id,
+                    contributions,
+                }),
+            }
+        }
+        Err(error) => SlotActivationResult {
+            record: failed_record(
+                descriptor.clone(),
+                lifecycle_message(&descriptor.id, "contributions", error),
+            ),
+            plugin_contribution: None,
+        },
+    }
 }
 
-fn dependencies_ready(dependencies: &[PluginDependency], activated_ids: &HashSet<String>) -> bool {
+fn read_plugin_enablement_store(path: &Path) -> io::Result<PluginEnablementStore> {
+    match fs::read_to_string(path) {
+        Ok(contents) => serde_json::from_str(&contents).map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("插件状态文件格式无效：{error}"),
+            )
+        }),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            Ok(PluginEnablementStore::default())
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn write_plugin_enablement_store(path: &Path, store: &PluginEnablementStore) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let contents = serde_json::to_string_pretty(store).map_err(io::Error::other)?;
+    fs::write(path, contents)
+}
+
+fn home_dir() -> PathBuf {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+fn repo_packaged_plugins_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .map(|root| root.join("target").join("az-platform").join("plugins"))
+        .unwrap_or_else(|| PathBuf::from("target/az-platform/plugins"))
+}
+
+fn dependency_order_ready(
+    descriptor: &PluginDescriptor,
+    id_to_index: &HashMap<String, usize>,
+    disabled_indexes: &BTreeSet<usize>,
+    activated_ids: &HashSet<String>,
+) -> bool {
+    descriptor.dependencies.iter().all(|dependency| {
+        id_to_index
+            .get(&dependency.id)
+            .is_none_or(|dependency_index| {
+                disabled_indexes.contains(dependency_index)
+                    || activated_ids.contains(&dependency.id)
+            })
+    })
+}
+
+fn first_unloaded_required_dependency(
+    dependencies: &[PluginDependency],
+    loaded_dependency_ids: &HashSet<String>,
+) -> Option<String> {
     dependencies
         .iter()
         .filter(|dependency| !dependency.optional)
-        .all(|dependency| activated_ids.contains(&dependency.id))
+        .find(|dependency| !loaded_dependency_ids.contains(&dependency.id))
+        .map(|dependency| dependency.id.clone())
 }
 
 fn sort_contributions(contributions: &mut ContributionSet) {
@@ -466,20 +890,14 @@ fn plugin_catalog_items(records: &[PluginRuntimeRecord]) -> Vec<CatalogItemContr
                 .clone()
                 .unwrap_or_else(|| record.descriptor.description.clone()),
             section: "插件".to_string(),
-            icon: match record.descriptor.kind {
-                PluginKind::Native => "⌘".to_string(),
-                PluginKind::WasmComponent => "◇".to_string(),
-            },
+            icon: "◇".to_string(),
             accent_class: match record.state {
                 PluginState::Failed => "plugin-icon--git",
                 _ => "plugin-icon--automation",
             }
             .to_string(),
             kind: CatalogItemKind::Plugin,
-            source: match record.descriptor.kind {
-                PluginKind::Native => CatalogSource::Local,
-                PluginKind::WasmComponent => CatalogSource::Wasm,
-            },
+            source: CatalogSource::Wasm,
             installed: record.state == PluginState::Active || record.state == PluginState::Loaded,
             tags: Vec::new(),
             permissions: record.descriptor.permissions.clone(),
@@ -506,7 +924,7 @@ pub fn descriptor(
         dependencies,
         capabilities: capabilities.into_iter().map(str::to_string).collect(),
         permissions: Vec::new(),
-        kind: PluginKind::Native,
+        kind: PluginKind::WasmComponent,
     }
 }
 
@@ -525,16 +943,20 @@ fn sanitize_id(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::Path};
+    use std::{
+        fs,
+        time::{Duration, Instant},
+    };
 
     use az_aio_plugin_api::{
         BackendApiContribution, CatalogItemKind, ContributionSet, NavItemContribution,
-        PluginDependency, PluginError, PluginSandboxDebugReport, PluginState, UiContribution,
-        UiContributionSlot,
+        PluginDependency, PluginError, PluginState, UiContribution, UiContributionSlot,
     };
     use tempfile::TempDir;
 
-    use super::{AzAioPlugin, PluginHost, descriptor};
+    use super::{
+        AzAioPlugin, PluginEnablementStore, PluginHost, descriptor, set_plugin_enabled_at,
+    };
 
     #[derive(Default)]
     struct TestPlugin {
@@ -542,6 +964,7 @@ mod tests {
         priority: i32,
         dependencies: Vec<PluginDependency>,
         fail_enable: bool,
+        enable_delay: Duration,
         nav_label: Option<&'static str>,
         ui_contribution: Option<UiContribution>,
         backend_api: Option<BackendApiContribution>,
@@ -554,6 +977,7 @@ mod tests {
                 priority: 0,
                 dependencies: Vec::new(),
                 fail_enable: false,
+                enable_delay: Duration::ZERO,
                 nav_label: None,
                 ui_contribution: None,
                 backend_api: None,
@@ -574,6 +998,9 @@ mod tests {
         }
 
         fn on_enable(&mut self) -> Result<(), PluginError> {
+            if !self.enable_delay.is_zero() {
+                std::thread::sleep(self.enable_delay);
+            }
             if self.fail_enable {
                 Err(PluginError::Descriptor("enable failed".to_string()))
             } else {
@@ -641,6 +1068,105 @@ mod tests {
             .map(|item| item.label.as_str())
             .collect::<Vec<_>>();
         assert_eq!(labels, vec!["base", "dependent"]);
+    }
+
+    #[test]
+    fn present_optional_dependency_is_loaded_before_dependent_plugin() {
+        let mut dependent = TestPlugin::new("dependent");
+        dependent.priority = 100;
+        dependent.nav_label = Some("dependent");
+        dependent.dependencies = vec![PluginDependency {
+            id: "settings".to_string(),
+            optional: true,
+        }];
+        let mut settings = TestPlugin::new("settings");
+        settings.priority = 1;
+        settings.nav_label = Some("settings");
+
+        let snapshot = PluginHost::new()
+            .with_plugin(Box::new(dependent))
+            .with_plugin(Box::new(settings))
+            .load_snapshot();
+
+        let labels = snapshot
+            .nav_items
+            .iter()
+            .map(|item| item.label.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(labels, vec!["settings", "dependent"]);
+    }
+
+    #[test]
+    fn missing_optional_dependency_does_not_block_plugin_activation() {
+        let mut plugin = TestPlugin::new("sync");
+        plugin.dependencies = vec![PluginDependency {
+            id: "settings".to_string(),
+            optional: true,
+        }];
+
+        let snapshot = PluginHost::new()
+            .with_plugin(Box::new(plugin))
+            .load_snapshot();
+
+        assert!(snapshot.plugins.iter().any(|plugin| {
+            plugin.descriptor.id == "sync" && plugin.state == PluginState::Active
+        }));
+    }
+
+    #[test]
+    fn independent_plugins_activate_in_parallel_within_same_dependency_layer() {
+        let mut alpha = TestPlugin::new("alpha");
+        alpha.enable_delay = Duration::from_millis(250);
+        let mut beta = TestPlugin::new("beta");
+        beta.enable_delay = Duration::from_millis(250);
+
+        let started = Instant::now();
+        let snapshot = PluginHost::new()
+            .with_plugin(Box::new(alpha))
+            .with_plugin(Box::new(beta))
+            .load_snapshot();
+
+        assert!(
+            snapshot
+                .plugins
+                .iter()
+                .all(|plugin| { plugin.state == PluginState::Active })
+        );
+        assert!(
+            started.elapsed() < Duration::from_millis(450),
+            "same-layer plugin activation should run concurrently"
+        );
+    }
+
+    #[test]
+    fn dependent_plugin_does_not_activate_when_required_dependency_fails() {
+        let mut base = TestPlugin::new("settings");
+        base.fail_enable = true;
+        let mut dependent = TestPlugin::new("sync");
+        dependent.dependencies = vec![PluginDependency {
+            id: "settings".to_string(),
+            optional: false,
+        }];
+
+        let snapshot = PluginHost::new()
+            .with_plugin(Box::new(base))
+            .with_plugin(Box::new(dependent))
+            .load_snapshot();
+
+        assert!(snapshot.plugins.iter().any(|plugin| {
+            plugin.descriptor.id == "settings" && plugin.state == PluginState::Failed
+        }));
+        let sync = snapshot
+            .plugins
+            .iter()
+            .find(|plugin| plugin.descriptor.id == "sync")
+            .expect("dependent plugin record");
+        assert_eq!(sync.state, PluginState::Failed);
+        assert!(
+            sync.error
+                .as_deref()
+                .is_some_and(|error| error.contains("依赖 `settings` 未成功加载"))
+        );
     }
 
     #[test]
@@ -735,167 +1261,69 @@ mod tests {
     }
 
     #[test]
-    fn symlink_skill_directories_are_scanned_by_git_skills_provider() {
-        let temp = TempDir::new().expect("create temp dir");
-        let real_root = temp.path().join("real-skills");
-        let link_root = temp.path().join("linked-skills");
-        fs::create_dir_all(real_root.join("demo")).expect("create skill dir");
-        fs::write(
-            real_root.join("demo/SKILL.md"),
-            "---\nname: Rust Gradle Design Skill\ndescription: Rust cargo and Gradle UI design workflow\n---\n",
-        )
-        .expect("write skill");
-        create_symlink(&real_root, &link_root);
+    fn disabled_plugin_is_cataloged_without_contributions() {
+        let mut enablement = PluginEnablementStore::default();
+        enablement
+            .disabled_plugin_ids
+            .insert("settings".to_string());
 
-        let scanned =
-            az_aio_plugin_git_skills::scan_skill_roots(&[az_aio_plugin_git_skills::SkillRoot {
-                path: link_root,
-                section: "测试".to_string(),
-                source: az_aio_plugin_api::CatalogSource::User,
-            }]);
+        let mut plugin = TestPlugin::new("settings");
+        plugin.ui_contribution = Some(UiContribution {
+            id: "settings.ui.project-defaults".to_string(),
+            slot: UiContributionSlot::SettingsContent,
+            label: "项目默认目录".to_string(),
+            renderer_id: "settings.project-defaults".to_string(),
+            route: Some("/settings".to_string()),
+            order: 10,
+        });
+        plugin.backend_api = Some(BackendApiContribution {
+            id: "settings.api.project-defaults".to_string(),
+            method: "GET".to_string(),
+            path: "/api/settings/project-defaults".to_string(),
+            label: "项目默认设置".to_string(),
+            description: "读取默认设置。".to_string(),
+            order: 10,
+        });
 
-        assert_eq!(scanned.items[0].kind, CatalogItemKind::Skill);
-        assert_eq!(scanned.items[0].name, "Rust Gradle Design Skill");
-        // The skill catalog should expose inferred tags so the desktop can filter
-        // and bulk-toggle visible skills without parsing SKILL.md in Dioxus.
-        assert!(scanned.items[0].tags.iter().any(|tag| tag.id == "dev.rust"));
-        assert!(
-            scanned.items[0]
-                .tags
-                .iter()
-                .any(|tag| tag.id == "dev.gradle")
-        );
-        assert!(scanned.items[0].tags.iter().any(|tag| tag.id == "design"));
-    }
+        let snapshot = PluginHost::new()
+            .with_plugin(Box::new(plugin))
+            .load_snapshot_with_enablement(&enablement);
 
-    #[test]
-    fn builtin_shell_metadata_stays_inside_plugin_catalog() {
-        let snapshot = PluginHost::with_builtin_plugins().load_snapshot();
-
-        // Shell metadata belongs to the plugin menu grid, not the global left rail.
+        assert!(snapshot.plugins.iter().any(|plugin| {
+            plugin.descriptor.id == "settings" && plugin.state == PluginState::Disabled
+        }));
+        assert!(snapshot.catalog_items.iter().any(|item| {
+            item.id == "settings" && item.kind == CatalogItemKind::Plugin && !item.installed
+        }));
         assert!(
             !snapshot
-                .nav_items
-                .iter()
-                .any(|item| { item.route == "/cli" || item.route == "/environment" })
-        );
-        assert!(!snapshot.shell_entries.is_empty());
-    }
-
-    #[test]
-    fn builtin_snapshot_uses_feature_group_plugin_ids() {
-        let snapshot = PluginHost::with_builtin_plugins().load_snapshot();
-        let plugin_ids = snapshot
-            .plugins
-            .iter()
-            .map(|plugin| plugin.descriptor.id.as_str())
-            .collect::<Vec<_>>();
-
-        assert!(plugin_ids.contains(&"settings"));
-        assert!(plugin_ids.contains(&"search"));
-        assert!(plugin_ids.contains(&"projects"));
-        assert!(plugin_ids.contains(&"git/skills"));
-        assert!(plugin_ids.contains(&"git/clis"));
-        assert!(plugin_ids.contains(&"git/envs"));
-        assert!(plugin_ids.contains(&"git/notes"));
-        assert!(
-            snapshot
                 .ui_contributions
                 .iter()
-                .any(|item| item.id == "projects.ui.sidebar")
+                .any(|item| item.id == "settings.ui.project-defaults")
         );
         assert!(
-            snapshot
-                .ui_contributions
+            !snapshot
+                .backend_apis
                 .iter()
-                .any(|item| item.id == "projects.ui.content")
+                .any(|item| item.id == "settings.api.project-defaults")
         );
     }
 
     #[test]
-    fn planned_feature_plugins_expose_sandbox_contracts() {
-        let snapshot = PluginHost::with_builtin_plugins().load_snapshot();
-        let planned_plugins = [
-            "settings",
-            "search",
-            "projects",
-            "git/skills",
-            "git/clis",
-            "git/envs",
-            "git/notes",
-        ];
+    fn plugin_enablement_store_persists_disabled_ids() {
+        let temp = TempDir::new().expect("create temp dir");
+        let path = temp.path().join("plugin-state.json");
 
-        for plugin_id in planned_plugins {
-            let contributions = plugin_contributions(&snapshot, plugin_id);
-            assert!(
-                !contributions.ui_contributions.is_empty(),
-                "{plugin_id} must declare at least one UI contribution"
-            );
-        }
+        set_plugin_enabled_at(&path, "settings", false).expect("disable plugin");
+        let stored = fs::read_to_string(&path).expect("read plugin state");
+        let store: PluginEnablementStore =
+            serde_json::from_str(&stored).expect("parse plugin state");
+        assert!(store.disabled_plugin_ids.contains("settings"));
 
-        for plugin_id in [
-            "settings",
-            "search",
-            "projects",
-            "git/skills",
-            "git/clis",
-            "git/envs",
-        ] {
-            let contributions = plugin_contributions(&snapshot, plugin_id);
-            assert!(
-                !contributions.backend_apis.is_empty(),
-                "{plugin_id} must declare backend API debug surfaces"
-            );
-        }
-
-        let projects = plugin_contributions(&snapshot, "projects");
-        assert!(
-            projects
-                .ui_contributions
-                .iter()
-                .any(|item| item.slot == UiContributionSlot::ProjectSidebar)
-        );
-        assert!(
-            projects
-                .ui_contributions
-                .iter()
-                .any(|item| item.slot == UiContributionSlot::ProjectContent)
-        );
-
-        let settings_debug = PluginSandboxDebugReport::from_contributions(plugin_contributions(
-            &snapshot, "settings",
-        ));
-        assert!(
-            settings_debug
-                .settings_defaults
-                .iter()
-                .any(|item| item.key == "projects.default_sync_root"
-                    && item.value == "az-sync/workspace")
-        );
-
-        let notes = plugin_contributions(&snapshot, "git/notes");
-        assert!(notes.backend_apis.is_empty());
-    }
-
-    fn plugin_contributions<'a>(
-        snapshot: &'a super::HostSnapshot,
-        plugin_id: &str,
-    ) -> &'a ContributionSet {
-        snapshot
-            .plugin_contributions
-            .iter()
-            .find(|record| record.plugin_id == plugin_id)
-            .map(|record| &record.contributions)
-            .unwrap_or_else(|| panic!("{plugin_id} contributions should exist"))
-    }
-
-    #[cfg(unix)]
-    fn create_symlink(source: &Path, link: &Path) {
-        std::os::unix::fs::symlink(source, link).expect("create symlink");
-    }
-
-    #[cfg(windows)]
-    fn create_symlink(source: &Path, link: &Path) {
-        std::os::windows::fs::symlink_dir(source, link).expect("create symlink");
+        set_plugin_enabled_at(&path, "settings", true).expect("enable plugin");
+        let stored = fs::read_to_string(&path).expect("read plugin state");
+        let store: PluginEnablementStore =
+            serde_json::from_str(&stored).expect("parse plugin state");
+        assert!(!store.disabled_plugin_ids.contains("settings"));
     }
 }

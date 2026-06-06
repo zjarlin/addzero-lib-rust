@@ -12,7 +12,7 @@ use dioxus::prelude::*;
 
 #[allow(non_snake_case)]
 #[component]
-pub fn SettingsPage(on_return: EventHandler<()>) -> Element {
+pub fn SettingsPage() -> Element {
     let mut settings = use_signal(SettingsState::load);
     let mut active_route = use_signal(|| SettingsRoute::ProjectDefaults);
 
@@ -21,15 +21,8 @@ pub fn SettingsPage(on_return: EventHandler<()>) -> Element {
     let route_id = route.id().to_string();
 
     rsx! {
-        main { class: "settings-fullscreen",
+        div { class: "settings-fullscreen",
             header { class: "settings-topbar",
-                button {
-                    class: "settings-return-button",
-                    r#type: "button",
-                    onclick: move |_| on_return.call(()),
-                    span { "‹" }
-                    "返回应用"
-                }
                 div { class: "settings-topbar__title",
                     span { "AZ AIO" }
                     strong { "设置" }
