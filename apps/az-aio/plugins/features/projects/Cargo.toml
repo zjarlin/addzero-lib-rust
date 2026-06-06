@@ -1,0 +1,23 @@
+[package]
+name = "az-aio-plugin-projects"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "AZ AIO projects feature plugin."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+az-aio-plugin-api = { path = "../../api" }
+wit-bindgen = "0.57.1"
+
+[lints.rust]
+# wit-bindgen exports a component ABI that expands to unsafe C-ABI glue.
+unsafe_code = "allow"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

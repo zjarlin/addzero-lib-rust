@@ -1,0 +1,39 @@
+[package]
+name = "az-aio-plugin-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "App-local AZ AIO plugin host and contribution aggregator."
+
+[dependencies]
+az-aio-plugin-api = { path = "../api" }
+az-aio-plugin-catalog = { path = "../builtin/catalog" }
+az-aio-plugin-core-nav = { path = "../builtin/core-nav" }
+az-aio-plugin-git-clis = { path = "../features/git/clis" }
+az-aio-plugin-git-envs = { path = "../features/git/envs" }
+az-aio-plugin-git-notes = { path = "../features/git/notes" }
+az-aio-plugin-git-skills = { path = "../features/git/skills" }
+az-aio-plugin-projects = { path = "../features/projects" }
+az-aio-plugin-search = { path = "../features/search" }
+az-aio-plugin-settings = { path = "../features/settings" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+thiserror = "2.0.17"
+wasmtime = { version = "38.0.4", default-features = false, features = [
+    "component-model",
+    "cranelift",
+    "runtime",
+    "std",
+] }
+
+[dev-dependencies]
+tempfile = "3.23.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

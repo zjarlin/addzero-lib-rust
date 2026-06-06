@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = [
+    "api",
+    "host",
+    "builtin/catalog",
+    "builtin/core-nav",
+    "examples/hello-wasm",
+    "features/git/clis",
+    "features/git/envs",
+    "features/git/notes",
+    "features/git/skills",
+    "features/projects",
+    "features/search",
+    "features/settings",
+]
+
+[workspace.package]
+version = "2026.5.10"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+authors = ["zjarlin"]

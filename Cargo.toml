@@ -11,11 +11,11 @@ members = [
     "crates/runtime/*",
     "crates/storage/*",
     "crates/text/*",
-    "crates/ui/az-table",
     "crates/ui/az-dioxus-components",
+    "xtask",
 ]
 exclude = [
-    "apps/codex/desktop",
+    "apps/az-aio/desktop",
     "crates/network/az-browser-automation",
     "crates/runtime/az-admin-domain-audit",
     "crates/ui/az-remote-ui",

@@ -14,6 +14,10 @@
 - `AzTableRow`
 - `AzTableHeaderCell`
 - `AzTableCell`
+- `AzDataTable`
+- `AzDataTableColumn`
+- `AzDataTableRow`
+- `AzDataTableCell`
 
 ## 使用
 
@@ -65,6 +69,7 @@ cargo test -p az-dioxus-components
 
 ```bash
 cargo test -p az-dioxus-components --test az_table
+cargo test -p az-dioxus-components --test az_data_table
 ```
 
 只跑卡片组件测试：
