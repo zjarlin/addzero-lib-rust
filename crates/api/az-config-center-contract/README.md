@@ -1,11 +1,12 @@
 # az-config-center-contract
 
-AIO Desktop 配置中心契约层，定义 Shell 组件注册表、桌面后端状态查询、组件构建等全部共享数据类型。
+AIO Desktop 配置中心契约层，定义运行配置 API、Shell 组件注册表、桌面后端状态查询、组件构建等全部共享数据类型。
 
 ## 功能
 
 - Shell 组件类型枚举（`ShellComponentKind`）：Export、Alias、Function、Snippet 四种
 - Shell 组件完整数据模型（`ShellComponent`）及其增删改查 DTO
+- 运行配置 API 信封、登录请求、配置查询、写入、启停和删除 DTO
 - 组件注册表快照（`ShellComponentRegistry`）、构建配置与构建结果
 - 桌面后端健康状态（`DesktopBackendStatus`）
 - 公共常量：默认输出路径（`DEFAULT_SHELL_OUTPUT_PATH`）、桌面令牌 header 名（`DESKTOP_SESSION_TOKEN_HEADER`）
@@ -25,8 +26,9 @@ az-config-center-contract = { path = "../az-config-center-contract" }  # workspa
 
 ```rust
 use az_config_center_contract::{
-    ShellComponent, ShellComponentKind, ShellComponentUpsert, ShellComponentPatch,
-    ShellComponentRemove, ShellComponentRegistry, DesktopBackendStatus,
+    ConfigItem, DesktopBackendStatus, GetQuery, ShellComponent, ShellComponentKind,
+    ShellComponentPatch, ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
+    UpsertRequest,
 };
 
 // 构造一个 Shell 组件
@@ -53,8 +55,25 @@ let patch = ShellComponentPatch {
     summary: Some("按关键字搜索应用日志".into()),
     ..Default::default()
 };
+
+// 配置中心 API 查询参数和写入请求。
+let query = GetQuery {
+    namespace: "prod".into(),
+    key: "service.timeout".into(),
+};
+let request = UpsertRequest {
+    namespace: query.namespace,
+    key: query.key,
+    value: "30".into(),
+    value_type: "number".into(),
+    description: "服务超时时间，单位秒".into(),
+    enabled: true,
+    updated_by: "admin".into(),
+};
 ```
 
 ## 依赖的 crates
 
 - `serde` — 所有结构体的序列化与反序列化
+- `chrono` — 配置快照中的时间戳类型
+- `uuid` — 配置项和用户会话相关标识

@@ -1,0 +1,14 @@
+services:
+  config-center:
+    build:
+      context: ../../..
+      dockerfile: apps/config-center/backend/Dockerfile
+    container_name: config-center
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      CONFIG_CENTER_BIND: 0.0.0.0:8080
+      CONFIG_CENTER_DATABASE_URL: postgresql://${CONFIG_CENTER_PG_USER:-postgres}:${CONFIG_CENTER_PG_PASSWORD:-postgres}@${CONFIG_CENTER_PG_HOST:-macmini.local}:${CONFIG_CENTER_PG_PORT:-5432}/config-center?sslmode=disable
+      CONFIG_CENTER_ADMIN_USERNAME: ${CONFIG_CENTER_ADMIN_USERNAME:-admin}
+      CONFIG_CENTER_ADMIN_PASSWORD: ${CONFIG_CENTER_ADMIN_PASSWORD:?set CONFIG_CENTER_ADMIN_PASSWORD before starting config-center}

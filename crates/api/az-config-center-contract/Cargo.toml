@@ -9,9 +9,11 @@ description = "AIO Desktop 配置中心契约层：Shell 组件类型、注册�
 
 [dependencies]
 az-derive-aliases.workspace = true
+chrono = { workspace = true, features = ["serde"] }
 derive_more.workspace = true
 serde.workspace = true
 strum.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

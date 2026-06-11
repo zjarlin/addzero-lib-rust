@@ -1002,14 +1002,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-config-center-app"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "axum",
+ "az-config-center-contract",
+ "clap",
+ "ring",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "az-config-center-client"
+version = "2026.5.10"
+dependencies = [
+ "az-config-center-contract",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "az-config-center-contract"
 version = "2026.5.10"
 dependencies = [
  "az-derive-aliases",
+ "chrono",
  "derive_more 2.1.1",
  "serde",
  "serde_json",
  "strum 0.28.0",
+ "uuid",
 ]
 
 [[package]]
