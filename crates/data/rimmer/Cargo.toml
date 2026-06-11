@@ -1,0 +1,21 @@
+[package]
+name = "rimmer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Jimmer-style Rust ORM facade focused on strongly typed usage"
+
+[dependencies]
+rimmer-macros = { path = "../rimmer-macros" }
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { workspace = true, features = ["any"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true
