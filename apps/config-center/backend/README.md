@@ -8,7 +8,7 @@
 - 配置新增、修改、删除、启停
 - 命名空间和关键词查询
 - `text`、`json`、`number`、`boolean`、`secret` 配置类型
-- 启动时自动创建 `config-center` 数据库和 `config_items` 表
+- 启动时自动创建 `config-center` 数据库、`"config-center"` 业务配置表和认证支撑表
 - 首次启动通过环境变量初始化管理员账号
 - 可独立 Docker 部署，不内置 PostgreSQL
 

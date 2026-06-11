@@ -197,7 +197,7 @@ async fn list_configs(
         r#"
         SELECT id, namespace, config_key, config_value, value_type, description,
                enabled, version, updated_by, created_at, updated_at
-        FROM config_items
+        FROM "config-center"
         WHERE ($1::TEXT IS NULL OR namespace = $1)
           AND ($2::TEXT IS NULL OR config_key ILIKE ('%' || $2 || '%') OR description ILIKE ('%' || $2 || '%'))
           AND ($3::BOOLEAN OR enabled = TRUE)
@@ -228,7 +228,7 @@ async fn get_config(
         r#"
         SELECT id, namespace, config_key, config_value, value_type, description,
                enabled, version, updated_by, created_at, updated_at
-        FROM config_items
+        FROM "config-center"
         WHERE namespace = $1 AND config_key = $2
         "#,
     )
@@ -255,7 +255,7 @@ async fn get_config_value(
         r#"
         SELECT id, namespace, config_key, config_value, value_type, description,
                enabled, version, updated_by, created_at, updated_at
-        FROM config_items
+        FROM "config-center"
         WHERE namespace = $1 AND config_key = $2 AND enabled = TRUE
         "#,
     )
@@ -317,7 +317,7 @@ async fn upsert_config_item(
     let id = Uuid::new_v4();
     let row = sqlx::query(
         r#"
-        INSERT INTO config_items (
+        INSERT INTO "config-center" AS current_config (
             id, namespace, config_key, config_value, value_type, description, enabled, updated_by
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -327,7 +327,7 @@ async fn upsert_config_item(
             description = EXCLUDED.description,
             enabled = EXCLUDED.enabled,
             updated_by = EXCLUDED.updated_by,
-            version = config_items.version + 1,
+            version = current_config.version + 1,
             updated_at = NOW()
         RETURNING id, namespace, config_key, config_value, value_type, description,
                   enabled, version, updated_by, created_at, updated_at
@@ -358,7 +358,7 @@ async fn toggle_config(
     let updated_by = normalize_optional(Some(request.updated_by)).unwrap_or(session.username);
     let row = sqlx::query(
         r#"
-        UPDATE config_items
+        UPDATE "config-center"
         SET enabled = $3,
             updated_by = $4,
             version = version + 1,
@@ -389,12 +389,13 @@ async fn delete_config(
     let _ = (session.user_id, session.username.as_str());
     let namespace = normalize_required("命名空间", &request.namespace)?;
     let key = normalize_required("配置键", &request.key)?;
-    let deleted = sqlx::query("DELETE FROM config_items WHERE namespace = $1 AND config_key = $2")
-        .bind(namespace)
-        .bind(key)
-        .execute(&state.pool)
-        .await?
-        .rows_affected();
+    let deleted =
+        sqlx::query(r#"DELETE FROM "config-center" WHERE namespace = $1 AND config_key = $2"#)
+            .bind(namespace)
+            .bind(key)
+            .execute(&state.pool)
+            .await?
+            .rows_affected();
     Ok(success("删除完成", DeleteResult { deleted }))
 }
 
@@ -468,7 +469,7 @@ async fn ensure_schema(pool: &PgPool) -> Result<()> {
 
     sqlx::query(
         r#"
-        CREATE TABLE IF NOT EXISTS config_items (
+        CREATE TABLE IF NOT EXISTS "config-center" (
             id UUID PRIMARY KEY,
             namespace TEXT NOT NULL,
             config_key TEXT NOT NULL,
@@ -480,10 +481,10 @@ async fn ensure_schema(pool: &PgPool) -> Result<()> {
             updated_by TEXT NOT NULL DEFAULT 'system',
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            CONSTRAINT config_items_unique_key UNIQUE (namespace, config_key),
-            CONSTRAINT config_items_namespace_not_blank CHECK (length(trim(namespace)) > 0),
-            CONSTRAINT config_items_key_not_blank CHECK (length(trim(config_key)) > 0),
-            CONSTRAINT config_items_value_type_valid CHECK (value_type IN ('text', 'json', 'number', 'boolean', 'secret'))
+            CONSTRAINT config_center_unique_key UNIQUE (namespace, config_key),
+            CONSTRAINT config_center_namespace_not_blank CHECK (length(trim(namespace)) > 0),
+            CONSTRAINT config_center_key_not_blank CHECK (length(trim(config_key)) > 0),
+            CONSTRAINT config_center_value_type_valid CHECK (value_type IN ('text', 'json', 'number', 'boolean', 'secret'))
         )
         "#,
     )
@@ -493,8 +494,29 @@ async fn ensure_schema(pool: &PgPool) -> Result<()> {
 
     sqlx::query(
         r#"
-        CREATE INDEX IF NOT EXISTS idx_config_items_namespace
-        ON config_items (namespace)
+        DO $$
+        BEGIN
+            IF to_regclass('public.config_items') IS NOT NULL THEN
+                INSERT INTO "config-center" (
+                    id, namespace, config_key, config_value, value_type, description,
+                    enabled, version, updated_by, created_at, updated_at
+                )
+                SELECT id, namespace, config_key, config_value, value_type, description,
+                       enabled, version, updated_by, created_at, updated_at
+                FROM config_items
+                ON CONFLICT (namespace, config_key) DO NOTHING;
+            END IF;
+        END $$;
+        "#,
+    )
+    .execute(pool)
+    .await
+    .context("迁移旧配置表数据失败")?;
+
+    sqlx::query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_config_center_namespace
+        ON "config-center" (namespace)
         "#,
     )
     .execute(pool)
@@ -503,8 +525,8 @@ async fn ensure_schema(pool: &PgPool) -> Result<()> {
 
     sqlx::query(
         r#"
-        CREATE INDEX IF NOT EXISTS idx_config_items_keyword
-        ON config_items USING GIN (to_tsvector('simple', config_key || ' ' || description))
+        CREATE INDEX IF NOT EXISTS idx_config_center_keyword
+        ON "config-center" USING GIN (to_tsvector('simple', config_key || ' ' || description))
         "#,
     )
     .execute(pool)
