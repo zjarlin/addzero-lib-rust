@@ -37,6 +37,15 @@ pub struct Fetcher<E> {
     marker: PhantomData<E>,
 }
 
+impl<E> std::fmt::Debug for Fetcher<E> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Fetcher")
+            .field("shape", &self.shape)
+            .finish()
+    }
+}
+
 impl<E> Clone for Fetcher<E> {
     fn clone(&self) -> Self {
         Self {
@@ -69,6 +78,7 @@ impl<E> Fetcher<E> {
                 actual: shape.table_name().to_string(),
             });
         }
+        validate_shape(entity, &shape)?;
         Ok(Self::new(shape))
     }
 
@@ -115,6 +125,79 @@ impl<E> Fetcher<E> {
             message: source.to_string(),
         })
     }
+}
+
+fn validate_shape<E>(entity: EntityDef<E>, shape: &FetchShape) -> OrmResult<()> {
+    for field in shape.fields() {
+        validate_column_field(entity, field)?;
+        validate_relation_field(entity, field)?;
+    }
+    Ok(())
+}
+
+fn validate_column_field<E>(entity: EntityDef<E>, field: &FetchField) -> OrmResult<()> {
+    let Some(column_name) = field.column_name() else {
+        return Ok(());
+    };
+    let Some(metadata) = entity
+        .fields()
+        .iter()
+        .find(|metadata| metadata.rust_name() == field.name())
+    else {
+        return Err(OrmError::InvalidFetcherShape {
+            message: format!(
+                "field '{}' does not exist on entity '{}'",
+                field.name(),
+                entity.type_name()
+            ),
+        });
+    };
+    if metadata.column_name() != column_name || metadata.kind() != field.kind() {
+        return Err(OrmError::InvalidFetcherShape {
+            message: format!(
+                "field '{}' maps to '{}:{:?}', expected '{}:{:?}'",
+                field.name(),
+                column_name,
+                field.kind(),
+                metadata.column_name(),
+                metadata.kind()
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn validate_relation_field<E>(entity: EntityDef<E>, field: &FetchField) -> OrmResult<()> {
+    let Some(relation) = field.relation() else {
+        return Ok(());
+    };
+    if !entity
+        .fields()
+        .iter()
+        .any(|metadata| metadata.column_name() == relation.source_column())
+    {
+        return Err(OrmError::InvalidFetcherShape {
+            message: format!(
+                "relation '{}' source column '{}' does not exist on entity '{}'",
+                field.name(),
+                relation.source_column(),
+                entity.type_name()
+            ),
+        });
+    }
+    if let Some(child) = field.child()
+        && child.table_name() != relation.target_table()
+    {
+        return Err(OrmError::InvalidFetcherShape {
+            message: format!(
+                "relation '{}' targets table '{}', but child shape targets '{}'",
+                field.name(),
+                relation.target_table(),
+                child.table_name()
+            ),
+        });
+    }
+    Ok(())
 }
 
 /// Fetcher 构建器。

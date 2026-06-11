@@ -5,6 +5,8 @@
 //! 的 draft 保存模型。Fetcher 使用 JSON 这类通用格式承载形状，不引入 DTO language。
 //! 当前已经提供 SQL plan 和基于 `sqlx::AnyPool` 的基础执行器。
 
+#![forbid(unsafe_code)]
+
 mod dialect;
 mod draft;
 mod error;

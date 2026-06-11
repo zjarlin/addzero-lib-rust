@@ -31,12 +31,18 @@ pub enum OrmError {
     #[error("fetcher shape targets '{actual}', expected '{expected}'")]
     FetcherEntityMismatch { expected: String, actual: String },
 
+    /// Fetcher JSON 形状与实体元模型不一致。
+    #[error("invalid fetcher shape: {message}")]
+    InvalidFetcherShape { message: String },
+
     /// Fetcher 关联元数据不完整。
     #[error("invalid fetcher relation: {message}")]
     InvalidFetcherRelation { message: String },
 
     /// 图保存缺少父对象关联值。
-    #[error("graph save requires parent value for entity '{entity}', column '{column}', collection '{collection}'")]
+    #[error(
+        "graph save requires parent value for entity '{entity}', column '{column}', collection '{collection}'"
+    )]
     GraphSaveMissingParentValue {
         entity: String,
         column: String,

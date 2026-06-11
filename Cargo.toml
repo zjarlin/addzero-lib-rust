@@ -141,6 +141,8 @@ az-starter-storage = { version = "=2026.5.10", path = "crates/runtime/az-starter
 az-system-starters = { version = "=2026.5.10", path = "crates/runtime/az-system-starters" }
 az-temp-mail = { version = "=2026.5.10", path = "crates/network/az-temp-mail" }
 az-wasm-plugin-api = { version = "=2026.5.10", path = "crates/runtime/az-wasm-plugin-api" }
+rimmer = { version = "=2026.5.10", path = "crates/data/rimmer" }
+rimmer-macros = { version = "=2026.5.10", path = "crates/data/rimmer-macros" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

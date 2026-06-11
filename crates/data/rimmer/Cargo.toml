@@ -8,7 +8,7 @@ authors.workspace = true
 description = "Jimmer-style Rust ORM facade focused on strongly typed usage"
 
 [dependencies]
-rimmer-macros = { path = "../rimmer-macros" }
+rimmer-macros.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sqlx = { workspace = true, features = ["any"] }

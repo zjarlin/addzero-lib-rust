@@ -1,4 +1,6 @@
-use rimmer::{CollectionFetchOptions, Fetcher, JimmerClient, QueryBuilderExt, ScalarValue};
+use rimmer::{
+    CollectionFetchOptions, Fetcher, JimmerClient, OrmError, QueryBuilderExt, ScalarValue,
+};
 
 #[derive(rimmer::Entity)]
 #[rimmer(table = "BOOK_STORE")]
@@ -142,6 +144,38 @@ fn derive_entity_should_generate_json_fetcher_shape() {
     // 断言 derive API 生成的 Fetcher 仍然使用通用 JSON 形状。
     assert_eq!(restored.shape(), fetcher.shape());
     assert_eq!(restored_from_value.shape(), fetcher.shape());
+}
+
+#[test]
+fn fetcher_from_json_should_reject_root_field_drift() {
+    let fetcher = Book::fetcher().by(|book| book.field(Book::name()));
+    let mut value = fetcher.to_json_value().unwrap();
+    value["fields"][0]["columnName"] = serde_json::Value::String("TITLE".to_string());
+
+    let error = Fetcher::<Book>::from_json_value(Book::entity(), value).unwrap_err();
+
+    // 断言持久化 Fetcher 形状不能绕过实体字段元模型。
+    assert!(matches!(error, OrmError::InvalidFetcherShape { .. }));
+}
+
+#[test]
+fn fetcher_from_json_should_reject_relation_metadata_drift() {
+    let fetcher = Book::fetcher().by(|book| {
+        book.many_to_one(
+            "store",
+            Book::store_id(),
+            BookStore::id(),
+            BookStore::fetcher().by(|store| store.field(BookStore::name())),
+        )
+    });
+    let mut value = fetcher.to_json_value().unwrap();
+    value["fields"][0]["relation"]["sourceColumn"] =
+        serde_json::Value::String("UNKNOWN_STORE_ID".to_string());
+
+    let error = Fetcher::<Book>::from_json_value(Book::entity(), value).unwrap_err();
+
+    // 断言关联 Fetcher 形状必须继续引用根实体真实列。
+    assert!(matches!(error, OrmError::InvalidFetcherShape { .. }));
 }
 
 #[test]

@@ -1,5 +1,7 @@
 //! rimmer 的过程宏入口。
 
+#![forbid(unsafe_code)]
+
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
