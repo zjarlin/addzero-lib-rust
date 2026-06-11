@@ -129,7 +129,7 @@ async fn api_status(
     session: AuthSession,
 ) -> Result<Json<ApiResponse<StatusPayload>>, AppError> {
     let _ = (session.user_id, session.username.as_str());
-    sqlx::query_scalar::<_, i64>("SELECT 1")
+    sqlx::query_scalar::<_, i64>("SELECT 1::BIGINT")
         .fetch_one(&state.pool)
         .await?;
     Ok(success(
