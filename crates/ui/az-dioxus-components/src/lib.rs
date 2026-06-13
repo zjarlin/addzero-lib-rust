@@ -1,16 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![deny(missing_docs)]
 
-mod util;
-
-/// 遵循 `az-card` class 契约的卡片基础组件。
-pub mod az_card;
-/// 基于结构化列和行数据渲染的表格组件。
-pub mod az_data_table;
-/// GitHub/JQL 风格的语法式搜索输入组件和解析模型。
-pub mod az_grammar_search;
-/// 遵循 `az-table` class 契约的表格基础组件。
-pub mod az_table;
+automod::dir!(pub "src");
 
 /// 组合公开 UI 基础组件时使用的便捷导出。
 pub mod prelude {

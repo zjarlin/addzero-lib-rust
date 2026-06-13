@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use super::planner::build_plan;
 
 #[test]

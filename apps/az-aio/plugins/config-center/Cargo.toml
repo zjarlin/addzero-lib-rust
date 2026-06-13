@@ -1,6 +1,6 @@
 [package]
-name = "az-aio-plugin-config-center"
-description = "桌面端配置中心插件：Dotfiles 监控、设备配对、XDG 路径、AI 提供商配置与连通性测试"
+name = "config-center"
+description = "AZ AIO config center native plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,17 +9,21 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+axum.workspace = true
+az-aio-plugin-api = { path = "../api" }
 automod.workspace = true
-az-ai-agent.workspace = true
-az-assets.workspace = true
 az-derive-aliases.workspace = true
-az-desktop-plugin.workspace = true
-az-desktop-plugin-registry.workspace = true
-gpui.workspace = true
-reqwest.workspace = true
+dioxus.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+shaku.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
+toasty.workspace = true
+uuid.workspace = true
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

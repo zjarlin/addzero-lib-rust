@@ -1,5 +1,6 @@
 [package]
-name = "az-aio-plugin-edge-gateway"
+name = "edge-gateway"
+description = "AZ AIO edge gateway native plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,17 +9,25 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+axum.workspace = true
+az-aio-plugin-api = { path = "../api" }
 automod.workspace = true
 az-derive-aliases.workspace = true
-az-desktop-plugin.workspace = true
-az-desktop-plugin-registry.workspace = true
-gpui.workspace = true
+dioxus.workspace = true
 handlebars.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_json_path.workspace = true
+shaku.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
+toasty.workspace = true
+uuid.workspace = true
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

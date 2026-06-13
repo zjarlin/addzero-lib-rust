@@ -1,6 +1,6 @@
 [package]
-name = "az-aio-plugin-asset-hub"
-description = "桌面端资产管理插件：资产浏览、Skill 扫描入库、Compose 种子及 subtype 元数据面板"
+name = "asset-hub"
+description = "AZ AIO asset hub native plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,15 +9,21 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-automod.workspace = true
-az-assets.workspace = true
+axum.workspace = true
+az-aio-plugin-api = { path = "../api" }
 az-derive-aliases.workspace = true
-az-desktop-plugin.workspace = true
-az-desktop-plugin-registry.workspace = true
-gpui.workspace = true
+automod.workspace = true
+dioxus.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+shaku.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
+toasty.workspace = true
+uuid.workspace = true
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

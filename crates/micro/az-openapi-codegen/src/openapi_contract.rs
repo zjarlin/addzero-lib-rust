@@ -1023,27 +1023,8 @@ fn generated_entry_source() -> String {
 }
 
 fn normalize_rust_source(tokens: TokenStream2) -> String {
-    let mut source = tokens.to_string();
-    for (from, to) in [
-        (" < ", "<"),
-        (" > ", "> "),
-        (" :: ", "::"),
-        (" ,", ","),
-        (" ;", ";"),
-        (" :", ":"),
-        (" # [", "\n#["),
-        (" pub mod ", "\npub mod "),
-        (" pub struct ", "\n    pub struct "),
-        (" pub enum ", "\n    pub enum "),
-        (" pub type ", "\n    pub type "),
-        (" pub trait ", "\n    pub trait "),
-        (" pub const ", "\n        pub const "),
-        (" async fn ", "\n        async fn "),
-    ] {
-        source = source.replace(from, to);
-    }
-    source.push('\n');
-    source
+    let file = syn::parse2(tokens).expect("generated OpenAPI Rust source should parse");
+    prettyplease::unparse(&file)
 }
 
 fn render_property(prop: &PropertyDef) -> TokenStream2 {

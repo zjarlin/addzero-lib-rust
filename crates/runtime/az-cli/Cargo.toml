@@ -19,6 +19,7 @@ dist = true
 npm-package = "addzdero-cli"
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 anyhow.workspace = true
 clap.workspace = true

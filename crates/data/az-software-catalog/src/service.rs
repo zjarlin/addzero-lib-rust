@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use az_derive_aliases::{apply, plain_clone};
 use az_persistence::PersistenceContext;
 

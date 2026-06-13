@@ -1,6 +1,6 @@
 [package]
-name = "az-aio-plugin-drive-center"
-description = "桌面端文件托管中心插件：目录托管、同步调度、冲突检测与同步队列管理"
+name = "drive-center"
+description = "AZ AIO drive center native plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,10 +8,22 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+axum.workspace = true
+az-aio-plugin-api = { path = "../api" }
 automod.workspace = true
-az-desktop-plugin.workspace = true
-az-desktop-plugin-registry.workspace = true
-gpui.workspace = true
+az-derive-aliases.workspace = true
+dioxus.workspace = true
+serde.workspace = true
+shaku.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+toasty.workspace = true
+uuid.workspace = true
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

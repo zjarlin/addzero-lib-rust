@@ -38,7 +38,7 @@ fn exports_primary_api_traits() {
 }
 
 #[test]
-fn live_macro_generation_keeps_stable_public_modules() {
+fn generated_sources_keep_stable_public_modules() {
     fn assert_request<T: serde::Serialize>() {}
     fn assert_response<T: for<'de> serde::Deserialize<'de>>() {}
 

@@ -34,12 +34,7 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
-mod config;
-mod error;
-mod http;
-pub mod maven;
-pub mod tianyancha;
-mod util;
+automod::dir!(pub "src");
 
 use az_derive_aliases::{apply, plain_default_copy_eq};
 

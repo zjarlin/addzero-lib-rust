@@ -7,9 +7,10 @@ use crate::sidebar::{
 };
 use az_aio_plugin_api::{
     CatalogItemContribution, CatalogItemKind, CatalogSource, CatalogTagContribution,
-    CatalogTagGroup, ContributionSet, PageContribution, PluginActivation, PluginBackendBundle,
-    PluginFrontendBundle, PluginKind, PluginSandboxBackendApiDebug, PluginSandboxDebugReport,
-    PluginSandboxUiContributionDebug, PluginState, ToolbarActionContribution,
+    CatalogTagGroup, ContributionSet, NavItemContribution, PageContribution, PluginActivation,
+    PluginBackendBundle, PluginFrontendBundle, PluginKind, PluginSandboxBackendApiDebug,
+    PluginSandboxDebugReport, PluginSandboxUiContributionDebug, PluginState,
+    ToolbarActionContribution,
 };
 use az_aio_plugin_host::{
     HostSnapshot, PluginContributionRecord, PluginRuntimeRecord, load_az_aio_plugin_snapshot,
@@ -253,7 +254,8 @@ pub fn App() -> Element {
                 },
             }
             AppSidebar {
-                snapshot: snapshot_value,
+                nav_items: snapshot_value.nav_items.clone(),
+                settings_available: route_available(&snapshot_value, SETTINGS_ROUTE),
                 active_route: selected_route.clone(),
                 on_route_select: move |route: String| {
                     last_app_route.set(route.clone());
@@ -431,12 +433,12 @@ fn TitlebarControls(sidebar_collapsed: bool, on_toggle_sidebar: EventHandler<()>
 #[allow(non_snake_case)]
 #[component]
 fn AppSidebar(
-    snapshot: HostSnapshot,
+    nav_items: Vec<NavItemContribution>,
+    settings_available: bool,
     active_route: String,
     on_route_select: EventHandler<String>,
 ) -> Element {
-    let primary_items = snapshot
-        .nav_items
+    let primary_items = nav_items
         .iter()
         .map(|item| {
             SidebarItemModel::primary(item.route.clone(), item.label.clone(), item.icon.clone())
@@ -466,7 +468,7 @@ fn AppSidebar(
                 active_id: active_route.clone(),
                 on_select: move |_route: String| {},
             }
-            if route_available(&snapshot, SETTINGS_ROUTE) {
+            if settings_available {
                 div { class: "sidebar__footer",
                     SidebarActionButton {
                         item: SidebarItemModel::settings_action(SETTINGS_ROUTE, "设置"),
@@ -1624,6 +1626,7 @@ fn plugin_activation_label(activation: &PluginActivation) -> &'static str {
 fn plugin_kind_label(kind: &PluginKind) -> &'static str {
     match kind {
         PluginKind::WasmComponent => "wasm-component",
+        PluginKind::Native => "native",
     }
 }
 

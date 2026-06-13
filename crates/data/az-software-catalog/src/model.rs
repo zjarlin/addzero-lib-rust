@@ -1,8 +1,12 @@
-use std::{collections::BTreeSet, fmt};
+#[cfg(any(not(target_arch = "wasm32"), test))]
+use std::collections::BTreeSet;
+#[cfg(not(target_arch = "wasm32"))]
+use std::fmt;
 
 use az_derive_aliases::{
     apply, error_eq, serde_code_default_ord_display_enum, serde_eq, serde_eq_default,
 };
+#[cfg(any(not(target_arch = "wasm32"), test))]
 use uuid::Uuid;
 
 /// 软件可试用或可安装的平台。
@@ -183,14 +187,17 @@ pub enum SoftwareCatalogError {
 }
 
 impl SoftwareCatalogError {
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn persistence(err: impl fmt::Display) -> Self {
         Self::Persistence(err.to_string())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn query(err: impl fmt::Display) -> Self {
         Self::Query(err.to_string())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn fetch(err: impl fmt::Display) -> Self {
         Self::Fetch(err.to_string())
     }
@@ -214,10 +221,12 @@ pub fn current_platform() -> SoftwarePlatform {
     SoftwarePlatform::Macos
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn parse_uuid(value: &str) -> SoftwareCatalogResult<Uuid> {
     Uuid::parse_str(value).map_err(|err| SoftwareCatalogError::Message(format!("非法 UUID：{err}")))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn validate_input(input: &SoftwareEntryInput) -> SoftwareCatalogResult<()> {
     if input.slug.trim().is_empty() || input.title.trim().is_empty() {
         return Err(SoftwareCatalogError::Message(
@@ -227,6 +236,7 @@ pub(crate) fn validate_input(input: &SoftwareEntryInput) -> SoftwareCatalogResul
     Ok(())
 }
 
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub(crate) fn normalize_input(input: SoftwareEntryInput) -> SoftwareEntryDto {
     SoftwareEntryDto {
         id: input.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
@@ -268,6 +278,7 @@ pub(crate) fn normalize_input(input: SoftwareEntryInput) -> SoftwareEntryDto {
     }
 }
 
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub(crate) fn clean_tags(tags: &[String]) -> Vec<String> {
     let mut seen = BTreeSet::new();
     tags.iter()
@@ -277,6 +288,7 @@ pub(crate) fn clean_tags(tags: &[String]) -> Vec<String> {
         .collect()
 }
 
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub(crate) fn clean_platforms(platforms: &[SoftwarePlatform]) -> Vec<SoftwarePlatform> {
     let mut seen = BTreeSet::new();
     platforms

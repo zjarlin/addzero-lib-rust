@@ -1,3 +1,5 @@
+//! 遵循 `az-table` class 契约的表格基础组件。
+
 use dioxus::prelude::*;
 
 use crate::util::class_name::compose_class;

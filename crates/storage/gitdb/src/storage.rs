@@ -52,13 +52,7 @@
 //! let user = repo.read_row(&table, &key, head)? ;
 //! ```
 
-mod blob;
-mod commit;
-mod error;
-mod refs;
-mod repository;
-mod tree;
-mod types;
+automod::dir!("src/storage");
 
 // 重新导出公开存储 API。
 pub use blob::Row;

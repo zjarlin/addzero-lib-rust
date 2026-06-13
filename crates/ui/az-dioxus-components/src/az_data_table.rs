@@ -1,3 +1,5 @@
+//! 基于结构化列和行数据渲染的表格组件。
+
 #![allow(non_snake_case)]
 
 use az_derive_aliases::{

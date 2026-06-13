@@ -1,10 +1,6 @@
 #![forbid(unsafe_code)]
 
-mod app;
-mod settings;
-mod shell_manager;
-mod shell_manager_store;
-mod sidebar;
+automod::dir!("src");
 
 use app::App;
 use dioxus::desktop::{Config, WindowBuilder};

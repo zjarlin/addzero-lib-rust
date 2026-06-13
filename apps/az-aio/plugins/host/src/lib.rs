@@ -19,7 +19,7 @@ use az_aio_plugin_api::{
 #[cfg(not(target_arch = "wasm32"))]
 use az_aio_plugin_api::{
     NativeAzAioPlugin, NativePluginContext, NativePluginRegistration, NativePluginRuntime,
-    NativeRenderContext, NativeRenderFn, NativeUiRenderer,
+    NativeRenderFn, NativeUiRenderer,
 };
 use serde::{Deserialize, Serialize};
 
@@ -548,7 +548,11 @@ fn load_native_plugin(
     context: NativePluginContext,
 ) -> anyhow::Result<LoadedNativePlugin> {
     let contributions = plugin.contributions().map_err(|error| {
-        anyhow::anyhow!(lifecycle_message(&descriptor.id, "native-contributions", error))
+        anyhow::anyhow!(lifecycle_message(
+            &descriptor.id,
+            "native-contributions",
+            error
+        ))
     })?;
     let runtime = plugin.runtime(context.clone()).map_err(|error| {
         anyhow::anyhow!(
@@ -559,7 +563,11 @@ fn load_native_plugin(
     })?;
     if let Some(startup) = runtime.startup {
         startup(context).map_err(|error| {
-            anyhow::anyhow!("插件 `{}` native startup 阶段失败：{}", descriptor.id, error)
+            anyhow::anyhow!(
+                "插件 `{}` native startup 阶段失败：{}",
+                descriptor.id,
+                error
+            )
         })?;
     }
     Ok(LoadedNativePlugin {
@@ -586,12 +594,20 @@ fn first_duplicate_backend_route(
 fn merge_snapshot_contributions(snapshot: &mut HostSnapshot, contributions: ContributionSet) {
     snapshot.nav_items.extend(contributions.nav_items);
     snapshot.pages.extend(contributions.pages);
-    snapshot.ui_contributions.extend(contributions.ui_contributions);
+    snapshot
+        .ui_contributions
+        .extend(contributions.ui_contributions);
     snapshot.backend_apis.extend(contributions.backend_apis);
-    snapshot.toolbar_actions.extend(contributions.toolbar_actions);
-    snapshot.settings_sections.extend(contributions.settings_sections);
+    snapshot
+        .toolbar_actions
+        .extend(contributions.toolbar_actions);
+    snapshot
+        .settings_sections
+        .extend(contributions.settings_sections);
     snapshot.shell_entries.extend(contributions.shell_entries);
-    snapshot.generated_files.extend(contributions.generated_files);
+    snapshot
+        .generated_files
+        .extend(contributions.generated_files);
     for provider in contributions.catalog_providers {
         snapshot.catalog_items.extend(provider.items);
     }
@@ -619,7 +635,9 @@ fn sort_snapshot(snapshot: &mut HostSnapshot) {
     snapshot.settings_sections = contributions.settings_sections;
     snapshot.shell_entries = contributions.shell_entries;
     snapshot.generated_files = contributions.generated_files;
-    snapshot.catalog_items.extend(plugin_catalog_items(&snapshot.plugins));
+    snapshot
+        .catalog_items
+        .extend(plugin_catalog_items(&snapshot.plugins));
     snapshot.catalog_items.sort_by(|left, right| {
         left.kind
             .label()
@@ -1202,13 +1220,15 @@ mod tests {
     };
 
     use az_aio_plugin_api::{
-        BackendApiContribution, CatalogItemKind, ContributionSet, NavItemContribution,
-        PluginDependency, PluginError, PluginState, UiContribution, UiContributionSlot,
+        BackendApiContribution, CatalogItemKind, ContributionSet, NativeAzAioPlugin,
+        NativePluginContext, NativePluginRuntime, NavItemContribution, PluginDependency,
+        PluginError, PluginState, UiContribution, UiContributionSlot,
     };
     use tempfile::TempDir;
 
     use super::{
-        AzAioPlugin, PluginEnablementStore, PluginHost, descriptor, set_plugin_enabled_at,
+        AzAioPlugin, NativePluginHost, PluginEnablementStore, PluginHost, descriptor,
+        set_plugin_enabled_at,
     };
 
     #[derive(Default)]
@@ -1279,6 +1299,45 @@ mod tests {
                 set.backend_apis.push(backend_api);
             }
             Ok(set)
+        }
+    }
+
+    #[derive(Default)]
+    struct TestNativePlugin {
+        id: &'static str,
+        route: &'static str,
+    }
+
+    impl NativeAzAioPlugin for TestNativePlugin {
+        fn descriptor(&self) -> az_aio_plugin_api::PluginDescriptor {
+            let mut descriptor = descriptor(
+                self.id,
+                self.id,
+                "native test plugin",
+                0,
+                vec![],
+                vec!["native"],
+            );
+            descriptor.kind = az_aio_plugin_api::PluginKind::Native;
+            descriptor
+        }
+
+        fn contributions(&self) -> Result<ContributionSet, PluginError> {
+            Ok(ContributionSet {
+                backend_apis: vec![BackendApiContribution {
+                    id: format!("{}.api.status", self.id),
+                    method: "GET".to_string(),
+                    path: self.route.to_string(),
+                    label: "Status".to_string(),
+                    description: "Native test status.".to_string(),
+                    order: 10,
+                }],
+                ..ContributionSet::default()
+            })
+        }
+
+        fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+            Ok(NativePluginRuntime::default())
         }
     }
 
@@ -1511,6 +1570,38 @@ mod tests {
         assert!(snapshot.catalog_items.iter().any(|item| {
             item.source == az_aio_plugin_api::CatalogSource::Wasm && !item.installed
         }));
+    }
+
+    #[test]
+    fn native_host_rejects_duplicate_backend_routes() {
+        let snapshot = NativePluginHost::new(NativePluginContext::default())
+            .with_plugin(Box::new(TestNativePlugin {
+                id: "alpha",
+                route: "/api/native/status",
+            }))
+            .with_plugin(Box::new(TestNativePlugin {
+                id: "beta",
+                route: "/api/native/status",
+            }))
+            .load_snapshot();
+
+        assert!(snapshot.plugins.iter().any(|plugin| {
+            plugin.descriptor.id == "beta" && plugin.state == PluginState::Failed
+        }));
+        assert_eq!(snapshot.backend_apis.len(), 1);
+    }
+
+    #[test]
+    fn native_inventory_host_can_load_without_panic() {
+        let snapshot =
+            NativePluginHost::from_inventory(NativePluginContext::default()).load_snapshot();
+
+        assert!(
+            snapshot
+                .plugins
+                .iter()
+                .all(|plugin| { plugin.descriptor.kind == az_aio_plugin_api::PluginKind::Native })
+        );
     }
 
     #[test]

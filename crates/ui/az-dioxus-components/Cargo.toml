@@ -10,6 +10,7 @@ repository.workspace = true
 description = "Composable Dioxus UI primitives with az-* naming."
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 dioxus.workspace = true
 

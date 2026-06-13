@@ -1,3 +1,5 @@
+//! 遵循 `az-card` class 契约的卡片基础组件。
+
 use dioxus::prelude::*;
 
 use crate::util::class_name::compose_class;

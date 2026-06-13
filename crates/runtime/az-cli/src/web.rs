@@ -1,4 +1,4 @@
-pub mod robots;
+automod::dir!(pub "src/web");
 
 use std::ffi::OsStr;
 use std::fs;

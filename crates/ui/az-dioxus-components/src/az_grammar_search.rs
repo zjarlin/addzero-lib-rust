@@ -1,3 +1,5 @@
+//! GitHub/JQL 风格的语法式搜索输入组件和解析模型。
+
 use dioxus::prelude::*;
 
 use crate::util::class_name::compose_class;

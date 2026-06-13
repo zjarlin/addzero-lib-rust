@@ -10,6 +10,7 @@ repository = "https://github.com/zjarlin/addzero-lib-rust"
 description = "Dioxus desktop shell for AZ AIO."
 
 [dependencies]
+automod = "1.0.16"
 az-dioxus-components = { path = "../../../crates/ui/az-dioxus-components" }
 az-git = { path = "../../../crates/network/az-git" }
 az-aio-plugin-api = { path = "../plugins/api" }

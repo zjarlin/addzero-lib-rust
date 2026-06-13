@@ -21,16 +21,7 @@
 //! - [`InstallerKind`] — 安装方式枚举（Brew / winget / Scoop 等）。
 //! - [`SoftwareCatalogService`] — 服务层门面（仅 native 可用）。
 
-pub mod model;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod entity;
-#[cfg(not(target_arch = "wasm32"))]
-mod import;
-#[cfg(not(target_arch = "wasm32"))]
-mod repository;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod service;
+automod::dir!("src");
 
 pub use model::{
     InstallerKind, SoftwareCatalogDto, SoftwareCatalogError, SoftwareCatalogResult,

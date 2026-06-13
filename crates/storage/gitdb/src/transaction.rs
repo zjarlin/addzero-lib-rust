@@ -39,10 +39,7 @@
 //! tx.commit()?;  // or tx.rollback();
 //! ```
 
-mod context;
-mod error;
-mod isolation;
-mod manager;
+automod::dir!("src/transaction");
 
 pub use context::{Transaction, TxAborted, TxActive, TxCommitted};
 pub use error::{TransactionError, TransactionResult};

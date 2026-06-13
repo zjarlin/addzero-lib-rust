@@ -72,6 +72,7 @@ mime_guess = "2.0.5"
 ndarray = "0.17.1"
 ort = "2.0.0-rc.12"
 pinyin = "0.11.0"
+prettyplease = "0.2.37"
 proc-macro2 = "1.0.103"
 quick-xml = "0.38.4"
 quote = "1.0.41"
@@ -130,11 +131,6 @@ az-admin-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/az-a
 az-ai-agent = { version = "=2026.5.10", path = "crates/runtime/az-ai-agent" }
 az-ai-chat = { version = "=2026.5.10", path = "crates/api/az-ai-chat" }
 az-aio-client = { version = "=2026.5.10", path = "crates/api/az-aio-client" }
-az-aio-plugin-asset-hub = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-asset-hub" }
-az-aio-plugin-config-center = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-config-center" }
-az-aio-plugin-drive-center = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-drive-center" }
-az-aio-plugin-edge-gateway = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-edge-gateway" }
-az-aio-plugin-software-center = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-software-center" }
 az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
 az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
 az-config-center-client = { version = "=2026.6.13", path = "crates/api/az-config-center-client" }

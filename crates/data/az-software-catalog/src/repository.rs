@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use std::collections::BTreeMap;
 
 use az_derive_aliases::{apply, plain_clone};

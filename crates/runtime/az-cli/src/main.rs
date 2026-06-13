@@ -1,8 +1,4 @@
-mod cli;
-mod novel;
-mod pipeline;
-mod web;
-mod web_text;
+automod::dir!("src");
 
 use anyhow::Result;
 
