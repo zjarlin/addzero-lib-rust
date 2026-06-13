@@ -1,4 +1,4 @@
-use az_admin_plugin_registry::{registered_domains, section_for_path};
+use az_admin_plugin_registry::api::{registered_domains, section_for_path};
 
 #[test]
 fn link_all_exposes_system_starter_navigation() {

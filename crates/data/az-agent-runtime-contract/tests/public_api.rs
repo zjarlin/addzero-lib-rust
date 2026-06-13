@@ -1,4 +1,4 @@
-use az_agent_runtime_contract::{AgentArtifactChannel, AgentNodeStatus, PairingStatus};
+use az_agent_runtime_contract::api::{AgentArtifactChannel, AgentNodeStatus, PairingStatus};
 
 #[test]
 fn contract_enums_keep_snake_case_wire_shape() {

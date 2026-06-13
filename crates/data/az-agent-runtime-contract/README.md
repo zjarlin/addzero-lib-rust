@@ -25,8 +25,9 @@ az-agent-runtime-contract = { path = "../az-agent-runtime-contract" }  # workspa
 ## 用法
 
 ```rust
-use az_agent_runtime_contract::*;
-use uuid::Uuid;
+use az_agent_runtime_contract::api::{
+    AgentArtifactChannel, PairingRequest, SkillSnapshot, SkillSyncRequest,
+};
 use chrono::Utc;
 
 // 创建配对请求

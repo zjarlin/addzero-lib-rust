@@ -785,6 +785,7 @@ dependencies = [
 name = "az-admin-plugin-registry"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "inventory",
  "strum 0.28.0",
@@ -794,6 +795,7 @@ dependencies = [
 name = "az-agent-runtime-contract"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "chrono",
  "serde",
