@@ -60,7 +60,9 @@ mod native {
         let mut bind = DEFAULT_BIND_ADDR.to_string();
         let mut iter = args.into_iter();
         while let Some(arg) = iter.next() {
-            if arg == "--bind" && let Some(value) = iter.next() {
+            if arg == "--bind"
+                && let Some(value) = iter.next()
+            {
                 bind = value;
             }
         }

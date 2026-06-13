@@ -88,8 +88,9 @@ impl AzAioPlugin for LowcodePlugin {
                         key: DATABASE_SETTING_KEY.to_string(),
                         label: "数据库连接".to_string(),
                         value: String::new(),
-                        description: "低代码插件使用的 PostgreSQL 连接串，应写入 az-aio.dev 命名空间。"
-                            .to_string(),
+                        description:
+                            "低代码插件使用的 PostgreSQL 连接串，应写入 az-aio.dev 命名空间。"
+                                .to_string(),
                         order: 20,
                     },
                 ],

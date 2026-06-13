@@ -4,7 +4,9 @@ pub type LowcodeResult<T> = Result<T, LowcodeError>;
 
 #[derive(Debug, Error)]
 pub enum LowcodeError {
-    #[error("missing lowcode database url in config center namespace az-aio.dev key lowcode.database_url")]
+    #[error(
+        "missing lowcode database url in config center namespace az-aio.dev key lowcode.database_url"
+    )]
     MissingDatabaseUrl,
     #[error("invalid lowcode app id")]
     InvalidAppId,
