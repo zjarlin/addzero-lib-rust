@@ -14,6 +14,7 @@ pub enum PluginActivation {
 #[serde(rename_all = "kebab-case")]
 pub enum PluginKind {
     WasmComponent,
+    Native,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -504,6 +505,103 @@ pub trait AzAioPlugin: Send {
     fn on_unload(&mut self) -> Result<(), PluginError> {
         Ok(())
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub type NativeRenderFn = fn(NativeRenderContext) -> dioxus::prelude::Element;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Debug)]
+pub struct NativePluginContext {
+    pub api_base_url: String,
+    pub database_url: Option<String>,
+    pub config_dir: std::path::PathBuf,
+    pub data_dir: std::path::PathBuf,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Default for NativePluginContext {
+    fn default() -> Self {
+        Self {
+            api_base_url: "http://127.0.0.1:0".to_string(),
+            database_url: std::env::var("AZ_AIO_DATABASE_URL").ok(),
+            config_dir: std::path::PathBuf::from("."),
+            data_dir: std::path::PathBuf::from("."),
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct NativeRenderContext {
+    pub active_route: String,
+    pub api_base_url: String,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Debug)]
+pub struct NativeUiRenderer {
+    pub renderer_id: String,
+    pub slot: UiContributionSlot,
+    pub route: Option<String>,
+    pub render: NativeRenderFn,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone)]
+pub struct NativePluginRuntime {
+    pub renderers: Vec<NativeUiRenderer>,
+    pub router: axum::Router,
+    pub startup: Option<fn(NativePluginContext) -> anyhow::Result<()>>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Default for NativePluginRuntime {
+    fn default() -> Self {
+        Self {
+            renderers: Vec::new(),
+            router: axum::Router::new(),
+            startup: None,
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub trait NativeAzAioPlugin: Send + Sync {
+    fn descriptor(&self) -> PluginDescriptor;
+
+    fn contributions(&self) -> Result<ContributionSet, PluginError>;
+
+    fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime>;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Copy)]
+pub struct NativePluginRegistration {
+    pub constructor: fn() -> Box<dyn NativeAzAioPlugin>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+inventory::collect!(NativePluginRegistration);
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn default_native_plugin_constructor<P>() -> Box<dyn NativeAzAioPlugin>
+where
+    P: NativeAzAioPlugin + Default + 'static,
+{
+    Box::new(P::default())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[macro_export]
+macro_rules! register_native_plugin {
+    ($plugin_ty:ty $(,)?) => {
+        $crate::inventory::submit! {
+            $crate::NativePluginRegistration {
+                constructor: $crate::default_native_plugin_constructor::<$plugin_ty>,
+            }
+        }
+    };
 }
 
 #[derive(Debug, Error, Eq, PartialEq)]

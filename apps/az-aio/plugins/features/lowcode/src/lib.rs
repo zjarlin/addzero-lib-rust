@@ -1,17 +1,6 @@
 #![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
 
-mod descriptor;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub mod api;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod config;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod error;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod model;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod store;
+automod::dir!(pub "src");
 
 pub use descriptor::LowcodePlugin;
 
@@ -29,48 +18,3 @@ pub use error::{LowcodeError, LowcodeResult};
 pub use model::{LowcodeApp, LowcodePage};
 #[cfg(not(target_arch = "wasm32"))]
 pub use store::LowcodeStore;
-
-#[cfg(target_arch = "wasm32")]
-mod component {
-    use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
-
-    use super::LowcodePlugin;
-
-    wit_bindgen::generate!({
-        path: "../../wit",
-        world: "az-aio-plugin",
-    });
-
-    struct LowcodeWasm;
-
-    impl Guest for LowcodeWasm {
-        fn describe() -> Result<String, String> {
-            descriptor_to_json(&LowcodePlugin.descriptor()).map_err(|error| error.to_string())
-        }
-
-        fn contributions() -> Result<String, String> {
-            let contributions = LowcodePlugin
-                .contributions()
-                .map_err(|error| error.to_string())?;
-            contributions_to_json(&contributions).map_err(|error| error.to_string())
-        }
-
-        fn on_load() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_enable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_disable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_unload() -> Result<(), String> {
-            Ok(())
-        }
-    }
-
-    export!(LowcodeWasm);
-}

@@ -1,0 +1,17 @@
+[package]
+name = "az-aio-plugin-drive-center"
+description = "桌面端文件托管中心插件：目录托管、同步调度、冲突检测与同步队列管理"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+automod.workspace = true
+az-desktop-plugin.workspace = true
+az-desktop-plugin-registry.workspace = true
+gpui.workspace = true
+
+[lints]
+workspace = true

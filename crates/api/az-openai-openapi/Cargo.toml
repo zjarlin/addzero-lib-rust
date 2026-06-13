@@ -9,7 +9,7 @@ description = "OpenAI REST OpenAPI contract traits and fixed path constants"
 
 [dependencies]
 async-trait.workspace = true
-az-openapi-macro = { path = "../../micro/az-openapi-macro" }
+automod.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

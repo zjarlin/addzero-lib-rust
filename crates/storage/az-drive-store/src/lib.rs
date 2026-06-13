@@ -17,8 +17,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard};
 use uuid::Uuid;
 
-pub mod git_pool;
-pub mod gitdb_object_store;
+automod::dir!(pub "src");
 
 pub use git_pool::{
     DEFAULT_AUTO_GIT_POOL_PREFIX, DEFAULT_GIT_POOL_LIMIT_BYTES, GitPoolConfig, GitPoolDriveStore,

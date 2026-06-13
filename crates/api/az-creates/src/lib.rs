@@ -41,9 +41,6 @@ pub mod maven;
 pub mod tianyancha;
 mod util;
 
-#[cfg(test)]
-mod tests;
-
 use az_derive_aliases::{apply, plain_default_copy_eq};
 
 pub use az_email::{

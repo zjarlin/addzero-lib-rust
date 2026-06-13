@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-mod wasm_component;
+automod::dir!("src");
 
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
@@ -16,12 +16,84 @@ use az_aio_plugin_api::{
     PluginDescriptor, PluginError, PluginKind, PluginState, SettingsSectionContribution,
     ShellEntryContribution, ToolbarActionContribution, UiContribution,
 };
+#[cfg(not(target_arch = "wasm32"))]
+use az_aio_plugin_api::{
+    NativeAzAioPlugin, NativePluginContext, NativePluginRegistration, NativePluginRuntime,
+    NativeRenderContext, NativeRenderFn, NativeUiRenderer,
+};
 use serde::{Deserialize, Serialize};
 
 pub use wasm_component::WasmComponentPlugin;
 
 const PLUGIN_STATE_FILE: &str = "plugin-state.json";
 const PLUGIN_MANIFEST_FILE: &str = "az-plugin.json";
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn load_az_aio_native_snapshot() -> HostSnapshot {
+    let enablement = load_plugin_enablement();
+    NativePluginHost::from_inventory(NativePluginContext::default())
+        .load_snapshot_with_enablement(&enablement)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn native_renderer(snapshot: &HostSnapshot, renderer_id: &str) -> Option<NativeRenderFn> {
+    snapshot
+        .native_renderers
+        .iter()
+        .find(|renderer| renderer.renderer_id == renderer_id)
+        .map(|renderer| renderer.render)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn start_native_loopback_server(snapshot: HostSnapshot) -> anyhow::Result<String> {
+    let app = snapshot.native_router.clone();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let local_addr = listener.local_addr()?;
+    tokio::spawn(async move {
+        if let Err(error) = axum::serve(listener, app).await {
+            eprintln!("az-aio native plugin server failed: {error}");
+        }
+    });
+    Ok(format!("http://{local_addr}"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub struct NativePluginHost {
+    plugins: Vec<Box<dyn NativeAzAioPlugin>>,
+    context: NativePluginContext,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl NativePluginHost {
+    pub fn new(context: NativePluginContext) -> Self {
+        Self {
+            plugins: Vec::new(),
+            context,
+        }
+    }
+
+    pub fn from_inventory(context: NativePluginContext) -> Self {
+        let mut plugins = inventory::iter::<NativePluginRegistration>
+            .into_iter()
+            .map(|registration| (registration.constructor)())
+            .collect::<Vec<_>>();
+        plugins.sort_by(|left, right| left.descriptor().id.cmp(&right.descriptor().id));
+        Self { plugins, context }
+    }
+
+    pub fn with_plugin(mut self, plugin: Box<dyn NativeAzAioPlugin>) -> Self {
+        self.plugins.push(plugin);
+        self
+    }
+
+    pub fn load_snapshot(self) -> HostSnapshot {
+        self.load_snapshot_with_enablement(&PluginEnablementStore::default())
+    }
+
+    pub fn load_snapshot_with_enablement(self, enablement: &PluginEnablementStore) -> HostSnapshot {
+        load_native_plugins(self.plugins, self.context, enablement)
+    }
+}
 
 pub struct PluginHost {
     plugins: Vec<Box<dyn AzAioPlugin>>,
@@ -172,7 +244,7 @@ impl PluginEnablementStore {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Default)]
 pub struct HostSnapshot {
     pub nav_items: Vec<NavItemContribution>,
     pub pages: Vec<PageContribution>,
@@ -185,6 +257,10 @@ pub struct HostSnapshot {
     pub generated_files: Vec<GeneratedFileContribution>,
     pub plugin_contributions: Vec<PluginContributionRecord>,
     pub plugins: Vec<PluginRuntimeRecord>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub native_renderers: Vec<NativeUiRenderer>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub native_router: axum::Router,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -387,8 +463,182 @@ impl HostLoader {
             generated_files: self.contributions.generated_files,
             plugin_contributions: self.plugin_contributions,
             plugins: self.records,
+            #[cfg(not(target_arch = "wasm32"))]
+            native_renderers: Vec::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            native_router: axum::Router::new(),
         }
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_native_plugins(
+    plugins: Vec<Box<dyn NativeAzAioPlugin>>,
+    context: NativePluginContext,
+    enablement: &PluginEnablementStore,
+) -> HostSnapshot {
+    let mut snapshot = HostSnapshot::default();
+    let mut seen_ids = HashSet::new();
+    let mut seen_routes = HashSet::new();
+
+    for plugin in plugins {
+        let descriptor = plugin.descriptor();
+        if !seen_ids.insert(descriptor.id.clone()) {
+            snapshot.plugins.push(failed_record(
+                descriptor.clone(),
+                PluginError::DuplicateId(descriptor.id.clone()).to_string(),
+            ));
+            continue;
+        }
+        if !enablement.plugin_enabled(&descriptor.id) {
+            snapshot.plugins.push(disabled_record(descriptor));
+            continue;
+        }
+
+        match load_native_plugin(plugin.as_ref(), descriptor.clone(), context.clone()) {
+            Ok(loaded) => {
+                if let Some((method, path)) = first_duplicate_backend_route(
+                    &loaded.contributions.backend_apis,
+                    &mut seen_routes,
+                ) {
+                    snapshot.plugins.push(failed_record(
+                        descriptor.clone(),
+                        format!("native backend route duplicated: {method} {path}"),
+                    ));
+                    continue;
+                }
+
+                snapshot
+                    .plugin_contributions
+                    .push(PluginContributionRecord {
+                        plugin_id: descriptor.id.clone(),
+                        contributions: loaded.contributions.clone(),
+                    });
+                merge_snapshot_contributions(&mut snapshot, loaded.contributions);
+                snapshot.native_renderers.extend(loaded.runtime.renderers);
+                snapshot.native_router = snapshot.native_router.merge(loaded.runtime.router);
+                snapshot.plugins.push(PluginRuntimeRecord {
+                    descriptor,
+                    state: PluginState::Active,
+                    error: None,
+                });
+            }
+            Err(error) => {
+                snapshot
+                    .plugins
+                    .push(failed_record(descriptor, error.to_string()));
+            }
+        }
+    }
+
+    sort_snapshot(&mut snapshot);
+    snapshot
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+struct LoadedNativePlugin {
+    contributions: ContributionSet,
+    runtime: NativePluginRuntime,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_native_plugin(
+    plugin: &dyn NativeAzAioPlugin,
+    descriptor: PluginDescriptor,
+    context: NativePluginContext,
+) -> anyhow::Result<LoadedNativePlugin> {
+    let contributions = plugin.contributions().map_err(|error| {
+        anyhow::anyhow!(lifecycle_message(&descriptor.id, "native-contributions", error))
+    })?;
+    let runtime = plugin.runtime(context).map_err(|error| {
+        anyhow::anyhow!(
+            "插件 `{}` native runtime 阶段失败：{}",
+            descriptor.id,
+            error
+        )
+    })?;
+    if let Some(startup) = runtime.startup {
+        startup(NativePluginContext::default()).map_err(|error| {
+            anyhow::anyhow!("插件 `{}` native startup 阶段失败：{}", descriptor.id, error)
+        })?;
+    }
+    Ok(LoadedNativePlugin {
+        contributions,
+        runtime,
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn first_duplicate_backend_route(
+    apis: &[BackendApiContribution],
+    seen_routes: &mut HashSet<(String, String)>,
+) -> Option<(String, String)> {
+    for api in apis {
+        let key = (api.method.clone(), api.path.clone());
+        if !seen_routes.insert(key.clone()) {
+            return Some(key);
+        }
+    }
+    None
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn merge_snapshot_contributions(snapshot: &mut HostSnapshot, contributions: ContributionSet) {
+    snapshot.nav_items.extend(contributions.nav_items);
+    snapshot.pages.extend(contributions.pages);
+    snapshot.ui_contributions.extend(contributions.ui_contributions);
+    snapshot.backend_apis.extend(contributions.backend_apis);
+    snapshot.toolbar_actions.extend(contributions.toolbar_actions);
+    snapshot.settings_sections.extend(contributions.settings_sections);
+    snapshot.shell_entries.extend(contributions.shell_entries);
+    snapshot.generated_files.extend(contributions.generated_files);
+    for provider in contributions.catalog_providers {
+        snapshot.catalog_items.extend(provider.items);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn sort_snapshot(snapshot: &mut HostSnapshot) {
+    let mut contributions = ContributionSet {
+        nav_items: std::mem::take(&mut snapshot.nav_items),
+        pages: std::mem::take(&mut snapshot.pages),
+        ui_contributions: std::mem::take(&mut snapshot.ui_contributions),
+        backend_apis: std::mem::take(&mut snapshot.backend_apis),
+        toolbar_actions: std::mem::take(&mut snapshot.toolbar_actions),
+        catalog_providers: Vec::new(),
+        settings_sections: std::mem::take(&mut snapshot.settings_sections),
+        shell_entries: std::mem::take(&mut snapshot.shell_entries),
+        generated_files: std::mem::take(&mut snapshot.generated_files),
+    };
+    sort_contributions(&mut contributions);
+    snapshot.nav_items = contributions.nav_items;
+    snapshot.pages = contributions.pages;
+    snapshot.ui_contributions = contributions.ui_contributions;
+    snapshot.backend_apis = contributions.backend_apis;
+    snapshot.toolbar_actions = contributions.toolbar_actions;
+    snapshot.settings_sections = contributions.settings_sections;
+    snapshot.shell_entries = contributions.shell_entries;
+    snapshot.generated_files = contributions.generated_files;
+    snapshot.catalog_items.extend(plugin_catalog_items(&snapshot.plugins));
+    snapshot.catalog_items.sort_by(|left, right| {
+        left.kind
+            .label()
+            .cmp(right.kind.label())
+            .then(left.section.cmp(&right.section))
+            .then(left.name.cmp(&right.name))
+            .then(left.id.cmp(&right.id))
+    });
+    snapshot
+        .plugin_contributions
+        .sort_by(|left, right| left.plugin_id.cmp(&right.plugin_id));
+    snapshot
+        .plugins
+        .sort_by(|left, right| left.descriptor.id.cmp(&right.descriptor.id));
+    snapshot.native_renderers.sort_by(|left, right| {
+        left.route
+            .cmp(&right.route)
+            .then(left.renderer_id.cmp(&right.renderer_id))
+    });
 }
 
 fn lifecycle_message(plugin_id: &str, phase: &str, error: PluginError) -> String {

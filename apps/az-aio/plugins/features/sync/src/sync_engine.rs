@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use std::{collections::BTreeMap, fs, path::Path};
 
 use az_line_crdt::{LineCrdtDocument, LineCrdtUpdate, LineCrdtVersion};

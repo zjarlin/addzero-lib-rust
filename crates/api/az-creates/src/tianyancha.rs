@@ -483,6 +483,7 @@ impl TianyanchaHuaweiResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use reqwest::Url;
 
     #[test]
     fn company_search_data_round_trips_with_extra_fields() {
@@ -519,5 +520,34 @@ mod tests {
             serde_json::from_str(&json).expect("value should deserialize");
 
         assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn huawei_signature_canonicalizes_query_string() -> Result<(), Box<dyn std::error::Error>> {
+        let api = TianyanchaHuaweiApi::new(
+            "ak-demo",
+            "sk-demo",
+            ApiConfig::builder("http://example.com").build()?,
+        )?;
+        let url = Url::parse(
+            "http://example.com/api-mall/api/company_search/query?pageSize=20&keyword=%E6%B5%8B%E8%AF%95&pageNum=2",
+        )?;
+        let headers = api.sign_headers("GET", &url, None, Some("20260421T120000Z"))?;
+
+        assert_eq!(
+            crate::util::canonical_query_string(&url),
+            "keyword=%E6%B5%8B%E8%AF%95&pageNum=2&pageSize=20"
+        );
+        assert_eq!(
+            headers.get("X-Sdk-Date").map(String::as_str),
+            Some("20260421T120000Z")
+        );
+        assert!(
+            headers
+                .get("authorization")
+                .or_else(|| headers.get("Authorization"))
+                .is_some()
+        );
+        Ok(())
     }
 }

@@ -1,0 +1,21 @@
+[package]
+name = "az-aio-plugin-software-center"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+automod.workspace = true
+az-desktop-plugin.workspace = true
+az-desktop-plugin-registry.workspace = true
+az-derive-aliases.workspace = true
+az-software-catalog.workspace = true
+gpui.workspace = true
+md5.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

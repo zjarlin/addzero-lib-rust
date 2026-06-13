@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use std::env;
 
 use az_config_center_client::ConfigCenterClient;

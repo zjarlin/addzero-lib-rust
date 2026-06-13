@@ -1,6 +1,8 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use std::sync::Arc;
 
-use toasty::stmt::{List, Query, Update};
+use toasty::stmt::{List, Query};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -44,21 +46,20 @@ impl LowcodeStore {
             .exec(&mut *db)
             .await?;
         let app = match existing {
-            Some(existing) => {
-                let mut update = Update::<List<LowcodeApp>>::new(
-                    Query::<List<LowcodeApp>>::filter(LowcodeApp::fields().id().eq(&id)),
-                );
-                update.set(LowcodeApp::fields().slug(), input.slug);
-                update.set(LowcodeApp::fields().name(), input.name);
-                update.set(LowcodeApp::fields().description(), input.description);
-                update.set(LowcodeApp::fields().enabled(), input.enabled);
-                update.set(LowcodeApp::fields().updated_at(), now);
-                update
+            Some(_) => {
+                LowcodeApp::filter(LowcodeApp::fields().id().eq(&id))
+                    .update()
+                    .slug(input.slug)
+                    .name(input.name)
+                    .description(input.description)
+                    .enabled(input.enabled)
+                    .updated_at(now)
+                    .exec(&mut *db)
+                    .await?;
+                Query::<List<LowcodeApp>>::filter(LowcodeApp::fields().id().eq(&id))
+                    .one()
                     .exec(&mut *db)
                     .await?
-                    .into_iter()
-                    .next()
-                    .unwrap_or(existing)
             }
             None => {
                 LowcodeApp::create()
@@ -95,22 +96,21 @@ impl LowcodeStore {
             .exec(&mut *db)
             .await?;
         let page = match existing {
-            Some(existing) => {
-                let mut update = Update::<List<LowcodePage>>::new(
-                    Query::<List<LowcodePage>>::filter(LowcodePage::fields().id().eq(&id)),
-                );
-                update.set(LowcodePage::fields().app_id(), app_id);
-                update.set(LowcodePage::fields().route(), input.route);
-                update.set(LowcodePage::fields().title(), input.title);
-                update.set(LowcodePage::fields().schema_json(), input.schema_json);
-                update.set(LowcodePage::fields().enabled(), input.enabled);
-                update.set(LowcodePage::fields().updated_at(), now);
-                update
+            Some(_) => {
+                LowcodePage::filter(LowcodePage::fields().id().eq(&id))
+                    .update()
+                    .app_id(app_id)
+                    .route(input.route)
+                    .title(input.title)
+                    .schema_json(input.schema_json)
+                    .enabled(input.enabled)
+                    .updated_at(now)
+                    .exec(&mut *db)
+                    .await?;
+                Query::<List<LowcodePage>>::filter(LowcodePage::fields().id().eq(&id))
+                    .one()
                     .exec(&mut *db)
                     .await?
-                    .into_iter()
-                    .next()
-                    .unwrap_or(existing)
             }
             None => {
                 LowcodePage::create()

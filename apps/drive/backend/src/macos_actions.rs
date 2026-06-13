@@ -1,3 +1,5 @@
+#![cfg(target_os = "macos")]
+
 use anyhow::{Context, Result};
 use az_derive_aliases::{apply, serialize_debug};
 use std::env;

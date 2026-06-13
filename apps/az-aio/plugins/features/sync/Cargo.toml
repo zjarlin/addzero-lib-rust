@@ -15,6 +15,7 @@ name = "az-aio"
 path = "src/main.rs"
 
 [dependencies]
+automod.workspace = true
 az-aio-plugin-api = { path = "../../api" }
 wit-bindgen = "0.57.1"
 

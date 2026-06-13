@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use thiserror::Error;
 
 pub type LowcodeResult<T> = Result<T, LowcodeError>;

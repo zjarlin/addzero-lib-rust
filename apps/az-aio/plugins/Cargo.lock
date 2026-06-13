@@ -306,6 +306,7 @@ dependencies = [
 name = "az-aio-plugin-host"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-aio-plugin-api",
  "dirs",
  "serde",
@@ -319,6 +320,7 @@ dependencies = [
 name = "az-aio-plugin-lowcode"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "axum",
  "az-aio-plugin-api",
  "az-config-center-client",
@@ -361,6 +363,7 @@ dependencies = [
 name = "az-aio-plugin-sync"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "axum",
  "az-aio-plugin-api",
  "az-line-crdt",

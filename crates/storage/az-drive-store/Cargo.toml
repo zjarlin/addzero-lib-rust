@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+automod.workspace = true
 az-derive-aliases.workspace = true
 az-drive-core.workspace = true
 az-rustfs.workspace = true

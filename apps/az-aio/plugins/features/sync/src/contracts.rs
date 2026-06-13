@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use serde::{Deserialize, Serialize};
 
 use crate::{

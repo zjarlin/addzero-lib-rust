@@ -1,78 +1,74 @@
 # addzero-lib-rust
 
-`addzero-lib-rust` 是一组偏工具型的 Rust workspace，目标是把常用、可复用、低耦合的能力沉淀成独立 crate。
+`addzero-lib-rust` 是一个以 Rust 为核心的工具型工作区，旨在把常用、可复用、低耦合的能力沉淀成独立的 crate 和轻量级应用。
 
-## Codex Desktop
+本仓库聚焦于：
 
-当前应用侧优先维护 `apps/codex/desktop`，它是一个 Dioxus 桌面端壳子，用本地插件系统组装菜单、页面、技能、命令行和环境变量管理能力。
+- `crates` 目录下的可复用基础库与领域能力
+- `apps` 目录下的 Rust 应用与服务组合
+- 通过 `xtask`、文档、配置等辅助工作流的统一维护
 
-运行入口：
+## 核心目标
 
-```bash
-cargo run --manifest-path apps/codex/desktop/Cargo.toml
-```
+1. 构建可在多项目中复用的 Rust 库
+2. 保持各模块边界清晰、依赖轻量
+3. 支持网络、存储、算法、数据、UI 与运行时集成
+4. 为 `az-aio` / `Codex` 等上层应用提供基础能力
 
-命令行和环境变量由 Codex 桌面端可视化管理器维护，部署目标仍是 `~/.add_fn`。不要手工编辑 `~/.add_fn`，应通过桌面端或专用部署入口写入：
+## 目录结构概览
 
-```bash
-cargo run --manifest-path apps/codex/desktop/Cargo.toml -- --deploy-shell-manager
-```
+- `crates/algorithm/`：基于 ONNX、图像与视频的推理与检测能力
+- `crates/api/`：对外 API 聚合、SDK 和协议兼容层
+- `crates/core/`：基础通用类型、错误、配置、反射、上下文等
+- `crates/data/`：数据模型、知识库、持久化、表格与区域数据处理
+- `crates/network/`：HTTP、SMTP、MQTT、SSH、Drive/WebDAV 等网络协议与客户端
+- `crates/storage/`：对象存储、MinIO、Drive 存储能力
+- `crates/runtime/`：插件、脚本、桌面集成、启动器与运行时扩展
+- `crates/text/`：文本处理、词典、OCR、语言与 i18n 工具
+- `crates/ui/`：Dioxus 组件与 UI 体验基础
+- `apps/`：实际运行应用、后台服务与插件宿主
+- `xtask/`：自定义构建、测试和发布工具
 
-Codex 桌面端的本机配置目录：
+## 重要子系统
 
-- `~/.config/addzero/codex/codex.env`
-- `~/Library/Application Support/addzero/codex`
-
-PostgreSQL 连接优先读取 `CODEX_DATABASE_URL` 或 `~/.config/addzero/codex/codex.env`，并自动使用 `rs-aio` 作为 Codex 本地数据库名。
-
-## 当前重点模块
-
-| Crate | 说明 |
-| --- | --- |
-| `az-creates` | 常见 HTTP API 创建器，现已包含 Maven Central、mail.tm、网易云音乐搜索、Suno、天眼查 |
-| `az-music` | 独立音乐领域 crate，承载网易云搜索 / 歌词 / Suno 能力 |
-| `az-curl` | curl 命令解析、请求构建与响应辅助 |
-| `az-email` | SMTP 邮件发送与附件处理 |
-| `az-rustfs` | Rust S3 兼容对象存储客户端 |
-| `az-minio` | 基于 `az-rustfs` 的 MinIO 便利封装 |
-| `az-mqtt` | MQTT blocking 客户端与消息辅助 |
-| `az-ssh` | SSH 命令执行与文件传输 |
-| `az-excel` | 纯 Rust `.xlsx` 读写与结构处理 |
-
-## 领域目录
-
-- `crates/api/*`：对外 API 聚合与兼容层
-- `crates/music/*`：音乐领域能力
-- `crates/storage/*`：对象存储与 MinIO 封装
-- `crates/network/*`：网络协议与请求辅助
-- `crates/config/*`：配置格式处理
-- `crates/text/*`：文本处理
-- `crates/data/*`：区域与表格数据能力
-- `crates/core/*`：基础通用能力
-- `crates/runtime/*`：运行时与系统集成
+- `az-creates`：HTTP API 创建器集合，已包含 Maven Central、网易云音乐、Suno、天眼查、Temp Mail 等
+- `az-music`：音乐搜索、歌词、Suno 音乐生成等领域能力
+- `az-curl`：curl 命令解析与请求构建辅助
+- `az-email`：SMTP 邮件发送、附件与消息处理
+- `az-rustfs`：Rust S3 兼容对象存储客户端
+- `az-minio`：`az-rustfs` 上的 MinIO 便捷封装
+- `az-mqtt`：MQTT 客户端与消息辅助
+- `az-ssh`：SSH 远程命令执行与文件传输
+- `az-excel`：Rust 原生 `.xlsx` 读写与结构化表格处理
+- `az-ai-chat` / `az-aio-client`：AI 聊天与 AIO 客户端能力
+- `az-drive-*`：Drive 存储、WebDAV 与同步能力
 
 ## 快速开始
 
-克隆后直接执行：
+克隆仓库后，可以直接在根目录运行：
 
 ```bash
 cargo test
 ```
 
-如果你只想验证新增的 API 创建器：
+如果只想运行某个 crate 的测试，例如 `az-creates`：
 
 ```bash
 cargo test -p az-creates
 ```
 
-## `az-creates` 用法
+如果需要构建整个 workspace：
 
-### 1. Maven Central
+```bash
+cargo build
+```
+
+## 示例：`az-creates` 用法
 
 ```rust
 use az_creates::Creates;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> anyhow::Result<()> {
     let api = Creates::maven_central()?;
     let latest = api.get_latest_version("com.google.guava", "guava")?;
     println!("latest guava version: {latest:?}");
@@ -80,117 +76,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### 2. 网易云音乐搜索
+## 运行桌面/应用
 
-```rust
-use az_creates::Creates;
+仓库包含多个应用和插件宿主。当前主要应用入口位于 `apps/az-aio/desktop`，但该路径在 workspace 配置中排除，需根据实际项目需求单独运行。
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let api = Creates::music_search()?;
-    let songs = api.search_songs("晴天", 5, 0)?;
-    println!("first song: {:?}", songs.first().map(|item| &item.name));
-    Ok(())
-}
-```
+如果你要运行其它应用，可查找对应应用目录下的 `Cargo.toml`。
 
-### 3. Suno
+## 文档与贡献
 
-```rust
-use az_creates::{Creates, SunoMusicRequest};
+本仓库配合 `xiaoeyu.config.json`、`docs/` 目录和各 crate README 进行文档收录。
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let api = Creates::suno("your-suno-token")?;
-    let task_id = api.generate_music(&SunoMusicRequest {
-        prompt: "写一首城市夜景风格的中文流行歌".to_owned(),
-        title: Some("城市夜色".to_owned()),
-        tags: Some("pop, chinese".to_owned()),
-        ..Default::default()
-    })?;
-    println!("task id: {task_id}");
-    Ok(())
-}
-```
+- 根 README：`README.md`
+- 各 crate README：`crates/**/README.md`
+- 各应用 README：`apps/**/README.md`
 
-### 4. 天眼查
+如果你需要补充文档或示例，优先在对应 crate/app 目录中添加 README，并保持内容可读、示例可复制。
 
-```rust
-use az_creates::Creates;
+## 代码风格与约定
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let api = Creates::tianyancha("your-authorization", "your-x-auth-token")?;
-    let result = api.search_company("河南中洛佳科技有限公司", 1, 10, "0")?;
-    println!("company count: {:?}", result.company_total);
-    Ok(())
-}
-```
+- 采用 Rust 2024 Edition
+- `cargo test` 作为首选验证方式
+- `xtask` 用于封装常用构建、校验、发布操作
+- 依赖轻量、模块边界清晰、避免跨领域耦合
 
-### 5. Temp Mail
+## 许可
 
-```rust
-use az_creates::Creates;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let api = Creates::temp_mail()?;
-    let mailbox = api.create_mailbox_and_login("demo", 12)?;
-    println!("temp mailbox: {}", mailbox.address);
-    Ok(())
-}
-```
-
-### 6. 自定义客户端配置
-
-```rust
-use std::time::Duration;
-use az_creates::{ApiConfig, Creates};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ApiConfig::builder("https://search.maven.org")
-        .connect_timeout(Duration::from_secs(5))
-        .request_timeout(Duration::from_secs(15))
-        .user_agent("demo-app/0.1.0")
-        .build()?;
-
-    let api = Creates::maven_central_with_config(config)?;
-    let result = api.search_by_keyword("guava", 5)?;
-    println!("hits: {}", result.len());
-    Ok(())
-}
-```
-
-更完整的 `az-creates` API 和范围说明见：
-
-- [crates/api/az-creates/](crates/api/az-creates/)
-
-## 为什么没有直接全量搬运 JVM `network-call`
-
-`addzero-lib-jvm` 的 `network-call` 目录里混着三类东西：
-
-- 通用可公开能力
-- 私有供应商接入
-- 实验性或站点抓取型实现
-
-这次只迁移了前一类里最适合先落 Rust 版本的部分，避免把不可复用、不可公开、维护成本高的实现包装成“统一 API”。
-
-## 小鳄鱼文档
-
-仓库现在已经补齐 `xiaoeyu.config.json` 和 README 收录规则，后续可以直接用小鳄鱼把 root README、crate README 和 app README 生成成站点文档。
-
-文档接入说明见：
-
-- [docs/README.md](https://github.com/zjarlin/addzero-lib-rust/blob/main/docs/README.md)
-
-## 仓库文档范围
-
-小鳄鱼当前会收录：
-
-- 根目录 `README.md`
-- `crates/**/README.md`
-- `apps/**/README.md`
-
-这次新增的 `AIO Drive` Git Pool、Finder、同步队列与冲突处理说明，也会跟着这些 README 一起被小鳄鱼站点收录。
-
-默认不会收录：
-
-- `docs/**`
-- `target/**`
-- 未来你明确标记为内部或实验用途的 README
+本仓库采用 `MIT OR Apache-2.0` 许可。

@@ -16,10 +16,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use toml_edit::{DocumentMut, value};
 
-pub mod cli;
-
-#[cfg(target_os = "macos")]
-pub mod macos_actions;
+automod::dir!(pub "src");
 
 /// Shared drive store handles used by CLI and embedded AIO commands.
 pub type DriveStores = (
