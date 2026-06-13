@@ -112,14 +112,13 @@ impl DdlGenerator {
         unique: bool,
     ) -> Result<String, DdlError> {
         if index_name.is_empty() || table_name.is_empty() {
-            return Err(DdlError::InvalidTableName(
-                if index_name.is_empty() {
-                    "(empty index name)"
-                } else {
-                    "(empty table name)"
-                }
-                .to_string(),
-            ));
+            let name = if index_name.is_empty() {
+                "(empty index name)"
+            } else {
+                "(empty table name)"
+            };
+            let error = DdlError::InvalidTableName(name.to_string());
+            return Err(error);
         }
 
         let unique_kw = if unique { "UNIQUE " } else { "" };

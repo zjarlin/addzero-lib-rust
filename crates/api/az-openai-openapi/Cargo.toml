@@ -13,5 +13,8 @@ automod.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
+[build-dependencies]
+az-openapi-codegen = { path = "../../micro/az-openapi-codegen" }
+
 [lints]
 workspace = true

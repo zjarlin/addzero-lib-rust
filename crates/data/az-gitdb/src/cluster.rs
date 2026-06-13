@@ -377,12 +377,14 @@ fn prepare_checkout(config: &GitDbNodeConfig) -> GitDbClusterResult<()> {
     }
 
     if config.checkout_path.exists() || !config.clone_if_missing {
-        return Err(GitDbClusterError::InvalidConfig(format!(
+        let message = format!(
             "node '{}' checkout '{}' is not a Git repository cloned from '{}'",
             config.id,
             config.checkout_path.display(),
             config.remote_url
-        )));
+        );
+        let error = GitDbClusterError::InvalidConfig(message);
+        return Err(error);
     }
 
     if let Some(parent) = config.checkout_path.parent() {
@@ -413,21 +415,25 @@ fn validate_origin(config: &GitDbNodeConfig, repository: &Repository) -> GitDbCl
                 source,
             })?;
     let Some(url) = origin.url() else {
-        return Err(GitDbClusterError::InvalidConfig(format!(
+        let message = format!(
             "node '{}' checkout '{}' has no UTF-8 origin URL",
             config.id,
             config.checkout_path.display()
-        )));
+        );
+        let error = GitDbClusterError::InvalidConfig(message);
+        return Err(error);
     };
 
     if normalize_remote_url(url) != normalize_remote_url(&config.remote_url) {
-        return Err(GitDbClusterError::InvalidConfig(format!(
+        let message = format!(
             "node '{}' checkout '{}' origin '{}' does not match configured remote '{}'",
             config.id,
             config.checkout_path.display(),
             url,
             config.remote_url
-        )));
+        );
+        let error = GitDbClusterError::InvalidConfig(message);
+        return Err(error);
     }
 
     Ok(())

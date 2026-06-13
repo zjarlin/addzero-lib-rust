@@ -97,10 +97,9 @@ impl SerialPort {
     /// 返回实际写入的字节数。
     pub fn write(&mut self, data: &[u8]) -> SerialResult<usize> {
         if !self.is_open {
-            return Err(SerialError::Io(std::io::Error::new(
-                std::io::ErrorKind::NotConnected,
-                "port is closed",
-            )));
+            let source = std::io::Error::new(std::io::ErrorKind::NotConnected, "port is closed");
+            let error = SerialError::Io(source);
+            return Err(error);
         }
         Ok(data.len())
     }
@@ -110,10 +109,9 @@ impl SerialPort {
     /// 返回实际读取的字节数。
     pub fn read(&mut self, buf: &mut [u8]) -> SerialResult<usize> {
         if !self.is_open {
-            return Err(SerialError::Io(std::io::Error::new(
-                std::io::ErrorKind::NotConnected,
-                "port is closed",
-            )));
+            let source = std::io::Error::new(std::io::ErrorKind::NotConnected, "port is closed");
+            let error = SerialError::Io(source);
+            return Err(error);
         }
         if buf.is_empty() {
             return Ok(0);

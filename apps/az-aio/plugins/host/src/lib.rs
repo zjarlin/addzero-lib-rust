@@ -47,13 +47,35 @@ pub fn native_renderer(snapshot: &HostSnapshot, renderer_id: &str) -> Option<Nat
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn start_native_loopback_server(snapshot: HostSnapshot) -> anyhow::Result<String> {
     let app = snapshot.native_router.clone();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
     let local_addr = listener.local_addr()?;
-    tokio::spawn(async move {
-        if let Err(error) = axum::serve(listener, app).await {
-            eprintln!("az-aio native plugin server failed: {error}");
-        }
-    });
+    thread::Builder::new()
+        .name("az-aio-native-plugin-server".to_string())
+        .spawn(move || {
+            let runtime = match tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            {
+                Ok(runtime) => runtime,
+                Err(error) => {
+                    eprintln!("az-aio native plugin runtime failed: {error}");
+                    return;
+                }
+            };
+            runtime.block_on(async move {
+                match tokio::net::TcpListener::from_std(listener) {
+                    Ok(listener) => {
+                        if let Err(error) = axum::serve(listener, app).await {
+                            eprintln!("az-aio native plugin server failed: {error}");
+                        }
+                    }
+                    Err(error) => {
+                        eprintln!("az-aio native plugin listener failed: {error}");
+                    }
+                }
+            });
+        })?;
     Ok(format!("http://{local_addr}"))
 }
 

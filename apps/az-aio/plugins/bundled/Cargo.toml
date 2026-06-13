@@ -1,0 +1,26 @@
+[package]
+name = "az-aio-plugin-bundled"
+description = "Link anchor for bundled AZ AIO native plugins."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+asset-hub = { path = "../asset-hub" }
+config-center = { path = "../config-center" }
+drive-center = { path = "../drive-center" }
+edge-gateway = { path = "../edge-gateway" }
+software-center = { path = "../software-center" }
+
+[dev-dependencies]
+az-aio-plugin-api = { path = "../api" }
+inventory.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

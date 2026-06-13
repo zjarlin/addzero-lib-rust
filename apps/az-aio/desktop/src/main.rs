@@ -9,6 +9,8 @@ use dioxus::desktop::{Config, WindowBuilder};
 use dioxus::desktop::tao::{dpi::LogicalPosition, platform::macos::WindowBuilderExtMacOS};
 
 fn main() {
+    az_aio_plugin_bundled::ensure_linked();
+
     if std::env::args().any(|arg| arg == "--deploy-shell-manager") {
         match shell_manager::deploy_saved_shell_manager_store() {
             Ok(message) => {

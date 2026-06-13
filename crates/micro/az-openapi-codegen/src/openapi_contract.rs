@@ -36,6 +36,7 @@ impl Default for OpenApiContractConfig {
 #[derive(Clone, Debug)]
 pub struct GeneratedOpenApiContract {
     pub files: Vec<GeneratedOpenApiFile>,
+    pub combined_source: String,
 }
 
 #[derive(Clone, Debug)]
@@ -224,7 +225,27 @@ impl OpenApiContractGenerator {
         let models = self.render_models_content();
         let api = self.render_api_content(&interfaces);
 
+        let bodies_source = normalize_rust_source(bodies.clone());
+        let paths_source = normalize_rust_source(paths.clone());
+        let models_source = normalize_rust_source(models.clone());
+        let api_source = normalize_rust_source(api.clone());
+        let combined_source = normalize_rust_source(quote! {
+            pub mod bodies {
+                #bodies
+            }
+            pub mod paths {
+                #paths
+            }
+            pub mod models {
+                #models
+            }
+            pub mod api {
+                #api
+            }
+        });
+
         Ok(GeneratedOpenApiContract {
+            combined_source,
             files: vec![
                 GeneratedOpenApiFile {
                     relative_path: "generated.rs".to_string(),
@@ -232,19 +253,19 @@ impl OpenApiContractGenerator {
                 },
                 GeneratedOpenApiFile {
                     relative_path: "generated/bodies.rs".to_string(),
-                    source: normalize_rust_source(bodies),
+                    source: bodies_source,
                 },
                 GeneratedOpenApiFile {
                     relative_path: "generated/paths.rs".to_string(),
-                    source: normalize_rust_source(paths),
+                    source: paths_source,
                 },
                 GeneratedOpenApiFile {
                     relative_path: "generated/models.rs".to_string(),
-                    source: normalize_rust_source(models),
+                    source: models_source,
                 },
                 GeneratedOpenApiFile {
                     relative_path: "generated/api.rs".to_string(),
-                    source: normalize_rust_source(api),
+                    source: api_source,
                 },
             ],
         })

@@ -83,18 +83,17 @@ impl DictionarySpec {
         for item in &self.items {
             item.validate(self.raw_value_kind)?;
             if !item_codes.insert(item.code.clone()) {
-                return Err(DictSpecError::Validation(format!(
-                    "duplicate item code: {}",
-                    item.code
-                )));
+                let message = format!("duplicate item code: {}", item.code);
+                let error = DictSpecError::Validation(message);
+                return Err(error);
             }
             match self.raw_value_kind {
                 RawValueKind::Int => {
                     let value = item.raw_int_value.expect("validated raw_int_value");
                     if !int_values.insert(value) {
-                        return Err(DictSpecError::Validation(format!(
-                            "duplicate rawIntValue: {value}"
-                        )));
+                        let message = format!("duplicate rawIntValue: {value}");
+                        let error = DictSpecError::Validation(message);
+                        return Err(error);
                     }
                 }
                 RawValueKind::String => {
@@ -103,9 +102,9 @@ impl DictionarySpec {
                         .as_deref()
                         .expect("validated raw_text_value");
                     if !text_values.insert(value.to_string()) {
-                        return Err(DictSpecError::Validation(format!(
-                            "duplicate rawTextValue: {value}"
-                        )));
+                        let message = format!("duplicate rawTextValue: {value}");
+                        let error = DictSpecError::Validation(message);
+                        return Err(error);
                     }
                 }
             }
@@ -143,18 +142,16 @@ impl DictionaryItemSpec {
         match raw_value_kind {
             RawValueKind::Int => {
                 if self.raw_int_value.is_none() || self.raw_text_value.is_some() {
-                    return Err(DictSpecError::Validation(format!(
-                        "item {} must define rawIntValue only",
-                        self.code
-                    )));
+                    let message = format!("item {} must define rawIntValue only", self.code);
+                    let error = DictSpecError::Validation(message);
+                    return Err(error);
                 }
             }
             RawValueKind::String => {
                 if self.raw_int_value.is_some() || self.raw_text_value.is_none() {
-                    return Err(DictSpecError::Validation(format!(
-                        "item {} must define rawTextValue only",
-                        self.code
-                    )));
+                    let message = format!("item {} must define rawTextValue only", self.code);
+                    let error = DictSpecError::Validation(message);
+                    return Err(error);
                 }
                 ensure_non_empty(
                     "item.rawTextValue",
@@ -190,9 +187,9 @@ fn default_true() -> bool {
 
 fn ensure_non_empty(field: &str, value: &str) -> Result<(), DictSpecError> {
     if value.trim().is_empty() {
-        return Err(DictSpecError::Validation(format!(
-            "{field} cannot be empty"
-        )));
+        let message = format!("{field} cannot be empty");
+        let error = DictSpecError::Validation(message);
+        return Err(error);
     }
     Ok(())
 }

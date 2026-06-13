@@ -7,14 +7,14 @@ use crate::sidebar::{
 };
 use az_aio_plugin_api::{
     CatalogItemContribution, CatalogItemKind, CatalogSource, CatalogTagContribution,
-    CatalogTagGroup, ContributionSet, NavItemContribution, PageContribution, PluginActivation,
-    PluginBackendBundle, PluginFrontendBundle, PluginKind, PluginSandboxBackendApiDebug,
+    CatalogTagGroup, ContributionSet, NativeRenderContext, NavItemContribution, PageContribution,
+    PluginActivation, PluginBackendBundle, PluginFrontendBundle, PluginKind, PluginSandboxBackendApiDebug,
     PluginSandboxDebugReport, PluginSandboxUiContributionDebug, PluginState,
     ToolbarActionContribution,
 };
 use az_aio_plugin_host::{
-    HostSnapshot, PluginContributionRecord, PluginRuntimeRecord, load_az_aio_plugin_snapshot,
-    set_plugin_enabled,
+    HostSnapshot, PluginContributionRecord, PluginRuntimeRecord, load_az_aio_native_snapshot,
+    native_renderer, set_plugin_enabled, start_native_loopback_server,
 };
 use az_dioxus_components::prelude::{
     AzDataTable, AzDataTableAlign, AzDataTableCell, AzDataTableColumn, AzDataTableRow,
@@ -210,6 +210,7 @@ const SKILL_TAG_OPTIONS: [SkillTagOption; 9] = [
 pub fn App() -> Element {
     let snapshot = use_signal_sync(HostSnapshot::default);
     let snapshot_ready = use_signal_sync(|| false);
+    let api_base_url = use_signal_sync(String::new);
     let mut active_route = use_signal(|| DEFAULT_ROUTE.to_string());
     let mut last_app_route = use_signal(|| DEFAULT_ROUTE.to_string());
     let mut sidebar_collapsed = use_signal(|| false);
@@ -217,7 +218,8 @@ pub fn App() -> Element {
     use_hook({
         let snapshot = snapshot;
         let snapshot_ready = snapshot_ready;
-        move || refresh_plugin_snapshot_async(snapshot, Some(snapshot_ready), None)
+        let api_base_url = api_base_url;
+        move || refresh_plugin_snapshot_async(snapshot, Some(snapshot_ready), Some(api_base_url), None)
     });
 
     if !*snapshot_ready.read() {
@@ -265,32 +267,11 @@ pub fn App() -> Element {
             section { class: "workspace",
                 HeaderBar {}
                 div { class: body_class,
-                    match selected_page.renderer_id.as_str() {
-                        "catalog" => rsx! { PluginCatalogPage { snapshot } },
-                        "git.clis.manager" | "cli-catalog" => rsx! {
-                            ShellManagerRoutePage {
-                                snapshot,
-                                mode: ShellPageMode::Cli,
-                            }
-                        },
-                        "git.envs.manager" | "env-vars" => rsx! {
-                            ShellManagerRoutePage {
-                                snapshot,
-                                mode: ShellPageMode::Env,
-                            }
-                        },
-                        "az-platform-sandbox" => rsx! {
-                            AzPlatformSandboxPage { snapshot }
-                        },
-                        "settings.page" => rsx! {
-                            SettingsPage {}
-                        },
-                        _ => rsx! {
-                            EmptyPanel {
-                                title: selected_page.title.clone(),
-                                mark: selected_page.placeholder_mark.clone(),
-                            }
-                        },
+                    NativePageOutlet {
+                        snapshot: snapshot_value,
+                        selected_page,
+                        active_route: selected_route.clone(),
+                        api_base_url: api_base_url.read().clone(),
                     }
                 }
             }
@@ -300,6 +281,29 @@ pub fn App() -> Element {
 
 fn uses_scroll_body(renderer_id: &str) -> bool {
     matches!(renderer_id, "catalog" | "az-platform-sandbox")
+}
+
+#[allow(non_snake_case)]
+#[component]
+fn NativePageOutlet(
+    snapshot: HostSnapshot,
+    selected_page: PageContribution,
+    active_route: String,
+    api_base_url: String,
+) -> Element {
+    if let Some(render) = native_renderer(&snapshot, &selected_page.renderer_id) {
+        return render(NativeRenderContext {
+            active_route,
+            api_base_url,
+        });
+    }
+
+    rsx! {
+        EmptyPanel {
+            title: selected_page.title,
+            mark: selected_page.placeholder_mark,
+        }
+    }
 }
 
 fn selected_page(pages: &[PageContribution], active_route: &str) -> PageContribution {
@@ -630,6 +634,7 @@ fn PluginCatalogPage(snapshot: Signal<HostSnapshot, SyncStorage>) -> Element {
                                         if action_id == "catalog.refresh" {
                                             refresh_plugin_snapshot_async(
                                                 snapshot,
+                                                None,
                                                 None,
                                                 Some(PluginSnapshotRefresh {
                                                     selected_kind: active_view.catalog_kind(),
@@ -977,6 +982,7 @@ fn toggle_catalog_item_enabled(
     refresh_plugin_snapshot_async(
         snapshot,
         None,
+        None,
         Some(PluginSnapshotRefresh {
             selected_kind: Some(kind),
             selected_item_id: None,
@@ -1021,10 +1027,12 @@ fn set_items_enabled(
 fn refresh_plugin_snapshot_async(
     mut snapshot: Signal<HostSnapshot, SyncStorage>,
     snapshot_ready: Option<Signal<bool, SyncStorage>>,
+    api_base_url: Option<Signal<String, SyncStorage>>,
     refresh: Option<PluginSnapshotRefresh>,
 ) {
     std::thread::spawn(move || {
-        let next_snapshot = load_az_aio_plugin_snapshot();
+        let next_snapshot = load_az_aio_native_snapshot();
+        let loopback_url = start_loopback_server(next_snapshot.clone());
         if let Some(mut refresh) = refresh {
             if let (Some(kind), Some(mut selected_item_id)) =
                 (refresh.selected_kind, refresh.selected_item_id)
@@ -1036,10 +1044,21 @@ fn refresh_plugin_snapshot_async(
                 .set(enabled_item_ids(&next_snapshot.catalog_items));
         }
         snapshot.set(next_snapshot);
+        if let (Some(mut api_base_url), Some(loopback_url)) = (api_base_url, loopback_url) {
+            api_base_url.set(loopback_url);
+        }
         if let Some(mut snapshot_ready) = snapshot_ready {
             snapshot_ready.set(true);
         }
     });
+}
+
+fn start_loopback_server(snapshot: HostSnapshot) -> Option<String> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .ok()?;
+    runtime.block_on(start_native_loopback_server(snapshot)).ok()
 }
 
 fn item_is_visible(

@@ -200,10 +200,9 @@ fn instantiate_wasm_plugin(
     wasm_bytes: &[u8],
 ) -> Result<WasmPluginInstance, PluginError> {
     if wasm_bytes.is_empty() {
-        return Err(PluginError::Wasm(format!(
-            "plugin `{}` did not provide wasm bytes",
-            manifest.id
-        )));
+        let message = format!("plugin `{}` did not provide wasm bytes", manifest.id);
+        let error = PluginError::Wasm(message);
+        return Err(error);
     }
 
     let module = Module::from_binary(engine, wasm_bytes)

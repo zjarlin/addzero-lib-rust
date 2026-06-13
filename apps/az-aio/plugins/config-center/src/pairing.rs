@@ -189,16 +189,14 @@ fn canonicalize_home_path(raw_path: &str) -> anyhow::Result<PathBuf> {
         return Err(anyhow!("remote home path must be absolute"));
     }
     if !path.exists() {
-        return Err(anyhow!(
-            "remote home path does not exist: {}",
-            path.display()
-        ));
+        let message = format!("remote home path does not exist: {}", path.display());
+        let error = anyhow!(message);
+        return Err(error);
     }
     if !path.is_dir() {
-        return Err(anyhow!(
-            "remote home path is not a directory: {}",
-            path.display()
-        ));
+        let message = format!("remote home path is not a directory: {}", path.display());
+        let error = anyhow!(message);
+        return Err(error);
     }
     path.canonicalize()
         .with_context(|| format!("canonicalize remote home dir: {}", path.display()))

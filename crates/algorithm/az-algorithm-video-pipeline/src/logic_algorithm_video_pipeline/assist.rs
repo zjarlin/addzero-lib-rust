@@ -159,9 +159,9 @@ fn validate_options(
             ));
         }
         if !codes.insert(code) {
-            return Err(AlgorithmVideoPipelineError::invalid_input(format!(
-                "重复算法 code：{code}"
-            )));
+            let message = format!("重复算法 code：{code}");
+            let error = AlgorithmVideoPipelineError::invalid_input(message);
+            return Err(error);
         }
         let _ = frame_interval_for_schedule(binding.schedule, options.source_fps)?;
     }
@@ -170,9 +170,9 @@ fn validate_options(
 
 fn validate_positive_fps(name: &str, fps: f32) -> AlgorithmVideoPipelineResult<()> {
     if !fps.is_finite() || fps <= 0.0 {
-        return Err(AlgorithmVideoPipelineError::invalid_input(format!(
-            "{name} 必须是大于 0 的有限数字"
-        )));
+        let message = format!("{name} 必须是大于 0 的有限数字");
+        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        return Err(error);
     }
     Ok(())
 }
@@ -181,10 +181,12 @@ fn validate_frame(frame: &VideoFrame) -> AlgorithmVideoPipelineResult<()> {
     let actual_width = frame.rgb.width();
     let actual_height = frame.rgb.height();
     if frame.width != actual_width || frame.height != actual_height {
-        return Err(AlgorithmVideoPipelineError::invalid_input(format!(
+        let message = format!(
             "帧 {} 声明尺寸 {}x{} 与 RGB 数据尺寸 {}x{} 不一致",
             frame.frame_index, frame.width, frame.height, actual_width, actual_height
-        )));
+        );
+        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        return Err(error);
     }
     Ok(())
 }
@@ -198,22 +200,28 @@ fn normalize_frame_result(
         result.algorithm_code = algorithm_code.to_owned();
     }
     if result.algorithm_code != algorithm_code {
-        return Err(AlgorithmVideoPipelineError::invalid_input(format!(
+        let message = format!(
             "算法 {algorithm_code} 返回了不匹配的结果 code：{}",
             result.algorithm_code
-        )));
+        );
+        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        return Err(error);
     }
     if result.frame_index != frame.frame_index {
-        return Err(AlgorithmVideoPipelineError::invalid_input(format!(
+        let message = format!(
             "算法 {algorithm_code} 返回的帧序号 {} 与输入帧序号 {} 不一致",
             result.frame_index, frame.frame_index
-        )));
+        );
+        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        return Err(error);
     }
     if result.timestamp_ms != frame.timestamp_ms {
-        return Err(AlgorithmVideoPipelineError::invalid_input(format!(
+        let message = format!(
             "算法 {algorithm_code} 返回的时间戳 {} 与输入时间戳 {} 不一致",
             result.timestamp_ms, frame.timestamp_ms
-        )));
+        );
+        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        return Err(error);
     }
     Ok(())
 }

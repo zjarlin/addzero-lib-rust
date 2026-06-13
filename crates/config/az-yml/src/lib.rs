@@ -97,9 +97,9 @@ impl YamlPath {
                 index += 1;
                 skip_whitespace(&chars, &mut index);
                 if index >= chars.len() {
-                    return Err(YmlError::InvalidPath(format!(
-                        "path `{input}` cannot end with `.`"
-                    )));
+                    let message = format!("path `{input}` cannot end with `.`");
+                    let error = YmlError::InvalidPath(message);
+                    return Err(error);
                 }
             }
 
@@ -115,10 +115,9 @@ impl YamlPath {
 
             skip_whitespace(&chars, &mut index);
             if index < chars.len() && chars[index] != '.' && chars[index] != '[' {
-                return Err(YmlError::InvalidPath(format!(
-                    "unexpected character `{}` in path `{input}`",
-                    chars[index]
-                )));
+                let message = format!("unexpected character `{}` in path `{input}`", chars[index]);
+                let error = YmlError::InvalidPath(message);
+                return Err(error);
             }
         }
 
@@ -535,9 +534,9 @@ fn parse_bare_segment(
 
     let trimmed = segment.trim();
     if trimmed.is_empty() {
-        return Err(YmlError::InvalidPath(format!(
-            "empty segment in path `{original}`"
-        )));
+        let message = format!("empty segment in path `{original}`");
+        let error = YmlError::InvalidPath(message);
+        return Err(error);
     }
 
     Ok(YamlPathSegment::Key(trimmed.to_owned()))
@@ -552,9 +551,9 @@ fn parse_bracket_segment(
     skip_whitespace(chars, index);
 
     if *index >= chars.len() {
-        return Err(YmlError::InvalidPath(format!(
-            "unclosed bracket in path `{original}`"
-        )));
+        let message = format!("unclosed bracket in path `{original}`");
+        let error = YmlError::InvalidPath(message);
+        return Err(error);
     }
 
     let segment = if matches!(chars[*index], '"' | '\'') {
@@ -585,9 +584,9 @@ fn parse_bracket_segment(
         }
 
         if !closed {
-            return Err(YmlError::InvalidPath(format!(
-                "unclosed quoted segment in path `{original}`"
-            )));
+            let message = format!("unclosed quoted segment in path `{original}`");
+            let error = YmlError::InvalidPath(message);
+            return Err(error);
         }
 
         YamlPathSegment::Key(value)
@@ -600,9 +599,9 @@ fn parse_bracket_segment(
 
         let trimmed = raw.trim();
         if trimmed.is_empty() {
-            return Err(YmlError::InvalidPath(format!(
-                "empty bracket segment in path `{original}`"
-            )));
+            let message = format!("empty bracket segment in path `{original}`");
+            let error = YmlError::InvalidPath(message);
+            return Err(error);
         }
 
         if trimmed.chars().all(|character| character.is_ascii_digit()) {
@@ -619,9 +618,9 @@ fn parse_bracket_segment(
 
     skip_whitespace(chars, index);
     if *index >= chars.len() || chars[*index] != ']' {
-        return Err(YmlError::InvalidPath(format!(
-            "missing closing `]` in path `{original}`"
-        )));
+        let message = format!("missing closing `]` in path `{original}`");
+        let error = YmlError::InvalidPath(message);
+        return Err(error);
     }
     *index += 1;
 

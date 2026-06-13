@@ -149,7 +149,11 @@ pub fn resolve_dotfiles_conflict(
                 &merged,
             )
         }
-        other => return Err(anyhow!("unsupported conflict resolution strategy: {other}")),
+        other => {
+            let message = format!("unsupported conflict resolution strategy: {other}");
+            let error = anyhow!(message);
+            return Err(error);
+        }
     };
 
     let write_paths = [conflict.repo_path, conflict.left_path, conflict.right_path]
@@ -682,7 +686,9 @@ fn read_small_text(path: &Path) -> anyhow::Result<String> {
     let metadata =
         fs::metadata(path).with_context(|| format!("read file metadata: {}", path.display()))?;
     if metadata.len() > MAX_FILE_BYTES {
-        return Err(anyhow!("file exceeds watch size limit: {}", path.display()));
+        let message = format!("file exceeds watch size limit: {}", path.display());
+        let error = anyhow!(message);
+        return Err(error);
     }
     fs::read_to_string(path).with_context(|| format!("read text file: {}", path.display()))
 }

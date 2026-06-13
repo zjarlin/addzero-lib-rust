@@ -132,31 +132,39 @@ impl GitDbNodeConfig {
         }
 
         if self.remote_url.trim().is_empty() {
-            return Err(GitDbClusterError::InvalidConfig(format!(
+            let message = format!(
                 "node '{}' remote URL must not be empty",
                 self.id
-            )));
+            );
+            let error = GitDbClusterError::InvalidConfig(message);
+            return Err(error);
         }
 
         if self.checkout_path.as_os_str().is_empty() {
-            return Err(GitDbClusterError::InvalidConfig(format!(
+            let message = format!(
                 "node '{}' checkout path must not be empty",
                 self.id
-            )));
+            );
+            let error = GitDbClusterError::InvalidConfig(message);
+            return Err(error);
         }
 
         if self.max_connections == 0 {
-            return Err(GitDbClusterError::InvalidConfig(format!(
+            let message = format!(
                 "node '{}' must allow at least one connection",
                 self.id
-            )));
+            );
+            let error = GitDbClusterError::InvalidConfig(message);
+            return Err(error);
         }
 
         if self.weight == 0 {
-            return Err(GitDbClusterError::InvalidConfig(format!(
+            let message = format!(
                 "node '{}' weight must be greater than zero",
                 self.id
-            )));
+            );
+            let error = GitDbClusterError::InvalidConfig(message);
+            return Err(error);
         }
 
         Ok(())
@@ -198,10 +206,9 @@ impl GitDbClusterConfig {
         for node in &self.nodes {
             node.validate()?;
             if !ids.insert(node.id.as_str()) {
-                return Err(GitDbClusterError::InvalidConfig(format!(
-                    "duplicate node id '{}'",
-                    node.id
-                )));
+                let message = format!("duplicate node id '{}'", node.id);
+                let error = GitDbClusterError::InvalidConfig(message);
+                return Err(error);
             }
         }
 

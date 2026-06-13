@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
-automod::dir!("src");
+automod::dir!(pub "src");
+
+pub use plugin::DriveCenterPlugin;
