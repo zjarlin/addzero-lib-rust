@@ -1,7 +1,6 @@
 use az_aio_plugin_api::{
-    BackendApiContribution, ContributionSet, PluginSandboxDebugReport,
-    SettingsDefaultContribution, SettingsSectionContribution, UiContribution,
-    UiContributionSlot,
+    BackendApiContribution, ContributionSet, PluginSandboxDebugReport, SettingsDefaultContribution,
+    SettingsSectionContribution, UiContribution, UiContributionSlot,
 };
 
 #[test]
