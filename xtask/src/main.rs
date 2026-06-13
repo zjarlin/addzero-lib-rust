@@ -529,6 +529,13 @@ const PLUGIN_TARGETS: &[PluginTarget] = &[
         aliases: &[],
     },
     PluginTarget {
+        name: "lowcode",
+        package: "az-aio-plugin-lowcode",
+        source_path: "apps/az-aio/plugins/features/lowcode",
+        wasm_artifact_stem: Some("az_aio_plugin_lowcode"),
+        aliases: &["low-code"],
+    },
+    PluginTarget {
         name: "git/skills",
         package: "az-aio-plugin-git-skills",
         source_path: "apps/az-aio/plugins/features/git/skills",

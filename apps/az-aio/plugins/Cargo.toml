@@ -8,6 +8,7 @@ members = [
     "features/git/envs",
     "features/git/notes",
     "features/git/skills",
+    "features/lowcode",
     "features/navigation",
     "features/projects",
     "features/search",
