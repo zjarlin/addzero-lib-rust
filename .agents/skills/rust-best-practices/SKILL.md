@@ -8,7 +8,8 @@ description: >
   (4) implementing error handling with Result types,
   (5) optimizing Rust code for performance,
   (6) writing tests or documentation for Rust projects,
-  (7) reducing repetitive Rust boilerplate with derive crates or local macros.
+  (7) reducing repetitive Rust boilerplate with derive crates or local macros,
+  (8) organizing Rust crate module layout, file naming, and extraction-ready helper directories.
 license: MIT
 compatibility: Rust 1.70+, Cargo
 metadata:
@@ -104,6 +105,23 @@ impl Connection<Connected> {
 - `///` doc comments explain *what* and *how* for public APIs
 - Every `TODO` needs a linked issue: `// TODO(#42): ...`
 - Enable `#![deny(missing_docs)]` for libraries
+
+### Module Layout
+- Keep `lib.rs` limited to crate-level README documentation and automod collection:
+  ```rust
+  #![doc = include_str!("../README.md")]
+
+  automod::dir!(pub "src");
+  ```
+- Do not put `pub use`, facade re-exports, business logic, helpers, or manual module lists in `lib.rs`
+- Require callers to use real module paths or method references directly instead of relying on flattened re-export facades
+- Do not use `mod.rs`; use Rust 2018+ file-based modules and explicit files such as `logic_foo.rs`
+- Name source files by function with lowercase snake_case names
+- Put model-related code under `logic_xxx/model`
+- Put helper functions under `logic_xxx/assist`
+- Put reusable logic that may later become standalone crates under `logic_xxx/maybe_crates/...`
+- Put string algorithms under `logic_xxx/maybe_crates/str`
+- Put collection/vector helpers under `logic_xxx/maybe_crates/vec`
 
 ## Boilerplate Policy
 

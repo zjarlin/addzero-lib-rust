@@ -154,7 +154,7 @@ SDK 位于：
 依赖坐标：
 
 ```text
-site.addzero:tool-config-center-client:2026.06.11
+site.addzero:tool-config-center-client:2026.06.12
 ```
 
 Kotlin 期望用法：
@@ -167,3 +167,5 @@ val instance = ConfigCenter("http://localhost:8080")
 val value: MyConfig? = instance.get("xxx")
 instance.set("xxx", value)
 ```
+
+`checkoutNamespace("cmp-aio.dev")` 会默认推导公共命名空间 `cmp-aio.common`，读取时先查 dev，再查 common；写入仍只写当前命名空间。

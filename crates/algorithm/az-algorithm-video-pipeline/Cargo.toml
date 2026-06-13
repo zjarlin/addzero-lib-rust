@@ -1,0 +1,31 @@
+[package]
+name = "az-algorithm-video-pipeline"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Composable realtime video algorithm pipeline runner"
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+automod.workspace = true
+az-algorithm-onnx.workspace = true
+az-face-detection.workspace = true
+az-person-detection.workspace = true
+az-qr-code-recognition.workspace = true
+az-safety-helmet-detection.workspace = true
+image.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+az-face-recognition.workspace = true
+az-flame-detection.workspace = true
+az-ocr-text-recognition.workspace = true
+az-vehicle-detection.workspace = true
+
+[lints]
+workspace = true

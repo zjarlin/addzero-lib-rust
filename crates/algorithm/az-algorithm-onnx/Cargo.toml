@@ -1,0 +1,22 @@
+[package]
+name = "az-algorithm-onnx"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Shared local ONNX image inference helpers for addzero algorithm crates"
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+automod.workspace = true
+image.workspace = true
+ndarray.workspace = true
+ort.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

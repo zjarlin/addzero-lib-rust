@@ -1,0 +1,21 @@
+[package]
+name = "az-qr-code-recognition"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Pure Rust QR code recognition"
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+automod.workspace = true
+image.workspace = true
+imageproc.workspace = true
+rqrr.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

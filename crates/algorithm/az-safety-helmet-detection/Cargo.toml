@@ -1,0 +1,20 @@
+[package]
+name = "az-safety-helmet-detection"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Local safety helmet detection ONNX inference"
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+automod.workspace = true
+az-algorithm-onnx.workspace = true
+image.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

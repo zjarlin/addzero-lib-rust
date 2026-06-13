@@ -1,0 +1,24 @@
+[package]
+name = "az-worker-hit-counting"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Pure visual worker hit counting with valid target filtering"
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+automod.workspace = true
+image.workspace = true
+imageproc.workspace = true
+ndarray.workspace = true
+ort.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+strum.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

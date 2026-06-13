@@ -1396,7 +1396,7 @@ Use this skill when a Kotlin service or Compose Multiplatform frontend needs to 
 Use the KMP SDK module:
 
 ```text
-site.addzero:tool-config-center-client:2026.06.11
+site.addzero:tool-config-center-client:2026.06.12
 ```
 
 Source module:
@@ -1416,12 +1416,14 @@ import site.addzero.configcenter.ConfigCenter
 Do not hardcode passwords. Read them from environment variables, secret stores, or runtime injection.
 
 ```kotlin
-val instance = ConfigCenter("http://127.0.0.1:18080")
-    .login("zjarlin", System.getenv("CONFIG_CENTER_PASSWORD"))
-    .checkoutNamespace("cmp-aio.dev")
+suspend fun configCenter(password: String): ConfigCenter =
+    ConfigCenter("http://config.addzero.site")
+        .login("zjarlin", password)
+        .checkoutNamespace("cmp-aio.dev")
 ```
 
 `checkoutNamespace("cmp-aio.dev")` binds all following `get` and `set` calls to that namespace.
+The SDK infers `cmp-aio.common` as the fallback namespace, so `get` reads `cmp-aio.dev` first and then `cmp-aio.common`.
 
 ## Read Config
 
@@ -1475,6 +1477,7 @@ instance.set(
 
 - Always call `login(...)` before config access.
 - Always call `checkoutNamespace(...)` before `get` or `set`.
+- Use the suspend SDK calls directly in KMP frontends. Use blocking wrappers only on JVM/Android.
 - Treat returned values as nullable: missing config returns `null`.
 - Never store production passwords in code or config files.
 - Prefer data classes for structured JSON values.</code></pre>

@@ -11,6 +11,186 @@
 
 当前版本支持生成 SQL plan，也提供基于 `sqlx::AnyPool` 的执行器。Fetcher 不设计独立 DTO 语言，默认用 JSON 这种通用格式承载对象形状；后续如果需要二进制协议，可以在同一份 `FetchShape` 语义上补 protobuf schema。
 
+## 快速使用
+
+### 1. 添加依赖
+
+在本 workspace 内部 crate 中使用时，优先继承 workspace 依赖：
+
+```toml
+[dependencies]
+rimmer.workspace = true
+```
+
+如果是 workspace 外部临时验证，可以先使用 path 依赖：
+
+```toml
+[dependencies]
+rimmer = { path = "crates/data/rimmer" }
+```
+
+### 2. 定义实体
+
+推荐用 `#[derive(rimmer::Entity)]` 定义实体元模型。结构体本身只作为 Rust 类型和字段声明；查询、保存、Fetcher 都通过 derive 生成的 `Book::table()`、`Book::name()`、`Book::fetcher()`、`Book::draft(...)` 入口使用。
+
+```rust
+use rimmer::{JimmerClient, QueryBuilderExt};
+
+#[derive(rimmer::Entity)]
+#[rimmer(table = "BOOK")]
+pub struct Book {
+    #[rimmer(id, column = "ID")]
+    pub id: i64,
+    #[rimmer(key, column = "NAME")]
+    pub name: String,
+    #[rimmer(key, column = "EDITION")]
+    pub edition: i32,
+    #[rimmer(column = "PRICE")]
+    pub price: f64,
+}
+```
+
+常用字段标记：
+
+- `#[rimmer(id)]`：主键字段。
+- `#[rimmer(key)]`：业务键字段。
+- `#[rimmer(column = "...")]`：指定数据库列名；不写时默认把 Rust 字段名转成大写蛇形。
+- `#[rimmer(many_to_one)]`：多对一外键字段，可用于 Fetcher 自动 join。
+
+### 3. 生成查询计划
+
+`JimmerClient::new()` 是无连接的 plan builder，适合测试、CLI 预览、日志审计或把 SQL 交给其他执行器。
+
+```rust
+# use rimmer::{JimmerClient, QueryBuilderExt};
+# #[derive(rimmer::Entity)]
+# #[rimmer(table = "BOOK")]
+# pub struct Book {
+#     #[rimmer(id, column = "ID")]
+#     pub id: i64,
+#     #[rimmer(key, column = "NAME")]
+#     pub name: String,
+#     #[rimmer(key, column = "EDITION")]
+#     pub edition: i32,
+# }
+let fetcher = Book::fetcher().by(|book| {
+    book.field(Book::name())
+        .field(Book::edition())
+});
+
+let plan = JimmerClient::new()
+    .create_query(Book::table())
+    .where_(Book::name().eq_if_not_blank(Some("GraphQL in Action")))
+    .order_by(Book::edition().desc())
+    .select(Book::table().fetch(fetcher))
+    .build()
+    .unwrap();
+
+assert_eq!(plan.params.len(), 1);
+assert!(plan.sql.contains(r#"FROM "BOOK""#));
+```
+
+### 4. 直接执行查询
+
+需要真实执行时使用 `SqlxJimmerClient`。它内部基于 `sqlx::AnyPool`，当前支持 SQLite 和 PostgreSQL URL 方言识别；内部 plan 统一使用 `?` 占位符，执行 PostgreSQL 时会自动渲染成 `$1`、`$2`。
+
+```rust
+# use rimmer::{QueryBuilderExt, SqlxJimmerClient};
+# #[derive(rimmer::Entity)]
+# #[rimmer(table = "BOOK")]
+# pub struct Book {
+#     #[rimmer(id, column = "ID")]
+#     pub id: i64,
+#     #[rimmer(key, column = "NAME")]
+#     pub name: String,
+# }
+# async fn demo() -> rimmer::OrmResult<()> {
+let sql = SqlxJimmerClient::connect("sqlite::memory:").await?;
+
+let rows = sql
+    .create_query(Book::table())
+    .where_(Book::name().eq_if_not_blank(Some("GraphQL in Action")))
+    .select(Book::table().fetch(
+        Book::fetcher().by(|book| book.field(Book::name()))
+    ))
+    .execute_json()
+    .await?;
+
+println!("{:?}", rows.rows);
+# Ok(())
+# }
+```
+
+也可以复用已有连接池：
+
+```rust
+# use rimmer::SqlxJimmerClient;
+# fn demo(pool: sqlx::AnyPool) {
+let sql = SqlxJimmerClient::from_pool(pool);
+# }
+```
+
+### 5. 保存部分对象
+
+Draft 用来表达“只保存显式指定的字段”。`set_null(...)` 表示显式写入 SQL `NULL`，未调用 `set(...)`/`set_null(...)` 的字段不会出现在保存 SQL 中。
+
+```rust
+# use rimmer::{JimmerClient, SaveMode};
+# #[derive(rimmer::Entity)]
+# #[rimmer(table = "BOOK_STORE")]
+# pub struct BookStore {
+#     #[rimmer(id, column = "ID")]
+#     pub id: i64,
+#     #[rimmer(key, column = "NAME")]
+#     pub name: String,
+#     #[rimmer(column = "WEBSITE")]
+#     pub website: Option<String>,
+# }
+let draft = BookStore::draft(|store| {
+    store
+        .set(BookStore::id(), 1_i64)
+        .set(BookStore::name(), "O'REILLY+")
+        .set_null(BookStore::website())
+});
+
+let plan = JimmerClient::new()
+    .save(draft)
+    .set_mode(SaveMode::UpdateOnly)
+    .build()
+    .unwrap();
+
+assert!(plan.sql.starts_with("UPDATE"));
+```
+
+`SaveMode` 的选择：
+
+- `SaveMode::InsertOnly`：生成 `INSERT`。
+- `SaveMode::UpdateOnly`：生成 `UPDATE`，要求 draft 中有 `id`。
+- `SaveMode::Upsert`：默认模式；当前按是否指定主键推导为插入或更新。
+
+### 6. Fetcher JSON
+
+Fetcher 可以序列化成 JSON 保存、传输或缓存。恢复时会校验根实体、表名、字段列名和根关联列，避免旧 JSON 形状漂移后继续生成错误 SQL。
+
+```rust
+# use rimmer::{Fetcher, QueryBuilderExt};
+# #[derive(rimmer::Entity)]
+# #[rimmer(table = "BOOK")]
+# pub struct Book {
+#     #[rimmer(id, column = "ID")]
+#     pub id: i64,
+#     #[rimmer(key, column = "NAME")]
+#     pub name: String,
+# }
+let fetcher = Book::fetcher().by(|book| book.field(Book::name()));
+let json = fetcher.to_json().unwrap();
+let restored: Fetcher<Book> = Fetcher::from_json(Book::entity(), &json).unwrap();
+
+assert_eq!(restored.shape(), fetcher.shape());
+```
+
+## 完整示例
+
 推荐用 derive 生成 Jimmer 风格元模型：
 
 ```rust

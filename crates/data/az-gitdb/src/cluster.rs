@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use az_derive_aliases::{apply, plain_debug, plain_eq};
+use git2::Repository;
 use gitdb::db::{Connection, ConnectionPool, DatabaseConfig, DatabaseError};
 use gitdb::executor::QueryResult;
 
@@ -261,8 +262,10 @@ pub struct GitDbStats {
 pub struct GitDbNodeStats {
     /// Node id.
     pub id: String,
-    /// Repository path.
-    pub path: PathBuf,
+    /// Clone-capable remote URL for the GitDB repository.
+    pub remote_url: String,
+    /// Local checkout path used by upstream GitDB.
+    pub checkout_path: PathBuf,
     /// Node role.
     pub role: GitDbNodeRole,
     /// Node weight.
@@ -285,9 +288,10 @@ struct GitDbNodePool {
 
 impl GitDbNodePool {
     fn new(config: GitDbNodeConfig) -> GitDbClusterResult<Self> {
+        prepare_checkout(&config)?;
         let pool_config = DatabaseConfig {
-            path: config.path.clone(),
-            create_if_missing: config.create_if_missing,
+            path: config.checkout_path.clone(),
+            create_if_missing: false,
             enable_planner: config.enable_planner,
             verbose: config.verbose,
             auto_commit: config.auto_commit,
@@ -342,7 +346,8 @@ impl GitDbNodePool {
     fn stats(&self) -> GitDbNodeStats {
         GitDbNodeStats {
             id: self.config.id.clone(),
-            path: self.config.path.clone(),
+            remote_url: self.config.remote_url.clone(),
+            checkout_path: self.config.checkout_path.clone(),
             role: self.config.role,
             weight: self.config.weight,
             max_connections: self.config.max_connections,
@@ -356,6 +361,80 @@ impl GitDbNodePool {
         drop(connection);
         self.in_flight.fetch_sub(1, Ordering::Relaxed);
     }
+}
+
+fn prepare_checkout(config: &GitDbNodeConfig) -> GitDbClusterResult<()> {
+    if config.checkout_path.join(".git").exists() {
+        let repository = Repository::open(&config.checkout_path).map_err(|source| {
+            GitDbClusterError::NodeCheckout {
+                node_id: config.id.clone(),
+                checkout_path: config.checkout_path.clone(),
+                source,
+            }
+        })?;
+        validate_origin(config, &repository)?;
+        return Ok(());
+    }
+
+    if config.checkout_path.exists() || !config.clone_if_missing {
+        return Err(GitDbClusterError::InvalidConfig(format!(
+            "node '{}' checkout '{}' is not a Git repository cloned from '{}'",
+            config.id,
+            config.checkout_path.display(),
+            config.remote_url
+        )));
+    }
+
+    if let Some(parent) = config.checkout_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|source| GitDbClusterError::NodeCheckoutIo {
+            node_id: config.id.clone(),
+            checkout_path: config.checkout_path.clone(),
+            source,
+        })?;
+    }
+
+    Repository::clone(&config.remote_url, &config.checkout_path).map_err(|source| {
+        GitDbClusterError::NodeCheckout {
+            node_id: config.id.clone(),
+            checkout_path: config.checkout_path.clone(),
+            source,
+        }
+    })?;
+    Ok(())
+}
+
+fn validate_origin(config: &GitDbNodeConfig, repository: &Repository) -> GitDbClusterResult<()> {
+    let origin =
+        repository
+            .find_remote("origin")
+            .map_err(|source| GitDbClusterError::NodeCheckout {
+                node_id: config.id.clone(),
+                checkout_path: config.checkout_path.clone(),
+                source,
+            })?;
+    let Some(url) = origin.url() else {
+        return Err(GitDbClusterError::InvalidConfig(format!(
+            "node '{}' checkout '{}' has no UTF-8 origin URL",
+            config.id,
+            config.checkout_path.display()
+        )));
+    };
+
+    if normalize_remote_url(url) != normalize_remote_url(&config.remote_url) {
+        return Err(GitDbClusterError::InvalidConfig(format!(
+            "node '{}' checkout '{}' origin '{}' does not match configured remote '{}'",
+            config.id,
+            config.checkout_path.display(),
+            url,
+            config.remote_url
+        )));
+    }
+
+    Ok(())
+}
+
+fn normalize_remote_url(url: &str) -> &str {
+    url.trim().trim_end_matches('/')
 }
 
 fn rotate_candidates<T>(mut values: Vec<T>, start: usize) -> Vec<T> {
@@ -384,6 +463,7 @@ fn weighted_index(nodes: &[Arc<GitDbNodePool>], counter: usize) -> usize {
 mod tests {
     use super::*;
     use crate::config::{GitDbClusterConfig, GitDbLoadBalanceStrategy};
+    use gitdb::db::{Database, DatabaseConfig};
     use std::path::Path;
 
     #[test]
@@ -412,8 +492,14 @@ mod tests {
     #[test]
     fn checked_out_connection_should_return_to_pool_on_drop() {
         let dir = tempfile::tempdir().unwrap();
+        let remote = create_remote_gitdb(dir.path(), "primary");
         let cluster = GitDbCluster::new(GitDbClusterConfig::new(vec![
-            GitDbNodeConfig::new("primary", dir.path().join("primary")).max_connections(1),
+            GitDbNodeConfig::new(
+                "primary",
+                remote.to_string_lossy(),
+                dir.path().join("checkout-primary"),
+            )
+            .max_connections(1),
         ]))
         .unwrap();
 
@@ -488,6 +574,31 @@ mod tests {
         assert_eq!(selected, vec!["a", "a", "b"]);
     }
 
+    #[test]
+    fn cluster_should_reject_existing_checkout_with_wrong_origin() {
+        let dir = tempfile::tempdir().unwrap();
+        let configured_remote = create_remote_gitdb(dir.path(), "configured");
+        let other_remote = create_remote_gitdb(dir.path(), "other");
+        let checkout = dir.path().join("checkout");
+        Repository::clone(other_remote.to_str().unwrap(), &checkout).unwrap();
+
+        let error = match GitDbCluster::new(GitDbClusterConfig::new(vec![GitDbNodeConfig::new(
+            "primary",
+            configured_remote.to_string_lossy(),
+            checkout,
+        )])) {
+            Ok(_) => panic!("checkout with mismatched origin should be rejected"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(error, GitDbClusterError::InvalidConfig(_)));
+        assert!(
+            error
+                .to_string()
+                .contains("does not match configured remote")
+        );
+    }
+
     fn test_cluster(
         root: &Path,
         strategy: GitDbLoadBalanceStrategy,
@@ -496,12 +607,25 @@ mod tests {
         let configs = nodes
             .iter()
             .map(|(id, weight)| {
-                GitDbNodeConfig::new(*id, root.join(id))
-                    .max_connections(2)
-                    .weight(*weight)
+                let remote = create_remote_gitdb(root, id);
+                GitDbNodeConfig::new(
+                    *id,
+                    remote.to_string_lossy(),
+                    root.join(format!("checkout-{id}")),
+                )
+                .max_connections(2)
+                .weight(*weight)
             })
             .collect();
 
         GitDbCluster::new(GitDbClusterConfig::new(configs).strategy(strategy)).unwrap()
+    }
+
+    fn create_remote_gitdb(root: &Path, id: &str) -> PathBuf {
+        let source = root.join(format!("source-{id}"));
+        Database::open_with_config(DatabaseConfig::new(&source).create_if_missing(true)).unwrap();
+        let remote = root.join(format!("{id}.git"));
+        Repository::clone(source.to_str().unwrap(), &remote).unwrap();
+        remote
     }
 }

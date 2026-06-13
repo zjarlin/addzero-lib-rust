@@ -34,6 +34,24 @@ pub enum GitDbClusterError {
         max_connections: usize,
     },
 
+    /// A remote repository checkout could not be prepared for a node.
+    #[error("GitDB node '{node_id}' remote checkout failed at '{}': {source}", checkout_path.display())]
+    NodeCheckout {
+        node_id: String,
+        checkout_path: std::path::PathBuf,
+        #[source]
+        source: git2::Error,
+    },
+
+    /// A local checkout directory could not be prepared for a node.
+    #[error("GitDB node '{node_id}' checkout directory failed at '{}': {source}", checkout_path.display())]
+    NodeCheckoutIo {
+        node_id: String,
+        checkout_path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
     /// Cluster-level execution rejected transaction control because it needs a stable connection.
     #[error("transaction control requires an explicitly checked-out connection")]
     TransactionRequiresConnection,

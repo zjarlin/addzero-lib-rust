@@ -1,12 +1,13 @@
 # az-gitdb
 
-`az-gitdb` 是对 `gitdb` 的多 repository 连接池和路由封装。它不改写 GitDB 的 SQL 执行能力，而是在多个 GitDB repo 之上增加节点配置、读写角色、负载均衡、连接池上限和带节点信息的执行结果。
+`az-gitdb` 是对 `gitdb` 的多 repository 连接池和路由封装。每个节点以一个已有远程 Git repository 作为 GitDB 数据源，并在运行时准备本地 checkout 供上游 `gitdb` 打开；它不负责创建新的正式数据仓库，也不改写 GitDB 的 SQL 执行能力。
 
 > 注意：当前 `az-gitdb` 的 `gitdb.workspace = true` 指向根 `Cargo.toml` 中固定 rev 的 `qeqqe/gitdb` 依赖；本仓库的 `crates/storage/gitdb` 是另一个同名 workspace member。需要改成使用本地 `crates/storage/gitdb` 时，应先调整依赖来源，而不是只改 README。
 
 ## 功能
 
-- **多节点配置**：每个 GitDB repo 有独立 `id`、路径、角色、权重和连接池上限
+- **多节点配置**：每个 GitDB repo 有独立 `id`、远程 URL、本地 checkout、角色、权重和连接池上限
+- **远程数据源**：节点从已有远程仓库 clone 到本地 checkout；已有 checkout 会校验 `origin` 是否匹配配置
 - **读写路由**：`ReadWrite`、`ReadOnly`、`WriteOnly` 三类节点角色
 - **负载均衡**：支持 `RoundRobin`、`WeightedRoundRobin`、`LeastInFlight`
 - **连接池**：每个节点使用有界连接池，连接 drop 后自动归还
@@ -34,7 +35,7 @@ az-gitdb.workspace = true
 
 ## 快速开始
 
-```rust
+```rust,no_run
 use az_gitdb::{
     GitDbCluster, GitDbClusterConfig, GitDbClusterError, GitDbLoadBalanceStrategy,
     GitDbNodeConfig, QueryResult,
@@ -43,8 +44,18 @@ use az_gitdb::{
 fn main() -> Result<(), GitDbClusterError> {
     let cluster = GitDbCluster::new(
         GitDbClusterConfig::new(vec![
-            GitDbNodeConfig::new("git-a", "./data/git-a").max_connections(4),
-            GitDbNodeConfig::new("git-b", "./data/git-b").max_connections(4),
+            GitDbNodeConfig::new(
+                "git-a",
+                "git@github.com:example/gitdb-a.git",
+                "/var/lib/az-gitdb/checkouts/git-a",
+            )
+            .max_connections(4),
+            GitDbNodeConfig::new(
+                "git-b",
+                "git@github.com:example/gitdb-b.git",
+                "/var/lib/az-gitdb/checkouts/git-b",
+            )
+            .max_connections(4),
         ])
         .strategy(GitDbLoadBalanceStrategy::WeightedRoundRobin),
     )?;
@@ -72,11 +83,15 @@ fn main() -> Result<(), GitDbClusterError> {
 ```rust
 use az_gitdb::{GitDbNodeConfig, GitDbNodeRole};
 
-let node = GitDbNodeConfig::new("primary", "./data/primary")
+let node = GitDbNodeConfig::new(
+    "primary",
+    "git@github.com:example/gitdb-primary.git",
+    "/var/lib/az-gitdb/checkouts/primary",
+)
     .max_connections(8)
     .role(GitDbNodeRole::ReadWrite)
     .weight(2)
-    .create_if_missing(true)
+    .clone_if_missing(true)
     .enable_planner(true)
     .verbose(false)
     .auto_commit(true);
@@ -87,16 +102,17 @@ let node = GitDbNodeConfig::new("primary", "./data/primary")
 | 字段 | 默认值 | 说明 |
 |---|---:|---|
 | `id` | 必填 | 稳定节点 ID，会出现在结果和错误中 |
-| `path` | 必填 | GitDB repository 路径 |
+| `remote_url` | 必填 | 已有 GitDB 远程 repository URL |
+| `checkout_path` | 必填 | 本地 checkout/cache 路径，供上游 `gitdb` 打开 |
 | `max_connections` | `4` | 最大同时 checkout 连接数 |
 | `role` | `ReadWrite` | 节点读写能力 |
 | `weight` | `1` | `WeightedRoundRobin` 的权重 |
-| `create_if_missing` | `true` | 缺失时创建 repository |
+| `clone_if_missing` | `true` | 本地 checkout 缺失时从 `remote_url` clone |
 | `enable_planner` | `true` | 启用上游 planner |
 | `verbose` | `false` | 启用上游 SQL 日志 |
 | `auto_commit` | `true` | 启用上游 auto commit |
 
-配置校验会拒绝空节点列表、重复节点 ID、空节点 ID、`max_connections = 0` 和 `weight = 0`。
+配置校验会拒绝空节点列表、重复节点 ID、空节点 ID、空远程 URL、空 checkout 路径、`max_connections = 0` 和 `weight = 0`。如果 `checkout_path` 已存在，必须是一个 Git repository，且 `origin` 必须匹配 `remote_url`。
 
 ### 集群
 
@@ -104,8 +120,18 @@ let node = GitDbNodeConfig::new("primary", "./data/primary")
 use az_gitdb::{GitDbClusterConfig, GitDbLoadBalanceStrategy, GitDbNodeConfig};
 
 let config = GitDbClusterConfig::new(vec![
-    GitDbNodeConfig::new("a", "./data/a").weight(2),
-    GitDbNodeConfig::new("b", "./data/b").weight(1),
+    GitDbNodeConfig::new(
+        "a",
+        "git@github.com:example/gitdb-a.git",
+        "/var/lib/az-gitdb/checkouts/a",
+    )
+    .weight(2),
+    GitDbNodeConfig::new(
+        "b",
+        "git@github.com:example/gitdb-b.git",
+        "/var/lib/az-gitdb/checkouts/b",
+    )
+    .weight(1),
 ])
 .strategy(GitDbLoadBalanceStrategy::WeightedRoundRobin);
 ```
@@ -239,22 +265,26 @@ fn print_stats(cluster: &GitDbCluster) {
 }
 ```
 
-`GitDbNodeStats` 包含节点 ID、路径、角色、权重、连接上限、已打开连接数、空闲连接数和当前 checkout 数。
+`GitDbNodeStats` 包含节点 ID、远程 URL、本地 checkout 路径、角色、权重、连接上限、已打开连接数、空闲连接数和当前 checkout 数。
 
 ## 一致性边界
 
 `az-gitdb` 不提供：
 
 - repository 间数据复制
+- 自动创建新的正式远程数据仓库
+- 写入后的自动 push 或读取前的自动 pull
 - 分布式事务
 - 自动 failover 后的数据补偿
 - read-after-write 跨节点一致性保证
 
 多节点只在以下情况下使用：
 
-- 外部系统已经保证这些 Git repo 是等价副本
+- 外部系统已经保证这些远程 Git repo 是等价副本
 - 调用方明确把节点当作独立 shard
 - 只需要把 DDL/初始化语句广播到所有节点
+
+本地 `checkout_path` 只是上游 `gitdb` 的运行时工作副本。正式数据源应是 `remote_url` 指向的已有 repository；如果需要把写入同步回远程，当前版本由调用方在连接使用边界之外执行 Git push/pull。
 
 如果需要正式业务数据的一致持久化，仍应优先使用 PostgreSQL；本仓库约定正式 admin 业务数据遵循 `all in pg`。
 
@@ -269,6 +299,8 @@ fn print_stats(cluster: &GitDbCluster) {
 | `NodeNotFound` | 指定节点 ID 不存在 |
 | `PoolExhausted` | 单节点连接池耗尽 |
 | `PoolsExhausted` | 所有可服务节点连接池都耗尽 |
+| `NodeCheckout` | 节点远程仓库 clone/open 校验失败 |
+| `NodeCheckoutIo` | 节点本地 checkout 目录准备失败 |
 | `TransactionRequiresConnection` | 事务控制语句需要显式 checkout 连接 |
 | `UnexpectedQueryKind` | 显式读写 API 收到错误 SQL 类型 |
 | `Parse` | SQL 解析失败，无法分类 |

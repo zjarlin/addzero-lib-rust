@@ -1,4 +1,4 @@
-use az_gitdb::{GitDbLoadBalanceStrategy, GitDbNodeRole};
+use az_gitdb::{GitDbLoadBalanceStrategy, GitDbNodeConfig, GitDbNodeRole};
 
 #[test]
 fn node_role_code_is_snake_case() {
@@ -39,4 +39,20 @@ fn load_balance_strategy_code_is_snake_case() {
         GitDbLoadBalanceStrategy::LeastInFlight.code(),
         "least_in_flight"
     );
+}
+
+#[test]
+fn node_config_uses_remote_repository_as_source() {
+    let config = GitDbNodeConfig::new(
+        "primary",
+        "git@github.com:example/gitdb-data.git",
+        "/tmp/gitdb-data",
+    );
+
+    assert_eq!(config.remote_url, "git@github.com:example/gitdb-data.git");
+    assert_eq!(
+        config.checkout_path,
+        std::path::PathBuf::from("/tmp/gitdb-data")
+    );
+    assert!(config.clone_if_missing);
 }

@@ -41,16 +41,18 @@ pub enum GitDbLoadBalanceStrategy {
 pub struct GitDbNodeConfig {
     /// Stable node identifier returned with routed results and errors.
     pub id: String,
-    /// Filesystem path of the GitDB repository.
-    pub path: PathBuf,
+    /// Clone-capable remote URL for the GitDB repository.
+    pub remote_url: String,
+    /// Local checkout path used by upstream GitDB.
+    pub checkout_path: PathBuf,
     /// Maximum number of checked-out connections for this node.
     pub max_connections: usize,
     /// Node role used for read/write routing.
     pub role: GitDbNodeRole,
     /// Weight used by [`GitDbLoadBalanceStrategy::WeightedRoundRobin`].
     pub weight: usize,
-    /// Create the Git repository when it does not exist.
-    pub create_if_missing: bool,
+    /// Clone the remote repository when the local checkout is missing.
+    pub clone_if_missing: bool,
     /// Enable upstream GitDB query planning.
     pub enable_planner: bool,
     /// Enable upstream GitDB verbose SQL logging.
@@ -60,15 +62,20 @@ pub struct GitDbNodeConfig {
 }
 
 impl GitDbNodeConfig {
-    /// Create a read-write node with conservative defaults.
-    pub fn new(id: impl Into<String>, path: impl Into<PathBuf>) -> Self {
+    /// Create a read-write node backed by an existing remote GitDB repository.
+    pub fn new(
+        id: impl Into<String>,
+        remote_url: impl Into<String>,
+        checkout_path: impl Into<PathBuf>,
+    ) -> Self {
         Self {
             id: id.into(),
-            path: path.into(),
+            remote_url: remote_url.into(),
+            checkout_path: checkout_path.into(),
             max_connections: 4,
             role: GitDbNodeRole::ReadWrite,
             weight: 1,
-            create_if_missing: true,
+            clone_if_missing: true,
             enable_planner: true,
             verbose: false,
             auto_commit: true,
@@ -93,9 +100,9 @@ impl GitDbNodeConfig {
         self
     }
 
-    /// Set whether the repository is created when missing.
-    pub fn create_if_missing(mut self, value: bool) -> Self {
-        self.create_if_missing = value;
+    /// Set whether the remote repository is cloned when the checkout is missing.
+    pub fn clone_if_missing(mut self, value: bool) -> Self {
+        self.clone_if_missing = value;
         self
     }
 
@@ -122,6 +129,20 @@ impl GitDbNodeConfig {
             return Err(GitDbClusterError::InvalidConfig(
                 "node id must not be empty".into(),
             ));
+        }
+
+        if self.remote_url.trim().is_empty() {
+            return Err(GitDbClusterError::InvalidConfig(format!(
+                "node '{}' remote URL must not be empty",
+                self.id
+            )));
+        }
+
+        if self.checkout_path.as_os_str().is_empty() {
+            return Err(GitDbClusterError::InvalidConfig(format!(
+                "node '{}' checkout path must not be empty",
+                self.id
+            )));
         }
 
         if self.max_connections == 0 {
