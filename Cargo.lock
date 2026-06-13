@@ -876,6 +876,7 @@ dependencies = [
 name = "az-algorithm-onnx"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "image",
  "imageproc",
@@ -883,7 +884,6 @@ dependencies = [
  "ort",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -903,13 +903,13 @@ dependencies = [
  "az-vehicle-detection",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-algorithm-video-pipeline"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-algorithm-onnx",
  "az-face-detection",
@@ -923,7 +923,6 @@ dependencies = [
  "image",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1352,6 +1351,7 @@ dependencies = [
 name = "az-face-detection"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "base64",
  "image",
@@ -1361,23 +1361,23 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-face-recognition"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-algorithm-onnx",
  "serde",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-flame-detection"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-algorithm-onnx",
  "image",
@@ -1386,7 +1386,6 @@ dependencies = [
  "ort",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1563,10 +1562,10 @@ dependencies = [
 name = "az-ocr-text-recognition"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-algorithm-onnx",
  "serde",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1611,6 +1610,7 @@ dependencies = [
 name = "az-person-detection"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-algorithm-onnx",
  "base64",
@@ -1621,7 +1621,6 @@ dependencies = [
  "ort",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1764,11 +1763,11 @@ dependencies = [
 name = "az-safety-helmet-detection"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-algorithm-onnx",
  "image",
  "serde",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2022,6 +2021,7 @@ dependencies = [
 name = "az-vehicle-detection"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-algorithm-onnx",
  "image",
@@ -2030,7 +2030,6 @@ dependencies = [
  "ort",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2062,6 +2061,7 @@ name = "az-worker-hit-counting"
 version = "2026.5.10"
 dependencies = [
  "ab_glyph",
+ "anyhow",
  "automod",
  "image",
  "imageproc",
@@ -2070,7 +2070,6 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]

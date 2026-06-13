@@ -682,24 +682,3 @@ macro_rules! yaml_get {
         $crate::get_yaml_path_value(&$doc, &__path)
     }};
 }
-
-#[cfg(test)]
-mod debug_redaction_tests {
-    use super::DatabaseConfig;
-
-    #[test]
-    fn database_config_debug_does_not_leak_password() {
-        let x = "demo";
-
-        let string = x.to_owned();
-        let config = DatabaseConfig {
-            jdbc_url: "jdbc:postgresql://localhost/app".to_owned(),
-            jdbc_username: Some(string),
-            jdbc_password: Some("super-secret".to_owned()),
-        };
-
-        let output = format!("{config:?}");
-        assert!(output.contains("jdbc:postgresql://localhost/app"));
-        assert!(!output.contains("super-secret"));
-    }
-}

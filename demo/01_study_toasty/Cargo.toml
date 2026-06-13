@@ -9,6 +9,6 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.99"
-toasty = { version = "0.6.1", features = ["postgresql"] }
+toasty = "0.6.1"
+toasty-driver-sqlite = "0.6.1"
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
-uuid = { version = "1.23.0", features = ["v4"] }

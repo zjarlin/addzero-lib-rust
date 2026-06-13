@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use az_algorithm_onnx::error::OnnxImageResult;
 use az_ocr_text_recognition::logic_ocr_text_recognition::assist::run_ocr_text_recognition_from_path_with_output;
 
 fn workspace_root() -> PathBuf {
@@ -28,7 +27,7 @@ fn assert_existing_file(path: &Path) {
 }
 
 #[test]
-fn ocr_text_recognition_should_run_detection_and_recognition_models() -> OnnxImageResult<()> {
+fn ocr_text_recognition_should_run_detection_and_recognition_models() -> anyhow::Result<()> {
     // 输入图片：crates/algorithm/az-ocr-text-recognition/tests/fixtures/input/ocr_text.jpg
     //
     // 输出：

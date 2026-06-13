@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use az_face_detection::error::{FaceDetectionError, FaceDetectionResult};
+use anyhow::Context;
 use az_face_detection::logic_face_detection::assist::{
     detect_faces_from_base64_with_options, detect_faces_from_bytes_with_options,
     detect_faces_from_path_with_options,
@@ -47,7 +47,7 @@ fn options(output_name: &str) -> FaceDetectionOptions {
     clippy::dbg_macro,
     reason = "测试需要直接打印调用方最关心的输入、模型、输出绝对路径"
 )]
-fn assert_real_outputs_exist(result: &FaceDetectionRun) -> FaceDetectionResult<()> {
+fn assert_real_outputs_exist(result: &FaceDetectionRun) -> anyhow::Result<()> {
     dbg!(&result.input_path);
     // dbg!(&result.model_path);
     dbg!(&result.files.source_input);
@@ -73,7 +73,7 @@ fn assert_existing_file(path: &Path) {
 }
 
 #[test]
-fn detect_faces_from_path_should_write_marked_image() -> FaceDetectionResult<()> {
+fn detect_faces_from_path_should_write_marked_image() -> anyhow::Result<()> {
     // 输入：绝对图片路径。
     //
     // 输出：
@@ -91,26 +91,34 @@ fn detect_faces_from_path_should_write_marked_image() -> FaceDetectionResult<()>
 }
 
 #[test]
-fn detect_faces_from_bytes_should_write_marked_image() -> FaceDetectionResult<()> {
+fn detect_faces_from_bytes_should_write_marked_image() -> anyhow::Result<()> {
     // 输入：图片二进制。
     //
     // 输出：
     // target/az-algorithm-results/face_detection_bytes/detected_faces.png
-    let bytes = std::fs::read(fixture_path("face.jpg"))
-        .map_err(|source| FaceDetectionError::io(fixture_path("face.jpg"), source))?;
+    let bytes = std::fs::read(fixture_path("face.jpg")).with_context(|| {
+        format!(
+            "filesystem error at `{}`",
+            (fixture_path("face.jpg")).display()
+        )
+    })?;
     let result = detect_faces_from_bytes_with_options(&bytes, &options("face_detection_bytes"))?;
 
     assert_real_outputs_exist(&result)
 }
 
 #[test]
-fn detect_faces_from_base64_should_write_marked_image() -> FaceDetectionResult<()> {
+fn detect_faces_from_base64_should_write_marked_image() -> anyhow::Result<()> {
     // 输入：base64 图片字符串。
     //
     // 输出：
     // target/az-algorithm-results/face_detection_base64/detected_faces.png
-    let bytes = std::fs::read(fixture_path("face.jpg"))
-        .map_err(|source| FaceDetectionError::io(fixture_path("face.jpg"), source))?;
+    let bytes = std::fs::read(fixture_path("face.jpg")).with_context(|| {
+        format!(
+            "filesystem error at `{}`",
+            (fixture_path("face.jpg")).display()
+        )
+    })?;
     let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
     let result =
         detect_faces_from_base64_with_options(&encoded, &options("face_detection_base64"))?;

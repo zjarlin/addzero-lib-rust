@@ -10,11 +10,11 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 automod.workspace = true
 az-algorithm-onnx.workspace = true
 image.workspace = true
 serde.workspace = true
-thiserror.workspace = true
 
 [lints]
 workspace = true

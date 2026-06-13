@@ -177,3 +177,17 @@ fn database_config_reader_returns_none_when_missing() {
 
     assert_eq!(config, None);
 }
+
+#[test]
+fn database_config_debug_does_not_leak_password() {
+    let username = "demo".to_owned();
+    let config = DatabaseConfig {
+        jdbc_url: "jdbc:postgresql://localhost/app".to_owned(),
+        jdbc_username: Some(username),
+        jdbc_password: Some("super-secret".to_owned()),
+    };
+
+    let output = format!("{config:?}");
+    assert!(output.contains("jdbc:postgresql://localhost/app"));
+    assert!(!output.contains("super-secret"));
+}

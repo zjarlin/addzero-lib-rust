@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use az_algorithm_onnx::error::OnnxImageResult;
 use az_safety_helmet_detection::logic_safety_helmet_detection::assist::run_safety_helmet_detection_from_path_with_output;
 
 fn workspace_root() -> PathBuf {
@@ -28,7 +27,7 @@ fn assert_existing_file(path: &Path) {
 }
 
 #[test]
-fn safety_helmet_detection_should_run_real_image_and_write_outputs() -> OnnxImageResult<()> {
+fn safety_helmet_detection_should_run_real_image_and_write_outputs() -> anyhow::Result<()> {
     // 输入图片：crates/algorithm/az-safety-helmet-detection/tests/fixtures/input/safety_helmet.jpg
     // 输出：target/az-algorithm-results/safety_helmet_detection/raw_outputs.json
     let result = run_safety_helmet_detection_from_path_with_output(

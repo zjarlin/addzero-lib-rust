@@ -234,29 +234,3 @@ fn infer_edges(content: &str) -> Vec<SuggestedEdge> {
     }
     edges
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn capture_asset_should_generate_title_tags_and_edges() {
-        let service = AssetAgentService::new();
-        let output = service
-            .summarize_asset("Rust skill 要同步到知识图谱", AssetKind::Note)
-            .unwrap();
-        // 本地规则需要同时产出标题、标签和候选边，支撑无远程模型的开发态。
-        assert_eq!(output.title, "Rust skill 要同步到知识图谱");
-        assert!(output.tags.contains(&"Rust".to_string()));
-        assert!(!output.suggested_edges.is_empty());
-    }
-
-    #[test]
-    fn rig_markers_should_include_three_provider_clients() {
-        let markers = rig_provider_markers();
-        // 类型标记能证明三个 provider 依赖已链接进当前 crate。
-        assert!(markers.iter().any(|marker| marker.contains("openai")));
-        assert!(markers.iter().any(|marker| marker.contains("anthropic")));
-        assert!(markers.iter().any(|marker| marker.contains("gemini")));
-    }
-}

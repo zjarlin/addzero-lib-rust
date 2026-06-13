@@ -6,7 +6,7 @@ use std::io::{BufWriter, Write};
 
 automod::dir!(pub "src/logic_algorithm_video_pipeline/assist");
 
-use crate::error::{AlgorithmVideoPipelineError, AlgorithmVideoPipelineResult};
+use anyhow::{anyhow, bail};
 use crate::logic_algorithm_video_pipeline::model::{
     VideoAlgorithmBinding, VideoAlgorithmFrameResult, VideoAlgorithmRunSummary,
     VideoAlgorithmSchedule, VideoFrame, VideoPipelineOptions, VideoPipelineOutputFiles,
@@ -24,19 +24,19 @@ pub fn run_video_frame_pipeline(
     frames: impl IntoIterator<Item = VideoFrame>,
     algorithms: &mut [VideoAlgorithmBinding<'_>],
     options: &VideoPipelineOptions,
-) -> AlgorithmVideoPipelineResult<VideoPipelineRun> {
+) -> anyhow::Result<VideoPipelineRun> {
     validate_options(algorithms, options)?;
     fs::create_dir_all(&options.output_dir)
-        .map_err(|source| AlgorithmVideoPipelineError::io(options.output_dir.clone(), source))?;
+        .map_err(|source| path_error(options.output_dir.clone(), source))?;
     let output_dir = fs::canonicalize(&options.output_dir)
-        .map_err(|source| AlgorithmVideoPipelineError::io(options.output_dir.clone(), source))?;
+        .map_err(|source| path_error(options.output_dir.clone(), source))?;
 
     let files = VideoPipelineOutputFiles {
         frame_results_jsonl: output_dir.join("pipeline_frame_results.jsonl"),
         summary_json: output_dir.join("pipeline_summary.json"),
     };
     let jsonl_file = File::create(&files.frame_results_jsonl).map_err(|source| {
-        AlgorithmVideoPipelineError::io(files.frame_results_jsonl.clone(), source)
+        path_error(files.frame_results_jsonl.clone(), source)
     })?;
     let mut jsonl_writer = BufWriter::new(jsonl_file);
 
@@ -62,14 +62,14 @@ pub fn run_video_frame_pipeline(
             serde_json::to_writer(&mut jsonl_writer, &result)?;
             jsonl_writer
                 .write_all(b"\n")
-                .map_err(|source| AlgorithmVideoPipelineError::io(files.frame_results_jsonl.clone(), source))?;
+                .map_err(|source| path_error(files.frame_results_jsonl.clone(), source))?;
             processed_frame_indices[algorithm_index].push(frame.frame_index);
             frame_results.push(result);
         }
     }
     jsonl_writer
         .flush()
-        .map_err(|source| AlgorithmVideoPipelineError::io(files.frame_results_jsonl.clone(), source))?;
+        .map_err(|source| path_error(files.frame_results_jsonl.clone(), source))?;
 
     let algorithm_runs = algorithms
         .iter()
@@ -92,7 +92,7 @@ pub fn run_video_frame_pipeline(
     };
     let summary_json = serde_json::to_string_pretty(&run)?;
     fs::write(&files.summary_json, summary_json)
-        .map_err(|source| AlgorithmVideoPipelineError::io(files.summary_json.clone(), source))?;
+        .map_err(|source| path_error(files.summary_json.clone(), source))?;
 
     Ok(run)
 }
@@ -105,7 +105,7 @@ pub fn should_run_frame(
     schedule: VideoAlgorithmSchedule,
     frame_index: u64,
     source_fps: f32,
-) -> AlgorithmVideoPipelineResult<bool> {
+) -> anyhow::Result<bool> {
     let interval = frame_interval_for_schedule(schedule, source_fps)?;
     Ok(frame_index.is_multiple_of(interval))
 }
@@ -117,12 +117,12 @@ pub fn should_run_frame(
 pub fn frame_interval_for_schedule(
     schedule: VideoAlgorithmSchedule,
     source_fps: f32,
-) -> AlgorithmVideoPipelineResult<u64> {
+) -> anyhow::Result<u64> {
     match schedule {
         VideoAlgorithmSchedule::EveryFrame => Ok(1),
         VideoAlgorithmSchedule::EveryNFrames { n } => {
             if n == 0 {
-                return Err(AlgorithmVideoPipelineError::invalid_input(
+                return Err(anyhow!(
                     "EveryNFrames.n 必须大于 0",
                 ));
             }
@@ -142,10 +142,10 @@ pub fn frame_interval_for_schedule(
 fn validate_options(
     algorithms: &[VideoAlgorithmBinding<'_>],
     options: &VideoPipelineOptions,
-) -> AlgorithmVideoPipelineResult<()> {
+) -> anyhow::Result<()> {
     validate_positive_fps("source_fps", options.source_fps)?;
     if algorithms.is_empty() {
-        return Err(AlgorithmVideoPipelineError::invalid_input(
+        return Err(anyhow!(
             "至少需要传入一个算法实例",
         ));
     }
@@ -154,13 +154,13 @@ fn validate_options(
     for binding in algorithms {
         let code = binding.algorithm.code();
         if code.trim().is_empty() {
-            return Err(AlgorithmVideoPipelineError::invalid_input(
+            return Err(anyhow!(
                 "算法 code 不能为空",
             ));
         }
         if !codes.insert(code) {
             let message = format!("重复算法 code：{code}");
-            let error = AlgorithmVideoPipelineError::invalid_input(message);
+            let error = anyhow!(message);
             return Err(error);
         }
         let _ = frame_interval_for_schedule(binding.schedule, options.source_fps)?;
@@ -168,16 +168,16 @@ fn validate_options(
     Ok(())
 }
 
-fn validate_positive_fps(name: &str, fps: f32) -> AlgorithmVideoPipelineResult<()> {
+fn validate_positive_fps(name: &str, fps: f32) -> anyhow::Result<()> {
     if !fps.is_finite() || fps <= 0.0 {
         let message = format!("{name} 必须是大于 0 的有限数字");
-        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        let error = anyhow!(message);
         return Err(error);
     }
     Ok(())
 }
 
-fn validate_frame(frame: &VideoFrame) -> AlgorithmVideoPipelineResult<()> {
+fn validate_frame(frame: &VideoFrame) -> anyhow::Result<()> {
     let actual_width = frame.rgb.width();
     let actual_height = frame.rgb.height();
     if frame.width != actual_width || frame.height != actual_height {
@@ -185,7 +185,7 @@ fn validate_frame(frame: &VideoFrame) -> AlgorithmVideoPipelineResult<()> {
             "帧 {} 声明尺寸 {}x{} 与 RGB 数据尺寸 {}x{} 不一致",
             frame.frame_index, frame.width, frame.height, actual_width, actual_height
         );
-        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        let error = anyhow!(message);
         return Err(error);
     }
     Ok(())
@@ -195,7 +195,7 @@ fn normalize_frame_result(
     result: &mut VideoAlgorithmFrameResult,
     algorithm_code: &str,
     frame: &VideoFrame,
-) -> AlgorithmVideoPipelineResult<()> {
+) -> anyhow::Result<()> {
     if result.algorithm_code.is_empty() {
         result.algorithm_code = algorithm_code.to_owned();
     }
@@ -204,7 +204,7 @@ fn normalize_frame_result(
             "算法 {algorithm_code} 返回了不匹配的结果 code：{}",
             result.algorithm_code
         );
-        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        let error = anyhow!(message);
         return Err(error);
     }
     if result.frame_index != frame.frame_index {
@@ -212,7 +212,7 @@ fn normalize_frame_result(
             "算法 {algorithm_code} 返回的帧序号 {} 与输入帧序号 {} 不一致",
             result.frame_index, frame.frame_index
         );
-        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        let error = anyhow!(message);
         return Err(error);
     }
     if result.timestamp_ms != frame.timestamp_ms {
@@ -220,7 +220,7 @@ fn normalize_frame_result(
             "算法 {algorithm_code} 返回的时间戳 {} 与输入时间戳 {} 不一致",
             result.timestamp_ms, frame.timestamp_ms
         );
-        let error = AlgorithmVideoPipelineError::invalid_input(message);
+        let error = anyhow!(message);
         return Err(error);
     }
     Ok(())

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use az_derive_aliases::{apply, plain_clone, serde_eq};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use ring::{
@@ -32,7 +32,7 @@ impl SecretCipher {
     pub fn from_master_key(master_key: &str) -> Result<Self> {
         let trimmed = master_key.trim();
         if trimmed.is_empty() {
-            return Err(anyhow!("ADDZERO_SECRET_MASTER_KEY is empty"));
+            bail!("ADDZERO_SECRET_MASTER_KEY is empty");
         }
 
         let key_bytes = STANDARD
@@ -81,7 +81,7 @@ impl SecretCipher {
         let nonce = parts.next().unwrap_or_default();
         let payload = parts.next().unwrap_or_default();
         if version != "v1" || nonce.is_empty() || payload.is_empty() || parts.next().is_some() {
-            return Err(anyhow!("unsupported encrypted secret format"));
+            bail!("unsupported encrypted secret format");
         }
         let nonce_bytes = STANDARD.decode(nonce).context("decode nonce")?;
         let nonce_array: [u8; 12] = nonce_bytes

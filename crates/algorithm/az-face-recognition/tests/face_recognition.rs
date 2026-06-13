@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use az_algorithm_onnx::error::OnnxImageResult;
 use az_face_recognition::logic_face_recognition::assist::run_face_recognition_from_path_with_output;
 
 fn workspace_root() -> PathBuf {
@@ -28,7 +27,7 @@ fn assert_existing_file(path: &Path) {
 }
 
 #[test]
-fn face_recognition_should_run_real_image_and_write_outputs() -> OnnxImageResult<()> {
+fn face_recognition_should_run_real_image_and_write_outputs() -> anyhow::Result<()> {
     // 输入图片：
     // crates/algorithm/az-face-recognition/tests/fixtures/input/face.jpg
     //

@@ -46,9 +46,10 @@ Before reviewing, familiarize yourself with Apollo's Rust best practices. Read A
 ### Error Handling
 - Return `Result<T, E>` for fallible operations; avoid `panic!` in production
 - Never use `unwrap()`/`expect()` outside tests
-- Use `thiserror` for library errors, `anyhow` for binaries only
+- In this repository, prefer `anyhow::Result<T>` across crates instead of hand-written crate-local error enums and `XxxResult<T>` aliases.
 - Prefer `?` operator over match chains for error propagation
-- Split complex error construction into local variables before returning; do not inline path conversion, source error creation, and domain error wrapping inside one `return Err(...)`.
+- Add `anyhow::Context` at file, network, database, model-loading, serialization, and other boundary operations where the failing object or operation would otherwise be unclear.
+- Split complex `return Err(...)` construction into local variables before returning. Do not inline path conversion, source error creation, and domain error wrapping in one expression.
 
 Bad:
 ```rust
@@ -70,9 +71,21 @@ let error = OnnxImageError::io(model_path, source);
 return Err(error);
 ```
 
+For `anyhow::Result`, prefer `anyhow::bail!(...)` for validation failures instead of `return Err(anyhow!(...))`.
+
+Bad:
+```rust
+return Err(anyhow::anyhow!("invalid input: {reason}"));
+```
+
+Good:
+```rust
+anyhow::bail!("invalid input: {reason}");
+```
+
 ### Boilerplate Reduction
-- Prefer `thiserror` for library-facing error enums instead of hand-writing `Display`, `Error`, and `From` impls
-- Use `anyhow` only at binary/application boundaries; do not expose `anyhow::Error` in reusable library APIs
+- Prefer `anyhow` for fallible library and application APIs in this repository; do not add crate-local `Error` enums unless the value is a protocol/data model rather than Rust error plumbing.
+- Remove `thiserror` dependencies when they only support hand-written error enums that can become `anyhow::Result`.
 - Prefer `strum = { version = "0.26", features = ["derive"] }` for enum string conversion, iteration, discriminants, and metadata instead of hand-written match tables
 - Treat `strum` derive macros as the default zero-cost enum abstraction here: they expand at compile time and usually keep runtime behavior equivalent to explicit impls
 - Use `derive_builder` or `typed-builder` when config/data structs have many optional fields or fluent construction improves readability
@@ -147,7 +160,7 @@ impl Connection<Connected> {
 
 When code is purely mechanical, prefer generation over hand-writing it repeatedly. Good targets:
 
-- error enums and conversions via `thiserror`
+- error construction via `anyhow::bail!`, `anyhow!`, and `Context`
 - enum parsing, display, iteration, and variant metadata via `strum` derives
 - verbose builders via `derive_builder` or `typed-builder`
 - repetitive declarations via small local `macro_rules!`

@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use az_vehicle_detection::error::VehicleDetectionResult;
 use az_vehicle_detection::logic_vehicle_detection::assist::run_vehicle_detection_from_path_with_output;
 use image::Rgb;
 
@@ -30,7 +29,7 @@ fn assert_existing_file(path: &Path) {
     assert!(path.is_file(), "输出文件必须存在：{}", path.display());
 }
 
-fn assert_image_contains_vehicle_box(path: &Path) -> VehicleDetectionResult<()> {
+fn assert_image_contains_vehicle_box(path: &Path) -> anyhow::Result<()> {
     let image = image::open(path)?.to_rgb8();
     let box_pixels = image
         .pixels()
@@ -50,7 +49,7 @@ fn assert_image_contains_vehicle_box(path: &Path) -> VehicleDetectionResult<()> 
 )]
 fn assert_real_outputs_exist(
     result: &az_vehicle_detection::logic_vehicle_detection::model::VehicleDetectionRun,
-) -> VehicleDetectionResult<()> {
+) -> anyhow::Result<()> {
     dbg!(&result.input_path);
     dbg!(&result.model_path);
     dbg!(&result.files.source_input);
@@ -74,8 +73,7 @@ fn assert_real_outputs_exist(
 }
 
 #[test]
-fn vehicle_detection_should_run_test_image_and_write_marked_outputs() -> VehicleDetectionResult<()>
-{
+fn vehicle_detection_should_run_test_image_and_write_marked_outputs() -> anyhow::Result<()> {
     // 输入：crates/algorithm/az-vehicle-detection/tests/fixtures/input/test.png
     // 输出：target/az-algorithm-results/vehicle_detection/model_input_preview.png
     // 输出：target/az-algorithm-results/vehicle_detection/detected_vehicles.png

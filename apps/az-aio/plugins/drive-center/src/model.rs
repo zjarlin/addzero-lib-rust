@@ -7,7 +7,7 @@ pub struct DriveTask {
     #[key]
     pub id: String,
     #[index]
-    pub path: String,
+    pub drive_path: String,
     pub action: String,
     pub status: String,
     pub updated_at: String,
@@ -25,7 +25,7 @@ impl From<DriveTask> for DriveTaskSummary {
     fn from(task: DriveTask) -> Self {
         Self {
             id: task.id,
-            path: task.path,
+            path: task.drive_path,
             action: task.action,
             status: task.status,
         }

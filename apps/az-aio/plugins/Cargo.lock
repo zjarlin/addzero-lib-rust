@@ -282,6 +282,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-aio-plugin-bundled"
+version = "2026.5.10"
+dependencies = [
+ "asset-hub",
+ "az-aio-plugin-api",
+ "config-center",
+ "drive-center",
+ "edge-gateway",
+ "inventory",
+ "software-center",
+]
+
+[[package]]
 name = "az-aio-plugin-catalog"
 version = "2026.5.10"
 dependencies = [

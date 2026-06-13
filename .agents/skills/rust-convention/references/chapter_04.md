@@ -51,47 +51,32 @@ if let Ok(json) = serde_json::from_str(&input) else {
 * Functions that can have to handle `Option::None` values are recommended to return `Result<T, E>`, where `E` is a crate or module level error, like the examples above.
 * Lastly `unwrap_or`, `unwrap_or_else` or `unwrap_or_default`, these functions help you create alternative exits to unwrap that manage the uninitialized values.
 
-## 4.3 `thiserror` for Crate level errors
+## 4.3 Repository convention: use `anyhow` for crate-level errors
 
-Deriving Error manually is verbose and error prone, the rust ecosystem has a really good crate to help with this, `thiserror`. It allows you to create error types that easily implement `From` trait as well as easy error message (`Display`), improving developer experience while working seamlessly with `?` and integrating with `std::error::Error`:
+This repository intentionally standardizes on `anyhow::Result<T>` for fallible APIs. Do not create a crate-local `XxxError` enum and `XxxResult<T>` alias merely to wrap I/O, JSON, model loading, parsing, or validation failures.
 
 ```rust
-#[derive(Debug, thiserror::Error)]
-pub enum MyError {
-    #[error("Network Timeout")]
-    Timeout,
-    #[error("Invalid data: {0}")]
-    InvalidData(String),
-    #[error(transparent)]
-    Serialization(#[from] serde_json::Error),
-    #[error("Invalid request information. Header: {headers}, Metadata: {metadata}")]
-    InvalidRequest {
-        headers: Headers,
-        metadata: Metadata
+use anyhow::{Context, Result, bail};
+
+pub fn load_config(path: &std::path::Path) -> Result<Config> {
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("failed to read config `{}`", path.display()))?;
+    let config = serde_json::from_str(&text)
+        .with_context(|| format!("failed to parse config `{}`", path.display()))?;
+
+    if config.name.trim().is_empty() {
+        bail!("config `{}` has blank name", path.display());
     }
+
+    Ok(config)
 }
 ```
 
-### Error Hierarchies and Wrapping
+Keep protocol/data model error structs or enums when they are part of a wire contract, API payload, or user-facing response schema. Remove Rust-only error plumbing when `anyhow::Result` can carry the same failure with context.
 
-For layered systems the best practice is to use nested `enum/struct` errors with `#[from]`:
+## 4.4 Use context with `anyhow`
 
-```rust
-use crate::database::DbError;
-use crate::external_services::ExternalHttpError;
-
-#[derive(Debug, thiserror::Error)]
-pub enum ServiceError {
-    #[error("Database handler error: {0}")]
-    Db(#[from] DbError),
-    #[error("External services error: {0}")]
-    ExternalServices(#[from] ExternalHttpError)
-}
-```
-
-## 4.4 Reserve `anyhow` for Binaries
-
-`anyhow` is an amazing crate, and quite useful for projects that are beginning and need accelerated speed. However, there is a turning point where it just painfully propagates through your code, considering this, `anyhow` is recommended only for **binaries**, where ergonomic error handling is needed and there is no need for precise error types:
+`anyhow` is useful only when errors keep their source chain and carry enough operation-specific context:
 
 ```rust
 use anyhow::{Context, Result, anyhow};
@@ -104,11 +89,11 @@ fn main() -> Result<()> {
 }
 ```
 
-### 🚨 `Anyhow` Gotchas
+### Anyhow gotchas
 
-* Keeping the `context` and `anyhow` strings up-to-date in all code base is harder than keeping `thiserror` messages as you don't have a single point of entry.
-* `anyhow::Result` erases context that a caller might need, so avoid using it in a library.
-* test helper functions can use `anyhow` with little to no issues.
+* Do not replace source errors with fixed strings.
+* Prefer `?` for direct source propagation and `.with_context(...)` when the operation target matters.
+* Use `bail!` for validation failures that have no source error.
 
 ## 4.5 Use `?` to Bubble Errors
 
@@ -153,6 +138,12 @@ return Err(error);
 ```
 
 This is required when an error expression combines three or more concerns, such as data conversion, source error creation, and domain error mapping. Tiny single-constructor returns like `return Err(MyError::MissingConfig);` are still fine.
+
+When the function returns `anyhow::Result`, prefer `anyhow::bail!(...)` for validation failures instead of constructing `anyhow!(...)` inside `return Err(...)`:
+
+```rust
+anyhow::bail!("ONNX model file not found: `{}`", path.display());
+```
 
 ## 4.6 Unit Test should exercise errors
 

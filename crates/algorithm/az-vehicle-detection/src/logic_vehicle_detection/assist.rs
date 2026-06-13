@@ -11,7 +11,7 @@ use ndarray::{ArrayD, IxDyn};
 use ort::session::Session;
 use ort::value::{Tensor, TensorElementType, ValueType};
 
-use crate::error::{VehicleDetectionError, VehicleDetectionResult};
+use anyhow::{anyhow, bail};
 use crate::logic_vehicle_detection::model::{
     DEFAULT_MODEL_RESOURCE_DIR, DEFAULT_RESULT_DIR, DEFAULT_SCORE_THRESHOLD, VehicleClass,
     VehicleDetectionBox, VehicleDetectionOptions, VehicleDetectionOutputFiles,
@@ -29,14 +29,14 @@ impl VehicleDetectionOptions {
     ///
     /// # Errors
     /// 当前工作目录无法定位或模型文件不存在时返回错误。
-    pub fn default_workspace() -> VehicleDetectionResult<Self> {
+    pub fn default_workspace() -> anyhow::Result<Self> {
         let workspace_root = workspace_root()?;
         let model_path = workspace_root
             .join("crates/algorithm/az-vehicle-detection")
             .join(DEFAULT_MODEL_RESOURCE_DIR)
             .join(VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.local_file);
         if !model_path.is_file() {
-            return Err(VehicleDetectionError::ModelFileMissing { path: model_path });
+            bail!("model file `{}` is missing", (model_path).display());
         }
 
         Ok(Self {
@@ -53,7 +53,7 @@ impl VehicleDetectionOptions {
 /// 图片读取、模型加载、推理或输出文件写入失败时返回错误。
 pub fn detect_vehicles_from_path(
     image_path: impl AsRef<Path>,
-) -> VehicleDetectionResult<VehicleDetectionRun> {
+) -> anyhow::Result<VehicleDetectionRun> {
     let options = VehicleDetectionOptions::default_workspace()?;
     detect_vehicles_from_path_with_options(image_path, &options)
 }
@@ -65,10 +65,10 @@ pub fn detect_vehicles_from_path(
 pub fn detect_vehicles_from_path_with_options(
     image_path: impl AsRef<Path>,
     options: &VehicleDetectionOptions,
-) -> VehicleDetectionResult<VehicleDetectionRun> {
+) -> anyhow::Result<VehicleDetectionRun> {
     validate_detection_options(options)?;
     let image_path = std::fs::canonicalize(image_path.as_ref())
-        .map_err(|source| VehicleDetectionError::io(image_path.as_ref().to_path_buf(), source))?;
+        .map_err(|source| path_error(image_path.as_ref().to_path_buf(), source))?;
     let image = image::open(&image_path)?;
     run_detection(image, image_path, options)
 }
@@ -79,7 +79,7 @@ pub fn detect_vehicles_from_path_with_options(
 /// 图片读取、模型加载、推理或输出文件写入失败时返回错误。
 pub fn run_vehicle_detection_from_path(
     image_path: impl AsRef<Path>,
-) -> VehicleDetectionResult<VehicleDetectionRun> {
+) -> anyhow::Result<VehicleDetectionRun> {
     detect_vehicles_from_path(image_path)
 }
 
@@ -90,7 +90,7 @@ pub fn run_vehicle_detection_from_path(
 pub fn run_vehicle_detection_from_path_with_output(
     image_path: impl AsRef<Path>,
     output_dir: impl AsRef<Path>,
-) -> VehicleDetectionResult<VehicleDetectionRun> {
+) -> anyhow::Result<VehicleDetectionRun> {
     detect_vehicles_from_path_with_options(
         image_path,
         &VehicleDetectionOptions {
@@ -107,9 +107,9 @@ fn run_detection(
     image: DynamicImage,
     input_path: PathBuf,
     options: &VehicleDetectionOptions,
-) -> VehicleDetectionResult<VehicleDetectionRun> {
+) -> anyhow::Result<VehicleDetectionRun> {
     fs::create_dir_all(&options.output_dir)
-        .map_err(|source| VehicleDetectionError::io(options.output_dir.clone(), source))?;
+        .map_err(|source| path_error(options.output_dir.clone(), source))?;
 
     let prepared = prepare_coco_ssd_image(&image);
     let inference = run_coco_ssd_model(&options.model_path, prepared.tensor_data)?;
@@ -140,11 +140,9 @@ fn run_detection(
 fn run_coco_ssd_model(
     model_path: &Path,
     tensor_data: Vec<u8>,
-) -> VehicleDetectionResult<CocoSsdInferenceOutput> {
+) -> anyhow::Result<CocoSsdInferenceOutput> {
     if !model_path.is_file() {
-        return Err(VehicleDetectionError::ModelFileMissing {
-            path: model_path.to_path_buf(),
-        });
+        bail!("model file `{}` is missing", model_path.display());
     }
 
     let mut builder = Session::builder()?;
@@ -155,15 +153,12 @@ fn run_coco_ssd_model(
 fn run_coco_ssd_session(
     session: &mut Session,
     tensor_data: Vec<u8>,
-) -> VehicleDetectionResult<CocoSsdInferenceOutput> {
+) -> anyhow::Result<CocoSsdInferenceOutput> {
     let input_array = ArrayD::from_shape_vec(
         IxDyn(VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.input.shape),
         tensor_data,
     )
-    .map_err(|source| VehicleDetectionError::InvalidTensorShape {
-        model_code: VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code,
-        reason: source.to_string(),
-    })?;
+    .map_err(|source| anyhow!("invalid tensor shape for `{}`: {}", VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code, source.to_string(),))?;
     let input = Tensor::from_array(input_array)?;
     let output_names = session
         .outputs()
@@ -178,7 +173,7 @@ fn run_coco_ssd_session(
 fn collect_coco_ssd_outputs(
     output_names: &[String],
     outputs: ort::session::SessionOutputs<'_>,
-) -> VehicleDetectionResult<CocoSsdInferenceOutput> {
+) -> anyhow::Result<CocoSsdInferenceOutput> {
     let mut summaries = Vec::new();
     let mut tensors = Vec::new();
 
@@ -188,16 +183,10 @@ fn collect_coco_ssd_outputs(
             .cloned()
             .unwrap_or_else(|| format!("output_{index}"));
         let ValueType::Tensor { ty, .. } = value.dtype() else {
-            return Err(VehicleDetectionError::UnsupportedOnnxOutput {
-                output_name,
-                tensor_type: value.dtype().to_string(),
-            });
+            bail!("unsupported ONNX output tensor type `{}` from output `{}`", value.dtype(), output_name);
         };
         if !matches!(ty, TensorElementType::Float32) {
-            return Err(VehicleDetectionError::UnsupportedOnnxOutput {
-                output_name,
-                tensor_type: ty.to_string(),
-            });
+            bail!("unsupported ONNX output tensor type `{}` from output `{}`", ty, output_name);
         }
 
         let (shape, data) = value.try_extract_tensor::<f32>()?;
@@ -224,7 +213,7 @@ fn decode_coco_ssd_vehicle_boxes(
     image_width: u32,
     image_height: u32,
     score_threshold: f32,
-) -> VehicleDetectionResult<Vec<VehicleDetectionBox>> {
+) -> anyhow::Result<Vec<VehicleDetectionBox>> {
     let boxes = require_output(outputs, DETECTION_BOXES_OUTPUT)?;
     let classes = require_output(outputs, DETECTION_CLASSES_OUTPUT)?;
     let scores = require_output(outputs, DETECTION_SCORES_OUTPUT)?;
@@ -292,9 +281,9 @@ fn write_output_files(
     vehicles: &[VehicleDetectionBox],
     summaries: &[VehicleDetectionOutputSummary],
     output_dir: &Path,
-) -> VehicleDetectionResult<VehicleDetectionOutputFiles> {
+) -> anyhow::Result<VehicleDetectionOutputFiles> {
     fs::create_dir_all(output_dir)
-        .map_err(|source| VehicleDetectionError::io(output_dir.to_path_buf(), source))?;
+        .map_err(|source| path_error(output_dir.to_path_buf(), source))?;
     let files = VehicleDetectionOutputFiles {
         source_input: output_dir.join("source_input.jpg"),
         model_input_preview: output_dir.join("model_input_preview.png"),
@@ -304,7 +293,7 @@ fn write_output_files(
     };
 
     fs::copy(input_path, &files.source_input)
-        .map_err(|source| VehicleDetectionError::io(input_path.to_path_buf(), source))?;
+        .map_err(|source| path_error(input_path.to_path_buf(), source))?;
 
     let mut marked_preview = preview.clone();
     draw_scaled_vehicle_boxes(
@@ -317,11 +306,11 @@ fn write_output_files(
 
     let raw_json = serde_json::to_string_pretty(summaries)?;
     fs::write(&files.raw_outputs_json, raw_json)
-        .map_err(|source| VehicleDetectionError::io(files.raw_outputs_json.clone(), source))?;
+        .map_err(|source| path_error(files.raw_outputs_json.clone(), source))?;
 
     let vehicle_json = serde_json::to_string_pretty(vehicles)?;
     fs::write(&files.detected_vehicles_json, vehicle_json)
-        .map_err(|source| VehicleDetectionError::io(files.detected_vehicles_json.clone(), source))?;
+        .map_err(|source| path_error(files.detected_vehicles_json.clone(), source))?;
 
     let mut marked_image = image.to_rgb8();
     for vehicle in vehicles {
@@ -380,78 +369,68 @@ fn draw_vehicle_box(image: &mut RgbImage, vehicle: &VehicleDetectionBox) {
 fn require_output<'a>(
     outputs: &'a [CocoSsdOutputTensor],
     output_name: &str,
-) -> VehicleDetectionResult<&'a CocoSsdOutputTensor> {
+) -> anyhow::Result<&'a CocoSsdOutputTensor> {
     outputs
         .iter()
         .find(|output| output.name == output_name)
-        .ok_or_else(|| VehicleDetectionError::MissingOnnxOutput {
-            output_name: output_name.to_owned(),
-        })
+        .ok_or_else(|| anyhow!("missing ONNX output `{}`", output_name.to_owned(),))
 }
 
-fn validate_boxes(boxes: &CocoSsdOutputTensor) -> VehicleDetectionResult<()> {
+fn validate_boxes(boxes: &CocoSsdOutputTensor) -> anyhow::Result<()> {
     if boxes.shape.as_slice() == [1, 100, 4] && boxes.data.len() == 400 {
         return Ok(());
     }
 
-    Err(VehicleDetectionError::InvalidTensorShape {
-        model_code: VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code,
-        reason: format!(
-            "output `{}` expected [1, 100, 4], got {:?}",
-            boxes.name, boxes.shape
-        ),
-    })
+    bail!(
+        "invalid tensor shape for `{}`: output `{}` expected [1, 100, 4], got {:?}",
+        VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code,
+        boxes.name,
+        boxes.shape
+    )
 }
 
 fn validate_vector(
     output: &CocoSsdOutputTensor,
     expected_name: &str,
-) -> VehicleDetectionResult<()> {
+) -> anyhow::Result<()> {
     if output.shape.as_slice() == [1, 100] && output.data.len() == 100 {
         return Ok(());
     }
 
-    Err(VehicleDetectionError::InvalidTensorShape {
-        model_code: VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code,
-        reason: format!(
-            "output `{expected_name}` expected [1, 100], got {:?}",
-            output.shape
-        ),
-    })
+    bail!(
+        "invalid tensor shape for `{}`: output `{}` expected [1, 100], got {:?}",
+        VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code,
+        expected_name,
+        output.shape
+    )
 }
 
-fn validate_num_detections(output: &CocoSsdOutputTensor) -> VehicleDetectionResult<()> {
+fn validate_num_detections(output: &CocoSsdOutputTensor) -> anyhow::Result<()> {
     if output.shape.as_slice() == [1] && output.data.len() == 1 {
         return Ok(());
     }
 
-    Err(VehicleDetectionError::InvalidTensorShape {
-        model_code: VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code,
-        reason: format!(
-            "output `{}` expected [1], got {:?}",
-            output.name, output.shape
-        ),
-    })
+    bail!(
+        "invalid tensor shape for `{}`: output `{}` expected [1], got {:?}",
+        VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code,
+        output.name,
+        output.shape
+    )
 }
 
-fn validate_detection_options(options: &VehicleDetectionOptions) -> VehicleDetectionResult<()> {
+fn validate_detection_options(options: &VehicleDetectionOptions) -> anyhow::Result<()> {
     if !options.model_path.is_file() {
-        return Err(VehicleDetectionError::ModelFileMissing {
-            path: options.model_path.clone(),
-        });
+        bail!("model file `{}` is missing", options.model_path.display());
     }
     if !(0.0..=1.0).contains(&options.score_threshold) || !options.score_threshold.is_finite() {
-        return Err(VehicleDetectionError::InvalidTensorShape {
-            model_code: VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code,
-            reason: "score_threshold must be finite and within 0.0..=1.0".to_owned(),
-        });
+        return Err(anyhow!("invalid tensor shape for `{}`: {}", VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code, "score_threshold must be finite and within 0.0..=1.0".to_owned(),));
     }
     Ok(())
 }
 
-fn workspace_root() -> VehicleDetectionResult<PathBuf> {
+fn workspace_root() -> anyhow::Result<PathBuf> {
     std::fs::canonicalize(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
-        .map_err(|source| VehicleDetectionError::io(PathBuf::from(env!("CARGO_MANIFEST_DIR")), source))
+        .map_err(|source| path_error(PathBuf::from(env!("CARGO_MANIFEST_DIR")), source))
 }
 
 fn crate_root() -> PathBuf {
@@ -475,4 +454,8 @@ struct PreparedCocoSsdImage {
 struct CocoSsdInferenceOutput {
     summaries: Vec<VehicleDetectionOutputSummary>,
     tensors: Vec<CocoSsdOutputTensor>,
+}
+
+fn path_error(path: PathBuf, source: std::io::Error) -> anyhow::Error {
+    anyhow!("filesystem error at `{}`: {source}", path.display())
 }

@@ -9,7 +9,7 @@ use az_algorithm_onnx::logic_onnx_image::model::OnnxImageModelSpec;
 use image::DynamicImage;
 use serde_json::json;
 
-use crate::error::{AlgorithmVideoPipelineError, AlgorithmVideoPipelineResult};
+use anyhow::{anyhow, bail};
 use crate::logic_algorithm_video_pipeline::model::{
     VideoAlgorithmFrameResult, VideoFrame, VideoFrameAlgorithm,
 };
@@ -36,10 +36,10 @@ impl OnnxRawImageVideoAlgorithm {
         model_spec: OnnxImageModelSpec,
         model_path: impl AsRef<Path>,
         output_dir: impl Into<PathBuf>,
-    ) -> AlgorithmVideoPipelineResult<Self> {
+    ) -> anyhow::Result<Self> {
         let model_path = model_path.as_ref().to_path_buf();
         let session = LocalOnnxSession::from_file(&model_path)
-            .map_err(|source| AlgorithmVideoPipelineError::invalid_input(source.to_string()))?;
+            .map_err(|source| anyhow!(source.to_string()))?;
         Ok(Self {
             algorithm_code,
             model_spec,
@@ -70,7 +70,7 @@ impl VideoFrameAlgorithm for OnnxRawImageVideoAlgorithm {
     fn process_frame(
         &mut self,
         frame: &VideoFrame,
-    ) -> AlgorithmVideoPipelineResult<VideoAlgorithmFrameResult> {
+    ) -> anyhow::Result<VideoAlgorithmFrameResult> {
         let image = DynamicImage::ImageRgb8(frame.rgb.clone());
         let frame_output_dir = self
             .output_dir
@@ -78,7 +78,7 @@ impl VideoFrameAlgorithm for OnnxRawImageVideoAlgorithm {
         let (prepared, summary) = self
             .session
             .run_dynamic_image(&self.model_spec, &image)
-            .map_err(|source| AlgorithmVideoPipelineError::invalid_input(source.to_string()))?;
+            .map_err(|source| anyhow!(source.to_string()))?;
         let files = write_inference_artifacts_from_image(
             self.algorithm_code,
             &image,
@@ -86,7 +86,7 @@ impl VideoFrameAlgorithm for OnnxRawImageVideoAlgorithm {
             &summary,
             &frame_output_dir,
         )
-        .map_err(|source| AlgorithmVideoPipelineError::invalid_input(source.to_string()))?;
+        .map_err(|source| anyhow!(source.to_string()))?;
 
         let value = json!({
             "model_code": self.model_spec.code,

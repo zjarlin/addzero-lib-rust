@@ -12,7 +12,7 @@ use ndarray::{ArrayD, IxDyn};
 use ort::session::Session;
 use ort::value::{Tensor, TensorElementType, ValueType};
 
-use crate::error::{FaceDetectionError, FaceDetectionResult};
+use anyhow::{anyhow, bail};
 use crate::logic_face_detection::model::{
     DEFAULT_MODEL_FILE_NAME, DEFAULT_RESULT_DIR, FaceDetectionBox, FaceDetectionOptions,
     FaceDetectionOutputFiles, FaceDetectionOutputSummary, FaceDetectionRun, MODEL_CODE,
@@ -28,14 +28,14 @@ impl FaceDetectionOptions {
     ///
     /// # Errors
     /// 当前工作目录无法定位或模型文件不存在时返回错误。
-    pub fn default_workspace() -> FaceDetectionResult<Self> {
+    pub fn default_workspace() -> anyhow::Result<Self> {
         let workspace_root = std::env::current_dir()
-            .map_err(|source| FaceDetectionError::io(PathBuf::from("."), source))?;
+            .map_err(|source| path_error(PathBuf::from("."), source))?;
         let model_path = workspace_root
             .join("crates/algorithm/az-face-detection/resources/models")
             .join(DEFAULT_MODEL_FILE_NAME);
         if !model_path.is_file() {
-            return Err(FaceDetectionError::ModelFileMissing { path: model_path });
+            bail!("model file `{}` is missing", (model_path).display());
         }
 
         Ok(Self {
@@ -61,7 +61,7 @@ impl FaceDetectionRunner {
     ///
     /// # Errors
     /// 模型文件不存在、阈值非法或 ONNX Runtime 加载模型失败时返回错误。
-    pub fn new(options: FaceDetectionOptions) -> FaceDetectionResult<Self> {
+    pub fn new(options: FaceDetectionOptions) -> anyhow::Result<Self> {
         validate_detection_options(&options)?;
         let mut builder = Session::builder()?;
         let session = builder.commit_from_file(&options.model_path)?;
@@ -82,7 +82,7 @@ impl FaceDetectionRunner {
         &mut self,
         image: RgbImage,
         output_dir: impl AsRef<Path>,
-    ) -> FaceDetectionResult<FaceDetectionRun> {
+    ) -> anyhow::Result<FaceDetectionRun> {
         self.detect_dynamic_image_with_output_dir(DynamicImage::ImageRgb8(image), output_dir)
     }
 
@@ -94,10 +94,10 @@ impl FaceDetectionRunner {
         &mut self,
         image: DynamicImage,
         output_dir: impl AsRef<Path>,
-    ) -> FaceDetectionResult<FaceDetectionRun> {
+    ) -> anyhow::Result<FaceDetectionRun> {
         let output_dir = output_dir.as_ref();
         fs::create_dir_all(output_dir)
-            .map_err(|source| FaceDetectionError::io(output_dir.to_path_buf(), source))?;
+            .map_err(|source| path_error(output_dir.to_path_buf(), source))?;
         let (preview, inference, faces) = self.detect_image(&image)?;
         let files = write_output_files(
             &image,
@@ -120,7 +120,7 @@ impl FaceDetectionRunner {
     fn detect_image(
         &mut self,
         image: &DynamicImage,
-    ) -> FaceDetectionResult<(RgbImage, ScrfdInferenceOutput, Vec<FaceDetectionBox>)> {
+    ) -> anyhow::Result<(RgbImage, ScrfdInferenceOutput, Vec<FaceDetectionBox>)> {
         let prepared = prepare_image(image);
         let inference = run_scrfd_session(&mut self.session, prepared.tensor_data)?;
         let faces = decode_scrfd_face_boxes(
@@ -142,7 +142,7 @@ impl FaceDetectionRunner {
 /// 图片读取、模型加载、推理或输出文件写入失败时返回错误。
 pub fn detect_faces_from_path(
     image_path: impl AsRef<Path>,
-) -> FaceDetectionResult<FaceDetectionRun> {
+) -> anyhow::Result<FaceDetectionRun> {
     let options = FaceDetectionOptions::default_workspace()?;
     detect_faces_from_path_with_options(image_path, &options)
 }
@@ -154,9 +154,9 @@ pub fn detect_faces_from_path(
 pub fn detect_faces_from_path_with_options(
     image_path: impl AsRef<Path>,
     options: &FaceDetectionOptions,
-) -> FaceDetectionResult<FaceDetectionRun> {
+) -> anyhow::Result<FaceDetectionRun> {
     let image_path = std::fs::canonicalize(image_path.as_ref())
-        .map_err(|source| FaceDetectionError::io(image_path.as_ref().to_path_buf(), source))?;
+        .map_err(|source| path_error(image_path.as_ref().to_path_buf(), source))?;
     let image = image::open(&image_path)?;
     run_detection(image, image_path, options)
 }
@@ -165,7 +165,7 @@ pub fn detect_faces_from_path_with_options(
 ///
 /// # Errors
 /// 图片解码、模型加载、推理或输出文件写入失败时返回错误。
-pub fn detect_faces_from_bytes(bytes: &[u8]) -> FaceDetectionResult<FaceDetectionRun> {
+pub fn detect_faces_from_bytes(bytes: &[u8]) -> anyhow::Result<FaceDetectionRun> {
     let options = FaceDetectionOptions::default_workspace()?;
     detect_faces_from_bytes_with_options(bytes, &options)
 }
@@ -177,7 +177,7 @@ pub fn detect_faces_from_bytes(bytes: &[u8]) -> FaceDetectionResult<FaceDetectio
 pub fn detect_faces_from_bytes_with_options(
     bytes: &[u8],
     options: &FaceDetectionOptions,
-) -> FaceDetectionResult<FaceDetectionRun> {
+) -> anyhow::Result<FaceDetectionRun> {
     detect_faces_from_bytes_named(bytes, "input_from_bytes.jpg", options)
 }
 
@@ -185,7 +185,7 @@ pub fn detect_faces_from_bytes_with_options(
 ///
 /// # Errors
 /// base64 解码、图片解码、模型加载、推理或输出文件写入失败时返回错误。
-pub fn detect_faces_from_base64(base64_image: &str) -> FaceDetectionResult<FaceDetectionRun> {
+pub fn detect_faces_from_base64(base64_image: &str) -> anyhow::Result<FaceDetectionRun> {
     let options = FaceDetectionOptions::default_workspace()?;
     detect_faces_from_base64_with_options(base64_image, &options)
 }
@@ -197,7 +197,7 @@ pub fn detect_faces_from_base64(base64_image: &str) -> FaceDetectionResult<FaceD
 pub fn detect_faces_from_base64_with_options(
     base64_image: &str,
     options: &FaceDetectionOptions,
-) -> FaceDetectionResult<FaceDetectionRun> {
+) -> anyhow::Result<FaceDetectionRun> {
     let normalized = base64_image
         .split_once(',')
         .map_or(base64_image, |(_, payload)| payload);
@@ -209,12 +209,12 @@ fn detect_faces_from_bytes_named(
     bytes: &[u8],
     input_file_name: &str,
     options: &FaceDetectionOptions,
-) -> FaceDetectionResult<FaceDetectionRun> {
+) -> anyhow::Result<FaceDetectionRun> {
     fs::create_dir_all(&options.output_dir)
-        .map_err(|source| FaceDetectionError::io(options.output_dir.clone(), source))?;
+        .map_err(|source| path_error(options.output_dir.clone(), source))?;
     let input_path = options.output_dir.join(input_file_name);
     fs::write(&input_path, bytes)
-        .map_err(|source| FaceDetectionError::io(input_path.clone(), source))?;
+        .map_err(|source| path_error(input_path.clone(), source))?;
     let image = image::load_from_memory(bytes)?;
     run_detection(image, input_path, options)
 }
@@ -223,10 +223,10 @@ fn run_detection(
     image: DynamicImage,
     input_path: PathBuf,
     options: &FaceDetectionOptions,
-) -> FaceDetectionResult<FaceDetectionRun> {
+) -> anyhow::Result<FaceDetectionRun> {
     validate_detection_options(options)?;
     fs::create_dir_all(&options.output_dir)
-        .map_err(|source| FaceDetectionError::io(options.output_dir.clone(), source))?;
+        .map_err(|source| path_error(options.output_dir.clone(), source))?;
 
     let prepared = prepare_image(&image);
     let inference = run_scrfd_model(&options.model_path, prepared.tensor_data)?;
@@ -287,11 +287,9 @@ fn normalize_scrfd_pixel(value: u8) -> f32 {
 fn run_scrfd_model(
     model_path: &Path,
     tensor_data: Vec<f32>,
-) -> FaceDetectionResult<ScrfdInferenceOutput> {
+) -> anyhow::Result<ScrfdInferenceOutput> {
     if !model_path.is_file() {
-        return Err(FaceDetectionError::ModelFileMissing {
-            path: model_path.to_path_buf(),
-        });
+        bail!("model file `{}` is missing", model_path.display());
     }
 
     let mut builder = Session::builder()?;
@@ -302,13 +300,10 @@ fn run_scrfd_model(
 fn run_scrfd_session(
     session: &mut Session,
     tensor_data: Vec<f32>,
-) -> FaceDetectionResult<ScrfdInferenceOutput> {
+) -> anyhow::Result<ScrfdInferenceOutput> {
     let input_array =
         ArrayD::from_shape_vec(IxDyn(MODEL_INPUT_SHAPE), tensor_data).map_err(|source| {
-            FaceDetectionError::InvalidTensorShape {
-                model_code: MODEL_CODE,
-                reason: source.to_string(),
-            }
+            anyhow!("invalid tensor shape for `{}`: {}", MODEL_CODE, source.to_string(),)
         })?;
     let input = Tensor::from_array(input_array)?;
     let output_names = session
@@ -324,7 +319,7 @@ fn run_scrfd_session(
 fn collect_scrfd_outputs(
     output_names: &[String],
     outputs: ort::session::SessionOutputs<'_>,
-) -> FaceDetectionResult<ScrfdInferenceOutput> {
+) -> anyhow::Result<ScrfdInferenceOutput> {
     let mut summaries = Vec::new();
     let mut tensors = Vec::new();
 
@@ -334,16 +329,10 @@ fn collect_scrfd_outputs(
             .cloned()
             .unwrap_or_else(|| format!("output_{index}"));
         let ValueType::Tensor { ty, .. } = value.dtype() else {
-            return Err(FaceDetectionError::UnsupportedOnnxOutput {
-                output_name,
-                tensor_type: value.dtype().to_string(),
-            });
+            bail!("unsupported ONNX output tensor type `{}` from output `{}`", value.dtype(), output_name);
         };
         if !matches!(ty, TensorElementType::Float32) {
-            return Err(FaceDetectionError::UnsupportedOnnxOutput {
-                output_name,
-                tensor_type: ty.to_string(),
-            });
+            bail!("unsupported ONNX output tensor type `{}` from output `{}`", ty, output_name);
         }
 
         let (shape, data) = value.try_extract_tensor::<f32>()?;
@@ -373,7 +362,7 @@ fn decode_scrfd_face_boxes(
     image_height: u32,
     score_threshold: f32,
     nms_threshold: f32,
-) -> FaceDetectionResult<Vec<FaceDetectionBox>> {
+) -> anyhow::Result<Vec<FaceDetectionBox>> {
     let mut boxes = Vec::new();
 
     for stride in STRIDES {
@@ -403,7 +392,7 @@ fn decode_scrfd_stride(
     geometry: ScrfdGeometry,
     score_threshold: f32,
     boxes: &mut Vec<FaceDetectionBox>,
-) -> FaceDetectionResult<()> {
+) -> anyhow::Result<()> {
     let feature_width = geometry.input_width as usize / geometry.stride;
     let feature_height = geometry.input_height as usize / geometry.stride;
     let expected_anchor_count = feature_width * feature_height * ANCHOR_COUNT;
@@ -453,9 +442,9 @@ fn write_output_files(
     faces: &[FaceDetectionBox],
     summaries: &[FaceDetectionOutputSummary],
     output_dir: &Path,
-) -> FaceDetectionResult<FaceDetectionOutputFiles> {
+) -> anyhow::Result<FaceDetectionOutputFiles> {
     fs::create_dir_all(output_dir)
-        .map_err(|source| FaceDetectionError::io(output_dir.to_path_buf(), source))?;
+        .map_err(|source| path_error(output_dir.to_path_buf(), source))?;
     let files = FaceDetectionOutputFiles {
         source_input: output_dir.join("source_input.jpg"),
         model_input_preview: output_dir.join("model_input_preview.png"),
@@ -466,29 +455,29 @@ fn write_output_files(
 
     if let Some(input_path) = input_path {
         fs::copy(input_path, &files.source_input)
-            .map_err(|source| FaceDetectionError::io(input_path.to_path_buf(), source))?;
+            .map_err(|source| path_error(input_path.to_path_buf(), source))?;
     } else {
         image.save(&files.source_input)?;
     }
     preview.save(&files.model_input_preview)?;
 
     let raw_json = serde_json::to_string_pretty(summaries).map_err(|source| {
-        FaceDetectionError::io(
+        path_error(
             files.raw_outputs_json.clone(),
             std::io::Error::other(source.to_string()),
         )
     })?;
     fs::write(&files.raw_outputs_json, raw_json)
-        .map_err(|source| FaceDetectionError::io(files.raw_outputs_json.clone(), source))?;
+        .map_err(|source| path_error(files.raw_outputs_json.clone(), source))?;
 
     let face_json = serde_json::to_string_pretty(faces).map_err(|source| {
-        FaceDetectionError::io(
+        path_error(
             files.detected_faces_json.clone(),
             std::io::Error::other(source.to_string()),
         )
     })?;
     fs::write(&files.detected_faces_json, face_json)
-        .map_err(|source| FaceDetectionError::io(files.detected_faces_json.clone(), source))?;
+        .map_err(|source| path_error(files.detected_faces_json.clone(), source))?;
 
     let mut marked_image = image.to_rgb8();
     for face in faces {
@@ -499,23 +488,15 @@ fn write_output_files(
     Ok(files)
 }
 
-fn validate_detection_options(options: &FaceDetectionOptions) -> FaceDetectionResult<()> {
+fn validate_detection_options(options: &FaceDetectionOptions) -> anyhow::Result<()> {
     if !options.model_path.is_file() {
-        return Err(FaceDetectionError::ModelFileMissing {
-            path: options.model_path.clone(),
-        });
+        bail!("model file `{}` is missing", options.model_path.display());
     }
     if !(0.0..=1.0).contains(&options.score_threshold) || !options.score_threshold.is_finite() {
-        return Err(FaceDetectionError::InvalidTensorShape {
-            model_code: MODEL_CODE,
-            reason: "score_threshold must be finite and within 0.0..=1.0".to_owned(),
-        });
+        return Err(anyhow!("invalid tensor shape for `{}`: {}", MODEL_CODE, "score_threshold must be finite and within 0.0..=1.0".to_owned(),));
     }
     if !(0.0..=1.0).contains(&options.nms_threshold) || !options.nms_threshold.is_finite() {
-        return Err(FaceDetectionError::InvalidTensorShape {
-            model_code: MODEL_CODE,
-            reason: "nms_threshold must be finite and within 0.0..=1.0".to_owned(),
-        });
+        return Err(anyhow!("invalid tensor shape for `{}`: {}", MODEL_CODE, "nms_threshold must be finite and within 0.0..=1.0".to_owned(),));
     }
     Ok(())
 }
@@ -535,51 +516,49 @@ fn draw_face_box(image: &mut RgbImage, face: &FaceDetectionBox) {
 fn require_output<'a>(
     outputs: &'a [ScrfdOutputTensor],
     output_name: &str,
-) -> FaceDetectionResult<&'a ScrfdOutputTensor> {
+) -> anyhow::Result<&'a ScrfdOutputTensor> {
     outputs
         .iter()
         .find(|output| output.name == output_name)
-        .ok_or_else(|| FaceDetectionError::MissingOnnxOutput {
-            output_name: output_name.to_owned(),
-        })
+        .ok_or_else(|| anyhow!("missing ONNX output `{}`", output_name.to_owned(),))
 }
 
 fn validate_scores(
     scores: &ScrfdOutputTensor,
     expected_anchor_count: usize,
-) -> FaceDetectionResult<()> {
+) -> anyhow::Result<()> {
     if scores.shape.as_slice() == [1, expected_anchor_count as i64, 1]
         && scores.data.len() == expected_anchor_count
     {
         return Ok(());
     }
 
-    Err(FaceDetectionError::InvalidTensorShape {
-        model_code: MODEL_CODE,
-        reason: format!(
-            "score output `{}` expected [1, {expected_anchor_count}, 1], got {:?}",
-            scores.name, scores.shape
-        ),
-    })
+    bail!(
+        "invalid tensor shape for `{}`: score output `{}` expected [1, {}, 1], got {:?}",
+        MODEL_CODE,
+        scores.name,
+        expected_anchor_count,
+        scores.shape
+    )
 }
 
 fn validate_distances(
     distances: &ScrfdOutputTensor,
     expected_anchor_count: usize,
-) -> FaceDetectionResult<()> {
+) -> anyhow::Result<()> {
     if distances.shape.as_slice() == [1, expected_anchor_count as i64, 4]
         && distances.data.len() == expected_anchor_count * 4
     {
         return Ok(());
     }
 
-    Err(FaceDetectionError::InvalidTensorShape {
-        model_code: MODEL_CODE,
-        reason: format!(
-            "bbox output `{}` expected [1, {expected_anchor_count}, 4], got {:?}",
-            distances.name, distances.shape
-        ),
-    })
+    bail!(
+        "invalid tensor shape for `{}`: bbox output `{}` expected [1, {}, 4], got {:?}",
+        MODEL_CODE,
+        distances.name,
+        expected_anchor_count,
+        distances.shape
+    )
 }
 
 fn non_maximum_suppression(
@@ -650,4 +629,8 @@ struct ScrfdGeometry {
     input_height: u32,
     image_width: u32,
     image_height: u32,
+}
+
+fn path_error(path: PathBuf, source: std::io::Error) -> anyhow::Error {
+    anyhow!("filesystem error at `{}`: {source}", path.display())
 }

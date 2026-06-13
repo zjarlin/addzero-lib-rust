@@ -11,19 +11,6 @@ use dioxus::desktop::tao::{dpi::LogicalPosition, platform::macos::WindowBuilderE
 fn main() {
     az_aio_plugin_bundled::ensure_linked();
 
-    if std::env::args().any(|arg| arg == "--deploy-shell-manager") {
-        match shell_manager::deploy_saved_shell_manager_store() {
-            Ok(message) => {
-                eprintln!("{message}");
-            }
-            Err(error) => {
-                eprintln!("命令和环境变量部署失败：{error}");
-                std::process::exit(1);
-            }
-        }
-        return;
-    }
-
     dioxus::LaunchBuilder::desktop()
         .with_cfg(Config::new().with_window(app_window_builder()))
         .launch(App);

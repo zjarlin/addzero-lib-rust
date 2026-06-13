@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::error::{OnnxImageError, OnnxImageResult};
+use anyhow::bail;
 
 /// ONNX 图片输入张量元素类型。
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -55,13 +55,13 @@ impl OnnxImageModelSpec {
     /// 解析并验证给定资源目录下的预期本地文件路径。
     ///
     /// # Errors
-    /// 当文件不存在时返回 [`OnnxImageError::ModelFileMissing`]。
-    pub fn require_local_path(&self, resource_dir: impl AsRef<Path>) -> OnnxImageResult<PathBuf> {
+    /// 当文件不存在时返回错误。
+    pub fn require_local_path(&self, resource_dir: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
         let path = self.local_path(resource_dir);
         if path.is_file() {
             Ok(path)
         } else {
-            Err(OnnxImageError::ModelFileMissing { path })
+            bail!("model file `{}` is missing", path.display())
         }
     }
 }

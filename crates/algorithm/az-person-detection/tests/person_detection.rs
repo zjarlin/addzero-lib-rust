@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use az_person_detection::error::{PersonDetectionError, PersonDetectionResult};
+use anyhow::Context;
 use az_person_detection::logic_person_detection::assist::{
     detect_persons_from_base64_with_options, detect_persons_from_bytes_with_options,
     detect_persons_from_path_with_options, detect_persons_in_video_from_path,
@@ -60,7 +60,7 @@ fn options(output_name: &str) -> PersonDetectionOptions {
     clippy::dbg_macro,
     reason = "测试需要直接打印调用方最关心的输入、模型、输出绝对路径"
 )]
-fn assert_real_outputs_exist(result: &PersonDetectionRun) -> PersonDetectionResult<()> {
+fn assert_real_outputs_exist(result: &PersonDetectionRun) -> anyhow::Result<()> {
     dbg!(&result.input_path);
     dbg!(&result.model_path);
     dbg!(&result.files.source_input);
@@ -119,7 +119,7 @@ fn assert_real_video_outputs_exist(result: &PersonVideoDetectionRun) {
 }
 
 #[test]
-fn detect_persons_from_path_should_write_marked_image() -> PersonDetectionResult<()> {
+fn detect_persons_from_path_should_write_marked_image() -> anyhow::Result<()> {
     // 输入：绝对图片路径。
     //
     // 输出：
@@ -137,13 +137,17 @@ fn detect_persons_from_path_should_write_marked_image() -> PersonDetectionResult
 }
 
 #[test]
-fn detect_persons_from_base64_should_write_marked_image() -> PersonDetectionResult<()> {
+fn detect_persons_from_base64_should_write_marked_image() -> anyhow::Result<()> {
     // 输入：base64 图片字符串。
     //
     // 输出：
     // target/az-algorithm-results/person_detection_base64/detected_persons.png
-    let bytes = std::fs::read(fixture_path("person_vehicle.jpg"))
-        .map_err(|source| PersonDetectionError::io(fixture_path("person_vehicle.jpg"), source))?;
+    let bytes = std::fs::read(fixture_path("person_vehicle.jpg")).with_context(|| {
+        format!(
+            "filesystem error at `{}`",
+            (fixture_path("person_vehicle.jpg")).display()
+        )
+    })?;
     let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
     let result =
         detect_persons_from_base64_with_options(&encoded, &options("person_detection_base64"))?;
@@ -152,7 +156,7 @@ fn detect_persons_from_base64_should_write_marked_image() -> PersonDetectionResu
 }
 
 #[test]
-fn detect_persons_in_user_video_should_write_annotated_video() -> PersonDetectionResult<()> {
+fn detect_persons_in_user_video_should_write_annotated_video() -> anyhow::Result<()> {
     // 输入：/Users/zjarlin/Desktop/246f5787eca62dc0b462dbc041da756f.mp4
     //
     // 输出：

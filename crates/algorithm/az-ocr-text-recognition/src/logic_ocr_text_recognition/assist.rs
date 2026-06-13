@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use az_algorithm_onnx::error::{OnnxImageError, OnnxImageResult};
+use anyhow::Context;
 use az_algorithm_onnx::logic_onnx_image::assist::run_real_image_model;
 use az_algorithm_onnx::logic_onnx_image::model::OnnxImageRun;
 
@@ -27,7 +27,7 @@ pub struct OcrTextRecognitionRun {
 /// 图片读取、模型加载、推理或输出文件写入失败时返回错误。
 pub fn run_ocr_text_recognition_from_path(
     image_path: impl AsRef<Path>,
-) -> OnnxImageResult<OcrTextRecognitionRun> {
+) -> anyhow::Result<OcrTextRecognitionRun> {
     let workspace_root = workspace_root()?;
     run_ocr_text_recognition_from_path_with_output(
         image_path,
@@ -44,7 +44,7 @@ pub fn run_ocr_text_recognition_from_path_with_output(
     image_path: impl AsRef<Path>,
     detection_output_dir: impl AsRef<Path>,
     recognition_output_dir: impl AsRef<Path>,
-) -> OnnxImageResult<OcrTextRecognitionRun> {
+) -> anyhow::Result<OcrTextRecognitionRun> {
     let image_path = image_path.as_ref();
     let resource_dir = crate_root().join(DEFAULT_MODEL_RESOURCE_DIR);
     let detection = run_real_image_model(
@@ -67,9 +67,9 @@ pub fn run_ocr_text_recognition_from_path_with_output(
     })
 }
 
-fn workspace_root() -> OnnxImageResult<PathBuf> {
+fn workspace_root() -> anyhow::Result<PathBuf> {
     std::fs::canonicalize(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
-        .map_err(|source| OnnxImageError::io(PathBuf::from(env!("CARGO_MANIFEST_DIR")), source))
+        .with_context(|| format!("failed to resolve workspace root from `{}`", env!("CARGO_MANIFEST_DIR")))
 }
 
 fn crate_root() -> PathBuf {

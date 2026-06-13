@@ -6,7 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{apply, deserialize_camel_eq, serde_camel_eq, serialize_camel_eq};
 
 use crate::paths::config_center_config_dir_path;
@@ -183,20 +183,18 @@ fn canonical_home_dir() -> anyhow::Result<PathBuf> {
 fn canonicalize_home_path(raw_path: &str) -> anyhow::Result<PathBuf> {
     let path = PathBuf::from(raw_path.trim());
     if raw_path.trim().is_empty() {
-        return Err(anyhow!("remote home path is empty"));
+        bail!("remote home path is empty");
     }
     if !path.is_absolute() {
-        return Err(anyhow!("remote home path must be absolute"));
+        bail!("remote home path must be absolute");
     }
     if !path.exists() {
         let message = format!("remote home path does not exist: {}", path.display());
-        let error = anyhow!(message);
-        return Err(error);
+        bail!(message);
     }
     if !path.is_dir() {
         let message = format!("remote home path is not a directory: {}", path.display());
-        let error = anyhow!(message);
-        return Err(error);
+        bail!(message);
     }
     path.canonicalize()
         .with_context(|| format!("canonicalize remote home dir: {}", path.display()))

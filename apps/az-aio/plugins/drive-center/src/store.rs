@@ -41,7 +41,7 @@ impl DriveCenterStore {
         let mut db = self.db.lock().await;
         let task = DriveTask::create()
             .id(normalized_id(input.id))
-            .path(input.path)
+            .drive_path(input.path)
             .action(input.action)
             .status(input.status.unwrap_or_else(|| "queued".to_string()))
             .updated_at(now)

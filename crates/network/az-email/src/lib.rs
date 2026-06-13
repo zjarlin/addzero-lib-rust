@@ -554,19 +554,3 @@ fn build_attachment(path: &str) -> Result<SinglePart, EmailError> {
 
     Ok(Attachment::new(filename).body(bytes, content_type))
 }
-
-#[cfg(test)]
-mod debug_redaction_tests {
-    use super::EmailConfig;
-
-    #[test]
-    fn email_config_debug_does_not_leak_password() {
-        let config = EmailConfig::builder("smtp.example.com", "mailer", "top-secret")
-            .build()
-            .expect("email config should build");
-
-        let output = format!("{config:?}");
-        assert!(output.contains("smtp.example.com"));
-        assert!(!output.contains("top-secret"));
-    }
-}

@@ -5,7 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{apply, plain_clone};
 
 use crate::{
@@ -151,8 +151,7 @@ pub fn resolve_dotfiles_conflict(
         }
         other => {
             let message = format!("unsupported conflict resolution strategy: {other}");
-            let error = anyhow!(message);
-            return Err(error);
+            bail!(message);
         }
     };
 
@@ -687,8 +686,7 @@ fn read_small_text(path: &Path) -> anyhow::Result<String> {
         fs::metadata(path).with_context(|| format!("read file metadata: {}", path.display()))?;
     if metadata.len() > MAX_FILE_BYTES {
         let message = format!("file exceeds watch size limit: {}", path.display());
-        let error = anyhow!(message);
-        return Err(error);
+        bail!(message);
     }
     fs::read_to_string(path).with_context(|| format!("read text file: {}", path.display()))
 }

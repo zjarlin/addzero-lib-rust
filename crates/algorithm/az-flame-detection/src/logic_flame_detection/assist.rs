@@ -12,7 +12,7 @@ use ndarray::{ArrayD, IxDyn};
 use ort::session::Session;
 use ort::value::{Tensor, TensorElementType, ValueType};
 
-use crate::error::{FlameDetectionError, FlameDetectionResult};
+use anyhow::{anyhow, bail};
 use crate::logic_flame_detection::model::{
     DEFAULT_MODEL_RESOURCE_DIR, DEFAULT_NMS_THRESHOLD, DEFAULT_RESULT_DIR, DEFAULT_SCORE_THRESHOLD,
     FLAME_DETECTION_FIRE_SMOKE_YOLOV8N, FlameDetectionBox, FlameDetectionClass,
@@ -30,14 +30,14 @@ impl FlameDetectionOptions {
     ///
     /// # Errors
     /// 当前工作目录无法定位或模型文件不存在时返回错误。
-    pub fn default_workspace() -> FlameDetectionResult<Self> {
+    pub fn default_workspace() -> anyhow::Result<Self> {
         let workspace_root = workspace_root()?;
         let model_path = workspace_root
             .join("crates/algorithm/az-flame-detection")
             .join(DEFAULT_MODEL_RESOURCE_DIR)
             .join(FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.local_file);
         if !model_path.is_file() {
-            return Err(FlameDetectionError::ModelFileMissing { path: model_path });
+            bail!("model file `{}` is missing", (model_path).display());
         }
 
         Ok(Self {
@@ -63,7 +63,7 @@ impl FlameDetectionRunner {
     ///
     /// # Errors
     /// 模型文件不存在、阈值非法或 ONNX Runtime 加载模型失败时返回错误。
-    pub fn new(options: FlameDetectionOptions) -> FlameDetectionResult<Self> {
+    pub fn new(options: FlameDetectionOptions) -> anyhow::Result<Self> {
         validate_detection_options(&options)?;
         let mut builder = Session::builder()?;
         let session = builder.commit_from_file(&options.model_path)?;
@@ -84,7 +84,7 @@ impl FlameDetectionRunner {
         &mut self,
         image: RgbImage,
         output_dir: impl AsRef<Path>,
-    ) -> FlameDetectionResult<FlameDetectionRun> {
+    ) -> anyhow::Result<FlameDetectionRun> {
         self.detect_dynamic_image_with_output_dir(DynamicImage::ImageRgb8(image), output_dir)
     }
 
@@ -96,10 +96,10 @@ impl FlameDetectionRunner {
         &mut self,
         image: DynamicImage,
         output_dir: impl AsRef<Path>,
-    ) -> FlameDetectionResult<FlameDetectionRun> {
+    ) -> anyhow::Result<FlameDetectionRun> {
         let output_dir = output_dir.as_ref();
         fs::create_dir_all(output_dir)
-            .map_err(|source| FlameDetectionError::io(output_dir.to_path_buf(), source))?;
+            .map_err(|source| path_error(output_dir.to_path_buf(), source))?;
         let (preview, inference, detections) = self.detect_image(&image)?;
         let files = write_output_files(
             &image,
@@ -122,7 +122,7 @@ impl FlameDetectionRunner {
     fn detect_image(
         &mut self,
         image: &DynamicImage,
-    ) -> FlameDetectionResult<(RgbImage, FlameInferenceOutput, Vec<FlameDetectionBox>)> {
+    ) -> anyhow::Result<(RgbImage, FlameInferenceOutput, Vec<FlameDetectionBox>)> {
         let prepared = prepare_yolo_image(image);
         let inference = run_yolo_session(&mut self.session, prepared.tensor_data)?;
         let detections = decode_yolo_flame_boxes(
@@ -142,7 +142,7 @@ impl FlameDetectionRunner {
 /// 图片读取、模型加载、推理或输出文件写入失败时返回错误。
 pub fn detect_flames_from_path(
     image_path: impl AsRef<Path>,
-) -> FlameDetectionResult<FlameDetectionRun> {
+) -> anyhow::Result<FlameDetectionRun> {
     let options = FlameDetectionOptions::default_workspace()?;
     detect_flames_from_path_with_options(image_path, &options)
 }
@@ -154,9 +154,9 @@ pub fn detect_flames_from_path(
 pub fn detect_flames_from_path_with_options(
     image_path: impl AsRef<Path>,
     options: &FlameDetectionOptions,
-) -> FlameDetectionResult<FlameDetectionRun> {
+) -> anyhow::Result<FlameDetectionRun> {
     let image_path = std::fs::canonicalize(image_path.as_ref())
-        .map_err(|source| FlameDetectionError::io(image_path.as_ref().to_path_buf(), source))?;
+        .map_err(|source| path_error(image_path.as_ref().to_path_buf(), source))?;
     let image = image::open(&image_path)?;
     run_detection(image, image_path, options)
 }
@@ -167,7 +167,7 @@ pub fn detect_flames_from_path_with_options(
 /// 图片读取、模型加载、推理或输出文件写入失败时返回错误。
 pub fn run_flame_detection_from_path(
     image_path: impl AsRef<Path>,
-) -> FlameDetectionResult<FlameDetectionRun> {
+) -> anyhow::Result<FlameDetectionRun> {
     detect_flames_from_path(image_path)
 }
 
@@ -178,7 +178,7 @@ pub fn run_flame_detection_from_path(
 pub fn run_flame_detection_from_path_with_output(
     image_path: impl AsRef<Path>,
     output_dir: impl AsRef<Path>,
-) -> FlameDetectionResult<FlameDetectionRun> {
+) -> anyhow::Result<FlameDetectionRun> {
     detect_flames_from_path_with_options(
         image_path,
         &FlameDetectionOptions {
@@ -202,10 +202,10 @@ pub fn run_flame_detection_from_path_with_output(
 pub fn detect_flames_in_video_from_path(
     video_path: impl AsRef<Path>,
     options: &FlameVideoDetectionOptions,
-) -> FlameDetectionResult<FlameVideoDetectionRun> {
+) -> anyhow::Result<FlameVideoDetectionRun> {
     validate_video_options(options)?;
     let video_path = std::fs::canonicalize(video_path.as_ref())
-        .map_err(|source| FlameDetectionError::io(video_path.as_ref().to_path_buf(), source))?;
+        .map_err(|source| path_error(video_path.as_ref().to_path_buf(), source))?;
     recreate_dir(&options.output_dir)?;
 
     let files = FlameVideoDetectionOutputFiles {
@@ -216,11 +216,11 @@ pub fn detect_flames_in_video_from_path(
         annotated_video: options.output_dir.join("annotated_flames.mp4"),
     };
     fs::create_dir_all(&files.extracted_frame_dir)
-        .map_err(|source| FlameDetectionError::io(files.extracted_frame_dir.clone(), source))?;
+        .map_err(|source| path_error(files.extracted_frame_dir.clone(), source))?;
     fs::create_dir_all(&files.annotated_frame_dir)
-        .map_err(|source| FlameDetectionError::io(files.annotated_frame_dir.clone(), source))?;
+        .map_err(|source| path_error(files.annotated_frame_dir.clone(), source))?;
     fs::copy(&video_path, &files.source_input_video)
-        .map_err(|source| FlameDetectionError::io(video_path.clone(), source))?;
+        .map_err(|source| path_error(video_path.clone(), source))?;
 
     extract_video_frames(&video_path, &files.extracted_frame_dir, options)?;
     let frame_paths = collected_frame_paths(&files.extracted_frame_dir, options.max_frames)?;
@@ -243,7 +243,7 @@ pub fn detect_flames_in_video_from_path(
             .join(format!("frame_{frame_index:05}.png"));
         fs::copy(&image_run.files.detected_flames_image, &annotated_frame_path).map_err(
             |source| {
-                FlameDetectionError::io(image_run.files.detected_flames_image.clone(), source)
+                path_error(image_run.files.detected_flames_image.clone(), source)
             },
         )?;
         frames.push(FlameVideoFrameDetection {
@@ -257,7 +257,7 @@ pub fn detect_flames_in_video_from_path(
 
     let frame_json = serde_json::to_string_pretty(&frames)?;
     fs::write(&files.frame_detections_json, frame_json)
-        .map_err(|source| FlameDetectionError::io(files.frame_detections_json.clone(), source))?;
+        .map_err(|source| path_error(files.frame_detections_json.clone(), source))?;
     encode_annotated_video(&files.annotated_frame_dir, &files.annotated_video, options)?;
 
     Ok(FlameVideoDetectionRun {
@@ -272,10 +272,10 @@ fn run_detection(
     image: DynamicImage,
     input_path: PathBuf,
     options: &FlameDetectionOptions,
-) -> FlameDetectionResult<FlameDetectionRun> {
+) -> anyhow::Result<FlameDetectionRun> {
     validate_detection_options(options)?;
     fs::create_dir_all(&options.output_dir)
-        .map_err(|source| FlameDetectionError::io(options.output_dir.clone(), source))?;
+        .map_err(|source| path_error(options.output_dir.clone(), source))?;
 
     let prepared = prepare_yolo_image(&image);
     let inference = run_yolo_model(&options.model_path, prepared.tensor_data)?;
@@ -307,11 +307,9 @@ fn run_detection(
 fn run_yolo_model(
     model_path: &Path,
     tensor_data: Vec<f32>,
-) -> FlameDetectionResult<FlameInferenceOutput> {
+) -> anyhow::Result<FlameInferenceOutput> {
     if !model_path.is_file() {
-        return Err(FlameDetectionError::ModelFileMissing {
-            path: model_path.to_path_buf(),
-        });
+        bail!("model file `{}` is missing", model_path.display());
     }
 
     let mut builder = Session::builder()?;
@@ -322,15 +320,12 @@ fn run_yolo_model(
 fn run_yolo_session(
     session: &mut Session,
     tensor_data: Vec<f32>,
-) -> FlameDetectionResult<FlameInferenceOutput> {
+) -> anyhow::Result<FlameInferenceOutput> {
     let input_array = ArrayD::from_shape_vec(
         IxDyn(FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.input.shape),
         tensor_data,
     )
-    .map_err(|source| FlameDetectionError::InvalidTensorShape {
-        model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-        reason: source.to_string(),
-    })?;
+    .map_err(|source| anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, source.to_string(),))?;
     let input = Tensor::from_array(input_array)?;
     let output_names = session
         .outputs()
@@ -345,7 +340,7 @@ fn run_yolo_session(
 fn collect_yolo_outputs(
     output_names: &[String],
     outputs: ort::session::SessionOutputs<'_>,
-) -> FlameDetectionResult<FlameInferenceOutput> {
+) -> anyhow::Result<FlameInferenceOutput> {
     let mut summaries = Vec::new();
     let mut tensors = Vec::new();
 
@@ -355,16 +350,10 @@ fn collect_yolo_outputs(
             .cloned()
             .unwrap_or_else(|| format!("output_{index}"));
         let ValueType::Tensor { ty, .. } = value.dtype() else {
-            return Err(FlameDetectionError::UnsupportedOnnxOutput {
-                output_name,
-                tensor_type: value.dtype().to_string(),
-            });
+            bail!("unsupported ONNX output tensor type `{}` from output `{}`", value.dtype(), output_name);
         };
         if !matches!(ty, TensorElementType::Float32) {
-            return Err(FlameDetectionError::UnsupportedOnnxOutput {
-                output_name,
-                tensor_type: ty.to_string(),
-            });
+            bail!("unsupported ONNX output tensor type `{}` from output `{}`", ty, output_name);
         }
 
         let (shape, data) = value.try_extract_tensor::<f32>()?;
@@ -392,13 +381,11 @@ fn decode_yolo_flame_boxes(
     image_height: u32,
     score_threshold: f32,
     nms_threshold: f32,
-) -> FlameDetectionResult<Vec<FlameDetectionBox>> {
+) -> anyhow::Result<Vec<FlameDetectionBox>> {
     let output = require_output(outputs, YOLO_OUTPUT).or_else(|_| {
         outputs
             .first()
-            .ok_or_else(|| FlameDetectionError::MissingOnnxOutput {
-                output_name: YOLO_OUTPUT.to_owned(),
-            })
+            .ok_or_else(|| anyhow!("missing ONNX output `{}`", YOLO_OUTPUT.to_owned(),))
     })?;
     let layout = YoloOutputLayout::parse(output)?;
     let mut boxes = Vec::new();
@@ -444,9 +431,9 @@ fn write_output_files(
     detections: &[FlameDetectionBox],
     summaries: &[FlameDetectionOutputSummary],
     output_dir: &Path,
-) -> FlameDetectionResult<FlameDetectionOutputFiles> {
+) -> anyhow::Result<FlameDetectionOutputFiles> {
     fs::create_dir_all(output_dir)
-        .map_err(|source| FlameDetectionError::io(output_dir.to_path_buf(), source))?;
+        .map_err(|source| path_error(output_dir.to_path_buf(), source))?;
     let files = FlameDetectionOutputFiles {
         source_input: output_dir.join("source_input.jpg"),
         model_input_preview: output_dir.join("model_input_preview.png"),
@@ -457,7 +444,7 @@ fn write_output_files(
 
     if let Some(input_path) = input_path {
         fs::copy(input_path, &files.source_input)
-            .map_err(|source| FlameDetectionError::io(input_path.to_path_buf(), source))?;
+            .map_err(|source| path_error(input_path.to_path_buf(), source))?;
     } else {
         image.save(&files.source_input)?;
     }
@@ -473,11 +460,11 @@ fn write_output_files(
 
     let raw_json = serde_json::to_string_pretty(summaries)?;
     fs::write(&files.raw_outputs_json, raw_json)
-        .map_err(|source| FlameDetectionError::io(files.raw_outputs_json.clone(), source))?;
+        .map_err(|source| path_error(files.raw_outputs_json.clone(), source))?;
 
     let detections_json = serde_json::to_string_pretty(detections)?;
     fs::write(&files.detected_flames_json, detections_json)
-        .map_err(|source| FlameDetectionError::io(files.detected_flames_json.clone(), source))?;
+        .map_err(|source| path_error(files.detected_flames_json.clone(), source))?;
 
     let mut marked_image = image.to_rgb8();
     for detection in detections {
@@ -736,81 +723,57 @@ fn area(detection: &FlameDetectionBox) -> f32 {
 fn require_output<'a>(
     outputs: &'a [FlameOutputTensor],
     output_name: &str,
-) -> FlameDetectionResult<&'a FlameOutputTensor> {
+) -> anyhow::Result<&'a FlameOutputTensor> {
     outputs
         .iter()
         .find(|output| output.name == output_name)
-        .ok_or_else(|| FlameDetectionError::MissingOnnxOutput {
-            output_name: output_name.to_owned(),
-        })
+        .ok_or_else(|| anyhow!("missing ONNX output `{}`", output_name.to_owned(),))
 }
 
-fn validate_detection_options(options: &FlameDetectionOptions) -> FlameDetectionResult<()> {
+fn validate_detection_options(options: &FlameDetectionOptions) -> anyhow::Result<()> {
     if !options.model_path.is_file() {
-        return Err(FlameDetectionError::ModelFileMissing {
-            path: options.model_path.clone(),
-        });
+        bail!("model file `{}` is missing", options.model_path.display());
     }
     if !(0.0..=1.0).contains(&options.score_threshold) || !options.score_threshold.is_finite() {
-        return Err(FlameDetectionError::InvalidTensorShape {
-            model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-            reason: "score_threshold must be finite and within 0.0..=1.0".to_owned(),
-        });
+        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "score_threshold must be finite and within 0.0..=1.0".to_owned(),));
     }
     if !(0.0..=1.0).contains(&options.nms_threshold) || !options.nms_threshold.is_finite() {
-        return Err(FlameDetectionError::InvalidTensorShape {
-            model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-            reason: "nms_threshold must be finite and within 0.0..=1.0".to_owned(),
-        });
+        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "nms_threshold must be finite and within 0.0..=1.0".to_owned(),));
     }
     Ok(())
 }
 
-fn validate_video_options(options: &FlameVideoDetectionOptions) -> FlameDetectionResult<()> {
+fn validate_video_options(options: &FlameVideoDetectionOptions) -> anyhow::Result<()> {
     if !options.model_path.is_file() {
-        return Err(FlameDetectionError::ModelFileMissing {
-            path: options.model_path.clone(),
-        });
+        bail!("model file `{}` is missing", options.model_path.display());
     }
     if options.sample_fps == 0 {
-        return Err(FlameDetectionError::InvalidTensorShape {
-            model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-            reason: "sample_fps must be greater than 0".to_owned(),
-        });
+        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "sample_fps must be greater than 0".to_owned(),));
     }
     if options.output_fps == 0 {
-        return Err(FlameDetectionError::InvalidTensorShape {
-            model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-            reason: "output_fps must be greater than 0".to_owned(),
-        });
+        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "output_fps must be greater than 0".to_owned(),));
     }
     if !(0.0..=1.0).contains(&options.score_threshold) || !options.score_threshold.is_finite() {
-        return Err(FlameDetectionError::InvalidTensorShape {
-            model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-            reason: "score_threshold must be finite and within 0.0..=1.0".to_owned(),
-        });
+        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "score_threshold must be finite and within 0.0..=1.0".to_owned(),));
     }
     if !(0.0..=1.0).contains(&options.nms_threshold) || !options.nms_threshold.is_finite() {
-        return Err(FlameDetectionError::InvalidTensorShape {
-            model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-            reason: "nms_threshold must be finite and within 0.0..=1.0".to_owned(),
-        });
+        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "nms_threshold must be finite and within 0.0..=1.0".to_owned(),));
     }
     Ok(())
 }
 
-fn recreate_dir(path: &Path) -> FlameDetectionResult<()> {
+fn recreate_dir(path: &Path) -> anyhow::Result<()> {
     if path.exists() {
-        fs::remove_dir_all(path).map_err(|source| FlameDetectionError::io(path.to_path_buf(), source))?;
+        fs::remove_dir_all(path).map_err(|source| path_error(path.to_path_buf(), source))?;
     }
-    fs::create_dir_all(path).map_err(|source| FlameDetectionError::io(path.to_path_buf(), source))
+    fs::create_dir_all(path).map_err(|source| path_error(path.to_path_buf(), source))
 }
 
 fn extract_video_frames(
     video_path: &Path,
     extracted_frame_dir: &Path,
     options: &FlameVideoDetectionOptions,
-) -> FlameDetectionResult<()> {
+) -> anyhow::Result<()> {
     run_ffmpeg(
         &options.ffmpeg_path,
         &[
@@ -832,7 +795,7 @@ fn encode_annotated_video(
     annotated_frame_dir: &Path,
     annotated_video: &Path,
     options: &FlameVideoDetectionOptions,
-) -> FlameDetectionResult<()> {
+) -> anyhow::Result<()> {
     run_ffmpeg(
         &options.ffmpeg_path,
         &[
@@ -858,16 +821,16 @@ fn run_ffmpeg(
     ffmpeg_path: &Path,
     args: &[String],
     context_path: &Path,
-) -> FlameDetectionResult<()> {
+) -> anyhow::Result<()> {
     let output = Command::new(ffmpeg_path)
         .args(args)
         .output()
-        .map_err(|source| FlameDetectionError::io(ffmpeg_path.to_path_buf(), source))?;
+        .map_err(|source| path_error(ffmpeg_path.to_path_buf(), source))?;
     if output.status.success() {
         return Ok(());
     }
 
-    Err(FlameDetectionError::io(
+    Err(path_error(
         context_path.to_path_buf(),
         std::io::Error::other(format!(
             "ffmpeg failed with status {}\nstdout:\n{}\nstderr:\n{}",
@@ -881,21 +844,21 @@ fn run_ffmpeg(
 fn collected_frame_paths(
     extracted_frame_dir: &Path,
     max_frames: Option<usize>,
-) -> FlameDetectionResult<Vec<PathBuf>> {
+) -> anyhow::Result<Vec<PathBuf>> {
     let mut frame_paths = fs::read_dir(extracted_frame_dir)
-        .map_err(|source| FlameDetectionError::io(extracted_frame_dir.to_path_buf(), source))?
+        .map_err(|source| path_error(extracted_frame_dir.to_path_buf(), source))?
         .map(|entry| {
             entry
                 .map(|entry| entry.path())
-                .map_err(|source| FlameDetectionError::io(extracted_frame_dir.to_path_buf(), source))
+                .map_err(|source| path_error(extracted_frame_dir.to_path_buf(), source))
         })
-        .collect::<FlameDetectionResult<Vec<_>>>()?;
+        .collect::<anyhow::Result<Vec<_>>>()?;
     frame_paths.sort();
     if let Some(limit) = max_frames {
         frame_paths.truncate(limit);
     }
     if frame_paths.is_empty() {
-        return Err(FlameDetectionError::io(
+        return Err(path_error(
             extracted_frame_dir.to_path_buf(),
             std::io::Error::other("ffmpeg did not extract any video frames"),
         ));
@@ -907,9 +870,9 @@ fn frame_timestamp_ms(frame_index: usize, sample_fps: u32) -> u64 {
     (frame_index as u64 * 1_000) / u64::from(sample_fps)
 }
 
-fn workspace_root() -> FlameDetectionResult<PathBuf> {
+fn workspace_root() -> anyhow::Result<PathBuf> {
     std::fs::canonicalize(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
-        .map_err(|source| FlameDetectionError::io(PathBuf::from(env!("CARGO_MANIFEST_DIR")), source))
+        .map_err(|source| path_error(PathBuf::from(env!("CARGO_MANIFEST_DIR")), source))
 }
 
 fn crate_root() -> PathBuf {
@@ -948,25 +911,25 @@ enum YoloOutputLayout {
 }
 
 impl YoloOutputLayout {
-    fn parse(output: &FlameOutputTensor) -> FlameDetectionResult<Self> {
+    fn parse(output: &FlameOutputTensor) -> anyhow::Result<Self> {
         let [1, second, third] = output.shape.as_slice() else {
-            return Err(FlameDetectionError::InvalidTensorShape {
-                model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-                reason: format!("output `{}` expected rank-3 YOLO tensor, got {:?}", output.name, output.shape),
-            });
+            bail!(
+                "invalid tensor shape for `{}`: output `{}` expected rank-3 YOLO tensor, got {:?}",
+                FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+                output.name,
+                output.shape
+            );
         };
         let second = usize::try_from(*second).unwrap_or_default();
         let third = usize::try_from(*third).unwrap_or_default();
         if output.data.len() != second.saturating_mul(third) {
-            return Err(FlameDetectionError::InvalidTensorShape {
-                model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-                reason: format!(
-                    "output `{}` shape {:?} does not match {} scalar values",
-                    output.name,
-                    output.shape,
-                    output.data.len()
-                ),
-            });
+            bail!(
+                "invalid tensor shape for `{}`: output `{}` shape {:?} does not match {} scalar values",
+                FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+                output.name,
+                output.shape,
+                output.data.len()
+            );
         }
         if second >= 6 && third > second {
             Ok(Self::ChannelsFirst {
@@ -979,13 +942,12 @@ impl YoloOutputLayout {
                 channel_count: third,
             })
         } else {
-            Err(FlameDetectionError::InvalidTensorShape {
-                model_code: FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-                reason: format!(
-                    "output `{}` expected YOLO channels containing x,y,w,h,fire,smoke; got {:?}",
-                    output.name, output.shape
-                ),
-            })
+            bail!(
+                "invalid tensor shape for `{}`: output `{}` expected YOLO channels containing x,y,w,h,fire,smoke; got {:?}",
+                FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+                output.name,
+                output.shape
+            )
         }
     }
 
@@ -1014,4 +976,8 @@ impl YoloOutputLayout {
             } => candidate_count,
         }
     }
+}
+
+fn path_error(path: PathBuf, source: std::io::Error) -> anyhow::Error {
+    anyhow!("filesystem error at `{}`: {source}", path.display())
 }

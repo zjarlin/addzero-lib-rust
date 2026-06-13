@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 use image::RgbImage;
 
-use crate::error::AlgorithmVideoPipelineResult;
 
 /// 一帧已经解码成 RGB 的视频画面。
 ///
@@ -151,7 +150,7 @@ pub trait VideoFrameAlgorithm {
     fn process_frame(
         &mut self,
         frame: &VideoFrame,
-    ) -> AlgorithmVideoPipelineResult<VideoAlgorithmFrameResult>;
+    ) -> anyhow::Result<VideoAlgorithmFrameResult>;
 }
 
 /// 一个算法实例及其帧流调度策略。

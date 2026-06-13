@@ -10,7 +10,7 @@ use az_qr_code_recognition::logic_qr_code_recognition::model::{
 use image::DynamicImage;
 use serde_json::json;
 
-use crate::error::{AlgorithmVideoPipelineError, AlgorithmVideoPipelineResult};
+use anyhow::{anyhow, bail};
 use crate::logic_algorithm_video_pipeline::model::{
     VideoAlgorithmEvent, VideoAlgorithmFrameResult, VideoBoundingBox, VideoDetection, VideoFrame,
     VideoFrameAlgorithm,
@@ -46,16 +46,16 @@ impl VideoFrameAlgorithm for QrCodeVideoAlgorithm {
     fn process_frame(
         &mut self,
         frame: &VideoFrame,
-    ) -> AlgorithmVideoPipelineResult<VideoAlgorithmFrameResult> {
+    ) -> anyhow::Result<VideoAlgorithmFrameResult> {
         let image = DynamicImage::ImageRgb8(frame.rgb.clone()).to_luma8();
         let results = decode_qr_codes_from_luma8(image);
         let frame_output_dir = self.output_dir.join(format!("frame_{:05}", frame.frame_index));
         fs::create_dir_all(&frame_output_dir)
-            .map_err(|source| AlgorithmVideoPipelineError::io(frame_output_dir.clone(), source))?;
+            .map_err(|source| path_error(frame_output_dir.clone(), source))?;
         let decoded_json = frame_output_dir.join("decoded_qr_codes.json");
         let json_text = serde_json::to_string_pretty(&results)?;
         fs::write(&decoded_json, json_text)
-            .map_err(|source| AlgorithmVideoPipelineError::io(decoded_json.clone(), source))?;
+            .map_err(|source| path_error(decoded_json.clone(), source))?;
 
         let detections = results
             .iter()

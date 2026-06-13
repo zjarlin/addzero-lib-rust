@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use az_algorithm_video_pipeline::error::AlgorithmVideoPipelineResult;
 use az_algorithm_video_pipeline::logic_algorithm_video_pipeline::assist::onnx_raw_image_video_algorithm::OnnxRawImageVideoAlgorithm;
 use az_algorithm_video_pipeline::logic_algorithm_video_pipeline::assist::qr_code_video_algorithm::QrCodeVideoAlgorithm;
 use az_algorithm_video_pipeline::logic_algorithm_video_pipeline::assist::run_video_frame_pipeline;
@@ -16,7 +15,7 @@ use az_face_recognition::logic_face_recognition::model::{
     ALGORITHM_CODE as FACE_RECOGNITION_CODE, FACE_RECOGNITION_ARCFACE_RESNET100_INT8,
 };
 use az_flame_detection::logic_flame_detection::model::{
-    ALGORITHM_CODE as FLAME_DETECTION_CODE, FLAME_DETECTION_VIT_INT8,
+    ALGORITHM_CODE as FLAME_DETECTION_CODE, FLAME_DETECTION_FIRE_SMOKE_YOLOV8N,
 };
 use az_ocr_text_recognition::logic_ocr_text_recognition::model::{
     DETECTION_ALGORITHM_CODE as OCR_TEXT_DETECTION_CODE, OCR_PADDLE_V3_DETECTION,
@@ -132,7 +131,7 @@ fn flame_model_path() -> PathBuf {
     std::fs::canonicalize(
         workspace_root()
             .join("crates/algorithm/az-flame-detection/resources/models")
-            .join("fire_detection_vit_int8.onnx"),
+            .join(FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.local_file),
     )
     .expect("火焰检测模型必须存在")
 }
@@ -356,7 +355,7 @@ impl VideoFrameAlgorithm for RecordingAlgorithm {
     fn process_frame(
         &mut self,
         frame: &VideoFrame,
-    ) -> AlgorithmVideoPipelineResult<VideoAlgorithmFrameResult> {
+    ) -> anyhow::Result<VideoAlgorithmFrameResult> {
         self.processed_frames.push(frame.frame_index);
         Ok(VideoAlgorithmFrameResult {
             algorithm_code: self.code.to_owned(),
@@ -397,7 +396,7 @@ struct RealPersonDetectionVideoAlgorithm {
 }
 
 impl RealPersonDetectionVideoAlgorithm {
-    fn new(output_dir: PathBuf) -> AlgorithmVideoPipelineResult<Self> {
+    fn new(output_dir: PathBuf) -> anyhow::Result<Self> {
         let runner = PersonDetectionRunner::new(PersonDetectionOptions {
             model_path: person_model_path(),
             model_kind: PersonDetectionModelKind::CocoSsdMobileNetV1,
@@ -405,7 +404,7 @@ impl RealPersonDetectionVideoAlgorithm {
             score_threshold: DEFAULT_SCORE_THRESHOLD,
         })
         .map_err(|source| {
-            az_algorithm_video_pipeline::error::AlgorithmVideoPipelineError::invalid_input(
+            az_algorithm_video_pipeline::error::anyhow!(
                 source.to_string(),
             )
         })?;
@@ -421,7 +420,7 @@ impl VideoFrameAlgorithm for RealPersonDetectionVideoAlgorithm {
     fn process_frame(
         &mut self,
         frame: &VideoFrame,
-    ) -> AlgorithmVideoPipelineResult<VideoAlgorithmFrameResult> {
+    ) -> anyhow::Result<VideoAlgorithmFrameResult> {
         let frame_output_dir = self
             .output_dir
             .join("person_detection_frames")
@@ -430,7 +429,7 @@ impl VideoFrameAlgorithm for RealPersonDetectionVideoAlgorithm {
             .runner
             .detect_rgb_image_with_output_dir(frame.rgb.clone(), frame_output_dir)
             .map_err(|source| {
-                az_algorithm_video_pipeline::error::AlgorithmVideoPipelineError::invalid_input(
+                az_algorithm_video_pipeline::error::anyhow!(
                     source.to_string(),
                 )
             })?;
@@ -474,7 +473,7 @@ struct RealFaceDetectionVideoAlgorithm {
 }
 
 impl RealFaceDetectionVideoAlgorithm {
-    fn new(output_dir: PathBuf) -> AlgorithmVideoPipelineResult<Self> {
+    fn new(output_dir: PathBuf) -> anyhow::Result<Self> {
         let runner = FaceDetectionRunner::new(FaceDetectionOptions {
             model_path: face_model_path(),
             output_dir: output_dir.join("unused_default_output"),
@@ -482,7 +481,7 @@ impl RealFaceDetectionVideoAlgorithm {
             nms_threshold: 0.4,
         })
         .map_err(|source| {
-            az_algorithm_video_pipeline::error::AlgorithmVideoPipelineError::invalid_input(
+            az_algorithm_video_pipeline::error::anyhow!(
                 source.to_string(),
             )
         })?;
@@ -498,7 +497,7 @@ impl VideoFrameAlgorithm for RealFaceDetectionVideoAlgorithm {
     fn process_frame(
         &mut self,
         frame: &VideoFrame,
-    ) -> AlgorithmVideoPipelineResult<VideoAlgorithmFrameResult> {
+    ) -> anyhow::Result<VideoAlgorithmFrameResult> {
         let frame_output_dir = self
             .output_dir
             .join("face_detection_frames")
@@ -507,7 +506,7 @@ impl VideoFrameAlgorithm for RealFaceDetectionVideoAlgorithm {
             .runner
             .detect_rgb_image_with_output_dir(frame.rgb.clone(), frame_output_dir)
             .map_err(|source| {
-                az_algorithm_video_pipeline::error::AlgorithmVideoPipelineError::invalid_input(
+                az_algorithm_video_pipeline::error::anyhow!(
                     source.to_string(),
                 )
             })?;
@@ -547,7 +546,7 @@ impl VideoFrameAlgorithm for RealFaceDetectionVideoAlgorithm {
 #[test]
 #[expect(clippy::dbg_macro, reason = "用户要求测试直接打印输入、输出的绝对路径")]
 fn video_pipeline_should_schedule_multiple_realtime_algorithms_on_same_frames()
--> AlgorithmVideoPipelineResult<()> {
+-> anyhow::Result<()> {
     // 这个测试只验证视频实时 pipeline 的调度和落盘行为。
     // 这里的 RecordingAlgorithm 是可观测测试算法，不是人脸、安全帽或抽烟检测模型。
     //
@@ -611,7 +610,7 @@ fn video_pipeline_should_schedule_multiple_realtime_algorithms_on_same_frames()
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
 fn video_pipeline_should_run_real_person_detection_runner_without_reloading_model()
--> AlgorithmVideoPipelineResult<()> {
+-> anyhow::Result<()> {
     // 这个测试是真实 ONNX 推理测试：
     // - 输入帧来自 az-person-detection 的真实人员测试图片。
     // - PersonDetectionRunner 在测试开始时只构造一次，内部 ONNX Session 复用到多帧。
@@ -661,7 +660,7 @@ fn video_pipeline_should_run_real_person_detection_runner_without_reloading_mode
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
 fn video_pipeline_should_run_real_face_detection_runner_without_reloading_model()
--> AlgorithmVideoPipelineResult<()> {
+-> anyhow::Result<()> {
     // 这个测试是真实 SCRFD 人脸检测推理测试：
     // - 输入帧来自 az-face-detection 的真实人脸测试图片。
     // - FaceDetectionRunner 在测试开始时只构造一次，内部 ONNX Session 复用到多帧。
@@ -710,7 +709,7 @@ fn video_pipeline_should_run_real_face_detection_runner_without_reloading_model(
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
 fn video_pipeline_should_stack_real_person_and_face_detection_on_same_frames()
--> AlgorithmVideoPipelineResult<()> {
+-> anyhow::Result<()> {
     // 这个测试验证“同一条视频帧流叠加多个真实算法”：
     // - 视频帧只构造一次，两个 runner 共享同一批 VideoFrame。
     // - person_detection 每 2 帧跑一次，face_detection 每帧跑一次。
@@ -783,7 +782,7 @@ fn video_pipeline_should_stack_real_person_and_face_detection_on_same_frames()
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
 fn video_pipeline_should_run_real_safety_helmet_raw_runner_without_fake_boxes()
--> AlgorithmVideoPipelineResult<()> {
+-> anyhow::Result<()> {
     // 这个测试验证安全帽模型可以进入实时视频管线：
     // - OnnxRawImageVideoAlgorithm 只加载一次 ONNX Session。
     // - 当前 crate 尚未实现 YOLO 安全帽框后处理，所以 detections 必须保持为空。
@@ -845,7 +844,7 @@ fn video_pipeline_should_run_real_safety_helmet_raw_runner_without_fake_boxes()
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
 fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream()
--> AlgorithmVideoPipelineResult<()> {
+-> anyhow::Result<()> {
     // 这个测试验证“其余图像识别怎么做视频实时计算”：
     // - 合成一张包含多种真实素材的测试帧，模拟视频解码层输出的同一帧。
     // - 人员、人脸使用已实现后处理的真实 runner，会输出检测框。
@@ -890,7 +889,7 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream()
     )?;
     let mut flame_algorithm = OnnxRawImageVideoAlgorithm::new(
         FLAME_DETECTION_CODE,
-        FLAME_DETECTION_VIT_INT8,
+        FLAME_DETECTION_FIRE_SMOKE_YOLOV8N,
         flame_model_path(),
         output_dir.join("flame_raw_frames"),
     )?;

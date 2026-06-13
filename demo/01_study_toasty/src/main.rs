@@ -1,4 +1,7 @@
-use toasty::Model;
+#![forbid(unsafe_code)]
+
+use toasty_driver_sqlite::Sqlite;
+
 #[derive(Debug, toasty::Model)]
 struct User {
     #[key]
@@ -11,19 +14,16 @@ struct User {
     email: String,
 }
 
-async fn __example() -> toasty::Result<()> {
 #[tokio::main]
 async fn main() -> toasty::Result<()> {
-    // Build a Db handle, registering all models in this crate
+    let driver = Sqlite::in_memory();
     let mut db = toasty::Db::builder()
         .models(toasty::models!(crate::*))
-        .connect("sqlite::memory:")
+        .build(driver)
         .await?;
 
-    // Create tables based on registered models
     db.push_schema().await?;
 
-    // Create a user
     let user = toasty::create!(User {
         name: "Alice",
         email: "alice@example.com",
@@ -38,6 +38,4 @@ async fn main() -> toasty::Result<()> {
     println!("Found: {:?}", found.email);
 
     Ok(())
-}
-Ok(())
 }

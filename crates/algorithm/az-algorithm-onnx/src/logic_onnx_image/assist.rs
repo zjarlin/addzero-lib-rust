@@ -11,7 +11,7 @@ use ndarray::{ArrayD, IxDyn};
 use ort::session::Session;
 use ort::value::{Tensor, TensorElementType, ValueType};
 
-use crate::error::{OnnxImageError, OnnxImageResult};
+use anyhow::{anyhow, bail};
 use crate::logic_onnx_image::model::{
     OnnxImageModelSpec, OnnxImageOutputFiles, OnnxImageRun, OnnxInferenceSummary,
     OnnxModelMetadata, OnnxOutputSummary, OnnxTensorIoInfo, PreparedImageTensor, TensorElementKind,
@@ -34,17 +34,10 @@ impl LocalOnnxSession {
     /// 将本地 ONNX 模型文件加载进 ONNX Runtime。
     /// # Errors
     /// 当模型文件不存在或 ONNX Runtime 加载失败时返回错误。
-    pub fn from_file(path: impl AsRef<Path>) -> OnnxImageResult<Self> {
+    pub fn from_file(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = path.as_ref();
         if !path.is_file() {
-            let model_path = path.to_path_buf();
-            let source = std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "ONNX model file not found",
-            );
-            let error = OnnxImageError::io(model_path, source);
-
-            return Err(error);
+            bail!("ONNX model file not found: `{}`", path.display());
         }
 
         let mut builder = Session::builder()?;
@@ -73,16 +66,13 @@ impl LocalOnnxSession {
         &mut self,
         input_shape: &[usize],
         input_data: Vec<f32>,
-    ) -> OnnxImageResult<OnnxInferenceSummary> {
+    ) -> anyhow::Result<OnnxInferenceSummary> {
         validate_input_len("custom_onnx_model", input_shape, input_data.len())?;
         let input_name = first_input_name(&self.session);
         let output_names = output_names(&self.session);
         let input_array =
             ArrayD::from_shape_vec(IxDyn(input_shape), input_data).map_err(|error| {
-                OnnxImageError::InvalidTensorShape {
-                    model_code: "custom_onnx_model",
-                    reason: error.to_string(),
-                }
+                anyhow!("invalid tensor shape for `custom_onnx_model`: {error}")
             })?;
         let input = Tensor::from_array(input_array)?;
         let outputs = self.session.run(ort::inputs![input])?;
@@ -104,16 +94,13 @@ impl LocalOnnxSession {
         &mut self,
         input_shape: &[usize],
         input_data: Vec<u8>,
-    ) -> OnnxImageResult<OnnxInferenceSummary> {
+    ) -> anyhow::Result<OnnxInferenceSummary> {
         validate_input_len("custom_onnx_model", input_shape, input_data.len())?;
         let input_name = first_input_name(&self.session);
         let output_names = output_names(&self.session);
         let input_array =
             ArrayD::from_shape_vec(IxDyn(input_shape), input_data).map_err(|error| {
-                OnnxImageError::InvalidTensorShape {
-                    model_code: "custom_onnx_model",
-                    reason: error.to_string(),
-                }
+                anyhow!("invalid tensor shape for `custom_onnx_model`: {error}")
             })?;
         let input = Tensor::from_array(input_array)?;
         let outputs = self.session.run(ort::inputs![input])?;
@@ -135,7 +122,7 @@ impl LocalOnnxSession {
         &mut self,
         spec: &OnnxImageModelSpec,
         image_path: impl AsRef<Path>,
-    ) -> OnnxImageResult<(PreparedImageTensor, OnnxInferenceSummary)> {
+    ) -> anyhow::Result<(PreparedImageTensor, OnnxInferenceSummary)> {
         let prepared = prepare_image_tensor_for_spec(spec, image_path)?;
         let summary = self.run_prepared_image(spec, &prepared)?;
         Ok((prepared, summary))
@@ -149,7 +136,7 @@ impl LocalOnnxSession {
         &mut self,
         spec: &OnnxImageModelSpec,
         image: &DynamicImage,
-    ) -> OnnxImageResult<(PreparedImageTensor, OnnxInferenceSummary)> {
+    ) -> anyhow::Result<(PreparedImageTensor, OnnxInferenceSummary)> {
         let prepared = prepare_dynamic_image_tensor_for_spec(spec, image)?;
         let summary = self.run_prepared_image(spec, &prepared)?;
         Ok((prepared, summary))
@@ -159,16 +146,18 @@ impl LocalOnnxSession {
         &mut self,
         spec: &OnnxImageModelSpec,
         prepared: &PreparedImageTensor,
-    ) -> OnnxImageResult<OnnxInferenceSummary> {
+    ) -> anyhow::Result<OnnxInferenceSummary> {
         let summary = match prepared.element {
             TensorElementKind::Float32 => self.run_f32(
                 &prepared.shape,
                 prepared
                     .f32_data
                     .clone()
-                    .ok_or_else(|| OnnxImageError::InvalidTensorShape {
-                        model_code: spec.code,
-                        reason: "prepared image does not contain f32 tensor data".to_owned(),
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "invalid tensor shape for `{}`: prepared image does not contain f32 tensor data",
+                            spec.code
+                        )
                     })?,
             )?,
             TensorElementKind::Uint8 => self.run_u8(
@@ -176,9 +165,11 @@ impl LocalOnnxSession {
                 prepared
                     .u8_data
                     .clone()
-                    .ok_or_else(|| OnnxImageError::InvalidTensorShape {
-                        model_code: spec.code,
-                        reason: "prepared image does not contain u8 tensor data".to_owned(),
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "invalid tensor shape for `{}`: prepared image does not contain u8 tensor data",
+                            spec.code
+                        )
                     })?,
             )?,
         };
@@ -200,13 +191,13 @@ pub fn run_real_image_model(
     resource_dir: impl AsRef<Path>,
     image_path: impl AsRef<Path>,
     output_dir: impl AsRef<Path>,
-) -> OnnxImageResult<OnnxImageRun> {
+) -> anyhow::Result<OnnxImageRun> {
     let model_path = spec.require_local_path(resource_dir)?;
     let image_path = std::fs::canonicalize(image_path.as_ref())
-        .map_err(|source| OnnxImageError::io(image_path.as_ref().to_path_buf(), source))?;
+        .map_err(|source| path_error(image_path.as_ref().to_path_buf(), source))?;
     let output_dir = output_dir.as_ref().to_path_buf();
     fs::create_dir_all(&output_dir)
-        .map_err(|source| OnnxImageError::io(output_dir.clone(), source))?;
+        .map_err(|source| path_error(output_dir.clone(), source))?;
 
     dbg!(&model_path);
     dbg!(&image_path);
@@ -237,7 +228,7 @@ pub fn run_real_image_model(
 pub fn prepare_image_tensor_for_spec(
     spec: &OnnxImageModelSpec,
     image_path: impl AsRef<Path>,
-) -> OnnxImageResult<PreparedImageTensor> {
+) -> anyhow::Result<PreparedImageTensor> {
     let image = image::open(image_path)?;
     prepare_dynamic_image_tensor_for_spec(spec, &image)
 }
@@ -249,7 +240,7 @@ pub fn prepare_image_tensor_for_spec(
 pub fn prepare_dynamic_image_tensor_for_spec(
     spec: &OnnxImageModelSpec,
     image: &DynamicImage,
-) -> OnnxImageResult<PreparedImageTensor> {
+) -> anyhow::Result<PreparedImageTensor> {
     prepare_dynamic_image_tensor(spec.code, spec.input, image)
 }
 
@@ -257,18 +248,16 @@ fn prepare_dynamic_image_tensor(
     model_code: &'static str,
     input: TensorInputSpec,
     image: &DynamicImage,
-) -> OnnxImageResult<PreparedImageTensor> {
+) -> anyhow::Result<PreparedImageTensor> {
     let [batch, first, second, third] = input.shape else {
-        return Err(OnnxImageError::InvalidTensorShape {
+        bail!(
+            "invalid tensor shape for `{}`: expected 4D image input shape, got {:?}",
             model_code,
-            reason: format!("expected 4D image input shape, got {:?}", input.shape),
-        });
+            input.shape
+        );
     };
     if *batch != 1 {
-        return Err(OnnxImageError::InvalidTensorShape {
-            model_code,
-            reason: format!("image tests support batch=1 only, got {batch}"),
-        });
+        bail!("invalid tensor shape for `{model_code}`: image tests support batch=1 only, got {batch}");
     }
 
     let (layout, height, width) = if *first == 3 {
@@ -276,10 +265,11 @@ fn prepare_dynamic_image_tensor(
     } else if *third == 3 {
         (ImageTensorLayout::Nhwc, *first, *second)
     } else {
-        return Err(OnnxImageError::InvalidTensorShape {
+        bail!(
+            "invalid tensor shape for `{}`: expected RGB channel dimension, got {:?}",
             model_code,
-            reason: format!("expected RGB channel dimension, got {:?}", input.shape),
-        });
+            input.shape
+        );
     };
 
     let preview = image
@@ -311,9 +301,9 @@ pub fn write_inference_artifacts_from_image(
     prepared: &PreparedImageTensor,
     summary: &OnnxInferenceSummary,
     output_dir: &Path,
-) -> OnnxImageResult<OnnxImageOutputFiles> {
+) -> anyhow::Result<OnnxImageOutputFiles> {
     fs::create_dir_all(output_dir)
-        .map_err(|source| OnnxImageError::io(output_dir.to_path_buf(), source))?;
+        .map_err(|source| path_error(output_dir.to_path_buf(), source))?;
     let files = OnnxImageOutputFiles {
         source_input: output_dir.join("source_input.jpg"),
         model_input_preview: output_dir.join("model_input_preview.png"),
@@ -325,7 +315,7 @@ pub fn write_inference_artifacts_from_image(
     prepared.preview.save(&files.model_input_preview)?;
     let json = serde_json::to_string_pretty(summary)?;
     fs::write(&files.raw_outputs_json, json)
-        .map_err(|source| OnnxImageError::io(files.raw_outputs_json.clone(), source))?;
+        .map_err(|source| path_error(files.raw_outputs_json.clone(), source))?;
     write_raw_output_review_image(
         &prepared.preview,
         summary,
@@ -347,7 +337,7 @@ fn write_inference_artifacts(
     prepared: &PreparedImageTensor,
     summary: &OnnxInferenceSummary,
     output_dir: &Path,
-) -> OnnxImageResult<OnnxImageOutputFiles> {
+) -> anyhow::Result<OnnxImageOutputFiles> {
     let files = OnnxImageOutputFiles {
         source_input: output_dir.join("source_input.jpg"),
         model_input_preview: output_dir.join("model_input_preview.png"),
@@ -362,10 +352,10 @@ fn write_inference_artifacts(
 
     prepared.preview.save(&files.model_input_preview)?;
     fs::copy(source_image, &files.source_input)
-        .map_err(|source| OnnxImageError::io(source_image.to_path_buf(), source))?;
+        .map_err(|source| path_error(source_image.to_path_buf(), source))?;
     let json = serde_json::to_string_pretty(summary)?;
     fs::write(&files.raw_outputs_json, json)
-        .map_err(|source| OnnxImageError::io(files.raw_outputs_json.clone(), source))?;
+        .map_err(|source| path_error(files.raw_outputs_json.clone(), source))?;
     write_raw_output_review_image(
         &prepared.preview,
         summary,
@@ -397,7 +387,7 @@ fn write_raw_output_review_image(
     summary: &OnnxInferenceSummary,
     output_path: &Path,
     algorithm_code: &str,
-) -> OnnxImageResult<()> {
+) -> anyhow::Result<()> {
     let mut canvas = RgbImage::from_pixel(REVIEW_WIDTH, REVIEW_HEIGHT, Rgb([248, 250, 252]));
     draw_text_label(
         &mut canvas,
@@ -776,19 +766,17 @@ fn validate_input_len(
     model_code: &'static str,
     input_shape: &[usize],
     input_len: usize,
-) -> OnnxImageResult<()> {
+) -> anyhow::Result<()> {
     let element_count =
-        element_count(input_shape).ok_or_else(|| OnnxImageError::InvalidTensorShape {
-            model_code,
-            reason: "shape multiplication overflowed".to_owned(),
+        element_count(input_shape).ok_or_else(|| {
+            anyhow!("invalid tensor shape for `{model_code}`: shape multiplication overflowed")
         })?;
     if element_count == input_len {
         Ok(())
     } else {
-        Err(OnnxImageError::InvalidTensorShape {
-            model_code,
-            reason: format!("shape requires {element_count} values but input contains {input_len}"),
-        })
+        bail!(
+            "invalid tensor shape for `{model_code}`: shape requires {element_count} values but input contains {input_len}"
+        )
     }
 }
 
@@ -832,7 +820,7 @@ fn outlet_to_info(outlet: &ort::value::Outlet) -> OnnxTensorIoInfo {
 fn output_summaries(
     output_names: &[String],
     outputs: ort::session::SessionOutputs<'_>,
-) -> OnnxImageResult<Vec<OnnxOutputSummary>> {
+) -> anyhow::Result<Vec<OnnxOutputSummary>> {
     outputs
         .iter()
         .enumerate()
@@ -849,12 +837,12 @@ fn output_summaries(
 fn summarize_output(
     output_name: String,
     value: &ort::value::DynValue,
-) -> OnnxImageResult<OnnxOutputSummary> {
+) -> anyhow::Result<OnnxOutputSummary> {
     let ValueType::Tensor { ty, .. } = value.dtype() else {
-        return Err(OnnxImageError::UnsupportedOnnxOutput {
-            output_name,
-            tensor_type: value.dtype().to_string(),
-        });
+        bail!(
+            "unsupported ONNX output tensor type `{}` from output `{output_name}`",
+            value.dtype()
+        );
     };
 
     match ty {
@@ -869,10 +857,9 @@ fn summarize_output(
         TensorElementType::Uint16 => summarize_primitive_output::<u16>(output_name, ty, value),
         TensorElementType::Uint8 => summarize_primitive_output::<u8>(output_name, ty, value),
         TensorElementType::Bool => summarize_bool_output(output_name, ty, value),
-        other => Err(OnnxImageError::UnsupportedOnnxOutput {
-            output_name,
-            tensor_type: other.to_string(),
-        }),
+        other => bail!(
+            "unsupported ONNX output tensor type `{other}` from output `{output_name}`"
+        ),
     }
 }
 
@@ -880,7 +867,7 @@ fn summarize_primitive_output<T>(
     output_name: String,
     tensor_type: &TensorElementType,
     value: &ort::value::DynValue,
-) -> OnnxImageResult<OnnxOutputSummary>
+) -> anyhow::Result<OnnxOutputSummary>
 where
     T: ort::value::PrimitiveTensorElementType + Copy + IntoSampleF32,
 {
@@ -902,7 +889,7 @@ fn summarize_bool_output(
     output_name: String,
     tensor_type: &TensorElementType,
     value: &ort::value::DynValue,
-) -> OnnxImageResult<OnnxOutputSummary> {
+) -> anyhow::Result<OnnxOutputSummary> {
     let (shape, data) = value.try_extract_tensor::<bool>()?;
     Ok(OnnxOutputSummary {
         name: output_name,
@@ -979,4 +966,8 @@ impl IntoSampleF32 for u8 {
     fn into_sample_f32(self) -> f32 {
         f32::from(self)
     }
+}
+
+fn path_error(path: PathBuf, source: std::io::Error) -> anyhow::Error {
+    anyhow!("filesystem error at `{}`: {source}", path.display())
 }

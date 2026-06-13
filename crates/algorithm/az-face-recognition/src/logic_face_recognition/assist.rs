@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use az_algorithm_onnx::error::{OnnxImageError, OnnxImageResult};
+use anyhow::Context;
 use az_algorithm_onnx::logic_onnx_image::assist::run_real_image_model;
 use az_algorithm_onnx::logic_onnx_image::model::OnnxImageRun;
 
@@ -15,7 +15,7 @@ use crate::logic_face_recognition::model::{
 ///
 /// # Errors
 /// 图片读取、模型加载、推理或输出文件写入失败时返回错误。
-pub fn run_face_recognition_from_path(image_path: impl AsRef<Path>) -> OnnxImageResult<OnnxImageRun> {
+pub fn run_face_recognition_from_path(image_path: impl AsRef<Path>) -> anyhow::Result<OnnxImageRun> {
     let workspace_root = workspace_root()?;
     run_face_recognition_from_path_with_output(
         image_path,
@@ -30,7 +30,7 @@ pub fn run_face_recognition_from_path(image_path: impl AsRef<Path>) -> OnnxImage
 pub fn run_face_recognition_from_path_with_output(
     image_path: impl AsRef<Path>,
     output_dir: impl AsRef<Path>,
-) -> OnnxImageResult<OnnxImageRun> {
+) -> anyhow::Result<OnnxImageRun> {
     run_real_image_model(
         ALGORITHM_CODE,
         &FACE_RECOGNITION_ARCFACE_RESNET100_INT8,
@@ -40,9 +40,9 @@ pub fn run_face_recognition_from_path_with_output(
     )
 }
 
-fn workspace_root() -> OnnxImageResult<PathBuf> {
+fn workspace_root() -> anyhow::Result<PathBuf> {
     std::fs::canonicalize(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
-        .map_err(|source| OnnxImageError::io(PathBuf::from(env!("CARGO_MANIFEST_DIR")), source))
+        .with_context(|| format!("failed to resolve workspace root from `{}`", env!("CARGO_MANIFEST_DIR")))
 }
 
 fn crate_root() -> PathBuf {

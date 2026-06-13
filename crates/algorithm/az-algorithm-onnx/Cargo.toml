@@ -10,6 +10,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 automod.workspace = true
 image.workspace = true
 imageproc.workspace = true
@@ -17,7 +18,6 @@ ndarray.workspace = true
 ort.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
 
 [lints]
 workspace = true

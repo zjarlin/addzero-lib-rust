@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use az_flame_detection::error::FlameDetectionResult;
 use az_flame_detection::logic_flame_detection::assist::{
     detect_flames_in_video_from_path, run_flame_detection_from_path_with_output,
 };
@@ -53,7 +52,7 @@ fn assert_existing_dir(path: &Path) {
 }
 
 #[test]
-fn flame_detection_should_run_real_image_and_write_outputs() -> FlameDetectionResult<()> {
+fn flame_detection_should_run_real_image_and_write_outputs() -> anyhow::Result<()> {
     // 输入图片：crates/algorithm/az-flame-detection/tests/fixtures/input/flame.jpg
     // 输出：target/az-algorithm-results/flame_detection/detected_flames.png
     let result =
@@ -71,8 +70,7 @@ fn flame_detection_should_run_real_image_and_write_outputs() -> FlameDetectionRe
 }
 
 #[test]
-fn flame_detection_should_analyze_user_video_and_write_annotated_video() -> FlameDetectionResult<()>
-{
+fn flame_detection_should_analyze_user_video_and_write_annotated_video() -> anyhow::Result<()> {
     // 输入：/Users/zjarlin/Desktop/246f5787eca62dc0b462dbc041da756f.mp4
     //
     // 输出：

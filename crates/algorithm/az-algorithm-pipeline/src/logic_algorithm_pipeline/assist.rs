@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::error::{AlgorithmPipelineError, AlgorithmPipelineResult};
+use anyhow::bail;
 use crate::logic_algorithm_pipeline::model::{
     ImageAlgorithmKind, ImageAlgorithmRunSummary, ImagePipelineOptions, ImagePipelineRun,
 };
@@ -21,11 +21,11 @@ use crate::logic_algorithm_pipeline::model::{
 pub fn run_image_pipeline_from_path(
     image_path: impl AsRef<Path>,
     options: &ImagePipelineOptions,
-) -> AlgorithmPipelineResult<ImagePipelineRun> {
+) -> anyhow::Result<ImagePipelineRun> {
     let input_path = std::fs::canonicalize(image_path.as_ref())
-        .map_err(|source| AlgorithmPipelineError::io(image_path.as_ref().to_path_buf(), source))?;
+        .map_err(|source| path_error(image_path.as_ref().to_path_buf(), source))?;
     fs::create_dir_all(&options.output_dir)
-        .map_err(|source| AlgorithmPipelineError::io(options.output_dir.clone(), source))?;
+        .map_err(|source| path_error(options.output_dir.clone(), source))?;
 
     dbg!(&input_path);
     dbg!(&options.output_dir);
@@ -44,7 +44,7 @@ pub fn run_image_pipeline_from_path(
     };
     let json = serde_json::to_string_pretty(&run)?;
     fs::write(&summary_file, json)
-        .map_err(|source| AlgorithmPipelineError::io(summary_file.clone(), source))?;
+        .map_err(|source| path_error(summary_file.clone(), source))?;
     dbg!(&summary_file);
     Ok(run)
 }
@@ -57,7 +57,7 @@ fn run_one_algorithm(
     algorithm: ImageAlgorithmKind,
     input_path: &Path,
     root_output_dir: &Path,
-) -> AlgorithmPipelineResult<ImageAlgorithmRunSummary> {
+) -> anyhow::Result<ImageAlgorithmRunSummary> {
     let output_dir = root_output_dir.join(algorithm.code());
     let files = match algorithm {
         ImageAlgorithmKind::FaceDetection => {
@@ -157,13 +157,13 @@ fn run_one_algorithm(
         }
         ImageAlgorithmKind::QrCodeRecognition => {
             let results = az_qr_code_recognition::logic_qr_code_recognition::assist::decode_qr_codes_from_path(input_path)
-                .map_err(AlgorithmPipelineError::qr_code_recognition)?;
+                ?;
             fs::create_dir_all(&output_dir)
-                .map_err(|source| AlgorithmPipelineError::io(output_dir.clone(), source))?;
+                .map_err(|source| path_error(output_dir.clone(), source))?;
             let output_file = output_dir.join("decoded_payloads.json");
             let json = serde_json::to_string_pretty(&results)?;
             fs::write(&output_file, json)
-                .map_err(|source| AlgorithmPipelineError::io(output_file.clone(), source))?;
+                .map_err(|source| path_error(output_file.clone(), source))?;
             vec![output_file]
         }
     };
@@ -182,9 +182,9 @@ fn run_one_algorithm(
 
 fn face_detection_options(
     output_dir: PathBuf,
-) -> AlgorithmPipelineResult<az_face_detection::logic_face_detection::model::FaceDetectionOptions> {
+) -> anyhow::Result<az_face_detection::logic_face_detection::model::FaceDetectionOptions> {
     let workspace_root = std::fs::canonicalize(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
-        .map_err(|source| AlgorithmPipelineError::io(PathBuf::from(env!("CARGO_MANIFEST_DIR")), source))?;
+        .map_err(|source| path_error(PathBuf::from(env!("CARGO_MANIFEST_DIR")), source))?;
     let model_path = workspace_root
         .join("crates/algorithm/az-face-detection/resources/models")
         .join("face_detection_scrfd_500m.onnx");

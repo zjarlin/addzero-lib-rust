@@ -53,8 +53,9 @@
 
 ## Rust Error Convention
 
-- 简单、叶子型 library crate 可以直接暴露 `anyhow::Result<T>`，不强制每个 crate 都定义独立 `Error` enum 和 `Result` alias。
-- 当调用方需要稳定匹配错误类别、跨 HTTP/CLI/admin 边界做结构化映射，或错误本身承载明确领域语义时，再使用 `thiserror` 定义 typed error。
+- Rust 运行时错误默认直接使用 `anyhow::Result<T>`，不再为每个 crate 定义独立 `Error` enum 和 `XxxResult<T>` alias。
+- 删除只服务于 Rust 错误传递的手写错误格式；只有协议模型、HTTP 响应体、外部 schema、业务状态枚举等“数据模型”可以继续保留 `Error` 命名类型。
+- 不再把 `thiserror` 作为默认依赖；只有确有数据模型或外部协议要求时才保留。
 - 使用 `anyhow` 时应在 I/O、图片读取、模型加载等关键失败点补 `Context`，让错误链直接说明失败位置和操作对象。
 
 <!-- autoskills:start -->
