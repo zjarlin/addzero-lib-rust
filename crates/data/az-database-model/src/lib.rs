@@ -21,11 +21,7 @@
 
 use az_derive_aliases::{apply, error_eq};
 
-mod column;
-mod index;
-mod relation;
-mod schema;
-mod table;
+automod::dir!("src");
 
 pub use column::{Column, DataType};
 pub use index::Index;

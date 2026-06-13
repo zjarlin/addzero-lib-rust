@@ -1,4 +1,4 @@
-// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+// Generated from OpenAPI spec. Do not edit by hand.
 //! `CreateVectorStoreFileRequest` DTO.
 
 use serde::{Deserialize, Serialize};

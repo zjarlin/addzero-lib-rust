@@ -8,6 +8,7 @@ authors.workspace = true
 description = "Database model and schema definitions for code generation"
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 thiserror.workspace = true
 serde.workspace = true

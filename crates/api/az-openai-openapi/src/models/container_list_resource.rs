@@ -1,4 +1,4 @@
-// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+// Generated from OpenAPI spec. Do not edit by hand.
 //! `ContainerListResource` DTO.
 
 use serde::{Deserialize, Serialize};

@@ -1,4 +1,4 @@
-// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+// Generated from OpenAPI spec. Do not edit by hand.
 //! OpenAI REST API source metadata and fixed path constants.
 
 /// Source metadata for the generated OpenAI OpenAPI contract.
@@ -9,7 +9,7 @@ impl OpenAiApiSpec {
     pub const BASE_URL: &'static str = "https://api.openai.com/v1/";
     /// Source OpenAPI repository.
     pub const SOURCE_REPOSITORY: &'static str = "https://github.com/openai/openai-openapi";
-    /// Source OpenAPI YAML URL.
+    /// Source OpenAPI spec URL or local file path used during generation.
     pub const SOURCE_SPEC_URL: &'static str = "https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.yaml";
     /// Source OpenAPI spec version observed during generation.
     pub const SOURCE_SPEC_VERSION: &'static str = "2.3.0";

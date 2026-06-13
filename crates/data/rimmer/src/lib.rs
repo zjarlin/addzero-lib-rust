@@ -7,16 +7,7 @@
 
 #![forbid(unsafe_code)]
 
-mod dialect;
-mod draft;
-mod error;
-mod executor;
-mod expression;
-mod fetcher;
-mod metadata;
-mod query;
-mod save;
-mod value;
+automod::dir!("src");
 
 pub use dialect::SqlDialect;
 pub use draft::{

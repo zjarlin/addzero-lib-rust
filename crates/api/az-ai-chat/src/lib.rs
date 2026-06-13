@@ -22,7 +22,7 @@
 
 use az_derive_aliases::{apply, error, serde_code_enum, serde_eq, serde_partial_eq_default};
 
-mod openai;
+automod::dir!("src");
 
 pub use openai::OpenAiClient;
 

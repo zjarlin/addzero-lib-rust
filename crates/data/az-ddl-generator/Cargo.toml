@@ -8,6 +8,7 @@ authors.workspace = true
 description = "DDL statement generator supporting multiple database dialects"
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 derive_more.workspace = true
 thiserror.workspace = true

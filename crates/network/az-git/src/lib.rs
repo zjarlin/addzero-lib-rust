@@ -1,11 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
-mod auth;
-mod config;
-mod error;
-mod provider;
-mod repository;
+automod::dir!("src");
 
 pub use auth::{
     AuthDiscovery, AuthDiscoveryOptions, AuthLoginFlow, AuthMethod, AuthSession, AuthState,

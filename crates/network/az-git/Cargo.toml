@@ -8,6 +8,7 @@ authors.workspace = true
 description = "Git hosting provider account discovery and login metadata"
 
 [dependencies]
+automod.workspace = true
 dirs.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -8,6 +8,7 @@ authors.workspace = true
 description = "Cloudflare Temp Email API client for deployed worker instances"
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 reqwest.workspace = true
 regex.workspace = true

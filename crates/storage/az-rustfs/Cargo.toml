@@ -8,6 +8,7 @@ authors.workspace = true
 description = "S3 兼容对象存储客户端抽象：分片上传、断点续传、进度追踪，内置内存实现用于测试"
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 base64.workspace = true
 chrono.workspace = true

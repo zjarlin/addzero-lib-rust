@@ -820,6 +820,7 @@ name = "az-ai-chat"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "automod",
  "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
@@ -856,6 +857,7 @@ name = "az-aio-plugin-asset-hub"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "automod",
  "az-assets",
  "az-derive-aliases",
  "az-desktop-plugin",
@@ -997,6 +999,7 @@ name = "az-api-translate"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "automod",
  "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
@@ -1026,6 +1029,7 @@ name = "az-assets"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "automod",
  "az-derive-aliases",
  "az-persistence",
  "base64",
@@ -1070,6 +1074,7 @@ dependencies = [
 name = "az-codex-auth-support"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "base64",
  "chrono",
@@ -1177,6 +1182,7 @@ dependencies = [
 name = "az-database-model"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
@@ -1188,6 +1194,7 @@ dependencies = [
 name = "az-ddl-generator"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "serde",
@@ -1450,6 +1457,7 @@ dependencies = [
 name = "az-git"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "dirs 6.0.0",
  "serde",
  "serde_json",
@@ -1461,6 +1469,7 @@ dependencies = [
 name = "az-gitdb"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "git2 0.20.4",
@@ -1474,6 +1483,7 @@ dependencies = [
 name = "az-gmail-code"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "az-oauth2",
  "base64",
@@ -1506,6 +1516,7 @@ name = "az-knowledge"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "automod",
  "az-derive-aliases",
  "az-persistence",
  "chrono",
@@ -1526,6 +1537,7 @@ dependencies = [
 name = "az-line-crdt"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "loro",
  "serde",
  "thiserror 2.0.18",
@@ -1550,6 +1562,7 @@ dependencies = [
 name = "az-maven"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "az-music",
  "reqwest 0.12.28",
@@ -1598,6 +1611,7 @@ dependencies = [
 name = "az-oauth2"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "base64",
  "reqwest 0.12.28",
@@ -1624,9 +1638,22 @@ name = "az-openai-openapi"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
- "automod",
+ "az-openapi-macro",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "az-openapi-macro"
+version = "2026.5.10"
+dependencies = [
+ "convert_case 0.8.0",
+ "proc-macro2",
+ "quote",
+ "reqwest 0.12.28",
+ "serde_json",
+ "serde_yaml",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -1702,6 +1729,7 @@ dependencies = [
 name = "az-reflection"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "regex",
  "serde",
@@ -1777,6 +1805,7 @@ dependencies = [
 name = "az-rustfs"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "base64",
  "chrono",
@@ -1807,6 +1836,7 @@ dependencies = [
 name = "az-sandbox"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "serde",
 ]
@@ -1815,6 +1845,7 @@ dependencies = [
 name = "az-script-engine"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "az-sandbox",
  "serde",
@@ -1838,6 +1869,7 @@ dependencies = [
 name = "az-serial"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
@@ -1862,6 +1894,7 @@ name = "az-skills"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "automod",
  "az-derive-aliases",
  "chrono",
  "log",
@@ -1881,6 +1914,7 @@ name = "az-sms"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "reqwest 0.12.28",
@@ -1914,6 +1948,7 @@ dependencies = [
 name = "az-sql"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "serde",
@@ -2010,6 +2045,7 @@ dependencies = [
 name = "az-temp-mail"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "regex",
  "reqwest 0.12.28",
@@ -5112,6 +5148,7 @@ dependencies = [
 name = "gitdb"
 version = "0.1.0"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "chrono",
  "derive_more 2.1.1",
@@ -9170,6 +9207,7 @@ dependencies = [
 name = "rimmer"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "rimmer-macros",
  "serde",
  "serde_json",
@@ -11234,6 +11272,7 @@ name = "toasty-driver-gitdb"
 version = "2026.5.10"
 dependencies = [
  "async-trait",
+ "automod",
  "az-derive-aliases",
  "chrono",
  "gitdb 0.1.0",

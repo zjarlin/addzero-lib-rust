@@ -20,10 +20,7 @@
 
 use az_derive_aliases::{apply, error_eq};
 
-mod column;
-mod dialect;
-mod generator;
-mod table;
+automod::dir!("src");
 
 pub use column::{Column, ColumnType};
 pub use dialect::Dialect;

@@ -26,8 +26,7 @@
 
 use az_derive_aliases::{apply, error, plain_debug, serde_eq};
 
-mod config;
-mod frame;
+automod::dir!("src");
 
 pub use config::{BaudRate, FlowControl, Parity, SerialConfig, StopBits};
 pub use frame::{FrameDecoder, FrameEvent, FrameFormat};

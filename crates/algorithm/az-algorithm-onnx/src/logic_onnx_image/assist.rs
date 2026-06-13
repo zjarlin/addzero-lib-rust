@@ -14,8 +14,8 @@ use ort::value::{Tensor, TensorElementType, ValueType};
 use crate::error::{OnnxImageError, OnnxImageResult};
 use crate::logic_onnx_image::model::{
     OnnxImageModelSpec, OnnxImageOutputFiles, OnnxImageRun, OnnxInferenceSummary,
-    OnnxModelMetadata, OnnxOutputSummary, OnnxTensorIoInfo, PreparedImageTensor,
-    TensorElementKind, TensorInputSpec,
+    OnnxModelMetadata, OnnxOutputSummary, OnnxTensorIoInfo, PreparedImageTensor, TensorElementKind,
+    TensorInputSpec,
 };
 
 const MAX_OUTPUT_SAMPLE_VALUES: usize = 8;
@@ -32,16 +32,19 @@ pub struct LocalOnnxSession {
 
 impl LocalOnnxSession {
     /// 将本地 ONNX 模型文件加载进 ONNX Runtime。
-    ///
     /// # Errors
     /// 当模型文件不存在或 ONNX Runtime 加载失败时返回错误。
     pub fn from_file(path: impl AsRef<Path>) -> OnnxImageResult<Self> {
         let path = path.as_ref();
         if !path.is_file() {
-            return Err(OnnxImageError::io(
-                path.to_path_buf(),
-                std::io::Error::new(std::io::ErrorKind::NotFound, "ONNX model file not found"),
-            ));
+            let model_path = path.to_path_buf();
+            let source = std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "ONNX model file not found",
+            );
+            let error = OnnxImageError::io(model_path, source);
+
+            return Err(error);
         }
 
         let mut builder = Session::builder()?;
@@ -160,21 +163,23 @@ impl LocalOnnxSession {
         let summary = match prepared.element {
             TensorElementKind::Float32 => self.run_f32(
                 &prepared.shape,
-                prepared.f32_data.clone().ok_or_else(|| {
-                    OnnxImageError::InvalidTensorShape {
+                prepared
+                    .f32_data
+                    .clone()
+                    .ok_or_else(|| OnnxImageError::InvalidTensorShape {
                         model_code: spec.code,
                         reason: "prepared image does not contain f32 tensor data".to_owned(),
-                    }
-                })?,
+                    })?,
             )?,
             TensorElementKind::Uint8 => self.run_u8(
                 &prepared.shape,
-                prepared.u8_data.clone().ok_or_else(|| {
-                    OnnxImageError::InvalidTensorShape {
+                prepared
+                    .u8_data
+                    .clone()
+                    .ok_or_else(|| OnnxImageError::InvalidTensorShape {
                         model_code: spec.code,
                         reason: "prepared image does not contain u8 tensor data".to_owned(),
-                    }
-                })?,
+                    })?,
             )?,
         };
         Ok(summary)
@@ -200,7 +205,8 @@ pub fn run_real_image_model(
     let image_path = std::fs::canonicalize(image_path.as_ref())
         .map_err(|source| OnnxImageError::io(image_path.as_ref().to_path_buf(), source))?;
     let output_dir = output_dir.as_ref().to_path_buf();
-    fs::create_dir_all(&output_dir).map_err(|source| OnnxImageError::io(output_dir.clone(), source))?;
+    fs::create_dir_all(&output_dir)
+        .map_err(|source| OnnxImageError::io(output_dir.clone(), source))?;
 
     dbg!(&model_path);
     dbg!(&image_path);
@@ -208,7 +214,13 @@ pub fn run_real_image_model(
 
     let mut session = LocalOnnxSession::from_file(&model_path)?;
     let (prepared, summary) = session.run_image_file(spec, &image_path)?;
-    let files = write_inference_artifacts(algorithm_code, &image_path, &prepared, &summary, &output_dir)?;
+    let files = write_inference_artifacts(
+        algorithm_code,
+        &image_path,
+        &prepared,
+        &summary,
+        &output_dir,
+    )?;
 
     Ok(OnnxImageRun {
         input_path: image_path,
@@ -499,7 +511,13 @@ fn draw_output_summary(canvas: &mut RgbImage, x: i32, y: i32, output: &OnnxOutpu
 
     let values = normalized_review_values(&output.sample_f32);
     if values.is_empty() {
-        draw_text_label(canvas, x, y + 62, &["NO SAMPLE VALUES"], Rgb([148, 163, 184]));
+        draw_text_label(
+            canvas,
+            x,
+            y + 62,
+            &["NO SAMPLE VALUES"],
+            Rgb([148, 163, 184]),
+        );
         return;
     }
 
@@ -514,7 +532,9 @@ fn draw_output_summary(canvas: &mut RgbImage, x: i32, y: i32, output: &OnnxOutpu
             Rect::at(bar_x, current_y).of_size(max_bar_width, bar_height),
             Rgb([203, 213, 225]),
         );
-        let width = (max_bar_width as f32 * value).round().clamp(1.0, max_bar_width as f32) as u32;
+        let width = (max_bar_width as f32 * value)
+            .round()
+            .clamp(1.0, max_bar_width as f32) as u32;
         draw_filled_rect_mut(
             canvas,
             Rect::at(bar_x, current_y).of_size(width, bar_height),
@@ -773,9 +793,9 @@ fn validate_input_len(
 }
 
 fn element_count(shape: &[usize]) -> Option<usize> {
-    shape
-        .iter()
-        .try_fold(1_usize, |current, dimension| current.checked_mul(*dimension))
+    shape.iter().try_fold(1_usize, |current, dimension| {
+        current.checked_mul(*dimension)
+    })
 }
 
 fn first_input_name(session: &Session) -> String {

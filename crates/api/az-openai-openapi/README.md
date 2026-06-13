@@ -23,4 +23,14 @@ cargo fmt -p az-openai-openapi
 cargo test -p az-openai-openapi
 ```
 
+The generator fetches the remote OpenAPI spec at generation time. The default source is the official `openapi.yaml` because `openai/openai-openapi` does not currently publish `openapi.json` at the matching raw GitHub URL. To generate from a remote JSON spec mirror, pass the JSON URL explicitly:
+
+```bash
+python3 crates/api/az-openai-openapi/scripts/generate-openai-api.py \
+  --spec-url https://example.com/openapi.json \
+  --crate-dir crates/api/az-openai-openapi
+```
+
+You can also set `AZ_OPENAI_OPENAPI_SPEC_URL` instead of passing `--spec-url`. Local JSON or YAML files are supported with `--spec-file`.
+
 Module collection follows the addzero automod convention: `src/lib.rs`, `src/api.rs`, and `src/models.rs` stay as entrypoints using `automod::dir!`.

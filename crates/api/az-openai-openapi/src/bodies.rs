@@ -1,4 +1,4 @@
-// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+// Generated from OpenAPI spec. Do not edit by hand.
 //! Shared body aliases used by generated OpenAI REST traits.
 
 /// JSON value used only for schema fields that are intentionally open-ended.

@@ -1,14 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
-mod client;
-mod config;
-mod error;
-mod google;
-mod loopback;
-mod model;
-mod pkce;
-mod random;
+automod::dir!("src");
 
 pub use client::OAuth2Client;
 pub use config::{AuthorizationCodeOptions, OAuth2Config, OAuth2ConfigBuilder};

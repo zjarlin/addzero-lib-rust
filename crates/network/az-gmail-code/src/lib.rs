@@ -1,11 +1,7 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
-mod client;
-mod config;
-mod error;
-mod model;
-mod parser;
+automod::dir!("src");
 
 pub use client::GmailCodeClient;
 pub use config::{GmailCodeConfig, GmailCodeConfigBuilder, GmailCodeQuery};

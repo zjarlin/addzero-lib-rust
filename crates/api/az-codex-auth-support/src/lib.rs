@@ -7,16 +7,7 @@
 //! 包括 DuckMail 收件箱访问、OTP 解析、PKCE 生成、Codex 认证文件格式化，
 //! 以及可选的兼容 CLIProxyAPI 上传。
 
-mod auth_file;
-mod config;
-mod cpa;
-mod duckmail;
-mod error;
-mod http;
-mod otp;
-mod pkce;
-mod random;
-mod unsupported;
+automod::dir!("src");
 
 pub use auth_file::{
     AuthFileWriteOutcome, CodexAuthFile, OAuthTokens, decode_jwt_payload, safe_auth_filename,

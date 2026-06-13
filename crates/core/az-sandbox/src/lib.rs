@@ -3,4 +3,4 @@
 //! 此 crate 刻意保持精简：仅定义可序列化的策略对象，
 //! 供引擎、宿主和高级运行时共享使用。
 
-pub mod sandbox;
+automod::dir!(pub "src");

@@ -1,10 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
-mod classify;
-mod cluster;
-mod config;
-mod error;
+automod::dir!("src");
 
 pub use classify::{GitDbQueryKind, classify_gitdb_query};
 pub use cluster::{GitDbCluster, GitDbConnection, GitDbNodeStats, GitDbRoutedResult, GitDbStats};

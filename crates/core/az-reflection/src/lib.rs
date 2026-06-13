@@ -16,9 +16,7 @@
 //! - [`field_info!`] — 声明式构造 [`FieldInfo`]，支持叶子字段、嵌套对象、集合以及列名/描述注解。
 //! - [`reflect_meta!`] — 为任意类型实现 [`MetaInfo`] trait，可选附带类型描述。
 
-mod cache;
-mod metainfo;
-mod value;
+automod::dir!("src");
 
 pub use cache::{CacheError, ExpiringCache};
 pub use metainfo::{

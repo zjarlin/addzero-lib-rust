@@ -27,10 +27,7 @@
 
 use az_derive_aliases::{apply, error_eq, plain_code_display_no_default_enum};
 
-mod delete;
-mod insert;
-mod select;
-mod update;
+automod::dir!("src");
 
 pub use delete::DeleteQuery;
 pub use insert::InsertQuery;

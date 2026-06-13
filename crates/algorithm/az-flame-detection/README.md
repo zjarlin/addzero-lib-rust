@@ -13,11 +13,25 @@
 
 ## 输出
 
+### 图片
+
 - `source_input.jpg`：原始输入图副本
 - `model_input_preview.png`：模型输入尺寸预览图，带检测框
 - `raw_outputs.json`：ONNX 原始输出摘要
 - `detected_flames.json`：后处理后的 fire/smoke 检测框
 - `detected_flames.png`：原图尺寸标注图
+
+### 视频
+
+`detect_flames_in_video_from_path` 面向离线视频文件或边缘网关侧短片段处理：
+
+- `source_input.mp4`：原始输入视频副本
+- `extracted_frames/`：ffmpeg 抽帧结果
+- `annotated_frames/`：逐帧标注图
+- `frame_detections.json`：每帧 fire/smoke 检测框时间线
+- `annotated_flames.mp4`：重新编码后的标注视频
+
+实时 RTSP/摄像头场景应复用 `FlameDetectionRunner` 对解码后的内存帧流做常驻推理，不应先把所有帧落盘。
 
 ## 测试
 

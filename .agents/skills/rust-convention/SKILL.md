@@ -48,6 +48,27 @@ Before reviewing, familiarize yourself with Apollo's Rust best practices. Read A
 - Never use `unwrap()`/`expect()` outside tests
 - Use `thiserror` for library errors, `anyhow` for binaries only
 - Prefer `?` operator over match chains for error propagation
+- Split complex error construction into local variables before returning; do not inline path conversion, source error creation, and domain error wrapping inside one `return Err(...)`.
+
+Bad:
+```rust
+return Err(OnnxImageError::io(
+    path.to_path_buf(),
+    std::io::Error::new(std::io::ErrorKind::NotFound, "ONNX model file not found"),
+));
+```
+
+Good:
+```rust
+let model_path = path.to_path_buf();
+let source = std::io::Error::new(
+    std::io::ErrorKind::NotFound,
+    "ONNX model file not found",
+);
+let error = OnnxImageError::io(model_path, source);
+
+return Err(error);
+```
 
 ### Boilerplate Reduction
 - Prefer `thiserror` for library-facing error enums instead of hand-writing `Display`, `Error`, and `From` impls

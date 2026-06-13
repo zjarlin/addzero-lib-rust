@@ -8,6 +8,7 @@ authors.workspace = true
 description = "SMS provider abstraction and SMS platform API clients"
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 async-trait.workspace = true
 derive_more.workspace = true

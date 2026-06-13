@@ -1,9 +1,6 @@
 #![doc = include_str!("../README.md")]
 
-mod client;
-mod helper;
-mod progress;
-mod types;
+automod::dir!("src");
 
 pub use client::{
     BlockingS3StorageClient, DefaultS3StorageClientFactory, InMemoryS3StorageClient,

@@ -20,6 +20,7 @@ members = [
     "crates/config/*",
     "crates/core/*",
     "crates/data/*",
+    "crates/micro/*",
     "crates/network/*",
     "crates/runtime/*",
     "crates/storage/*",
@@ -49,6 +50,7 @@ repository = "https://github.com/zjarlin/addzero-lib-rust"
 ab_glyph = "0.2.32"
 automod = "1.0.16"
 base64 = "0.22.1"
+convert_case = "0.8.0"
 chrono = { version = "0.4.42", features = ["clock"] }
 deunicode = "1.6.2"
 derive_more = { version = "2.1.1", features = ["as_ref", "debug", "display", "from"] }

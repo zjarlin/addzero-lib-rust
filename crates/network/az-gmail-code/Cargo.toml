@@ -8,6 +8,7 @@ authors.workspace = true
 description = "Authorized Gmail API client for reading verification codes from owned mailboxes"
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 az-oauth2.workspace = true
 base64.workspace = true

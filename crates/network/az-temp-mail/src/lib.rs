@@ -38,16 +38,7 @@
 //! # }
 //! ```
 
-mod client;
-mod cloudflare;
-mod config;
-mod emailnator;
-mod error;
-mod http;
-mod mail_tm;
-mod model;
-mod provider;
-mod util;
+automod::dir!("src");
 
 use az_derive_aliases::{apply, plain_default_copy_eq};
 

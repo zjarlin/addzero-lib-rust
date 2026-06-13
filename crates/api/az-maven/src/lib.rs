@@ -26,11 +26,7 @@
 
 #![forbid(unsafe_code)]
 
-mod config;
-mod error;
-mod http;
-mod maven;
-mod util;
+automod::dir!("src");
 
 pub use config::{ApiConfig, ApiConfigBuilder};
 pub use error::{

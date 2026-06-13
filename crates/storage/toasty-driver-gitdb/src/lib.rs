@@ -2,10 +2,6 @@
 #![warn(missing_docs)]
 #![doc = include_str!("../README.md")]
 
-mod capability;
-mod connection;
-mod error;
-mod sql;
-mod value;
+automod::dir!("src");
 
 pub use connection::GitDb;

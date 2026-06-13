@@ -10,11 +10,7 @@
 //! - [`AiModelProvider`] — AI 服务提供商配置
 //! - [`SecretCipher`] — 基于 AES-256-GCM 的 API 密钥加解密
 
-mod entity;
-mod pg_repo;
-mod secret;
-mod service;
-mod types;
+automod::dir!("src");
 
 pub use pg_repo::PgRepo;
 pub use secret::{EncryptedSecret, SecretCipher};

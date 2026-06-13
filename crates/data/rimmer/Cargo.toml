@@ -8,6 +8,7 @@ authors.workspace = true
 description = "Jimmer-style Rust ORM facade focused on strongly typed usage"
 
 [dependencies]
+automod.workspace = true
 rimmer-macros.workspace = true
 serde.workspace = true
 serde_json.workspace = true

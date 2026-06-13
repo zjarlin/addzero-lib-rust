@@ -1,10 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
-mod document;
-mod error;
-mod line_index;
-mod wire;
+automod::dir!("src");
 
 pub use document::LineCrdtDocument;
 pub use error::{LineCrdtError, LineCrdtResult};

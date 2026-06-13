@@ -126,6 +126,34 @@ fn handle_request(req: &Request) -> Result<ValidatedRequest, MyError> {
 
 > In case error recovery is needed, use `or_else`, `map_err`, `if let Ok(..) else`. To **inspect or log your error**, use `inspect_err`.
 
+### Split complex error construction
+
+When returning a domain error that wraps converted paths, generated source errors, parsed metadata, or multiple constructor arguments, split the pieces into local variables first. This keeps the error boundary readable, debuggable, and easy to extend with logging or context.
+
+❌ Avoid nesting every step inside one `return Err(...)`:
+
+```rust
+return Err(OnnxImageError::io(
+    path.to_path_buf(),
+    std::io::Error::new(std::io::ErrorKind::NotFound, "ONNX model file not found"),
+));
+```
+
+✅ Prefer naming each part before wrapping it:
+
+```rust
+let model_path = path.to_path_buf();
+let source = std::io::Error::new(
+    std::io::ErrorKind::NotFound,
+    "ONNX model file not found",
+);
+let error = OnnxImageError::io(model_path, source);
+
+return Err(error);
+```
+
+This is required when an error expression combines three or more concerns, such as data conversion, source error creation, and domain error mapping. Tiny single-constructor returns like `return Err(MyError::MissingConfig);` are still fine.
+
 ## 4.6 Unit Test should exercise errors
 
 While many errors don't implement PartialEq and Eq, making it hard to do direct assertions between them, it is possible to check the error messages with `format!` or `to_string()`, making the errors meaningful and test validated:
