@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use az_qr_code_recognition::error::{QrCodeRecognitionError, QrCodeRecognitionResult};
+use anyhow::Context;
 use az_qr_code_recognition::logic_qr_code_recognition::assist::decode_qr_codes_from_path;
 use az_qr_code_recognition::logic_qr_code_recognition::model::ImagePoint;
 use image::{Rgb, RgbImage};
@@ -20,20 +20,17 @@ fn fixture_path(file_name: &str) -> PathBuf {
     .expect("测试输入图片必须存在")
 }
 
-fn output_dir() -> QrCodeRecognitionResult<PathBuf> {
+fn output_dir() -> anyhow::Result<PathBuf> {
     let dir = workspace_root()
         .join("target/az-algorithm-results")
         .join("qr_code_recognition");
     std::fs::create_dir_all(&dir)
-        .map_err(|source| QrCodeRecognitionError::io(dir.clone(), source))?;
+        .with_context(|| format!("failed to create output dir `{}`", dir.display()))?;
     Ok(dir)
 }
 
 #[expect(clippy::dbg_macro, reason = "用户要求测试输出输入、输出的绝对路径")]
-fn save_qr_output_image(
-    image_path: &Path,
-    bounds: &[[ImagePoint; 4]],
-) -> QrCodeRecognitionResult<PathBuf> {
+fn save_qr_output_image(image_path: &Path, bounds: &[[ImagePoint; 4]]) -> anyhow::Result<PathBuf> {
     let output_path = output_dir()?.join("decoded_qr.png");
     dbg!(&image_path);
     dbg!(&output_path);
@@ -60,8 +57,7 @@ fn draw_polygon(image: &mut RgbImage, corners: &[ImagePoint; 4], color: Rgb<u8>)
 }
 
 #[test]
-fn qr_code_recognition_should_decode_real_image_and_write_output_image()
--> QrCodeRecognitionResult<()> {
+fn qr_code_recognition_should_decode_real_image_and_write_output_image() -> anyhow::Result<()> {
     // 输入图片：crates/algorithm/az-qr-code-recognition/tests/fixtures/input/qr_code.png
     // 输出图片：target/az-algorithm-results/qr_code_recognition/decoded_qr.png
     let input_path = fixture_path("qr_code.png");

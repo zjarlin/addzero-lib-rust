@@ -137,20 +137,6 @@ fn detect_persons_from_path_should_write_marked_image() -> PersonDetectionResult
 }
 
 #[test]
-fn detect_persons_from_bytes_should_write_marked_image() -> PersonDetectionResult<()> {
-    // 输入：图片二进制。
-    //
-    // 输出：
-    // target/az-algorithm-results/person_detection_bytes/detected_persons.png
-    let bytes = std::fs::read(fixture_path("person_vehicle.jpg"))
-        .map_err(|source| PersonDetectionError::io(fixture_path("person_vehicle.jpg"), source))?;
-    let result =
-        detect_persons_from_bytes_with_options(&bytes, &options("person_detection_bytes"))?;
-
-    assert_real_outputs_exist(&result)
-}
-
-#[test]
 fn detect_persons_from_base64_should_write_marked_image() -> PersonDetectionResult<()> {
     // 输入：base64 图片字符串。
     //

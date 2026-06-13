@@ -14,15 +14,42 @@
 
 ## 输入
 
+- 一行标注视频：`annotate_worker_hits_video("/abs/input.mp4")`
+- 一行分析并拿应用层结果：`analyze_worker_hits_video("/abs/input.mp4")`
 - 已结构化视觉观测：`record_worker_hit_timeline_from_visual_observations(...)`
 - 真实视频 + YOLO pose + ROI 规则：`analyze_worker_hits_in_video_from_path(...)`
 
-视频入口需要调用方配置：
+默认一行视频入口已经内置：
+
+- `pose_model_path`：`resources/models/yolov8n_pose.onnx`
+- `ffmpeg_path`：优先使用 `/opt/homebrew/bin/ffmpeg`、`/usr/local/bin/ffmpeg`，否则使用 `ffmpeg`
+- `target_roi`：默认悬挂金属板区域
+- `sample_fps`：默认 10fps 分析
+- `output_fps`：默认 30fps 输出标注视频
+
+需要现场调参时，改用 `default_worker_hit_video_analysis_options(...)` 生成默认配置后再调用
+`analyze_worker_hits_in_video_from_path(...)`。可调整：
 
 - `pose_model_path`：`resources/models/yolov8n_pose.onnx`
 - `ffmpeg_path`：例如 `/opt/homebrew/bin/ffmpeg`
 - `target_roi`：现场中需要计为有效敲击的目标区域
 - `pose_score_threshold` / `keypoint_score_threshold` / `WorkerHitCountConfig`：按现场视频调参
+
+## 应用层读取某个人敲击次数
+
+```rust
+use az_worker_hit_counting::logic_worker_hit_counting::assist::analyze_worker_hits_video;
+
+let run = analyze_worker_hits_video("/Users/zjarlin/Desktop/input.mp4")?;
+let person_5_hits = run.valid_hit_count_of(5).unwrap_or(0);
+```
+
+如果需要完整事件明细：
+
+```rust
+let worker = run.worker(5);
+let valid_hits = worker.map(|worker| &worker.valid_hits);
+```
 
 ## 输出
 

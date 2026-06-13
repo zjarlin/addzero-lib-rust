@@ -1,7 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use az_algorithm_onnx::error::OnnxImageResult;
+use az_vehicle_detection::error::VehicleDetectionResult;
 use az_vehicle_detection::logic_vehicle_detection::assist::run_vehicle_detection_from_path_with_output;
+use image::Rgb;
+
+const VEHICLE_BOX_COLOR: Rgb<u8> = Rgb([255, 70, 40]);
 
 fn workspace_root() -> PathBuf {
     std::fs::canonicalize(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
@@ -27,19 +30,60 @@ fn assert_existing_file(path: &Path) {
     assert!(path.is_file(), "输出文件必须存在：{}", path.display());
 }
 
-#[test]
-fn vehicle_detection_should_run_real_image_and_write_outputs() -> OnnxImageResult<()> {
-    // 输入图片：crates/algorithm/az-vehicle-detection/tests/fixtures/input/person_vehicle.jpg
-    // 输出：target/az-algorithm-results/vehicle_detection/raw_outputs.json
-    let result = run_vehicle_detection_from_path_with_output(
-        fixture_path("person_vehicle.jpg"),
-        output_dir(),
-    )?;
+fn assert_image_contains_vehicle_box(path: &Path) -> VehicleDetectionResult<()> {
+    let image = image::open(path)?.to_rgb8();
+    let box_pixels = image
+        .pixels()
+        .filter(|pixel| **pixel == VEHICLE_BOX_COLOR)
+        .count();
+    assert!(
+        box_pixels > 0,
+        "车辆标注图必须包含检测框颜色像素：{}",
+        path.display()
+    );
+    Ok(())
+}
 
-    // 关键断言：验证真实模型输出和落盘文件。
-    assert!(!result.raw_outputs.is_empty());
+#[expect(
+    clippy::dbg_macro,
+    reason = "测试需要直接打印车辆检测输入、模型、输出绝对路径"
+)]
+fn assert_real_outputs_exist(
+    result: &az_vehicle_detection::logic_vehicle_detection::model::VehicleDetectionRun,
+) -> VehicleDetectionResult<()> {
+    dbg!(&result.input_path);
+    dbg!(&result.model_path);
+    dbg!(&result.files.source_input);
+    dbg!(&result.files.model_input_preview);
+    dbg!(&result.files.raw_outputs_json);
+    dbg!(&result.files.detected_vehicles_json);
+    dbg!(&result.files.detected_vehicles_image);
+
+    assert!(
+        !result.vehicles.is_empty(),
+        "真实车辆图片必须至少检测到一个车辆框"
+    );
     assert_existing_file(&result.files.source_input);
     assert_existing_file(&result.files.model_input_preview);
     assert_existing_file(&result.files.raw_outputs_json);
+    assert_existing_file(&result.files.detected_vehicles_json);
+    assert_existing_file(&result.files.detected_vehicles_image);
+    assert_image_contains_vehicle_box(&result.files.model_input_preview)?;
+    assert_image_contains_vehicle_box(&result.files.detected_vehicles_image)?;
+    Ok(())
+}
+
+#[test]
+fn vehicle_detection_should_run_test_image_and_write_marked_outputs() -> VehicleDetectionResult<()>
+{
+    // 输入：crates/algorithm/az-vehicle-detection/tests/fixtures/input/test.png
+    // 输出：target/az-algorithm-results/vehicle_detection/model_input_preview.png
+    // 输出：target/az-algorithm-results/vehicle_detection/detected_vehicles.png
+    let result =
+        run_vehicle_detection_from_path_with_output(fixture_path("test.png"), output_dir())?;
+
+    // 关键断言：验证真实模型输出、车辆框和标注图落盘。
+    assert!(!result.raw_outputs.is_empty());
+    assert_real_outputs_exist(&result)?;
     Ok(())
 }

@@ -23,10 +23,11 @@ fn fixture_path(file_name: &str) -> PathBuf {
 }
 
 fn model_path() -> PathBuf {
+    let path = "face_detection_scrfd_500m.onnx";
     std::fs::canonicalize(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("resources/models")
-            .join("face_detection_scrfd_500m.onnx"),
+            .join(path),
     )
     .expect("人脸检测模型必须存在")
 }

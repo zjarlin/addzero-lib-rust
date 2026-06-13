@@ -148,7 +148,8 @@ fn run_one_algorithm(
             ]
         }
         ImageAlgorithmKind::QrCodeRecognition => {
-            let results = az_qr_code_recognition::logic_qr_code_recognition::assist::decode_qr_codes_from_path(input_path)?;
+            let results = az_qr_code_recognition::logic_qr_code_recognition::assist::decode_qr_codes_from_path(input_path)
+                .map_err(AlgorithmPipelineError::qr_code_recognition)?;
             fs::create_dir_all(&output_dir)
                 .map_err(|source| AlgorithmPipelineError::io(output_dir.clone(), source))?;
             let output_file = output_dir.join("decoded_payloads.json");

@@ -30,9 +30,17 @@ pub enum AlgorithmPipelineError {
     #[error("person detection failed: {0}")]
     PersonDetection(#[from] az_person_detection::error::PersonDetectionError),
 
+    /// 车辆检测算法失败。
+    #[error("vehicle detection failed: {0}")]
+    VehicleDetection(#[from] az_vehicle_detection::error::VehicleDetectionError),
+
     /// 二维码识别算法失败。
-    #[error("QR code recognition failed: {0}")]
-    QrCodeRecognition(#[from] az_qr_code_recognition::error::QrCodeRecognitionError),
+    #[error("QR code recognition failed: {source}")]
+    QrCodeRecognition {
+        /// 原始二维码识别错误。
+        #[source]
+        source: anyhow::Error,
+    },
 
     /// 汇总 JSON 序列化失败。
     #[error("JSON serialization error: {0}")]
@@ -47,5 +55,11 @@ impl AlgorithmPipelineError {
             path: path.into(),
             source,
         }
+    }
+
+    /// 为二维码识别错误补充 pipeline 上下文。
+    #[must_use]
+    pub fn qr_code_recognition(source: anyhow::Error) -> Self {
+        Self::QrCodeRecognition { source }
     }
 }

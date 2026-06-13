@@ -1,7 +1,8 @@
 use az_worker_hit_counting::error::WorkerHitCountingResult;
 use az_worker_hit_counting::logic_worker_hit_counting::assist::{
-    analyze_worker_hits_in_video_from_path, count_worker_hits_by_person_from_visual_observations,
-    record_worker_hit_timeline_from_visual_observations,
+    analyze_worker_hits_in_video_from_path, annotate_worker_hits_video,
+    count_worker_hits_by_person_from_visual_observations,
+    default_worker_hit_video_analysis_options, record_worker_hit_timeline_from_visual_observations,
 };
 use az_worker_hit_counting::logic_worker_hit_counting::model::{
     InvalidHitReason, NormalizedBoundingBox, NormalizedPoint, VisualTargetKind,
@@ -37,6 +38,33 @@ fn worker_hit_counting_should_count_only_hits_on_hanging_metal_panel() -> Worker
         ),
         (1, 1, InvalidHitReason::ContactOnInvalidTarget)
     );
+    Ok(())
+}
+
+#[test]
+fn worker_hit_counting_result_should_return_hit_count_by_person_id() -> WorkerHitCountingResult<()>
+{
+    let result = count_worker_hits_by_person_from_visual_observations(
+        &[
+            observation(
+                1,
+                1,
+                0,
+                target(100, VisualTargetKind::HangingMetalPanel),
+                0.90,
+            ),
+            observation(
+                2,
+                1,
+                0,
+                target(100, VisualTargetKind::HangingMetalPanel),
+                0.90,
+            ),
+        ],
+        WorkerHitCountConfig::default(),
+    )?;
+
+    assert_eq!(result.valid_hit_count_of(2), Some(1));
     Ok(())
 }
 
@@ -266,6 +294,35 @@ fn worker_hit_counting_should_reject_invalid_visual_scores() {
 }
 
 #[test]
+fn worker_hit_counting_should_build_default_one_line_video_options() -> WorkerHitCountingResult<()>
+{
+    let user_video = PathBuf::from("/Users/zjarlin/Desktop/246f5787eca62dc0b462dbc041da756f.mp4");
+    if !user_video.is_file() {
+        eprintln!("跳过默认配置测试，用户视频不存在：{}", user_video.display());
+        return Ok(());
+    }
+
+    let options = default_worker_hit_video_analysis_options(&user_video)?;
+
+    assert_eq!(
+        options.output_dir,
+        workspace_root()
+            .join("target/az-algorithm-results/worker-hit-counting")
+            .join("246f5787eca62dc0b462dbc041da756f")
+    );
+    Ok(())
+}
+
+#[test]
+fn worker_hit_counting_should_reject_missing_video_for_one_line_api() {
+    let err =
+        annotate_worker_hits_video("/Users/zjarlin/Desktop/not-exists-worker-hit-counting.mp4")
+            .unwrap_err();
+
+    assert!(err.to_string().contains("filesystem error at"));
+}
+
+#[test]
 #[expect(
     clippy::dbg_macro,
     reason = "测试需要直接打印真实视频输入、模型和输出绝对路径"
@@ -295,6 +352,7 @@ fn worker_hit_counting_should_analyze_user_video_with_real_pose_model()
                 .join("target/az-algorithm-results")
                 .join("worker_hit_counting_user_video"),
             sample_fps: 1,
+            output_fps: 30,
             max_frames: Some(6),
             pose_score_threshold: 0.01,
             keypoint_score_threshold: 0.01,

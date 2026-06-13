@@ -46,6 +46,7 @@ homepage = "https://github.com/zjarlin/addzero-lib-rust"
 repository = "https://github.com/zjarlin/addzero-lib-rust"
 
 [workspace.dependencies]
+ab_glyph = "0.2.32"
 automod = "1.0.16"
 base64 = "0.22.1"
 chrono = { version = "0.4.42", features = ["clock"] }
@@ -153,6 +154,7 @@ az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
 az-maven = { version = "=2026.5.10", path = "crates/api/az-maven" }
 az-music = { version = "=2026.5.10", path = "crates/network/az-music" }
 az-oauth2 = { version = "=2026.5.10", path = "crates/api/az-oauth2" }
+az-openai-openapi = { version = "=2026.5.10", path = "crates/api/az-openai-openapi" }
 az-persistence = { version = "=2026.5.10", path = "crates/data/az-persistence" }
 az-remote-model = { version = "=2026.5.10", path = "crates/core/az-remote-model" }
 az-remote-protocol = { version = "=2026.5.10", path = "crates/network/az-remote-protocol" }

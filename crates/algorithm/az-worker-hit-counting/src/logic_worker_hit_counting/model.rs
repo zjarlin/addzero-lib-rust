@@ -226,6 +226,22 @@ pub struct WorkerHitCount {
     pub workers: Vec<WorkerActionTrack>,
 }
 
+impl WorkerHitCount {
+    /// 按人员 ID 读取该人员的动作统计。
+    #[must_use]
+    pub fn worker(&self, person_id: WorkerTrackId) -> Option<&WorkerActionTrack> {
+        self.workers
+            .iter()
+            .find(|worker| worker.person_id == person_id)
+    }
+
+    /// 按人员 ID 读取有效敲击次数。
+    #[must_use]
+    pub fn valid_hit_count_of(&self, person_id: WorkerTrackId) -> Option<usize> {
+        self.worker(person_id).map(|worker| worker.valid_hit_count)
+    }
+}
+
 /// 单帧处理后的人员动作状态记录。
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct WorkerActionFrameRecord {
@@ -262,23 +278,26 @@ pub struct WorkerHitTimeline {
 pub const DEFAULT_POSE_MODEL_FILE_NAME: &str = "yolov8n_pose.onnx";
 
 /// 一行视频标注入口默认抽帧帧率。
-pub const DEFAULT_WORKER_HIT_SAMPLE_FPS: u32 = 2;
+pub const DEFAULT_WORKER_HIT_SAMPLE_FPS: u32 = 10;
+
+/// 一行视频标注入口默认输出视频帧率。
+pub const DEFAULT_WORKER_HIT_OUTPUT_FPS: u32 = 30;
 
 /// 一行视频标注入口默认 pose person 置信度阈值。
-pub const DEFAULT_WORKER_HIT_POSE_SCORE_THRESHOLD: f32 = 0.05;
+pub const DEFAULT_WORKER_HIT_POSE_SCORE_THRESHOLD: f32 = 0.02;
 
 /// 一行视频标注入口默认关键点置信度阈值。
-pub const DEFAULT_WORKER_HIT_KEYPOINT_SCORE_THRESHOLD: f32 = 0.05;
+pub const DEFAULT_WORKER_HIT_KEYPOINT_SCORE_THRESHOLD: f32 = 0.02;
 
 /// 一行视频标注入口默认悬挂金属板区域。
 pub const DEFAULT_WORKER_HIT_TARGET_ROI: VisualTargetObservation = VisualTargetObservation {
     target_id: 1,
     kind: VisualTargetKind::HangingMetalPanel,
     target_box: NormalizedBoundingBox {
-        x: 0.24,
-        y: 0.16,
-        width: 0.52,
-        height: 0.64,
+        x: 0.30,
+        y: 0.46,
+        width: 0.45,
+        height: 0.32,
     },
     containment_score: 1.0,
 };
@@ -294,6 +313,8 @@ pub struct WorkerHitVideoAnalysisOptions {
     pub output_dir: PathBuf,
     /// 抽帧帧率，单位 fps。
     pub sample_fps: u32,
+    /// 标注视频输出帧率，单位 fps。
+    pub output_fps: u32,
     /// 最多处理多少张抽帧图。为 `None` 时处理全部抽帧。
     pub max_frames: Option<usize>,
     /// pose person 候选置信度阈值。
@@ -320,7 +341,7 @@ pub struct PoseKeypoint {
 /// 单个姿态人员候选。
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct WorkerPoseDetection {
-    /// 当前帧内的候选序号。
+    /// pose 候选序号；视频流水线关联跨帧人员后，该值为稳定人员 ID 减一。
     pub local_person_index: usize,
     /// 候选人员框。
     pub person_box: NormalizedBoundingBox,
@@ -383,6 +404,20 @@ pub struct WorkerHitVideoAnalysisRun {
     pub action_observations: Vec<WorkerActionObservation>,
     /// 敲击时间线。
     pub timeline: WorkerHitTimeline,
+}
+
+impl WorkerHitVideoAnalysisRun {
+    /// 按人员 ID 读取有效敲击次数。
+    #[must_use]
+    pub fn valid_hit_count_of(&self, person_id: WorkerTrackId) -> Option<usize> {
+        self.timeline.final_count.valid_hit_count_of(person_id)
+    }
+
+    /// 按人员 ID 读取该人员的动作统计。
+    #[must_use]
+    pub fn worker(&self, person_id: WorkerTrackId) -> Option<&WorkerActionTrack> {
+        self.timeline.final_count.worker(person_id)
+    }
 }
 
 pub(crate) enum HitCandidateClassification {

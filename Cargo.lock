@@ -955,6 +955,7 @@ dependencies = [
 name = "az-algorithm-pipeline"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-algorithm-onnx",
  "az-face-detection",
@@ -1613,6 +1614,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-openai-openapi"
+version = "2026.5.10"
+dependencies = [
+ "async-trait",
+ "automod",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "az-persistence"
 version = "2026.5.10"
 dependencies = [
@@ -1673,12 +1684,12 @@ dependencies = [
 name = "az-qr-code-recognition"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "image",
  "imageproc",
  "rqrr",
  "serde",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2031,7 +2042,12 @@ version = "2026.5.10"
 dependencies = [
  "automod",
  "az-algorithm-onnx",
+ "image",
+ "imageproc",
+ "ndarray",
+ "ort",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
 ]
 
@@ -2063,6 +2079,7 @@ dependencies = [
 name = "az-worker-hit-counting"
 version = "2026.5.10"
 dependencies = [
+ "ab_glyph",
  "automod",
  "image",
  "imageproc",

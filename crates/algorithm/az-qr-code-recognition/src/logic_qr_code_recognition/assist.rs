@@ -2,7 +2,8 @@
 
 use std::path::Path;
 
-use crate::error::QrCodeRecognitionResult;
+use anyhow::Context;
+
 use crate::logic_qr_code_recognition::model::{ImagePoint, QrCodeRecognition};
 
 /// 解码图片文件中全部二维码。
@@ -11,8 +12,11 @@ use crate::logic_qr_code_recognition::model::{ImagePoint, QrCodeRecognition};
 /// 当图片读取失败时返回错误。
 pub fn decode_qr_codes_from_path(
     path: impl AsRef<Path>,
-) -> QrCodeRecognitionResult<Vec<QrCodeRecognition>> {
-    let image = image::open(path)?.to_luma8();
+) -> anyhow::Result<Vec<QrCodeRecognition>> {
+    let path = path.as_ref();
+    let image = image::open(path)
+        .with_context(|| format!("failed to open QR code image at `{}`", path.display()))?
+        .to_luma8();
     Ok(decode_qr_codes_from_luma8(image))
 }
 

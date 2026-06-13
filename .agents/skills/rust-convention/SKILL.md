@@ -1,5 +1,5 @@
 ---
-name: rust-best-practices
+name: rust-convention
 description: >
   Guide for writing idiomatic Rust code based on Apollo GraphQL's best practices handbook. Use this skill when:
   (1) writing new Rust code or functions,
@@ -11,14 +11,13 @@ description: >
   (7) reducing repetitive Rust boilerplate with derive crates or local macros,
   (8) organizing Rust crate module layout, file naming, and extraction-ready helper directories.
 license: MIT
-compatibility: Rust 1.70+, Cargo
 metadata:
   author: apollographql
   version: "1.2.0"
 allowed-tools: Bash(cargo:*) Bash(rustc:*) Bash(rustfmt:*) Bash(clippy:*) Read Write Edit Glob Grep
 ---
 
-# Rust Best Practices
+# Rust Convention
 
 Apply these guidelines when writing or reviewing Rust code. Based on Apollo GraphQL's [Rust Best Practices Handbook](https://github.com/apollographql/rust-best-practices).
 
