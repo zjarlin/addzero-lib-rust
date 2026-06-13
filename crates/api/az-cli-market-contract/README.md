@@ -25,9 +25,9 @@ az-cli-market-contract = { path = "../az-cli-market-contract" }  # workspace 内
 ## 用法
 
 ```rust
-use az_cli_market_contract::{
-    CliMarketEntry, CliMarketStatus, CliEntryKind,
-    CliMarketImportRequest, CliImportFormat, CliImportMode,
+use az_cli_market_contract::api::{
+    CliEntryKind, CliImportFormat, CliImportMode, CliMarketEntry, CliMarketImportRequest,
+    CliMarketSourceType, CliMarketStatus,
 };
 
 // 构造一条市场条目
@@ -35,8 +35,8 @@ let entry = CliMarketEntry {
     id: "abc123".into(),
     slug: "my-cli-tool".into(),
     status: CliMarketStatus::Published,
+    source_type: CliMarketSourceType::Manual,
     entry_kind: CliEntryKind::Cli,
-    // ... 其他字段按需填充
     ..Default::default()
 };
 
@@ -55,5 +55,5 @@ let bytes = request.decode_payload().expect("base64 解码失败");
 
 - `base64` — payload 字段的 base64 编解码
 - `serde` / `serde_json` — 所有结构体的序列化与反序列化
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误返回与上下文
 - `uuid` — 条目 ID 字段

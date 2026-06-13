@@ -1,4 +1,4 @@
-use az_io::*;
+use az_io::{MoveLink, PathExt, mvln, undo_mvln};
 use std::fs;
 use tempfile::TempDir;
 
@@ -138,12 +138,16 @@ fn undo_mvln_reports_non_symlink_and_broken_symlink_errors() {
     fs::write(&regular_file, "hello").expect("file should be written");
 
     let regular_error = undo_mvln(&regular_file).expect_err("regular file should fail");
-    assert!(matches!(regular_error, IoError::NotSymlink(_)));
+    assert!(regular_error.to_string().contains("path is not a symlink"));
 
     let broken_link = temp.path().join("dangling.txt");
     std::os::unix::fs::symlink(temp.path().join("missing.txt"), &broken_link)
         .expect("broken symlink should be created");
 
     let broken_error = undo_mvln(&broken_link).expect_err("broken symlink should fail");
-    assert!(matches!(broken_error, IoError::BrokenSymlink(_)));
+    assert!(
+        broken_error
+            .to_string()
+            .contains("symlink target is missing or invalid")
+    );
 }

@@ -1,10 +1,7 @@
 use std::path::PathBuf;
 
-use az_derive_aliases::{apply, error, serde_eq, serde_eq_default};
-use az_persistence::PersistenceError;
+use az_derive_aliases::{apply, serde_eq, serde_eq_default};
 use chrono::{DateTime, Utc};
-use sea_orm::DbErr;
-use sqlx::Error as SqlxError;
 
 #[apply(serde_eq)]
 pub struct KnowledgeSourceSpec {
@@ -73,18 +70,4 @@ pub struct KnowledgeSyncReport {
     pub upserted_documents: usize,
     pub skipped_paths: Vec<String>,
     pub finished_at: Option<DateTime<Utc>>,
-}
-
-#[apply(error)]
-pub enum KnowledgeError {
-    #[error("could not resolve home directory")]
-    MissingHomeDir,
-    #[error("connect knowledge persistence: {0}")]
-    Persistence(#[from] PersistenceError),
-    #[error("query knowledge rows: {0}")]
-    Query(#[source] DbErr),
-    #[error("query sqlite knowledge rows: {0}")]
-    Sqlite(#[source] SqlxError),
-    #[error("{0}")]
-    Message(String),
 }

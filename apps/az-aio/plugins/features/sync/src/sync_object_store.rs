@@ -8,11 +8,11 @@ use std::{
     sync::Arc,
 };
 
-use az_rustfs::S3StorageClient;
+use anyhow::{Context, Result, bail};
+use az_rustfs::client::S3StorageClient;
 use sha2::{Digest, Sha256};
 
 use crate::{
-    error::{SyncError, SyncResult},
     sync_model::normalize_home_relative_path,
     sync_server::{DEFAULT_OBJECT_CHUNK_BYTES, SyncObjectManifest},
 };
@@ -82,7 +82,7 @@ impl FileSystemSyncObjectStore {
         space_id: impl Into<String>,
         relative_path: &str,
         source_path: impl AsRef<Path>,
-    ) -> SyncResult<SyncObjectManifest> {
+    ) -> Result<SyncObjectManifest> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let source_path = source_path.as_ref();
         let manifest = manifest_for_file(
@@ -91,22 +91,16 @@ impl FileSystemSyncObjectStore {
             source_path,
             &self.config.manifest_config(),
         )?;
-        let mut source = fs::File::open(source_path).map_err(|source| SyncError::Io {
-            path: source_path.to_path_buf(),
-            source,
-        })?;
+        let mut source =
+            fs::File::open(source_path).with_context(|| format!("I/O failed for `{source_path:?}`"))?;
         for chunk in &manifest.chunks {
             let chunk_path = self.chunk_path(&chunk.object_key)?;
             if let Some(parent) = chunk_path.parent() {
-                fs::create_dir_all(parent).map_err(|source| SyncError::Io {
-                    path: parent.to_path_buf(),
-                    source,
-                })?;
+                fs::create_dir_all(parent)
+                    .with_context(|| format!("I/O failed for `{parent:?}`"))?;
             }
-            let mut target = fs::File::create(&chunk_path).map_err(|source| SyncError::Io {
-                path: chunk_path.clone(),
-                source,
-            })?;
+            let mut target = fs::File::create(&chunk_path)
+                .with_context(|| format!("I/O failed for `{chunk_path:?}`"))?;
             copy_limited(&mut source, &mut target, chunk.size_bytes, &chunk_path)?;
         }
         Ok(manifest)
@@ -116,41 +110,32 @@ impl FileSystemSyncObjectStore {
         &self,
         manifest: &SyncObjectManifest,
         target_path: impl AsRef<Path>,
-    ) -> SyncResult<()> {
+    ) -> Result<()> {
         let target_path = target_path.as_ref();
         if let Some(parent) = target_path.parent() {
-            fs::create_dir_all(parent).map_err(|source| SyncError::Io {
-                path: parent.to_path_buf(),
-                source,
-            })?;
+            fs::create_dir_all(parent).with_context(|| format!("I/O failed for `{parent:?}`"))?;
         }
-        let mut target = fs::File::create(target_path).map_err(|source| SyncError::Io {
-            path: target_path.to_path_buf(),
-            source,
-        })?;
+        let mut target = fs::File::create(target_path)
+            .with_context(|| format!("I/O failed for `{target_path:?}`"))?;
         for chunk in &manifest.chunks {
             let chunk_path = self.chunk_path(&chunk.object_key)?;
-            let mut source = fs::File::open(&chunk_path).map_err(|source| SyncError::Io {
-                path: chunk_path.clone(),
-                source,
-            })?;
-            std::io::copy(&mut source, &mut target).map_err(|source| SyncError::Io {
-                path: target_path.to_path_buf(),
-                source,
-            })?;
+            let mut source = fs::File::open(&chunk_path)
+                .with_context(|| format!("I/O failed for `{chunk_path:?}`"))?;
+            std::io::copy(&mut source, &mut target)
+                .with_context(|| format!("I/O failed for `{target_path:?}`"))?;
         }
         let restored_hash = sha256_file(target_path)?;
         if restored_hash != manifest.content_hash {
-            return Err(SyncError::ObjectHashMismatch {
-                relative_path: manifest.relative_path.clone(),
-                expected: manifest.content_hash.clone(),
-                actual: restored_hash,
-            });
+            bail!(
+                "object hash mismatch for `{}`: expected `{}`, restored `{restored_hash}`",
+                manifest.relative_path,
+                manifest.content_hash
+            );
         }
         Ok(())
     }
 
-    pub fn chunk_path(&self, object_key: &str) -> SyncResult<PathBuf> {
+    pub fn chunk_path(&self, object_key: &str) -> Result<PathBuf> {
         let object_key = normalize_home_relative_path(object_key)?;
         Ok(self.config.root_dir.join(object_key))
     }
@@ -176,7 +161,7 @@ impl RustfsSyncObjectStore {
         }
     }
 
-    pub fn ensure_bucket(&self) -> SyncResult<()> {
+    pub fn ensure_bucket(&self) -> Result<()> {
         if self.client.bucket_exists(&self.bucket_name)? {
             Ok(())
         } else {
@@ -190,15 +175,13 @@ impl RustfsSyncObjectStore {
         space_id: impl Into<String>,
         relative_path: &str,
         source_path: impl AsRef<Path>,
-    ) -> SyncResult<SyncObjectManifest> {
+    ) -> Result<SyncObjectManifest> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let source_path = source_path.as_ref();
         let manifest = manifest_for_file(space_id, &relative_path, source_path, &self.config)?;
         self.ensure_bucket()?;
-        let mut source = fs::File::open(source_path).map_err(|source| SyncError::Io {
-            path: source_path.to_path_buf(),
-            source,
-        })?;
+        let mut source =
+            fs::File::open(source_path).with_context(|| format!("I/O failed for `{source_path:?}`"))?;
         for chunk in &manifest.chunks {
             let bytes = read_limited(&mut source, chunk.size_bytes, source_path)?;
             self.client.put_object_bytes(
@@ -220,39 +203,33 @@ impl RustfsSyncObjectStore {
         &self,
         manifest: &SyncObjectManifest,
         target_path: impl AsRef<Path>,
-    ) -> SyncResult<()> {
+    ) -> Result<()> {
         let target_path = target_path.as_ref();
         if let Some(parent) = target_path.parent() {
-            fs::create_dir_all(parent).map_err(|source| SyncError::Io {
-                path: parent.to_path_buf(),
-                source,
-            })?;
+            fs::create_dir_all(parent).with_context(|| format!("I/O failed for `{parent:?}`"))?;
         }
-        let mut target = fs::File::create(target_path).map_err(|source| SyncError::Io {
-            path: target_path.to_path_buf(),
-            source,
-        })?;
+        let mut target = fs::File::create(target_path)
+            .with_context(|| format!("I/O failed for `{target_path:?}`"))?;
         for chunk in &manifest.chunks {
             let bytes = self
                 .client
                 .get_object(&self.bucket_name, &chunk.object_key)?;
-            target.write_all(&bytes).map_err(|source| SyncError::Io {
-                path: target_path.to_path_buf(),
-                source,
-            })?;
+            target
+                .write_all(&bytes)
+                .with_context(|| format!("I/O failed for `{target_path:?}`"))?;
         }
         let restored_hash = sha256_file(target_path)?;
         if restored_hash != manifest.content_hash {
-            return Err(SyncError::ObjectHashMismatch {
-                relative_path: manifest.relative_path.clone(),
-                expected: manifest.content_hash.clone(),
-                actual: restored_hash,
-            });
+            bail!(
+                "object hash mismatch for `{}`: expected `{}`, restored `{restored_hash}`",
+                manifest.relative_path,
+                manifest.content_hash
+            );
         }
         Ok(())
     }
 
-    pub fn object_exists(&self, object_key: &str) -> SyncResult<bool> {
+    pub fn object_exists(&self, object_key: &str) -> Result<bool> {
         let object_key = normalize_home_relative_path(object_key)?;
         self.client
             .object_exists(&self.bucket_name, &object_key)
@@ -260,19 +237,15 @@ impl RustfsSyncObjectStore {
     }
 }
 
-pub fn sha256_file(path: impl AsRef<Path>) -> SyncResult<String> {
+pub fn sha256_file(path: impl AsRef<Path>) -> Result<String> {
     let path = path.as_ref();
-    let mut file = fs::File::open(path).map_err(|source| SyncError::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
+    let mut file = fs::File::open(path).with_context(|| format!("I/O failed for `{path:?}`"))?;
     let mut hasher = Sha256::new();
     let mut buffer = [0_u8; 8192];
     loop {
-        let read = file.read(&mut buffer).map_err(|source| SyncError::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
+        let read = file
+            .read(&mut buffer)
+            .with_context(|| format!("I/O failed for `{path:?}`"))?;
         if read == 0 {
             break;
         }
@@ -286,11 +259,9 @@ fn manifest_for_file(
     relative_path: &str,
     source_path: &Path,
     config: &SyncObjectStoreConfig,
-) -> SyncResult<SyncObjectManifest> {
-    let metadata = fs::metadata(source_path).map_err(|source| SyncError::Io {
-        path: source_path.to_path_buf(),
-        source,
-    })?;
+) -> Result<SyncObjectManifest> {
+    let metadata =
+        fs::metadata(source_path).with_context(|| format!("I/O failed for `{source_path:?}`"))?;
     let content_hash = sha256_file(source_path)?;
     SyncObjectManifest::plan(
         space_id,
@@ -301,7 +272,7 @@ fn manifest_for_file(
     )
 }
 
-fn read_limited(source: &mut fs::File, size_bytes: u64, path: &Path) -> SyncResult<Vec<u8>> {
+fn read_limited(source: &mut fs::File, size_bytes: u64, path: &Path) -> Result<Vec<u8>> {
     let capacity = usize::try_from(size_bytes).unwrap_or(usize::MAX);
     let mut bytes = Vec::with_capacity(capacity);
     let mut remaining = size_bytes;
@@ -312,10 +283,7 @@ fn read_limited(source: &mut fs::File, size_bytes: u64, path: &Path) -> SyncResu
             .min(usize::try_from(remaining).unwrap_or(usize::MAX));
         let read = source
             .read(&mut buffer[..read_limit])
-            .map_err(|source| SyncError::Io {
-                path: path.to_path_buf(),
-                source,
-            })?;
+            .with_context(|| format!("I/O failed for `{path:?}`"))?;
         if read == 0 {
             break;
         }
@@ -330,7 +298,7 @@ fn copy_limited(
     target: &mut fs::File,
     size_bytes: u64,
     path: &Path,
-) -> SyncResult<()> {
+) -> Result<()> {
     let mut remaining = size_bytes;
     let mut buffer = [0_u8; 8192];
     while remaining > 0 {
@@ -339,19 +307,13 @@ fn copy_limited(
             .min(usize::try_from(remaining).unwrap_or(usize::MAX));
         let read = source
             .read(&mut buffer[..read_limit])
-            .map_err(|source| SyncError::Io {
-                path: path.to_path_buf(),
-                source,
-            })?;
+            .with_context(|| format!("I/O failed for `{path:?}`"))?;
         if read == 0 {
             break;
         }
         target
             .write_all(&buffer[..read])
-            .map_err(|source| SyncError::Io {
-                path: path.to_path_buf(),
-                source,
-            })?;
+            .with_context(|| format!("I/O failed for `{path:?}`"))?;
         remaining = remaining.saturating_sub(u64::try_from(read).unwrap_or(0));
     }
     Ok(())
@@ -361,7 +323,7 @@ fn copy_limited(
 mod tests {
     use std::{fs, sync::Arc};
 
-    use az_rustfs::InMemoryS3StorageClient;
+    use az_rustfs::client::InMemoryS3StorageClient;
 
     use super::{
         FileSystemSyncObjectStore, RustfsSyncObjectStore, SyncFileSystemObjectStoreConfig,

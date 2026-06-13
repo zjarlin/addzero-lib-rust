@@ -25,10 +25,11 @@ az-software-catalog = { path = "../az-software-catalog" }       # workspace 内�
 ## 用法
 
 ```rust
-use az_software_catalog::{
-    SoftwarePlatform, InstallerKind, SoftwareEntryInput,
-    SoftwareInstallMethodDto, SoftwareCatalogService, current_platform,
+use az_software_catalog::model::{
+    InstallerKind, SoftwareEntryInput, SoftwareInstallMethodDto, SoftwarePlatform,
+    current_platform,
 };
+use az_software_catalog::service::SoftwareCatalogService;
 
 // 创建软件条目输入
 let input = SoftwareEntryInput {
@@ -60,6 +61,6 @@ let input = SoftwareEntryInput {
 - `sea-orm` / `reqwest` — ORM 和 HTTP 客户端（仅 native）
 - `serde` / `serde_json` — 数据序列化
 - `uuid` — 软件条目唯一标识
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误返回与上下文
 - `regex` — 输入校验（仅 native）
 - `chrono` — 时间戳（仅 native）

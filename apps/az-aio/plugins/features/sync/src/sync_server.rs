@@ -2,12 +2,12 @@
 
 use std::collections::BTreeMap;
 
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use sqlx::{Executor, PgPool, Row};
 
 use crate::{
     contracts::{SyncFileListItem, SyncFilesResponse},
-    error::{SyncError, SyncResult},
     sync_index::SyncIndexedFileKind,
     sync_model::{
         SyncCrdtEnvelope, SyncDeviceInfo, SyncDocumentRecord, SyncFileStatus, SyncRoot,
@@ -97,7 +97,7 @@ impl SyncServerUpdateRecord {
     pub fn from_envelope(
         space_id: impl Into<String>,
         envelope: SyncCrdtEnvelope,
-    ) -> SyncResult<Self> {
+    ) -> Result<Self> {
         Ok(Self {
             space_id: space_id.into(),
             relative_path: normalize_home_relative_path(&envelope.relative_path)?,
@@ -126,7 +126,7 @@ impl SyncObjectManifest {
         content_hash: impl Into<String>,
         size_bytes: u64,
         chunk_size_bytes: u64,
-    ) -> SyncResult<Self> {
+    ) -> Result<Self> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let chunk_size_bytes = chunk_size_bytes.max(1);
         let chunk_count = size_bytes.div_ceil(chunk_size_bytes).max(1);
@@ -180,15 +180,15 @@ impl SyncPgRepository {
         Self { pool }
     }
 
-    pub async fn migrate(&self) -> SyncResult<()> {
+    pub async fn migrate(&self) -> Result<()> {
         self.pool
             .execute(SYNC_SERVER_SCHEMA_SQL)
             .await
-            .map_err(SyncError::Sqlx)?;
+            .context("PostgreSQL sync repository failed")?;
         Ok(())
     }
 
-    pub async fn register_device(&self, device: &SyncDeviceInfo) -> SyncResult<()> {
+    pub async fn register_device(&self, device: &SyncDeviceInfo) -> Result<()> {
         let record = SyncServerDeviceRecord::from(device);
         sqlx::query(
             r#"
@@ -210,7 +210,7 @@ impl SyncPgRepository {
         Ok(())
     }
 
-    pub async fn upsert_root(&self, record: &SyncServerRootRecord) -> SyncResult<()> {
+    pub async fn upsert_root(&self, record: &SyncServerRootRecord) -> Result<()> {
         normalize_home_relative_path(&record.relative_path)?;
         sqlx::query(
             r#"
@@ -231,7 +231,7 @@ impl SyncPgRepository {
         Ok(())
     }
 
-    pub async fn upsert_file(&self, record: &SyncServerFileRecord) -> SyncResult<()> {
+    pub async fn upsert_file(&self, record: &SyncServerFileRecord) -> Result<()> {
         normalize_home_relative_path(&record.relative_path)?;
         let file_kind = file_kind_to_db(record.file_kind);
         let status = file_status_to_db(record.status);
@@ -279,7 +279,7 @@ impl SyncPgRepository {
         space_id: &str,
         cursor: Option<&str>,
         limit: usize,
-    ) -> SyncResult<SyncFilesResponse> {
+    ) -> Result<SyncFilesResponse> {
         if let Some(cursor) = cursor {
             normalize_home_relative_path(cursor)?;
         }
@@ -312,12 +312,12 @@ impl SyncPgRepository {
             space_id.to_string(),
             rows.into_iter()
                 .map(sync_file_list_item_from_row)
-                .collect::<SyncResult<Vec<_>>>()?,
+                .collect::<Result<Vec<_>>>()?,
             effective_limit,
         ))
     }
 
-    pub async fn append_update(&self, record: &SyncServerUpdateRecord) -> SyncResult<()> {
+    pub async fn append_update(&self, record: &SyncServerUpdateRecord) -> Result<()> {
         normalize_home_relative_path(&record.relative_path)?;
         sqlx::query(
             r#"
@@ -343,7 +343,7 @@ impl SyncPgRepository {
         Ok(())
     }
 
-    pub async fn upsert_object_manifest(&self, manifest: &SyncObjectManifest) -> SyncResult<()> {
+    pub async fn upsert_object_manifest(&self, manifest: &SyncObjectManifest) -> Result<()> {
         normalize_home_relative_path(&manifest.relative_path)?;
         let size_bytes = i64::try_from(manifest.size_bytes).unwrap_or(i64::MAX);
         let chunk_size_bytes = i64::try_from(manifest.chunk_size_bytes).unwrap_or(i64::MAX);
@@ -429,14 +429,14 @@ impl InMemorySyncServerRepository {
         self.devices.insert(record.device_name.clone(), record);
     }
 
-    pub fn upsert_root(&mut self, record: SyncServerRootRecord) -> SyncResult<()> {
+    pub fn upsert_root(&mut self, record: SyncServerRootRecord) -> Result<()> {
         normalize_home_relative_path(&record.relative_path)?;
         self.roots
             .insert((record.device_name.clone(), record.alias.clone()), record);
         Ok(())
     }
 
-    pub fn upsert_file(&mut self, record: SyncServerFileRecord) -> SyncResult<()> {
+    pub fn upsert_file(&mut self, record: SyncServerFileRecord) -> Result<()> {
         normalize_home_relative_path(&record.relative_path)?;
         self.files.insert(
             (record.space_id.clone(), record.relative_path.clone()),
@@ -450,7 +450,7 @@ impl InMemorySyncServerRepository {
         space_id: &str,
         cursor: Option<&str>,
         limit: usize,
-    ) -> SyncResult<SyncFilesResponse> {
+    ) -> Result<SyncFilesResponse> {
         if let Some(cursor) = cursor {
             normalize_home_relative_path(cursor)?;
         }
@@ -475,13 +475,13 @@ impl InMemorySyncServerRepository {
         ))
     }
 
-    pub fn append_update(&mut self, record: SyncServerUpdateRecord) -> SyncResult<()> {
+    pub fn append_update(&mut self, record: SyncServerUpdateRecord) -> Result<()> {
         normalize_home_relative_path(&record.relative_path)?;
         self.updates.push(record);
         Ok(())
     }
 
-    pub fn upsert_object_manifest(&mut self, manifest: SyncObjectManifest) -> SyncResult<()> {
+    pub fn upsert_object_manifest(&mut self, manifest: SyncObjectManifest) -> Result<()> {
         normalize_home_relative_path(&manifest.relative_path)?;
         self.objects.insert(
             (manifest.space_id.clone(), manifest.relative_path.clone()),
@@ -548,32 +548,28 @@ fn file_status_to_db(value: SyncFileStatus) -> &'static str {
     }
 }
 
-fn file_kind_from_db(value: &str) -> SyncResult<SyncIndexedFileKind> {
+fn file_kind_from_db(value: &str) -> Result<SyncIndexedFileKind> {
     match value {
         "text" => Ok(SyncIndexedFileKind::Text),
         "binary" => Ok(SyncIndexedFileKind::Binary),
         "directory" => Ok(SyncIndexedFileKind::Directory),
         "missing" => Ok(SyncIndexedFileKind::Missing),
-        _ => Err(SyncError::InvalidFileKind {
-            value: value.to_string(),
-        }),
+        _ => bail!("invalid sync file kind `{value}`"),
     }
 }
 
-fn file_status_from_db(value: &str) -> SyncResult<SyncFileStatus> {
+fn file_status_from_db(value: &str) -> Result<SyncFileStatus> {
     match value {
         "synced" => Ok(SyncFileStatus::Synced),
         "syncing" => Ok(SyncFileStatus::Syncing),
         "error" => Ok(SyncFileStatus::Error),
         "shared" => Ok(SyncFileStatus::Shared),
         "deleted" => Ok(SyncFileStatus::Deleted),
-        _ => Err(SyncError::InvalidFileStatus {
-            value: value.to_string(),
-        }),
+        _ => bail!("invalid sync file status `{value}`"),
     }
 }
 
-fn sync_file_list_item_from_row(row: sqlx::postgres::PgRow) -> SyncResult<SyncFileListItem> {
+fn sync_file_list_item_from_row(row: sqlx::postgres::PgRow) -> Result<SyncFileListItem> {
     let relative_path: String = row.try_get("relative_path")?;
     let file_kind: String = row.try_get("file_kind")?;
     let status: String = row.try_get("status")?;

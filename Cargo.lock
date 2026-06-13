@@ -812,7 +812,6 @@ dependencies = [
  "rig-core",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
  "tokio",
 ]
 
@@ -820,6 +819,7 @@ dependencies = [
 name = "az-ai-chat"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "async-trait",
  "automod",
  "az-derive-aliases",
@@ -827,7 +827,6 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "tokio",
 ]
 
@@ -835,12 +834,12 @@ dependencies = [
 name = "az-aio-client"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-config-center-contract",
  "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
  "urlencoding",
 ]
 
@@ -854,7 +853,6 @@ dependencies = [
  "inventory",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -929,13 +927,13 @@ dependencies = [
 name = "az-api-translate"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "async-trait",
  "automod",
  "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
  "tokio",
  "urlencoding",
 ]
@@ -973,7 +971,6 @@ dependencies = [
  "sha2",
  "sqlx",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "tokio",
  "uuid",
 ]
@@ -982,12 +979,13 @@ dependencies = [
 name = "az-cli-market-contract"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "base64",
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "uuid",
 ]
 
@@ -995,16 +993,18 @@ dependencies = [
 name = "az-cli-repl"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-codex-auth-support"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "base64",
@@ -1018,7 +1018,6 @@ dependencies = [
  "sha2",
  "strum 0.28.0",
  "tempfile",
- "thiserror 2.0.18",
  "uuid",
 ]
 
@@ -1026,9 +1025,9 @@ dependencies = [
 name = "az-common"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-derive-aliases",
  "chrono",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1036,6 +1035,7 @@ name = "az-config-center-app"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "automod",
  "axum",
  "az-config-center-contract",
  "clap",
@@ -1043,7 +1043,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx",
- "thiserror 2.0.18",
  "tokio",
  "url",
  "uuid",
@@ -1053,11 +1052,12 @@ dependencies = [
 name = "az-config-center-client"
 version = "2026.6.13"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-config-center-contract",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1081,6 +1081,7 @@ version = "2026.5.10"
 name = "az-creates"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "az-email",
@@ -1094,58 +1095,57 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-curl"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "base64",
- "regex",
  "reqwest 0.12.28",
  "shlex",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-database-model"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-ddl-generator"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-derive-aliases"
 version = "2026.6.13"
 dependencies = [
+ "anyhow",
+ "automod",
  "clap",
  "derive_more 2.1.1",
  "macro_rules_attribute",
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1190,11 +1190,11 @@ dependencies = [
 name = "az-dict-spec"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-derive-aliases",
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1213,15 +1213,17 @@ dependencies = [
 name = "az-docker"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-derive-aliases",
  "shlex",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-drive-agent"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "az-drive-core",
  "az-drive-store",
@@ -1233,7 +1235,6 @@ dependencies = [
  "serde_json",
  "strum 0.28.0",
  "tempfile",
- "thiserror 2.0.18",
  "tokio",
  "uuid",
 ]
@@ -1266,12 +1267,13 @@ dependencies = [
 name = "az-drive-core"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "chrono",
  "derive_more 2.1.1",
  "serde",
  "sha2",
- "thiserror 2.0.18",
  "uuid",
 ]
 
@@ -1279,19 +1281,19 @@ dependencies = [
 name = "az-drive-store"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "async-trait",
  "automod",
  "az-derive-aliases",
  "az-drive-core",
  "az-rustfs",
  "chrono",
- "gitdb 0.1.0",
+ "gitdb",
  "serde",
  "serde_json",
  "sqlx",
  "strum 0.28.0",
  "tempfile",
- "thiserror 2.0.18",
  "tokio",
  "uuid",
 ]
@@ -1300,13 +1302,14 @@ dependencies = [
 name = "az-drive-webdav"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "axum",
  "az-derive-aliases",
  "az-drive-core",
  "az-drive-store",
  "chrono",
  "serde",
- "thiserror 2.0.18",
  "tokio",
  "uuid",
 ]
@@ -1315,6 +1318,8 @@ dependencies = [
 name = "az-email"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "lettre",
@@ -1323,27 +1328,24 @@ dependencies = [
  "serde_json",
  "strum 0.28.0",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-error"
 version = "2026.5.10"
 dependencies = [
- "az-derive-aliases",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
+ "anyhow",
 ]
 
 [[package]]
 name = "az-excel"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "quick-xml 0.38.4",
- "thiserror 2.0.18",
  "zip",
 ]
 
@@ -1392,32 +1394,33 @@ dependencies = [
 name = "az-git"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "dirs 6.0.0",
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-gitdb"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "git2 0.20.4",
- "gitdb 0.1.0 (git+https://github.com/qeqqe/gitdb.git?rev=04c99a159d193273be8a6d9d1186756d20bff43a)",
+ "gitdb",
  "strum 0.28.0",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-gmail-code"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "az-oauth2",
@@ -1426,7 +1429,6 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
  "urlencoding",
 ]
 
@@ -1434,8 +1436,8 @@ dependencies = [
 name = "az-io"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1463,7 +1465,6 @@ dependencies = [
  "sha2",
  "sqlx",
  "tempfile",
- "thiserror 2.0.18",
  "tokio",
  "uuid",
 ]
@@ -1472,10 +1473,10 @@ dependencies = [
 name = "az-line-crdt"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "loro",
  "serde",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1489,14 +1490,16 @@ dependencies = [
 name = "az-math"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-maven"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "az-music",
@@ -1504,7 +1507,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1521,31 +1523,34 @@ dependencies = [
 name = "az-mqtt"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "rumqttc",
  "rustls",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-music"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-oauth2"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "base64",
@@ -1554,7 +1559,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "thiserror 2.0.18",
  "urlencoding",
 ]
 
@@ -1572,6 +1576,7 @@ dependencies = [
 name = "az-openai-openapi"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "async-trait",
  "automod",
  "az-openapi-codegen",
@@ -1598,11 +1603,12 @@ dependencies = [
 name = "az-persistence"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "async-trait",
+ "automod",
  "az-derive-aliases",
  "sea-orm",
  "sea-orm-migration",
- "thiserror 2.0.18",
  "tokio",
 ]
 
@@ -1628,13 +1634,13 @@ name = "az-pinyin"
 version = "2026.5.10"
 dependencies = [
  "pinyin",
- "regex",
 ]
 
 [[package]]
 name = "az-proxy"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "base64",
@@ -1644,7 +1650,6 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
  "url",
@@ -1667,12 +1672,11 @@ dependencies = [
 name = "az-reflection"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
- "regex",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1689,10 +1693,10 @@ dependencies = [
 name = "az-remote-host"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-derive-aliases",
  "az-remote-model",
  "chrono",
- "thiserror 2.0.18",
  "uuid",
 ]
 
@@ -1713,6 +1717,7 @@ dependencies = [
 name = "az-remote-protocol"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-derive-aliases",
  "az-remote-model",
  "chrono",
@@ -1720,7 +1725,6 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "uuid",
 ]
 
@@ -1728,13 +1732,13 @@ dependencies = [
 name = "az-remote-session"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-derive-aliases",
  "az-remote-model",
  "az-remote-protocol",
  "chrono",
  "quinn",
  "serde",
- "thiserror 2.0.18",
  "tokio",
  "uuid",
 ]
@@ -1743,6 +1747,7 @@ dependencies = [
 name = "az-rustfs"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "base64",
@@ -1756,7 +1761,6 @@ dependencies = [
  "sha2",
  "strum 0.28.0",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1789,7 +1793,6 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1800,19 +1803,18 @@ dependencies = [
  "az-script-engine",
  "rhai",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-serial"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "tokio",
 ]
 
@@ -1820,11 +1822,11 @@ dependencies = [
 name = "az-shell-components"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-config-center-contract",
  "az-derive-aliases",
  "serde",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1836,13 +1838,11 @@ dependencies = [
  "az-derive-aliases",
  "chrono",
  "log",
- "regex",
  "serde",
  "serde_yaml",
  "sha2",
  "sqlx",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "tokio",
  "uuid",
 ]
@@ -1851,6 +1851,7 @@ dependencies = [
 name = "az-sms"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "async-trait",
  "automod",
  "az-derive-aliases",
@@ -1859,7 +1860,6 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "tokio",
  "uuid",
 ]
@@ -1868,6 +1868,7 @@ dependencies = [
 name = "az-software-catalog"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "az-persistence",
@@ -1879,7 +1880,6 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "uuid",
 ]
 
@@ -1887,23 +1887,24 @@ dependencies = [
 name = "az-sql"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "serde",
  "strum 0.28.0",
- "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "az-ssh"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "ssh2",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1952,6 +1953,7 @@ dependencies = [
 name = "az-str"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "deunicode",
@@ -1984,6 +1986,7 @@ dependencies = [
 name = "az-temp-mail"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "regex",
@@ -1992,7 +1995,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "urlencoding",
 ]
 
@@ -2000,10 +2002,11 @@ dependencies = [
 name = "az-toml"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "serde",
  "tempfile",
- "thiserror 2.0.18",
  "toml_edit 0.22.27",
 ]
 
@@ -2011,10 +2014,10 @@ dependencies = [
 name = "az-tree"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-derive-aliases",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2036,11 +2039,11 @@ dependencies = [
 name = "az-wasm-plugin-api"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-derive-aliases",
  "serde",
  "serde_json",
  "strum 0.28.0",
- "thiserror 2.0.18",
  "uuid",
 ]
 
@@ -2048,9 +2051,9 @@ dependencies = [
 name = "az-wasm-plugin-host"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "az-derive-aliases",
  "az-wasm-plugin-api",
- "thiserror 2.0.18",
  "uuid",
  "wasmtime",
  "wat",
@@ -2076,12 +2079,13 @@ dependencies = [
 name = "az-yml"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
+ "automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "serde",
  "serde_yaml",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -5056,6 +5060,7 @@ dependencies = [
 name = "gitdb"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "automod",
  "az-derive-aliases",
  "chrono",
@@ -5067,23 +5072,6 @@ dependencies = [
  "sqlparser",
  "strum 0.28.0",
  "tempfile",
- "thiserror 2.0.18",
- "ulid",
-]
-
-[[package]]
-name = "gitdb"
-version = "0.1.0"
-source = "git+https://github.com/qeqqe/gitdb.git?rev=04c99a159d193273be8a6d9d1186756d20bff43a#04c99a159d193273be8a6d9d1186756d20bff43a"
-dependencies = [
- "chrono",
- "git2 0.20.4",
- "parking_lot",
- "serde",
- "serde_json",
- "sqlparser",
- "tempfile",
- "thiserror 2.0.18",
  "ulid",
 ]
 
@@ -9084,12 +9072,12 @@ dependencies = [
 name = "rimmer"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "automod",
  "rimmer-macros",
  "serde",
  "serde_json",
  "sqlx",
- "thiserror 2.0.18",
  "tokio",
 ]
 
@@ -11098,14 +11086,14 @@ dependencies = [
 name = "toasty-driver-gitdb"
 version = "2026.5.10"
 dependencies = [
+ "anyhow",
  "async-trait",
  "automod",
  "az-derive-aliases",
  "chrono",
- "gitdb 0.1.0",
+ "gitdb",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
  "toasty-core",
  "toasty-sql",
  "tokio",

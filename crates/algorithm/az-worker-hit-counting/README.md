@@ -37,18 +37,29 @@
 
 ## 应用层读取某个人敲击次数
 
-```rust
+```rust,no_run
+use anyhow::Result;
 use az_worker_hit_counting::logic_worker_hit_counting::assist::analyze_worker_hits_video;
 
+# fn main() -> Result<()> {
 let run = analyze_worker_hits_video("/Users/zjarlin/Desktop/input.mp4")?;
 let person_5_hits = run.valid_hit_count_of(5).unwrap_or(0);
+# Ok(())
+# }
 ```
 
 如果需要完整事件明细：
 
-```rust
+```rust,no_run
+use anyhow::Result;
+use az_worker_hit_counting::logic_worker_hit_counting::assist::analyze_worker_hits_video;
+
+# fn main() -> Result<()> {
+let run = analyze_worker_hits_video("/Users/zjarlin/Desktop/input.mp4")?;
 let worker = run.worker(5);
 let valid_hits = worker.map(|worker| &worker.valid_hits);
+# Ok(())
+# }
 ```
 
 ## 输出

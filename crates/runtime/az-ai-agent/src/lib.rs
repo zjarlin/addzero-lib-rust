@@ -17,12 +17,12 @@
 //! 当前版本使用本地规则推断（标题提取、关键词匹配、边推断），
 //! 预留了 `run_with_provider_secret` 接口供后续接入远程 LLM。
 
-use anyhow::Result;
-use az_assets::{
+use anyhow::{Result, bail};
+use az_assets::types::{
     AiModelProvider, AiPromptButton, AiProviderKind, AssetKind, AssetProviderSecret,
     PromptRunOutput, SuggestedEdge,
 };
-use az_derive_aliases::{apply, error_eq, plain_default_clone, serde_eq};
+use az_derive_aliases::{apply, plain_default_clone, serde_eq};
 
 /// 采集内容并生成资产候选输出的请求。
 #[apply(serde_eq)]
@@ -44,13 +44,6 @@ pub struct PromptButtonRun {
     pub prompt: AiPromptButton,
     /// 待处理的原始内容。
     pub raw_content: String,
-}
-
-/// 资产智能代理服务错误。
-#[apply(error_eq)]
-pub enum AssetAgentError {
-    #[error("采集内容不能为空")]
-    EmptyInput,
 }
 
 /// 资产智能代理服务。
@@ -122,7 +115,7 @@ impl AssetAgentService {
     ) -> Result<PromptRunOutput> {
         let cleaned = raw_content.trim();
         if cleaned.is_empty() {
-            return Err(AssetAgentError::EmptyInput.into());
+            bail!("采集内容不能为空");
         }
         let title = infer_title(cleaned, target_kind);
         let mut tags = infer_tags(cleaned, target_kind);

@@ -22,7 +22,7 @@ az-config-center-client = { path = "../az-config-center-client" }
 ## 用法
 
 ```rust,no_run
-use az_config_center_client::ConfigCenterClient;
+use az_config_center_client::client::ConfigCenterClient;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,12 +49,12 @@ client.set_json(
     },
     "Redis 连接配置",
 )?;
-# Ok::<(), az_config_center_client::ConfigCenterError>(())
+# Ok::<(), anyhow::Error>(())
 ```
 
 ## 依赖的 crates
 
 - `az-config-center-contract` — 配置中心共享请求和响应 DTO
+- `anyhow` — 错误上下文与统一 `Result`
 - `reqwest` — HTTP 客户端（阻塞模式）
 - `serde` / `serde_json` — JSON 序列化与反序列化
-- `thiserror` — 结构化错误类型

@@ -17,31 +17,24 @@ async fn main() -> std::process::ExitCode {
 mod native {
     use std::net::SocketAddr;
 
+    use anyhow::{Context, Result};
     use axum::{Router, routing::get};
-    use az_aio_plugin_lowcode::{
-        LowcodeApiState, LowcodeError, lowcode_api_router, resolve_lowcode_config,
-    };
+    use az_aio_plugin_lowcode::{LowcodeApiState, lowcode_api_router, resolve_lowcode_config};
     use tokio::net::TcpListener;
 
     const DEFAULT_BIND_ADDR: &str = "127.0.0.1:8791";
 
-    pub async fn run(args: Vec<String>) -> Result<(), LowcodeError> {
+    pub async fn run(args: Vec<String>) -> Result<()> {
         let bind = parse_bind(args).parse::<SocketAddr>()?;
         let config = resolve_lowcode_config()?;
         let state = LowcodeApiState::connect(config).await?;
         let app = Router::new()
             .route("/health", get(|| async { "ok" }))
             .merge(lowcode_api_router(state));
-        let listener = TcpListener::bind(bind)
-            .await
-            .map_err(|source| LowcodeError::Io {
-                operation: "bind lowcode api",
-                source,
-            })?;
-        let local_addr = listener.local_addr().map_err(|source| LowcodeError::Io {
-            operation: "read lowcode api local address",
-            source,
-        })?;
+        let listener = TcpListener::bind(bind).await.context("bind lowcode api")?;
+        let local_addr = listener
+            .local_addr()
+            .context("read lowcode api local address")?;
         println!("az-aio lowcode serve");
         println!("config namespace: az-aio.dev");
         println!("database config key: lowcode.database_url");
@@ -49,10 +42,7 @@ mod native {
         println!("status: http://{local_addr}/api/lowcode/status");
         axum::serve(listener, app)
             .await
-            .map_err(|source| LowcodeError::Io {
-                operation: "serve lowcode api",
-                source,
-            })?;
+            .context("serve lowcode api")?;
         Ok(())
     }
 

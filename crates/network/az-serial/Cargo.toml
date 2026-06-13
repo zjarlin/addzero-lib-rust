@@ -8,12 +8,12 @@ authors.workspace = true
 description = "Cross-platform serial port communication utilities"
 
 [dependencies]
+anyhow.workspace = true
 automod.workspace = true
 az-derive-aliases.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 strum.workspace = true
-thiserror.workspace = true
 tokio.workspace = true
 
 [lints]

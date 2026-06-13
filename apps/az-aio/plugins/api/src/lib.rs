@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use inventory;
@@ -489,23 +489,23 @@ pub enum GeneratedFileStatus {
 pub trait AzAioPlugin: Send {
     fn descriptor(&self) -> PluginDescriptor;
 
-    fn contributions(&self) -> Result<ContributionSet, PluginError> {
+    fn contributions(&self) -> anyhow::Result<ContributionSet> {
         Ok(ContributionSet::default())
     }
 
-    fn on_load(&mut self) -> Result<(), PluginError> {
+    fn on_load(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 
-    fn on_enable(&mut self) -> Result<(), PluginError> {
+    fn on_enable(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 
-    fn on_disable(&mut self) -> Result<(), PluginError> {
+    fn on_disable(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 
-    fn on_unload(&mut self) -> Result<(), PluginError> {
+    fn on_unload(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -573,7 +573,7 @@ impl Default for NativePluginRuntime {
 pub trait NativeAzAioPlugin: Send + Sync {
     fn descriptor(&self) -> PluginDescriptor;
 
-    fn contributions(&self) -> Result<ContributionSet, PluginError>;
+    fn contributions(&self) -> anyhow::Result<ContributionSet>;
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime>;
 }
@@ -607,46 +607,18 @@ macro_rules! register_native_plugin {
     };
 }
 
-#[derive(Debug, Error, Eq, PartialEq)]
-pub enum PluginError {
-    #[error("插件 ID 重复：{0}")]
-    DuplicateId(String),
-    #[error("插件 `{plugin}` 缺少依赖 `{dependency}`")]
-    MissingDependency { plugin: String, dependency: String },
-    #[error("插件 `{plugin}` 依赖 `{dependency}` 未成功加载")]
-    DependencyFailed { plugin: String, dependency: String },
-    #[error("依赖环包含插件 `{0}`")]
-    DependencyCycle(String),
-    #[error("插件 `{plugin}` 在 {phase} 阶段失败：{message}")]
-    Lifecycle {
-        plugin: String,
-        phase: String,
-        message: String,
-    },
-    #[error("Wasm 组件 `{plugin}` 运行失败：{message}")]
-    Wasm { plugin: String, message: String },
-    #[error("插件 `{plugin}` 访问 `{path}` 失败：{message}")]
-    Io {
-        plugin: String,
-        path: String,
-        message: String,
-    },
-    #[error("描述符解析失败：{0}")]
-    Descriptor(String),
+pub fn descriptor_to_json(descriptor: &PluginDescriptor) -> anyhow::Result<String> {
+    serde_json::to_string(descriptor).context("插件描述符序列化失败")
 }
 
-pub fn descriptor_to_json(descriptor: &PluginDescriptor) -> Result<String, PluginError> {
-    serde_json::to_string(descriptor).map_err(|error| PluginError::Descriptor(error.to_string()))
+pub fn contributions_to_json(contributions: &ContributionSet) -> anyhow::Result<String> {
+    serde_json::to_string(contributions).context("插件贡献序列化失败")
 }
 
-pub fn contributions_to_json(contributions: &ContributionSet) -> Result<String, PluginError> {
-    serde_json::to_string(contributions).map_err(|error| PluginError::Descriptor(error.to_string()))
+pub fn descriptor_from_json(value: &str) -> anyhow::Result<PluginDescriptor> {
+    serde_json::from_str(value).context("插件描述符解析失败")
 }
 
-pub fn descriptor_from_json(value: &str) -> Result<PluginDescriptor, PluginError> {
-    serde_json::from_str(value).map_err(|error| PluginError::Descriptor(error.to_string()))
-}
-
-pub fn contributions_from_json(value: &str) -> Result<ContributionSet, PluginError> {
-    serde_json::from_str(value).map_err(|error| PluginError::Descriptor(error.to_string()))
+pub fn contributions_from_json(value: &str) -> anyhow::Result<ContributionSet> {
+    serde_json::from_str(value).context("插件贡献解析失败")
 }

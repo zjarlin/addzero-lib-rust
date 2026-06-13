@@ -6,7 +6,7 @@
 //! # 核心类型
 //!
 //! - [`TreeNode<T>`] — 泛型树节点，持有 `id`、`parent_id`、`children` 和可选的 JSON 数据。
-//! - [`TreeError<T>`] — 构建过程中的错误类型，包括循环引用和缺失父节点。
+//! - [`try_build_tree`] — 构建失败时返回带节点上下文的 [`anyhow::Error`]。
 //!
 //! # 关键功能
 //!
@@ -32,7 +32,8 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
-use az_derive_aliases::{apply, error_eq, serde_partial_eq};
+use anyhow::bail;
+use az_derive_aliases::{apply, serde_partial_eq};
 
 /// 通用树节点。
 ///
@@ -49,17 +50,6 @@ pub struct TreeNode<T> {
     pub data: Option<serde_json::Value>,
 }
 
-/// 树构建过程中的错误类型。
-#[apply(error_eq)]
-pub enum TreeError<T> {
-    /// 检测到涉及给定节点 id 的循环引用。
-    #[error("cycle detected involving node {0:?}")]
-    Cycle(T),
-    /// 某个节点引用了不存在的 parent_id。
-    #[error("node {0:?} references a missing parent")]
-    MissingParent(T),
-}
-
 /// 从扁平 `(id, parent_id)` 对构建树结构的 trait。
 pub trait TreeBuilder<T> {
     /// 从扁平 `(id, parent_id)` 对列表构建森林（根节点列表）。
@@ -67,8 +57,8 @@ pub trait TreeBuilder<T> {
     /// `parent_id` 为 `None` 的节点成为根节点。返回的 `Vec` 可能包含多棵树。
     fn build_tree(items: Vec<(T, Option<T>)>) -> Vec<TreeNode<T>>;
 
-    /// 与 [`build_tree`] 类似，但在遇到循环引用或缺失父节点时返回错误而非 panic。
-    fn try_build_tree(items: Vec<(T, Option<T>)>) -> Result<Vec<TreeNode<T>>, TreeError<T>>;
+    /// 与 [`build_tree`] 类似，但在遇到循环引用或缺失父节点时返回错误细节。
+    fn try_build_tree(items: Vec<(T, Option<T>)>) -> anyhow::Result<Vec<TreeNode<T>>>;
 }
 
 impl<T: Eq + Hash + Clone + std::fmt::Debug> TreeBuilder<T> for TreeNode<T> {
@@ -76,7 +66,7 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> TreeBuilder<T> for TreeNode<T> {
         build_tree(items)
     }
 
-    fn try_build_tree(items: Vec<(T, Option<T>)>) -> Result<Vec<TreeNode<T>>, TreeError<T>> {
+    fn try_build_tree(items: Vec<(T, Option<T>)>) -> anyhow::Result<Vec<TreeNode<T>>> {
         try_build_tree(items)
     }
 }
@@ -188,28 +178,26 @@ impl<T: Eq + Hash + Clone> TreeNode<T> {
 ///
 /// `parent_id` 为 `None` 的节点成为根节点。返回的 `Vec` 可能包含多棵树。
 ///
-/// # Panics
-///
-/// 若输入包含循环引用或缺失父节点则 panic。使用 [`try_build_tree`] 获取非 panic 版本。
+/// 若输入包含循环引用或缺失父节点则返回空森林。使用 [`try_build_tree`] 获取错误细节。
 pub fn build_tree<T: Eq + Hash + Clone + std::fmt::Debug>(
     items: Vec<(T, Option<T>)>,
 ) -> Vec<TreeNode<T>> {
-    try_build_tree(items).expect("build_tree: input contains cycles or missing parents")
+    try_build_tree(items).unwrap_or_default()
 }
 
 /// 从扁平 `(id, parent_id)` 对列表构建森林，若检测到循环引用或缺失父节点则返回错误。
 ///
 /// `parent_id` 为 `None` 的节点成为根节点。返回的 `Vec` 可能包含多棵树。
-pub fn try_build_tree<T: Eq + Hash + Clone>(
+pub fn try_build_tree<T: Eq + Hash + Clone + std::fmt::Debug>(
     items: Vec<(T, Option<T>)>,
-) -> Result<Vec<TreeNode<T>>, TreeError<T>> {
+) -> anyhow::Result<Vec<TreeNode<T>>> {
     let all_ids: HashSet<&T> = items.iter().map(|(id, _)| id).collect();
 
     // 校验：所有 parent_id（当为 Some 时）必须存在于 id 集合中。
     for (id, parent_id) in &items {
         if let Some(pid) = parent_id {
             if !all_ids.contains(pid) {
-                return Err(TreeError::MissingParent(id.clone()));
+                bail!("node {id:?} references a missing parent");
             }
         }
     }
@@ -249,14 +237,14 @@ pub fn try_build_tree<T: Eq + Hash + Clone>(
                     continue;
                 }
                 if path.contains(&node_id) {
-                    return Err(TreeError::Cycle((*node_id).clone()));
+                    bail!("cycle detected involving node {node_id:?}");
                 }
                 path.push(node_id);
                 dfs_stack.push((node_id, true));
                 let kids = children_map.get(node_id).cloned().unwrap_or_default();
                 for kid in kids {
                     if path.contains(&kid) {
-                        return Err(TreeError::Cycle((*kid).clone()));
+                        bail!("cycle detected involving node {kid:?}");
                     }
                     if !visited.contains(kid) {
                         dfs_stack.push((kid, false));

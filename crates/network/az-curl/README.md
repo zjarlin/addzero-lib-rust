@@ -14,7 +14,7 @@
 - 提取 URL 中的路径参数和查询参数
 - 使用 `execute_curl` 同步执行 curl 命令
 - 响应同时保留原始 `body: Vec<u8>` 和便于调试器查看的 `text: Option<String>`
-- 公开返回值使用 `error::CurlResult<T>`，具体错误来源保留为结构化 `error::CurlError`
+- 公开返回值使用 `anyhow::Result<T>`，错误链保留解析、请求构建和执行阶段的上下文
 
 ## 安装
 
@@ -32,7 +32,7 @@ az-curl = { path = "../az-curl" }         # workspace 内部引用
 ```rust
 use az_curl::parse::parse_curl;
 
-# fn main() -> az_curl::error::CurlResult<()> {
+# fn main() -> anyhow::Result<()> {
 let parsed = parse_curl(r#"curl -X POST -H "Content-Type: application/json" -d '{"key":"value"}' https://api.example.com/data"#)?;
 assert_eq!(parsed.method.as_str(), "POST");
 assert_eq!(parsed.url, "https://api.example.com/data");
@@ -43,7 +43,7 @@ assert_eq!(parsed.url, "https://api.example.com/data");
 ```rust,no_run
 use az_curl::execute::execute_curl;
 
-# fn main() -> az_curl::error::CurlResult<()> {
+# fn main() -> anyhow::Result<()> {
 let response = execute_curl(r#"curl -H "Accept: application/json" https://api.example.com"#)?;
 println!("{}", response.text()?);
 
@@ -61,4 +61,4 @@ if let Some(text) = response.text.as_deref() {
 - `regex` - URL 路径/查询参数提取及行续接符处理
 - `reqwest` - HTTP 客户端（blocking 模式执行请求）
 - `shlex` - POSIX shell 词法分析，用于分词 curl 命令
-- `thiserror` - 错误类型派生
+- `anyhow` - 错误返回与上下文

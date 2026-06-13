@@ -34,11 +34,12 @@ az-math = { path = "../az-math" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_math::{
+use az_math::api::{
     ConstraintRelation, GoalType, LinearConstraint, LinearObjective,
     LinearProgrammingProblem, create_matrix, transpose_matrix,
 };
 
+fn main() -> anyhow::Result<()> {
 // 矩阵操作
 let matrix = create_matrix::<f64>(3, 4, 0.0);
 let transposed = transpose_matrix(&matrix)?;
@@ -51,8 +52,10 @@ let constraints = vec![
 ];
 let problem = LinearProgrammingProblem::new(GoalType::Minimize, objective, constraints);
 let solution = problem.solve()?;
+Ok(())
+}
 ```
 
 ## 依赖的 crates
 
-- `thiserror` - 错误类型派生宏
+- `anyhow` - 统一错误返回与上下文补充

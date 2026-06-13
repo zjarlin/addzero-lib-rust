@@ -47,5 +47,5 @@ services:
 
 ## 依赖的 crates
 
+- `anyhow` - 解析和转换错误返回
 - `shlex` - Shell 引号解析
-- `thiserror` - 错误类型派生宏

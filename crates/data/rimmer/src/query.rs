@@ -1,7 +1,8 @@
-use crate::error::{OrmError, OrmResult};
+use anyhow::anyhow;
+use crate::draft::Draft;
 use crate::expression::{IntoPredicate, Order, Predicate, quote_identifier};
 use crate::fetcher::{FetchField, FetchShape, Fetcher};
-use crate::metadata::{EntityDef, Table};
+use crate::metadata::{EntityDef, FieldKind, Table};
 use crate::save::SaveCommand;
 use crate::value::ScalarValue;
 
@@ -21,7 +22,7 @@ impl JimmerClient {
     }
 
     /// 创建保存命令。
-    pub fn save<E>(&self, draft: crate::Draft<E>) -> SaveCommand<E> {
+    pub fn save<E>(&self, draft: Draft<E>) -> SaveCommand<E> {
         SaveCommand::new(draft)
     }
 }
@@ -73,8 +74,10 @@ impl<E> QueryBuilder<E> {
     }
 
     /// 构建 SQL plan。
-    pub fn build(self) -> OrmResult<QueryPlan> {
-        let selection = self.selection.ok_or(OrmError::MissingSelection)?;
+    pub fn build(self) -> anyhow::Result<QueryPlan> {
+        let selection = self
+            .selection
+            .ok_or_else(|| anyhow!("query selection is required"))?;
         let selected = selection.selected_columns();
         let select_sql = if selected.columns.is_empty() {
             "*".to_string()
@@ -186,7 +189,7 @@ impl<E> Selection<E> {
             .iter()
             .any(|field| field.relation().is_some());
         for field in self.entity.fields() {
-            if field.kind().is_column() && field.kind() == crate::FieldKind::Id {
+            if field.kind().is_column() && field.kind() == FieldKind::Id {
                 push_column_once(
                     &mut columns,
                     self.entity.table_name(),
@@ -265,7 +268,7 @@ struct JoinClause {
 impl JoinClause {
     fn from_fetch_field(field: &FetchField) -> Option<Self> {
         let relation = field.relation()?;
-        if relation.kind() != crate::FieldKind::ManyToOne {
+        if relation.kind() != FieldKind::ManyToOne {
             return None;
         }
         Some(Self {

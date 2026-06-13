@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::error::{GitDbClusterError, GitDbClusterResult};
+use anyhow::{Result, bail};
 use az_derive_aliases::{apply, plain_clone_debug, plain_code_default_enum, plain_code_enum};
 
 /// The role a GitDB repository node can serve inside a cluster.
@@ -124,47 +124,37 @@ impl GitDbNodeConfig {
         self
     }
 
-    pub(crate) fn validate(&self) -> GitDbClusterResult<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         if self.id.trim().is_empty() {
-            return Err(GitDbClusterError::InvalidConfig(
-                "node id must not be empty".into(),
-            ));
+            bail!("invalid GitDB cluster configuration: node id must not be empty");
         }
 
         if self.remote_url.trim().is_empty() {
-            let message = format!(
-                "node '{}' remote URL must not be empty",
+            bail!(
+                "invalid GitDB cluster configuration: node '{}' remote URL must not be empty",
                 self.id
             );
-            let error = GitDbClusterError::InvalidConfig(message);
-            return Err(error);
         }
 
         if self.checkout_path.as_os_str().is_empty() {
-            let message = format!(
-                "node '{}' checkout path must not be empty",
+            bail!(
+                "invalid GitDB cluster configuration: node '{}' checkout path must not be empty",
                 self.id
             );
-            let error = GitDbClusterError::InvalidConfig(message);
-            return Err(error);
         }
 
         if self.max_connections == 0 {
-            let message = format!(
-                "node '{}' must allow at least one connection",
+            bail!(
+                "invalid GitDB cluster configuration: node '{}' must allow at least one connection",
                 self.id
             );
-            let error = GitDbClusterError::InvalidConfig(message);
-            return Err(error);
         }
 
         if self.weight == 0 {
-            let message = format!(
-                "node '{}' weight must be greater than zero",
+            bail!(
+                "invalid GitDB cluster configuration: node '{}' weight must be greater than zero",
                 self.id
             );
-            let error = GitDbClusterError::InvalidConfig(message);
-            return Err(error);
         }
 
         Ok(())
@@ -195,20 +185,19 @@ impl GitDbClusterConfig {
         self
     }
 
-    pub(crate) fn validate(&self) -> GitDbClusterResult<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         if self.nodes.is_empty() {
-            return Err(GitDbClusterError::InvalidConfig(
-                "at least one node is required".into(),
-            ));
+            bail!("invalid GitDB cluster configuration: at least one node is required");
         }
 
         let mut ids = std::collections::BTreeSet::new();
         for node in &self.nodes {
             node.validate()?;
             if !ids.insert(node.id.as_str()) {
-                let message = format!("duplicate node id '{}'", node.id);
-                let error = GitDbClusterError::InvalidConfig(message);
-                return Err(error);
+                bail!(
+                    "invalid GitDB cluster configuration: duplicate node id '{}'",
+                    node.id
+                );
             }
         }
 

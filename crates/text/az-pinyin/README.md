@@ -42,7 +42,7 @@ assert_eq!(result, "zhong");
 
 // 多音字（返回所有读音，以分隔符连接）
 let result = char_to_pinyin('行', true, Some("/"));
-assert_eq!(result, "xing/hang");
+assert_eq!(result, "xing/hang/heng");
 ```
 
 ### 多字串转拼音

@@ -2,14 +2,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use anyhow::{Context, Result, bail};
 use az_derive_aliases::{apply, plain_debug, plain_eq};
 use git2::Repository;
-use gitdb::db::{Connection, ConnectionPool, DatabaseConfig, DatabaseError};
+use gitdb::db::{Connection, ConnectionPool, DatabaseConfig};
 use gitdb::executor::QueryResult;
 
 use crate::classify::{GitDbQueryKind, classify_gitdb_query};
 use crate::config::{GitDbClusterConfig, GitDbLoadBalanceStrategy, GitDbNodeConfig, GitDbNodeRole};
-use crate::error::{GitDbClusterError, GitDbClusterResult};
 
 /// Multi-repository GitDB pool with read/write routing and load balancing.
 pub struct GitDbCluster {
@@ -21,7 +21,7 @@ pub struct GitDbCluster {
 
 impl GitDbCluster {
     /// Build a cluster from validated configuration.
-    pub fn new(config: GitDbClusterConfig) -> GitDbClusterResult<Self> {
+    pub fn new(config: GitDbClusterConfig) -> Result<Self> {
         config.validate()?;
 
         Ok(Self {
@@ -30,7 +30,7 @@ impl GitDbCluster {
                 .into_iter()
                 .map(GitDbNodePool::new)
                 .map(|node| node.map(Arc::new))
-                .collect::<GitDbClusterResult<Vec<_>>>()?,
+                .collect::<Result<Vec<_>>>()?,
             strategy: config.strategy,
             next_read: AtomicUsize::new(0),
             next_write: AtomicUsize::new(0),
@@ -42,47 +42,39 @@ impl GitDbCluster {
     /// Transaction control statements are rejected here because a transaction
     /// requires a stable checked-out connection. Use [`Self::checkout_write`]
     /// for `BEGIN`/`COMMIT`/`ROLLBACK` flows.
-    pub fn execute(&self, sql: &str) -> GitDbClusterResult<GitDbRoutedResult> {
+    pub fn execute(&self, sql: &str) -> Result<GitDbRoutedResult> {
         match classify_gitdb_query(sql)? {
             GitDbQueryKind::Read => self.execute_classified(sql, GitDbQueryKind::Read),
             GitDbQueryKind::Write => self.execute_classified(sql, GitDbQueryKind::Write),
             GitDbQueryKind::TransactionControl => {
-                Err(GitDbClusterError::TransactionRequiresConnection)
+                bail!("transaction control requires an explicitly checked-out connection");
             }
         }
     }
 
     /// Execute a read SQL statement on a read-capable node.
-    pub fn execute_read(&self, sql: &str) -> GitDbClusterResult<GitDbRoutedResult> {
+    pub fn execute_read(&self, sql: &str) -> Result<GitDbRoutedResult> {
         self.execute_expected(sql, GitDbQueryKind::Read)
     }
 
     /// Execute a write SQL statement on a write-capable node.
-    pub fn execute_write(&self, sql: &str) -> GitDbClusterResult<GitDbRoutedResult> {
+    pub fn execute_write(&self, sql: &str) -> Result<GitDbRoutedResult> {
         self.execute_expected(sql, GitDbQueryKind::Write)
     }
 
-    fn execute_expected(
-        &self,
-        sql: &str,
-        expected: GitDbQueryKind,
-    ) -> GitDbClusterResult<GitDbRoutedResult> {
+    fn execute_expected(&self, sql: &str, expected: GitDbQueryKind) -> Result<GitDbRoutedResult> {
         let actual = classify_gitdb_query(sql)?;
         if actual == GitDbQueryKind::TransactionControl {
-            return Err(GitDbClusterError::TransactionRequiresConnection);
+            bail!("transaction control requires an explicitly checked-out connection");
         }
         if actual != expected {
-            return Err(GitDbClusterError::UnexpectedQueryKind { expected, actual });
+            bail!("expected {expected} query, got {actual} query");
         }
 
         self.execute_classified(sql, actual)
     }
 
-    fn execute_classified(
-        &self,
-        sql: &str,
-        kind: GitDbQueryKind,
-    ) -> GitDbClusterResult<GitDbRoutedResult> {
+    fn execute_classified(&self, sql: &str, kind: GitDbQueryKind) -> Result<GitDbRoutedResult> {
         let mut connection = self.checkout_for(kind)?;
         let result = connection.execute(sql)?;
         Ok(GitDbRoutedResult {
@@ -94,10 +86,16 @@ impl GitDbCluster {
     /// Execute SQL against every configured node.
     ///
     /// This is useful for DDL setup across independent Git repositories.
-    pub fn broadcast_execute(&self, sql: &str) -> GitDbClusterResult<Vec<GitDbRoutedResult>> {
+    pub fn broadcast_execute(&self, sql: &str) -> Result<Vec<GitDbRoutedResult>> {
         let mut results = Vec::with_capacity(self.nodes.len());
         for node in &self.nodes {
-            let mut connection = node.checkout()?;
+            let Some(mut connection) = node.try_checkout()? else {
+                bail!(
+                    "GitDB pool exhausted: node={}, max_connections={}",
+                    node.config.id,
+                    node.config.max_connections
+                );
+            };
             let result = connection.execute(sql)?;
             results.push(GitDbRoutedResult {
                 node_id: connection.node_id().to_owned(),
@@ -108,26 +106,29 @@ impl GitDbCluster {
     }
 
     /// Check out a connection from a read-capable node.
-    pub fn checkout_read(&self) -> GitDbClusterResult<GitDbConnection> {
+    pub fn checkout_read(&self) -> Result<GitDbConnection> {
         self.checkout_for(GitDbQueryKind::Read)
     }
 
     /// Check out a connection from a write-capable node.
-    pub fn checkout_write(&self) -> GitDbClusterResult<GitDbConnection> {
+    pub fn checkout_write(&self) -> Result<GitDbConnection> {
         self.checkout_for(GitDbQueryKind::Write)
     }
 
     /// Check out a connection from a specific node.
-    pub fn checkout_node(&self, node_id: &str) -> GitDbClusterResult<GitDbConnection> {
+    pub fn checkout_node(&self, node_id: &str) -> Result<GitDbConnection> {
         let node = self
             .nodes
             .iter()
             .find(|node| node.config.id == node_id)
-            .ok_or_else(|| GitDbClusterError::NodeNotFound {
-                node_id: node_id.to_owned(),
-            })?;
+            .with_context(|| format!("GitDB node not found: {node_id}"))?;
 
-        node.checkout()
+        node.try_checkout()?.with_context(|| {
+            format!(
+                "GitDB pool exhausted: node={}, max_connections={}",
+                node.config.id, node.config.max_connections
+            )
+        })
     }
 
     /// Return current per-node pool statistics.
@@ -137,30 +138,23 @@ impl GitDbCluster {
         }
     }
 
-    fn checkout_for(&self, kind: GitDbQueryKind) -> GitDbClusterResult<GitDbConnection> {
+    fn checkout_for(&self, kind: GitDbQueryKind) -> Result<GitDbConnection> {
         let ordered = self.ordered_candidates(kind)?;
         let mut exhausted = Vec::new();
 
         for node in ordered {
-            match node.checkout() {
-                Ok(connection) => return Ok(connection),
-                Err(GitDbClusterError::PoolExhausted { node_id, .. }) => {
-                    exhausted.push(node_id);
+            match node.try_checkout()? {
+                Some(connection) => return Ok(connection),
+                None => {
+                    exhausted.push(node.config.id.clone());
                 }
-                Err(error) => return Err(error),
             }
         }
 
-        Err(GitDbClusterError::PoolsExhausted {
-            kind,
-            node_ids: exhausted,
-        })
+        bail!("all eligible GitDB pools are exhausted for {kind} query: {exhausted:?}");
     }
 
-    fn ordered_candidates(
-        &self,
-        kind: GitDbQueryKind,
-    ) -> GitDbClusterResult<Vec<Arc<GitDbNodePool>>> {
+    fn ordered_candidates(&self, kind: GitDbQueryKind) -> Result<Vec<Arc<GitDbNodePool>>> {
         let mut eligible: Vec<_> = self
             .nodes
             .iter()
@@ -169,7 +163,7 @@ impl GitDbCluster {
             .collect();
 
         if eligible.is_empty() {
-            return Err(GitDbClusterError::NoEligibleNode { kind });
+            bail!("no eligible GitDB node for {kind} query");
         }
 
         match self.strategy {
@@ -210,15 +204,15 @@ impl GitDbConnection {
     }
 
     /// Execute SQL on this checked-out connection.
-    pub fn execute(&mut self, sql: &str) -> GitDbClusterResult<QueryResult> {
+    pub fn execute(&mut self, sql: &str) -> Result<QueryResult> {
         let node_id = self.node_id().to_owned();
         self.connection_mut()?
             .execute(sql)
-            .map_err(|source| GitDbClusterError::NodeDatabase { node_id, source })
+            .with_context(|| format!("GitDB node '{node_id}' failed"))
     }
 
     /// Execute a semicolon-separated SQL batch on this checked-out connection.
-    pub fn execute_batch(&mut self, sql: &str) -> GitDbClusterResult<Vec<QueryResult>> {
+    pub fn execute_batch(&mut self, sql: &str) -> Result<Vec<QueryResult>> {
         sql.split(';')
             .map(str::trim)
             .filter(|statement| !statement.is_empty())
@@ -226,10 +220,10 @@ impl GitDbConnection {
             .collect()
     }
 
-    fn connection_mut(&mut self) -> GitDbClusterResult<&mut Connection> {
-        self.connection.as_mut().ok_or_else(|| {
-            GitDbClusterError::Internal("checked-out connection has no upstream connection".into())
-        })
+    fn connection_mut(&mut self) -> Result<&mut Connection> {
+        self.connection
+            .as_mut()
+            .context("internal GitDB cluster error: checked-out connection has no upstream connection")
     }
 }
 
@@ -287,7 +281,7 @@ struct GitDbNodePool {
 }
 
 impl GitDbNodePool {
-    fn new(config: GitDbNodeConfig) -> GitDbClusterResult<Self> {
+    fn new(config: GitDbNodeConfig) -> Result<Self> {
         prepare_checkout(&config)?;
         let pool_config = DatabaseConfig {
             path: config.checkout_path.clone(),
@@ -296,12 +290,8 @@ impl GitDbNodePool {
             verbose: config.verbose,
             auto_commit: config.auto_commit,
         };
-        let pool = ConnectionPool::new(pool_config, config.max_connections).map_err(|source| {
-            GitDbClusterError::NodeDatabase {
-                node_id: config.id.clone(),
-                source,
-            }
-        })?;
+        let pool = ConnectionPool::new(pool_config, config.max_connections)
+            .with_context(|| format!("GitDB node '{}' failed", config.id))?;
 
         Ok(Self {
             config,
@@ -319,27 +309,19 @@ impl GitDbNodePool {
         }
     }
 
-    fn checkout(self: &Arc<Self>) -> GitDbClusterResult<GitDbConnection> {
+    fn try_checkout(self: &Arc<Self>) -> Result<Option<GitDbConnection>> {
         match self.pool.get() {
             Ok(connection) => {
                 self.in_flight.fetch_add(1, Ordering::Relaxed);
-                Ok(GitDbConnection {
+                Ok(Some(GitDbConnection {
                     node: Arc::clone(self),
                     connection: Some(connection),
-                })
+                }))
             }
-            Err(DatabaseError::InvalidConfig(message))
-                if message == "connection pool exhausted" =>
-            {
-                Err(GitDbClusterError::PoolExhausted {
-                    node_id: self.config.id.clone(),
-                    max_connections: self.config.max_connections,
-                })
+            Err(error) if is_pool_exhausted(&error) => Ok(None),
+            Err(source) => {
+                Err(source).with_context(|| format!("GitDB node '{}' failed", self.config.id))
             }
-            Err(source) => Err(GitDbClusterError::NodeDatabase {
-                node_id: self.config.id.clone(),
-                source,
-            }),
         }
     }
 
@@ -363,77 +345,76 @@ impl GitDbNodePool {
     }
 }
 
-fn prepare_checkout(config: &GitDbNodeConfig) -> GitDbClusterResult<()> {
+fn prepare_checkout(config: &GitDbNodeConfig) -> Result<()> {
     if config.checkout_path.join(".git").exists() {
-        let repository = Repository::open(&config.checkout_path).map_err(|source| {
-            GitDbClusterError::NodeCheckout {
-                node_id: config.id.clone(),
-                checkout_path: config.checkout_path.clone(),
-                source,
-            }
+        let repository = Repository::open(&config.checkout_path).with_context(|| {
+            format!(
+                "GitDB node '{}' remote checkout failed at '{}'",
+                config.id,
+                config.checkout_path.display()
+            )
         })?;
         validate_origin(config, &repository)?;
         return Ok(());
     }
 
     if config.checkout_path.exists() || !config.clone_if_missing {
-        let message = format!(
+        bail!(
             "node '{}' checkout '{}' is not a Git repository cloned from '{}'",
             config.id,
             config.checkout_path.display(),
             config.remote_url
         );
-        let error = GitDbClusterError::InvalidConfig(message);
-        return Err(error);
     }
 
     if let Some(parent) = config.checkout_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|source| GitDbClusterError::NodeCheckoutIo {
-            node_id: config.id.clone(),
-            checkout_path: config.checkout_path.clone(),
-            source,
+        std::fs::create_dir_all(parent).with_context(|| {
+            format!(
+                "GitDB node '{}' checkout directory failed at '{}'",
+                config.id,
+                config.checkout_path.display()
+            )
         })?;
     }
 
-    Repository::clone(&config.remote_url, &config.checkout_path).map_err(|source| {
-        GitDbClusterError::NodeCheckout {
-            node_id: config.id.clone(),
-            checkout_path: config.checkout_path.clone(),
-            source,
-        }
+    Repository::clone(&config.remote_url, &config.checkout_path).with_context(|| {
+        format!(
+            "GitDB node '{}' remote checkout failed at '{}'",
+            config.id,
+            config.checkout_path.display()
+        )
     })?;
     Ok(())
 }
 
-fn validate_origin(config: &GitDbNodeConfig, repository: &Repository) -> GitDbClusterResult<()> {
-    let origin =
-        repository
-            .find_remote("origin")
-            .map_err(|source| GitDbClusterError::NodeCheckout {
-                node_id: config.id.clone(),
-                checkout_path: config.checkout_path.clone(),
-                source,
-            })?;
+fn is_pool_exhausted(error: &anyhow::Error) -> bool {
+    error.to_string() == "invalid configuration: connection pool exhausted"
+}
+
+fn validate_origin(config: &GitDbNodeConfig, repository: &Repository) -> Result<()> {
+    let origin = repository.find_remote("origin").with_context(|| {
+        format!(
+            "GitDB node '{}' remote checkout failed at '{}'",
+            config.id,
+            config.checkout_path.display()
+        )
+    })?;
     let Some(url) = origin.url() else {
-        let message = format!(
+        bail!(
             "node '{}' checkout '{}' has no UTF-8 origin URL",
             config.id,
             config.checkout_path.display()
         );
-        let error = GitDbClusterError::InvalidConfig(message);
-        return Err(error);
     };
 
     if normalize_remote_url(url) != normalize_remote_url(&config.remote_url) {
-        let message = format!(
+        bail!(
             "node '{}' checkout '{}' origin '{}' does not match configured remote '{}'",
             config.id,
             config.checkout_path.display(),
             url,
             config.remote_url
         );
-        let error = GitDbClusterError::InvalidConfig(message);
-        return Err(error);
     }
 
     Ok(())
@@ -467,10 +448,12 @@ fn weighted_index(nodes: &[Arc<GitDbNodePool>], counter: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::config::{GitDbClusterConfig, GitDbLoadBalanceStrategy};
+    use super::GitDbCluster;
+    use crate::config::{GitDbClusterConfig, GitDbLoadBalanceStrategy, GitDbNodeConfig};
+    use git2::Repository;
     use gitdb::db::{Database, DatabaseConfig};
     use std::path::Path;
+    use std::path::PathBuf;
 
     #[test]
     fn round_robin_should_spread_write_queries() {
@@ -514,7 +497,11 @@ mod tests {
             Ok(_) => panic!("pool should be exhausted"),
             Err(error) => error,
         };
-        assert!(matches!(error, GitDbClusterError::PoolsExhausted { .. }));
+        assert!(
+            error
+                .to_string()
+                .contains("all eligible GitDB pools are exhausted")
+        );
 
         drop(connection);
 
@@ -533,10 +520,10 @@ mod tests {
 
         let error = cluster.execute("BEGIN").unwrap_err();
 
-        assert!(matches!(
-            error,
-            GitDbClusterError::TransactionRequiresConnection
-        ));
+        assert_eq!(
+            error.to_string(),
+            "transaction control requires an explicitly checked-out connection"
+        );
     }
 
     #[test]
@@ -552,13 +539,6 @@ mod tests {
             .execute_read("CREATE TABLE users (id TEXT PRIMARY KEY)")
             .unwrap_err();
 
-        assert!(matches!(
-            error,
-            GitDbClusterError::UnexpectedQueryKind {
-                expected: GitDbQueryKind::Read,
-                actual: GitDbQueryKind::Write
-            }
-        ));
         assert_eq!(error.to_string(), "expected read query, got write query");
     }
 
@@ -597,7 +577,6 @@ mod tests {
             Err(error) => error,
         };
 
-        assert!(matches!(error, GitDbClusterError::InvalidConfig(_)));
         assert!(
             error
                 .to_string()

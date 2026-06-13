@@ -1,4 +1,4 @@
-use az_context::*;
+use az_context::ThreadLocalUtil;
 use std::thread;
 
 #[test]

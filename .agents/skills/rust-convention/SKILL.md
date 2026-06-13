@@ -49,7 +49,8 @@ Before reviewing, familiarize yourself with Apollo's Rust best practices. Read A
 - In this repository, prefer `anyhow::Result<T>` across crates instead of hand-written crate-local error enums and `XxxResult<T>` aliases.
 - Prefer `?` operator over match chains for error propagation
 - Add `anyhow::Context` at file, network, database, model-loading, serialization, and other boundary operations where the failing object or operation would otherwise be unclear.
-- Split complex `return Err(...)` construction into local variables before returning. Do not inline path conversion, source error creation, and domain error wrapping in one expression.
+- Complex `return Err(...)` construction must be split into local variables before returning. Never inline path conversion, source error creation, and domain error wrapping in one expression; name each part first so the failure object is readable in review.
+- Treat this as a mandatory review rule: even if nested constructors compile, reject them until the path, source error, and domain error are named before the `return Err(error);` statement.
 
 Bad:
 ```rust

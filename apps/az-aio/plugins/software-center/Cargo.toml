@@ -18,7 +18,6 @@ md5.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 shaku.workspace = true
-thiserror.workspace = true
 tokio.workspace = true
 toasty.workspace = true
 uuid.workspace = true

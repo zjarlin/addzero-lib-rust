@@ -1,7 +1,7 @@
 use anyhow::Context;
 use az_aio_plugin_api::{
     ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
-    NativeUiRenderer, PluginDescriptor, PluginError, UiContributionSlot, register_native_plugin,
+    NativeUiRenderer, PluginDescriptor, UiContributionSlot, register_native_plugin,
 };
 
 use crate::{
@@ -19,7 +19,7 @@ impl NativeAzAioPlugin for ConfigCenterPlugin {
         descriptor()
     }
 
-    fn contributions(&self) -> Result<ContributionSet, PluginError> {
+    fn contributions(&self) -> anyhow::Result<ContributionSet> {
         Ok(contributions())
     }
 

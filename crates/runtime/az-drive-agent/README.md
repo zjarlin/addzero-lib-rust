@@ -28,8 +28,11 @@ az-drive-agent = { path = "../az-drive-agent" }       # workspace 内部引用
 
 ## 用法
 
-```rust
-use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalStateStore};
+```rust,ignore
+use az_drive_agent::{
+    agent::{DriveAgent, DriveAgentConfig},
+    local_state::LocalStateStore,
+};
 use std::sync::Arc;
 
 let config = DriveAgentConfig::new("user-demo", "device-id".into(), "我的笔记本".into());
@@ -63,6 +66,6 @@ let agent = DriveAgent::new(metadata, objects, state_store, config);
 - `fs2` — 本地状态文件锁
 - `ignore` — Gitignore 风格文件过滤
 - `serde` / `serde_json` — 本地状态序列化
-- `thiserror` — 错误类型派生宏
+- `anyhow` — 错误返回与上下文
 - `tokio` — 异步运行时
 - `uuid` — 设备 ID 生成

@@ -8,10 +8,7 @@ authors.workspace = true
 description = "Unified error types for the addzero ecosystem"
 
 [dependencies]
-az-derive-aliases.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
+anyhow.workspace = true
 
 [lints]
 workspace = true

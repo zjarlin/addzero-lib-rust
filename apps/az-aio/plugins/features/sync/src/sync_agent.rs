@@ -6,10 +6,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::{SyncError, SyncResult},
     finder_status::default_finder_state_path,
     sync_engine::SyncEngine,
     sync_index::{SyncIndexSummary, default_local_index_path},
@@ -43,7 +43,7 @@ impl SyncAgentConfig {
         self
     }
 
-    pub fn merge_persisted_roots(mut self) -> SyncResult<Self> {
+    pub fn merge_persisted_roots(mut self) -> Result<Self> {
         let stored = SyncAgentRootsConfig::read_from_default_path(&self.device.home_dir)?;
         for root in stored.roots {
             if !self
@@ -70,7 +70,7 @@ impl SyncAgentRoot {
         alias: impl Into<String>,
         relative_path: impl AsRef<str>,
         space_id: impl Into<String>,
-    ) -> SyncResult<Self> {
+    ) -> Result<Self> {
         Ok(Self {
             alias: alias.into(),
             relative_path: normalize_home_relative_path(relative_path.as_ref())?,
@@ -85,45 +85,33 @@ pub struct SyncAgentRootsConfig {
 }
 
 impl SyncAgentRootsConfig {
-    pub fn read_from_default_path(home_dir: impl AsRef<Path>) -> SyncResult<Self> {
+    pub fn read_from_default_path(home_dir: impl AsRef<Path>) -> Result<Self> {
         Self::read_from_path(default_roots_config_path(home_dir))
     }
 
-    pub fn read_from_path(path: impl AsRef<Path>) -> SyncResult<Self> {
+    pub fn read_from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         match fs::read_to_string(path) {
-            Ok(json) => serde_json::from_str(&json).map_err(|source| SyncError::Json {
-                path: path.to_path_buf(),
-                source,
-            }),
+            Ok(json) => {
+                serde_json::from_str(&json).with_context(|| format!("JSON failed for `{path:?}`"))
+            }
             Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
-            Err(source) => Err(SyncError::Io {
-                path: path.to_path_buf(),
-                source,
-            }),
+            Err(source) => Err(source).with_context(|| format!("I/O failed for `{path:?}`")),
         }
     }
 
-    pub fn write_to_default_path(&self, home_dir: impl AsRef<Path>) -> SyncResult<()> {
+    pub fn write_to_default_path(&self, home_dir: impl AsRef<Path>) -> Result<()> {
         self.write_to_path(default_roots_config_path(home_dir))
     }
 
-    pub fn write_to_path(&self, path: impl AsRef<Path>) -> SyncResult<()> {
+    pub fn write_to_path(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref();
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|source| SyncError::Io {
-                path: parent.to_path_buf(),
-                source,
-            })?;
+            fs::create_dir_all(parent).with_context(|| format!("I/O failed for `{parent:?}`"))?;
         }
-        let json = serde_json::to_string_pretty(self).map_err(|source| SyncError::Json {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        fs::write(path, json).map_err(|source| SyncError::Io {
-            path: path.to_path_buf(),
-            source,
-        })
+        let json =
+            serde_json::to_string_pretty(self).with_context(|| format!("JSON failed for `{path:?}`"))?;
+        fs::write(path, json).with_context(|| format!("I/O failed for `{path:?}`"))
     }
 
     pub fn upsert_root(&mut self, root: SyncAgentRoot) {
@@ -163,7 +151,7 @@ pub struct SyncAgentBootstrapReport {
     pub finder_state_path: PathBuf,
 }
 
-pub fn bootstrap_sync_agent(config: SyncAgentConfig) -> SyncResult<SyncAgentBootstrapReport> {
+pub fn bootstrap_sync_agent(config: SyncAgentConfig) -> Result<SyncAgentBootstrapReport> {
     let engine = build_sync_agent_engine(&config)?;
     if config.write_local_index {
         engine.write_default_local_index()?;
@@ -183,40 +171,30 @@ pub fn bootstrap_sync_agent(config: SyncAgentConfig) -> SyncResult<SyncAgentBoot
     })
 }
 
-pub fn build_sync_agent_engine(config: &SyncAgentConfig) -> SyncResult<SyncEngine> {
+pub fn build_sync_agent_engine(config: &SyncAgentConfig) -> Result<SyncEngine> {
     let mut engine = SyncEngine::with_device(config.device.clone());
     for root in &config.roots {
         engine.add_root(&root.alias, &root.relative_path, &root.space_id)?;
     }
 
     for root in engine.roots() {
-        fs::create_dir_all(&root.local_path).map_err(|source| SyncError::Io {
-            path: root.local_path.clone(),
-            source,
-        })?;
+        fs::create_dir_all(&root.local_path)
+            .with_context(|| format!("I/O failed for `{:?}`", root.local_path))?;
         import_existing_text_files(&mut engine, &root)?;
     }
 
     Ok(engine)
 }
 
-fn import_existing_text_files(engine: &mut SyncEngine, root: &SyncRoot) -> SyncResult<()> {
+fn import_existing_text_files(engine: &mut SyncEngine, root: &SyncRoot) -> Result<()> {
     let mut pending = VecDeque::from([root.local_path.clone()]);
     while let Some(path) = pending.pop_front() {
-        let entries = fs::read_dir(&path).map_err(|source| SyncError::Io {
-            path: path.clone(),
-            source,
-        })?;
+        let entries = fs::read_dir(&path).with_context(|| format!("I/O failed for `{path:?}`"))?;
         for entry in entries {
-            let entry = entry.map_err(|source| SyncError::Io {
-                path: path.clone(),
-                source,
-            })?;
+            let entry = entry.with_context(|| format!("I/O failed for `{path:?}`"))?;
             let path = entry.path();
-            let metadata = entry.metadata().map_err(|source| SyncError::Io {
-                path: path.clone(),
-                source,
-            })?;
+            let metadata =
+                entry.metadata().with_context(|| format!("I/O failed for `{path:?}`"))?;
             if metadata.is_dir() {
                 pending.push_back(path);
                 continue;
@@ -230,11 +208,8 @@ fn import_existing_text_files(engine: &mut SyncEngine, root: &SyncRoot) -> SyncR
     Ok(())
 }
 
-fn import_text_file_if_utf8(engine: &mut SyncEngine, path: &Path) -> SyncResult<()> {
-    let bytes = fs::read(path).map_err(|source| SyncError::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
+fn import_text_file_if_utf8(engine: &mut SyncEngine, path: &Path) -> Result<()> {
+    let bytes = fs::read(path).with_context(|| format!("I/O failed for `{path:?}`"))?;
     let Ok(text) = String::from_utf8(bytes) else {
         return Ok(());
     };

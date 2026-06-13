@@ -10,13 +10,13 @@ repository.workspace = true
 description = "GitDB driver for Toasty ORM"
 
 [dependencies]
+anyhow.workspace = true
 async-trait.workspace = true
 automod.workspace = true
 az-derive-aliases.workspace = true
 chrono.workspace = true
 gitdb = { path = "../gitdb" }
 serde_json.workspace = true
-thiserror.workspace = true
 toasty-core = "0.6.0"
 toasty-sql = "0.6.0"
 uuid.workspace = true

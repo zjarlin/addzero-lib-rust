@@ -1,9 +1,8 @@
-use crate::config::AuthorizationCodeOptions;
+use crate::config::{AuthorizationCodeOptions, OAuth2Config};
 use crate::loopback::LoopbackAuthorizationSession;
 use crate::model::{OAuth2DeviceAuthorization, OAuth2DeviceTokenPoll, OAuth2TokenResponse};
-use crate::{
-    OAuth2Config, OAuth2Error, OAuth2Result, PkcePair, generate_pkce_pair, generate_state,
-};
+use crate::pkce::{PkcePair, generate_pkce_pair, generate_state};
+use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
@@ -28,16 +27,16 @@ pub struct OAuth2Client {
 
 impl OAuth2Client {
     /// Creates a client from validated config.
-    pub fn new(config: OAuth2Config) -> OAuth2Result<Self> {
+    pub fn new(config: OAuth2Config) -> anyhow::Result<Self> {
         config.validate()?;
         let authorization_url = Url::parse(&config.authorization_url)
-            .map_err(|_| OAuth2Error::InvalidBaseUrl(config.authorization_url.clone()))?;
+            .with_context(|| format!("invalid base url `{}`", config.authorization_url))?;
         let token_url = Url::parse(&config.token_url)
-            .map_err(|_| OAuth2Error::InvalidBaseUrl(config.token_url.clone()))?;
+            .with_context(|| format!("invalid base url `{}`", config.token_url))?;
         let device_authorization_url = config
             .device_authorization_url
             .as_ref()
-            .map(|url| Url::parse(url).map_err(|_| OAuth2Error::InvalidBaseUrl(url.clone())))
+            .map(|url| Url::parse(url).with_context(|| format!("invalid base url `{url}`")))
             .transpose()?;
 
         let mut builder = Client::builder()
@@ -52,7 +51,7 @@ impl OAuth2Client {
             authorization_url,
             token_url,
             device_authorization_url,
-            client: builder.build()?,
+            client: builder.build().context("failed to build OAuth2 HTTP client")?,
         })
     }
 
@@ -60,12 +59,12 @@ impl OAuth2Client {
     pub fn build_authorization_url(
         &self,
         options: AuthorizationCodeOptions,
-    ) -> OAuth2Result<AuthorizationRequest> {
+    ) -> anyhow::Result<AuthorizationRequest> {
         let redirect_uri = options
             .redirect_uri
             .clone()
             .or_else(|| self.config.redirect_uri.clone())
-            .ok_or_else(|| OAuth2Error::InvalidConfig("redirect_uri is required".to_owned()))?;
+            .ok_or_else(|| anyhow!("invalid config: redirect_uri is required"))?;
         let state = options.state.clone().map_or_else(generate_state, Ok)?;
         let pkce = options.pkce.clone().map_or_else(generate_pkce_pair, Ok)?;
         let scopes = effective_scopes(&options.scopes, &self.config.scopes);
@@ -111,9 +110,13 @@ impl OAuth2Client {
     pub fn begin_loopback_authorization(
         &self,
         mut options: AuthorizationCodeOptions,
-    ) -> OAuth2Result<LoopbackAuthorizationSession> {
-        let listener = TcpListener::bind(&options.loopback_bind_addr)?;
-        let local_addr = listener.local_addr()?;
+    ) -> anyhow::Result<LoopbackAuthorizationSession> {
+        let listener = TcpListener::bind(&options.loopback_bind_addr).with_context(|| {
+            format!("failed to bind OAuth2 loopback listener `{}`", options.loopback_bind_addr)
+        })?;
+        let local_addr = listener
+            .local_addr()
+            .context("failed to read OAuth2 loopback listener address")?;
         let path = normalize_loopback_path(&options.loopback_path);
         let redirect_uri = format!("http://127.0.0.1:{}{path}", local_addr.port());
         options.redirect_uri = Some(redirect_uri.clone());
@@ -134,7 +137,7 @@ impl OAuth2Client {
         code: impl AsRef<str>,
         redirect_uri: impl AsRef<str>,
         pkce: Option<&PkcePair>,
-    ) -> OAuth2Result<OAuth2TokenResponse> {
+    ) -> anyhow::Result<OAuth2TokenResponse> {
         let mut form = self.base_token_form(AUTHORIZATION_CODE_GRANT_TYPE);
         form.insert("code".to_owned(), code.as_ref().to_owned());
         form.insert("redirect_uri".to_owned(), redirect_uri.as_ref().to_owned());
@@ -149,7 +152,7 @@ impl OAuth2Client {
     pub fn refresh_access_token(
         &self,
         refresh_token: impl AsRef<str>,
-    ) -> OAuth2Result<OAuth2TokenResponse> {
+    ) -> anyhow::Result<OAuth2TokenResponse> {
         let mut form = self.base_token_form(REFRESH_TOKEN_GRANT_TYPE);
         form.insert(
             "refresh_token".to_owned(),
@@ -160,11 +163,9 @@ impl OAuth2Client {
     }
 
     /// Starts an OAuth2 device authorization flow.
-    pub fn begin_device_authorization(&self) -> OAuth2Result<OAuth2DeviceAuthorization> {
+    pub fn begin_device_authorization(&self) -> anyhow::Result<OAuth2DeviceAuthorization> {
         let url = self.device_authorization_url.as_ref().ok_or_else(|| {
-            OAuth2Error::InvalidConfig(
-                "device_authorization_url is required for device flow".to_owned(),
-            )
+            anyhow!("invalid config: device_authorization_url is required for device flow")
         })?;
         let mut form = BTreeMap::new();
         form.insert("client_id".to_owned(), self.config.client_id.clone());
@@ -172,7 +173,12 @@ impl OAuth2Client {
             form.insert("scope".to_owned(), self.config.scopes.join(" "));
         }
 
-        let response = self.client.post(url.clone()).form(&form).send()?;
+        let response = self
+            .client
+            .post(url.clone())
+            .form(&form)
+            .send()
+            .with_context(|| format!("failed to send device authorization request to `{url}`"))?;
         Self::read_json(response)
     }
 
@@ -181,7 +187,7 @@ impl OAuth2Client {
         &self,
         authorization: &OAuth2DeviceAuthorization,
         current_interval_secs: u64,
-    ) -> OAuth2Result<OAuth2DeviceTokenPoll> {
+    ) -> anyhow::Result<OAuth2DeviceTokenPoll> {
         let mut form = self.base_token_form(DEVICE_CODE_GRANT_TYPE);
         form.insert("device_code".to_owned(), authorization.device_code.clone());
 
@@ -210,7 +216,7 @@ impl OAuth2Client {
         &self,
         authorization: &OAuth2DeviceAuthorization,
         timeout: Duration,
-    ) -> OAuth2Result<OAuth2DeviceTokenPoll> {
+    ) -> anyhow::Result<OAuth2DeviceTokenPoll> {
         let mut interval = authorization.interval.unwrap_or(5).max(1);
         let deadline = std::time::Instant::now() + timeout;
         loop {
@@ -245,23 +251,35 @@ impl OAuth2Client {
     fn send_token_form(
         &self,
         form: &BTreeMap<String, String>,
-    ) -> OAuth2Result<OAuth2TokenResponse> {
-        let response = self.client.post(self.token_url.clone()).form(form).send()?;
+    ) -> anyhow::Result<OAuth2TokenResponse> {
+        let response = self
+            .client
+            .post(self.token_url.clone())
+            .form(form)
+            .send()
+            .with_context(|| format!("failed to send token request to `{}`", self.token_url))?;
         Self::read_token_response(response)
     }
 
-    fn read_json<T: DeserializeOwned>(response: Response) -> OAuth2Result<T> {
+    fn read_json<T: DeserializeOwned>(response: Response) -> anyhow::Result<T> {
         let response = Self::ensure_success(response)?;
-        let bytes = response.bytes()?;
-        Ok(serde_json::from_slice(bytes.as_ref())?)
+        let url = response.url().to_string();
+        let bytes = response
+            .bytes()
+            .with_context(|| format!("failed to read response body from `{url}`"))?;
+        serde_json::from_slice(bytes.as_ref())
+            .with_context(|| format!("failed to parse JSON response from `{url}`"))
     }
 
-    fn read_token_response(response: Response) -> OAuth2Result<OAuth2TokenResponse> {
+    fn read_token_response(response: Response) -> anyhow::Result<OAuth2TokenResponse> {
         let status = response.status();
         let url = response.url().to_string();
-        let bytes = response.bytes()?;
+        let bytes = response
+            .bytes()
+            .with_context(|| format!("failed to read token response body from `{url}`"))?;
         if status.is_success() {
-            return Ok(serde_json::from_slice(bytes.as_ref())?);
+            return serde_json::from_slice(bytes.as_ref())
+                .with_context(|| format!("failed to parse token JSON response from `{url}`"));
         }
 
         if let Ok(token) = serde_json::from_slice::<OAuth2TokenResponse>(bytes.as_ref())
@@ -270,30 +288,28 @@ impl OAuth2Client {
             return Ok(token);
         }
 
-        Err(OAuth2Error::HttpStatus {
-            url,
-            status: status.as_u16(),
-            body: String::from_utf8_lossy(bytes.as_ref()).into_owned(),
-        })
+        bail!(
+            "request to `{url}` returned HTTP {}: {}",
+            status.as_u16(),
+            String::from_utf8_lossy(bytes.as_ref())
+        )
     }
 
-    fn ensure_success(response: Response) -> OAuth2Result<Response> {
+    fn ensure_success(response: Response) -> anyhow::Result<Response> {
         let status = response.status();
         if status.is_success() {
             return Ok(response);
         }
 
         let url = response.url().to_string();
-        let body = match response.bytes() {
-            Ok(bytes) => String::from_utf8_lossy(bytes.as_ref()).into_owned(),
-            Err(error) => return Err(OAuth2Error::Transport(error)),
-        };
-
-        Err(OAuth2Error::HttpStatus {
-            url,
-            status: status.as_u16(),
-            body,
-        })
+        let bytes = response
+            .bytes()
+            .with_context(|| format!("failed to read error response body from `{url}`"))?;
+        bail!(
+            "request to `{url}` returned HTTP {}: {}",
+            status.as_u16(),
+            String::from_utf8_lossy(bytes.as_ref())
+        )
     }
 }
 
@@ -340,10 +356,9 @@ fn normalize_loopback_path(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::OAuth2Client;
-    use crate::{
-        AuthorizationCodeOptions, OAuth2Config, OAuth2DeviceTokenPoll, OAuth2TokenResponse,
-        PkcePair,
-    };
+    use crate::config::{AuthorizationCodeOptions, OAuth2Config};
+    use crate::model::{OAuth2DeviceTokenPoll, OAuth2TokenResponse};
+    use crate::pkce::PkcePair;
     use az_derive_aliases::{apply, plain_clone_debug};
     use std::io::{Read, Write};
     use std::net::TcpListener;

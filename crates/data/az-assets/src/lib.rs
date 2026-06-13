@@ -5,18 +5,9 @@
 //!
 //! # 核心类型
 //!
-//! - [`AssetService`] — 主服务入口，封装所有读写操作
-//! - [`Asset`] / [`AssetEdge`] — 资产节点与边的数据模型
-//! - [`AiModelProvider`] — AI 服务提供商配置
-//! - [`SecretCipher`] — 基于 AES-256-GCM 的 API 密钥加解密
+//! - [`service::AssetService`] — 主服务入口，封装所有读写操作
+//! - [`types::Asset`] / [`types::AssetEdge`] — 资产节点与边的数据模型
+//! - [`types::AiModelProvider`] — AI 服务提供商配置
+//! - [`secret::SecretCipher`] — 基于 AES-256-GCM 的 API 密钥加解密
 
-automod::dir!("src");
-
-pub use pg_repo::PgRepo;
-pub use secret::{EncryptedSecret, SecretCipher};
-pub use service::AssetService;
-pub use types::{
-    AiModelProvider, AiModelProviderUpsert, AiPromptButton, AiPromptButtonUpsert, AiProviderKind,
-    Asset, AssetEdge, AssetEdgeUpsert, AssetGraph, AssetKind, AssetProviderSecret, AssetUpsert,
-    PromptRunOutput, SuggestedEdge,
-};
+automod::dir!(pub "src");

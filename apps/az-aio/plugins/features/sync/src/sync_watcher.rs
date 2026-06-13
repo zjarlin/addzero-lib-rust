@@ -6,13 +6,13 @@ use std::{
     time::Duration,
 };
 
+use anyhow::{Context, Result};
 use notify::{
     Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
     event::{ModifyKind, RenameMode},
 };
 
 use crate::{
-    error::{SyncError, SyncResult},
     sync_engine::SyncEngine,
     sync_model::{SyncDeviceInfo, SyncDocumentRecord, SyncRoot, normalize_home_relative_path},
     sync_server::SyncObjectManifest,
@@ -30,7 +30,7 @@ impl SyncRootWatcher {
     pub fn watch_roots(
         roots: Vec<SyncRoot>,
         mut on_event: impl FnMut(SyncWatchEvent) + Send + 'static,
-    ) -> SyncResult<Self> {
+    ) -> Result<Self> {
         let mut watcher = RecommendedWatcher::new(
             move |result: notify::Result<Event>| {
                 if let Ok(event) = result {
@@ -41,18 +41,12 @@ impl SyncRootWatcher {
             },
             Config::default().with_poll_interval(Duration::from_millis(DEFAULT_WATCH_DEBOUNCE_MS)),
         )
-        .map_err(|source| SyncError::Watch {
-            operation: "create watcher",
-            source,
-        })?;
+        .context("file watcher create watcher failed")?;
 
         for root in &roots {
             watcher
                 .watch(&root.local_path, RecursiveMode::Recursive)
-                .map_err(|source| SyncError::Watch {
-                    operation: "watch sync root",
-                    source,
-                })?;
+                .context("file watcher watch sync root failed")?;
         }
 
         Ok(Self {
@@ -200,7 +194,7 @@ impl SyncWatchPlanner {
         self.debounce_window
     }
 
-    pub fn drain_plan(&mut self) -> SyncResult<SyncWatchPlan> {
+    pub fn drain_plan(&mut self) -> Result<SyncWatchPlan> {
         let mut changed_text = BTreeSet::new();
         let mut changed_binary = BTreeSet::new();
         let mut deleted = BTreeSet::new();
@@ -251,17 +245,15 @@ impl SyncWatchPlanner {
         &mut self,
         engine: &mut SyncEngine,
         plan: &SyncWatchPlan,
-    ) -> SyncResult<Vec<String>> {
+    ) -> Result<Vec<String>> {
         let mut changed_text_paths = Vec::new();
         for relative_path in &plan.changed_text_paths {
             let local_path = self.device.local_path_for_home_relative(relative_path)?;
             if !is_utf8_file(&local_path) {
                 continue;
             }
-            let text = std::fs::read_to_string(&local_path).map_err(|source| SyncError::Io {
-                path: local_path.clone(),
-                source,
-            })?;
+            let text = std::fs::read_to_string(&local_path)
+                .with_context(|| format!("I/O failed for `{local_path:?}`"))?;
             let record = engine.apply_local_text(&local_path, &text)?;
             if self.known_hashes.get(relative_path) == Some(&record.content_hash) {
                 continue;

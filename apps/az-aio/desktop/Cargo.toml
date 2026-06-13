@@ -10,7 +10,7 @@ repository = "https://github.com/zjarlin/addzero-lib-rust"
 description = "Dioxus desktop shell for AZ AIO."
 
 [dependencies]
-automod = "1.0.16"
+automod.workspace = true
 az-aio-plugin-api = { path = "../plugins/api" }
 az-aio-plugin-bundled = { path = "../plugins/bundled" }
 az-aio-plugin-host = { path = "../plugins/host" }

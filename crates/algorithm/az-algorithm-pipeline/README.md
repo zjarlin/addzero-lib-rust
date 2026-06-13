@@ -18,7 +18,7 @@ use az_algorithm_pipeline::logic_algorithm_pipeline::model::{
     ImageAlgorithmKind, ImagePipelineOptions,
 };
 
-# fn main() -> az_algorithm_pipeline::error::AlgorithmPipelineResult<()> {
+# fn main() -> anyhow::Result<()> {
 let result = run_image_pipeline_from_path(
     "/absolute/path/to/input.jpg",
     &ImagePipelineOptions {

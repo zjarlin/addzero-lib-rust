@@ -1,7 +1,8 @@
 use crate::http::HttpClient;
 use crate::otp::extract_verification_code;
 use crate::random::{random_local_part, random_password};
-use crate::{CodexAuthSupportError, CodexAuthSupportResult, DuckMailConfig};
+use crate::config::DuckMailConfig;
+use anyhow::{anyhow, bail};
 use az_derive_aliases::{
     apply, deserialize_debug, plain_clone_debug, plain_eq, serde_eq, serde_eq_default,
 };
@@ -17,7 +18,7 @@ pub struct DuckMailApi {
 
 impl DuckMailApi {
     /// Creates a client from validated DuckMail API configuration.
-    pub fn new(config: DuckMailConfig) -> CodexAuthSupportResult<Self> {
+    pub fn new(config: DuckMailConfig) -> anyhow::Result<Self> {
         let config = config.build()?;
         Ok(Self {
             http: HttpClient::new(&config)?,
@@ -26,12 +27,12 @@ impl DuckMailApi {
     }
 
     /// Creates a client for the public DuckMail API with an optional bearer token or `dk_` key.
-    pub fn default_with_auth_token(token: impl Into<String>) -> CodexAuthSupportResult<Self> {
+    pub fn default_with_auth_token(token: impl Into<String>) -> anyhow::Result<Self> {
         Self::new(DuckMailConfig::default().auth_token(token))
     }
 
     /// Lists verified DuckMail domains visible to the configured credential.
-    pub fn list_domains(&self, page: usize) -> CodexAuthSupportResult<Vec<DuckMailDomain>> {
+    pub fn list_domains(&self, page: usize) -> anyhow::Result<Vec<DuckMailDomain>> {
         let response = HttpClient::with_bearer_auth(
             self.http.get("/domains")?,
             self.config.auth_token.as_deref(),
@@ -47,7 +48,7 @@ impl DuckMailApi {
         &self,
         address: impl AsRef<str>,
         password: impl AsRef<str>,
-    ) -> CodexAuthSupportResult<DuckMailAccount> {
+    ) -> anyhow::Result<DuckMailAccount> {
         let response = HttpClient::with_bearer_auth(
             self.http.post("/accounts")?,
             self.config.auth_token.as_deref(),
@@ -65,7 +66,7 @@ impl DuckMailApi {
         &self,
         address: impl AsRef<str>,
         password: impl AsRef<str>,
-    ) -> CodexAuthSupportResult<DuckMailToken> {
+    ) -> anyhow::Result<DuckMailToken> {
         let response = self
             .http
             .post("/token")?
@@ -82,7 +83,7 @@ impl DuckMailApi {
         &self,
         address: impl AsRef<str>,
         password: impl AsRef<str>,
-    ) -> CodexAuthSupportResult<DuckMailMailbox> {
+    ) -> anyhow::Result<DuckMailMailbox> {
         let address = address.as_ref().trim().to_owned();
         let password = password.as_ref().to_owned();
         let account = self.create_account(&address, &password)?;
@@ -100,7 +101,7 @@ impl DuckMailApi {
     pub fn create_random_mailbox_and_login(
         &self,
         domain: Option<&str>,
-    ) -> CodexAuthSupportResult<DuckMailMailbox> {
+    ) -> anyhow::Result<DuckMailMailbox> {
         let domain = match domain.map(str::trim).filter(|value| !value.is_empty()) {
             Some(domain) => domain.to_owned(),
             None => self
@@ -109,9 +110,7 @@ impl DuckMailApi {
                 .find(|domain| domain.is_verified)
                 .map(|domain| domain.domain)
                 .ok_or_else(|| {
-                    CodexAuthSupportError::InvalidResponse(
-                        "no verified DuckMail domains available".to_owned(),
-                    )
+                    anyhow!("invalid response: no verified DuckMail domains available")
                 })?,
         };
         let address = format!("{}@{domain}", random_local_part(12)?);
@@ -124,7 +123,7 @@ impl DuckMailApi {
         &self,
         mail_token: impl AsRef<str>,
         page: usize,
-    ) -> CodexAuthSupportResult<Vec<DuckMailMessageSummary>> {
+    ) -> anyhow::Result<Vec<DuckMailMessageSummary>> {
         let response =
             HttpClient::with_bearer_auth(self.http.get("/messages")?, Some(mail_token.as_ref()))
                 .query(&[("page", page.max(1).to_string())])
@@ -138,7 +137,7 @@ impl DuckMailApi {
         &self,
         mail_token: impl AsRef<str>,
         message_id: impl AsRef<str>,
-    ) -> CodexAuthSupportResult<DuckMailMessageDetail> {
+    ) -> anyhow::Result<DuckMailMessageDetail> {
         let message_id = normalize_message_id(message_id.as_ref());
         let path = format!("/messages/{message_id}");
         let response =
@@ -154,7 +153,7 @@ impl DuckMailApi {
         mail_token: impl AsRef<str>,
         timeout: Duration,
         poll_interval: Duration,
-    ) -> CodexAuthSupportResult<Option<String>> {
+    ) -> anyhow::Result<Option<String>> {
         let mail_token = mail_token.as_ref();
         let started = Instant::now();
 
@@ -307,7 +306,7 @@ impl DuckMailMessageDetail {
         self.html.join("")
     }
 
-    fn try_from_raw(raw: DuckMailMessageDetailRaw) -> CodexAuthSupportResult<Self> {
+    fn try_from_raw(raw: DuckMailMessageDetailRaw) -> anyhow::Result<Self> {
         Ok(Self {
             id: raw.id,
             msgid: raw.msgid,
@@ -381,7 +380,7 @@ struct DuckMailMessageDetailRaw {
     updated_at: Option<String>,
 }
 
-fn html_to_vec(value: Value) -> CodexAuthSupportResult<Vec<String>> {
+fn html_to_vec(value: Value) -> anyhow::Result<Vec<String>> {
     match value {
         Value::Null => Ok(Vec::new()),
         Value::String(value) => Ok(vec![value]),
@@ -389,15 +388,11 @@ fn html_to_vec(value: Value) -> CodexAuthSupportResult<Vec<String>> {
             .into_iter()
             .map(|value| {
                 value.as_str().map(ToOwned::to_owned).ok_or_else(|| {
-                    CodexAuthSupportError::InvalidResponse(
-                        "message html array must contain only strings".to_owned(),
-                    )
+                    anyhow!("invalid response: message html array must contain only strings")
                 })
             })
             .collect(),
-        other => Err(CodexAuthSupportError::InvalidResponse(format!(
-            "message html field should be a string or array, got {other}"
-        ))),
+        other => bail!("invalid response: message html field should be a string or array, got {other}"),
     }
 }
 

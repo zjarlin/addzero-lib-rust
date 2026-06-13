@@ -24,7 +24,8 @@ az-assets = { path = "../az-assets" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_assets::{AssetService, AssetUpsert, AssetKind};
+use az_assets::service::AssetService;
+use az_assets::types::{AssetKind, AssetUpsert};
 
 // 内存模式启动
 let service = AssetService::memory_only(None);

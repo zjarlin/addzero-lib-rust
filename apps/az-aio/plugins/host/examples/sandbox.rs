@@ -3,9 +3,8 @@
 use std::{env, path::PathBuf, process::ExitCode};
 
 use az_aio_plugin_api::PluginSandboxDebugReport;
-use az_aio_plugin_host::{
-    PluginHost, PluginRuntimeRecord, WasmComponentPlugin, default_plugin_host,
-};
+use az_aio_plugin_host::host::{PluginHost, PluginRuntimeRecord, default_plugin_host};
+use az_aio_plugin_host::wasm_component::WasmComponentPlugin;
 use serde::Serialize;
 
 #[derive(Clone, Copy)]

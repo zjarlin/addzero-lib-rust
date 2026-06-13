@@ -26,7 +26,7 @@ az-toml = { path = "../az-toml" }      # workspace 内部引用
 ## 用法
 
 ```rust
-use az_toml::VersionCatalog;
+use az_toml::model::VersionCatalog;
 
 // 从文件加载（不存在则创建默认模板）
 let catalog = VersionCatalog::load_or_init("libs.versions.toml")?;
@@ -58,5 +58,5 @@ let catalog = az_toml::catalog! {
 ## 依赖的 crates
 
 - `serde` — 序列化/反序列化框架
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误上下文与统一 `Result`
 - `toml_edit` — 保格式的 TOML 读写

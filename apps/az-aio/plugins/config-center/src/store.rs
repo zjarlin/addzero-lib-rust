@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
+use anyhow::{anyhow, bail};
 use shaku::{Component, Interface, module};
 use toasty::stmt::{List, Query};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    error::{ConfigCenterError, ConfigCenterResult},
     model::{ConfigEntry, ConfigEntrySummary, TABLE_NAME_PREFIX},
 };
 
@@ -16,7 +16,7 @@ pub struct ConfigCenterStore {
 }
 
 impl ConfigCenterStore {
-    pub async fn connect(database_url: &str) -> ConfigCenterResult<Self> {
+    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         let database_url = validate_database_url(Some(database_url))?;
         let db = toasty::Db::builder()
             .models(toasty::models!(ConfigEntry))
@@ -32,7 +32,7 @@ impl ConfigCenterStore {
     pub async fn list_entries(
         &self,
         namespace: &str,
-    ) -> ConfigCenterResult<Vec<ConfigEntrySummary>> {
+    ) -> anyhow::Result<Vec<ConfigEntrySummary>> {
         let namespace = normalize_namespace(namespace);
         let mut db = self.db.lock().await;
         let entries =
@@ -45,7 +45,7 @@ impl ConfigCenterStore {
     pub async fn upsert_entry(
         &self,
         input: ConfigEntryInput,
-    ) -> ConfigCenterResult<ConfigEntrySummary> {
+    ) -> anyhow::Result<ConfigEntrySummary> {
         validate_config_entry_input(&input)?;
         let id = normalized_id(input.id);
         let now = timestamp_string();
@@ -122,20 +122,20 @@ pub fn build_config_center_module() -> ConfigCenterModule {
     ConfigCenterModule::builder().build()
 }
 
-pub fn validate_database_url(value: Option<&str>) -> ConfigCenterResult<&str> {
+pub fn validate_database_url(value: Option<&str>) -> anyhow::Result<&str> {
     let value = value
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or(ConfigCenterError::MissingDatabaseUrl)?;
+        .ok_or_else(|| anyhow!("missing config-center database url"))?;
     Ok(value)
 }
 
-pub fn validate_config_entry_input(input: &ConfigEntryInput) -> ConfigCenterResult<()> {
+pub fn validate_config_entry_input(input: &ConfigEntryInput) -> anyhow::Result<()> {
     if input.key.trim().is_empty() {
-        return Err(ConfigCenterError::BlankKey);
+        bail!("config key must not be blank");
     }
     if input.value.trim().is_empty() {
-        return Err(ConfigCenterError::BlankValue);
+        bail!("config value must not be blank");
     }
     Ok(())
 }
@@ -176,10 +176,8 @@ mod tests {
             validate_database_url(Some(" postgresql://localhost/config ")).unwrap(),
             "postgresql://localhost/config"
         );
-        assert!(matches!(
-            validate_database_url(None),
-            Err(ConfigCenterError::MissingDatabaseUrl)
-        ));
+        let error = validate_database_url(None).unwrap_err();
+        assert_eq!(error.to_string(), "missing config-center database url");
     }
 
     #[test]
@@ -190,10 +188,8 @@ mod tests {
             key: "".to_string(),
             value: "secret".to_string(),
         };
-        assert!(matches!(
-            validate_config_entry_input(&input),
-            Err(ConfigCenterError::BlankKey)
-        ));
+        let error = validate_config_entry_input(&input).unwrap_err();
+        assert_eq!(error.to_string(), "config key must not be blank");
     }
 
     #[test]

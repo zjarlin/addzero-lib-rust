@@ -28,7 +28,7 @@ impl AzAioPlugin for CoreNavPlugin {
         }
     }
 
-    fn contributions(&self) -> Result<ContributionSet, az_aio_plugin_api::PluginError> {
+    fn contributions(&self) -> anyhow::Result<ContributionSet> {
         Ok(ContributionSet {
             nav_items: vec![
                 nav_item("core-nav.chat", "新对话", "✎", "/chat", 10),

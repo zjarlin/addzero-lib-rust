@@ -1,6 +1,5 @@
-use az_derive_aliases::{apply, error, serde_code_props_enum, serde_eq, serde_partial_eq};
+use az_derive_aliases::{apply, serde_code_props_enum, serde_eq, serde_partial_eq};
 use serde_yaml::Value;
-use strum::EnumProperty;
 use std::time::Duration;
 
 /// TCP 延迟测试的默认并发数上限。
@@ -8,65 +7,6 @@ pub const DEFAULT_SPEEDTEST_CONCURRENCY: usize = 10;
 
 /// 单个节点 TCP 连接测试的默认超时时间。
 pub const DEFAULT_SPEEDTEST_TIMEOUT: Duration = Duration::from_secs(5);
-
-/// `az-proxy` 所有可失败操作的统一结果类型。
-pub type ProxyResult<T> = Result<T, ProxyError>;
-
-/// 订阅获取、解析、节点选择和配置生成过程中可能返回的错误。
-#[apply(error)]
-pub enum ProxyError {
-    /// HTTP 请求失败，或服务端返回非成功状态码。
-    #[error("http request failed: {0}")]
-    Http(#[from] reqwest::Error),
-
-    /// 订阅内容无法按 YAML 解析。
-    #[error("yaml parse failed: {0}")]
-    Yaml(#[from] serde_yaml::Error),
-
-    /// `vmess://` 中的 JSON payload 无法解析。
-    #[error("json parse failed: {0}")]
-    Json(#[from] serde_json::Error),
-
-    /// base64 订阅或 URI payload 解码失败。
-    #[error("base64 decode failed: {0}")]
-    Base64(#[from] base64::DecodeError),
-
-    /// 代理 URI 不符合对应 scheme 的 URL 结构。
-    #[error("url parse failed: {0}")]
-    Url(#[from] url::ParseError),
-
-    /// 代理定义缺少必需字段。
-    #[error("missing required field `{0}`")]
-    MissingField(&'static str),
-
-    /// 当前 crate 不支持该代理类型或 URI scheme。
-    #[error("unsupported proxy type `{0}`")]
-    UnsupportedProxyType(String),
-
-    /// 代理端口缺失、超出范围或不是数字。
-    #[error("invalid proxy port `{0}`")]
-    InvalidPort(String),
-
-    /// 代理 URI 的 scheme 可识别，但内部结构非法。
-    #[error("invalid proxy uri: {0}")]
-    InvalidUri(String),
-
-    /// 订阅内容中没有可用的代理节点。
-    #[error("subscription did not contain usable proxy nodes")]
-    NoUsableNodes,
-
-    /// 没有任何测速结果成功完成。
-    #[error("no successful speed test result")]
-    NoSuccessfulSpeedTest,
-
-    /// 无法在系统中找到 Clash/Mihomo 可执行文件。
-    #[error("could not find Clash/Mihomo binary; set CLASH_BINARY env var")]
-    ClashBinaryNotFound,
-
-    /// Clash 进程管理错误。
-    #[error("clash process error: {0}")]
-    ClashProcess(String),
-}
 
 /// 当前支持的代理节点类型。
 #[apply(serde_code_props_enum)]
@@ -97,7 +37,15 @@ pub enum ProxyType {
 impl ProxyType {
     /// 返回 Clash YAML 中使用的规范 `type` 字符串。
     pub fn as_clash_str(self) -> &'static str {
-        self.get_str("clash").expect("ProxyType clash property must exist")
+        match self {
+            Self::Ss => "ss",
+            Self::Vmess => "vmess",
+            Self::Vless => "vless",
+            Self::Trojan => "trojan",
+            Self::Hysteria2 => "hysteria2",
+            Self::Tuic => "tuic",
+            Self::Wireguard => "wireguard",
+        }
     }
 
     /// 将 Clash YAML 的 `type` 字符串解析为受支持的代理类型。

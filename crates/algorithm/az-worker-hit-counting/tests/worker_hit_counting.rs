@@ -1,4 +1,3 @@
-use az_worker_hit_counting::error::WorkerHitCountingResult;
 use az_worker_hit_counting::logic_worker_hit_counting::assist::{
     analyze_worker_hits_in_video_from_path, annotate_worker_hits_video,
     count_worker_hits_by_person_from_visual_observations,
@@ -12,8 +11,7 @@ use az_worker_hit_counting::logic_worker_hit_counting::model::{
 use std::path::{Path, PathBuf};
 
 #[test]
-fn worker_hit_counting_should_count_only_hits_on_hanging_metal_panel() -> WorkerHitCountingResult<()>
-{
+fn worker_hit_counting_should_count_only_hits_on_hanging_metal_panel() -> anyhow::Result<()> {
     let result = count_worker_hits_by_person_from_visual_observations(
         &[
             observation(
@@ -42,8 +40,7 @@ fn worker_hit_counting_should_count_only_hits_on_hanging_metal_panel() -> Worker
 }
 
 #[test]
-fn worker_hit_counting_result_should_return_hit_count_by_person_id() -> WorkerHitCountingResult<()>
-{
+fn worker_hit_counting_result_should_return_hit_count_by_person_id() -> anyhow::Result<()> {
     let result = count_worker_hits_by_person_from_visual_observations(
         &[
             observation(
@@ -69,7 +66,7 @@ fn worker_hit_counting_result_should_return_hit_count_by_person_id() -> WorkerHi
 }
 
 #[test]
-fn worker_hit_counting_should_require_target_response() -> WorkerHitCountingResult<()> {
+fn worker_hit_counting_should_require_target_response() -> anyhow::Result<()> {
     let result = count_worker_hits_by_person_from_visual_observations(
         &[observation(
             1,
@@ -90,7 +87,7 @@ fn worker_hit_counting_should_require_target_response() -> WorkerHitCountingResu
 }
 
 #[test]
-fn worker_hit_counting_should_count_hits_per_person() -> WorkerHitCountingResult<()> {
+fn worker_hit_counting_should_count_hits_per_person() -> anyhow::Result<()> {
     let result = count_worker_hits_by_person_from_visual_observations(
         &[
             observation(
@@ -142,8 +139,7 @@ fn worker_hit_counting_should_count_hits_per_person() -> WorkerHitCountingResult
 }
 
 #[test]
-fn worker_hit_counting_should_record_action_state_and_hit_events_per_frame()
--> WorkerHitCountingResult<()> {
+fn worker_hit_counting_should_record_action_state_and_hit_events_per_frame() -> anyhow::Result<()> {
     let timeline = record_worker_hit_timeline_from_visual_observations(
         &[
             observation(
@@ -210,7 +206,7 @@ fn worker_hit_counting_should_record_action_state_and_hit_events_per_frame()
 }
 
 #[test]
-fn worker_hit_counting_should_report_invalid_candidate_state() -> WorkerHitCountingResult<()> {
+fn worker_hit_counting_should_report_invalid_candidate_state() -> anyhow::Result<()> {
     let result = count_worker_hits_by_person_from_visual_observations(
         &[observation(
             7,
@@ -230,7 +226,7 @@ fn worker_hit_counting_should_report_invalid_candidate_state() -> WorkerHitCount
 }
 
 #[test]
-fn worker_hit_counting_should_merge_valid_hits_inside_minimum_gap() -> WorkerHitCountingResult<()> {
+fn worker_hit_counting_should_merge_valid_hits_inside_minimum_gap() -> anyhow::Result<()> {
     let result = count_worker_hits_by_person_from_visual_observations(
         &[
             observation(
@@ -294,8 +290,7 @@ fn worker_hit_counting_should_reject_invalid_visual_scores() {
 }
 
 #[test]
-fn worker_hit_counting_should_build_default_one_line_video_options() -> WorkerHitCountingResult<()>
-{
+fn worker_hit_counting_should_build_default_one_line_video_options() -> anyhow::Result<()> {
     let user_video = PathBuf::from("/Users/zjarlin/Desktop/246f5787eca62dc0b462dbc041da756f.mp4");
     if !user_video.is_file() {
         eprintln!("跳过默认配置测试，用户视频不存在：{}", user_video.display());
@@ -328,8 +323,7 @@ fn worker_hit_counting_should_reject_missing_video_for_one_line_api() {
     clippy::dbg_macro,
     reason = "测试需要直接打印真实视频输入、模型和输出绝对路径"
 )]
-fn worker_hit_counting_should_analyze_user_video_with_real_pose_model()
--> WorkerHitCountingResult<()> {
+fn worker_hit_counting_should_analyze_user_video_with_real_pose_model() -> anyhow::Result<()> {
     // 输入：/Users/zjarlin/Desktop/246f5787eca62dc0b462dbc041da756f.mp4
     //
     // 输出：

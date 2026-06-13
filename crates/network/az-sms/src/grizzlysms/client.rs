@@ -1,4 +1,3 @@
-use crate::error::{SmsError, SmsResult};
 use crate::http::{
     build_client, default_user_agent, ensure_non_blank, ensure_non_zero_duration,
     looks_like_provider_message, provider_error,
@@ -8,6 +7,7 @@ use crate::model::{
     SmsProfile,
 };
 use crate::provider::SmsProvider;
+use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{apply, deserialize_debug, plain_clone_debug, plain_eq};
 use reqwest::Url;
 use reqwest::header::ACCEPT;
@@ -45,7 +45,7 @@ impl GrizzlySmsConfig {
     }
 
     /// 校验本地配置不变量。
-    pub fn validate(&self) -> SmsResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         ensure_non_blank("api_key", &self.api_key)?;
         ensure_non_blank("base_url", &self.base_url)?;
         ensure_non_zero_duration("connect_timeout", self.connect_timeout)?;
@@ -96,7 +96,7 @@ impl GrizzlySmsConfigBuilder {
     }
 
     /// 构建并校验配置。
-    pub fn build(self) -> SmsResult<GrizzlySmsConfig> {
+    pub fn build(self) -> anyhow::Result<GrizzlySmsConfig> {
         let config = GrizzlySmsConfig {
             api_key: self.api_key,
             base_url: self.base_url,
@@ -119,15 +119,15 @@ pub struct GrizzlySmsClient {
 
 impl GrizzlySmsClient {
     /// 使用默认 Grizzly SMS API handler URL 创建客户端。
-    pub fn from_api_key(api_key: impl Into<String>) -> SmsResult<Self> {
+    pub fn from_api_key(api_key: impl Into<String>) -> anyhow::Result<Self> {
         Self::new(GrizzlySmsConfig::builder(api_key).build()?)
     }
 
     /// 使用显式配置创建客户端。
-    pub fn new(config: GrizzlySmsConfig) -> SmsResult<Self> {
+    pub fn new(config: GrizzlySmsConfig) -> anyhow::Result<Self> {
         config.validate()?;
         let base_url = Url::parse(&config.base_url)
-            .map_err(|_| SmsError::InvalidBaseUrl(config.base_url.clone()))?;
+            .with_context(|| format!("invalid base url `{}`", config.base_url))?;
 
         Ok(Self {
             client: build_client(
@@ -141,7 +141,7 @@ impl GrizzlySmsClient {
     }
 
     /// 获取当前账号余额。
-    pub async fn balance(&self) -> SmsResult<f64> {
+    pub async fn balance(&self) -> anyhow::Result<f64> {
         let body = self.send_text(self.action_url("getBalance")?).await?;
         parse_balance_response(&body)
     }
@@ -149,7 +149,7 @@ impl GrizzlySmsClient {
     /// 获取最小账号 profile。
     ///
     /// Grizzly SMS 通过公开 API 暴露余额，但不暴露账号 ID 或邮箱。
-    pub async fn profile(&self) -> SmsResult<SmsProfile> {
+    pub async fn profile(&self) -> anyhow::Result<SmsProfile> {
         Ok(SmsProfile {
             id: 0,
             email: String::new(),
@@ -159,12 +159,10 @@ impl GrizzlySmsClient {
         })
     }
 
-    fn action_url(&self, action: &str) -> SmsResult<Url> {
+    fn action_url(&self, action: &str) -> anyhow::Result<Url> {
         let action = action.trim();
         if action.is_empty() {
-            return Err(SmsError::InvalidEndpoint(
-                "action cannot be blank".to_owned(),
-            ));
+            bail!("invalid endpoint: action cannot be blank");
         }
 
         let mut url = self.base_url.clone();
@@ -176,7 +174,7 @@ impl GrizzlySmsClient {
         Ok(url)
     }
 
-    fn activation_url(&self, request: &SmsActivationRequest) -> SmsResult<Url> {
+    fn activation_url(&self, request: &SmsActivationRequest) -> anyhow::Result<Url> {
         request.validate()?;
         validate_activation_support(request)?;
 
@@ -189,21 +187,21 @@ impl GrizzlySmsClient {
         Ok(url)
     }
 
-    fn order_status_url(&self, order_id: u64) -> SmsResult<Url> {
+    fn order_status_url(&self, order_id: u64) -> anyhow::Result<Url> {
         let mut url = self.action_url("getStatus")?;
         url.query_pairs_mut()
             .append_pair("id", order_id.to_string().as_str());
         Ok(url)
     }
 
-    fn order_status_v2_url(&self, order_id: u64) -> SmsResult<Url> {
+    fn order_status_v2_url(&self, order_id: u64) -> anyhow::Result<Url> {
         let mut url = self.action_url("getStatusV2")?;
         url.query_pairs_mut()
             .append_pair("id", order_id.to_string().as_str());
         Ok(url)
     }
 
-    fn set_status_url(&self, order_id: u64, status: i64) -> SmsResult<Url> {
+    fn set_status_url(&self, order_id: u64, status: i64) -> anyhow::Result<Url> {
         let mut url = self.action_url("setStatus")?;
         {
             let mut query = url.query_pairs_mut();
@@ -213,11 +211,11 @@ impl GrizzlySmsClient {
         Ok(url)
     }
 
-    fn active_activations_url(&self) -> SmsResult<Url> {
+    fn active_activations_url(&self) -> anyhow::Result<Url> {
         self.action_url("getActiveActivations")
     }
 
-    async fn send_text(&self, url: Url) -> SmsResult<String> {
+    async fn send_text(&self, url: Url) -> anyhow::Result<String> {
         let response = self
             .client
             .get(url)
@@ -228,16 +226,21 @@ impl GrizzlySmsClient {
         let body = response.text().await?;
 
         if !status.is_success() {
-            return Err(provider_error(Some(status.as_u16()), body));
+            let status_code = Some(status.as_u16());
+            let error = provider_error(status_code, body);
+
+            return Err(error);
         }
 
         Ok(body.trim().to_owned())
     }
 
-    async fn active_order(&self, order_id: u64) -> SmsResult<Option<SmsOrder>> {
+    async fn active_order(&self, order_id: u64) -> anyhow::Result<Option<SmsOrder>> {
         let body = self.send_text(self.active_activations_url()?).await?;
         if looks_like_provider_message(&body) {
-            return Err(provider_error(None, body));
+            let error = provider_error(None, body);
+
+            return Err(error);
         }
 
         let activations = serde_json::from_str::<Vec<GrizzlyActiveActivation>>(&body)?;
@@ -247,10 +250,12 @@ impl GrizzlySmsClient {
             .map(GrizzlyActiveActivation::into_order))
     }
 
-    async fn status_v2_message(&self, order_id: u64) -> SmsResult<Option<SmsMessage>> {
+    async fn status_v2_message(&self, order_id: u64) -> anyhow::Result<Option<SmsMessage>> {
         let body = self.send_text(self.order_status_v2_url(order_id)?).await?;
         if looks_like_provider_message(&body) {
-            return Err(provider_error(None, body));
+            let error = provider_error(None, body);
+
+            return Err(error);
         }
 
         let response = serde_json::from_str::<GrizzlyStatusV2Response>(&body)?;
@@ -262,7 +267,7 @@ impl GrizzlySmsClient {
         order_id: u64,
         provider_status: i64,
         order_status: SmsOrderStatus,
-    ) -> SmsResult<SmsOrder> {
+    ) -> anyhow::Result<SmsOrder> {
         let body = self
             .send_text(self.set_status_url(order_id, provider_status)?)
             .await?;
@@ -273,16 +278,16 @@ impl GrizzlySmsClient {
 
 #[async_trait::async_trait]
 impl SmsProvider for GrizzlySmsClient {
-    async fn buy_activation_number(&self, request: SmsActivationRequest) -> SmsResult<SmsOrder> {
+    async fn buy_activation_number(&self, request: SmsActivationRequest) -> anyhow::Result<SmsOrder> {
         let body = self.send_text(self.activation_url(&request)?).await?;
         parse_number_response(&body).map(|response| response.into_order(&request))
     }
 
-    async fn buy_hosting_number(&self, _request: SmsHostingRequest) -> SmsResult<SmsOrder> {
+    async fn buy_hosting_number(&self, _request: SmsHostingRequest) -> anyhow::Result<SmsOrder> {
         Err(unsupported("hosted/rented numbers"))
     }
 
-    async fn check_order(&self, order_id: u64) -> SmsResult<SmsOrder> {
+    async fn check_order(&self, order_id: u64) -> anyhow::Result<SmsOrder> {
         let body = self.send_text(self.order_status_url(order_id)?).await?;
         let snapshot = parse_status_response(&body)?;
         let mut order = self
@@ -307,51 +312,63 @@ impl SmsProvider for GrizzlySmsClient {
         Ok(order)
     }
 
-    async fn finish_order(&self, order_id: u64) -> SmsResult<SmsOrder> {
+    async fn finish_order(&self, order_id: u64) -> anyhow::Result<SmsOrder> {
         self.set_activation_status(order_id, 6, SmsOrderStatus::Finished)
             .await
     }
 
-    async fn cancel_order(&self, order_id: u64) -> SmsResult<SmsOrder> {
+    async fn cancel_order(&self, order_id: u64) -> anyhow::Result<SmsOrder> {
         self.set_activation_status(order_id, 8, SmsOrderStatus::Canceled)
             .await
     }
 
-    async fn ban_order(&self, order_id: u64) -> SmsResult<SmsOrder> {
+    async fn ban_order(&self, order_id: u64) -> anyhow::Result<SmsOrder> {
         self.set_activation_status(order_id, 8, SmsOrderStatus::Banned)
             .await
     }
 
-    async fn inbox(&self, _order_id: u64) -> SmsResult<SmsInbox> {
+    async fn inbox(&self, _order_id: u64) -> anyhow::Result<SmsInbox> {
         Err(unsupported("hosted/rented inbox"))
     }
 }
 
-fn validate_activation_support(request: &SmsActivationRequest) -> SmsResult<()> {
+fn validate_activation_support(request: &SmsActivationRequest) -> anyhow::Result<()> {
     if !request.operator.trim().eq_ignore_ascii_case("any") {
-        return Err(unsupported("operator-specific activation requests"));
+        let error = unsupported("operator-specific activation requests");
+
+        return Err(error);
     }
 
     if request.forwarding.is_some() {
-        return Err(unsupported("activation forwarding"));
+        let error = unsupported("activation forwarding");
+
+        return Err(error);
     }
     if request.number.is_some() {
-        return Err(unsupported("number reuse by explicit phone number"));
+        let error = unsupported("number reuse by explicit phone number");
+
+        return Err(error);
     }
     if request.reuse.is_some() {
-        return Err(unsupported("number reuse flags"));
+        let error = unsupported("number reuse flags");
+
+        return Err(error);
     }
     if request.voice.is_some() {
-        return Err(unsupported("voice verification flags"));
+        let error = unsupported("voice verification flags");
+
+        return Err(error);
     }
     if request.ref_code.is_some() {
-        return Err(unsupported("referral code query parameters"));
+        let error = unsupported("referral code query parameters");
+
+        return Err(error);
     }
 
     Ok(())
 }
 
-fn parse_number_response(body: &str) -> SmsResult<GrizzlyNumberV2Response> {
+fn parse_number_response(body: &str) -> anyhow::Result<GrizzlyNumberV2Response> {
     match serde_json::from_str::<GrizzlyNumberV2Response>(body) {
         Ok(response) => Ok(response),
         Err(error) => {
@@ -366,9 +383,11 @@ fn parse_number_response(body: &str) -> SmsResult<GrizzlyNumberV2Response> {
                 });
             }
             if looks_like_provider_message(body) {
-                Err(provider_error(None, body))
+                let error = provider_error(None, body);
+
+                Err(error)
             } else {
-                Err(SmsError::Json(error))
+                Err(error).context("failed to parse GrizzlySMS number response")
             }
         }
     }
@@ -387,24 +406,33 @@ fn parse_access_number(body: &str) -> Option<(u64, String)> {
     Some((id, phone))
 }
 
-fn parse_balance_response(body: &str) -> SmsResult<f64> {
+fn parse_balance_response(body: &str) -> anyhow::Result<f64> {
     let Some(balance) = body.trim().strip_prefix("ACCESS_BALANCE:") else {
-        return Err(provider_error(None, body));
+        let error = provider_error(None, body);
+
+        return Err(error);
     };
     balance
         .trim()
         .parse()
-        .map_err(|_| provider_error(None, format!("invalid balance response: {body}")))
+        .map_err(|_| {
+            let message = format!("invalid balance response: {body}");
+            provider_error(None, message)
+        })
 }
 
-fn parse_set_status_response(body: &str) -> SmsResult<()> {
+fn parse_set_status_response(body: &str) -> anyhow::Result<()> {
     match body.trim() {
         "ACCESS_READY" | "ACCESS_RETRY_GET" | "ACCESS_ACTIVATION" | "ACCESS_CANCEL" => Ok(()),
-        _ => Err(provider_error(None, body)),
+        _ => {
+            let error = provider_error(None, body);
+
+            Err(error)
+        }
     }
 }
 
-fn parse_status_response(body: &str) -> SmsResult<GrizzlyStatusSnapshot> {
+fn parse_status_response(body: &str) -> anyhow::Result<GrizzlyStatusSnapshot> {
     let body = body.trim();
     if body == "STATUS_WAIT_CODE" || body == "STATUS_WAIT_RESEND" {
         return Ok(GrizzlyStatusSnapshot {
@@ -435,7 +463,9 @@ fn parse_status_response(body: &str) -> SmsResult<GrizzlyStatusSnapshot> {
         });
     }
 
-    Err(provider_error(None, body))
+    let error = provider_error(None, body);
+
+    Err(error)
 }
 
 #[apply(plain_eq)]
@@ -674,9 +704,6 @@ fn non_empty(value: Option<String>) -> Option<String> {
         .filter(|item| !item.is_empty())
 }
 
-fn unsupported(operation: &'static str) -> SmsError {
-    SmsError::UnsupportedOperation {
-        provider: PROVIDER_NAME,
-        operation,
-    }
+fn unsupported(operation: &'static str) -> anyhow::Error {
+    anyhow!("{PROVIDER_NAME} does not support {operation}")
 }

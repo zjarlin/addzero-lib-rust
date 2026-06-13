@@ -1,8 +1,6 @@
 #![doc = include_str!("../README.md")]
 
 use pinyin::{Pinyin, ToPinyin, ToPinyinMulti};
-use regex::Regex;
-use std::sync::OnceLock;
 
 pub fn sanitize(input: impl AsRef<str>, default_name: impl AsRef<str>) -> String {
     let input = input.as_ref();
@@ -11,8 +9,20 @@ pub fn sanitize(input: impl AsRef<str>, default_name: impl AsRef<str>) -> String
         return default_name.to_uppercase();
     }
 
-    let sanitized = invalid_name_regex().replace_all(input, "_");
-    let sanitized = duplicate_underscore_regex().replace_all(&sanitized, "_");
+    let mut sanitized = String::with_capacity(input.len());
+    let mut previous_was_underscore = false;
+    for character in input.chars() {
+        if character.is_ascii_alphanumeric() {
+            sanitized.push(character);
+            previous_was_underscore = false;
+        } else if let Some(pinyin) = character.to_pinyin() {
+            push_underscore(&mut sanitized, &mut previous_was_underscore);
+            sanitized.push_str(pinyin.plain());
+            previous_was_underscore = false;
+        } else {
+            push_underscore(&mut sanitized, &mut previous_was_underscore);
+        }
+    }
     let sanitized = sanitized.trim_matches('_');
 
     if sanitized.is_empty() {
@@ -49,17 +59,27 @@ pub fn char_to_pinyin(src: char, is_polyphone: bool, separator: Option<&str>) ->
     if is_polyphone {
         if let Some(multi) = src.to_pinyin_multi() {
             let separator = separator.unwrap_or("");
-            return multi
-                .into_iter()
-                .map(Pinyin::plain)
-                .collect::<Vec<_>>()
-                .join(separator);
+            let mut readings = Vec::new();
+            for pinyin in multi {
+                let reading = pinyin.plain();
+                if !readings.contains(&reading) {
+                    readings.push(reading);
+                }
+            }
+            return readings.join(separator);
         }
     } else if let Some(pinyin) = src.to_pinyin() {
         return pinyin.plain().to_owned();
     }
 
     src.to_string()
+}
+
+fn push_underscore(output: &mut String, previous_was_underscore: &mut bool) {
+    if !*previous_was_underscore {
+        output.push('_');
+    }
+    *previous_was_underscore = true;
 }
 
 pub fn hanzi_to_pinyin(hanzi: impl AsRef<str>, separator: Option<&str>) -> String {
@@ -123,14 +143,4 @@ pub fn get_head_by_string(
             char_array_to_string(&heads, separator)
         })
         .collect()
-}
-
-fn invalid_name_regex() -> &'static Regex {
-    static REGEX: OnceLock<Regex> = OnceLock::new();
-    REGEX.get_or_init(|| Regex::new(r"[^a-zA-Z0-9]").expect("regex must compile"))
-}
-
-fn duplicate_underscore_regex() -> &'static Regex {
-    static REGEX: OnceLock<Regex> = OnceLock::new();
-    REGEX.get_or_init(|| Regex::new(r"_+").expect("regex must compile"))
 }

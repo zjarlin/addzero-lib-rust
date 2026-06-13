@@ -7,9 +7,10 @@
 //! # 快速开始
 //!
 //! ```no_run
-//! use az_temp_mail::{NewAddressRequest, PageRequest, create_temp_mail_api};
+//! use az_temp_mail::client::create_temp_mail_api;
+//! use az_temp_mail::model::{NewAddressRequest, PageRequest};
 //!
-//! # fn example() -> az_temp_mail::TempMailResult<()> {
+//! # fn example() -> anyhow::Result<()> {
 //! let api = create_temp_mail_api("https://mail.example.com")?;
 //! let address = api.new_address(&NewAddressRequest::new("demo", "example.com"))?;
 //! let inbox = api.list_parsed_mails(&address.jwt, PageRequest::default())?;
@@ -19,9 +20,10 @@
 //! ```
 //!
 //! ```no_run
-//! use az_temp_mail::{CloudflareTempMailContext, PageRequest};
+//! use az_temp_mail::cloudflare::CloudflareTempMailContext;
+//! use az_temp_mail::model::PageRequest;
 //!
-//! # fn example() -> az_temp_mail::TempMailResult<()> {
+//! # fn example() -> anyhow::Result<()> {
 //! let context = CloudflareTempMailContext {
 //!     base_url: "https://mail.example.com".to_owned(),
 //!     custom_auth: Some("admin-secret".to_owned()),
@@ -38,82 +40,4 @@
 //! # }
 //! ```
 
-automod::dir!("src");
-
-use az_derive_aliases::{apply, plain_default_copy_eq};
-
-pub use client::{CloudflareTempMailApi, TempMailApi, create_temp_mail_api};
-pub use cloudflare::CloudflareTempMailContext;
-pub use config::{ApiConfig, ApiConfigBuilder};
-pub use emailnator::{
-    EmailnatorEmailMode, EmailnatorEmailRequest, EmailnatorTempMailApi, create_emailnator_api,
-    extract_first_http_link,
-};
-pub use error::{TempMailError, TempMailResult};
-pub use mail_tm::{MailTmDomain, MailTmTempMailApi, create_mail_tm_api};
-pub use model::{
-    AddressCredential, AddressLoginRequest, AddressSettings, CreateMailboxRequest, ListResponse,
-    MailRow, NewAddressRequest, PageRequest, ParsedMailAttachment, ParsedMailRow, SendMailRequest,
-    SuccessResponse, TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary,
-    TempMailProviderKind, TempMailRecipient, TempMailSettings,
-};
-pub use provider::{
-    BoxTempMailProvider, BuiltinTempMailProviderFactory, TempMailProvider, TempMailProviderConfig,
-    TempMailProviderFactory, build_temp_mail_provider,
-};
-
-/// 用于构造临时邮箱客户端的命名空间式入口。
-#[apply(plain_default_copy_eq)]
-pub struct TempMail;
-
-impl TempMail {
-    /// 创建已部署 Cloudflare Temp Email worker 的客户端。
-    pub fn cloudflare(base_url: impl Into<String>) -> TempMailResult<TempMailApi> {
-        create_temp_mail_api(base_url)
-    }
-
-    /// 根据显式配置创建客户端。
-    pub fn cloudflare_with_config(config: ApiConfig) -> TempMailResult<TempMailApi> {
-        TempMailApi::new(config)
-    }
-
-    /// 根据较高层的 Cloudflare worker 上下文创建客户端。
-    pub fn cloudflare_with_context(
-        context: &CloudflareTempMailContext,
-    ) -> TempMailResult<TempMailApi> {
-        context.create_api()
-    }
-
-    /// 创建托管 mail.tm 兼容 provider 客户端。
-    pub fn mail_tm() -> TempMailResult<MailTmTempMailApi> {
-        create_mail_tm_api()
-    }
-
-    /// 根据显式配置创建 mail.tm 兼容客户端。
-    pub fn mail_tm_with_config(config: ApiConfig) -> TempMailResult<MailTmTempMailApi> {
-        MailTmTempMailApi::new(config)
-    }
-
-    /// 创建托管 Emailnator 临时邮箱服务客户端。
-    pub fn emailnator() -> TempMailResult<EmailnatorTempMailApi> {
-        create_emailnator_api()
-    }
-
-    /// 根据显式配置创建 Emailnator 客户端。
-    pub fn emailnator_with_config(config: ApiConfig) -> TempMailResult<EmailnatorTempMailApi> {
-        EmailnatorTempMailApi::new(config)
-    }
-
-    /// 根据 provider 专属配置构造 boxed provider。
-    pub fn provider(config: TempMailProviderConfig) -> TempMailResult<BoxTempMailProvider> {
-        build_temp_mail_provider(config)
-    }
-
-    /// 通过注入工厂构造 boxed provider。
-    pub fn provider_with_factory(
-        factory: &dyn TempMailProviderFactory,
-        config: TempMailProviderConfig,
-    ) -> TempMailResult<BoxTempMailProvider> {
-        factory.build_provider(config)
-    }
-}
+automod::dir!(pub "src");

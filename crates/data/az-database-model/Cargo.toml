@@ -8,9 +8,9 @@ authors.workspace = true
 description = "Database model and schema definitions for code generation"
 
 [dependencies]
+anyhow.workspace = true
 automod.workspace = true
 az-derive-aliases.workspace = true
-thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 strum.workspace = true

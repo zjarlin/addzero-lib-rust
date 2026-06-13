@@ -279,7 +279,9 @@ fn extract_video_frames(
 fn run_ffmpeg(args: &[OsString]) -> Result<(), Box<dyn Error>> {
     let ffmpeg = Path::new(FFMPEG_PATH);
     if !ffmpeg.is_file() {
-        return Err(format!("真实视频集成测试需要 ffmpeg：{}", ffmpeg.display()).into());
+        let message = format!("真实视频集成测试需要 ffmpeg：{}", ffmpeg.display());
+
+        return Err(message.into());
     }
 
     let output = Command::new(ffmpeg).args(args).output()?;

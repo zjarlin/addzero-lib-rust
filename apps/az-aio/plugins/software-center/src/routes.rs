@@ -5,10 +5,10 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::{SoftwareCenterError, SoftwareCenterResult},
     installer_scanner::{InstallerPackage, organize_installers, scan_installers},
     model::{SoftwarePackageSummary, TABLE_NAME_PREFIX},
     store::{SoftwareCenterStore, SoftwarePackageInput},
@@ -21,7 +21,7 @@ pub struct SoftwareCenterApiState {
 }
 
 impl SoftwareCenterApiState {
-    pub async fn new(database_url: Option<String>) -> SoftwareCenterResult<Self> {
+    pub async fn new(database_url: Option<String>) -> anyhow::Result<Self> {
         let store = match database_url.as_deref() {
             Some(value) if !value.trim().is_empty() => {
                 Some(SoftwareCenterStore::connect(value).await?)
@@ -64,40 +64,44 @@ async fn status_handler(
 }
 
 async fn scan_installers_handler(
-) -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, SoftwareCenterApiError> {
+) -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, Response> {
     scan_installers()
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(SoftwareCenterError::from)
-        .map_err(Into::into)
+        .map_err(software_center_error_response)
 }
 
 async fn organize_installers_handler(
-) -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, SoftwareCenterApiError> {
+) -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, Response> {
     organize_installers()
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(SoftwareCenterError::from)
-        .map_err(Into::into)
+        .map_err(software_center_error_response)
 }
 
 async fn list_packages_handler(
     State(state): State<SoftwareCenterApiState>,
-) -> Result<Json<ApiResponse<Vec<SoftwarePackageSummary>>>, SoftwareCenterApiError> {
-    let store = state.store.ok_or(SoftwareCenterError::MissingDatabaseUrl)?;
+) -> Result<Json<ApiResponse<Vec<SoftwarePackageSummary>>>, Response> {
+    let store = state
+        .store
+        .ok_or_else(|| anyhow!("missing software-center database url"))
+        .map_err(software_center_error_response)?;
     store
         .list_packages()
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(software_center_error_response)
 }
 
 async fn upsert_package_handler(
     State(state): State<SoftwareCenterApiState>,
     Json(request): Json<UpsertSoftwarePackageRequest>,
-) -> Result<Json<ApiResponse<SoftwarePackageSummary>>, SoftwareCenterApiError> {
-    let store = state.store.ok_or(SoftwareCenterError::MissingDatabaseUrl)?;
+) -> Result<Json<ApiResponse<SoftwarePackageSummary>>, Response> {
+    let store = state
+        .store
+        .ok_or_else(|| anyhow!("missing software-center database url"))
+        .map_err(software_center_error_response)?;
     store
         .upsert_package(SoftwarePackageInput {
             id: request.id,
@@ -110,7 +114,7 @@ async fn upsert_package_handler(
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(software_center_error_response)
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -148,32 +152,23 @@ pub struct UpsertSoftwarePackageRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug)]
-pub struct SoftwareCenterApiError {
-    source: SoftwareCenterError,
+fn software_center_error_response(error: anyhow::Error) -> Response {
+    let message = error.to_string();
+    let status = software_center_error_status(&message);
+    let body = ApiResponse::<()> {
+        success: false,
+        message,
+        data: None,
+    };
+    (status, Json(body)).into_response()
 }
 
-impl From<SoftwareCenterError> for SoftwareCenterApiError {
-    fn from(source: SoftwareCenterError) -> Self {
-        Self { source }
-    }
-}
-
-impl IntoResponse for SoftwareCenterApiError {
-    fn into_response(self) -> Response {
-        let status = match self.source {
-            SoftwareCenterError::MissingDatabaseUrl => StatusCode::SERVICE_UNAVAILABLE,
-            SoftwareCenterError::BlankPackageName | SoftwareCenterError::BlankSourcePath => {
-                StatusCode::BAD_REQUEST
-            }
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        };
-        let body = ApiResponse::<()> {
-            success: false,
-            message: self.source.to_string(),
-            data: None,
-        };
-        (status, Json(body)).into_response()
+fn software_center_error_status(message: &str) -> StatusCode {
+    match message {
+        "missing software-center database url" => StatusCode::SERVICE_UNAVAILABLE,
+        "software package name must not be blank"
+        | "software package source path must not be blank" => StatusCode::BAD_REQUEST,
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 

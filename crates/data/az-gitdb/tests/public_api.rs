@@ -1,4 +1,4 @@
-use az_gitdb::{GitDbLoadBalanceStrategy, GitDbNodeConfig, GitDbNodeRole};
+use az_gitdb::config::{GitDbLoadBalanceStrategy, GitDbNodeConfig, GitDbNodeRole};
 
 #[test]
 fn node_role_code_is_snake_case() {

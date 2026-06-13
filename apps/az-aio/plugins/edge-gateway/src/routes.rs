@@ -7,11 +7,11 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    error::{EdgeGatewayError, EdgeGatewayResult},
     gateway_runtime::run_gateway_plan,
     gateway_runtime_types::{GatewayRunRequest, GatewayRunResult, GatewayRuntimeStep},
     model::{GatewayFlowSummary, TABLE_NAME_PREFIX},
@@ -25,7 +25,7 @@ pub struct EdgeGatewayApiState {
 }
 
 impl EdgeGatewayApiState {
-    pub async fn new(database_url: Option<String>) -> EdgeGatewayResult<Self> {
+    pub async fn new(database_url: Option<String>) -> anyhow::Result<Self> {
         let store = match database_url.as_deref() {
             Some(value) if !value.trim().is_empty() => Some(EdgeGatewayStore::connect(value).await?),
             _ => None,
@@ -69,32 +69,37 @@ async fn example_handler() -> Json<ApiResponse<GatewayRunRequest>> {
 
 async fn run_handler(
     Json(request): Json<GatewayRunRequest>,
-) -> Result<Json<ApiResponse<GatewayRunResult>>, EdgeGatewayApiError> {
+) -> Result<Json<ApiResponse<GatewayRunResult>>, Response> {
     run_gateway_plan(request)
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(EdgeGatewayError::from)
-        .map_err(Into::into)
+        .map_err(edge_gateway_error_response)
 }
 
 async fn list_flows_handler(
     State(state): State<EdgeGatewayApiState>,
-) -> Result<Json<ApiResponse<Vec<GatewayFlowSummary>>>, EdgeGatewayApiError> {
-    let store = state.store.ok_or(EdgeGatewayError::MissingDatabaseUrl)?;
+) -> Result<Json<ApiResponse<Vec<GatewayFlowSummary>>>, Response> {
+    let store = state
+        .store
+        .ok_or_else(|| anyhow!("missing edge-gateway database url"))
+        .map_err(edge_gateway_error_response)?;
     store
         .list_flows()
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(edge_gateway_error_response)
 }
 
 async fn upsert_flow_handler(
     State(state): State<EdgeGatewayApiState>,
     Json(request): Json<UpsertGatewayFlowRequest>,
-) -> Result<Json<ApiResponse<GatewayFlowSummary>>, EdgeGatewayApiError> {
-    let store = state.store.ok_or(EdgeGatewayError::MissingDatabaseUrl)?;
+) -> Result<Json<ApiResponse<GatewayFlowSummary>>, Response> {
+    let store = state
+        .store
+        .ok_or_else(|| anyhow!("missing edge-gateway database url"))
+        .map_err(edge_gateway_error_response)?;
     store
         .upsert_flow(GatewayFlowInput {
             id: request.id,
@@ -105,7 +110,7 @@ async fn upsert_flow_handler(
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(edge_gateway_error_response)
 }
 
 pub fn example_plan() -> GatewayRunRequest {
@@ -161,32 +166,24 @@ pub struct UpsertGatewayFlowRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug)]
-pub struct EdgeGatewayApiError {
-    source: EdgeGatewayError,
+fn edge_gateway_error_response(error: anyhow::Error) -> Response {
+    let message = error.to_string();
+    let status = edge_gateway_error_status(&message);
+    let body = ApiResponse::<()> {
+        success: false,
+        message,
+        data: None,
+    };
+    (status, Json(body)).into_response()
 }
 
-impl From<EdgeGatewayError> for EdgeGatewayApiError {
-    fn from(source: EdgeGatewayError) -> Self {
-        Self { source }
-    }
-}
-
-impl IntoResponse for EdgeGatewayApiError {
-    fn into_response(self) -> Response {
-        let status = match self.source {
-            EdgeGatewayError::MissingDatabaseUrl => StatusCode::SERVICE_UNAVAILABLE,
-            EdgeGatewayError::BlankFlowName | EdgeGatewayError::BlankRoute => {
-                StatusCode::BAD_REQUEST
-            }
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        };
-        let body = ApiResponse::<()> {
-            success: false,
-            message: self.source.to_string(),
-            data: None,
-        };
-        (status, Json(body)).into_response()
+fn edge_gateway_error_status(message: &str) -> StatusCode {
+    match message {
+        "missing edge-gateway database url" => StatusCode::SERVICE_UNAVAILABLE,
+        "gateway flow name must not be blank" | "gateway flow route must not be blank" => {
+            StatusCode::BAD_REQUEST
+        }
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 

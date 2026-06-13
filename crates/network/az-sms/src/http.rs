@@ -1,17 +1,17 @@
 use std::time::Duration;
 
-use crate::error::{ProviderStatus, SmsError, SmsResult};
+use anyhow::{Context, anyhow, bail};
 
-pub(crate) fn ensure_non_blank(field: &'static str, value: &str) -> SmsResult<()> {
+pub(crate) fn ensure_non_blank(field: &'static str, value: &str) -> anyhow::Result<()> {
     if value.trim().is_empty() {
-        return Err(SmsError::InvalidConfig(format!("{field} cannot be blank")));
+        bail!("invalid config: {field} cannot be blank");
     }
     Ok(())
 }
 
-pub(crate) fn ensure_non_zero_duration(field: &'static str, value: Duration) -> SmsResult<()> {
+pub(crate) fn ensure_non_zero_duration(field: &'static str, value: Duration) -> anyhow::Result<()> {
     if value.is_zero() {
-        return Err(SmsError::InvalidConfig(format!("{field} cannot be zero")));
+        bail!("invalid config: {field} cannot be zero");
     }
     Ok(())
 }
@@ -20,20 +20,21 @@ pub(crate) fn build_client(
     connect_timeout: Duration,
     request_timeout: Duration,
     user_agent: Option<String>,
-) -> SmsResult<reqwest::Client> {
+) -> anyhow::Result<reqwest::Client> {
     let mut builder = reqwest::Client::builder()
         .connect_timeout(connect_timeout)
         .timeout(request_timeout);
     if let Some(user_agent) = user_agent {
         builder = builder.user_agent(user_agent);
     }
-    Ok(builder.build()?)
+    builder.build().context("failed to build SMS HTTP client")
 }
 
-pub(crate) fn provider_error(status: Option<u16>, body: impl AsRef<str>) -> SmsError {
-    SmsError::ProviderError {
-        status: ProviderStatus { status },
-        message: body.as_ref().trim().to_owned(),
+pub(crate) fn provider_error(status: Option<u16>, body: impl AsRef<str>) -> anyhow::Error {
+    let message = body.as_ref().trim();
+    match status {
+        Some(status) => anyhow!("provider error HTTP {status}: {message}"),
+        None => anyhow!("provider error: {message}"),
     }
 }
 

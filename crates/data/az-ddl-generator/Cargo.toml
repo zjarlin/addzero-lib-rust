@@ -8,10 +8,10 @@ authors.workspace = true
 description = "DDL statement generator supporting multiple database dialects"
 
 [dependencies]
+anyhow.workspace = true
 automod.workspace = true
 az-derive-aliases.workspace = true
 derive_more.workspace = true
-thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 strum.workspace = true

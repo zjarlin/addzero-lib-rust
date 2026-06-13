@@ -1,5 +1,5 @@
 use az_ai_agent::{AssetAgentService, rig_provider_markers};
-use az_assets::AssetKind;
+use az_assets::types::AssetKind;
 
 #[test]
 fn capture_asset_should_generate_title_tags_and_edges() {

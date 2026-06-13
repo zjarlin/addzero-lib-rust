@@ -38,12 +38,12 @@ automod::dir!(pub "src");
 
 use az_derive_aliases::{apply, plain_default_copy_eq};
 
-pub use az_email::{
-    BoxEmailSender, BuiltinEmailSenderFactory, EmailConfig, EmailConfigBuilder, EmailError,
-    EmailMessage, EmailMessageBuilder, EmailSender, EmailSenderConfig, EmailSenderFactory,
-    EmailSenderKind, SmtpEmailSender, build_email_sender,
+pub use az_email::api::{
+    BoxEmailSender, BuiltinEmailSenderFactory, EmailConfig, EmailConfigBuilder, EmailMessage,
+    EmailMessageBuilder, EmailSender, EmailSenderConfig, EmailSenderFactory, EmailSenderKind,
+    SmtpEmailSender, build_email_sender,
 };
-pub use az_music::{
+pub use az_music::api::{
     BatchFetchRequest, ConcatSongsRequest, GenerateLyricsRequest, LyricContent, LyricResponse,
     Music, MusicAlbum, MusicArtist, MusicCreator, MusicPlaylist, MusicPrivilege, MusicSearchApi,
     MusicSearchRequest, MusicSearchResponse, MusicSearchResult, MusicSearchType, MusicSong,
@@ -56,7 +56,6 @@ pub use az_sms::{
         DogSmsClient, DogSmsConfig, DogSmsConfigBuilder, DogSmsInventoryItem, DogSmsMessage,
         DogSmsRentalOrder, DogSmsRentalRequest, DogSmsService,
     },
-    error::{SmsError, SmsResult},
     grizzlysms::client::{GrizzlySmsClient, GrizzlySmsConfig, GrizzlySmsConfigBuilder},
     model::{
         SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsMessage, SmsOrder, SmsOrderStatus,
@@ -68,22 +67,31 @@ pub use az_sms::{
     },
 };
 pub use az_temp_mail::{
-    AddressCredential as TempMailAddressCredential,
-    AddressLoginRequest as TempMailAddressLoginRequest, AddressSettings as TempMailAddressSettings,
-    ApiConfig as TempMailApiConfig, ApiConfigBuilder as TempMailApiConfigBuilder,
-    BoxTempMailProvider, BuiltinTempMailProviderFactory, CloudflareTempMailApi,
-    CreateMailboxRequest as TempMailCreateMailboxRequest, EmailnatorEmailMode,
-    EmailnatorEmailRequest, EmailnatorTempMailApi, ListResponse as TempMailListResponse, MailRow,
-    MailTmDomain, MailTmTempMailApi, NewAddressRequest as TempMailNewAddressRequest,
-    PageRequest as TempMailPageRequest, ParsedMailAttachment as TempMailParsedMailAttachment,
-    ParsedMailRow, SendMailRequest, SuccessResponse as TempMailSuccessResponse, TempMail,
-    TempMailApi, TempMailError, TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary,
-    TempMailProvider, TempMailProviderConfig, TempMailProviderFactory, TempMailProviderKind,
-    TempMailRecipient, TempMailResult, TempMailSettings, build_temp_mail_provider,
-    create_emailnator_api, create_mail_tm_api, create_temp_mail_api, extract_first_http_link,
+    client::{CloudflareTempMailApi, TempMailApi, create_temp_mail_api},
+    config::{ApiConfig as TempMailApiConfig, ApiConfigBuilder as TempMailApiConfigBuilder},
+    emailnator::{
+        EmailnatorEmailMode, EmailnatorEmailRequest, EmailnatorTempMailApi, create_emailnator_api,
+        extract_first_http_link,
+    },
+    mail_tm::{MailTmDomain, MailTmTempMailApi, create_mail_tm_api},
+    model::{
+        AddressCredential as TempMailAddressCredential,
+        AddressLoginRequest as TempMailAddressLoginRequest,
+        AddressSettings as TempMailAddressSettings,
+        CreateMailboxRequest as TempMailCreateMailboxRequest, ListResponse as TempMailListResponse,
+        MailRow, NewAddressRequest as TempMailNewAddressRequest,
+        PageRequest as TempMailPageRequest, ParsedMailAttachment as TempMailParsedMailAttachment,
+        ParsedMailRow, SendMailRequest, SuccessResponse as TempMailSuccessResponse,
+        TempMailMailbox, TempMailMessageDetail, TempMailMessageSummary, TempMailProviderKind,
+        TempMailRecipient, TempMailSettings,
+    },
+    provider::{
+        BoxTempMailProvider, BuiltinTempMailProviderFactory, TempMailProvider,
+        TempMailProviderConfig, TempMailProviderFactory, build_temp_mail_provider,
+    },
+    temp_mail::TempMail,
 };
 pub use config::{ApiConfig, ApiConfigBuilder};
-pub use error::{CreatesError, CreatesResult};
 pub use maven::{MavenArtifact, MavenCentralApi, create_maven_central_api};
 pub use tianyancha::{
     TianyanchaApi, TianyanchaCompany, TianyanchaCompanyDetail, TianyanchaCompanySearchData,
@@ -100,67 +108,67 @@ pub struct Creates;
 
 impl Creates {
     /// 使用默认配置创建 Maven Central 客户端。
-    pub fn maven_central() -> CreatesResult<MavenCentralApi> {
+    pub fn maven_central() -> anyhow::Result<MavenCentralApi> {
         create_maven_central_api()
     }
 
     /// 使用显式配置创建 Maven Central 客户端。
-    pub fn maven_central_with_config(config: ApiConfig) -> CreatesResult<MavenCentralApi> {
+    pub fn maven_central_with_config(config: ApiConfig) -> anyhow::Result<MavenCentralApi> {
         MavenCentralApi::new(config)
     }
 
     /// 创建 Cloudflare Worker 兼容临时邮箱客户端。
-    pub fn temp_mail(base_url: impl Into<String>) -> TempMailResult<TempMailApi> {
+    pub fn temp_mail(base_url: impl Into<String>) -> anyhow::Result<TempMailApi> {
         create_temp_mail_api(base_url)
     }
 
     /// 使用显式配置创建 Cloudflare Worker 兼容临时邮箱客户端。
-    pub fn temp_mail_with_config(config: TempMailApiConfig) -> TempMailResult<TempMailApi> {
+    pub fn temp_mail_with_config(config: TempMailApiConfig) -> anyhow::Result<TempMailApi> {
         TempMailApi::new(config)
     }
 
     /// 创建 Cloudflare Worker 兼容临时邮箱客户端。
     pub fn temp_mail_cloudflare(
         base_url: impl Into<String>,
-    ) -> TempMailResult<CloudflareTempMailApi> {
+    ) -> anyhow::Result<CloudflareTempMailApi> {
         create_temp_mail_api(base_url)
     }
 
     /// 使用显式配置创建 Cloudflare Worker 兼容临时邮箱客户端。
     pub fn temp_mail_cloudflare_with_config(
         config: TempMailApiConfig,
-    ) -> TempMailResult<CloudflareTempMailApi> {
+    ) -> anyhow::Result<CloudflareTempMailApi> {
         CloudflareTempMailApi::new(config)
     }
 
     /// 创建 `mail.tm` 临时邮箱客户端。
-    pub fn temp_mail_mail_tm() -> TempMailResult<MailTmTempMailApi> {
+    pub fn temp_mail_mail_tm() -> anyhow::Result<MailTmTempMailApi> {
         create_mail_tm_api()
     }
 
     /// 使用显式配置创建 `mail.tm` 临时邮箱客户端。
     pub fn temp_mail_mail_tm_with_config(
         config: TempMailApiConfig,
-    ) -> TempMailResult<MailTmTempMailApi> {
+    ) -> anyhow::Result<MailTmTempMailApi> {
         MailTmTempMailApi::new(config)
     }
 
     /// 创建 Emailnator 临时邮箱客户端。
-    pub fn temp_mail_emailnator() -> TempMailResult<EmailnatorTempMailApi> {
+    pub fn temp_mail_emailnator() -> anyhow::Result<EmailnatorTempMailApi> {
         create_emailnator_api()
     }
 
     /// 使用显式配置创建 Emailnator 临时邮箱客户端。
     pub fn temp_mail_emailnator_with_config(
         config: TempMailApiConfig,
-    ) -> TempMailResult<EmailnatorTempMailApi> {
+    ) -> anyhow::Result<EmailnatorTempMailApi> {
         EmailnatorTempMailApi::new(config)
     }
 
     /// 按 provider 配置构建临时邮箱 trait object。
     pub fn temp_mail_provider(
         config: TempMailProviderConfig,
-    ) -> TempMailResult<BoxTempMailProvider> {
+    ) -> anyhow::Result<BoxTempMailProvider> {
         build_temp_mail_provider(config)
     }
 
@@ -170,12 +178,12 @@ impl Creates {
     pub fn temp_mail_provider_with_factory(
         factory: &dyn TempMailProviderFactory,
         config: TempMailProviderConfig,
-    ) -> TempMailResult<BoxTempMailProvider> {
+    ) -> anyhow::Result<BoxTempMailProvider> {
         factory.build_provider(config)
     }
 
     /// 按 provider 配置构建短信接码 trait object。
-    pub fn sms_provider(config: SmsProviderConfig) -> SmsResult<BoxSmsProvider> {
+    pub fn sms_provider(config: SmsProviderConfig) -> anyhow::Result<BoxSmsProvider> {
         build_sms_provider(config)
     }
 
@@ -185,12 +193,12 @@ impl Creates {
     pub fn sms_provider_with_factory(
         factory: &dyn SmsProviderFactory,
         config: SmsProviderConfig,
-    ) -> SmsResult<BoxSmsProvider> {
+    ) -> anyhow::Result<BoxSmsProvider> {
         factory.build_provider(config)
     }
 
     /// 按 sender 配置构建邮件发送 trait object。
-    pub fn email_sender(config: EmailSenderConfig) -> Result<BoxEmailSender, EmailError> {
+    pub fn email_sender(config: EmailSenderConfig) -> anyhow::Result<BoxEmailSender> {
         build_email_sender(config)
     }
 
@@ -200,12 +208,12 @@ impl Creates {
     pub fn email_sender_with_factory(
         factory: &dyn EmailSenderFactory,
         config: EmailSenderConfig,
-    ) -> Result<BoxEmailSender, EmailError> {
+    ) -> anyhow::Result<BoxEmailSender> {
         factory.build_sender(config)
     }
 
     /// 使用 SMTP 配置快速创建邮件发送器。
-    pub fn smtp_email(config: EmailConfig) -> Result<BoxEmailSender, EmailError> {
+    pub fn smtp_email(config: EmailConfig) -> anyhow::Result<BoxEmailSender> {
         build_email_sender(config.into())
     }
 
@@ -213,22 +221,22 @@ impl Creates {
     pub fn smtp_email_with_factory(
         factory: &dyn EmailSenderFactory,
         config: EmailConfig,
-    ) -> Result<BoxEmailSender, EmailError> {
+    ) -> anyhow::Result<BoxEmailSender> {
         factory.build_sender(config.into())
     }
 
     /// 使用默认配置创建网易云音乐搜索客户端。
-    pub fn music_search() -> CreatesResult<MusicSearchApi> {
+    pub fn music_search() -> anyhow::Result<MusicSearchApi> {
         Ok(create_music_search_api()?)
     }
 
     /// 使用显式配置创建网易云音乐搜索客户端。
-    pub fn music_search_with_config(config: ApiConfig) -> CreatesResult<MusicSearchApi> {
+    pub fn music_search_with_config(config: ApiConfig) -> anyhow::Result<MusicSearchApi> {
         Ok(MusicSearchApi::new(config)?)
     }
 
     /// 使用默认配置创建 Suno 音乐生成客户端。
-    pub fn suno(api_token: impl Into<String>) -> CreatesResult<SunoApi> {
+    pub fn suno(api_token: impl Into<String>) -> anyhow::Result<SunoApi> {
         Ok(create_suno_api(api_token)?)
     }
 
@@ -236,7 +244,7 @@ impl Creates {
     pub fn suno_with_config(
         api_token: impl Into<String>,
         config: ApiConfig,
-    ) -> CreatesResult<SunoApi> {
+    ) -> anyhow::Result<SunoApi> {
         Ok(SunoApi::new(api_token, config)?)
     }
 
@@ -244,7 +252,7 @@ impl Creates {
     pub fn tianyancha(
         authorization: impl Into<String>,
         auth_token: impl Into<String>,
-    ) -> CreatesResult<TianyanchaApi> {
+    ) -> anyhow::Result<TianyanchaApi> {
         create_tianyancha_api(authorization, auth_token)
     }
 
@@ -253,7 +261,7 @@ impl Creates {
         authorization: impl Into<String>,
         auth_token: impl Into<String>,
         config: ApiConfig,
-    ) -> CreatesResult<TianyanchaApi> {
+    ) -> anyhow::Result<TianyanchaApi> {
         TianyanchaApi::new(authorization, auth_token, config)
     }
 
@@ -261,7 +269,7 @@ impl Creates {
     pub fn tianyancha_huawei(
         access_key: impl Into<String>,
         secret_key: impl Into<String>,
-    ) -> CreatesResult<TianyanchaHuaweiApi> {
+    ) -> anyhow::Result<TianyanchaHuaweiApi> {
         create_tianyancha_huawei_api(access_key, secret_key)
     }
 
@@ -270,7 +278,7 @@ impl Creates {
         access_key: impl Into<String>,
         secret_key: impl Into<String>,
         config: ApiConfig,
-    ) -> CreatesResult<TianyanchaHuaweiApi> {
+    ) -> anyhow::Result<TianyanchaHuaweiApi> {
         TianyanchaHuaweiApi::new(access_key, secret_key, config)
     }
 }

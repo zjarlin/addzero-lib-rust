@@ -27,12 +27,12 @@ az-drive-store = { path = "../az-drive-store" }     # workspace 内部引用
 ## 用法
 
 ```rust
-use az_drive_store::{
+use az_drive_store::api::{
     DriveMetadataStore, DriveObjectStore, DriveEntryKind,
     InMemoryDriveMetadataStore, InMemoryDriveObjectStore,
     DriveVersion,
 };
-use az_drive_core::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
+use az_drive_core::api::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
 use uuid::Uuid;
 use chrono::Utc;
 
@@ -78,4 +78,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `chrono` — 时间戳类型
 - `uuid` — 唯一标识符
 - `sqlx` — PostgreSQL 驱动（正式实现使用）
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误返回与上下文

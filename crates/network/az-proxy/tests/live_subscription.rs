@@ -1,13 +1,13 @@
+use anyhow::Result;
 use az_proxy::clash::generate_clash_config;
 use az_proxy::fetcher::fetch_and_parse;
 use az_proxy::selector::select_fastest_node;
 use az_proxy::speedtest::batch_speed_test;
-use az_proxy::types::ProxyResult;
 use std::time::Duration;
 
 #[tokio::test]
 #[ignore = "requires a live proxy subscription URL in AZ_PROXY_LIVE_SUBSCRIPTION_URL"]
-async fn live_subscription_should_fetch_test_and_generate_config() -> ProxyResult<()> {
+async fn live_subscription_should_fetch_test_and_generate_config() -> Result<()> {
     let subscription_url = std::env::var("AZ_PROXY_LIVE_SUBSCRIPTION_URL")
         .expect("AZ_PROXY_LIVE_SUBSCRIPTION_URL is required");
     let subscription_url = subscription_url.as_str();

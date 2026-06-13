@@ -1,5 +1,4 @@
 use crate::builder::CurlBuilder;
-use crate::error::{CurlError, CurlResult};
 use crate::model::ParsedCurl;
 use crate::parse_support::{next_flag_value, parse_method, split_form_field, split_header};
 use crate::util::normalize_command;
@@ -9,11 +8,12 @@ use reqwest::Method;
 ///
 /// # Errors
 ///
-/// Returns [`CurlError`] when the command cannot be tokenized, has malformed
+/// Returns an error when the command cannot be tokenized, has malformed
 /// flags, or does not contain a valid URL.
-pub fn parse_curl(command: impl AsRef<str>) -> CurlResult<ParsedCurl> {
+pub fn parse_curl(command: impl AsRef<str>) -> anyhow::Result<ParsedCurl> {
     let normalized = normalize_command(command.as_ref());
-    let tokens = shlex::split(&normalized).ok_or(CurlError::Tokenize)?;
+    let tokens = shlex::split(&normalized)
+        .ok_or_else(|| anyhow::anyhow!("failed to tokenize curl command"))?;
     let mut iter = tokens.into_iter().peekable();
 
     if iter.peek().is_some_and(|token| token == "curl") {

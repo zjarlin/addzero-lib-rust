@@ -30,8 +30,7 @@ fn assert_existing_file(path: &Path) {
 }
 
 #[test]
-fn image_pipeline_should_stack_face_detection_and_safety_helmet_detection()
--> anyhow::Result<()> {
+fn image_pipeline_should_stack_face_detection_and_safety_helmet_detection() -> anyhow::Result<()> {
     // 输入图片：crates/algorithm/az-algorithm-pipeline/tests/fixtures/input/safety_helmet.jpg
     //
     // 叠加算法：

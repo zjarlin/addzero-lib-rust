@@ -7,6 +7,7 @@ use std::process::Command;
 use std::sync::OnceLock;
 
 use ab_glyph::{FontArc, PxScale};
+use anyhow::{anyhow, bail};
 use image::imageops::FilterType;
 use image::{DynamicImage, Rgb, RgbImage};
 use imageproc::drawing::{
@@ -17,7 +18,6 @@ use ndarray::{ArrayD, IxDyn};
 use ort::session::Session;
 use ort::value::{Tensor, TensorElementType, ValueType};
 
-use crate::error::{WorkerHitCountingError, WorkerHitCountingResult};
 use crate::logic_worker_hit_counting::model::{
     DEFAULT_POSE_MODEL_FILE_NAME, DEFAULT_WORKER_HIT_KEYPOINT_SCORE_THRESHOLD,
     DEFAULT_WORKER_HIT_OUTPUT_FPS, DEFAULT_WORKER_HIT_POSE_SCORE_THRESHOLD,
@@ -69,22 +69,11 @@ const TARGET_RESPONSE_TOP_PERCENTILE: f32 = 0.85;
 const TARGET_RESPONSE_CHANGED_PIXEL_FLOOR: f32 = 0.08;
 const TARGET_RESPONSE_CHANGED_RATIO_BASELINE: f32 = 0.08;
 const TARGET_RESPONSE_OTHER_PERSON_MASK_EXPAND: f32 = 0.018;
-const DEFAULT_TOP_HANGING_PANEL_ROI: VisualTargetObservation = VisualTargetObservation {
-    target_id: 10,
-    kind: VisualTargetKind::HangingMetalPanel,
-    target_box: NormalizedBoundingBox {
-        x: 0.55,
-        y: 0.06,
-        width: 0.36,
-        height: 0.26,
-    },
-    containment_score: 1.0,
-};
 const LEFT_WRIST_INDEX: usize = 9;
 const RIGHT_WRIST_INDEX: usize = 10;
 
 impl WorkerHitCountConfig {
-    fn validate(self) -> WorkerHitCountingResult<()> {
+    fn validate(self) -> anyhow::Result<()> {
         validate_unit_score("strike_score_threshold", self.strike_score_threshold)?;
         validate_unit_score("contact_score_threshold", self.contact_score_threshold)?;
         validate_unit_score(
@@ -92,14 +81,12 @@ impl WorkerHitCountConfig {
             self.target_response_score_threshold,
         )?;
         if self.min_hit_gap_ms == 0 {
-            return Err(WorkerHitCountingError::invalid_visual_action_input(
-                "min_hit_gap_ms must be greater than 0",
-            ));
+            bail!("invalid visual action input: min_hit_gap_ms must be greater than 0");
         }
         if self.min_invalid_candidate_gap_ms == 0 {
-            return Err(WorkerHitCountingError::invalid_visual_action_input(
-                "min_invalid_candidate_gap_ms must be greater than 0",
-            ));
+            bail!(
+                "invalid visual action input: min_invalid_candidate_gap_ms must be greater than 0"
+            );
         }
         Ok(())
     }
@@ -252,7 +239,7 @@ impl WorkerActionAccumulator {
 pub fn count_worker_hits_by_person_from_visual_observations(
     observations: &[WorkerActionObservation],
     config: WorkerHitCountConfig,
-) -> WorkerHitCountingResult<WorkerHitCount> {
+) -> anyhow::Result<WorkerHitCount> {
     Ok(record_worker_hit_timeline_from_visual_observations(observations, config)?.final_count)
 }
 
@@ -266,7 +253,7 @@ pub fn count_worker_hits_by_person_from_visual_observations(
 pub fn record_worker_hit_timeline_from_visual_observations(
     observations: &[WorkerActionObservation],
     config: WorkerHitCountConfig,
-) -> WorkerHitCountingResult<WorkerHitTimeline> {
+) -> anyhow::Result<WorkerHitTimeline> {
     config.validate()?;
 
     let mut sorted_observations = observations.iter().collect::<Vec<_>>();
@@ -336,9 +323,7 @@ pub fn record_worker_hit_timeline_from_visual_observations(
 /// # Ok(())
 /// # }
 /// ```
-pub fn annotate_worker_hits_video(
-    video_path: impl AsRef<Path>,
-) -> WorkerHitCountingResult<PathBuf> {
+pub fn annotate_worker_hits_video(video_path: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
     let run = analyze_worker_hits_video(video_path)?;
     Ok(run.files.annotated_video)
 }
@@ -366,7 +351,7 @@ pub fn annotate_worker_hits_video(
 /// ```
 pub fn analyze_worker_hits_video(
     video_path: impl AsRef<Path>,
-) -> WorkerHitCountingResult<WorkerHitVideoAnalysisRun> {
+) -> anyhow::Result<WorkerHitVideoAnalysisRun> {
     let video_path = video_path.as_ref();
     let options = default_worker_hit_video_analysis_options(video_path)?;
     analyze_worker_hits_in_video_from_path(video_path, &options)
@@ -381,9 +366,9 @@ pub fn analyze_worker_hits_video(
 /// 输入视频路径无法规范化，或当前工作目录无法读取时返回错误。
 pub fn default_worker_hit_video_analysis_options(
     video_path: impl AsRef<Path>,
-) -> WorkerHitCountingResult<WorkerHitVideoAnalysisOptions> {
+) -> anyhow::Result<WorkerHitVideoAnalysisOptions> {
     let input_video_path = std::fs::canonicalize(video_path.as_ref())
-        .map_err(|source| WorkerHitCountingError::io(video_path.as_ref().to_path_buf(), source))?;
+        .map_err(|source| path_error(video_path.as_ref().to_path_buf(), source))?;
     let output_dir = default_output_root()?
         .join("target")
         .join("az-algorithm-results")
@@ -418,10 +403,9 @@ fn default_pose_model_path() -> PathBuf {
         .join(DEFAULT_POSE_MODEL_FILE_NAME)
 }
 
-fn default_output_root() -> WorkerHitCountingResult<PathBuf> {
+fn default_output_root() -> anyhow::Result<PathBuf> {
     let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
-    std::fs::canonicalize(&workspace_root)
-        .map_err(|source| WorkerHitCountingError::io(workspace_root, source))
+    std::fs::canonicalize(&workspace_root).map_err(|source| path_error(workspace_root, source))
 }
 
 fn default_ffmpeg_path() -> PathBuf {
@@ -459,10 +443,10 @@ fn sanitized_file_stem(path: &Path) -> String {
 pub fn analyze_worker_hits_in_video_from_path(
     video_path: impl AsRef<Path>,
     options: &WorkerHitVideoAnalysisOptions,
-) -> WorkerHitCountingResult<WorkerHitVideoAnalysisRun> {
+) -> anyhow::Result<WorkerHitVideoAnalysisRun> {
     validate_video_analysis_options(options)?;
     let video_path = std::fs::canonicalize(video_path.as_ref())
-        .map_err(|source| WorkerHitCountingError::io(video_path.as_ref().to_path_buf(), source))?;
+        .map_err(|source| path_error(video_path.as_ref().to_path_buf(), source))?;
     recreate_dir(&options.output_dir)?;
 
     let files = WorkerHitVideoOutputFiles {
@@ -475,11 +459,11 @@ pub fn analyze_worker_hits_in_video_from_path(
         annotated_video: options.output_dir.join("annotated_worker_hits.mp4"),
     };
     fs::create_dir_all(&files.extracted_frame_dir)
-        .map_err(|source| WorkerHitCountingError::io(files.extracted_frame_dir.clone(), source))?;
+        .map_err(|source| path_error(files.extracted_frame_dir.clone(), source))?;
     fs::create_dir_all(&files.annotated_frame_dir)
-        .map_err(|source| WorkerHitCountingError::io(files.annotated_frame_dir.clone(), source))?;
+        .map_err(|source| path_error(files.annotated_frame_dir.clone(), source))?;
     fs::copy(&video_path, &files.source_input_video)
-        .map_err(|source| WorkerHitCountingError::io(video_path.clone(), source))?;
+        .map_err(|source| path_error(video_path.clone(), source))?;
 
     extract_video_frames(&video_path, &files.extracted_frame_dir, options)?;
     let frame_paths = collected_frame_paths(&files.extracted_frame_dir, options.max_frames)?;
@@ -564,7 +548,7 @@ fn classify_hit_candidate(
     }
 }
 
-fn validate_observation(observation: &WorkerActionObservation) -> WorkerHitCountingResult<()> {
+fn validate_observation(observation: &WorkerActionObservation) -> anyhow::Result<()> {
     validate_unit_score("strike_score", observation.strike_score)?;
     validate_unit_score("contact_score", observation.contact_score)?;
     validate_unit_score("target_response_score", observation.target_response_score)?;
@@ -579,17 +563,15 @@ fn validate_observation(observation: &WorkerActionObservation) -> WorkerHitCount
     Ok(())
 }
 
-fn validate_unit_score(field: &str, value: f32) -> WorkerHitCountingResult<()> {
+fn validate_unit_score(field: &str, value: f32) -> anyhow::Result<()> {
     if value.is_finite() && (0.0..=1.0).contains(&value) {
         Ok(())
     } else {
-        Err(WorkerHitCountingError::invalid_visual_action_input(
-            format!("{field} must be finite and within 0.0..=1.0"),
-        ))
+        bail!("invalid visual action input: {field} must be finite and within 0.0..=1.0")
     }
 }
 
-fn validate_normalized_point(field: &str, point: NormalizedPoint) -> WorkerHitCountingResult<()> {
+fn validate_normalized_point(field: &str, point: NormalizedPoint) -> anyhow::Result<()> {
     if point.x.is_finite()
         && point.y.is_finite()
         && (0.0..=1.0).contains(&point.x)
@@ -597,16 +579,13 @@ fn validate_normalized_point(field: &str, point: NormalizedPoint) -> WorkerHitCo
     {
         Ok(())
     } else {
-        Err(WorkerHitCountingError::invalid_visual_action_input(
-            format!("{field} coordinates must be finite and within 0.0..=1.0"),
-        ))
+        bail!(
+            "invalid visual action input: {field} coordinates must be finite and within 0.0..=1.0"
+        )
     }
 }
 
-fn validate_normalized_box(
-    field: &str,
-    bbox: NormalizedBoundingBox,
-) -> WorkerHitCountingResult<()> {
+fn validate_normalized_box(field: &str, bbox: NormalizedBoundingBox) -> anyhow::Result<()> {
     let right = bbox.x + bbox.width;
     let bottom = bbox.y + bbox.height;
     if bbox.x.is_finite()
@@ -622,9 +601,9 @@ fn validate_normalized_box(
     {
         Ok(())
     } else {
-        Err(WorkerHitCountingError::invalid_visual_action_input(
-            format!("{field} must be finite and normalized within frame bounds"),
-        ))
+        bail!(
+            "invalid visual action input: {field} must be finite and normalized within frame bounds"
+        )
     }
 }
 
@@ -653,12 +632,13 @@ struct WorkerPoseSession {
 }
 
 impl WorkerPoseSession {
-    fn load(model_path: &Path) -> WorkerHitCountingResult<Self> {
+    fn load(model_path: &Path) -> anyhow::Result<Self> {
         if !model_path.is_file() {
-            return Err(WorkerHitCountingError::io(
-                model_path.to_path_buf(),
-                std::io::Error::new(std::io::ErrorKind::NotFound, "pose model file not found"),
-            ));
+            let source =
+                std::io::Error::new(std::io::ErrorKind::NotFound, "pose model file not found");
+            let path = model_path.to_path_buf();
+            let error = path_error(path, source);
+            return Err(error);
         }
 
         let mut builder = Session::builder()?;
@@ -671,7 +651,7 @@ impl WorkerPoseSession {
         &mut self,
         image: &DynamicImage,
         pose_score_threshold: f32,
-    ) -> WorkerHitCountingResult<Vec<WorkerPoseDetection>> {
+    ) -> anyhow::Result<Vec<WorkerPoseDetection>> {
         let prepared = prepare_pose_image(image);
         let transform = PoseImageTransform {
             scale: prepared.scale,
@@ -688,30 +668,22 @@ impl WorkerPoseSession {
         )
     }
 
-    fn run_pose_model(
-        &mut self,
-        tensor_data: Vec<f32>,
-    ) -> WorkerHitCountingResult<PoseOutputTensor> {
+    fn run_pose_model(&mut self, tensor_data: Vec<f32>) -> anyhow::Result<PoseOutputTensor> {
         let input_array = ArrayD::from_shape_vec(IxDyn(POSE_MODEL_INPUT_SHAPE), tensor_data)
-            .map_err(|source| WorkerHitCountingError::InvalidPoseTensorShape {
-                reason: source.to_string(),
-            })?;
+            .map_err(|source| anyhow!("invalid pose tensor shape: {source}"))?;
         let input = Tensor::from_array(input_array)?;
         let outputs = self.session.run(ort::inputs![input])?;
         let value = outputs.get(POSE_OUTPUT_NAME).ok_or_else(|| {
-            WorkerHitCountingError::InvalidPoseTensorShape {
-                reason: format!("missing pose output `{POSE_OUTPUT_NAME}`"),
-            }
+            anyhow!("invalid pose tensor shape: missing pose output `{POSE_OUTPUT_NAME}`")
         })?;
         let ValueType::Tensor { ty, .. } = value.dtype() else {
-            return Err(WorkerHitCountingError::InvalidPoseTensorShape {
-                reason: format!("pose output is not tensor: {}", value.dtype()),
-            });
+            bail!(
+                "invalid pose tensor shape: pose output is not tensor: {}",
+                value.dtype()
+            );
         };
         if !matches!(ty, TensorElementType::Float32) {
-            return Err(WorkerHitCountingError::InvalidPoseTensorShape {
-                reason: format!("pose output expected f32, got {ty}"),
-            });
+            bail!("invalid pose tensor shape: pose output expected f32, got {ty}");
         }
         let (shape, data) = value.try_extract_tensor::<f32>()?;
         let shape = shape.iter().copied().collect::<Vec<_>>();
@@ -722,11 +694,9 @@ impl WorkerPoseSession {
                 POSE_OUTPUT_CANDIDATES as i64,
             ]
         {
-            return Err(WorkerHitCountingError::InvalidPoseTensorShape {
-                reason: format!(
-                    "pose output expected [1, {POSE_OUTPUT_CHANNELS}, {POSE_OUTPUT_CANDIDATES}], got {shape:?}"
-                ),
-            });
+            bail!(
+                "invalid pose tensor shape: pose output expected [1, {POSE_OUTPUT_CHANNELS}, {POSE_OUTPUT_CANDIDATES}], got {shape:?}"
+            );
         }
         Ok(PoseOutputTensor {
             data: data.to_vec(),
@@ -773,7 +743,7 @@ fn decode_pose_output(
     image_height: u32,
     transform: PoseImageTransform,
     score_threshold: f32,
-) -> WorkerHitCountingResult<Vec<WorkerPoseDetection>> {
+) -> anyhow::Result<Vec<WorkerPoseDetection>> {
     let mut poses = Vec::new();
     for candidate_index in 0..POSE_OUTPUT_CANDIDATES {
         let confidence = pose_value(output, 4, candidate_index);
@@ -829,11 +799,10 @@ fn is_valid_worker_pose_candidate(pose: &WorkerPoseDetection) -> bool {
         .iter()
         .filter(|keypoint| keypoint.confidence >= 0.10)
         .count();
-    let is_bottom_partial =
-        pose.person_box.y + pose.person_box.height >= 0.98
-            && pose.person_box.height <= POSE_EDGE_PARTIAL_MAX_HEIGHT;
-    let is_top_partial = pose.person_box.y <= 0.02
+    let is_bottom_partial = pose.person_box.y + pose.person_box.height >= 0.98
         && pose.person_box.height <= POSE_EDGE_PARTIAL_MAX_HEIGHT;
+    let is_top_partial =
+        pose.person_box.y <= 0.02 && pose.person_box.height <= POSE_EDGE_PARTIAL_MAX_HEIGHT;
     let is_material_stack_false_person = is_material_stack_false_person_candidate(pose, box_area);
     pose.person_box.width >= POSE_MIN_BOX_WIDTH
         && pose.person_box.height >= POSE_MIN_BOX_HEIGHT
@@ -875,8 +844,8 @@ fn merge_fragmented_pose_track_ids(pose_frames: &mut [WorkerPoseFrame]) {
     summaries.sort_by_key(|summary| (summary.first_frame_index, summary.person_id));
     let mut remap = BTreeMap::<WorkerTrackId, WorkerTrackId>::new();
     for summary in summaries {
-        let target_id = best_tracklet_merge_target(&summary, &remap, pose_frames)
-            .unwrap_or(summary.person_id);
+        let target_id =
+            best_tracklet_merge_target(&summary, &remap, pose_frames).unwrap_or(summary.person_id);
         remap.insert(summary.person_id, target_id);
     }
     for frame in pose_frames {
@@ -972,7 +941,7 @@ fn action_observations_from_pose_frames(
     pose_frames: &[WorkerPoseFrame],
     target_roi: VisualTargetObservation,
     keypoint_score_threshold: f32,
-) -> WorkerHitCountingResult<Vec<WorkerActionObservation>> {
+) -> anyhow::Result<Vec<WorkerActionObservation>> {
     validate_unit_score("keypoint_score_threshold", keypoint_score_threshold)?;
     let mut previous_wrists = BTreeMap::<WorkerTrackId, NormalizedPoint>::new();
     let mut observations = Vec::new();
@@ -1089,10 +1058,10 @@ fn target_response_score_near_contact(
     let background_mean = mean(&background_diffs).unwrap_or(0.0);
     let changed_pixel_threshold = TARGET_RESPONSE_CHANGED_PIXEL_FLOOR.max(background_mean * 2.5);
     let changed_ratio = changed_pixel_ratio(&local_diffs, changed_pixel_threshold);
-    let appearance_delta =
-        (local_top_mean - background_mean * TARGET_RESPONSE_BACKGROUND_WEIGHT
-            - TARGET_RESPONSE_DIFF_FLOOR)
-            .max(0.0);
+    let appearance_delta = (local_top_mean
+        - background_mean * TARGET_RESPONSE_BACKGROUND_WEIGHT
+        - TARGET_RESPONSE_DIFF_FLOOR)
+        .max(0.0);
     let changed_ratio_delta = (changed_ratio - TARGET_RESPONSE_CHANGED_RATIO_BASELINE).max(0.0);
 
     (appearance_delta * 3.0 + changed_ratio_delta * 2.5).clamp(0.0, 1.0)
@@ -1120,14 +1089,13 @@ fn person_mask_rects_for_response(frame: &WorkerPoseFrame) -> Vec<NormalizedBoun
     frame
         .poses
         .iter()
-        .map(|pose| expand_normalized_box(pose.person_box, TARGET_RESPONSE_OTHER_PERSON_MASK_EXPAND))
+        .map(|pose| {
+            expand_normalized_box(pose.person_box, TARGET_RESPONSE_OTHER_PERSON_MASK_EXPAND)
+        })
         .collect()
 }
 
-fn expand_normalized_box(
-    bbox: NormalizedBoundingBox,
-    margin: f32,
-) -> NormalizedBoundingBox {
+fn expand_normalized_box(bbox: NormalizedBoundingBox, margin: f32) -> NormalizedBoundingBox {
     let x = (bbox.x - margin).clamp(0.0, 1.0);
     let y = (bbox.y - margin).clamp(0.0, 1.0);
     let right = (bbox.x + bbox.width + margin).clamp(0.0, 1.0);
@@ -1247,10 +1215,12 @@ fn collect_gray_diffs_with_filter(
 }
 
 fn gray_diff(previous: &Rgb<u8>, current: &Rgb<u8>) -> f32 {
-    let previous_gray =
-        f32::from(previous[0]) * 0.299 + f32::from(previous[1]) * 0.587 + f32::from(previous[2]) * 0.114;
-    let current_gray =
-        f32::from(current[0]) * 0.299 + f32::from(current[1]) * 0.587 + f32::from(current[2]) * 0.114;
+    let previous_gray = f32::from(previous[0]) * 0.299
+        + f32::from(previous[1]) * 0.587
+        + f32::from(previous[2]) * 0.114;
+    let current_gray = f32::from(current[0]) * 0.299
+        + f32::from(current[1]) * 0.587
+        + f32::from(current[2]) * 0.114;
     (current_gray - previous_gray).abs() / 255.0
 }
 
@@ -1379,10 +1349,7 @@ fn normalized_box_center_distance(
     normalized_distance(left_center, right_center)
 }
 
-fn normalized_box_area_ratio(
-    left: NormalizedBoundingBox,
-    right: NormalizedBoundingBox,
-) -> f32 {
+fn normalized_box_area_ratio(left: NormalizedBoundingBox, right: NormalizedBoundingBox) -> f32 {
     let left_area = left.width * left.height;
     let right_area = right.width * right.height;
     let min_area = left_area.min(right_area);
@@ -1448,7 +1415,7 @@ fn write_worker_hit_annotation_frames(
     pose_frames: &[WorkerPoseFrame],
     timeline: &WorkerHitTimeline,
     target_roi: NormalizedBoundingBox,
-) -> WorkerHitCountingResult<()> {
+) -> anyhow::Result<()> {
     let records_by_frame = timeline
         .frame_records
         .iter()
@@ -1810,46 +1777,38 @@ fn intersection_over_union(left: NormalizedBoundingBox, right: NormalizedBoundin
     intersection / union
 }
 
-fn validate_video_analysis_options(
-    options: &WorkerHitVideoAnalysisOptions,
-) -> WorkerHitCountingResult<()> {
+fn validate_video_analysis_options(options: &WorkerHitVideoAnalysisOptions) -> anyhow::Result<()> {
     options.hit_count_config.validate()?;
     validate_unit_score("pose_score_threshold", options.pose_score_threshold)?;
     validate_unit_score("keypoint_score_threshold", options.keypoint_score_threshold)?;
     validate_normalized_box("target_roi.target_box", options.target_roi.target_box)?;
     if options.sample_fps == 0 {
-        return Err(WorkerHitCountingError::invalid_visual_action_input(
-            "sample_fps must be greater than 0",
-        ));
+        bail!("invalid visual action input: sample_fps must be greater than 0");
     }
     if options.output_fps == 0 {
-        return Err(WorkerHitCountingError::invalid_visual_action_input(
-            "output_fps must be greater than 0",
-        ));
+        bail!("invalid visual action input: output_fps must be greater than 0");
     }
     if !options.pose_model_path.is_file() {
-        return Err(WorkerHitCountingError::io(
-            options.pose_model_path.clone(),
-            std::io::Error::new(std::io::ErrorKind::NotFound, "pose model file not found"),
-        ));
+        let source = std::io::Error::new(std::io::ErrorKind::NotFound, "pose model file not found");
+        let path = options.pose_model_path.clone();
+        let error = path_error(path, source);
+        return Err(error);
     }
     Ok(())
 }
 
-fn recreate_dir(path: &Path) -> WorkerHitCountingResult<()> {
+fn recreate_dir(path: &Path) -> anyhow::Result<()> {
     if path.exists() {
-        fs::remove_dir_all(path)
-            .map_err(|source| WorkerHitCountingError::io(path.to_path_buf(), source))?;
+        fs::remove_dir_all(path).map_err(|source| path_error(path.to_path_buf(), source))?;
     }
-    fs::create_dir_all(path)
-        .map_err(|source| WorkerHitCountingError::io(path.to_path_buf(), source))
+    fs::create_dir_all(path).map_err(|source| path_error(path.to_path_buf(), source))
 }
 
 fn extract_video_frames(
     video_path: &Path,
     extracted_frame_dir: &Path,
     options: &WorkerHitVideoAnalysisOptions,
-) -> WorkerHitCountingResult<()> {
+) -> anyhow::Result<()> {
     run_ffmpeg(
         &options.ffmpeg_path,
         &[
@@ -1871,7 +1830,7 @@ fn encode_annotated_video(
     annotated_frame_dir: &Path,
     annotated_video: &Path,
     options: &WorkerHitVideoAnalysisOptions,
-) -> WorkerHitCountingResult<()> {
+) -> anyhow::Result<()> {
     run_ffmpeg(
         &options.ffmpeg_path,
         &[
@@ -1895,19 +1854,15 @@ fn encode_annotated_video(
     )
 }
 
-fn run_ffmpeg(
-    ffmpeg_path: &Path,
-    args: &[String],
-    context_path: &Path,
-) -> WorkerHitCountingResult<()> {
+fn run_ffmpeg(ffmpeg_path: &Path, args: &[String], context_path: &Path) -> anyhow::Result<()> {
     let output = Command::new(ffmpeg_path)
         .args(args)
         .output()
-        .map_err(|source| WorkerHitCountingError::io(ffmpeg_path.to_path_buf(), source))?;
+        .map_err(|source| path_error(ffmpeg_path.to_path_buf(), source))?;
     if output.status.success() {
         return Ok(());
     }
-    Err(WorkerHitCountingError::io(
+    Err(path_error(
         context_path.to_path_buf(),
         std::io::Error::other(format!(
             "ffmpeg failed with status {}\nstdout:\n{}\nstderr:\n{}",
@@ -1921,24 +1876,25 @@ fn run_ffmpeg(
 fn collected_frame_paths(
     extracted_frame_dir: &Path,
     max_frames: Option<usize>,
-) -> WorkerHitCountingResult<Vec<PathBuf>> {
+) -> anyhow::Result<Vec<PathBuf>> {
     let mut frame_paths = fs::read_dir(extracted_frame_dir)
-        .map_err(|source| WorkerHitCountingError::io(extracted_frame_dir.to_path_buf(), source))?
+        .map_err(|source| path_error(extracted_frame_dir.to_path_buf(), source))?
         .map(|entry| {
-            entry.map(|entry| entry.path()).map_err(|source| {
-                WorkerHitCountingError::io(extracted_frame_dir.to_path_buf(), source)
-            })
+            entry
+                .map(|entry| entry.path())
+                .map_err(|source| path_error(extracted_frame_dir.to_path_buf(), source))
         })
-        .collect::<WorkerHitCountingResult<Vec<_>>>()?;
+        .collect::<anyhow::Result<Vec<_>>>()?;
     frame_paths.sort();
     if let Some(limit) = max_frames {
         frame_paths.truncate(limit);
     }
     if frame_paths.is_empty() {
-        return Err(WorkerHitCountingError::io(
-            extracted_frame_dir.to_path_buf(),
-            std::io::Error::other("ffmpeg did not extract any video frames"),
-        ));
+        let path = extracted_frame_dir.to_path_buf();
+        let source = std::io::Error::other("ffmpeg did not extract any video frames");
+        let error = path_error(path, source);
+
+        return Err(error);
     }
     Ok(frame_paths)
 }
@@ -1947,14 +1903,18 @@ fn frame_timestamp_ms(frame_index: usize, sample_fps: u32) -> u64 {
     (frame_index as u64 * 1_000) / u64::from(sample_fps)
 }
 
-fn write_json_file<T: serde::Serialize>(path: &Path, value: &T) -> WorkerHitCountingResult<()> {
+fn write_json_file<T: serde::Serialize>(path: &Path, value: &T) -> anyhow::Result<()> {
     let json = serde_json::to_string_pretty(value).map_err(|source| {
-        WorkerHitCountingError::io(
+        path_error(
             path.to_path_buf(),
             std::io::Error::other(source.to_string()),
         )
     })?;
-    fs::write(path, json).map_err(|source| WorkerHitCountingError::io(path.to_path_buf(), source))
+    fs::write(path, json).map_err(|source| path_error(path.to_path_buf(), source))
+}
+
+fn path_error(path: PathBuf, source: std::io::Error) -> anyhow::Error {
+    anyhow!("filesystem error at `{}`: {source}", path.display())
 }
 
 #[cfg(test)]

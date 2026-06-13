@@ -225,10 +225,10 @@ impl OpenApiContractGenerator {
         let models = self.render_models_content();
         let api = self.render_api_content(&interfaces);
 
-        let bodies_source = normalize_rust_source(bodies.clone());
-        let paths_source = normalize_rust_source(paths.clone());
-        let models_source = normalize_rust_source(models.clone());
-        let api_source = normalize_rust_source(api.clone());
+        let bodies_source = normalize_rust_source(bodies.clone())?;
+        let paths_source = normalize_rust_source(paths.clone())?;
+        let models_source = normalize_rust_source(models.clone())?;
+        let api_source = normalize_rust_source(api.clone())?;
         let combined_source = normalize_rust_source(quote! {
             pub mod bodies {
                 #bodies
@@ -242,7 +242,7 @@ impl OpenApiContractGenerator {
             pub mod api {
                 #api
             }
-        });
+        })?;
 
         Ok(GeneratedOpenApiContract {
             combined_source,
@@ -445,7 +445,9 @@ impl OpenApiContractGenerator {
             if non_null.len() == 1 {
                 schema["type"] = Value::String(non_null[0].to_string());
             } else {
-                schema.as_object_mut().expect("schema object").remove("type");
+                if let Some(object) = schema.as_object_mut() {
+                    object.remove("type");
+                }
             }
         }
 
@@ -1043,9 +1045,10 @@ fn generated_entry_source() -> String {
     "//! Generated OpenAI REST contract modules.\n\n// Generated from the remote OpenAPI contract. Do not edit by hand.\n\nautomod::dir!(pub \"src/generated\");\n".to_string()
 }
 
-fn normalize_rust_source(tokens: TokenStream2) -> String {
-    let file = syn::parse2(tokens).expect("generated OpenAPI Rust source should parse");
-    prettyplease::unparse(&file)
+fn normalize_rust_source(tokens: TokenStream2) -> Result<String, String> {
+    let file = syn::parse2(tokens)
+        .map_err(|error| format!("generated OpenAPI Rust source should parse: {error}"))?;
+    Ok(prettyplease::unparse(&file))
 }
 
 fn render_property(prop: &PropertyDef) -> TokenStream2 {

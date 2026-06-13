@@ -9,7 +9,6 @@ description = "Chinese pinyin utilities: hanzi-to-pinyin conversion, initial let
 
 [dependencies]
 pinyin.workspace = true
-regex.workspace = true
 
 [lints]
 workspace = true

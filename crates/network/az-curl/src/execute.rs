@@ -1,7 +1,6 @@
-use crate::error::{CurlError, CurlResult};
 use crate::model::ParsedCurl;
 use crate::parse::parse_curl;
-use az_derive_aliases::{apply, impl_default, plain_clone_debug, plain_eq};
+use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use reqwest::blocking::multipart::Form;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -21,10 +20,11 @@ pub struct CurlResponse {
 }
 
 impl CurlResponse {
-    pub fn text(&self) -> CurlResult<String> {
+    pub fn text(&self) -> anyhow::Result<String> {
         match &self.text {
             Some(text) => Ok(text.clone()),
-            None => String::from_utf8(self.body.clone()).map_err(CurlError::Utf8),
+            None => String::from_utf8(self.body.clone())
+                .map_err(|source| anyhow::anyhow!("response body is not valid UTF-8: {source}")),
         }
     }
 
@@ -46,18 +46,16 @@ pub(crate) struct CurlExecutor {
     client: reqwest::blocking::Client,
 }
 
-impl_default!(CurlExecutor => CurlExecutor::with_client(default_client()));
-
 impl CurlExecutor {
-    pub(crate) fn new() -> Self {
-        Self::default()
+    pub(crate) fn new() -> anyhow::Result<Self> {
+        Ok(Self::with_client(default_client()?))
     }
 
     pub(crate) fn with_client(client: reqwest::blocking::Client) -> Self {
         Self { client }
     }
 
-    pub(crate) fn execute(&self, curl: impl AsRef<str>) -> CurlResult<CurlResponse> {
+    pub(crate) fn execute(&self, curl: impl AsRef<str>) -> anyhow::Result<CurlResponse> {
         let parsed = parse_curl(curl)?;
         self.execute_parsed(&parsed)
     }
@@ -65,7 +63,7 @@ impl CurlExecutor {
     pub(crate) fn build_request(
         &self,
         parsed: &ParsedCurl,
-    ) -> CurlResult<reqwest::blocking::Request> {
+    ) -> anyhow::Result<reqwest::blocking::Request> {
         let mut builder = self.client.request(parsed.method.clone(), &parsed.url);
 
         let skip_content_type = !parsed.form_params.is_empty();
@@ -88,12 +86,17 @@ impl CurlExecutor {
             builder = builder.body(body.clone());
         }
 
-        builder.build().map_err(CurlError::RequestBuild)
+        builder
+            .build()
+            .map_err(|source| anyhow::anyhow!("failed to build request: {source}"))
     }
 
-    pub(crate) fn execute_parsed(&self, parsed: &ParsedCurl) -> CurlResult<CurlResponse> {
+    pub(crate) fn execute_parsed(&self, parsed: &ParsedCurl) -> anyhow::Result<CurlResponse> {
         let request = self.build_request(parsed)?;
-        let response = self.client.execute(request).map_err(CurlError::Execute)?;
+        let response = self
+            .client
+            .execute(request)
+            .map_err(|source| anyhow::anyhow!("failed to execute request: {source}"))?;
         let status = response.status().as_u16();
         let headers = response
             .headers()
@@ -106,7 +109,10 @@ impl CurlExecutor {
                 (name.as_str().to_owned(), value)
             })
             .collect::<BTreeMap<_, _>>();
-        let body = response.bytes().map_err(CurlError::Execute)?.to_vec();
+        let body = response
+            .bytes()
+            .map_err(|source| anyhow::anyhow!("failed to execute request: {source}"))?
+            .to_vec();
         let text = String::from_utf8(body.clone()).ok();
 
         Ok(CurlResponse {
@@ -118,20 +124,21 @@ impl CurlExecutor {
     }
 }
 
-fn default_client() -> reqwest::blocking::Client {
-    reqwest::blocking::Client::builder()
+fn default_client() -> anyhow::Result<reqwest::blocking::Client> {
+    let client = reqwest::blocking::Client::builder()
         .connect_timeout(Duration::from_secs(30))
         .timeout(Duration::from_secs(30))
         .build()
-        .expect("blocking reqwest client should build")
+        .map_err(|source| anyhow::anyhow!("failed to build default HTTP client: {source}"))?;
+    Ok(client)
 }
 
 /// Executes a curl command with a default blocking HTTP client.
 ///
 /// Use this when the caller does not need to reuse an HTTP client across
 /// multiple requests.
-pub fn execute_curl(curl: impl AsRef<str>) -> CurlResult<CurlResponse> {
-    CurlExecutor::new().execute(curl)
+pub fn execute_curl(curl: impl AsRef<str>) -> anyhow::Result<CurlResponse> {
+    CurlExecutor::new()?.execute(curl)
 }
 
 

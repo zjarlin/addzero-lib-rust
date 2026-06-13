@@ -26,9 +26,10 @@ az-ssh = { path = "../az-ssh" }             # workspace 内部引用
 
 ### 使用密码连接并执行命令
 
-```rust
-use az_ssh::{SshConfig, execute_sync};
+```rust,no_run
+use az_ssh::api::{SshConfig, execute_sync};
 
+fn main() -> anyhow::Result<()> {
 let config = SshConfig::builder("192.168.1.100", "root")
     .password("your-password")
     .port(22)
@@ -38,13 +39,16 @@ let result = execute_sync(&config, "uname -a")?;
 if result.is_success() {
     println!("{}", result.stdout);
 }
+Ok(())
+}
 ```
 
 ### 使用私钥连接并上传文件
 
-```rust
-use az_ssh::{SshConfig, SshSession};
+```rust,no_run
+use az_ssh::api::{SshConfig, SshSession};
 
+fn main() -> anyhow::Result<()> {
 let config = SshConfig::builder("example.com", "deploy")
     .private_key_path("~/.ssh/id_rsa")
     .build()?;
@@ -52,13 +56,16 @@ let config = SshConfig::builder("example.com", "deploy")
 let session = SshSession::connect(config)?;
 session.upload_file("./dist/app.tar.gz", "/opt/deploy/")?;
 session.execute_sync("cd /opt/deploy && tar xzf app.tar.gz")?;
+Ok(())
+}
 ```
 
 ### 流式读取远程命令输出
 
-```rust
-use az_ssh::{SshConfig, execute_stream};
+```rust,no_run
+use az_ssh::api::{SshConfig, execute_stream};
 
+fn main() -> anyhow::Result<()> {
 let config = SshConfig::builder("example.com", "admin")
     .password("secret")
     .build()?;
@@ -66,9 +73,12 @@ let config = SshConfig::builder("example.com", "admin")
 let result = execute_stream(&config, "tail -f /var/log/app.log", |line| {
     println!("[remote] {line}");
 })?;
+drop(result);
+Ok(())
+}
 ```
 
 ## 依赖的 crates
 
 - `ssh2` - libssh2 的 Rust 绑定，提供 SSH 协议底层支持
-- `thiserror` - 简化错误类型定义
+- `anyhow` - 错误上下文与统一 `Result`

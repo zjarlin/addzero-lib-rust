@@ -1,12 +1,11 @@
 use az_derive_aliases::{
     apply, clap_code_enum, clap_value_enum, deserialize_camel_clone_debug, deserialize_camel_eq,
-    error_copy_eq, from_copy_eq_display, impl_enum_kind, impl_from_str_parse,
-    impl_from_with_default, impl_try_from_str_parse, plain_code_default_enum,
-    plain_code_display_message_no_default_enum, plain_code_display_no_default_enum,
-    plain_code_enum, plain_copy_eq_hash, plain_copy_eq_hash_display,
-    plain_copy_eq_hash_ord_display, plain_default_copy_eq, plain_default_copy_eq_display,
-    plain_eq_hash_display, plain_string_value_object, serde_camel_eq_default,
-    serde_camel_partial_eq_default, serde_code_default_ord_display_enum,
+    from_copy_eq_display, impl_enum_kind, impl_from_str_parse, impl_from_with_default,
+    impl_try_from_str_parse, plain_code_default_enum, plain_code_display_message_no_default_enum,
+    plain_code_display_no_default_enum, plain_code_enum, plain_copy_eq_hash,
+    plain_copy_eq_hash_display, plain_copy_eq_hash_ord_display, plain_default_copy_eq,
+    plain_default_copy_eq_display, plain_eq_hash_display, plain_string_value_object,
+    serde_camel_eq_default, serde_camel_partial_eq_default, serde_code_default_ord_display_enum,
     serde_code_display_props_enum, serde_code_enum, serde_code_ord_display_enum,
     serde_code_partial_eq, serde_code_props_enum, serde_eq_copy_display, serde_eq_hash_display,
     serde_eq_hash_ord_display_as_ref, serde_kebab_code_enum, serde_kebab_eq, serde_lower_code_enum,
@@ -241,10 +240,6 @@ struct SerdeDisplayRatio(f64);
 #[apply(from_copy_eq_display)]
 struct FromCopyDisplayCode(u8);
 
-#[apply(error_copy_eq)]
-#[error("copy error: {0}")]
-struct CopyError(u8);
-
 #[derive(Debug, Default, Eq, PartialEq)]
 struct DefaultFromCell {
     value: String,
@@ -263,22 +258,18 @@ impl_from_with_default!(String => DefaultFromCell {
 struct ParsedToken(String);
 
 impl ParsedToken {
-    fn parse(value: &str) -> Result<Self, ParseTokenError> {
+    fn parse(value: &str) -> anyhow::Result<Self> {
         let value = value.trim();
         if value.is_empty() {
-            Err(ParseTokenError)
+            anyhow::bail!("token cannot be empty");
         } else {
             Ok(Self(value.to_owned()))
         }
     }
 }
 
-#[apply(error_copy_eq)]
-#[error("token cannot be empty")]
-struct ParseTokenError;
-
-impl_from_str_parse!(ParsedToken => ParseTokenError);
-impl_try_from_str_parse!(ParsedToken => ParseTokenError);
+impl_from_str_parse!(ParsedToken => anyhow::Error);
+impl_try_from_str_parse!(ParsedToken => anyhow::Error);
 
 #[test]
 fn layered_plain_aliases_keep_all_stacked_derives() {
@@ -552,7 +543,6 @@ fn serde_and_from_display_aliases_should_chain_cleanly() {
     let serde_hash = SerdeHashDisplayCode(9);
     let serde_copy = SerdeCopyDisplayCode(10);
     let from_copy: FromCopyDisplayCode = 11u8.into();
-    let copy_error = CopyError(12);
 
     let encoded = serde_json::to_value(&serde_hash).unwrap();
     assert_eq!(encoded, serde_json::json!(9));
@@ -560,7 +550,6 @@ fn serde_and_from_display_aliases_should_chain_cleanly() {
     assert_eq!(serde_copy.to_string(), "10");
     assert_eq!(SerdeDisplayRatio(0.5).to_string(), "0.5");
     assert_eq!(from_copy.to_string(), "11");
-    assert_eq!(copy_error.to_string(), "copy error: 12");
 }
 
 #[test]
@@ -604,7 +593,10 @@ fn parse_trait_helpers_delegate_to_parse_method() {
         ParsedToken::try_from("token").unwrap(),
         ParsedToken("token".to_owned())
     );
-    assert_eq!("   ".parse::<ParsedToken>().unwrap_err(), ParseTokenError);
+    assert_eq!(
+        "   ".parse::<ParsedToken>().unwrap_err().to_string(),
+        "token cannot be empty"
+    );
 }
 
 #[test]

@@ -1,23 +1,22 @@
-use crate::{ApiConfig, CreatesResult};
+use crate::ApiConfig;
 use az_derive_aliases::{apply, plain_clone_debug};
 
 /// Maven Central 构件搜索结果模型，直接复用 `az-maven` 的 wire DTO。
-pub use az_maven::MavenArtifact;
+pub use az_maven::maven::MavenArtifact;
 
 /// Maven Central 客户端门面。
 ///
-/// 该类型只负责把 `az-maven` 的错误映射到 [`CreatesError`](crate::CreatesError)，
-/// 并保留 `az-creates` 统一配置入口，不重新定义 Maven 查询协议。
+/// 该类型保留 `az-creates` 统一配置入口，不重新定义 Maven 查询协议。
 #[apply(plain_clone_debug)]
 pub struct MavenCentralApi {
-    inner: az_maven::MavenCentralApi,
+    inner: az_maven::maven::MavenCentralApi,
 }
 
 impl MavenCentralApi {
     /// 使用显式 API 配置创建 Maven Central 客户端。
-    pub fn new(config: ApiConfig) -> CreatesResult<Self> {
+    pub fn new(config: ApiConfig) -> anyhow::Result<Self> {
         Ok(Self {
-            inner: az_maven::MavenCentralApi::new(config)?,
+            inner: az_maven::maven::MavenCentralApi::new(config)?,
         })
     }
 
@@ -26,7 +25,7 @@ impl MavenCentralApi {
         &self,
         group_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self.inner.search_by_group_id(group_id, rows)?)
     }
 
@@ -35,7 +34,7 @@ impl MavenCentralApi {
         &self,
         artifact_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self.inner.search_by_artifact_id(artifact_id, rows)?)
     }
 
@@ -45,7 +44,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         artifact_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self
             .inner
             .search_by_coordinates(group_id, artifact_id, rows)?)
@@ -57,7 +56,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         artifact_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self
             .inner
             .search_all_versions(group_id, artifact_id, rows)?)
@@ -72,7 +71,7 @@ impl MavenCentralApi {
         packaging: Option<&str>,
         classifier: Option<&str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self.inner.search_by_full_coordinates(
             group_id,
             artifact_id,
@@ -88,7 +87,7 @@ impl MavenCentralApi {
         &self,
         class_name: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self.inner.search_by_class_name(class_name, rows)?)
     }
 
@@ -97,7 +96,7 @@ impl MavenCentralApi {
         &self,
         class_name: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self
             .inner
             .search_by_fully_qualified_class_name(class_name, rows)?)
@@ -108,7 +107,7 @@ impl MavenCentralApi {
         &self,
         sha1: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self.inner.search_by_sha1(sha1, rows)?)
     }
 
@@ -117,7 +116,7 @@ impl MavenCentralApi {
         &self,
         tag: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self.inner.search_by_tag(tag, rows)?)
     }
 
@@ -126,7 +125,7 @@ impl MavenCentralApi {
         &self,
         keyword: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         Ok(self.inner.search_by_keyword(keyword, rows)?)
     }
 
@@ -135,7 +134,7 @@ impl MavenCentralApi {
         &self,
         group_id: impl AsRef<str>,
         artifact_id: impl AsRef<str>,
-    ) -> CreatesResult<Option<String>> {
+    ) -> anyhow::Result<Option<String>> {
         Ok(self.inner.get_latest_version(group_id, artifact_id)?)
     }
 
@@ -144,7 +143,7 @@ impl MavenCentralApi {
         &self,
         group_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Option<String>> {
+    ) -> anyhow::Result<Option<String>> {
         Ok(self.inner.get_latest_version_by_group_id(group_id, rows)?)
     }
 
@@ -155,7 +154,7 @@ impl MavenCentralApi {
         artifact_id: impl AsRef<str>,
         version: impl AsRef<str>,
         filename: impl AsRef<str>,
-    ) -> CreatesResult<Vec<u8>> {
+    ) -> anyhow::Result<Vec<u8>> {
         Ok(self
             .inner
             .download_file(group_id, artifact_id, version, filename)?)
@@ -163,7 +162,7 @@ impl MavenCentralApi {
 }
 
 /// 使用默认 `https://search.maven.org` 地址创建 Maven Central 客户端。
-pub fn create_maven_central_api() -> CreatesResult<MavenCentralApi> {
+pub fn create_maven_central_api() -> anyhow::Result<MavenCentralApi> {
     let config = ApiConfig::builder("https://search.maven.org").build()?;
     MavenCentralApi::new(config)
 }

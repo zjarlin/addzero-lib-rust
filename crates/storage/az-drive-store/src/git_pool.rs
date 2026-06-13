@@ -1,6 +1,7 @@
 use async_trait::async_trait;
+use anyhow::{anyhow, bail};
 use az_derive_aliases::{apply, plain_eq, serde_eq};
-use az_drive_core::{EntryKey, RelativePath, RootAlias};
+use az_drive_core::api::{EntryKey, RelativePath, RootAlias};
 use chrono::Utc;
 use serde::{Serialize, de::DeserializeOwned};
 use std::collections::BTreeMap;
@@ -11,10 +12,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use uuid::Uuid;
 
-use crate::{
+use crate::api::{
     DriveConflict, DriveEntry, DriveEntryKind, DriveIgnoredPath, DriveLock, DriveMetadataStore,
-    DriveObjectStore, DriveStoreError, DriveStoreResult, DriveSuspendedPath, DriveSyncCoordinator,
-    DriveSyncQueueItem, DriveSyncTaskStatus, DriveVersion,
+    DriveObjectStore, DriveSuspendedPath, DriveSyncCoordinator, DriveSyncQueueItem,
+    DriveSyncTaskStatus, DriveVersion,
 };
 
 pub const DEFAULT_GIT_POOL_LIMIT_BYTES: u64 = 8 * 1024 * 1024 * 1024;
@@ -113,7 +114,7 @@ pub struct GitPoolDriveStore {
 }
 
 impl GitPoolDriveStore {
-    pub fn open(config: GitPoolConfig) -> DriveStoreResult<Self> {
+    pub fn open(config: GitPoolConfig) -> anyhow::Result<Self> {
         let store = Self { config };
         store.ensure_layout()?;
         Ok(store)
@@ -129,7 +130,7 @@ impl GitPoolDriveStore {
         name: &str,
         remote_url: &str,
         max_size_bytes: Option<u64>,
-    ) -> DriveStoreResult<GitPoolRepoConfig> {
+    ) -> anyhow::Result<GitPoolRepoConfig> {
         validate_pool_name(name)?;
         let pool = GitPoolRepoConfig {
             name: name.to_owned(),
@@ -152,7 +153,7 @@ impl GitPoolDriveStore {
         remote_url: &str,
         owner_drive_id: &str,
         readonly: bool,
-    ) -> DriveStoreResult<GitPoolMountConfig> {
+    ) -> anyhow::Result<GitPoolMountConfig> {
         validate_pool_name(name)?;
         let mount = GitPoolMountConfig {
             name: name.to_owned(),
@@ -174,13 +175,13 @@ impl GitPoolDriveStore {
         Ok(mount)
     }
 
-    pub fn unmount_pool(&self, name: &str) -> DriveStoreResult<()> {
+    pub fn unmount_pool(&self, name: &str) -> anyhow::Result<()> {
         validate_pool_name(name)?;
         remove_file_if_exists(&self.mount_config_path(name))?;
         self.flush_sync_blocking()
     }
 
-    pub fn list_pools(&self) -> DriveStoreResult<Vec<GitPoolRepoConfig>> {
+    pub fn list_pools(&self) -> anyhow::Result<Vec<GitPoolRepoConfig>> {
         let mut pools = Vec::new();
         for path in json_files(&self.control_path().join("pools"))? {
             pools.push(read_json(&path)?);
@@ -189,7 +190,7 @@ impl GitPoolDriveStore {
         Ok(pools)
     }
 
-    pub fn list_mounts(&self) -> DriveStoreResult<Vec<GitPoolMountConfig>> {
+    pub fn list_mounts(&self) -> anyhow::Result<Vec<GitPoolMountConfig>> {
         let mut mounts = Vec::new();
         for path in json_files(&self.control_path().join("mounts"))? {
             mounts.push(read_json(&path)?);
@@ -198,7 +199,7 @@ impl GitPoolDriveStore {
         Ok(mounts)
     }
 
-    pub fn backend_status(&self) -> DriveStoreResult<serde_json::Value> {
+    pub fn backend_status(&self) -> anyhow::Result<serde_json::Value> {
         Ok(serde_json::json!({
             "backend": "git_pool",
             "root": self.config.root.clone(),
@@ -211,7 +212,7 @@ impl GitPoolDriveStore {
         }))
     }
 
-    fn ensure_layout(&self) -> DriveStoreResult<()> {
+    fn ensure_layout(&self) -> anyhow::Result<()> {
         fs::create_dir_all(&self.config.root).map_err(|err| io_error("init_failed", err))?;
         self.ensure_control_worktree()?;
         for dir in [
@@ -231,7 +232,7 @@ impl GitPoolDriveStore {
         Ok(())
     }
 
-    fn write_drive_record(&self) -> DriveStoreResult<()> {
+    fn write_drive_record(&self) -> anyhow::Result<()> {
         write_json(
             &self.control_path().join("drive.json"),
             &DriveRecord {
@@ -241,7 +242,7 @@ impl GitPoolDriveStore {
         )
     }
 
-    fn ensure_control_worktree(&self) -> DriveStoreResult<()> {
+    fn ensure_control_worktree(&self) -> anyhow::Result<()> {
         ensure_worktree(
             &self.control_path(),
             self.config.control_remote.as_deref(),
@@ -249,7 +250,7 @@ impl GitPoolDriveStore {
         )
     }
 
-    fn ensure_pool_worktree(&self, pool: &GitPoolRepoConfig) -> DriveStoreResult<()> {
+    fn ensure_pool_worktree(&self, pool: &GitPoolRepoConfig) -> anyhow::Result<()> {
         let path = self.pool_path(&pool.name);
         ensure_worktree(&path, Some(&pool.remote_url), "pool_pull_failed")?;
         for dir in [
@@ -262,7 +263,7 @@ impl GitPoolDriveStore {
         commit_and_push_repo(&path, "initialize aio drive pool", "push_failed")
     }
 
-    fn ensure_pool_checkout(&self, pool: &GitPoolRepoConfig) -> DriveStoreResult<()> {
+    fn ensure_pool_checkout(&self, pool: &GitPoolRepoConfig) -> anyhow::Result<()> {
         ensure_worktree(
             &self.pool_path(&pool.name),
             Some(&pool.remote_url),
@@ -344,14 +345,14 @@ impl GitPoolDriveStore {
             .join(format!("{version}.json"))
     }
 
-    fn load_control_entry_records(&self) -> DriveStoreResult<Vec<EntryRecord>> {
+    fn load_control_entry_records(&self) -> anyhow::Result<Vec<EntryRecord>> {
         json_files(&self.control_path().join("index"))?
             .into_iter()
             .map(|path| read_json(&path))
             .collect()
     }
 
-    fn load_all_entry_records(&self) -> DriveStoreResult<Vec<EntryRecord>> {
+    fn load_all_entry_records(&self) -> anyhow::Result<Vec<EntryRecord>> {
         let mut by_id = BTreeMap::new();
         for record in self.load_control_entry_records()? {
             by_id.insert(record.entry.id, record);
@@ -369,7 +370,7 @@ impl GitPoolDriveStore {
         Ok(by_id.into_values().collect())
     }
 
-    fn load_control_entry_record_by_id(&self, id: Uuid) -> DriveStoreResult<Option<EntryRecord>> {
+    fn load_control_entry_record_by_id(&self, id: Uuid) -> anyhow::Result<Option<EntryRecord>> {
         let path = self.entry_path(id);
         if path.exists() {
             return Ok(Some(read_json(&path)?));
@@ -377,7 +378,7 @@ impl GitPoolDriveStore {
         Ok(None)
     }
 
-    fn save_entry_record(&self, mut record: EntryRecord) -> DriveStoreResult<()> {
+    fn save_entry_record(&self, mut record: EntryRecord) -> anyhow::Result<()> {
         record.entry.updated_at = Utc::now();
         write_json(&self.entry_path(record.entry.id), &record)?;
         if let Some(pool_name) = &record.pool_name {
@@ -391,7 +392,7 @@ impl GitPoolDriveStore {
         Ok(())
     }
 
-    fn load_version_records(&self, entry_id: Uuid) -> DriveStoreResult<Vec<VersionRecord>> {
+    fn load_version_records(&self, entry_id: Uuid) -> anyhow::Result<Vec<VersionRecord>> {
         let mut versions = Vec::new();
         let control_dir = self
             .control_path()
@@ -416,7 +417,7 @@ impl GitPoolDriveStore {
         Ok(versions)
     }
 
-    fn select_writable_pool(&self, bytes_len: u64) -> DriveStoreResult<GitPoolRepoConfig> {
+    fn select_writable_pool(&self, bytes_len: u64) -> anyhow::Result<GitPoolRepoConfig> {
         let pools = self.list_pools()?;
         if let Some(pool) = pools
             .into_iter()
@@ -434,7 +435,7 @@ impl GitPoolDriveStore {
         ))
     }
 
-    fn try_auto_expand_pool(&self, bytes_len: u64) -> DriveStoreResult<Option<GitPoolRepoConfig>> {
+    fn try_auto_expand_pool(&self, bytes_len: u64) -> anyhow::Result<Option<GitPoolRepoConfig>> {
         let Some(root) = &self.config.auto_pool_root else {
             return Ok(None);
         };
@@ -449,7 +450,7 @@ impl GitPoolDriveStore {
         )?))
     }
 
-    fn next_auto_pool_name(&self) -> DriveStoreResult<String> {
+    fn next_auto_pool_name(&self) -> anyhow::Result<String> {
         let prefix = self.config.auto_pool_prefix.trim();
         let prefix = if prefix.is_empty() {
             DEFAULT_AUTO_GIT_POOL_PREFIX
@@ -474,7 +475,7 @@ impl GitPoolDriveStore {
         &self,
         object_key: &str,
         include_readonly: bool,
-    ) -> DriveStoreResult<Option<String>> {
+    ) -> anyhow::Result<Option<String>> {
         for pool in self.list_pools()? {
             if !include_readonly && pool.readonly {
                 continue;
@@ -506,14 +507,14 @@ impl GitPoolDriveStore {
             .join(suffix)
     }
 
-    fn update_pool_used_bytes(&self, pool_name: &str, delta: u64) -> DriveStoreResult<()> {
+    fn update_pool_used_bytes(&self, pool_name: &str, delta: u64) -> anyhow::Result<()> {
         let path = self.pool_config_path(pool_name);
         let mut pool: GitPoolRepoConfig = read_json(&path)?;
         pool.used_bytes = pool.used_bytes.saturating_add(delta);
         write_json(&path, &pool)
     }
 
-    fn prepare_sync_blocking(&self) -> DriveStoreResult<()> {
+    fn prepare_sync_blocking(&self) -> anyhow::Result<()> {
         self.ensure_layout()?;
         pull_repo(&self.control_path(), "control_pull_failed")?;
         for pool in self.list_pools()? {
@@ -534,7 +535,7 @@ impl GitPoolDriveStore {
         Ok(())
     }
 
-    fn flush_sync_blocking(&self) -> DriveStoreResult<()> {
+    fn flush_sync_blocking(&self) -> anyhow::Result<()> {
         commit_and_push_repo(
             &self.control_path(),
             "update aio drive control",
@@ -555,14 +556,14 @@ impl GitPoolDriveStore {
 
 #[async_trait]
 impl DriveSyncCoordinator for GitPoolDriveStore {
-    async fn prepare_sync(&self) -> DriveStoreResult<()> {
+    async fn prepare_sync(&self) -> anyhow::Result<()> {
         let store = self.clone();
         tokio::task::spawn_blocking(move || store.prepare_sync_blocking())
             .await
             .map_err(|err| git_pool_error("control_pull_failed", err.to_string()))?
     }
 
-    async fn flush_sync(&self) -> DriveStoreResult<()> {
+    async fn flush_sync(&self) -> anyhow::Result<()> {
         let store = self.clone();
         tokio::task::spawn_blocking(move || store.flush_sync_blocking())
             .await
@@ -576,7 +577,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         &self,
         key: &EntryKey,
         kind: DriveEntryKind,
-    ) -> DriveStoreResult<DriveEntry> {
+    ) -> anyhow::Result<DriveEntry> {
         if let Some(record) = self
             .load_control_entry_records()?
             .into_iter()
@@ -600,7 +601,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(entry)
     }
 
-    async fn get_entry(&self, key: &EntryKey) -> DriveStoreResult<Option<DriveEntry>> {
+    async fn get_entry(&self, key: &EntryKey) -> anyhow::Result<Option<DriveEntry>> {
         Ok(self
             .load_all_entry_records()?
             .into_iter()
@@ -608,7 +609,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
             .map(|record| record.entry))
     }
 
-    async fn get_entry_by_id(&self, id: Uuid) -> DriveStoreResult<Option<DriveEntry>> {
+    async fn get_entry_by_id(&self, id: Uuid) -> anyhow::Result<Option<DriveEntry>> {
         if let Some(record) = self.load_control_entry_record_by_id(id)? {
             return Ok(Some(record.entry));
         }
@@ -624,7 +625,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         space_id: &str,
         root_alias: &RootAlias,
         prefix: &RelativePath,
-    ) -> DriveStoreResult<Vec<DriveEntry>> {
+    ) -> anyhow::Result<Vec<DriveEntry>> {
         let prefix_text = prefix.as_str();
         let mut entries = self
             .load_all_entry_records()?
@@ -647,7 +648,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(entries)
     }
 
-    async fn list_entries_by_space(&self, space_id: &str) -> DriveStoreResult<Vec<DriveEntry>> {
+    async fn list_entries_by_space(&self, space_id: &str) -> anyhow::Result<Vec<DriveEntry>> {
         let mut entries = self
             .load_all_entry_records()?
             .into_iter()
@@ -662,7 +663,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         &self,
         from_owner_drive_id: &str,
         to_owner_drive_id: &str,
-    ) -> DriveStoreResult<u64> {
+    ) -> anyhow::Result<u64> {
         if from_owner_drive_id == to_owner_drive_id {
             return Ok(0);
         }
@@ -691,7 +692,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         &self,
         key: &EntryKey,
         source_device_id: &str,
-    ) -> DriveStoreResult<DriveIgnoredPath> {
+    ) -> anyhow::Result<DriveIgnoredPath> {
         for path in json_files(&self.control_path().join("ignored"))? {
             let mut record: IgnoredRecord = read_json(&path)?;
             if record.ignored.space_id == key.space_id
@@ -731,7 +732,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(ignored)
     }
 
-    async fn delete_ignored_path(&self, key: &EntryKey) -> DriveStoreResult<()> {
+    async fn delete_ignored_path(&self, key: &EntryKey) -> anyhow::Result<()> {
         for path in json_files(&self.control_path().join("ignored"))? {
             let record: IgnoredRecord = read_json(&path)?;
             if record.ignored.space_id == key.space_id
@@ -752,7 +753,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         space_id: &str,
         root_alias: Option<&RootAlias>,
         prefix: Option<&RelativePath>,
-    ) -> DriveStoreResult<Vec<DriveIgnoredPath>> {
+    ) -> anyhow::Result<Vec<DriveIgnoredPath>> {
         let mut ignored = Vec::new();
         for path in json_files(&self.control_path().join("ignored"))? {
             let record: IgnoredRecord = read_json(&path)?;
@@ -775,7 +776,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(ignored)
     }
 
-    async fn delete_entry(&self, key: &EntryKey) -> DriveStoreResult<()> {
+    async fn delete_entry(&self, key: &EntryKey) -> anyhow::Result<()> {
         for mut record in self.load_control_entry_records()? {
             if record.entry.key == *key {
                 record.entry.deleted = true;
@@ -786,10 +787,10 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(())
     }
 
-    async fn insert_version(&self, version: DriveVersion) -> DriveStoreResult<DriveVersion> {
+    async fn insert_version(&self, version: DriveVersion) -> anyhow::Result<DriveVersion> {
         let mut record = self
             .load_control_entry_record_by_id(version.entry_id)?
-            .ok_or_else(|| DriveStoreError::EntryNotFound(version.entry_id.to_string()))?;
+            .ok_or_else(|| anyhow!("drive entry was not found: {}", version.entry_id))?;
         let pool_name = self.pool_containing_object(&version.object_key, false)?;
         record.pool_name = pool_name.clone();
         record.entry.latest_version = version.version;
@@ -813,7 +814,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(version)
     }
 
-    async fn latest_version(&self, entry_id: Uuid) -> DriveStoreResult<Option<DriveVersion>> {
+    async fn latest_version(&self, entry_id: Uuid) -> anyhow::Result<Option<DriveVersion>> {
         Ok(self
             .load_version_records(entry_id)?
             .into_iter()
@@ -821,7 +822,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
             .map(|record| record.version))
     }
 
-    async fn record_conflict(&self, conflict: DriveConflict) -> DriveStoreResult<DriveConflict> {
+    async fn record_conflict(&self, conflict: DriveConflict) -> anyhow::Result<DriveConflict> {
         write_json(
             &self.conflict_path(conflict.id),
             &ConflictRecord {
@@ -831,7 +832,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(conflict)
     }
 
-    async fn list_conflicts(&self, resolved: Option<bool>) -> DriveStoreResult<Vec<DriveConflict>> {
+    async fn list_conflicts(&self, resolved: Option<bool>) -> anyhow::Result<Vec<DriveConflict>> {
         let mut conflicts = Vec::new();
         for path in json_files(&self.control_path().join("conflicts"))? {
             let record: ConflictRecord = read_json(&path)?;
@@ -843,7 +844,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(conflicts)
     }
 
-    async fn resolve_conflict(&self, conflict_id: Uuid) -> DriveStoreResult<Option<DriveConflict>> {
+    async fn resolve_conflict(&self, conflict_id: Uuid) -> anyhow::Result<Option<DriveConflict>> {
         let path = self.conflict_path(conflict_id);
         if !path.exists() {
             return Ok(None);
@@ -857,7 +858,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
     async fn enqueue_sync_task(
         &self,
         item: DriveSyncQueueItem,
-    ) -> DriveStoreResult<DriveSyncQueueItem> {
+    ) -> anyhow::Result<DriveSyncQueueItem> {
         write_json(
             &self.sync_queue_path(item.id),
             &SyncQueueRecord { item: item.clone() },
@@ -870,7 +871,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         id: Uuid,
         status: DriveSyncTaskStatus,
         last_error: Option<&str>,
-    ) -> DriveStoreResult<Option<DriveSyncQueueItem>> {
+    ) -> anyhow::Result<Option<DriveSyncQueueItem>> {
         let path = self.sync_queue_path(id);
         if !path.exists() {
             return Ok(None);
@@ -889,7 +890,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
     async fn list_sync_queue(
         &self,
         status: Option<DriveSyncTaskStatus>,
-    ) -> DriveStoreResult<Vec<DriveSyncQueueItem>> {
+    ) -> anyhow::Result<Vec<DriveSyncQueueItem>> {
         let mut items = Vec::new();
         for path in json_files(&self.control_path().join("sync-queue"))? {
             let record: SyncQueueRecord = read_json(&path)?;
@@ -901,7 +902,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(items)
     }
 
-    async fn retry_failed_sync_tasks(&self) -> DriveStoreResult<u64> {
+    async fn retry_failed_sync_tasks(&self) -> anyhow::Result<u64> {
         let mut count = 0;
         for path in json_files(&self.control_path().join("sync-queue"))? {
             let mut record: SyncQueueRecord = read_json(&path)?;
@@ -919,7 +920,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
     async fn upsert_suspended_path(
         &self,
         suspension: DriveSuspendedPath,
-    ) -> DriveStoreResult<DriveSuspendedPath> {
+    ) -> anyhow::Result<DriveSuspendedPath> {
         write_json(
             &self.suspended_path(suspension.entry_id),
             &SuspendedRecord {
@@ -932,7 +933,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
     async fn get_suspended_path(
         &self,
         entry_id: Uuid,
-    ) -> DriveStoreResult<Option<DriveSuspendedPath>> {
+    ) -> anyhow::Result<Option<DriveSuspendedPath>> {
         let path = self.suspended_path(entry_id);
         if !path.exists() {
             return Ok(None);
@@ -941,7 +942,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(Some(record.suspension))
     }
 
-    async fn list_suspended_paths(&self) -> DriveStoreResult<Vec<DriveSuspendedPath>> {
+    async fn list_suspended_paths(&self) -> anyhow::Result<Vec<DriveSuspendedPath>> {
         let mut items = Vec::new();
         for path in json_files(&self.control_path().join("suspended"))? {
             let record: SuspendedRecord = read_json(&path)?;
@@ -956,29 +957,29 @@ impl DriveMetadataStore for GitPoolDriveStore {
         Ok(items)
     }
 
-    async fn delete_suspended_path(&self, entry_id: Uuid) -> DriveStoreResult<bool> {
+    async fn delete_suspended_path(&self, entry_id: Uuid) -> anyhow::Result<bool> {
         let path = self.suspended_path(entry_id);
         let existed = path.exists();
         remove_file_if_exists(&path)?;
         Ok(existed)
     }
 
-    async fn acquire_lock(&self, lock: DriveLock) -> DriveStoreResult<DriveLock> {
+    async fn acquire_lock(&self, lock: DriveLock) -> anyhow::Result<DriveLock> {
         Ok(lock)
     }
 
-    async fn release_lock(&self, _entry_id: Uuid, _token: &str) -> DriveStoreResult<bool> {
+    async fn release_lock(&self, _entry_id: Uuid, _token: &str) -> anyhow::Result<bool> {
         Ok(true)
     }
 
-    async fn get_lock(&self, _entry_id: Uuid) -> DriveStoreResult<Option<DriveLock>> {
+    async fn get_lock(&self, _entry_id: Uuid) -> anyhow::Result<Option<DriveLock>> {
         Ok(None)
     }
 }
 
 #[async_trait]
 impl DriveObjectStore for GitPoolDriveStore {
-    async fn put_object(&self, object_key: &str, bytes: &[u8]) -> DriveStoreResult<()> {
+    async fn put_object(&self, object_key: &str, bytes: &[u8]) -> anyhow::Result<()> {
         if self.pool_containing_object(object_key, false)?.is_some() {
             return Ok(());
         }
@@ -997,7 +998,7 @@ impl DriveObjectStore for GitPoolDriveStore {
         Ok(())
     }
 
-    async fn get_object(&self, object_key: &str) -> DriveStoreResult<Vec<u8>> {
+    async fn get_object(&self, object_key: &str) -> anyhow::Result<Vec<u8>> {
         for pool in self.list_pools()? {
             let path = self.pool_object_path(&pool.name, object_key);
             if path.exists() {
@@ -1010,10 +1011,10 @@ impl DriveObjectStore for GitPoolDriveStore {
                 return fs::read(&path).map_err(|err| io_error("object_read_failed", err));
             }
         }
-        Err(DriveStoreError::ObjectNotFound(object_key.to_owned()))
+        bail!("drive object was not found: {object_key}")
     }
 
-    async fn delete_object(&self, object_key: &str) -> DriveStoreResult<()> {
+    async fn delete_object(&self, object_key: &str) -> anyhow::Result<()> {
         for pool in self.list_pools()? {
             if pool.readonly {
                 continue;
@@ -1023,7 +1024,7 @@ impl DriveObjectStore for GitPoolDriveStore {
         Ok(())
     }
 
-    async fn object_exists(&self, object_key: &str) -> DriveStoreResult<bool> {
+    async fn object_exists(&self, object_key: &str) -> anyhow::Result<bool> {
         Ok(self.pool_containing_object(object_key, true)?.is_some())
     }
 }
@@ -1032,7 +1033,7 @@ fn ensure_worktree(
     path: &Path,
     remote: Option<&str>,
     pull_phase: &'static str,
-) -> DriveStoreResult<()> {
+) -> anyhow::Result<()> {
     if let Some(remote) = remote.filter(|remote| !remote.trim().is_empty()) {
         ensure_local_bare_remote(remote)?;
     }
@@ -1066,7 +1067,7 @@ fn ensure_worktree(
     Ok(())
 }
 
-fn ensure_remote(path: &Path, remote: &str) -> DriveStoreResult<()> {
+fn ensure_remote(path: &Path, remote: &str) -> anyhow::Result<()> {
     if run_git_allow_failure(path, ["remote", "get-url", "origin"]).is_ok() {
         run_git(path, ["remote", "set-url", "origin", remote], "init_failed")
     } else {
@@ -1074,7 +1075,7 @@ fn ensure_remote(path: &Path, remote: &str) -> DriveStoreResult<()> {
     }
 }
 
-fn configure_repo_identity(path: &Path) -> DriveStoreResult<()> {
+fn configure_repo_identity(path: &Path) -> anyhow::Result<()> {
     if run_git_allow_failure(path, ["config", "--get", "user.email"]).is_err() {
         run_git(
             path,
@@ -1088,7 +1089,7 @@ fn configure_repo_identity(path: &Path) -> DriveStoreResult<()> {
     Ok(())
 }
 
-fn ensure_local_bare_remote(remote: &str) -> DriveStoreResult<()> {
+fn ensure_local_bare_remote(remote: &str) -> anyhow::Result<()> {
     let path = expand_local_git_url(remote);
     let Some(path) = path else {
         return Ok(());
@@ -1121,7 +1122,7 @@ fn expand_local_git_url(remote: &str) -> Option<PathBuf> {
     Some(expand_home_path(remote))
 }
 
-fn pull_repo(path: &Path, phase: &'static str) -> DriveStoreResult<()> {
+fn pull_repo(path: &Path, phase: &'static str) -> anyhow::Result<()> {
     if run_git_allow_failure(path, ["remote", "get-url", "origin"]).is_err() {
         return Ok(());
     }
@@ -1134,7 +1135,10 @@ fn pull_repo(path: &Path, phase: &'static str) -> DriveStoreResult<()> {
         {
             return Ok(());
         }
-        return Err(git_pool_error(phase, err.to_string()));
+        let message = err.to_string();
+        let error = git_pool_error(phase, message);
+
+        return Err(error);
     }
     let branch = current_branch(path).unwrap_or_else(|| "main".to_owned());
     let upstream = format!("origin/{branch}");
@@ -1148,7 +1152,7 @@ fn commit_and_push_repo(
     path: &Path,
     message: &str,
     push_phase: &'static str,
-) -> DriveStoreResult<()> {
+) -> anyhow::Result<()> {
     if !path.join(".git").exists() {
         return Ok(());
     }
@@ -1160,19 +1164,25 @@ fn commit_and_push_repo(
     if let Err(err) = commit
         && !err.to_string().contains("nothing to commit")
     {
-        return Err(git_pool_error("commit_failed", err.to_string()));
+        let message = err.to_string();
+        let error = git_pool_error("commit_failed", message);
+
+        return Err(error);
     }
     if run_git_allow_failure(path, ["remote", "get-url", "origin"]).is_ok() {
         let branch = current_branch(path).unwrap_or_else(|| "main".to_owned());
         let push = run_git_allow_failure(path, ["push", "-u", "origin", branch.as_str()]);
         if let Err(err) = push {
-            return Err(git_pool_error(push_phase, err.to_string()));
+            let message = err.to_string();
+            let error = git_pool_error(push_phase, message);
+
+            return Err(error);
         }
     }
     Ok(())
 }
 
-fn worktree_clean(path: &Path) -> DriveStoreResult<bool> {
+fn worktree_clean(path: &Path) -> anyhow::Result<bool> {
     let output = run_git_capture(path, ["status", "--porcelain"], "dirty_pool_state")?;
     Ok(String::from_utf8_lossy(&output.stdout).trim().is_empty())
 }
@@ -1187,7 +1197,7 @@ fn run_git<const N: usize>(
     cwd: &Path,
     args: [&str; N],
     phase: &'static str,
-) -> DriveStoreResult<()> {
+) -> anyhow::Result<()> {
     let output = run_git_capture(cwd, args, phase)?;
     if output.status.success() {
         Ok(())
@@ -1196,7 +1206,7 @@ fn run_git<const N: usize>(
     }
 }
 
-fn run_git_clone(remote: &str, path: &Path, phase: &'static str) -> DriveStoreResult<()> {
+fn run_git_clone(remote: &str, path: &Path, phase: &'static str) -> anyhow::Result<()> {
     let output = Command::new("git")
         .arg("clone")
         .arg(remote)
@@ -1213,7 +1223,7 @@ fn run_git_clone(remote: &str, path: &Path, phase: &'static str) -> DriveStoreRe
 fn run_git_allow_failure<const N: usize>(
     cwd: &Path,
     args: [&str; N],
-) -> DriveStoreResult<std::process::Output> {
+) -> anyhow::Result<std::process::Output> {
     let output = run_git_capture(cwd, args, "dirty_pool_state")?;
     if output.status.success() {
         Ok(output)
@@ -1226,7 +1236,7 @@ fn run_git_capture<const N: usize>(
     cwd: &Path,
     args: [&str; N],
     phase: &'static str,
-) -> DriveStoreResult<std::process::Output> {
+) -> anyhow::Result<std::process::Output> {
     Command::new("git")
         .current_dir(cwd)
         .args(args)
@@ -1234,30 +1244,27 @@ fn run_git_capture<const N: usize>(
         .map_err(|err| git_pool_error("git_missing", format!("{phase}: {err}")))
 }
 
-fn git_command_error(phase: &'static str, output: std::process::Output) -> DriveStoreError {
+fn git_command_error(phase: &'static str, output: std::process::Output) -> anyhow::Error {
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
     let message = if stderr.is_empty() { stdout } else { stderr };
     git_pool_error(phase, message)
 }
 
-fn git_pool_error(phase: &'static str, message: impl Into<String>) -> DriveStoreError {
-    DriveStoreError::GitPool {
-        phase,
-        message: message.into(),
-    }
+fn git_pool_error(phase: &'static str, message: impl Into<String>) -> anyhow::Error {
+    anyhow!("git pool {phase}: {}", message.into())
 }
 
-fn io_error(phase: &'static str, error: io::Error) -> DriveStoreError {
+fn io_error(phase: &'static str, error: io::Error) -> anyhow::Error {
     git_pool_error(phase, error.to_string())
 }
 
-fn read_json<T: DeserializeOwned>(path: &Path) -> DriveStoreResult<T> {
+fn read_json<T: DeserializeOwned>(path: &Path) -> anyhow::Result<T> {
     let raw = fs::read_to_string(path).map_err(|err| io_error("object_read_failed", err))?;
     serde_json::from_str(&raw).map_err(|err| git_pool_error("object_read_failed", err.to_string()))
 }
 
-fn write_json<T: Serialize>(path: &Path, value: &T) -> DriveStoreResult<()> {
+fn write_json<T: Serialize>(path: &Path, value: &T) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|err| io_error("init_failed", err))?;
     }
@@ -1267,7 +1274,7 @@ fn write_json<T: Serialize>(path: &Path, value: &T) -> DriveStoreResult<()> {
     Ok(())
 }
 
-fn json_files(dir: &Path) -> DriveStoreResult<Vec<PathBuf>> {
+fn json_files(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     if !dir.exists() {
         return Ok(Vec::new());
     }
@@ -1283,7 +1290,7 @@ fn json_files(dir: &Path) -> DriveStoreResult<Vec<PathBuf>> {
     Ok(paths)
 }
 
-fn remove_file_if_exists(path: &Path) -> DriveStoreResult<()> {
+fn remove_file_if_exists(path: &Path) -> anyhow::Result<()> {
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
@@ -1291,7 +1298,7 @@ fn remove_file_if_exists(path: &Path) -> DriveStoreResult<()> {
     }
 }
 
-fn write_aioignore(control: &Path, ignored: &[DriveIgnoredPath]) -> DriveStoreResult<()> {
+fn write_aioignore(control: &Path, ignored: &[DriveIgnoredPath]) -> anyhow::Result<()> {
     let mut lines = ignored
         .iter()
         .map(|row| {
@@ -1307,16 +1314,17 @@ fn write_aioignore(control: &Path, ignored: &[DriveIgnoredPath]) -> DriveStoreRe
         .map_err(|err| io_error("object_write_failed", err))
 }
 
-fn validate_pool_name(name: &str) -> DriveStoreResult<()> {
+fn validate_pool_name(name: &str) -> anyhow::Result<()> {
     if name.trim().is_empty()
         || !name
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'))
     {
-        return Err(git_pool_error(
-            "init_failed",
-            "pool 名称只能包含字母、数字、`-`、`_` 和 `.`",
-        ));
+        let phase = "init_failed";
+        let message = "pool 名称只能包含字母、数字、`-`、`_` 和 `.`";
+        let error = git_pool_error(phase, message);
+
+        return Err(error);
     }
     Ok(())
 }
@@ -1357,8 +1365,8 @@ fn default_auto_pool_prefix() -> String {
 #[cfg(test)]
 mod tests {
     use super::{DEFAULT_AUTO_GIT_POOL_PREFIX, GitPoolConfig, GitPoolDriveStore};
-    use crate::{DriveEntryKind, DriveMetadataStore, DriveObjectStore, DriveVersion};
-    use az_drive_core::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
+    use crate::api::{DriveEntryKind, DriveMetadataStore, DriveObjectStore, DriveVersion};
+    use az_drive_core::api::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
     use chrono::Utc;
     use uuid::Uuid;
 

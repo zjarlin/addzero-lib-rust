@@ -7,9 +7,9 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 az-derive-aliases.workspace = true
 shlex.workspace = true
-thiserror.workspace = true
 
 [lints]
 workspace = true

@@ -10,7 +10,7 @@
 
 use git2::{BranchType, Repository};
 
-use crate::storage::error::{StorageError, StorageResult};
+use crate::storage::error;
 use crate::storage::types::{BranchName, CommitId};
 
 /// Manages Git references (branches).
@@ -18,25 +18,25 @@ pub struct RefManager;
 
 impl RefManager {
     /// Resolve a branch name to its current commit ID.
-    pub fn resolve_branch(repo: &Repository, branch: &BranchName) -> StorageResult<CommitId> {
+    pub fn resolve_branch(repo: &Repository, branch: &BranchName) -> anyhow::Result<CommitId> {
         let reference = repo
             .find_reference(&branch.as_ref_path())
-            .map_err(|_| StorageError::RefNotFound(branch.to_string()))?;
+            .map_err(|_| error::ref_not_found(branch.to_string()))?;
 
         let commit = reference
             .peel_to_commit()
-            .map_err(|_| StorageError::RefNotFound(branch.to_string()))?;
+            .map_err(|_| error::ref_not_found(branch.to_string()))?;
 
         Ok(CommitId::new(commit.id()))
     }
 
     /// Get the current HEAD commit (usually main branch).
-    pub fn head_commit(repo: &Repository) -> StorageResult<CommitId> {
+    pub fn head_commit(repo: &Repository) -> anyhow::Result<CommitId> {
         let head = repo.head().map_err(|e| {
             if e.code() == git2::ErrorCode::UnbornBranch {
-                StorageError::EmptyRepository
+                error::empty_repository()
             } else {
-                StorageError::Git(e)
+                e.into()
             }
         })?;
 
@@ -54,9 +54,12 @@ impl RefManager {
         repo: &Repository,
         branch: &BranchName,
         target: CommitId,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         if Self::branch_exists(repo, branch) {
-            return Err(StorageError::BranchAlreadyExists(branch.to_string()));
+            let branch_name = branch.to_string();
+            let error = error::branch_already_exists(branch_name);
+
+            return Err(error);
         }
 
         let commit = repo.find_commit(target.raw())?;
@@ -72,10 +75,10 @@ impl RefManager {
         repo: &Repository,
         branch: &BranchName,
         target: CommitId,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let mut reference = repo
             .find_reference(&branch.as_ref_path())
-            .map_err(|_| StorageError::RefNotFound(branch.to_string()))?;
+            .map_err(|_| error::ref_not_found(branch.to_string()))?;
 
         reference.set_target(
             target.raw(),
@@ -94,23 +97,23 @@ impl RefManager {
         branch: &BranchName,
         expected: CommitId,
         new_target: CommitId,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let current = Self::resolve_branch(repo, branch)?;
 
         if current != expected {
-            return Err(StorageError::ConcurrentModification {
-                branch: branch.to_string(),
-            });
+            let error = error::concurrent_modification(branch);
+
+            return Err(error);
         }
 
         Self::update_branch(repo, branch, new_target)
     }
 
     /// Delete a branch.
-    pub fn delete_branch(repo: &Repository, branch: &BranchName) -> StorageResult<()> {
+    pub fn delete_branch(repo: &Repository, branch: &BranchName) -> anyhow::Result<()> {
         let mut git_branch = repo
             .find_branch(branch.as_str(), BranchType::Local)
-            .map_err(|_| StorageError::RefNotFound(branch.to_string()))?;
+            .map_err(|_| error::ref_not_found(branch.to_string()))?;
 
         git_branch.delete()?;
 
@@ -121,7 +124,7 @@ impl RefManager {
     pub fn list_branches(
         repo: &Repository,
         prefix: Option<&str>,
-    ) -> StorageResult<Vec<BranchName>> {
+    ) -> anyhow::Result<Vec<BranchName>> {
         let branches = repo.branches(Some(BranchType::Local))?;
 
         let mut result = Vec::new();
@@ -145,7 +148,7 @@ impl RefManager {
     }
 
     /// List all transaction branches.
-    pub fn list_transaction_branches(repo: &Repository) -> StorageResult<Vec<BranchName>> {
+    pub fn list_transaction_branches(repo: &Repository) -> anyhow::Result<Vec<BranchName>> {
         Self::list_branches(repo, Some(BranchName::TX_PREFIX))
     }
 
@@ -156,14 +159,14 @@ impl RefManager {
         repo: &Repository,
         tx_id: &str,
         base: CommitId,
-    ) -> StorageResult<BranchName> {
+    ) -> anyhow::Result<BranchName> {
         let branch = BranchName::for_transaction(tx_id);
         Self::create_branch(repo, &branch, base)?;
         Ok(branch)
     }
 
     /// Delete a transaction branch (cleanup after commit/rollback).
-    pub fn delete_transaction_branch(repo: &Repository, tx_id: &str) -> StorageResult<()> {
+    pub fn delete_transaction_branch(repo: &Repository, tx_id: &str) -> anyhow::Result<()> {
         let branch = BranchName::for_transaction(tx_id);
         Self::delete_branch(repo, &branch)
     }
@@ -172,7 +175,7 @@ impl RefManager {
     ///
     /// In a real implementation, you'd check timestamps and only delete
     /// branches older than a threshold.  For now, this deletes all tx branches.
-    pub fn cleanup_abandoned_transactions(repo: &Repository) -> StorageResult<usize> {
+    pub fn cleanup_abandoned_transactions(repo: &Repository) -> anyhow::Result<usize> {
         let tx_branches = Self::list_transaction_branches(repo)?;
         let mut deleted = 0;
 
@@ -193,7 +196,7 @@ impl RefManager {
     ///
     /// This should be called after creating the initial commit.
     /// Also ensures HEAD points to main.
-    pub fn init_main_branch(repo: &Repository, initial_commit: CommitId) -> StorageResult<()> {
+    pub fn init_main_branch(repo: &Repository, initial_commit: CommitId) -> anyhow::Result<()> {
         let main = BranchName::main();
 
         if !Self::branch_exists(repo, &main) {
@@ -271,7 +274,10 @@ mod tests {
         RefManager::create_branch(&repo, &branch, base_commit).unwrap();
         let result = RefManager::create_branch(&repo, &branch, base_commit);
 
-        assert!(matches!(result, Err(StorageError::BranchAlreadyExists(_))));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .starts_with("branch already exists:"));
     }
 
     #[test]
@@ -320,9 +326,6 @@ mod tests {
 
         // Update with wrong expected should fail
         let result = RefManager::update_branch_if_unchanged(&repo, &branch, commit1, commit2);
-        assert!(matches!(
-            result,
-            Err(StorageError::ConcurrentModification { .. })
-        ));
+        assert!(crate::storage::is_retriable(&result.unwrap_err()));
     }
 }

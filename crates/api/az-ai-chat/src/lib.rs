@@ -6,7 +6,8 @@
 //! # 快速开始
 //!
 //! ```no_run
-//! use az_ai_chat::{OpenAiClient, ChatClient, Message, ChatOptions, Role};
+//! use az_ai_chat::{ChatClient, Message};
+//! use az_ai_chat::openai::OpenAiClient;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = OpenAiClient::new("https://api.openai.com/v1", "sk-...");
@@ -20,38 +21,10 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, error, serde_code_enum, serde_eq, serde_partial_eq_default};
+use anyhow::Result;
+use az_derive_aliases::{apply, serde_code_enum, serde_eq, serde_partial_eq_default};
 
-automod::dir!("src");
-
-pub use openai::OpenAiClient;
-
-/// 聊天调用过程中可能出现的错误。
-#[apply(error)]
-pub enum ChatError {
-    /// HTTP 请求失败。
-    #[error("http error: {0}")]
-    Http(#[from] reqwest::Error),
-
-    /// JSON 序列化或反序列化失败。
-    #[error("json error: {0}")]
-    Json(#[from] serde_json::Error),
-
-    /// 模型供应商返回错误响应。
-    #[error("provider error ({code}): {message}")]
-    ProviderError { code: u16, message: String },
-
-    /// 响应中缺少必需字段。
-    #[error("missing field in response: {0}")]
-    MissingField(String),
-
-    /// 配置不合法，例如 API key 为空。
-    #[error("invalid config: {0}")]
-    InvalidConfig(String),
-}
-
-/// 聊天操作的统一结果类型。
-pub type ChatResult<T> = Result<T, ChatError>;
+automod::dir!(pub "src");
 
 /// 单条消息参与者的角色。
 #[apply(serde_code_enum)]
@@ -167,5 +140,5 @@ pub trait ChatClient: Send + Sync {
         model: &str,
         messages: &[Message],
         options: Option<&ChatOptions>,
-    ) -> ChatResult<ChatResponse>;
+    ) -> Result<ChatResponse>;
 }

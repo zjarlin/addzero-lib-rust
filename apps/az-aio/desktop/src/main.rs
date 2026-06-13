@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-automod::dir!("src");
+automod::dir!(pub "src");
 
 use app::App;
 use dioxus::desktop::{Config, WindowBuilder};

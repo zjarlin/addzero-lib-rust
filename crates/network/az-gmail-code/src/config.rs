@@ -1,4 +1,3 @@
-use crate::{GmailCodeError, GmailCodeResult};
 use az_derive_aliases::{apply, impl_default, plain_clone_debug, plain_eq};
 use std::time::Duration;
 
@@ -41,21 +40,15 @@ impl GmailCodeConfig {
         }
     }
 
-    pub(crate) fn validate(&self) -> GmailCodeResult<()> {
+    pub(crate) fn validate(&self) -> anyhow::Result<()> {
         if self.access_token.trim().is_empty() {
-            return Err(GmailCodeError::InvalidConfig(
-                "access_token cannot be blank".to_owned(),
-            ));
+            anyhow::bail!("invalid config: access_token cannot be blank");
         }
         if self.base_url.trim().is_empty() {
-            return Err(GmailCodeError::InvalidConfig(
-                "base_url cannot be blank".to_owned(),
-            ));
+            anyhow::bail!("invalid config: base_url cannot be blank");
         }
         if self.user_id.trim().is_empty() {
-            return Err(GmailCodeError::InvalidConfig(
-                "user_id cannot be blank".to_owned(),
-            ));
+            anyhow::bail!("invalid config: user_id cannot be blank");
         }
         Ok(())
     }
@@ -104,7 +97,7 @@ impl GmailCodeConfigBuilder {
     }
 
     /// 校验并返回最终配置。
-    pub fn build(self) -> GmailCodeResult<GmailCodeConfig> {
+    pub fn build(self) -> anyhow::Result<GmailCodeConfig> {
         self.config.validate()?;
         Ok(self.config)
     }

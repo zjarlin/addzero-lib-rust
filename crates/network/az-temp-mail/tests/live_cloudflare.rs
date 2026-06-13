@@ -1,5 +1,7 @@
 use az_derive_aliases::{apply, plain_clone_debug};
-use az_temp_mail::{CloudflareTempMailContext, PageRequest, create_mail_tm_api};
+use az_temp_mail::cloudflare::CloudflareTempMailContext;
+use az_temp_mail::mail_tm::create_mail_tm_api;
+use az_temp_mail::model::PageRequest;
 use std::env;
 use std::error::Error;
 use std::time::{SystemTime, UNIX_EPOCH};

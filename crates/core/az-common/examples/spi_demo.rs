@@ -1,12 +1,12 @@
 #![forbid(unsafe_code)]
 
 use std::collections::BTreeMap;
-use std::error::Error;
 use std::sync::Arc;
 
 mod notify_spi {
     use super::{Arc, BTreeMap};
-    use az_derive_aliases::{apply, error_eq, plain_clone_debug, plain_default};
+    use anyhow::{Result, bail};
+    use az_derive_aliases::{apply, plain_clone_debug, plain_default};
 
     #[apply(plain_clone_debug)]
     pub struct NotifyRequest {
@@ -29,16 +29,8 @@ mod notify_spi {
         }
     }
 
-    #[apply(error_eq)]
-    pub enum NotifyError {
-        #[error("notification body must not be empty")]
-        EmptyBody,
-        #[error("provider `{0}` is not registered")]
-        ProviderNotFound(String),
-    }
-
     pub trait MessageSenderSpi: Send + Sync {
-        fn send(&self, request: &NotifyRequest) -> Result<(), NotifyError>;
+        fn send(&self, request: &NotifyRequest) -> Result<()>;
     }
 
     pub trait MessageSenderFactorySpi: Send + Sync {
@@ -65,11 +57,11 @@ mod notify_spi {
             self.factories.keys().map(String::as_str).collect()
         }
 
-        pub fn resolve(&self, provider: &str) -> Result<Arc<dyn MessageSenderSpi>, NotifyError> {
+        pub fn resolve(&self, provider: &str) -> Result<Arc<dyn MessageSenderSpi>> {
             let factory = self
                 .factories
                 .get(provider)
-                .ok_or_else(|| NotifyError::ProviderNotFound(provider.to_owned()))?;
+                .ok_or_else(|| anyhow::anyhow!("provider `{provider}` is not registered"))?;
             Ok(factory.create())
         }
     }
@@ -87,10 +79,10 @@ mod notify_spi {
             &self,
             target: impl Into<String>,
             body: impl Into<String>,
-        ) -> Result<(), NotifyError> {
+        ) -> Result<()> {
             let body = body.into();
             if body.trim().is_empty() {
-                return Err(NotifyError::EmptyBody);
+                bail!("notification body must not be empty");
             }
 
             let request = NotifyRequest::new(target, "Welcome", body);
@@ -101,14 +93,13 @@ mod notify_spi {
 
 mod console_plugin {
     use super::Arc;
-    use super::notify_spi::{
-        MessageSenderFactorySpi, MessageSenderSpi, NotifyError, NotifyRequest,
-    };
+    use super::notify_spi::{MessageSenderFactorySpi, MessageSenderSpi, NotifyRequest};
+    use anyhow::Result;
 
     pub struct ConsoleMessageSender;
 
     impl MessageSenderSpi for ConsoleMessageSender {
-        fn send(&self, request: &NotifyRequest) -> Result<(), NotifyError> {
+        fn send(&self, request: &NotifyRequest) -> Result<()> {
             println!(
                 "[console] target={} title={} body={}",
                 request.target, request.title, request.body
@@ -132,16 +123,15 @@ mod console_plugin {
 
 mod feishu_plugin {
     use super::Arc;
-    use super::notify_spi::{
-        MessageSenderFactorySpi, MessageSenderSpi, NotifyError, NotifyRequest,
-    };
+    use super::notify_spi::{MessageSenderFactorySpi, MessageSenderSpi, NotifyRequest};
+    use anyhow::Result;
 
     pub struct FeishuBotSender {
         webhook_url: String,
     }
 
     impl MessageSenderSpi for FeishuBotSender {
-        fn send(&self, request: &NotifyRequest) -> Result<(), NotifyError> {
+        fn send(&self, request: &NotifyRequest) -> Result<()> {
             println!(
                 "[feishu] webhook={} target={} title={} body={}",
                 self.webhook_url, request.target, request.title, request.body
@@ -179,7 +169,7 @@ use console_plugin::ConsoleMessageSenderFactory;
 use feishu_plugin::FeishuBotSenderFactory;
 use notify_spi::{MessageSenderRegistry, NotificationService};
 
-fn build_service(provider: &str) -> Result<NotificationService, Box<dyn Error>> {
+fn build_service(provider: &str) -> anyhow::Result<NotificationService> {
     let mut registry = MessageSenderRegistry::default();
     registry
         .register(ConsoleMessageSenderFactory)
@@ -196,7 +186,7 @@ fn build_service(provider: &str) -> Result<NotificationService, Box<dyn Error>> 
     Ok(NotificationService::new(sender))
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let provider = std::env::var("MESSAGE_PROVIDER").unwrap_or_else(|_| "console".to_owned());
     let service = build_service(&provider)?;
 

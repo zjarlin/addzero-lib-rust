@@ -1,8 +1,11 @@
 use anyhow::{Context, Result};
 use axum::{Router, routing::get};
 use az_derive_aliases::{apply, clap_args, clap_parser, clap_subcommand};
-use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalStateStore};
-use az_drive_webdav::{DriveWebdavState, drive_webdav_router};
+use az_drive_agent::{
+    agent::{DriveAgent, DriveAgentConfig},
+    local_state::LocalStateStore,
+};
+use az_drive_webdav::api::{DriveWebdavState, drive_webdav_router};
 use clap::Parser;
 use std::io::{self, Write};
 use std::net::SocketAddr;

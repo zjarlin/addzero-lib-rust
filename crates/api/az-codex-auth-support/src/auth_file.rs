@@ -1,8 +1,8 @@
-use crate::{CodexAuthSupportError, CodexAuthSupportResult};
+use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{apply, plain_eq, serde_eq, serde_eq_default};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE;
-use chrono::{DateTime, FixedOffset, SecondsFormat, Utc};
+use chrono::{DateTime, FixedOffset, Offset, SecondsFormat, Utc};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -46,7 +46,7 @@ pub struct CodexAuthFile {
 impl CodexAuthFile {
     /// 使用当前时间根据 OAuth token 构建 Codex 认证文件。
     pub fn from_tokens(email: impl Into<String>, tokens: OAuthTokens) -> Self {
-        let offset = FixedOffset::east_opt(8 * 60 * 60).expect("valid +08:00 offset");
+        let offset = FixedOffset::east_opt(8 * 60 * 60).unwrap_or_else(|| Utc.fix());
         Self::from_tokens_at(email, tokens, Utc::now(), offset)
     }
 
@@ -96,11 +96,18 @@ impl CodexAuthFile {
     pub fn write_to_dir(
         &self,
         dir: impl AsRef<Path>,
-    ) -> CodexAuthSupportResult<AuthFileWriteOutcome> {
-        fs::create_dir_all(dir.as_ref())?;
+    ) -> anyhow::Result<AuthFileWriteOutcome> {
+        fs::create_dir_all(dir.as_ref()).with_context(|| {
+            format!(
+                "failed to create Codex auth directory `{}`",
+                dir.as_ref().display()
+            )
+        })?;
         let path = dir.as_ref().join(safe_auth_filename(&self.email));
-        let payload = serde_json::to_vec_pretty(self)?;
-        fs::write(&path, payload)?;
+        let payload = serde_json::to_vec_pretty(self)
+            .context("failed to serialize Codex auth file payload")?;
+        fs::write(&path, payload)
+            .with_context(|| format!("failed to write Codex auth file `{}`", path.display()))?;
         Ok(AuthFileWriteOutcome { path })
     }
 }
@@ -115,12 +122,10 @@ pub struct AuthFileWriteOutcome {
 /// 解码 JWT payload，但不校验签名。
 ///
 /// 该函数只应用于非权威元数据提取，例如为本地认证文件标签读取 `exp` 或账号标识。
-pub fn decode_jwt_payload(token: &str) -> CodexAuthSupportResult<Value> {
+pub fn decode_jwt_payload(token: &str) -> anyhow::Result<Value> {
     let parts = token.split('.').collect::<Vec<_>>();
     if parts.len() != 3 {
-        return Err(CodexAuthSupportError::InvalidToken(
-            "JWT should contain three dot-separated segments".to_owned(),
-        ));
+        bail!("invalid token: JWT should contain three dot-separated segments");
     }
 
     let mut payload = parts[1].to_owned();
@@ -130,8 +135,8 @@ pub fn decode_jwt_payload(token: &str) -> CodexAuthSupportResult<Value> {
 
     let bytes = URL_SAFE
         .decode(payload)
-        .map_err(|error| CodexAuthSupportError::InvalidToken(error.to_string()))?;
-    Ok(serde_json::from_slice(bytes.as_ref())?)
+        .map_err(|error| anyhow!("invalid token: {error}"))?;
+    serde_json::from_slice(bytes.as_ref()).context("failed to parse JWT payload JSON")
 }
 
 /// 创建文件系统安全的认证文件名，同时保留可读邮箱标签。

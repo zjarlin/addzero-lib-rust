@@ -1,5 +1,6 @@
 use crate::http::HttpClient;
-use crate::{CodexAuthFile, CodexAuthSupportResult, CpaUploadConfig};
+use crate::{auth_file::CodexAuthFile, config::CpaUploadConfig};
+use anyhow::Context;
 use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::Client;
@@ -15,7 +16,7 @@ pub struct CpaClient {
 
 impl CpaClient {
     /// 根据已校验配置创建管理端上传客户端。
-    pub fn new(config: CpaUploadConfig) -> CodexAuthSupportResult<Self> {
+    pub fn new(config: CpaUploadConfig) -> anyhow::Result<Self> {
         let config = config.build()?;
         let mut builder = Client::builder()
             .connect_timeout(config.connect_timeout)
@@ -27,14 +28,22 @@ impl CpaClient {
 
         Ok(Self {
             config,
-            client: builder.build()?,
+            client: builder
+                .build()
+                .context("failed to build CPA upload HTTP client")?,
         })
     }
 
     /// 将已有认证 JSON 文件作为 multipart 字段 `file` 上传。
-    pub fn upload_file(&self, path: impl AsRef<Path>) -> CodexAuthSupportResult<()> {
-        let form = Form::new().file("file", path.as_ref())?;
-        let response = self.request()?.multipart(form).send()?;
+    pub fn upload_file(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {
+        let form = Form::new()
+            .file("file", path.as_ref())
+            .with_context(|| format!("failed to attach file `{}`", path.as_ref().display()))?;
+        let response = self
+            .request()?
+            .multipart(form)
+            .send()
+            .with_context(|| format!("failed to upload file `{}`", path.as_ref().display()))?;
         HttpClient::ensure_success(response)?;
         Ok(())
     }
@@ -44,20 +53,27 @@ impl CpaClient {
         &self,
         auth_file: &CodexAuthFile,
         file_name: impl Into<String>,
-    ) -> CodexAuthSupportResult<()> {
-        let part = Part::bytes(serde_json::to_vec(auth_file)?)
-            .file_name(file_name.into())
-            .mime_str("application/json")?;
+    ) -> anyhow::Result<()> {
+        let file_name = file_name.into();
+        let part = Part::bytes(
+            serde_json::to_vec(auth_file)
+                .context("failed to serialize Codex auth file for upload")?,
+        )
+        .file_name(file_name.clone())
+        .mime_str("application/json")?;
         let form = Form::new().part("file", part);
-        let response = self.request()?.multipart(form).send()?;
+        let response = self
+            .request()?
+            .multipart(form)
+            .send()
+            .with_context(|| format!("failed to upload auth file `{file_name}`"))?;
         HttpClient::ensure_success(response)?;
         Ok(())
     }
 
-    fn request(&self) -> CodexAuthSupportResult<reqwest::blocking::RequestBuilder> {
-        let url = Url::parse(&self.config.upload_url).map_err(|_| {
-            crate::CodexAuthSupportError::InvalidBaseUrl(self.config.upload_url.clone())
-        })?;
+    fn request(&self) -> anyhow::Result<reqwest::blocking::RequestBuilder> {
+        let url = Url::parse(&self.config.upload_url)
+            .with_context(|| format!("invalid base url `{}`", self.config.upload_url))?;
         let builder = self.client.post(url);
         Ok(match self.config.bearer_token.as_deref() {
             Some(token) if !token.trim().is_empty() => builder.bearer_auth(token),

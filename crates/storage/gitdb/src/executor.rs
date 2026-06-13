@@ -5,6 +5,5 @@
 
 automod::dir!("src/executor");
 
-pub use error::{ExecuteError, ExecuteResult};
 pub use executor::QueryExecutor;
 pub use result::{QueryResult, ResultSet, RowIter};

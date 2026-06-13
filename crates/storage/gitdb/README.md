@@ -78,11 +78,11 @@ REPL 内置命令：
 ### 打开数据库并执行 SQL
 
 ```rust
-use gitdb::db::{Database, DatabaseError};
+use gitdb::db::Database;
 use gitdb::executor::QueryResult;
 
-fn main() -> Result<(), DatabaseError> {
-    let db_dir = tempfile::tempdir().expect("temp dir");
+fn main() -> anyhow::Result<()> {
+    let db_dir = tempfile::tempdir()?;
     let mut db = Database::open(db_dir.path())?;
 
     db.execute("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT, age INTEGER)")?;
@@ -104,8 +104,8 @@ fn main() -> Result<(), DatabaseError> {
 ```rust
 use gitdb::db::{Database, DatabaseConfig};
 
-fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let db_dir = tempfile::tempdir().expect("temp dir");
+fn main() -> anyhow::Result<()> {
+    let db_dir = tempfile::tempdir()?;
     let config = DatabaseConfig::new(db_dir.path())
         .create_if_missing(true)
         .verbose(false)
@@ -133,8 +133,8 @@ fn main() -> Result<(), gitdb::db::DatabaseError> {
 ```rust
 use gitdb::db::Database;
 
-fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let db_dir = tempfile::tempdir().expect("temp dir");
+fn main() -> anyhow::Result<()> {
+    let db_dir = tempfile::tempdir()?;
     let mut db = Database::open(db_dir.path())?;
     let results = db.execute_batch(
         r#"
@@ -157,14 +157,14 @@ use gitdb::storage::{RowKey, TableName};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let db_dir = tempfile::tempdir().expect("temp dir");
+fn main() -> anyhow::Result<()> {
+    let db_dir = tempfile::tempdir()?;
     let mut db = Database::open(db_dir.path())?;
 
     db.execute("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT)")?;
 
-    let table = TableName::new("users").unwrap();
-    let key = RowKey::new("2").unwrap();
+    let table = TableName::new("users")?;
+    let key = RowKey::new("2")?;
     let mut data = BTreeMap::new();
     data.insert("name".to_string(), Value::String("Bob".to_string()));
 
@@ -181,8 +181,8 @@ fn main() -> Result<(), gitdb::db::DatabaseError> {
 ```rust
 use gitdb::db::Database;
 
-fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let db_dir = tempfile::tempdir().expect("temp dir");
+fn main() -> anyhow::Result<()> {
+    let db_dir = tempfile::tempdir()?;
     let db = Database::open(db_dir.path())?;
 
     let tables = db.tables()?;
@@ -201,8 +201,8 @@ fn main() -> Result<(), gitdb::db::DatabaseError> {
 ```rust
 use gitdb::db::{ConnectionPool, DatabaseConfig};
 
-fn main() -> Result<(), gitdb::db::DatabaseError> {
-    let db_dir = tempfile::tempdir().expect("temp dir");
+fn main() -> anyhow::Result<()> {
+    let db_dir = tempfile::tempdir()?;
     let config = DatabaseConfig::new(db_dir.path());
     let pool = ConnectionPool::new(config, 4)?;
 
@@ -275,8 +275,8 @@ DELETE FROM users WHERE id = '1';
 ```rust
 use gitdb::blob_store::{BlobStoreConfig, ShardedBlobStore};
 
-fn main() -> Result<(), gitdb::storage::StorageError> {
-    let root = tempfile::tempdir().expect("temp dir");
+fn main() -> anyhow::Result<()> {
+    let root = tempfile::tempdir()?;
     let mut config = BlobStoreConfig::new(root.path().to_path_buf());
     config.max_shard_size_bytes = 8 * 1024 * 1024 * 1024;
     config.shard_prefix = "shard".to_owned();

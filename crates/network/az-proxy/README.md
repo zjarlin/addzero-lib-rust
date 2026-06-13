@@ -26,7 +26,7 @@ az-proxy = { path = "../az-proxy" }       # workspace 内部引用
 ```rust,no_run
 use az_proxy::clash::select_fastest;
 
-# async fn run() -> az_proxy::types::ProxyResult<()> {
+# async fn run() -> anyhow::Result<()> {
 // 从订阅 URL 获取、解析、测速并生成最优配置
 let config = select_fastest("https://example.com/sub", 10).await?;
 println!("{config}");
@@ -41,7 +41,7 @@ use az_proxy::selector::select_fastest_node;
 use az_proxy::speedtest::batch_speed_test;
 use az_proxy::types::DEFAULT_SPEEDTEST_TIMEOUT;
 
-# async fn run() -> az_proxy::types::ProxyResult<()> {
+# async fn run() -> anyhow::Result<()> {
 // 分步操作
 let nodes = fetch_and_parse("https://example.com/sub").await?;
 let results = batch_speed_test(&nodes, 10, DEFAULT_SPEEDTEST_TIMEOUT).await;
@@ -57,7 +57,7 @@ let config = generate_clash_config(selected, 7890)?;
 - `base64` - Base64 编解码（部分订阅内容为 Base64 编码）
 - `reqwest` - HTTP 客户端，用于获取订阅
 - `serde` / `serde_json` / `serde_yaml` - 序列化与 YAML/JSON 解析
-- `thiserror` - 错误类型派生
+- `anyhow` - 错误链与上下文
 - `tokio` - 异步运行时
 - `url` / `urlencoding` - URL 解析与编码
 - `tracing` - 日志追踪

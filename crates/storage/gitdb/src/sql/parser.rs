@@ -7,17 +7,19 @@ use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser as SqlParser;
 
 use super::ast::*;
-use super::error::{ParseError, ParseResult};
+use super::error;
 
 /// SQL parser for GitDB.
 pub struct Parser;
 
 impl Parser {
     /// Parse a SQL string into a statement.
-    pub fn parse(sql: &str) -> ParseResult<Statement> {
+    pub fn parse(sql: &str) -> anyhow::Result<Statement> {
         let sql = sql.trim();
         if sql.is_empty() {
-            return Err(ParseError::EmptyQuery);
+            let error = error::empty_query();
+
+            return Err(error);
         }
 
         // Handle special commands not supported by sqlparser
@@ -38,7 +40,7 @@ impl Parser {
             let table = sql
                 .split_whitespace()
                 .nth(1)
-                .ok_or_else(|| ParseError::MissingClause("table name".into()))?;
+                .ok_or_else(|| error::missing_clause("table name"))?;
             return Ok(Statement::Describe(table.to_string()));
         }
 
@@ -46,23 +48,27 @@ impl Parser {
         let statements = SqlParser::parse_sql(&dialect, sql)?;
 
         if statements.is_empty() {
-            return Err(ParseError::EmptyQuery);
+            let error = error::empty_query();
+
+            return Err(error);
         }
         if statements.len() > 1 {
-            return Err(ParseError::MultipleStatements);
+            let error = error::multiple_statements();
+
+            return Err(error);
         }
 
         Self::convert_statement(&statements[0])
     }
 
     /// Parse multiple SQL statements.
-    pub fn parse_multi(sql: &str) -> ParseResult<Vec<Statement>> {
+    pub fn parse_multi(sql: &str) -> anyhow::Result<Vec<Statement>> {
         let dialect = GenericDialect {};
         let statements = SqlParser::parse_sql(&dialect, sql)?;
         statements.iter().map(Self::convert_statement).collect()
     }
 
-    fn convert_statement(stmt: &sp::Statement) -> ParseResult<Statement> {
+    fn convert_statement(stmt: &sp::Statement) -> anyhow::Result<Statement> {
         match stmt {
             sp::Statement::CreateTable(create) => Self::convert_create_table(create),
             sp::Statement::Drop {
@@ -83,17 +89,17 @@ impl Parser {
             sp::Statement::StartTransaction { .. } => Ok(Statement::Begin),
             sp::Statement::Commit { .. } => Ok(Statement::Commit),
             sp::Statement::Rollback { .. } => Ok(Statement::Rollback),
-            other => Err(ParseError::UnsupportedStatement(format!("{:?}", other))),
+            other => Err(error::unsupported_statement(format!("{:?}", other))),
         }
     }
 
-    fn convert_create_table(create: &sp::CreateTable) -> ParseResult<Statement> {
+    fn convert_create_table(create: &sp::CreateTable) -> anyhow::Result<Statement> {
         let name = Self::extract_table_name(&create.name)?;
         let columns = create
             .columns
             .iter()
             .map(Self::convert_column_def)
-            .collect::<ParseResult<Vec<_>>>()?;
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         Ok(Statement::CreateTable(CreateTable {
             name,
@@ -102,13 +108,13 @@ impl Parser {
         }))
     }
 
-    fn convert_column_def(col: &sp::ColumnDef) -> ParseResult<ColumnDef> {
+    fn convert_column_def(col: &sp::ColumnDef) -> anyhow::Result<ColumnDef> {
         let data_type = Self::convert_data_type(&col.data_type)?;
         let constraints = col
             .options
             .iter()
             .filter_map(|opt| Self::convert_column_option(&opt.option).transpose())
-            .collect::<ParseResult<Vec<_>>>()?;
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         Ok(ColumnDef {
             name: col.name.value.clone(),
@@ -117,7 +123,7 @@ impl Parser {
         })
     }
 
-    fn convert_data_type(dt: &sp::DataType) -> ParseResult<SqlDataType> {
+    fn convert_data_type(dt: &sp::DataType) -> anyhow::Result<SqlDataType> {
         match dt {
             sp::DataType::Text
             | sp::DataType::Varchar(_)
@@ -149,11 +155,11 @@ impl Parser {
 
             sp::DataType::Uuid => Ok(SqlDataType::Uuid),
 
-            other => Err(ParseError::UnsupportedDataType(format!("{:?}", other))),
+            other => Err(error::unsupported_data_type(format!("{:?}", other))),
         }
     }
 
-    fn convert_column_option(opt: &sp::ColumnOption) -> ParseResult<Option<ColumnConstraint>> {
+    fn convert_column_option(opt: &sp::ColumnOption) -> anyhow::Result<Option<ColumnConstraint>> {
         match opt {
             sp::ColumnOption::Null => Ok(None), // Nullable by default
             sp::ColumnOption::NotNull => Ok(Some(ColumnConstraint::NotNull)),
@@ -176,41 +182,41 @@ impl Parser {
         object_type: &sp::ObjectType,
         names: &[sp::ObjectName],
         if_exists: bool,
-    ) -> ParseResult<Statement> {
+    ) -> anyhow::Result<Statement> {
         match object_type {
             sp::ObjectType::Table => {
                 if names.len() != 1 {
-                    return Err(ParseError::UnsupportedStatement(
-                        "DROP multiple tables not supported".into(),
-                    ));
+                    let error = error::unsupported_statement("DROP multiple tables not supported");
+
+                    return Err(error);
                 }
                 let name = Self::extract_table_name(&names[0])?;
                 Ok(Statement::DropTable(DropTable { name, if_exists }))
             }
-            other => Err(ParseError::UnsupportedStatement(format!(
+            other => Err(error::unsupported_statement(format!(
                 "DROP {:?} not supported",
                 other
             ))),
         }
     }
 
-    fn convert_query(query: &sp::Query) -> ParseResult<Statement> {
+    fn convert_query(query: &sp::Query) -> anyhow::Result<Statement> {
         let body = &query.body;
         let select = match body.as_ref() {
             sp::SetExpr::Select(s) => s,
             other => {
-                return Err(ParseError::UnsupportedStatement(format!(
-                    "Unsupported query type: {:?}",
-                    other
-                )))
+                let message = format!("Unsupported query type: {:?}", other);
+                let error = error::unsupported_statement(message);
+
+                return Err(error);
             }
         };
 
         // FROM clause
         let from = if select.from.len() != 1 {
-            return Err(ParseError::UnsupportedStatement(
-                "Exactly one table in FROM required".into(),
-            ));
+            let error = error::unsupported_statement("Exactly one table in FROM required");
+
+            return Err(error);
         } else {
             Self::extract_from_table(&select.from[0])?
         };
@@ -252,7 +258,7 @@ impl Parser {
         }))
     }
 
-    fn convert_projection(items: &[sp::SelectItem]) -> ParseResult<Vec<SelectColumn>> {
+    fn convert_projection(items: &[sp::SelectItem]) -> anyhow::Result<Vec<SelectColumn>> {
         items
             .iter()
             .map(|item| {
@@ -278,7 +284,7 @@ impl Parser {
                     }
                     sp::SelectItem::QualifiedWildcard(name, _) => {
                         // table.* - we treat as wildcard for now
-                        Err(ParseError::UnsupportedExpression(format!(
+                        Err(error::unsupported_expression(format!(
                             "Qualified wildcard: {:?}",
                             name
                         )))
@@ -288,7 +294,7 @@ impl Parser {
             .collect()
     }
 
-    fn extract_order_by_exprs(ob: &sp::OrderBy) -> ParseResult<Vec<OrderBy>> {
+    fn extract_order_by_exprs(ob: &sp::OrderBy) -> anyhow::Result<Vec<OrderBy>> {
         match &ob.kind {
             sp::OrderByKind::All(_) => Ok(vec![]),
             sp::OrderByKind::Expressions(exprs) => {
@@ -297,21 +303,21 @@ impl Parser {
         }
     }
 
-    fn convert_order_by_expr(expr: &sp::OrderByExpr) -> ParseResult<OrderBy> {
+    fn convert_order_by_expr(expr: &sp::OrderByExpr) -> anyhow::Result<OrderBy> {
         let column = match &expr.expr {
             sp::Expr::Identifier(id) => id.value.clone(),
             other => {
-                return Err(ParseError::UnsupportedExpression(format!(
-                    "ORDER BY expression: {:?}",
-                    other
-                )))
+                let message = format!("ORDER BY expression: {:?}", other);
+                let error = error::unsupported_expression(message);
+
+                return Err(error);
             }
         };
         let ascending = expr.options.asc.unwrap_or(true);
         Ok(OrderBy { column, ascending })
     }
 
-    fn convert_insert(insert: &sp::Insert) -> ParseResult<Statement> {
+    fn convert_insert(insert: &sp::Insert) -> anyhow::Result<Statement> {
         let table = Self::extract_table_from_object(&insert.table)?;
 
         let columns = if insert.columns.is_empty() {
@@ -326,13 +332,13 @@ impl Parser {
                 .map(|row| {
                     row.iter()
                         .map(Self::convert_expr)
-                        .collect::<ParseResult<Vec<_>>>()
-                })
-                .collect::<ParseResult<Vec<_>>>()?,
+                        .collect::<anyhow::Result<Vec<_>>>()
+            })
+                .collect::<anyhow::Result<Vec<_>>>()?,
             _ => {
-                return Err(ParseError::UnsupportedStatement(
-                    "INSERT ... SELECT not supported".into(),
-                ))
+                let error = error::unsupported_statement("INSERT ... SELECT not supported");
+
+                return Err(error);
             }
         };
 
@@ -347,7 +353,7 @@ impl Parser {
         table: &sp::TableWithJoins,
         assignments: &[sp::Assignment],
         selection: &Option<sp::Expr>,
-    ) -> ParseResult<Statement> {
+    ) -> anyhow::Result<Statement> {
         let table_name = Self::extract_from_table(table)?;
 
         let assigns = assignments
@@ -357,7 +363,7 @@ impl Parser {
                 let value = Self::convert_expr(&a.value)?;
                 Ok(Assignment { column, value })
             })
-            .collect::<ParseResult<Vec<_>>>()?;
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         let where_clause = selection.as_ref().map(Self::convert_expr).transpose()?;
 
@@ -368,7 +374,7 @@ impl Parser {
         }))
     }
 
-    fn extract_assignment_target(target: &sp::AssignmentTarget) -> ParseResult<String> {
+    fn extract_assignment_target(target: &sp::AssignmentTarget) -> anyhow::Result<String> {
         match target {
             sp::AssignmentTarget::ColumnName(parts) => {
                 // ObjectName has .0 field which is Vec<ObjectNamePart>
@@ -399,7 +405,7 @@ impl Parser {
         }
     }
 
-    fn convert_delete(delete: &sp::Delete) -> ParseResult<Statement> {
+    fn convert_delete(delete: &sp::Delete) -> anyhow::Result<Statement> {
         let from = &delete.from;
         let tables = match from {
             sp::FromTable::WithFromKeyword(tables) => tables,
@@ -407,9 +413,9 @@ impl Parser {
         };
 
         if tables.len() != 1 {
-            return Err(ParseError::UnsupportedStatement(
-                "DELETE from multiple tables not supported".into(),
-            ));
+            let error = error::unsupported_statement("DELETE from multiple tables not supported");
+
+            return Err(error);
         }
 
         let table = Self::extract_from_table(&tables[0])?;
@@ -425,14 +431,14 @@ impl Parser {
         }))
     }
 
-    fn convert_expr(expr: &sp::Expr) -> ParseResult<Expr> {
+    fn convert_expr(expr: &sp::Expr) -> anyhow::Result<Expr> {
         match expr {
             sp::Expr::Identifier(id) => Ok(Expr::Column(id.value.clone())),
 
             sp::Expr::CompoundIdentifier(parts) => {
                 // table.column - just use column for now
                 let col = parts.last().map(|p| p.value.clone()).ok_or_else(|| {
-                    ParseError::InvalidIdentifier("empty compound identifier".into())
+                    error::invalid_identifier("empty compound identifier")
                 })?;
                 Ok(Expr::Column(col))
             }
@@ -484,7 +490,7 @@ impl Parser {
                 let items = list
                     .iter()
                     .map(Self::convert_expr)
-                    .collect::<ParseResult<Vec<_>>>()?;
+                    .collect::<anyhow::Result<Vec<_>>>()?;
                 Ok(Expr::InList {
                     expr: Box::new(e),
                     list: items,
@@ -536,7 +542,7 @@ impl Parser {
                             }
                             _ => None,
                         })
-                        .collect::<ParseResult<Vec<_>>>()?,
+                        .collect::<anyhow::Result<Vec<_>>>()?,
                     _ => vec![],
                 };
                 Ok(Expr::Function { name, args })
@@ -547,11 +553,11 @@ impl Parser {
                 Ok(Expr::Nested(Box::new(e)))
             }
 
-            other => Err(ParseError::UnsupportedExpression(format!("{:?}", other))),
+            other => Err(error::unsupported_expression(format!("{:?}", other))),
         }
     }
 
-    fn convert_value(v: &sp::ValueWithSpan) -> ParseResult<LiteralValue> {
+    fn convert_value(v: &sp::ValueWithSpan) -> anyhow::Result<LiteralValue> {
         match &v.value {
             sp::Value::Null => Ok(LiteralValue::Null),
             sp::Value::Boolean(b) => Ok(LiteralValue::Boolean(*b)),
@@ -561,7 +567,7 @@ impl Parser {
                 } else if let Ok(f) = s.parse::<f64>() {
                     Ok(LiteralValue::Float(f))
                 } else {
-                    Err(ParseError::UnsupportedExpression(format!(
+                    Err(error::unsupported_expression(format!(
                         "Invalid number: {}",
                         s
                     )))
@@ -569,27 +575,25 @@ impl Parser {
             }
             sp::Value::SingleQuotedString(s) => Ok(LiteralValue::String(s.clone())),
             sp::Value::DoubleQuotedString(s) => Ok(LiteralValue::String(s.clone())),
-            other => Err(ParseError::UnsupportedExpression(format!(
+            other => Err(error::unsupported_expression(format!(
                 "Unsupported value: {:?}",
                 other
             ))),
         }
     }
 
-    fn extract_string_from_expr(expr: &sp::Expr) -> ParseResult<String> {
+    fn extract_string_from_expr(expr: &sp::Expr) -> anyhow::Result<String> {
         match expr {
             sp::Expr::Value(v) => match &v.value {
                 sp::Value::SingleQuotedString(s) => Ok(s.clone()),
                 sp::Value::DoubleQuotedString(s) => Ok(s.clone()),
-                _ => Err(ParseError::UnsupportedExpression("expected string".into())),
+                _ => Err(error::unsupported_expression("expected string")),
             },
-            _ => Err(ParseError::UnsupportedExpression(
-                "expected string literal".into(),
-            )),
+            _ => Err(error::unsupported_expression("expected string literal")),
         }
     }
 
-    fn convert_binary_op(op: &sp::BinaryOperator) -> ParseResult<BinaryOperator> {
+    fn convert_binary_op(op: &sp::BinaryOperator) -> anyhow::Result<BinaryOperator> {
         match op {
             sp::BinaryOperator::Eq => Ok(BinaryOperator::Eq),
             sp::BinaryOperator::NotEq => Ok(BinaryOperator::NotEq),
@@ -605,26 +609,26 @@ impl Parser {
             sp::BinaryOperator::Divide => Ok(BinaryOperator::Divide),
             sp::BinaryOperator::Modulo => Ok(BinaryOperator::Modulo),
             sp::BinaryOperator::StringConcat => Ok(BinaryOperator::Concat),
-            other => Err(ParseError::UnsupportedExpression(format!(
+            other => Err(error::unsupported_expression(format!(
                 "Unsupported operator: {:?}",
                 other
             ))),
         }
     }
 
-    fn convert_unary_op(op: &sp::UnaryOperator) -> ParseResult<UnaryOperator> {
+    fn convert_unary_op(op: &sp::UnaryOperator) -> anyhow::Result<UnaryOperator> {
         match op {
             sp::UnaryOperator::Not => Ok(UnaryOperator::Not),
             sp::UnaryOperator::Minus => Ok(UnaryOperator::Minus),
             sp::UnaryOperator::Plus => Ok(UnaryOperator::Plus),
-            other => Err(ParseError::UnsupportedExpression(format!(
+            other => Err(error::unsupported_expression(format!(
                 "Unsupported unary operator: {:?}",
                 other
             ))),
         }
     }
 
-    fn extract_table_name(name: &sp::ObjectName) -> ParseResult<String> {
+    fn extract_table_name(name: &sp::ObjectName) -> anyhow::Result<String> {
         // Use just the table name, ignoring schema
         name.0
             .last()
@@ -633,22 +637,22 @@ impl Parser {
                     .map(|id| id.value.clone())
                     .unwrap_or_else(|| i.to_string())
             })
-            .ok_or_else(|| ParseError::InvalidIdentifier("empty table name".into()))
+            .ok_or_else(|| error::invalid_identifier("empty table name"))
     }
 
-    fn extract_table_from_object(table: &sp::TableObject) -> ParseResult<String> {
+    fn extract_table_from_object(table: &sp::TableObject) -> anyhow::Result<String> {
         match table {
             sp::TableObject::TableName(name) => Self::extract_table_name(name),
-            sp::TableObject::TableFunction(_) => Err(ParseError::UnsupportedStatement(
-                "table function not supported".into(),
+            sp::TableObject::TableFunction(_) => Err(error::unsupported_statement(
+                "table function not supported",
             )),
         }
     }
 
-    fn extract_from_table(from: &sp::TableWithJoins) -> ParseResult<String> {
+    fn extract_from_table(from: &sp::TableWithJoins) -> anyhow::Result<String> {
         match &from.relation {
             sp::TableFactor::Table { name, .. } => Self::extract_table_name(name),
-            other => Err(ParseError::UnsupportedStatement(format!(
+            other => Err(error::unsupported_statement(format!(
                 "Unsupported FROM clause: {:?}",
                 other
             ))),
@@ -682,14 +686,18 @@ mod tests {
                 assert!(!ct.if_not_exists);
 
                 assert_eq!(ct.columns[0].name, "id");
-                assert!(ct.columns[0]
-                    .constraints
-                    .contains(&ColumnConstraint::PrimaryKey));
+                assert!(
+                    ct.columns[0]
+                        .constraints
+                        .contains(&ColumnConstraint::PrimaryKey)
+                );
 
                 assert_eq!(ct.columns[1].name, "name");
-                assert!(ct.columns[1]
-                    .constraints
-                    .contains(&ColumnConstraint::NotNull));
+                assert!(
+                    ct.columns[1]
+                        .constraints
+                        .contains(&ColumnConstraint::NotNull)
+                );
             }
             _ => panic!("Expected CreateTable"),
         }
@@ -937,13 +945,7 @@ mod tests {
 
     #[test]
     fn test_empty_query() {
-        assert!(matches!(
-            Parser::parse("").unwrap_err(),
-            ParseError::EmptyQuery
-        ));
-        assert!(matches!(
-            Parser::parse("   ").unwrap_err(),
-            ParseError::EmptyQuery
-        ));
+        assert_eq!(Parser::parse("").unwrap_err().to_string(), "empty query");
+        assert_eq!(Parser::parse("   ").unwrap_err().to_string(), "empty query");
     }
 }

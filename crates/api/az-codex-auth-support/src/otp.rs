@@ -9,7 +9,7 @@ static VERIFICATION_CODE_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
         r"(?:^|[^#&[:digit:]])(\d{6})(?:[^[:digit:]]|$)",
     ]
     .into_iter()
-    .map(|pattern| Regex::new(pattern).expect("verification-code regex should compile"))
+    .filter_map(|pattern| Regex::new(pattern).ok())
     .collect()
 });
 

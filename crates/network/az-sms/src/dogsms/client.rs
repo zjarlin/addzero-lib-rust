@@ -1,4 +1,3 @@
-use crate::error::{SmsError, SmsResult};
 use crate::http::{
     build_client, default_user_agent, ensure_non_blank, ensure_non_zero_duration,
     looks_like_provider_message, provider_error,
@@ -6,6 +5,7 @@ use crate::http::{
 use crate::model::{SmsActivationRequest, SmsMessage, SmsOrder, SmsOrderStatus};
 use crate::model::{SmsHostingRequest, SmsInbox};
 use crate::provider::SmsProvider;
+use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use reqwest::Url;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
@@ -45,7 +45,7 @@ impl DogSmsConfig {
     }
 
     /// Validate local configuration invariants before any network IO.
-    pub fn validate(&self) -> SmsResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         ensure_non_blank("api_key", &self.api_key)?;
         ensure_non_blank("base_url", &self.base_url)?;
         ensure_non_zero_duration("connect_timeout", self.connect_timeout)?;
@@ -96,7 +96,7 @@ impl DogSmsConfigBuilder {
     }
 
     /// Build and validate the config.
-    pub fn build(self) -> SmsResult<DogSmsConfig> {
+    pub fn build(self) -> anyhow::Result<DogSmsConfig> {
         let config = DogSmsConfig {
             api_key: self.api_key,
             base_url: self.base_url,
@@ -128,15 +128,15 @@ pub struct DogSmsClient {
 
 impl DogSmsClient {
     /// Create a client from a static DogeSMS API key.
-    pub fn from_api_key(api_key: impl Into<String>) -> SmsResult<Self> {
+    pub fn from_api_key(api_key: impl Into<String>) -> anyhow::Result<Self> {
         Self::new(DogSmsConfig::builder(api_key).build()?)
     }
 
     /// Create a client from explicit config.
-    pub fn new(config: DogSmsConfig) -> SmsResult<Self> {
+    pub fn new(config: DogSmsConfig) -> anyhow::Result<Self> {
         config.validate()?;
         let base_url = Url::parse(&config.base_url)
-            .map_err(|_| SmsError::InvalidBaseUrl(config.base_url.clone()))?;
+            .with_context(|| format!("invalid base url `{}`", config.base_url))?;
 
         Ok(Self {
             client: build_client(
@@ -150,12 +150,12 @@ impl DogSmsClient {
     }
 
     /// 1. Query account balance with `GET /api/control/balance`.
-    pub async fn balance(&self) -> SmsResult<DogSmsBalance> {
+    pub async fn balance(&self) -> anyhow::Result<DogSmsBalance> {
         self.get_json(self.endpoint(&["balance"])?).await
     }
 
     /// 1. Query supported services with `GET /api/control/services`.
-    pub async fn services(&self) -> SmsResult<Vec<DogSmsService>> {
+    pub async fn services(&self) -> anyhow::Result<Vec<DogSmsService>> {
         let response: DogSmsListResponse<DogSmsService> =
             self.get_json(self.endpoint(&["services"])?).await?;
         Ok(response.into_items())
@@ -166,7 +166,7 @@ impl DogSmsClient {
         &self,
         service_code: impl AsRef<str>,
         country_code: Option<&str>,
-    ) -> SmsResult<Vec<DogSmsInventoryItem>> {
+    ) -> anyhow::Result<Vec<DogSmsInventoryItem>> {
         validate_request_non_blank("service_code", service_code.as_ref())?;
         validate_optional_request_non_blank("country_code", country_code)?;
 
@@ -192,7 +192,7 @@ impl DogSmsClient {
     pub async fn create_activation(
         &self,
         request: DogSmsActivationRequest,
-    ) -> SmsResult<DogSmsActivationOrder> {
+    ) -> anyhow::Result<DogSmsActivationOrder> {
         self.create_activation_with_idempotency_key(request, generated_idempotency_key())
             .await
     }
@@ -202,7 +202,7 @@ impl DogSmsClient {
         &self,
         request: DogSmsActivationRequest,
         idempotency_key: impl AsRef<str>,
-    ) -> SmsResult<DogSmsActivationOrder> {
+    ) -> anyhow::Result<DogSmsActivationOrder> {
         request.validate()?;
         self.post_json(
             self.endpoint(&["activations"])?,
@@ -216,7 +216,7 @@ impl DogSmsClient {
     pub async fn create_rental(
         &self,
         request: DogSmsRentalRequest,
-    ) -> SmsResult<DogSmsRentalOrder> {
+    ) -> anyhow::Result<DogSmsRentalOrder> {
         self.create_rental_with_idempotency_key(request, generated_idempotency_key())
             .await
     }
@@ -226,7 +226,7 @@ impl DogSmsClient {
         &self,
         request: DogSmsRentalRequest,
         idempotency_key: impl AsRef<str>,
-    ) -> SmsResult<DogSmsRentalOrder> {
+    ) -> anyhow::Result<DogSmsRentalOrder> {
         request.validate()?;
         self.post_json(
             self.endpoint(&["rentals"])?,
@@ -240,7 +240,7 @@ impl DogSmsClient {
     pub async fn activation(
         &self,
         request_id: impl AsRef<str>,
-    ) -> SmsResult<DogSmsActivationOrder> {
+    ) -> anyhow::Result<DogSmsActivationOrder> {
         validate_request_non_blank("request_id", request_id.as_ref())?;
         self.get_json(self.endpoint(&["activations", request_id.as_ref().trim()])?)
             .await
@@ -250,7 +250,7 @@ impl DogSmsClient {
     pub async fn cancel_activation(
         &self,
         request_id: impl AsRef<str>,
-    ) -> SmsResult<DogSmsActivationOrder> {
+    ) -> anyhow::Result<DogSmsActivationOrder> {
         self.cancel_activation_with_idempotency_key(request_id, generated_idempotency_key())
             .await
     }
@@ -260,7 +260,7 @@ impl DogSmsClient {
         &self,
         request_id: impl AsRef<str>,
         idempotency_key: impl AsRef<str>,
-    ) -> SmsResult<DogSmsActivationOrder> {
+    ) -> anyhow::Result<DogSmsActivationOrder> {
         validate_request_non_blank("request_id", request_id.as_ref())?;
         self.patch_json(
             self.endpoint(&["activations", request_id.as_ref().trim(), "cancel"])?,
@@ -269,18 +269,16 @@ impl DogSmsClient {
         .await
     }
 
-    fn endpoint(&self, segments: &[&str]) -> SmsResult<Url> {
+    fn endpoint(&self, segments: &[&str]) -> anyhow::Result<Url> {
         let mut url = self.base_url.clone();
         {
             let mut path = url
                 .path_segments_mut()
-                .map_err(|_| SmsError::InvalidEndpoint(self.base_url.to_string()))?;
+                .map_err(|_| anyhow!("invalid endpoint: {}", self.base_url))?;
             path.pop_if_empty();
             for segment in segments {
                 if segment.trim().is_empty() {
-                    return Err(SmsError::InvalidEndpoint(
-                        "path segment cannot be blank".to_owned(),
-                    ));
+                    bail!("invalid endpoint: path segment cannot be blank");
                 }
                 path.push(segment.trim_matches('/'));
             }
@@ -288,7 +286,7 @@ impl DogSmsClient {
         Ok(url)
     }
 
-    async fn get_json<T: DeserializeOwned>(&self, url: Url) -> SmsResult<T> {
+    async fn get_json<T: DeserializeOwned>(&self, url: Url) -> anyhow::Result<T> {
         let response = self
             .client
             .get(url)
@@ -299,7 +297,7 @@ impl DogSmsClient {
         self.parse_json_response(response).await
     }
 
-    async fn post_json<T, B>(&self, url: Url, body: &B, idempotency_key: &str) -> SmsResult<T>
+    async fn post_json<T, B>(&self, url: Url, body: &B, idempotency_key: &str) -> anyhow::Result<T>
     where
         T: DeserializeOwned,
         B: Serialize + ?Sized,
@@ -318,7 +316,7 @@ impl DogSmsClient {
         self.parse_json_response(response).await
     }
 
-    async fn patch_json<T>(&self, url: Url, idempotency_key: &str) -> SmsResult<T>
+    async fn patch_json<T>(&self, url: Url, idempotency_key: &str) -> anyhow::Result<T>
     where
         T: DeserializeOwned,
     {
@@ -337,20 +335,26 @@ impl DogSmsClient {
     async fn parse_json_response<T: DeserializeOwned>(
         &self,
         response: reqwest::Response,
-    ) -> SmsResult<T> {
+    ) -> anyhow::Result<T> {
         let status = response.status();
         let body = response.text().await?;
 
         if !status.is_success() {
-            return Err(provider_error(Some(status.as_u16()), body));
+            let status_code = Some(status.as_u16());
+            let error = provider_error(status_code, body);
+
+            return Err(error);
         }
 
         match serde_json::from_str::<T>(&body) {
             Ok(value) => Ok(value),
             Err(_error) if looks_like_provider_message(&body) => {
-                Err(provider_error(Some(status.as_u16()), body))
+                let status_code = Some(status.as_u16());
+                let error = provider_error(status_code, body);
+
+                Err(error)
             }
-            Err(error) => Err(SmsError::Json(error)),
+            Err(error) => Err(error).context("failed to parse DogeSMS JSON payload"),
         }
     }
 }
@@ -374,7 +378,7 @@ impl DogSmsActivationRequest {
     pub fn new(
         service_code: impl Into<String>,
         country_code: impl Into<String>,
-    ) -> SmsResult<Self> {
+    ) -> anyhow::Result<Self> {
         let request = Self {
             service_code: service_code.into(),
             country_code: country_code.into(),
@@ -391,7 +395,7 @@ impl DogSmsActivationRequest {
     }
 
     /// Convert the crate-level request shape into DogeSMS native field names.
-    pub fn from_sms_request(request: &SmsActivationRequest) -> SmsResult<Self> {
+    pub fn from_sms_request(request: &SmsActivationRequest) -> anyhow::Result<Self> {
         request.validate()?;
         validate_activation_support(request)?;
         Ok(Self {
@@ -402,7 +406,7 @@ impl DogSmsActivationRequest {
     }
 
     /// Validate local request invariants before network IO.
-    pub fn validate(&self) -> SmsResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         validate_request_non_blank("service_code", &self.service_code)?;
         validate_request_non_blank("country_code", &self.country_code)?;
         Ok(())
@@ -424,7 +428,7 @@ pub struct DogSmsRentalRequest {
 
 impl DogSmsRentalRequest {
     /// Create a validated native DogeSMS rental request.
-    pub fn new(country_code: impl Into<String>, months: u8) -> SmsResult<Self> {
+    pub fn new(country_code: impl Into<String>, months: u8) -> anyhow::Result<Self> {
         let request = Self {
             country_code: country_code.into(),
             months,
@@ -441,12 +445,10 @@ impl DogSmsRentalRequest {
     }
 
     /// Validate local request invariants before network IO.
-    pub fn validate(&self) -> SmsResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         validate_request_non_blank("country_code", &self.country_code)?;
         if !(1..=12).contains(&self.months) {
-            return Err(SmsError::InvalidRequest(
-                "months must be between 1 and 12".to_owned(),
-            ));
+            bail!("invalid request: months must be between 1 and 12");
         }
         validate_optional_request_non_blank("note", self.note.as_deref())?;
         Ok(())
@@ -667,12 +669,12 @@ impl DogSmsActivationOrder {
     ///
     /// DogeSMS documents string IDs such as `act-123`; callers that need full
     /// string-ID support should keep using this native type.
-    pub fn try_into_sms_order(self) -> SmsResult<SmsOrder> {
+    pub fn try_into_sms_order(self) -> anyhow::Result<SmsOrder> {
         let id = self.request_id.trim().parse::<u64>().map_err(|_| {
-            SmsError::InvalidRequest(format!(
-                "DogeSMS request_id `{}` is not numeric",
+            anyhow!(
+                "invalid request: DogeSMS request_id `{}` is not numeric",
                 self.request_id
-            ))
+            )
         })?;
         Ok(SmsOrder {
             id,
@@ -697,38 +699,38 @@ impl DogSmsActivationOrder {
 
 #[async_trait::async_trait]
 impl SmsProvider for DogSmsClient {
-    async fn buy_activation_number(&self, request: SmsActivationRequest) -> SmsResult<SmsOrder> {
+    async fn buy_activation_number(&self, request: SmsActivationRequest) -> anyhow::Result<SmsOrder> {
         let request = DogSmsActivationRequest::from_sms_request(&request)?;
         self.create_activation(request).await?.try_into_sms_order()
     }
 
-    async fn buy_hosting_number(&self, _request: SmsHostingRequest) -> SmsResult<SmsOrder> {
+    async fn buy_hosting_number(&self, _request: SmsHostingRequest) -> anyhow::Result<SmsOrder> {
         Err(unsupported(
             "hosted/rented numbers through numeric SmsProvider orders",
         ))
     }
 
-    async fn check_order(&self, order_id: u64) -> SmsResult<SmsOrder> {
+    async fn check_order(&self, order_id: u64) -> anyhow::Result<SmsOrder> {
         self.activation(order_id.to_string())
             .await?
             .try_into_sms_order()
     }
 
-    async fn finish_order(&self, _order_id: u64) -> SmsResult<SmsOrder> {
+    async fn finish_order(&self, _order_id: u64) -> anyhow::Result<SmsOrder> {
         Err(unsupported("finish activation"))
     }
 
-    async fn cancel_order(&self, order_id: u64) -> SmsResult<SmsOrder> {
+    async fn cancel_order(&self, order_id: u64) -> anyhow::Result<SmsOrder> {
         self.cancel_activation(order_id.to_string())
             .await?
             .try_into_sms_order()
     }
 
-    async fn ban_order(&self, _order_id: u64) -> SmsResult<SmsOrder> {
+    async fn ban_order(&self, _order_id: u64) -> anyhow::Result<SmsOrder> {
         Err(unsupported("ban activation"))
     }
 
-    async fn inbox(&self, _order_id: u64) -> SmsResult<SmsInbox> {
+    async fn inbox(&self, _order_id: u64) -> anyhow::Result<SmsInbox> {
         Err(unsupported("hosted/rented inbox"))
     }
 }
@@ -810,35 +812,45 @@ enum DogSmsSmsPayload {
     One(DogSmsMessage),
 }
 
-fn validate_activation_support(request: &SmsActivationRequest) -> SmsResult<()> {
+fn validate_activation_support(request: &SmsActivationRequest) -> anyhow::Result<()> {
     if !request.operator.trim().eq_ignore_ascii_case("any") {
-        return Err(unsupported("operator-specific activation requests"));
+        let error = unsupported("operator-specific activation requests");
+
+        return Err(error);
     }
     if request.forwarding.is_some() {
-        return Err(unsupported("activation forwarding"));
+        let error = unsupported("activation forwarding");
+
+        return Err(error);
     }
     if request.number.is_some() {
-        return Err(unsupported("number reuse by explicit phone number"));
+        let error = unsupported("number reuse by explicit phone number");
+
+        return Err(error);
     }
     if request.voice.is_some() {
-        return Err(unsupported("voice verification flags"));
+        let error = unsupported("voice verification flags");
+
+        return Err(error);
     }
     if request.ref_code.is_some() {
-        return Err(unsupported("referral code query parameters"));
+        let error = unsupported("referral code query parameters");
+
+        return Err(error);
     }
     Ok(())
 }
 
-fn validate_request_non_blank(name: &str, value: &str) -> SmsResult<()> {
+fn validate_request_non_blank(name: &str, value: &str) -> anyhow::Result<()> {
     if value.trim().is_empty() {
-        return Err(SmsError::InvalidRequest(format!("{name} cannot be blank")));
+        bail!("invalid request: {name} cannot be blank");
     }
     Ok(())
 }
 
-fn validate_optional_request_non_blank(name: &str, value: Option<&str>) -> SmsResult<()> {
+fn validate_optional_request_non_blank(name: &str, value: Option<&str>) -> anyhow::Result<()> {
     if value.is_some_and(|item| item.trim().is_empty()) {
-        return Err(SmsError::InvalidRequest(format!("{name} cannot be blank")));
+        bail!("invalid request: {name} cannot be blank");
     }
     Ok(())
 }
@@ -847,11 +859,8 @@ fn generated_idempotency_key() -> String {
     Uuid::new_v4().to_string()
 }
 
-fn unsupported(operation: &'static str) -> SmsError {
-    SmsError::UnsupportedOperation {
-        provider: PROVIDER_NAME,
-        operation,
-    }
+fn unsupported(operation: &'static str) -> anyhow::Error {
+    anyhow!("{PROVIDER_NAME} does not support {operation}")
 }
 
 fn deserialize_stringish<'de, D>(deserializer: D) -> Result<String, D::Error>

@@ -5,10 +5,10 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::{AssetHubError, AssetHubResult},
     model::{AssetSummary, TABLE_NAME_PREFIX},
     skill_scanner::{ScannedSkillAsset, scan_skill_assets},
     store::{AssetHubStore, AssetInput},
@@ -21,7 +21,7 @@ pub struct AssetHubApiState {
 }
 
 impl AssetHubApiState {
-    pub async fn new(database_url: Option<String>) -> AssetHubResult<Self> {
+    pub async fn new(database_url: Option<String>) -> anyhow::Result<Self> {
         let store = match database_url.as_deref() {
             Some(value) if !value.trim().is_empty() => Some(AssetHubStore::connect(value).await?),
             _ => None,
@@ -58,32 +58,36 @@ async fn status_handler(State(state): State<AssetHubApiState>) -> Json<AssetHubS
     })
 }
 
-async fn scan_skills_handler() -> Result<Json<ApiResponse<Vec<ScannedSkillAsset>>>, AssetHubApiError>
-{
+async fn scan_skills_handler() -> Result<Json<ApiResponse<Vec<ScannedSkillAsset>>>, Response> {
     scan_skill_assets()
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(AssetHubError::from)
-        .map_err(Into::into)
+        .map_err(asset_hub_error_response)
 }
 
 async fn list_assets_handler(
     State(state): State<AssetHubApiState>,
-) -> Result<Json<ApiResponse<Vec<AssetSummary>>>, AssetHubApiError> {
-    let store = state.store.ok_or(AssetHubError::MissingDatabaseUrl)?;
+) -> Result<Json<ApiResponse<Vec<AssetSummary>>>, Response> {
+    let store = state
+        .store
+        .ok_or_else(|| anyhow!("missing asset-hub database url"))
+        .map_err(asset_hub_error_response)?;
     store
         .list_assets()
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(asset_hub_error_response)
 }
 
 async fn upsert_asset_handler(
     State(state): State<AssetHubApiState>,
     Json(request): Json<UpsertAssetRequest>,
-) -> Result<Json<ApiResponse<AssetSummary>>, AssetHubApiError> {
-    let store = state.store.ok_or(AssetHubError::MissingDatabaseUrl)?;
+) -> Result<Json<ApiResponse<AssetSummary>>, Response> {
+    let store = state
+        .store
+        .ok_or_else(|| anyhow!("missing asset-hub database url"))
+        .map_err(asset_hub_error_response)?;
     store
         .upsert_asset(AssetInput {
             id: request.id,
@@ -95,7 +99,7 @@ async fn upsert_asset_handler(
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(asset_hub_error_response)
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -132,30 +136,24 @@ pub struct UpsertAssetRequest {
     pub source: Option<String>,
 }
 
-#[derive(Debug)]
-pub struct AssetHubApiError {
-    source: AssetHubError,
+fn asset_hub_error_response(error: anyhow::Error) -> Response {
+    let message = error.to_string();
+    let status = asset_hub_error_status(&message);
+    let body = ApiResponse::<()> {
+        success: false,
+        message,
+        data: None,
+    };
+    (status, Json(body)).into_response()
 }
 
-impl From<AssetHubError> for AssetHubApiError {
-    fn from(source: AssetHubError) -> Self {
-        Self { source }
-    }
-}
-
-impl IntoResponse for AssetHubApiError {
-    fn into_response(self) -> Response {
-        let status = match self.source {
-            AssetHubError::MissingDatabaseUrl => StatusCode::SERVICE_UNAVAILABLE,
-            AssetHubError::BlankTitle | AssetHubError::BlankStatus => StatusCode::BAD_REQUEST,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        };
-        let body = ApiResponse::<()> {
-            success: false,
-            message: self.source.to_string(),
-            data: None,
-        };
-        (status, Json(body)).into_response()
+fn asset_hub_error_status(message: &str) -> StatusCode {
+    match message {
+        "missing asset-hub database url" => StatusCode::SERVICE_UNAVAILABLE,
+        "asset title must not be blank" | "asset status must not be blank" => {
+            StatusCode::BAD_REQUEST
+        }
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 

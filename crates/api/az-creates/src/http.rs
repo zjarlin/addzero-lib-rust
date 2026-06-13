@@ -1,4 +1,5 @@
-use crate::{ApiConfig, CreatesError, CreatesResult};
+use crate::ApiConfig;
+use anyhow::{Context, bail};
 use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
@@ -13,10 +14,10 @@ pub(crate) struct HttpApiClient {
 }
 
 impl HttpApiClient {
-    pub(crate) fn new(config: ApiConfig) -> CreatesResult<Self> {
-        config.validate().map_err(CreatesError::from)?;
+    pub(crate) fn new(config: ApiConfig) -> anyhow::Result<Self> {
+        config.validate()?;
         let base_url = Url::parse(&config.base_url)
-            .map_err(|_| CreatesError::InvalidBaseUrl(config.base_url.clone()))?;
+            .with_context(|| format!("invalid base url `{}`", config.base_url))?;
         let default_headers = build_header_map(&config.default_headers)?;
 
         let mut builder = Client::builder()
@@ -30,11 +31,13 @@ impl HttpApiClient {
 
         Ok(Self {
             base_url,
-            client: builder.build()?,
+            client: builder
+                .build()
+                .context("failed to build creates HTTP client")?,
         })
     }
 
-    pub(crate) fn get(&self, path: &str) -> CreatesResult<RequestBuilder> {
+    pub(crate) fn get(&self, path: &str) -> anyhow::Result<RequestBuilder> {
         Ok(self.client.get(self.join_url(path)?))
     }
 
@@ -45,20 +48,24 @@ impl HttpApiClient {
     pub(crate) fn with_headers(
         builder: RequestBuilder,
         headers: &BTreeMap<String, String>,
-    ) -> CreatesResult<RequestBuilder> {
+    ) -> anyhow::Result<RequestBuilder> {
         if headers.is_empty() {
             return Ok(builder);
         }
         Ok(builder.headers(build_header_map(headers)?))
     }
 
-    pub(crate) fn read_json<T: DeserializeOwned>(response: Response) -> CreatesResult<T> {
+    pub(crate) fn read_json<T: DeserializeOwned>(response: Response) -> anyhow::Result<T> {
         let response = Self::ensure_success(response)?;
-        let bytes = response.bytes()?;
-        Ok(serde_json::from_slice(bytes.as_ref())?)
+        let url = response.url().to_string();
+        let bytes = response
+            .bytes()
+            .with_context(|| format!("failed to read response body from `{url}`"))?;
+        serde_json::from_slice(bytes.as_ref())
+            .with_context(|| format!("failed to parse JSON response from `{url}`"))
     }
 
-    pub(crate) fn build_url(&self, path: &str, query: &[(&str, String)]) -> CreatesResult<Url> {
+    pub(crate) fn build_url(&self, path: &str, query: &[(&str, String)]) -> anyhow::Result<Url> {
         let mut url = self.join_url(path)?;
         if !query.is_empty() {
             let mut pairs = url.query_pairs_mut();
@@ -69,46 +76,37 @@ impl HttpApiClient {
         Ok(url)
     }
 
-    fn ensure_success(response: Response) -> CreatesResult<Response> {
+    fn ensure_success(response: Response) -> anyhow::Result<Response> {
         let status = response.status();
         if status.is_success() {
             return Ok(response);
         }
 
         let url = response.url().to_string();
-        let body = match response.bytes() {
-            Ok(bytes) => String::from_utf8_lossy(bytes.as_ref()).into_owned(),
-            Err(error) => return Err(CreatesError::Transport(error)),
-        };
-
-        Err(CreatesError::HttpStatus {
-            url,
-            status: status.as_u16(),
-            body,
-        })
+        let bytes = response
+            .bytes()
+            .with_context(|| format!("failed to read error response body from `{url}`"))?;
+        bail!(
+            "request to `{url}` returned HTTP {}: {}",
+            status.as_u16(),
+            String::from_utf8_lossy(bytes.as_ref())
+        )
     }
 
-    fn join_url(&self, path: &str) -> CreatesResult<Url> {
+    fn join_url(&self, path: &str) -> anyhow::Result<Url> {
         self.base_url
             .join(path)
-            .map_err(|_| CreatesError::InvalidPath(path.to_owned()))
+            .with_context(|| format!("invalid request path `{path}`"))
     }
 }
 
-fn build_header_map(headers: &BTreeMap<String, String>) -> CreatesResult<HeaderMap> {
+fn build_header_map(headers: &BTreeMap<String, String>) -> anyhow::Result<HeaderMap> {
     let mut header_map = HeaderMap::new();
     for (name, value) in headers {
-        let header_name = HeaderName::from_bytes(name.as_bytes()).map_err(|source| {
-            CreatesError::InvalidHeaderName {
-                name: name.clone(),
-                source,
-            }
-        })?;
+        let header_name = HeaderName::from_bytes(name.as_bytes())
+            .with_context(|| format!("invalid header name `{name}`"))?;
         let header_value =
-            HeaderValue::from_str(value).map_err(|source| CreatesError::InvalidHeaderValue {
-                name: name.clone(),
-                source,
-            })?;
+            HeaderValue::from_str(value).with_context(|| format!("invalid header value for `{name}`"))?;
         header_map.insert(header_name, header_value);
     }
     Ok(header_map)

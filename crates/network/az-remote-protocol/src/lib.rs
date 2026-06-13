@@ -14,7 +14,6 @@
 //!   - `Error` — 错误码和消息
 //! - [`StreamKind`] — 流类型枚举（Control / Video / Input / Clipboard / File），
 //!   用于多路复用时标识数据通道类型。
-//! - [`ProtocolError`] — 协议错误类型，目前仅封装 JSON 序列化/反序列化失败。
 //!
 //! # 关键功能
 //!
@@ -33,6 +32,7 @@
 //! use chrono::Utc;
 //! use uuid::Uuid;
 //!
+//! # fn main() -> anyhow::Result<()> {
 //! let hello = DeviceHello {
 //!     device: DeviceDescriptor {
 //!         device_id: Uuid::new_v4(),
@@ -48,27 +48,20 @@
 //! };
 //!
 //! let frame = ControlFrame::Hello(hello);
-//! let bytes = frame.to_json_bytes().unwrap();
-//! let restored = ControlFrame::from_json_bytes(&bytes).unwrap();
+//! let bytes = frame.to_json_bytes()?;
+//! let restored = ControlFrame::from_json_bytes(&bytes)?;
 //! assert_eq!(frame, restored);
+//! # Ok(())
+//! # }
 //! ```
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, error, serde_code_enum, serde_eq, serde_eq_redacted};
+use anyhow::{Context, Result};
+use az_derive_aliases::{apply, serde_code_enum, serde_eq, serde_eq_redacted};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, FileTransferEnvelope, RemoteInputEvent, SessionGrant,
     SessionRequest, VideoFrameEnvelope,
 };
-
-pub type ProtocolResult<T> = Result<T, ProtocolError>;
-
-/// 远程控制协议的编解码错误。
-#[apply(error)]
-pub enum ProtocolError {
-    /// JSON 序列化或反序列化失败。
-    #[error("serialization failed: {0}")]
-    Serialize(#[from] serde_json::Error),
-}
 
 /// 多路复用通道类型。
 ///
@@ -147,12 +140,12 @@ pub enum ControlFrame {
 
 impl ControlFrame {
     /// 将控制帧编码为 JSON 字节。
-    pub fn to_json_bytes(&self) -> ProtocolResult<Vec<u8>> {
-        serde_json::to_vec(self).map_err(ProtocolError::from)
+    pub fn to_json_bytes(&self) -> Result<Vec<u8>> {
+        serde_json::to_vec(self).context("serialize remote control frame")
     }
 
     /// 从 JSON 字节恢复控制帧。
-    pub fn from_json_bytes(bytes: &[u8]) -> ProtocolResult<Self> {
-        serde_json::from_slice(bytes).map_err(ProtocolError::from)
+    pub fn from_json_bytes(bytes: &[u8]) -> Result<Self> {
+        serde_json::from_slice(bytes).context("deserialize remote control frame")
     }
 }

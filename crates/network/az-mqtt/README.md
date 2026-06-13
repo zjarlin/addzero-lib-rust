@@ -27,7 +27,7 @@ az-mqtt = { path = "../az-mqtt" }          # workspace 内部引用
 ## 用法
 
 \`\`\`rust,no_run
-use az_mqtt::{MqttConfig, MqttClient, MqttMessage, MqttQoS};
+use az_mqtt::api::{MqttClient, MqttConfig, MqttMessage, MqttQoS};
 use std::time::Duration;
 
 // 构建配置
@@ -57,7 +57,7 @@ client.disconnect().unwrap();
 ### TLS 连接
 
 \`\`\`rust,no_run
-use az_mqtt::{MqttConfig, MqttClient, MqttQoS};
+use az_mqtt::api::{MqttClient, MqttConfig, MqttQoS};
 
 let config = MqttConfig::builder("secure-broker.example.com", "tls-client")
     .port(8883)
@@ -75,4 +75,4 @@ let client = MqttClient::connect(config).unwrap();
 
 - `rumqttc` — MQTT 3.1.1 协议客户端
 - `rustls` — TLS 加密传输（ring 加密后端）
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误链与上下文

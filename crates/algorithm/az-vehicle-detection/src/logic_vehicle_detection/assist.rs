@@ -423,7 +423,11 @@ fn validate_detection_options(options: &VehicleDetectionOptions) -> anyhow::Resu
         bail!("model file `{}` is missing", options.model_path.display());
     }
     if !(0.0..=1.0).contains(&options.score_threshold) || !options.score_threshold.is_finite() {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code, "score_threshold must be finite and within 0.0..=1.0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code,
+            "score_threshold must be finite and within 0.0..=1.0"
+        );
     }
     Ok(())
 }

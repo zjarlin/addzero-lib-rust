@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use anyhow::{Context, anyhow};
 use az_derive_aliases::{apply, plain_clone};
 use chrono::Utc;
 use sea_orm::{
@@ -14,9 +15,8 @@ use uuid::Uuid;
 use crate::{
     entity::{software_entry, software_install_method},
     model::{
-        InstallerKind, SoftwareCatalogError, SoftwareCatalogResult, SoftwareEntryDto,
-        SoftwareEntryInput, SoftwareInstallMethodDto, SoftwarePlatform, normalize_input,
-        parse_uuid, validate_input,
+        InstallerKind, SoftwareEntryDto, SoftwareEntryInput, SoftwareInstallMethodDto,
+        SoftwarePlatform, normalize_input, parse_uuid, validate_input,
     },
 };
 
@@ -30,27 +30,27 @@ impl SoftwareCatalogRepository {
         Self { db }
     }
 
-    pub(crate) async fn count_entries(&self) -> SoftwareCatalogResult<u64> {
+    pub(crate) async fn count_entries(&self) -> anyhow::Result<u64> {
         software_entry::Entity::find()
             .count(&self.db)
             .await
-            .map_err(SoftwareCatalogError::query)
+            .context("count software catalog entries")
     }
 
-    pub(crate) async fn list_entries(&self) -> SoftwareCatalogResult<Vec<SoftwareEntryDto>> {
+    pub(crate) async fn list_entries(&self) -> anyhow::Result<Vec<SoftwareEntryDto>> {
         let entries = software_entry::Entity::find()
             .order_by_asc(software_entry::Column::Title)
             .order_by_asc(software_entry::Column::Slug)
             .all(&self.db)
             .await
-            .map_err(SoftwareCatalogError::query)?;
+            .context("query software catalog entries")?;
         let methods = software_install_method::Entity::find()
             .order_by_desc(software_install_method::Column::Priority)
             .order_by_asc(software_install_method::Column::Label)
             .order_by_asc(software_install_method::Column::InstallerKind)
             .all(&self.db)
             .await
-            .map_err(SoftwareCatalogError::query)?;
+            .context("query software install methods")?;
 
         let mut methods_by_software = methods.into_iter().fold(
             BTreeMap::<Uuid, Vec<software_install_method::Model>>::new(),
@@ -72,11 +72,11 @@ impl SoftwareCatalogRepository {
     pub(crate) async fn get_entry(
         &self,
         id: Uuid,
-    ) -> SoftwareCatalogResult<Option<SoftwareEntryDto>> {
+    ) -> anyhow::Result<Option<SoftwareEntryDto>> {
         let Some(entry) = software_entry::Entity::find_by_id(id)
             .one(&self.db)
             .await
-            .map_err(SoftwareCatalogError::query)?
+            .with_context(|| format!("load software catalog entry `{id}`"))?
         else {
             return Ok(None);
         };
@@ -87,11 +87,15 @@ impl SoftwareCatalogRepository {
     pub(crate) async fn save_entry(
         &self,
         input: SoftwareEntryInput,
-    ) -> SoftwareCatalogResult<SoftwareEntryDto> {
+    ) -> anyhow::Result<SoftwareEntryDto> {
         validate_input(&input)?;
         let preferred_id = input.id.clone();
         let entry = normalize_input(input);
-        let tx = self.db.begin().await.map_err(SoftwareCatalogError::query)?;
+        let tx = self
+            .db
+            .begin()
+            .await
+            .context("begin software catalog save transaction")?;
         let persisted_id = self
             .resolve_entry_id(
                 &tx,
@@ -140,23 +144,25 @@ impl SoftwareCatalogRepository {
             )
             .exec(&tx)
             .await
-            .map_err(SoftwareCatalogError::query)?;
+            .with_context(|| format!("upsert software catalog entry `{}`", entry.slug))?;
 
         self.replace_methods(&tx, persisted_id, &entry.methods)
             .await?;
-        tx.commit().await.map_err(SoftwareCatalogError::query)?;
+        tx.commit()
+            .await
+            .with_context(|| format!("commit software catalog entry `{}`", entry.slug))?;
 
         self.get_entry(persisted_id)
             .await?
-            .ok_or_else(|| SoftwareCatalogError::Message("保存后未找到软件条目".to_string()))
+            .ok_or_else(|| anyhow!("保存后未找到软件条目"))
     }
 
-    pub(crate) async fn delete_entry(&self, id: &str) -> SoftwareCatalogResult<()> {
+    pub(crate) async fn delete_entry(&self, id: &str) -> anyhow::Result<()> {
         software_entry::Entity::delete_many()
             .filter(software_entry::Column::Id.eq(parse_uuid(id)?))
             .exec(&self.db)
             .await
-            .map_err(SoftwareCatalogError::query)?;
+            .with_context(|| format!("delete software catalog entry `{id}`"))?;
         Ok(())
     }
 
@@ -165,7 +171,7 @@ impl SoftwareCatalogRepository {
         db: &C,
         slug: &str,
         preferred: Option<Uuid>,
-    ) -> SoftwareCatalogResult<Uuid>
+    ) -> anyhow::Result<Uuid>
     where
         C: ConnectionTrait,
     {
@@ -177,7 +183,7 @@ impl SoftwareCatalogRepository {
             .filter(software_entry::Column::Slug.eq(slug.to_string()))
             .one(db)
             .await
-            .map_err(SoftwareCatalogError::query)?;
+            .with_context(|| format!("resolve software catalog entry `{slug}`"))?;
 
         Ok(existing.map(|entry| entry.id).unwrap_or_else(Uuid::new_v4))
     }
@@ -187,7 +193,7 @@ impl SoftwareCatalogRepository {
         db: &C,
         software_id: Uuid,
         methods: &[SoftwareInstallMethodDto],
-    ) -> SoftwareCatalogResult<()>
+    ) -> anyhow::Result<()>
     where
         C: ConnectionTrait,
     {
@@ -195,7 +201,7 @@ impl SoftwareCatalogRepository {
             .filter(software_install_method::Column::SoftwareId.eq(software_id))
             .exec(db)
             .await
-            .map_err(SoftwareCatalogError::query)?;
+            .with_context(|| format!("delete software install methods for `{software_id}`"))?;
 
         let total = methods.len();
         for (index, method) in methods.iter().enumerate() {
@@ -215,7 +221,12 @@ impl SoftwareCatalogRepository {
             software_install_method::Entity::insert(active)
                 .exec(db)
                 .await
-                .map_err(SoftwareCatalogError::query)?;
+                .with_context(|| {
+                    format!(
+                        "insert software install method `{}` for `{software_id}`",
+                        method.label
+                    )
+                })?;
         }
 
         Ok(())
@@ -225,7 +236,7 @@ impl SoftwareCatalogRepository {
         &self,
         db: &C,
         software_id: Uuid,
-    ) -> SoftwareCatalogResult<Vec<software_install_method::Model>>
+    ) -> anyhow::Result<Vec<software_install_method::Model>>
     where
         C: ConnectionTrait,
     {
@@ -236,7 +247,7 @@ impl SoftwareCatalogRepository {
             .order_by_asc(software_install_method::Column::InstallerKind)
             .all(db)
             .await
-            .map_err(SoftwareCatalogError::query)
+            .with_context(|| format!("query software install methods for `{software_id}`"))
     }
 }
 

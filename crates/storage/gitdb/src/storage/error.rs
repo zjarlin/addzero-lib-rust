@@ -1,158 +1,103 @@
-//! Storage layer error types
-//!
-//! All errors that can occur during storage operations are defined here
-//! We use `thiserror` for ergonomic error definition and better error messages
+//! Storage error message helpers.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use az_derive_aliases::{apply, error};
+use anyhow::anyhow;
 
-use crate::storage::types::{InvalidNameError, RowKey, TableName};
+use crate::storage::types::{RowKey, TableName};
 
-/// the main error type for storage operations
-#[apply(error)]
-pub enum StorageError {
-    /// error from the underlying Git library
-    #[error("git error: {0}")]
-    Git(#[from] git2::Error),
-
-    /// the requested row was not found
-    #[error("row not found: table={table}, key={key}")]
-    RowNotFound { table: TableName, key: RowKey },
-
-    /// the requested table was not found
-    #[error("table not found: {0}")]
-    TableNotFound(TableName),
-
-    /// the row already exists (duplicate primary key)
-    #[error("row already exists: table={table}, key={key}")]
-    RowAlreadyExists { table: TableName, key: RowKey },
-
-    /// the table already exists
-    #[error("table already exists: {0}")]
-    TableAlreadyExists(TableName),
-
-    /// invalid table name
-    #[error("invalid table name: {0}")]
-    InvalidTableName(#[from] InvalidNameError),
-
-    /// invalid blob/object key
-    #[error("invalid blob key: {0}")]
-    InvalidBlobKey(String),
-
-    /// JSON serialization or deserialization failed
-    #[error("serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
-
-    /// the specified branch/ref was not found
-    #[error("ref not found: {0}")]
-    RefNotFound(String),
-
-    /// merge conflict detected during commit
-    #[error("merge conflict: {conflicting_paths:?}")]
-    MergeConflict { conflicting_paths: Vec<PathBuf> },
-
-    /// data integrity check failed
-    #[error("corrupted data at {path}: {reason}")]
-    CorruptedData { path: PathBuf, reason: String },
-
-    /// I/O error (filesystem level)
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
-
-    /// repo is not initialized
-    #[error("repository not initialized: {0}")]
-    NotInitialized(PathBuf),
-
-    /// repo is empty (no commits)
-    #[error("repository is empty: no commits found")]
-    EmptyRepository,
-
-    /// the commit was not found
-    #[error("commit not found: {0}")]
-    CommitNotFound(String),
-
-    /// invalid UTF-8 in blob content
-    #[error("invalid utf-8 in blob: {0}")]
-    InvalidUtf8(#[from] std::str::Utf8Error),
-
-    /// the requested blob/object was not found
-    #[error("blob not found: {0}")]
-    BlobNotFound(String),
-
-    /// the tree entry has an unexpected type
-    #[error("unexpected entry type at {path}: expected {expected}, found {found}")]
-    UnexpectedEntryType {
-        path: PathBuf,
-        expected: String,
-        found: String,
-    },
-
-    /// branch already exists
-    #[error("branch already exists: {0}")]
-    BranchAlreadyExists(String),
-
-    /// branch update failed due to concurrent modification
-    #[error("concurrent modification: branch {branch} was updated by another transaction")]
-    ConcurrentModification { branch: String },
-
-    /// the row data doesn't match the expected schema
-    #[error("schema violation: {0}")]
-    SchemaViolation(String),
-
-    /// internal error that shouldn't happen
-    #[error("internal error: {0}")]
-    Internal(String),
+pub fn row_not_found(table: &TableName, key: &RowKey) -> anyhow::Error {
+    anyhow!("row not found: table={table}, key={key}")
 }
 
-impl StorageError {
-    /// check if this error indicates the resource doesn't exist
-    pub fn is_not_found(&self) -> bool {
-        matches!(
-            self,
-            StorageError::RowNotFound { .. }
-                | StorageError::TableNotFound(_)
-                | StorageError::RefNotFound(_)
-                | StorageError::CommitNotFound(_)
-                | StorageError::BlobNotFound(_)
-        )
-    }
-
-    /// check if this error is a conflict
-    pub fn is_conflict(&self) -> bool {
-        matches!(
-            self,
-            StorageError::RowAlreadyExists { .. }
-                | StorageError::TableAlreadyExists(_)
-                | StorageError::MergeConflict { .. }
-                | StorageError::ConcurrentModification { .. }
-        )
-    }
-
-    /// check if this error is recoverable by retry
-    pub fn is_retriable(&self) -> bool {
-        matches!(self, StorageError::ConcurrentModification { .. })
-    }
+pub fn table_not_found(table: &TableName) -> anyhow::Error {
+    anyhow!("table not found: {table}")
 }
 
-/// result type alias for storage operations
-pub type StorageResult<T> = Result<T, StorageError>;
+pub fn row_already_exists(table: &TableName, key: &RowKey) -> anyhow::Error {
+    anyhow!("row already exists: table={table}, key={key}")
+}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub fn table_already_exists(table: &TableName) -> anyhow::Error {
+    anyhow!("table already exists: {table}")
+}
 
-    #[test]
-    fn test_error_classification() {
-        let not_found = StorageError::TableNotFound(TableName::new("users").unwrap());
-        assert!(not_found.is_not_found());
-        assert!(!not_found.is_conflict());
+pub fn invalid_blob_key(key: &str) -> anyhow::Error {
+    anyhow!("invalid blob key: {key}")
+}
 
-        let conflict = StorageError::RowAlreadyExists {
-            table: TableName::new("users").unwrap(),
-            key: RowKey::new("123").unwrap(),
-        };
-        assert!(!conflict.is_not_found());
-        assert!(conflict.is_conflict());
-    }
+pub fn ref_not_found(reference: impl std::fmt::Display) -> anyhow::Error {
+    anyhow!("ref not found: {reference}")
+}
+
+pub fn merge_conflict(paths: &[PathBuf]) -> anyhow::Error {
+    anyhow!("merge conflict: {paths:?}")
+}
+
+pub fn corrupted_data(path: &Path, reason: impl std::fmt::Display) -> anyhow::Error {
+    anyhow!("corrupted data at {}: {reason}", path.display())
+}
+
+pub fn not_initialized(path: &Path) -> anyhow::Error {
+    anyhow!("repository not initialized: {}", path.display())
+}
+
+pub fn empty_repository() -> anyhow::Error {
+    anyhow!("repository is empty: no commits found")
+}
+
+pub fn commit_not_found(id: impl std::fmt::Display) -> anyhow::Error {
+    anyhow!("commit not found: {id}")
+}
+
+pub fn blob_not_found(key: &str) -> anyhow::Error {
+    anyhow!("blob not found: {key}")
+}
+
+pub fn unexpected_entry_type(
+    path: &Path,
+    expected: impl std::fmt::Display,
+    found: impl std::fmt::Display,
+) -> anyhow::Error {
+    anyhow!(
+        "unexpected entry type at {}: expected {expected}, found {found}",
+        path.display()
+    )
+}
+
+pub fn branch_already_exists(branch: impl std::fmt::Display) -> anyhow::Error {
+    anyhow!("branch already exists: {branch}")
+}
+
+pub fn concurrent_modification(branch: impl std::fmt::Display) -> anyhow::Error {
+    anyhow!("concurrent modification: branch {branch} was updated by another transaction")
+}
+
+pub fn schema_violation(message: impl Into<String>) -> anyhow::Error {
+    anyhow!("schema violation: {}", message.into())
+}
+
+pub fn internal(message: impl Into<String>) -> anyhow::Error {
+    anyhow!("internal error: {}", message.into())
+}
+
+pub fn is_not_found(error: &anyhow::Error) -> bool {
+    let message = error.to_string();
+    message.starts_with("row not found:")
+        || message.starts_with("table not found:")
+        || message.starts_with("ref not found:")
+        || message.starts_with("commit not found:")
+        || message.starts_with("blob not found:")
+}
+
+pub fn is_conflict(error: &anyhow::Error) -> bool {
+    let message = error.to_string();
+    message.starts_with("row already exists:")
+        || message.starts_with("table already exists:")
+        || message.starts_with("merge conflict:")
+        || message.starts_with("concurrent modification:")
+}
+
+pub fn is_retriable(error: &anyhow::Error) -> bool {
+    error.to_string().starts_with("concurrent modification:")
 }

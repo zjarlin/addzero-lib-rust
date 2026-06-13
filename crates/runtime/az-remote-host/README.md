@@ -11,7 +11,7 @@
 - **平台权限提示**：为每种操作系统提供对应的权限说明文字，方便 UI 层直接展示。
 - **Wayland 感知**：在 Linux 下读取 `XDG_SESSION_TYPE` 区分 Wayland 与 X11，并自动附加兼容性备注。
 - **Mock 实现**：内置 `MockHostPlatformAdapter`，可直接用于测试或快速原型开发。
-- **统一错误类型**：`HostError` 与 `HostResult<T>` 提供一致的错误处理接口。
+- **统一错误返回**：平台适配接口直接返回 `anyhow::Result<T>`。
 
 ## 安装
 
@@ -57,7 +57,7 @@ fn main() {
 
 | 依赖 | 说明 |
 |------|------|
+| `anyhow` | 平台适配接口的错误返回与上下文 |
 | `az-remote-model` | 共享数据模型层，提供 `DeviceDescriptor`、`DeviceRole`、`OnlineStatus`、`RemotePlatform`、`SessionCapability` 等类型 |
 | `chrono` | 日期时间处理（启用 `serde` 特性），用于 `last_seen_at` 时间戳 |
-| `thiserror` | 派生宏定义 `HostError` 枚举的 `Display` / `Error` 实现 |
 | `uuid` | 生成设备唯一标识符（`Uuid::new_v4()`） |

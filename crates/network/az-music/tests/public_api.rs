@@ -1,5 +1,6 @@
+use anyhow::Result;
 use az_derive_aliases::{apply, plain_clone_debug};
-use az_music::*;
+use az_music::api::{ApiConfig, Music, MusicSearchApi, MusicSearchType, SunoApi, SunoMusicRequest};
 use reqwest::header::ACCEPT;
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -60,6 +61,7 @@ fn music_search_supports_song_artist_album_and_playlist_queries() -> Result<(), 
 
     let requests = server.finish()?;
     assert_eq!(requests.len(), 4);
+    assert!(requests.iter().all(|request| request.method == "GET"));
     assert!(
         requests[0]
             .path
@@ -102,6 +104,7 @@ fn music_lyric_detail_and_filtering_behave_like_jvm_client() -> Result<(), Box<d
     assert_eq!(filtered[0].artists[0].name, "周杰伦");
 
     let requests = server.finish()?;
+    assert!(requests.iter().all(|request| request.method == "GET"));
     assert_eq!(requests[0].path, "/song/lyric?id=1&lv=1&tv=1");
     assert_eq!(requests[1].path, "/song/detail?ids=%5B1%2C2%5D");
     assert!(
@@ -155,11 +158,16 @@ fn suno_endpoints_use_bearer_token_and_decode_payloads() -> Result<(), Box<dyn E
             Some("Bearer token-123")
         );
     }
+    assert_eq!(requests[0].method, "POST");
     assert_eq!(requests[0].path, "/suno/submit/music");
     assert!(requests[0].body.contains("\"prompt\":\"写一首歌\""));
+    assert_eq!(requests[1].method, "POST");
     assert_eq!(requests[1].path, "/suno/lyrics");
+    assert_eq!(requests[2].method, "POST");
     assert_eq!(requests[2].path, "/suno/concat");
+    assert_eq!(requests[3].method, "GET");
     assert_eq!(requests[3].path, "/suno/fetch/task-1");
+    assert_eq!(requests[4].method, "POST");
     assert_eq!(requests[4].path, "/suno/fetch");
     Ok(())
 }
@@ -196,6 +204,20 @@ fn suno_wait_for_completion_polls_until_complete() -> Result<(), Box<dyn Error>>
 fn facade_builds_default_clients() {
     let _ = Music::netease().expect("default netease client should build");
     let _ = Music::suno("token-123").expect("default suno client should build");
+}
+
+#[test]
+fn suno_api_debug_omits_api_token() {
+    let config = ApiConfig::builder("https://example.com")
+        .build()
+        .expect("config should build");
+    let api = SunoApi::new("suno-token", config).expect("api should build");
+
+    let debug = format!("{api:?}");
+
+    assert!(debug.contains("SunoApi"));
+    assert!(debug.contains("http"));
+    assert!(!debug.contains("suno-token"));
 }
 
 #[apply(plain_clone_debug)]
@@ -281,14 +303,14 @@ impl TestServer {
     }
 }
 
-fn test_music_config(base_url: &str) -> MusicResult<ApiConfig> {
+fn test_music_config(base_url: &str) -> Result<ApiConfig> {
     ApiConfig::builder(base_url)
         .default_header("Referer", "https://music.163.com/")
         .user_agent("Mozilla/5.0")
         .build()
 }
 
-fn test_suno_config(base_url: &str) -> MusicResult<ApiConfig> {
+fn test_suno_config(base_url: &str) -> Result<ApiConfig> {
     ApiConfig::builder(base_url)
         .default_header(ACCEPT.as_str(), "application/json")
         .build()
@@ -300,10 +322,10 @@ fn read_request(stream: &mut TcpStream) -> std::io::Result<CapturedRequest> {
     let header_end = loop {
         let read = stream.read(&mut chunk)?;
         if read == 0 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                "request ended before headers",
-            ));
+            let kind = std::io::ErrorKind::UnexpectedEof;
+            let error = std::io::Error::new(kind, "request ended before headers");
+
+            return Err(error);
         }
         buffer.extend_from_slice(&chunk[..read]);
         if let Some(index) = find_bytes(&buffer, b"\r\n\r\n") {

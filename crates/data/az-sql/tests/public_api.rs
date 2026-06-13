@@ -1,4 +1,4 @@
-use az_sql::{JoinType, SortOrder};
+use az_sql::query::{JoinType, SortOrder};
 
 #[test]
 fn sort_order_keeps_sql_display_and_exposes_codes() {

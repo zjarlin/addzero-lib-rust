@@ -28,7 +28,8 @@ az-temp-mail = { path = "../az-temp-mail" } # workspace 内部引用
 ### 使用 Cloudflare Workers 后端
 
 ```rust
-use az_temp_mail::{NewAddressRequest, PageRequest, create_temp_mail_api};
+use az_temp_mail::client::create_temp_mail_api;
+use az_temp_mail::model::{NewAddressRequest, PageRequest};
 
 let api = create_temp_mail_api("https://mail.example.com")?;
 let address = api.new_address(&NewAddressRequest::new("demo", "example.com"))?;
@@ -39,7 +40,8 @@ println!("{} has {} messages", address.address, inbox.count);
 ### 使用上下文配置
 
 ```rust
-use az_temp_mail::{CloudflareTempMailContext, PageRequest};
+use az_temp_mail::cloudflare::CloudflareTempMailContext;
+use az_temp_mail::model::PageRequest;
 
 let context = CloudflareTempMailContext {
     base_url: "https://mail.example.com".to_owned(),
@@ -58,7 +60,7 @@ println!("{} has {} messages", address.address, inbox.count);
 ### 使用 mail.tm 后端
 
 ```rust
-use az_temp_mail::TempMail;
+use az_temp_mail::temp_mail::TempMail;
 
 let api = TempMail::mail_tm()?;
 // api 实现了 TempMailProvider trait，可统一操作收件箱
@@ -67,9 +69,9 @@ let api = TempMail::mail_tm()?;
 ### 使用 provider factory
 
 ```rust
-use az_temp_mail::{
-    ApiConfig, TempMailProviderConfig, TempMailProviderKind, build_temp_mail_provider,
-};
+use az_temp_mail::config::ApiConfig;
+use az_temp_mail::model::TempMailProviderKind;
+use az_temp_mail::provider::{TempMailProviderConfig, build_temp_mail_provider};
 
 let config = TempMailProviderConfig::MailTm(ApiConfig::builder("https://api.mail.tm").build()?);
 assert_eq!(config.kind(), TempMailProviderKind::MailTm);
@@ -77,7 +79,7 @@ assert_eq!(config.kind(), TempMailProviderKind::MailTm);
 let provider = build_temp_mail_provider(config)?;
 assert_eq!(provider.provider_kind(), TempMailProviderKind::MailTm);
 
-let provider = az_temp_mail::TempMail::provider(TempMailProviderConfig::Emailnator(
+let provider = az_temp_mail::temp_mail::TempMail::provider(TempMailProviderConfig::Emailnator(
     ApiConfig::builder("https://www.emailnator.com").build()?,
 ))?;
 assert_eq!(provider.provider_kind(), TempMailProviderKind::Emailnator);
@@ -88,5 +90,5 @@ assert_eq!(provider.provider_kind(), TempMailProviderKind::Emailnator);
 - `reqwest` - HTTP 客户端，用于调用临时邮箱 API
 - `serde` / `serde_json` - JSON 序列化/反序列化
 - `sha2` - SHA-256 哈希（用于密码登录时的密码散列）
-- `thiserror` - 简化错误类型定义
+- `anyhow` - 错误返回与上下文
 - `strum` - 稳定 provider code 和字符串转换

@@ -15,9 +15,11 @@ az-gmail-code = { workspace = true }
 ## 示例
 
 ```rust,no_run
-use az_gmail_code::{GmailCodeClient, GmailCodeQuery};
+use anyhow::Result;
+use az_gmail_code::client::GmailCodeClient;
+use az_gmail_code::config::GmailCodeQuery;
 
-# fn run() -> az_gmail_code::GmailCodeResult<()> {
+# fn run() -> Result<()> {
 let client = GmailCodeClient::new("ya29.access-token")?;
 let code = client.find_latest_code(
     GmailCodeQuery::new()
@@ -45,9 +47,9 @@ if let Some(code) = code {
 OAuth 在 `az-oauth2` 中独立实现，因为它不局限于 Gmail。
 
 ```rust,no_run
-use az_oauth2::{
-    AuthorizationCodeOptions, GoogleOAuth2, OAuth2Client,
-};
+use az_oauth2::client::OAuth2Client;
+use az_oauth2::config::AuthorizationCodeOptions;
+use az_oauth2::google::GoogleOAuth2;
 
 # fn run() -> Result<(), Box<dyn std::error::Error>> {
 let oauth = OAuth2Client::new(
@@ -71,7 +73,7 @@ let token = oauth.exchange_authorization_code(
     Some(&pkce),
 )?;
 
-let gmail = az_gmail_code::GmailCodeClient::new(token.require_access_token()?)?;
+let gmail = az_gmail_code::client::GmailCodeClient::new(token.require_access_token()?)?;
 # Ok(())
 # }
 ```
@@ -83,5 +85,5 @@ let gmail = az_gmail_code::GmailCodeClient::new(token.require_access_token()?)?;
 - `regex` — 从邮件中提取验证码正则
 - `reqwest` — 调用 Gmail REST API
 - `serde` / `serde_json` — Gmail API JSON 响应反序列化
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误返回与上下文
 - `urlencoding` — Gmail 查询参数编码

@@ -3,7 +3,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::bail;
 use crate::logic_algorithm_pipeline::model::{
     ImageAlgorithmKind, ImageAlgorithmRunSummary, ImagePipelineOptions, ImagePipelineRun,
 };
@@ -156,8 +155,7 @@ fn run_one_algorithm(
             ]
         }
         ImageAlgorithmKind::QrCodeRecognition => {
-            let results = az_qr_code_recognition::logic_qr_code_recognition::assist::decode_qr_codes_from_path(input_path)
-                ?;
+            let results = az_qr_code_recognition::logic_qr_code_recognition::assist::decode_qr_codes_from_path(input_path)?;
             fs::create_dir_all(&output_dir)
                 .map_err(|source| path_error(output_dir.clone(), source))?;
             let output_file = output_dir.join("decoded_payloads.json");
@@ -194,4 +192,8 @@ fn face_detection_options(
         score_threshold: 0.5,
         nms_threshold: 0.4,
     })
+}
+
+fn path_error(path: PathBuf, source: std::io::Error) -> anyhow::Error {
+    anyhow::anyhow!("filesystem error at `{}`: {source}", path.display())
 }

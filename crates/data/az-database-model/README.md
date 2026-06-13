@@ -8,7 +8,7 @@
 - `DataType`：方言无关的列数据类型枚举（BigInt、Varchar、Text 等）
 - `Relation` / `RelationKind`：表间关系定义（一对一、一对多、多对多）
 - `Index`：索引定义
-- `ModelError`：Schema 校验错误（空名称、重复表/列、未知引用等）
+- `anyhow::Result`：Schema 校验和 JSON 读写错误直接带上下文返回
 
 ## 安装
 
@@ -23,7 +23,10 @@ az-database-model = { path = "../az-database-model" }       # workspace 内部�
 ## 用法
 
 ```rust
-use az_database_model::{Schema, Table, Column, DataType, Relation, RelationKind};
+use az_database_model::column::{Column, DataType};
+use az_database_model::relation::{Relation, RelationKind};
+use az_database_model::schema::Schema;
+use az_database_model::table::Table;
 
 // 定义表结构
 let users = Table::new("users")
@@ -46,5 +49,5 @@ assert_eq!(schema.tables.len(), 2);
 
 ## 依赖的 crates
 
-- `thiserror` - 错误类型派生
+- `anyhow` - 错误上下文与统一 `Result`
 - `serde` / `serde_json` - 序列化支持

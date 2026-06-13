@@ -16,30 +16,26 @@
 //! - [`field_info!`] — 声明式构造 [`FieldInfo`]，支持叶子字段、嵌套对象、集合以及列名/描述注解。
 //! - [`reflect_meta!`] — 为任意类型实现 [`MetaInfo`] trait，可选附带类型描述。
 
-automod::dir!("src");
-
-pub use cache::{CacheError, ExpiringCache};
-pub use metainfo::{
-    FieldInfo, FieldInfoSimple, MetaInfo, extract_table_name, get_field_infos,
-    get_simple_field_info_str, guess_column_name,
-};
-pub use value::{
-    contains_ignore_order, is_collection_value, is_custom_object_value, is_new, is_not_new,
-};
+automod::dir!(pub "src");
 
 #[macro_export]
 macro_rules! field_info {
     ($name:ident : $ty:ty) => {
-        $crate::FieldInfo::leaf(stringify!($name), None, None, stringify!($ty))
+        $crate::metainfo::FieldInfo::leaf(stringify!($name), None, None, stringify!($ty))
     };
     ($name:ident : $ty:ty, column = $column:expr) => {
-        $crate::FieldInfo::leaf(stringify!($name), None, Some($column), stringify!($ty))
+        $crate::metainfo::FieldInfo::leaf(stringify!($name), None, Some($column), stringify!($ty))
     };
     ($name:ident : $ty:ty => $description:expr) => {
-        $crate::FieldInfo::leaf(stringify!($name), Some($description), None, stringify!($ty))
+        $crate::metainfo::FieldInfo::leaf(
+            stringify!($name),
+            Some($description),
+            None,
+            stringify!($ty),
+        )
     };
     ($name:ident : $ty:ty => $description:expr, column = $column:expr) => {
-        $crate::FieldInfo::leaf(
+        $crate::metainfo::FieldInfo::leaf(
             stringify!($name),
             Some($description),
             Some($column),
@@ -47,75 +43,75 @@ macro_rules! field_info {
         )
     };
     ($name:ident : $ty:ty, nested = $nested:ty) => {
-        $crate::FieldInfo::nested(
+        $crate::metainfo::FieldInfo::nested(
             stringify!($name),
             None,
             None,
             stringify!($ty),
-            <$nested as $crate::MetaInfo>::field_infos(),
+            <$nested as $crate::metainfo::MetaInfo>::field_infos(),
         )
     };
     ($name:ident : $ty:ty, column = $column:expr, nested = $nested:ty) => {
-        $crate::FieldInfo::nested(
+        $crate::metainfo::FieldInfo::nested(
             stringify!($name),
             None,
             Some($column),
             stringify!($ty),
-            <$nested as $crate::MetaInfo>::field_infos(),
+            <$nested as $crate::metainfo::MetaInfo>::field_infos(),
         )
     };
     ($name:ident : $ty:ty => $description:expr, nested = $nested:ty) => {
-        $crate::FieldInfo::nested(
+        $crate::metainfo::FieldInfo::nested(
             stringify!($name),
             Some($description),
             None,
             stringify!($ty),
-            <$nested as $crate::MetaInfo>::field_infos(),
+            <$nested as $crate::metainfo::MetaInfo>::field_infos(),
         )
     };
     ($name:ident : $ty:ty => $description:expr, column = $column:expr, nested = $nested:ty) => {
-        $crate::FieldInfo::nested(
+        $crate::metainfo::FieldInfo::nested(
             stringify!($name),
             Some($description),
             Some($column),
             stringify!($ty),
-            <$nested as $crate::MetaInfo>::field_infos(),
+            <$nested as $crate::metainfo::MetaInfo>::field_infos(),
         )
     };
     ($name:ident : $ty:ty, collection = $item:ty) => {
-        $crate::FieldInfo::nested(
+        $crate::metainfo::FieldInfo::nested(
             stringify!($name),
             None,
             None,
             stringify!($ty),
-            <$item as $crate::MetaInfo>::field_infos(),
+            <$item as $crate::metainfo::MetaInfo>::field_infos(),
         )
     };
     ($name:ident : $ty:ty, column = $column:expr, collection = $item:ty) => {
-        $crate::FieldInfo::nested(
+        $crate::metainfo::FieldInfo::nested(
             stringify!($name),
             None,
             Some($column),
             stringify!($ty),
-            <$item as $crate::MetaInfo>::field_infos(),
+            <$item as $crate::metainfo::MetaInfo>::field_infos(),
         )
     };
     ($name:ident : $ty:ty => $description:expr, collection = $item:ty) => {
-        $crate::FieldInfo::nested(
+        $crate::metainfo::FieldInfo::nested(
             stringify!($name),
             Some($description),
             None,
             stringify!($ty),
-            <$item as $crate::MetaInfo>::field_infos(),
+            <$item as $crate::metainfo::MetaInfo>::field_infos(),
         )
     };
     ($name:ident : $ty:ty => $description:expr, column = $column:expr, collection = $item:ty) => {
-        $crate::FieldInfo::nested(
+        $crate::metainfo::FieldInfo::nested(
             stringify!($name),
             Some($description),
             Some($column),
             stringify!($ty),
-            <$item as $crate::MetaInfo>::field_infos(),
+            <$item as $crate::metainfo::MetaInfo>::field_infos(),
         )
     };
 }
@@ -123,19 +119,19 @@ macro_rules! field_info {
 #[macro_export]
 macro_rules! reflect_meta {
     ($ty:ty, description = $description:expr, [$($field:expr),* $(,)?]) => {
-        impl $crate::MetaInfo for $ty {
+        impl $crate::metainfo::MetaInfo for $ty {
             fn type_description() -> Option<&'static str> {
                 Some($description)
             }
 
-            fn field_infos() -> Vec<$crate::FieldInfo> {
+            fn field_infos() -> Vec<$crate::metainfo::FieldInfo> {
                 vec![$($field),*]
             }
         }
     };
     ($ty:ty, [$($field:expr),* $(,)?]) => {
-        impl $crate::MetaInfo for $ty {
-            fn field_infos() -> Vec<$crate::FieldInfo> {
+        impl $crate::metainfo::MetaInfo for $ty {
+            fn field_infos() -> Vec<$crate::metainfo::FieldInfo> {
                 vec![$($field),*]
             }
         }

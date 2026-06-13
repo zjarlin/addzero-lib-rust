@@ -132,7 +132,7 @@ az-config-center-client.workspace = true
 Rust 期望用法：
 
 ```rust
-use az_config_center_client::ConfigCenterClient;
+use az_config_center_client::client::ConfigCenterClient;
 
 let client = ConfigCenterClient::new("http://localhost:8080")?
     .login("zjarlin", std::env::var("CONFIG_CENTER_PASSWORD").unwrap_or_default())?

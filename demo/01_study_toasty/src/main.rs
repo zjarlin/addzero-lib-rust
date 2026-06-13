@@ -21,6 +21,7 @@ async fn main() -> toasty::Result<()> {
         .models(toasty::models!(crate::*))
         .build(driver)
         .await?;
+    
 
     db.push_schema().await?;
 

@@ -16,7 +16,6 @@ use ulid::Ulid;
 
 use crate::storage::{CommitId, GitRepository};
 use crate::transaction::context::{Transaction, TransactionMetadata, TxActive};
-use crate::transaction::error::{TransactionError, TransactionResult};
 use crate::transaction::isolation::IsolationLevel;
 
 /// Transaction manager - coordinates all transaction operations.
@@ -54,7 +53,7 @@ impl TransactionManager {
     }
 
     /// Begin a new transaction with the default isolation level.
-    pub fn begin(&self) -> TransactionResult<Transaction<TxActive>> {
+    pub fn begin(&self) -> anyhow::Result<Transaction<TxActive>> {
         self.begin_with_isolation(IsolationLevel::default())
     }
 
@@ -62,7 +61,7 @@ impl TransactionManager {
     pub fn begin_with_isolation(
         &self,
         isolation: IsolationLevel,
-    ) -> TransactionResult<Transaction<TxActive>> {
+    ) -> anyhow::Result<Transaction<TxActive>> {
         // Generate unique transaction ID
         let tx_id = Ulid::new().to_string().to_lowercase();
 
@@ -124,7 +123,7 @@ impl TransactionManager {
     ///
     /// This acquires a lock to ensure only one transaction commits at a time,
     /// preventing race conditions during the fast-forward operation.
-    pub fn commit_transaction(&self, tx: Transaction<TxActive>) -> TransactionResult<CommitId> {
+    pub fn commit_transaction(&self, tx: Transaction<TxActive>) -> anyhow::Result<CommitId> {
         // Acquire commit lock to serialize commits
         let _guard = self.inner.commit_lock.lock();
 
@@ -140,7 +139,7 @@ impl TransactionManager {
     }
 
     /// Rollback a transaction.
-    pub fn rollback_transaction(&self, tx: Transaction<TxActive>) -> TransactionResult<()> {
+    pub fn rollback_transaction(&self, tx: Transaction<TxActive>) -> anyhow::Result<()> {
         let tx_id = tx.id().to_string();
 
         // Perform the rollback
@@ -156,7 +155,7 @@ impl TransactionManager {
     ///
     /// This removes transaction branches for transactions that are no longer
     /// tracked (e.g., due to crashes or improper cleanup).
-    pub fn cleanup_abandoned(&self) -> TransactionResult<usize> {
+    pub fn cleanup_abandoned(&self) -> anyhow::Result<usize> {
         let active_ids: std::collections::HashSet<_> =
             self.inner.active.read().keys().cloned().collect();
 
@@ -185,9 +184,9 @@ impl TransactionManager {
     ///
     /// If the function returns Ok, the transaction is committed.
     /// If the function returns Err or panics, the transaction is rolled back.
-    pub fn with_transaction<F, T>(&self, f: F) -> TransactionResult<T>
+    pub fn with_transaction<F, T>(&self, f: F) -> anyhow::Result<T>
     where
-        F: FnOnce(&mut Transaction<TxActive>) -> TransactionResult<T>,
+        F: FnOnce(&mut Transaction<TxActive>) -> anyhow::Result<T>,
     {
         self.with_transaction_isolation(IsolationLevel::default(), f)
     }
@@ -197,9 +196,9 @@ impl TransactionManager {
         &self,
         isolation: IsolationLevel,
         f: F,
-    ) -> TransactionResult<T>
+    ) -> anyhow::Result<T>
     where
-        F: FnOnce(&mut Transaction<TxActive>) -> TransactionResult<T>,
+        F: FnOnce(&mut Transaction<TxActive>) -> anyhow::Result<T>,
     {
         let mut tx = self.begin_with_isolation(isolation)?;
 
@@ -216,8 +215,8 @@ impl TransactionManager {
     }
 
     /// Get current head of main branch.
-    pub fn head(&self) -> TransactionResult<CommitId> {
-        self.inner.repo.head().map_err(TransactionError::from)
+    pub fn head(&self) -> anyhow::Result<CommitId> {
+        self.inner.repo.head()
     }
 }
 
@@ -320,10 +319,10 @@ mod tests {
         let table = TableName::new("users").unwrap();
 
         // Execute with transaction that errors
-        let result: TransactionResult<()> = manager.with_transaction(|tx| {
+        let result: anyhow::Result<()> = manager.with_transaction(|tx| {
             tx.create_table(&table)?;
             // Simulate an error
-            Err(TransactionError::Internal("test error".to_string()))
+            anyhow::bail!("test error")
         });
 
         assert!(result.is_err());

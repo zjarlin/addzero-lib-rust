@@ -2,11 +2,10 @@
 
 use crate::sidebar::{SidebarItemModel, SidebarSectionModel, SidebarSectionView};
 use az_aio_plugin_api::{
-    NativeRenderContext, NavItemContribution, PageContribution, UiContribution,
-    UiContributionSlot,
+    NativeRenderContext, NavItemContribution, PageContribution, UiContribution, UiContributionSlot,
 };
-use az_aio_plugin_host::{
-    HostSnapshot, load_az_aio_native_snapshot, native_renderer, start_native_loopback_server,
+use az_aio_plugin_host::host::{
+    load_az_aio_native_snapshot, native_renderer, start_native_loopback_server, HostSnapshot,
 };
 use dioxus::prelude::*;
 use dioxus::signals::SyncStorage;
@@ -114,7 +113,9 @@ fn start_loopback_server(snapshot: HostSnapshot) -> Option<String> {
         .enable_all()
         .build()
         .ok()?;
-    runtime.block_on(start_native_loopback_server(snapshot)).ok()
+    runtime
+        .block_on(start_native_loopback_server(snapshot))
+        .ok()
 }
 
 fn normalize_active_route(snapshot: &HostSnapshot, active_route: &str) -> String {
@@ -286,9 +287,7 @@ fn render_contribution(
                 api_base_url: api_base_url.to_string(),
             })
         })
-        .unwrap_or_else(|| {
-            EmptyPanel(contribution.label.clone(), "?".to_string())
-        })
+        .unwrap_or_else(|| EmptyPanel(contribution.label.clone(), "?".to_string()))
 }
 
 fn matching_slot_renderers(

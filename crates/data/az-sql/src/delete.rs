@@ -1,6 +1,8 @@
-use crate::quote_identifier;
-use crate::{Query, QueryError, require_table_name};
+use anyhow::Result;
 use az_derive_aliases::{apply, plain_default_clone_debug};
+
+use crate::identifier::{quote_identifier, require_table_name};
+use crate::query::Query;
 
 /// A DELETE query builder.
 #[apply(plain_default_clone_debug)]
@@ -38,14 +40,14 @@ impl DeleteQuery {
     }
 
     /// Build and validate the query.
-    pub fn try_build(&self) -> Result<(String, Vec<String>), QueryError> {
+    pub fn try_build(&self) -> Result<(String, Vec<String>)> {
         require_table_name(self.table.as_deref())?;
         self.build()
     }
 }
 
 impl Query for DeleteQuery {
-    fn build(&self) -> Result<(String, Vec<String>), QueryError> {
+    fn build(&self) -> Result<(String, Vec<String>)> {
         let mut all_params: Vec<String> = Vec::new();
         let table = quote_identifier(require_table_name(self.table.as_deref())?);
 
@@ -75,7 +77,8 @@ impl Query for DeleteQuery {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::delete::DeleteQuery;
+    use crate::query::Query;
 
     #[test]
     fn delete_with_where() {
@@ -111,12 +114,12 @@ mod tests {
     #[test]
     fn try_build_no_table_errors() {
         let q = DeleteQuery::new().r#where("id = ?", vec!["1"]);
-        assert_eq!(q.try_build(), Err(QueryError::NoTable));
+        assert!(q.try_build().unwrap_err().to_string().contains("no table"));
     }
 
     #[test]
     fn build_blank_table_errors() {
         let q = DeleteQuery::new().from("");
-        assert_eq!(q.build(), Err(QueryError::NoTable));
+        assert!(q.build().unwrap_err().to_string().contains("no table"));
     }
 }

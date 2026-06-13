@@ -3,8 +3,7 @@
 use std::{path::Path, path::PathBuf};
 
 use az_aio_plugin_api::{
-    AzAioPlugin, ContributionSet, PluginDescriptor, PluginError, contributions_from_json,
-    descriptor_from_json,
+    AzAioPlugin, ContributionSet, PluginDescriptor, contributions_from_json, descriptor_from_json,
 };
 use wasmtime::{
     Engine, Store,
@@ -18,7 +17,7 @@ pub struct WasmComponentPlugin {
 }
 
 impl WasmComponentPlugin {
-    pub fn from_file(path: impl Into<PathBuf>) -> Result<Self, PluginError> {
+    pub fn from_file(path: impl Into<PathBuf>) -> anyhow::Result<Self> {
         let path = path.into();
         let fallback_id = path.display().to_string();
         let descriptor_json = call_result_string(&path, &fallback_id, "describe")?;
@@ -39,32 +38,28 @@ impl AzAioPlugin for WasmComponentPlugin {
         self.descriptor.clone()
     }
 
-    fn contributions(&self) -> Result<ContributionSet, PluginError> {
+    fn contributions(&self) -> anyhow::Result<ContributionSet> {
         Ok(self.contributions.clone())
     }
 
-    fn on_load(&mut self) -> Result<(), PluginError> {
+    fn on_load(&mut self) -> anyhow::Result<()> {
         call_result_unit(&self.path, &self.descriptor.id, "on-load")
     }
 
-    fn on_enable(&mut self) -> Result<(), PluginError> {
+    fn on_enable(&mut self) -> anyhow::Result<()> {
         call_result_unit(&self.path, &self.descriptor.id, "on-enable")
     }
 
-    fn on_disable(&mut self) -> Result<(), PluginError> {
+    fn on_disable(&mut self) -> anyhow::Result<()> {
         call_result_unit(&self.path, &self.descriptor.id, "on-disable")
     }
 
-    fn on_unload(&mut self) -> Result<(), PluginError> {
+    fn on_unload(&mut self) -> anyhow::Result<()> {
         call_result_unit(&self.path, &self.descriptor.id, "on-unload")
     }
 }
 
-fn call_result_string(
-    path: &Path,
-    plugin_id: &str,
-    export_name: &str,
-) -> Result<String, PluginError> {
+fn call_result_string(path: &Path, plugin_id: &str, export_name: &str) -> anyhow::Result<String> {
     let (engine, component) = load_component(path, plugin_id)?;
     let linker = Linker::new(&engine);
     let mut store = Store::new(&engine, ());
@@ -80,13 +75,10 @@ fn call_result_string(
     function
         .post_return(&mut store)
         .map_err(|error| wasm_error(plugin_id, error))?;
-    result.map_err(|message| PluginError::Wasm {
-        plugin: plugin_id.to_string(),
-        message,
-    })
+    result.map_err(|message| wasm_error(plugin_id, message))
 }
 
-fn call_result_unit(path: &Path, plugin_id: &str, export_name: &str) -> Result<(), PluginError> {
+fn call_result_unit(path: &Path, plugin_id: &str, export_name: &str) -> anyhow::Result<()> {
     let (engine, component) = load_component(path, plugin_id)?;
     let linker = Linker::new(&engine);
     let mut store = Store::new(&engine, ());
@@ -102,22 +94,16 @@ fn call_result_unit(path: &Path, plugin_id: &str, export_name: &str) -> Result<(
     function
         .post_return(&mut store)
         .map_err(|error| wasm_error(plugin_id, error))?;
-    result.map_err(|message| PluginError::Wasm {
-        plugin: plugin_id.to_string(),
-        message,
-    })
+    result.map_err(|message| wasm_error(plugin_id, message))
 }
 
-fn load_component(path: &Path, plugin_id: &str) -> Result<(Engine, Component), PluginError> {
+fn load_component(path: &Path, plugin_id: &str) -> anyhow::Result<(Engine, Component)> {
     let engine = Engine::default();
     let component =
         Component::from_file(&engine, path).map_err(|error| wasm_error(plugin_id, error))?;
     Ok((engine, component))
 }
 
-fn wasm_error(plugin_id: &str, error: impl std::fmt::Display) -> PluginError {
-    PluginError::Wasm {
-        plugin: plugin_id.to_string(),
-        message: error.to_string(),
-    }
+fn wasm_error(plugin_id: &str, error: impl std::fmt::Display) -> anyhow::Error {
+    anyhow::anyhow!("Wasm 组件 `{plugin_id}` 运行失败：{error}")
 }

@@ -8,7 +8,7 @@
 - 内置 OpenAI 兼容接口实现（`OpenAiClient`），可直接对接 OpenAI 及兼容服务
 - 结构化的 `Message` 与 `Role` 类型，支持系统提示词、用户消息与助手回复
 - `ChatOptions` 配置项：控制温度、最大 token 数等生成参数
-- 统一的 `ChatError` 错误体系，覆盖网络、JSON 解析、提供商返回错误等场景
+- 公开 API 返回 `anyhow::Result`，网络、JSON 和提供商错误直接带上下文返回
 
 ## 安装
 
@@ -24,7 +24,8 @@ az-ai-chat = { path = "../az-ai-chat" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_ai_chat::{OpenAiClient, ChatClient, Message, ChatOptions, Role};
+use az_ai_chat::{ChatClient, Message};
+use az_ai_chat::openai::OpenAiClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

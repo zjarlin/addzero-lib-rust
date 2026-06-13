@@ -1,4 +1,3 @@
-use crate::TempMailResult;
 use crate::client::CloudflareTempMailApi;
 use crate::config::ApiConfig;
 use crate::emailnator::EmailnatorTempMailApi;
@@ -35,21 +34,21 @@ pub trait TempMailProvider: Send + Sync {
     fn provider_kind(&self) -> TempMailProviderKind;
 
     /// 创建邮箱，并返回后续调用所需的 provider 凭据。
-    fn create_mailbox(&self, request: &CreateMailboxRequest) -> TempMailResult<TempMailMailbox>;
+    fn create_mailbox(&self, request: &CreateMailboxRequest) -> anyhow::Result<TempMailMailbox>;
 
     /// 列出已创建邮箱中的邮件。
     fn list_messages(
         &self,
         mailbox: &TempMailMailbox,
         page: PageRequest,
-    ) -> TempMailResult<ListResponse<TempMailMessageSummary>>;
+    ) -> anyhow::Result<ListResponse<TempMailMessageSummary>>;
 
     /// 按 provider 消息 ID 拉取单封邮件。
     fn get_message(
         &self,
         mailbox: &TempMailMailbox,
         message_id: &str,
-    ) -> TempMailResult<Option<TempMailMessageDetail>>;
+    ) -> anyhow::Result<Option<TempMailMessageDetail>>;
 }
 
 /// 应用边界使用的 boxed 临时邮箱 provider 对象。
@@ -59,7 +58,7 @@ pub type BoxTempMailProvider = Box<dyn TempMailProvider + Send + Sync>;
 pub trait TempMailProviderFactory: Send + Sync {
     /// 根据 provider 专属配置构造 provider trait object。
     fn build_provider(&self, config: TempMailProviderConfig)
-    -> TempMailResult<BoxTempMailProvider>;
+    -> anyhow::Result<BoxTempMailProvider>;
 }
 
 /// 本 crate 内置 provider 的默认工厂。
@@ -70,7 +69,7 @@ impl TempMailProviderFactory for BuiltinTempMailProviderFactory {
     fn build_provider(
         &self,
         config: TempMailProviderConfig,
-    ) -> TempMailResult<BoxTempMailProvider> {
+    ) -> anyhow::Result<BoxTempMailProvider> {
         match config {
             TempMailProviderConfig::Cloudflare(config) => {
                 Ok(Box::new(CloudflareTempMailApi::new(config)?))
@@ -86,6 +85,6 @@ impl TempMailProviderFactory for BuiltinTempMailProviderFactory {
 /// 根据 provider 专属配置构造 provider trait object。
 pub fn build_temp_mail_provider(
     config: TempMailProviderConfig,
-) -> TempMailResult<BoxTempMailProvider> {
+) -> anyhow::Result<BoxTempMailProvider> {
     BuiltinTempMailProviderFactory.build_provider(config)
 }

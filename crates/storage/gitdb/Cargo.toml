@@ -19,11 +19,11 @@ path = "src/lib.rs"
 [dependencies]
 automod.workspace = true
 az-derive-aliases.workspace = true
+anyhow.workspace = true
 derive_more.workspace = true
 git2 = "0.21.0"
 serde = { version = "1.0.228", features = ["derive"] }
 ulid = "1.2.1"
-thiserror = "2.0.17"
 serde_json = "1.0.145"
 chrono = { version = "0.4.42", features = ["serde"] }
 tempfile = "3.23.0"

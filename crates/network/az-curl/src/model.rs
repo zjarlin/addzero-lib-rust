@@ -1,4 +1,3 @@
-use crate::error::{CurlError, CurlResult};
 use crate::url_params::{extract_path_params, extract_query_params};
 use crate::util::{looks_like_json, normalize_header_name};
 use az_derive_aliases::{apply, plain_eq};
@@ -32,13 +31,13 @@ impl ParsedCurl {
             .or_else(|| self.header("content-type"))
     }
 
-    pub(crate) fn finalize(mut self) -> CurlResult<Self> {
+    pub(crate) fn finalize(mut self) -> anyhow::Result<Self> {
         if self.url.trim().is_empty() {
-            return Err(CurlError::MissingUrl);
+            anyhow::bail!("curl command does not contain a URL");
         }
 
         let parsed_url =
-            Url::parse(&self.url).map_err(|_| CurlError::InvalidUrl(self.url.clone()))?;
+            Url::parse(&self.url).map_err(|_| anyhow::anyhow!("invalid URL `{}`", self.url))?;
 
         if self.content_type.is_none() {
             self.content_type = self.header("content-type").map(ToOwned::to_owned);

@@ -1,7 +1,7 @@
 use crate::util::{required_non_blank, trim_non_blank};
-use crate::{
-    ApiConfig, CloudflareTempMailApi, CreateMailboxRequest, NewAddressRequest, TempMailResult,
-};
+use crate::client::CloudflareTempMailApi;
+use crate::config::ApiConfig;
+use crate::model::{CreateMailboxRequest, NewAddressRequest};
 use az_derive_aliases::{apply, plain_eq};
 
 /// 调用方提供的 Cloudflare 临时邮箱 worker 上下文，用于初始化客户端和默认邮箱创建请求。
@@ -23,12 +23,12 @@ pub struct CloudflareTempMailContext {
 
 impl CloudflareTempMailContext {
     /// 为 Cloudflare worker 客户端构建已校验的 HTTP 配置。
-    pub fn api_config(&self) -> TempMailResult<ApiConfig> {
+    pub fn api_config(&self) -> anyhow::Result<ApiConfig> {
         ApiConfig::try_from(self)
     }
 
     /// 根据当前上下文创建 Cloudflare worker 客户端。
-    pub fn create_api(&self) -> TempMailResult<CloudflareTempMailApi> {
+    pub fn create_api(&self) -> anyhow::Result<CloudflareTempMailApi> {
         CloudflareTempMailApi::new(self.api_config()?)
     }
 
@@ -46,7 +46,7 @@ impl CloudflareTempMailContext {
 }
 
 impl TryFrom<&CloudflareTempMailContext> for ApiConfig {
-    type Error = crate::TempMailError;
+    type Error = anyhow::Error;
 
     fn try_from(value: &CloudflareTempMailContext) -> Result<Self, Self::Error> {
         let mut builder = ApiConfig::builder(required_non_blank(&value.base_url, "base_url")?);

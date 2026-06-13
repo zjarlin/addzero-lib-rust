@@ -1,3 +1,4 @@
+use crate::config::ApiConfig;
 use crate::http::HttpApiClient;
 use crate::model::{
     CreateMailboxRequest, ListResponse, PageRequest, TempMailMailbox, TempMailMessageDetail,
@@ -5,7 +6,7 @@ use crate::model::{
 };
 use crate::provider::TempMailProvider;
 use crate::util::{random_alpha_numeric, sanitize_local_part, trim_non_blank};
-use crate::{ApiConfig, TempMailError, TempMailResult};
+use anyhow::anyhow;
 use az_derive_aliases::{apply, deserialize_debug, deserialize_eq, plain_clone_debug};
 use serde_json::{Value, json};
 
@@ -17,14 +18,14 @@ pub struct MailTmTempMailApi {
 
 impl MailTmTempMailApi {
     /// 根据显式 API 配置创建客户端。
-    pub fn new(config: ApiConfig) -> TempMailResult<Self> {
+    pub fn new(config: ApiConfig) -> anyhow::Result<Self> {
         Ok(Self {
             http: HttpApiClient::new(config)?,
         })
     }
 
     /// 列出可用域名。
-    pub fn get_domains(&self) -> TempMailResult<Vec<MailTmDomain>> {
+    pub fn get_domains(&self) -> anyhow::Result<Vec<MailTmDomain>> {
         let response = self.http.get("/domains")?.send()?;
         let response: HydraCollection<MailTmDomain> = HttpApiClient::read_json(response)?;
         Ok(response.items)
@@ -35,7 +36,7 @@ impl MailTmTempMailApi {
         &self,
         prefix: impl AsRef<str>,
         password_length: usize,
-    ) -> TempMailResult<TempMailMailbox> {
+    ) -> anyhow::Result<TempMailMailbox> {
         let domains = self
             .get_domains()?
             .into_iter()
@@ -45,9 +46,7 @@ impl MailTmTempMailApi {
         let chosen_domain = domains
             .first()
             .map(|domain| domain.domain.clone())
-            .ok_or_else(|| {
-                TempMailError::InvalidResponse("no active mail.tm domains available".to_owned())
-            })?;
+            .ok_or_else(|| anyhow!("invalid response: no active mail.tm domains available"))?;
 
         let local_part = format!(
             "{}{}",
@@ -73,7 +72,7 @@ impl MailTmTempMailApi {
         &self,
         address: impl AsRef<str>,
         password: impl AsRef<str>,
-    ) -> TempMailResult<String> {
+    ) -> anyhow::Result<String> {
         let response = self
             .http
             .post("/accounts")?
@@ -87,10 +86,10 @@ impl MailTmTempMailApi {
         trim_non_blank(Some(response.id.as_str()))
             .map(ToOwned::to_owned)
             .ok_or_else(|| {
-                TempMailError::InvalidResponse(format!(
-                    "create account failed: id missing for address={}",
+                anyhow!(
+                    "invalid response: create account failed: id missing for address={}",
                     address.as_ref().trim()
-                ))
+                )
             })
     }
 
@@ -99,7 +98,7 @@ impl MailTmTempMailApi {
         &self,
         address: impl AsRef<str>,
         password: impl AsRef<str>,
-    ) -> TempMailResult<String> {
+    ) -> anyhow::Result<String> {
         let response = self
             .http
             .post("/token")?
@@ -113,10 +112,10 @@ impl MailTmTempMailApi {
         trim_non_blank(Some(response.token.as_str()))
             .map(ToOwned::to_owned)
             .ok_or_else(|| {
-                TempMailError::InvalidResponse(format!(
-                    "create token failed: token missing for address={}",
+                anyhow!(
+                    "invalid response: create token failed: token missing for address={}",
                     address.as_ref().trim()
-                ))
+                )
             })
     }
 
@@ -125,7 +124,7 @@ impl MailTmTempMailApi {
         &self,
         token: impl AsRef<str>,
         page: PageRequest,
-    ) -> TempMailResult<ListResponse<TempMailMessageSummary>> {
+    ) -> anyhow::Result<ListResponse<TempMailMessageSummary>> {
         let query = [("page", mail_tm_page(page).to_string())];
         let response = HttpApiClient::with_bearer_auth(
             self.http.get_with_query("/messages", &query)?,
@@ -148,7 +147,7 @@ impl MailTmTempMailApi {
         &self,
         token: impl AsRef<str>,
         message_id: impl AsRef<str>,
-    ) -> TempMailResult<TempMailMessageDetail> {
+    ) -> anyhow::Result<TempMailMessageDetail> {
         let path = format!("/messages/{}", message_id.as_ref().trim());
         let response =
             HttpApiClient::with_bearer_auth(self.http.get(&path)?, Some(token.as_ref())).send()?;
@@ -163,7 +162,7 @@ impl TempMailProvider for MailTmTempMailApi {
         TempMailProviderKind::MailTm
     }
 
-    fn create_mailbox(&self, request: &CreateMailboxRequest) -> TempMailResult<TempMailMailbox> {
+    fn create_mailbox(&self, request: &CreateMailboxRequest) -> anyhow::Result<TempMailMailbox> {
         self.create_mailbox_and_login(
             request.name.as_deref().unwrap_or("az"),
             request.password_length,
@@ -174,7 +173,7 @@ impl TempMailProvider for MailTmTempMailApi {
         &self,
         mailbox: &TempMailMailbox,
         page: PageRequest,
-    ) -> TempMailResult<ListResponse<TempMailMessageSummary>> {
+    ) -> anyhow::Result<ListResponse<TempMailMessageSummary>> {
         self.list_messages_by_token(&mailbox.credential, page)
     }
 
@@ -182,7 +181,7 @@ impl TempMailProvider for MailTmTempMailApi {
         &self,
         mailbox: &TempMailMailbox,
         message_id: &str,
-    ) -> TempMailResult<Option<TempMailMessageDetail>> {
+    ) -> anyhow::Result<Option<TempMailMessageDetail>> {
         self.get_message_by_token(&mailbox.credential, message_id)
             .map(Some)
     }
@@ -192,7 +191,7 @@ impl TempMailProvider for MailTmTempMailApi {
 ///
 /// 这里不会设置 `Accept: application/json`，因为 mail.tm 在该 header 存在时会返回纯 JSON 数组，
 /// 而不是 `{"hydra:member": [...]}` 集合包裹，从而破坏 `HydraCollection` 反序列化。
-pub fn create_mail_tm_api() -> TempMailResult<MailTmTempMailApi> {
+pub fn create_mail_tm_api() -> anyhow::Result<MailTmTempMailApi> {
     let config = ApiConfig::builder("https://api.mail.tm").build()?;
     MailTmTempMailApi::new(config)
 }
@@ -288,7 +287,7 @@ fn mail_tm_summary_from_raw(raw: MailTmMessageSummaryRaw) -> Option<TempMailMess
 }
 
 impl TryFrom<MailTmMessageDetailRaw> for TempMailMessageDetail {
-    type Error = TempMailError;
+    type Error = anyhow::Error;
 
     fn try_from(raw: MailTmMessageDetailRaw) -> Result<Self, Self::Error> {
         let html = match raw.html {
@@ -299,9 +298,9 @@ impl TryFrom<MailTmMessageDetailRaw> for TempMailMessageDetail {
                 .unwrap_or_else(String::new),
             Value::Null => String::new(),
             other => {
-                return Err(TempMailError::InvalidResponse(format!(
-                    "mail.tm html field should be string or array, got {other}"
-                )));
+                anyhow::bail!(
+                    "invalid response: mail.tm html field should be string or array, got {other}"
+                );
             }
         };
 

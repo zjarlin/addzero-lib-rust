@@ -1,14 +1,14 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+use anyhow::Context;
 use az_derive_aliases::{apply, plain_clone};
-use az_persistence::PersistenceContext;
+use az_persistence::context::PersistenceContext;
 
 use crate::{
     import::{build_draft, fetch_metadata, seed_entries},
     model::{
-        SoftwareCatalogDto, SoftwareCatalogError, SoftwareCatalogResult, SoftwareDraftInput,
-        SoftwareEntryDto, SoftwareEntryInput, SoftwareMetadataDto, SoftwareMetadataFetchInput,
-        current_platform,
+        SoftwareCatalogDto, SoftwareDraftInput, SoftwareEntryDto, SoftwareEntryInput,
+        SoftwareMetadataDto, SoftwareMetadataFetchInput, current_platform,
     },
     repository::SoftwareCatalogRepository,
 };
@@ -23,17 +23,17 @@ pub struct SoftwareCatalogService {
 
 impl SoftwareCatalogService {
     /// 使用数据库 URL 连接持久化层并启动服务。
-    pub async fn connect(database_url: &str) -> SoftwareCatalogResult<Self> {
+    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         let persistence = PersistenceContext::connect_with_url(database_url)
             .await
-            .map_err(SoftwareCatalogError::persistence)?;
+            .with_context(|| format!("connect software catalog persistence `{database_url}`"))?;
         Self::boot(&persistence).await
     }
 
     /// 使用已存在的持久化上下文启动服务。
     ///
     /// 当目录为空时会写入内置默认软件条目。
-    pub async fn boot(persistence: &PersistenceContext) -> SoftwareCatalogResult<Self> {
+    pub async fn boot(persistence: &PersistenceContext) -> anyhow::Result<Self> {
         let service = Self {
             repository: SoftwareCatalogRepository::new(persistence.db().clone()),
         };
@@ -42,7 +42,7 @@ impl SoftwareCatalogService {
     }
 
     /// 返回当前宿主平台和完整软件目录。
-    pub async fn catalog(&self) -> SoftwareCatalogResult<SoftwareCatalogDto> {
+    pub async fn catalog(&self) -> anyhow::Result<SoftwareCatalogDto> {
         Ok(SoftwareCatalogDto {
             host_platform: current_platform(),
             items: self.repository.list_entries().await?,
@@ -55,12 +55,12 @@ impl SoftwareCatalogService {
     pub async fn save_entry(
         &self,
         input: SoftwareEntryInput,
-    ) -> SoftwareCatalogResult<SoftwareEntryDto> {
+    ) -> anyhow::Result<SoftwareEntryDto> {
         self.repository.save_entry(input).await
     }
 
     /// 按条目 ID 删除软件。
-    pub async fn delete_entry(&self, id: &str) -> SoftwareCatalogResult<()> {
+    pub async fn delete_entry(&self, id: &str) -> anyhow::Result<()> {
         self.repository.delete_entry(id).await
     }
 
@@ -68,7 +68,7 @@ impl SoftwareCatalogService {
     pub async fn fetch_metadata(
         &self,
         input: SoftwareMetadataFetchInput,
-    ) -> SoftwareCatalogResult<SoftwareMetadataDto> {
+    ) -> anyhow::Result<SoftwareMetadataDto> {
         fetch_metadata(input).await
     }
 
@@ -76,11 +76,11 @@ impl SoftwareCatalogService {
     pub async fn build_draft(
         &self,
         input: SoftwareDraftInput,
-    ) -> SoftwareCatalogResult<SoftwareEntryInput> {
+    ) -> anyhow::Result<SoftwareEntryInput> {
         build_draft(input).await
     }
 
-    async fn seed_defaults(&self) -> SoftwareCatalogResult<()> {
+    async fn seed_defaults(&self) -> anyhow::Result<()> {
         if self.repository.count_entries().await? > 0 {
             return Ok(());
         }

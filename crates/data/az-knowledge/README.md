@@ -68,6 +68,6 @@ async fn main() -> Result<(), az_knowledge::KnowledgeError> {
 - `sha2` - 内容哈希计算
 - `deunicode` - Unicode 转 ASCII slug 生成
 - `serde` / `serde_json` - 序列化
-- `anyhow` / `thiserror` - 错误处理
+- `anyhow` - 错误返回与上下文
 - `tokio` - 异步运行时
 - `uuid` - UUID 生成

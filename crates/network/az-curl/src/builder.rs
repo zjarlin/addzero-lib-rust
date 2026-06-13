@@ -1,4 +1,3 @@
-use crate::error::CurlResult;
 use crate::model::ParsedCurl;
 use crate::parse_support::parse_method;
 use crate::util::normalize_header_name;
@@ -31,7 +30,7 @@ impl CurlBuilder {
         }
     }
 
-    pub(crate) fn method(mut self, method: impl AsRef<str>) -> CurlResult<Self> {
+    pub(crate) fn method(mut self, method: impl AsRef<str>) -> anyhow::Result<Self> {
         self.method = Some(parse_method(method.as_ref())?);
         Ok(self)
     }
@@ -62,7 +61,7 @@ impl CurlBuilder {
         self
     }
 
-    pub(crate) fn build(self) -> CurlResult<ParsedCurl> {
+    pub(crate) fn build(self) -> anyhow::Result<ParsedCurl> {
         let method = match self.method {
             Some(method) => method,
             None if self.body.is_some() || !self.form_params.is_empty() => Method::POST,

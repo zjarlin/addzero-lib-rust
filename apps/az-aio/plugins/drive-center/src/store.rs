@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
+use anyhow::{anyhow, bail};
 use shaku::{Component, Interface, module};
 use toasty::stmt::{List, Query};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    error::{DriveCenterError, DriveCenterResult},
     model::{DriveTask, DriveTaskSummary, TABLE_NAME_PREFIX},
 };
 
@@ -16,7 +16,7 @@ pub struct DriveCenterStore {
 }
 
 impl DriveCenterStore {
-    pub async fn connect(database_url: &str) -> DriveCenterResult<Self> {
+    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         let database_url = validate_database_url(Some(database_url))?;
         let db = toasty::Db::builder()
             .models(toasty::models!(DriveTask))
@@ -29,13 +29,13 @@ impl DriveCenterStore {
         })
     }
 
-    pub async fn list_tasks(&self) -> DriveCenterResult<Vec<DriveTaskSummary>> {
+    pub async fn list_tasks(&self) -> anyhow::Result<Vec<DriveTaskSummary>> {
         let mut db = self.db.lock().await;
         let tasks = Query::<List<DriveTask>>::all().exec(&mut *db).await?;
         Ok(tasks.into_iter().map(Into::into).collect())
     }
 
-    pub async fn enqueue_task(&self, input: DriveTaskInput) -> DriveCenterResult<DriveTaskSummary> {
+    pub async fn enqueue_task(&self, input: DriveTaskInput) -> anyhow::Result<DriveTaskSummary> {
         validate_drive_task_input(&input)?;
         let now = timestamp_string();
         let mut db = self.db.lock().await;
@@ -89,20 +89,20 @@ pub fn build_drive_center_module() -> DriveCenterModule {
     DriveCenterModule::builder().build()
 }
 
-pub fn validate_database_url(value: Option<&str>) -> DriveCenterResult<&str> {
+pub fn validate_database_url(value: Option<&str>) -> anyhow::Result<&str> {
     let value = value
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or(DriveCenterError::MissingDatabaseUrl)?;
+        .ok_or_else(|| anyhow!("missing drive-center database url"))?;
     Ok(value)
 }
 
-pub fn validate_drive_task_input(input: &DriveTaskInput) -> DriveCenterResult<()> {
+pub fn validate_drive_task_input(input: &DriveTaskInput) -> anyhow::Result<()> {
     if input.path.trim().is_empty() {
-        return Err(DriveCenterError::BlankPath);
+        bail!("drive path must not be blank");
     }
     if input.action.trim().is_empty() {
-        return Err(DriveCenterError::BlankAction);
+        bail!("drive action must not be blank");
     }
     Ok(())
 }
@@ -134,10 +134,8 @@ mod tests {
             validate_database_url(Some(" postgresql://localhost/drive ")).unwrap(),
             "postgresql://localhost/drive"
         );
-        assert!(matches!(
-            validate_database_url(None),
-            Err(DriveCenterError::MissingDatabaseUrl)
-        ));
+        let error = validate_database_url(None).unwrap_err();
+        assert_eq!(error.to_string(), "missing drive-center database url");
     }
 
     #[test]
@@ -148,10 +146,8 @@ mod tests {
             action: "sync".to_string(),
             status: None,
         };
-        assert!(matches!(
-            validate_drive_task_input(&input),
-            Err(DriveCenterError::BlankPath)
-        ));
+        let error = validate_drive_task_input(&input).unwrap_err();
+        assert_eq!(error.to_string(), "drive path must not be blank");
     }
 
     #[test]

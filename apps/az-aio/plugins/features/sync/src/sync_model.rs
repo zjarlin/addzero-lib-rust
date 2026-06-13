@@ -6,9 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-
-use crate::error::{SyncError, SyncResult};
 
 pub const DEFAULT_SYNC_ROOT_RELATIVE: &str = "az-sync";
 
@@ -43,7 +42,7 @@ impl SyncDeviceInfo {
         self.home_dir.join(DEFAULT_SYNC_ROOT_RELATIVE)
     }
 
-    pub fn home_relative_path(&self, path: impl AsRef<Path>) -> SyncResult<String> {
+    pub fn home_relative_path(&self, path: impl AsRef<Path>) -> Result<String> {
         let path = path.as_ref();
         let absolute = if path.is_absolute() {
             path.to_path_buf()
@@ -58,17 +57,17 @@ impl SyncDeviceInfo {
             canonicalize_existing_or_parent(&absolute).unwrap_or_else(|| absolute.clone());
         let canonical_home = canonicalize_existing_or_parent(&self.home_dir)
             .unwrap_or_else(|| self.home_dir.clone());
-        let relative = canonical_absolute
-            .strip_prefix(&canonical_home)
-            .map(Path::to_path_buf)
-            .map_err(|_| SyncError::PathOutsideHome {
-                path: absolute.clone(),
-                home: self.home_dir.clone(),
-            })?;
+        let Ok(relative) = canonical_absolute.strip_prefix(&canonical_home) else {
+            bail!(
+                "path `{absolute:?}` is outside home directory `{:?}`",
+                self.home_dir
+            );
+        };
+        let relative = relative.to_path_buf();
         Ok(path_to_slash_string(&relative))
     }
 
-    pub fn local_path_for_home_relative(&self, relative_path: &str) -> SyncResult<PathBuf> {
+    pub fn local_path_for_home_relative(&self, relative_path: &str) -> Result<PathBuf> {
         let relative = normalize_home_relative_path(relative_path)?;
         Ok(self.home_dir.join(relative))
     }
@@ -101,7 +100,7 @@ impl SyncRoot {
         alias: impl Into<String>,
         relative_path: &str,
         space_id: impl Into<String>,
-    ) -> SyncResult<Self> {
+    ) -> Result<Self> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         Ok(Self {
             alias: alias.into(),
@@ -158,12 +157,10 @@ pub struct SyncCrdtEnvelope {
     pub content_hash: String,
 }
 
-pub fn normalize_home_relative_path(value: &str) -> SyncResult<String> {
+pub fn normalize_home_relative_path(value: &str) -> Result<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return Err(SyncError::InvalidRelativePath {
-            value: value.to_string(),
-        });
+        bail!("invalid sync relative path `{value}`");
     }
 
     let without_home = trimmed
@@ -182,9 +179,7 @@ pub fn normalize_home_relative_path(value: &str) -> SyncResult<String> {
         || normalized.ends_with("/..")
         || normalized.contains("/../")
     {
-        return Err(SyncError::InvalidRelativePath {
-            value: value.to_string(),
-        });
+        bail!("invalid sync relative path `{value}`");
     }
     Ok(normalized)
 }

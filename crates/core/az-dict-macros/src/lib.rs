@@ -43,11 +43,14 @@ fn expand_dict_enum(
     let spec = DictionarySpec::from_json_str(&spec_text)
         .map_err(|error| compile_error(error.to_string()))?;
     if spec.code != input.dict.value() {
-        return Err(compile_error(format!(
+        let message = format!(
             "dict code mismatch: expected {}, got {}",
             input.dict.value(),
             spec.code
-        )));
+        );
+        let error = compile_error(message);
+
+        return Err(error);
     }
 
     let raw_type: Type = input.raw_type.unwrap_or_else(|| match spec.raw_value_kind {
@@ -71,10 +74,13 @@ fn expand_dict_enum(
     for item in &spec.items {
         let variant_name = to_pascal_case(&item.code);
         if !variant_names.insert(variant_name.clone()) {
-            return Err(compile_error(format!(
+            let message = format!(
                 "duplicate normalized variant name for item code {}",
                 item.code
-            )));
+            );
+            let error = compile_error(message);
+
+            return Err(error);
         }
         let variant_ident = format_ident!("{variant_name}");
         let code = LitStr::new(&item.code, proc_macro2::Span::call_site());
@@ -91,12 +97,22 @@ fn expand_dict_enum(
 
         let (raw_expr, raw_pattern) = match spec.raw_value_kind {
             RawValueKind::Int => {
-                let value = item.raw_int_value.expect("validated raw int");
+                let Some(value) = item.raw_int_value else {
+                    let message = format!("item {} must define rawIntValue", item.code);
+                    let error = compile_error(message);
+
+                    return Err(error);
+                };
                 let lit = LitInt::new(&value.to_string(), proc_macro2::Span::call_site());
                 (quote! { #lit as #raw_type }, quote! { #lit })
             }
             RawValueKind::String => {
-                let value = item.raw_text_value.as_deref().expect("validated raw text");
+                let Some(value) = item.raw_text_value.as_deref() else {
+                    let message = format!("item {} must define rawTextValue", item.code);
+                    let error = compile_error(message);
+
+                    return Err(error);
+                };
                 let lit = LitStr::new(value, proc_macro2::Span::call_site());
                 (quote! { #lit }, quote! { #lit })
             }
@@ -141,7 +157,9 @@ fn expand_dict_enum(
     let open_impl = if spec.open_enum {
         let unknown_ident = format_ident!("{}", to_pascal_case(spec.normalized_unknown_variant()));
         if !variant_names.insert(unknown_ident.to_string()) {
-            return Err(compile_error("unknown variant collides with item variant"));
+            let error = compile_error("unknown variant collides with item variant");
+
+            return Err(error);
         }
         let from_raw_expr = quote! {
             pub fn from_raw(value: #raw_type) -> Self {
@@ -337,7 +355,8 @@ fn resolve_call_site_file() -> std::result::Result<PathBuf, String> {
     let display_path = span.file();
     let path = PathBuf::from(&display_path);
     if path.as_os_str().is_empty() || display_path.starts_with('<') {
-        return Err("failed to resolve macro call site source file".to_string());
+        let error = "failed to resolve macro call site source file".to_string();
+        return Err(error);
     }
     Ok(path)
 }
@@ -404,10 +423,10 @@ impl Parse for DictEnumInput {
                 "spec" => spec = Some(input.parse()?),
                 "raw_type" => raw_type = Some(input.parse()?),
                 other => {
-                    return Err(syn::Error::new(
-                        field.span(),
-                        format!("unsupported field: {other}"),
-                    ));
+                    let message = format!("unsupported field: {other}");
+                    let error = syn::Error::new(field.span(), message);
+
+                    return Err(error);
                 }
             }
             if input.is_empty() {

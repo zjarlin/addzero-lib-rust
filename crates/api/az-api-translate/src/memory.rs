@@ -6,7 +6,8 @@
 use reqwest::Client;
 
 use crate::model::{DetectedLanguage, TranslateOptions, TranslateResult};
-use crate::{TranslateClient, TranslateError};
+use crate::TranslateClient;
+use anyhow::{Result, bail};
 use az_derive_aliases::{apply, deserialize_debug};
 
 const BASE_URL: &str = "https://api.mymemory.translated.net/get";
@@ -88,7 +89,7 @@ impl TranslateClient for MyMemoryClient {
         text: &str,
         from: &str,
         to: &str,
-    ) -> Result<TranslateResult, TranslateError> {
+    ) -> Result<TranslateResult> {
         self.translate_with_options(text, from, to, &TranslateOptions::default())
             .await
     }
@@ -99,7 +100,7 @@ impl TranslateClient for MyMemoryClient {
         from: &str,
         to: &str,
         options: &TranslateOptions,
-    ) -> Result<TranslateResult, TranslateError> {
+    ) -> Result<TranslateResult> {
         if text.is_empty() {
             return Ok(TranslateResult {
                 translated_text: String::new(),
@@ -135,21 +136,19 @@ impl TranslateClient for MyMemoryClient {
         let resp = self.client.get(&url).send().await?;
 
         if !resp.status().is_success() {
-            return Err(TranslateError::ProviderError(format!(
-                "HTTP {}",
-                resp.status()
-            )));
+            let status = resp.status();
+            bail!("provider error: HTTP {status}");
         }
 
         if max_alts > 0 {
             let raw: MyMemoryMatchesResponse = resp.json().await?;
 
             if raw.response_status != 200 {
-                return Err(TranslateError::ProviderError(
-                    raw.response_data
-                        .map(|d| d.translated_text)
-                        .unwrap_or_else(|| "unknown error".into()),
-                ));
+                let message = raw
+                    .response_data
+                    .map(|d| d.translated_text)
+                    .unwrap_or_else(|| "unknown error".into());
+                bail!("provider error: {message}");
             }
 
             let primary = raw
@@ -177,11 +176,11 @@ impl TranslateClient for MyMemoryClient {
             let raw: MyMemoryResponse = resp.json().await?;
 
             if raw.response_status != 200 {
-                return Err(TranslateError::ProviderError(
-                    raw.response_details
-                        .or_else(|| raw.response_data.map(|d| d.translated_text))
-                        .unwrap_or_else(|| "unknown error".into()),
-                ));
+                let message = raw
+                    .response_details
+                    .or_else(|| raw.response_data.map(|d| d.translated_text))
+                    .unwrap_or_else(|| "unknown error".into());
+                bail!("provider error: {message}");
             }
 
             let translated = raw
@@ -202,7 +201,7 @@ impl TranslateClient for MyMemoryClient {
         }
     }
 
-    async fn detect_language(&self, text: &str) -> Result<DetectedLanguage, TranslateError> {
+    async fn detect_language(&self, text: &str) -> Result<DetectedLanguage> {
         // MyMemory 没有专门的语言检测端点；当前保守返回 und，避免伪造检测结果。
         if text.is_empty() {
             return Ok(DetectedLanguage {

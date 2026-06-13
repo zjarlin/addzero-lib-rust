@@ -13,8 +13,6 @@ pub use config::{
     LowcodeConfigSource, resolve_lowcode_config,
 };
 #[cfg(not(target_arch = "wasm32"))]
-pub use error::{LowcodeError, LowcodeResult};
-#[cfg(not(target_arch = "wasm32"))]
 pub use model::{LowcodeApp, LowcodePage};
 #[cfg(not(target_arch = "wasm32"))]
 pub use store::LowcodeStore;

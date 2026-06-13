@@ -2,7 +2,7 @@
 
 use std::io::{self, BufRead, Write};
 
-use super::api::{Database, DatabaseResult};
+use super::api::Database;
 use crate::executor::QueryResult;
 use az_derive_aliases::{apply, impl_default, plain_clone_debug};
 
@@ -53,7 +53,7 @@ impl Repl {
     }
 
     /// Run the REPL interactively.
-    pub fn run(&mut self) -> DatabaseResult<()> {
+    pub fn run(&mut self) -> anyhow::Result<()> {
         self.print_banner();
 
         let stdin = io::stdin();
@@ -150,7 +150,7 @@ impl Repl {
         input.starts_with('.') || input.starts_with('\\')
     }
 
-    fn handle_command(&mut self, cmd: &str) -> DatabaseResult<bool> {
+    fn handle_command(&mut self, cmd: &str) -> anyhow::Result<bool> {
         let cmd = cmd.trim_start_matches(&['.', '\\'][..]);
         let parts: Vec<&str> = cmd.split_whitespace().collect();
         let command = parts.first().map(|s| s.to_lowercase());
@@ -230,7 +230,7 @@ impl Repl {
         println!();
     }
 
-    fn list_tables(&self) -> DatabaseResult<()> {
+    fn list_tables(&self) -> anyhow::Result<()> {
         let tables = self.db.tables()?;
         if tables.is_empty() {
             println!("No tables found.");
@@ -243,7 +243,7 @@ impl Repl {
         Ok(())
     }
 
-    fn describe_table(&self, name: &str) -> DatabaseResult<()> {
+    fn describe_table(&self, name: &str) -> anyhow::Result<()> {
         match self.db.table_schema(name)? {
             Some(schema) => {
                 println!("Table: {}", schema.name);

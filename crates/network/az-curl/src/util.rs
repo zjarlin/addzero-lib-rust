@@ -1,11 +1,36 @@
-use regex::Regex;
-use std::sync::LazyLock;
-
-static LINE_CONTINUATION_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\\\s*\r?\n").expect("line continuation regex should compile"));
-
 pub(crate) fn normalize_command(command: &str) -> String {
-    LINE_CONTINUATION_RE.replace_all(command, " ").into_owned()
+    let mut normalized = String::with_capacity(command.len());
+    let mut chars = command.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character == '\\' {
+            let mut buffered = String::new();
+            while chars.peek().is_some_and(|next| *next == ' ' || *next == '\t') {
+                if let Some(space) = chars.next() {
+                    buffered.push(space);
+                }
+            }
+            match chars.peek() {
+                Some('\n') => {
+                    chars.next();
+                    normalized.push(' ');
+                }
+                Some('\r') => {
+                    chars.next();
+                    if chars.peek() == Some(&'\n') {
+                        chars.next();
+                    }
+                    normalized.push(' ');
+                }
+                _ => {
+                    normalized.push(character);
+                    normalized.push_str(&buffered);
+                }
+            }
+        } else {
+            normalized.push(character);
+        }
+    }
+    normalized
 }
 
 pub(crate) fn normalize_header_name(name: &str) -> String {

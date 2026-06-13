@@ -10,13 +10,14 @@ authors.workspace = true
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
+automod.workspace = true
 axum.workspace = true
 az-derive-aliases.workspace = true
 az-drive-core.workspace = true
 az-drive-store.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
-thiserror.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]

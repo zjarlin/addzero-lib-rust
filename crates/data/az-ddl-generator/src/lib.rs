@@ -6,39 +6,22 @@
 //! # 快速开始
 //!
 //! ```no_run
-//! use az_ddl_generator::{DdlGenerator, Table, Column, ColumnType, Dialect};
+//! use az_ddl_generator::column::{Column, ColumnType};
+//! use az_ddl_generator::dialect::Dialect;
+//! use az_ddl_generator::generator::DdlGenerator;
+//! use az_ddl_generator::table::Table;
 //!
+//! # fn main() -> anyhow::Result<()> {
 //! let table = Table::new("users")
 //!     .column(Column::new("id", ColumnType::BigInt).primary_key().not_null())
 //!     .column(Column::new("name", ColumnType::Varchar(255)).not_null())
 //!     .column(Column::new("email", ColumnType::Varchar(255)).unique());
 //!
-//! let ddl = DdlGenerator::new(Dialect::PostgreSQL).generate_create_table(&table).unwrap();
+//! let ddl = DdlGenerator::new(Dialect::PostgreSQL).generate_create_table(&table)?;
 //! assert!(ddl.contains("CREATE TABLE"));
 //! assert!(ddl.contains("users"));
+//! # Ok(())
+//! # }
 //! ```
 
-use az_derive_aliases::{apply, error_eq};
-
-automod::dir!("src");
-
-pub use column::{Column, ColumnType};
-pub use dialect::Dialect;
-pub use generator::{DdlGenerator, quote_identifier};
-pub use table::Table;
-
-/// Errors that can occur during DDL generation.
-#[apply(error_eq)]
-pub enum DdlError {
-    /// The table name is empty or invalid.
-    #[error("invalid table name: {0}")]
-    InvalidTableName(String),
-
-    /// The table has no columns defined.
-    #[error("table '{0}' has no columns")]
-    EmptyTable(String),
-
-    /// Duplicate column name detected.
-    #[error("duplicate column name: '{0}'")]
-    DuplicateColumn(String),
-}
+automod::dir!(pub "src");

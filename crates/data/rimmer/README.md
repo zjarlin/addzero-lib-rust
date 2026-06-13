@@ -31,12 +31,12 @@ rimmer = { path = "crates/data/rimmer" }
 
 ### 2. 定义实体
 
-推荐用 `#[derive(rimmer::Entity)]` 定义实体元模型。结构体本身只作为 Rust 类型和字段声明；查询、保存、Fetcher 都通过 derive 生成的 `Book::table()`、`Book::name()`、`Book::fetcher()`、`Book::draft(...)` 入口使用。
+推荐用 `#[derive(rimmer::derive::Entity)]` 定义实体元模型。结构体本身只作为 Rust 类型和字段声明；查询、保存、Fetcher 都通过 derive 生成的 `Book::table()`、`Book::name()`、`Book::fetcher()`、`Book::draft(...)` 入口使用。
 
 ```rust
-use rimmer::{JimmerClient, QueryBuilderExt};
+use rimmer::query::{JimmerClient, QueryBuilderExt};
 
-#[derive(rimmer::Entity)]
+#[derive(rimmer::derive::Entity)]
 #[rimmer(table = "BOOK")]
 pub struct Book {
     #[rimmer(id, column = "ID")]
@@ -62,8 +62,8 @@ pub struct Book {
 `JimmerClient::new()` 是无连接的 plan builder，适合测试、CLI 预览、日志审计或把 SQL 交给其他执行器。
 
 ```rust
-# use rimmer::{JimmerClient, QueryBuilderExt};
-# #[derive(rimmer::Entity)]
+# use rimmer::query::{JimmerClient, QueryBuilderExt};
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK")]
 # pub struct Book {
 #     #[rimmer(id, column = "ID")]
@@ -95,8 +95,9 @@ assert!(plan.sql.contains(r#"FROM "BOOK""#));
 需要真实执行时使用 `SqlxJimmerClient`。它内部基于 `sqlx::AnyPool`，当前支持 SQLite 和 PostgreSQL URL 方言识别；内部 plan 统一使用 `?` 占位符，执行 PostgreSQL 时会自动渲染成 `$1`、`$2`。
 
 ```rust
-# use rimmer::{QueryBuilderExt, SqlxJimmerClient};
-# #[derive(rimmer::Entity)]
+# use rimmer::executor::SqlxJimmerClient;
+# use rimmer::query::QueryBuilderExt;
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK")]
 # pub struct Book {
 #     #[rimmer(id, column = "ID")]
@@ -104,7 +105,7 @@ assert!(plan.sql.contains(r#"FROM "BOOK""#));
 #     #[rimmer(key, column = "NAME")]
 #     pub name: String,
 # }
-# async fn demo() -> rimmer::OrmResult<()> {
+# async fn demo() -> anyhow::Result<()> {
 let sql = SqlxJimmerClient::connect("sqlite::memory:").await?;
 
 let rows = sql
@@ -124,7 +125,7 @@ println!("{:?}", rows.rows);
 也可以复用已有连接池：
 
 ```rust
-# use rimmer::SqlxJimmerClient;
+# use rimmer::executor::SqlxJimmerClient;
 # fn demo(pool: sqlx::AnyPool) {
 let sql = SqlxJimmerClient::from_pool(pool);
 # }
@@ -135,8 +136,9 @@ let sql = SqlxJimmerClient::from_pool(pool);
 Draft 用来表达“只保存显式指定的字段”。`set_null(...)` 表示显式写入 SQL `NULL`，未调用 `set(...)`/`set_null(...)` 的字段不会出现在保存 SQL 中。
 
 ```rust
-# use rimmer::{JimmerClient, SaveMode};
-# #[derive(rimmer::Entity)]
+# use rimmer::query::JimmerClient;
+# use rimmer::save::SaveMode;
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK_STORE")]
 # pub struct BookStore {
 #     #[rimmer(id, column = "ID")]
@@ -173,8 +175,9 @@ assert!(plan.sql.starts_with("UPDATE"));
 Fetcher 可以序列化成 JSON 保存、传输或缓存。恢复时会校验根实体、表名、字段列名和根关联列，避免旧 JSON 形状漂移后继续生成错误 SQL。
 
 ```rust
-# use rimmer::{Fetcher, QueryBuilderExt};
-# #[derive(rimmer::Entity)]
+# use rimmer::fetcher::Fetcher;
+# use rimmer::query::QueryBuilderExt;
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK")]
 # pub struct Book {
 #     #[rimmer(id, column = "ID")]
@@ -194,9 +197,9 @@ assert_eq!(restored.shape(), fetcher.shape());
 推荐用 derive 生成 Jimmer 风格元模型：
 
 ```rust
-use rimmer::{JimmerClient, QueryBuilderExt};
+use rimmer::query::{JimmerClient, QueryBuilderExt};
 
-#[derive(rimmer::Entity)]
+#[derive(rimmer::derive::Entity)]
 #[rimmer(table = "BOOK")]
 pub struct Book {
     #[rimmer(id, column = "ID")]
@@ -227,7 +230,9 @@ assert!(plan.sql.contains(r#"FROM "BOOK""#));
 也可以用 `entity!` 在没有过程宏需求时声明实体：
 
 ```rust
-use rimmer::{JimmerClient, QueryBuilderExt, entity, new_fetcher};
+use rimmer::entity;
+use rimmer::fetcher::new_fetcher;
+use rimmer::query::{JimmerClient, QueryBuilderExt};
 
 entity! {
     pub mod book {
@@ -258,7 +263,9 @@ assert!(plan.sql.contains(r#"FROM "BOOK""#));
 Fetcher 形状可以直接作为 JSON 保存、传输或缓存：
 
 ```rust
-# use rimmer::{JimmerClient, QueryBuilderExt, entity, new_fetcher};
+# use rimmer::entity;
+use rimmer::fetcher::new_fetcher;
+use rimmer::query::{JimmerClient, QueryBuilderExt};
 # entity! {
 #     pub mod book {
 #         pub struct Book => "BOOK" {
@@ -274,9 +281,9 @@ let simple_book = new_fetcher(book::entity()).by(|f| {
 });
 
 let json = simple_book.to_json().unwrap();
-let restored = rimmer::Fetcher::from_json(book::entity(), &json).unwrap();
+let restored = rimmer::fetcher::Fetcher::from_json(book::entity(), &json).unwrap();
 let value = simple_book.to_json_value().unwrap();
-let restored_from_value = rimmer::Fetcher::from_json_value(book::entity(), value).unwrap();
+let restored_from_value = rimmer::fetcher::Fetcher::from_json_value(book::entity(), value).unwrap();
 
 assert_eq!(restored.shape(), simple_book.shape());
 assert_eq!(restored_from_value.shape(), simple_book.shape());
@@ -285,7 +292,10 @@ assert_eq!(restored_from_value.shape(), simple_book.shape());
 接入 `sqlx` 后，可以像 Jimmer 的 `sqlClient` 一样把查询链直接执行成 JSON：
 
 ```rust
-# use rimmer::{QueryBuilderExt, SqlxJimmerClient, entity, new_fetcher};
+# use rimmer::entity;
+# use rimmer::executor::SqlxJimmerClient;
+# use rimmer::fetcher::new_fetcher;
+# use rimmer::query::QueryBuilderExt;
 # entity! {
 #     pub mod book_store {
 #         pub struct BookStore => "BOOK_STORE" {
@@ -295,7 +305,7 @@ assert_eq!(restored_from_value.shape(), simple_book.shape());
 #         }
 #     }
 # }
-# async fn demo(sql: SqlxJimmerClient) -> rimmer::OrmResult<()> {
+# async fn demo(sql: SqlxJimmerClient) -> anyhow::Result<()> {
 let stores = sql
     .create_query(book_store::table())
     .where_(book_store::name().eq_if_not_blank(Some("O'REILLY")))
@@ -319,8 +329,8 @@ assert_eq!(stores.rows.len(), 1);
 Fetcher 可以声明 `many_to_one`，查询时会自动 `LEFT JOIN` 并返回嵌套 JSON：
 
 ```rust
-# use rimmer::{JimmerClient, QueryBuilderExt};
-#[derive(rimmer::Entity)]
+# use rimmer::query::{JimmerClient, QueryBuilderExt};
+#[derive(rimmer::derive::Entity)]
 #[rimmer(table = "BOOK_STORE")]
 pub struct BookStore {
     #[rimmer(id, column = "ID")]
@@ -329,7 +339,7 @@ pub struct BookStore {
     pub name: String,
 }
 
-#[derive(rimmer::Entity)]
+#[derive(rimmer::derive::Entity)]
 #[rimmer(table = "BOOK")]
 pub struct Book {
     #[rimmer(id, column = "ID")]
@@ -361,8 +371,8 @@ assert!(plan.sql.contains("LEFT JOIN"));
 `one_to_many` 使用二段批量加载，不会把父对象用 join 展平成重复行：
 
 ```rust
-# use rimmer::{JimmerClient, QueryBuilderExt};
-# #[derive(rimmer::Entity)]
+# use rimmer::query::{JimmerClient, QueryBuilderExt};
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK_STORE")]
 # pub struct BookStore {
 #     #[rimmer(id, column = "ID")]
@@ -370,7 +380,7 @@ assert!(plan.sql.contains("LEFT JOIN"));
 #     #[rimmer(key, column = "NAME")]
 #     pub name: String,
 # }
-# #[derive(rimmer::Entity)]
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK")]
 # pub struct Book {
 #     #[rimmer(id, column = "ID")]
@@ -401,8 +411,9 @@ assert!(plan.sql.contains(r#"FROM "BOOK_STORE""#));
 集合 Fetcher 可以配置关联级过滤、排序和分页；`limit`/`offset` 按每个父对象独立生效：
 
 ```rust
-# use rimmer::{CollectionFetchOptions, JimmerClient, QueryBuilderExt};
-# #[derive(rimmer::Entity)]
+# use rimmer::fetcher::CollectionFetchOptions;
+# use rimmer::query::{JimmerClient, QueryBuilderExt};
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK_STORE")]
 # pub struct BookStore {
 #     #[rimmer(id, column = "ID")]
@@ -410,7 +421,7 @@ assert!(plan.sql.contains(r#"FROM "BOOK_STORE""#));
 #     #[rimmer(key, column = "NAME")]
 #     pub name: String,
 # }
-# #[derive(rimmer::Entity)]
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK")]
 # pub struct Book {
 #     #[rimmer(id, column = "ID")]
@@ -450,8 +461,8 @@ assert!(plan.sql.contains(r#"FROM "BOOK_STORE""#));
 同一套集合关联路径可以生成 Jimmer 风格的隐式子查询谓词：
 
 ```rust
-# use rimmer::{JimmerClient, QueryBuilderExt};
-# #[derive(rimmer::Entity)]
+# use rimmer::query::{JimmerClient, QueryBuilderExt};
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK_STORE")]
 # pub struct BookStore {
 #     #[rimmer(id, column = "ID")]
@@ -459,7 +470,7 @@ assert!(plan.sql.contains(r#"FROM "BOOK_STORE""#));
 #     #[rimmer(key, column = "NAME")]
 #     pub name: String,
 # }
-# #[derive(rimmer::Entity)]
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK")]
 # pub struct Book {
 #     #[rimmer(id, column = "ID")]
@@ -493,8 +504,9 @@ assert!(plan.sql.contains("EXISTS"));
 `many_to_many` 同样使用中间表批量加载，Fetcher 形状仍然可以直接序列化成 JSON：
 
 ```rust
-# use rimmer::{JimmerClient, ManyToManyJoin, QueryBuilderExt};
-# #[derive(rimmer::Entity)]
+# use rimmer::fetcher::ManyToManyJoin;
+# use rimmer::query::{JimmerClient, QueryBuilderExt};
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK")]
 # pub struct Book {
 #     #[rimmer(id, column = "ID")]
@@ -502,7 +514,7 @@ assert!(plan.sql.contains("EXISTS"));
 #     #[rimmer(key, column = "NAME")]
 #     pub name: String,
 # }
-# #[derive(rimmer::Entity)]
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "AUTHOR")]
 # pub struct Author {
 #     #[rimmer(id, column = "ID")]
@@ -546,8 +558,9 @@ assert!(!plan.sql.contains("BOOK_AUTHOR_MAPPING"));
 多对多 Fetcher 也支持同样的集合关联级配置：
 
 ```rust
-# use rimmer::{CollectionFetchOptions, JimmerClient, ManyToManyJoin, QueryBuilderExt};
-# #[derive(rimmer::Entity)]
+# use rimmer::fetcher::{CollectionFetchOptions, ManyToManyJoin};
+# use rimmer::query::{JimmerClient, QueryBuilderExt};
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK")]
 # pub struct Book {
 #     #[rimmer(id, column = "ID")]
@@ -555,7 +568,7 @@ assert!(!plan.sql.contains("BOOK_AUTHOR_MAPPING"));
 #     #[rimmer(key, column = "NAME")]
 #     pub name: String,
 # }
-# #[derive(rimmer::Entity)]
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "AUTHOR")]
 # pub struct Author {
 #     #[rimmer(id, column = "ID")]
@@ -593,8 +606,9 @@ assert!(json.contains(r#""collectionOptions""#));
 多对多关联路径也可以生成隐式子查询：
 
 ```rust
-# use rimmer::{JimmerClient, ManyToManyJoin, QueryBuilderExt};
-# #[derive(rimmer::Entity)]
+# use rimmer::fetcher::ManyToManyJoin;
+# use rimmer::query::{JimmerClient, QueryBuilderExt};
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "BOOK")]
 # pub struct Book {
 #     #[rimmer(id, column = "ID")]
@@ -602,7 +616,7 @@ assert!(json.contains(r#""collectionOptions""#));
 #     #[rimmer(key, column = "NAME")]
 #     pub name: String,
 # }
-# #[derive(rimmer::Entity)]
+# #[derive(rimmer::derive::Entity)]
 # #[rimmer(table = "AUTHOR")]
 # pub struct Author {
 #     #[rimmer(id, column = "ID")]

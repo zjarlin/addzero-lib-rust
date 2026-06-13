@@ -29,12 +29,12 @@ impl VideoFrameAlgorithm for MyDetector {
     fn process_frame(
         &mut self,
         frame: &VideoFrame,
-    ) -> az_algorithm_video_pipeline::error::AlgorithmVideoPipelineResult<VideoAlgorithmFrameResult> {
+    ) -> anyhow::Result<VideoAlgorithmFrameResult> {
         Ok(VideoAlgorithmFrameResult::empty(self.code(), frame))
     }
 }
 
-# fn main() -> az_algorithm_video_pipeline::error::AlgorithmVideoPipelineResult<()> {
+# fn main() -> anyhow::Result<()> {
 let frames = Vec::<VideoFrame>::new();
 let mut detector = MyDetector;
 let mut algorithms = [VideoAlgorithmBinding {

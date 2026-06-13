@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AzGitError, GitHostingProvider, Result,
     auth::{CommandRunner, SystemCommandRunner},
+    provider::GitHostingProvider,
 };
 
 /// Remote repository metadata discovered from a logged-in Git hosting account.
@@ -48,7 +48,7 @@ where
         provider: GitHostingProvider,
         owner: &str,
         limit: usize,
-    ) -> Result<Vec<GitRemoteRepository>> {
+    ) -> anyhow::Result<Vec<GitRemoteRepository>> {
         match provider {
             GitHostingProvider::GitHub => self.discover_github_repositories(owner, limit),
             GitHostingProvider::Gitee | GitHostingProvider::GitLab => Ok(Vec::new()),
@@ -59,7 +59,7 @@ where
         &self,
         owner: &str,
         limit: usize,
-    ) -> Result<Vec<GitRemoteRepository>> {
+    ) -> anyhow::Result<Vec<GitRemoteRepository>> {
         let owner = owner.trim();
         if owner.is_empty() {
             return Ok(Vec::new());
@@ -80,10 +80,7 @@ where
         )?;
 
         if !output.status_success {
-            return Err(AzGitError::CommandFailed {
-                program: "gh".to_string(),
-                stderr: output.stderr.trim().to_string(),
-            });
+            anyhow::bail!("命令 gh 执行失败：{}", output.stderr.trim());
         }
 
         parse_gh_repository_list(&output.stdout)
@@ -105,13 +102,9 @@ struct GhRepositoryOwner {
     login: String,
 }
 
-fn parse_gh_repository_list(stdout: &str) -> Result<Vec<GitRemoteRepository>> {
-    let repositories = serde_json::from_str::<Vec<GhRepository>>(stdout).map_err(|source| {
-        AzGitError::ParseCommandOutput {
-            program: "gh".to_string(),
-            source,
-        }
-    })?;
+fn parse_gh_repository_list(stdout: &str) -> anyhow::Result<Vec<GitRemoteRepository>> {
+    let repositories = serde_json::from_str::<Vec<GhRepository>>(stdout)
+        .map_err(|source| anyhow::anyhow!("解析 gh 输出失败：{source}"))?;
 
     Ok(repositories
         .into_iter()
@@ -169,8 +162,11 @@ fn git_url_from_web_url(web_url: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{CommandOutput, Result};
+    use super::{GitRemoteRepository, GitRepositoryDiscovery, parse_gh_repository_list};
+    use crate::{
+        auth::{CommandOutput, CommandRunner},
+        provider::GitHostingProvider,
+    };
 
     #[derive(Clone, Debug)]
     struct FakeRunner {
@@ -178,7 +174,7 @@ mod tests {
     }
 
     impl CommandRunner for FakeRunner {
-        fn run(&self, _program: &str, _args: &[&str]) -> Result<CommandOutput> {
+        fn run(&self, _program: &str, _args: &[&str]) -> anyhow::Result<CommandOutput> {
             Ok(self.output.clone())
         }
     }

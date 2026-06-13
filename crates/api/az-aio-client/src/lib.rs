@@ -1,34 +1,17 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
+use anyhow::{Context, Result, bail};
 use az_config_center_contract::{
     DESKTOP_SESSION_TOKEN_HEADER, DesktopBackendStatus, ShellComponent, ShellComponentBuildRequest,
     ShellComponentBuildResult, ShellComponentConfigUpdate, ShellComponentPatch,
     ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
 };
-use az_derive_aliases::{apply, error, plain_clone_debug};
+use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Method;
 use reqwest::blocking::{Client, Response};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-
-pub type AioClientResult<T> = Result<T, AioClientError>;
-
-#[apply(error)]
-pub enum AioClientError {
-    #[error("request to {url} failed: {source}")]
-    Transport {
-        url: String,
-        #[source]
-        source: reqwest::Error,
-    },
-    #[error("request to {url} returned {status}: {body}")]
-    Http {
-        url: String,
-        status: reqwest::StatusCode,
-        body: String,
-    },
-}
 
 #[apply(plain_clone_debug)]
 pub struct AioClient {
@@ -61,15 +44,15 @@ impl AioClient {
         &self.base_url
     }
 
-    pub fn desktop_status(&self) -> AioClientResult<DesktopBackendStatus> {
+    pub fn desktop_status(&self) -> Result<DesktopBackendStatus> {
         self.request(Method::GET, "/api/desktop/status", None::<&()>)
     }
 
-    pub fn list_shell_components(&self) -> AioClientResult<ShellComponentRegistry> {
+    pub fn list_shell_components(&self) -> Result<ShellComponentRegistry> {
         self.request(Method::GET, "/api/shell-components", None::<&()>)
     }
 
-    pub fn get_shell_component(&self, name: &str) -> AioClientResult<Option<ShellComponent>> {
+    pub fn get_shell_component(&self, name: &str) -> Result<Option<ShellComponent>> {
         self.request(
             Method::GET,
             &format!("/api/shell-components/{}", urlencoding::encode(name)),
@@ -77,42 +60,33 @@ impl AioClient {
         )
     }
 
-    pub fn upsert_shell_component(
-        &self,
-        input: &ShellComponentUpsert,
-    ) -> AioClientResult<ShellComponent> {
+    pub fn upsert_shell_component(&self, input: &ShellComponentUpsert) -> Result<ShellComponent> {
         self.request(Method::POST, "/api/shell-components/upsert", Some(input))
     }
 
-    pub fn patch_shell_component(
-        &self,
-        input: &ShellComponentPatch,
-    ) -> AioClientResult<ShellComponent> {
+    pub fn patch_shell_component(&self, input: &ShellComponentPatch) -> Result<ShellComponent> {
         self.request(Method::POST, "/api/shell-components/patch", Some(input))
     }
 
-    pub fn remove_shell_component(
-        &self,
-        input: &ShellComponentRemove,
-    ) -> AioClientResult<ShellComponent> {
+    pub fn remove_shell_component(&self, input: &ShellComponentRemove) -> Result<ShellComponent> {
         self.request(Method::POST, "/api/shell-components/remove", Some(input))
     }
 
     pub fn save_shell_component_config(
         &self,
         input: &ShellComponentConfigUpdate,
-    ) -> AioClientResult<ShellComponentRegistry> {
+    ) -> Result<ShellComponentRegistry> {
         self.request(Method::POST, "/api/shell-components/config", Some(input))
     }
 
     pub fn build_shell_components(
         &self,
         input: &ShellComponentBuildRequest,
-    ) -> AioClientResult<ShellComponentBuildResult> {
+    ) -> Result<ShellComponentBuildResult> {
         self.request(Method::POST, "/api/shell-components/build", Some(input))
     }
 
-    fn request<T, B>(&self, method: Method, path: &str, body: Option<B>) -> AioClientResult<T>
+    fn request<T, B>(&self, method: Method, path: &str, body: Option<B>) -> Result<T>
     where
         T: DeserializeOwned,
         B: Serialize,
@@ -126,10 +100,9 @@ impl AioClient {
             request = request.json(&body);
         }
 
-        let response = request.send().map_err(|source| AioClientError::Transport {
-            url: url.clone(),
-            source,
-        })?;
+        let response = request
+            .send()
+            .with_context(|| format!("request to {url} failed"))?;
         decode_json(url, response)
     }
 }
@@ -138,16 +111,16 @@ fn normalize_base_url(base_url: String) -> String {
     base_url.trim_end_matches('/').to_string()
 }
 
-fn decode_json<T>(url: String, response: Response) -> AioClientResult<T>
+fn decode_json<T>(url: String, response: Response) -> Result<T>
 where
     T: DeserializeOwned,
 {
     let status = response.status();
     if !status.is_success() {
         let body = response.text().unwrap_or_default();
-        return Err(AioClientError::Http { url, status, body });
+        bail!("request to {url} returned {status}: {body}");
     }
     response
         .json()
-        .map_err(|source| AioClientError::Transport { url, source })
+        .with_context(|| format!("request to {url} failed"))
 }

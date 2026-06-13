@@ -1,4 +1,5 @@
-use crate::{OAuth2Error, OAuth2Result, PkcePair};
+use crate::pkce::PkcePair;
+use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{apply, plain_debug, plain_eq};
 use reqwest::Url;
 use std::collections::BTreeMap;
@@ -28,8 +29,10 @@ impl LoopbackAuthorizationSession {
         state: String,
         pkce: PkcePair,
         listener: TcpListener,
-    ) -> OAuth2Result<Self> {
-        listener.set_nonblocking(true)?;
+    ) -> anyhow::Result<Self> {
+        listener
+            .set_nonblocking(true)
+            .context("failed to configure OAuth2 loopback listener as nonblocking")?;
         Ok(Self {
             authorization_url,
             redirect_uri,
@@ -40,7 +43,7 @@ impl LoopbackAuthorizationSession {
     }
 
     /// Waits for one OAuth redirect callback and validates the `state` parameter.
-    pub fn wait_for_callback(self, timeout: Duration) -> OAuth2Result<OAuth2AuthorizationCallback> {
+    pub fn wait_for_callback(self, timeout: Duration) -> anyhow::Result<OAuth2AuthorizationCallback> {
         let deadline = Instant::now() + timeout;
         loop {
             match self.listener.accept() {
@@ -52,36 +55,38 @@ impl LoopbackAuthorizationSession {
                     } else {
                         "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 36\r\nConnection: close\r\n\r\nOAuth authorization received. Return."
                     };
-                    stream.write_all(response.as_bytes())?;
+                    stream
+                        .write_all(response.as_bytes())
+                        .context("failed to write OAuth2 loopback response")?;
 
                     if callback.state.as_deref() != Some(self.state.as_str()) {
-                        return Err(OAuth2Error::StateMismatch {
-                            expected: self.state,
-                            actual: callback.state.unwrap_or_default(),
-                        });
+                        let actual = callback.state.unwrap_or_default();
+                        bail!(
+                            "oauth state mismatch: expected `{}`, got `{actual}`",
+                            self.state
+                        );
                     }
                     if let Some(error) = callback.error.as_deref() {
-                        return Err(OAuth2Error::ProviderError {
-                            error: error.to_owned(),
-                            description: callback.error_description.unwrap_or_default(),
-                        });
+                        let description = callback.error_description.unwrap_or_default();
+                        bail!("oauth provider error `{error}`: {description}");
                     }
                     if callback.code.trim().is_empty() {
-                        return Err(OAuth2Error::InvalidCallback(
-                            "missing authorization code".to_owned(),
-                        ));
+                        bail!("invalid authorization callback: missing authorization code");
                     }
                     return Ok(callback);
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                     if Instant::now() >= deadline {
-                        return Err(OAuth2Error::InvalidCallback(
-                            "timed out waiting for loopback callback".to_owned(),
-                        ));
+                        bail!("invalid authorization callback: timed out waiting for loopback callback");
                     }
                     thread::sleep(Duration::from_millis(25));
                 }
-                Err(error) => return Err(OAuth2Error::Io(error)),
+                Err(error) => {
+                    let error =
+                        anyhow::Error::from(error).context("failed to accept OAuth2 loopback callback");
+
+                    return Err(error);
+                }
             }
         }
     }
@@ -102,11 +107,13 @@ pub struct OAuth2AuthorizationCallback {
     pub error_description: Option<String>,
 }
 
-fn read_request(stream: &mut std::net::TcpStream) -> OAuth2Result<String> {
+fn read_request(stream: &mut std::net::TcpStream) -> anyhow::Result<String> {
     let mut buffer = Vec::new();
     let mut chunk = [0_u8; 1024];
     loop {
-        let read = stream.read(&mut chunk)?;
+        let read = stream
+            .read(&mut chunk)
+            .context("failed to read OAuth2 loopback request")?;
         if read == 0 {
             break;
         }
@@ -121,24 +128,24 @@ fn read_request(stream: &mut std::net::TcpStream) -> OAuth2Result<String> {
 fn parse_callback_request(
     request: &str,
     redirect_uri: &str,
-) -> OAuth2Result<OAuth2AuthorizationCallback> {
+) -> anyhow::Result<OAuth2AuthorizationCallback> {
     let request_target = request
         .lines()
         .next()
         .and_then(|line| line.split_whitespace().nth(1))
-        .ok_or_else(|| OAuth2Error::InvalidCallback("missing HTTP request target".to_owned()))?;
+        .ok_or_else(|| anyhow!("invalid authorization callback: missing HTTP request target"))?;
     let redirect = Url::parse(redirect_uri)
-        .map_err(|_| OAuth2Error::InvalidBaseUrl(redirect_uri.to_owned()))?;
+        .with_context(|| format!("invalid base url `{redirect_uri}`"))?;
     let callback_url = format!(
         "{}://{}{}",
         redirect.scheme(),
         redirect
             .host_str()
-            .ok_or_else(|| OAuth2Error::InvalidCallback("redirect_uri has no host".to_owned()))?,
+            .ok_or_else(|| anyhow!("invalid authorization callback: redirect_uri has no host"))?,
         request_target
     );
     let parsed = Url::parse(&callback_url)
-        .map_err(|_| OAuth2Error::InvalidCallback(request_target.to_owned()))?;
+        .with_context(|| format!("invalid authorization callback: {request_target}"))?;
 
     let params = parsed
         .query_pairs()

@@ -1,6 +1,8 @@
-use crate::quote_identifier;
-use crate::{JoinType, Query, QueryError, SortOrder, require_table_name};
+use anyhow::Result;
 use az_derive_aliases::{apply, plain_clone_debug, plain_default_clone_debug};
+
+use crate::identifier::{quote_identifier, require_table_name};
+use crate::query::{JoinType, Query, SortOrder};
 
 /// A SELECT query builder.
 #[apply(plain_default_clone_debug)]
@@ -118,18 +120,17 @@ impl SelectQuery {
     }
 
     /// Build and validate the query.
-    pub fn try_build(&self) -> Result<(String, Vec<String>), QueryError> {
+    pub fn try_build(&self) -> Result<(String, Vec<String>)> {
         self.build()
     }
 }
 
 impl Query for SelectQuery {
-    fn build(&self) -> Result<(String, Vec<String>), QueryError> {
+    fn build(&self) -> Result<(String, Vec<String>)> {
         let mut sql = String::new();
         let mut all_params: Vec<String> = Vec::new();
         let table = require_table_name(self.table.as_deref())?;
 
-        // SELECT clause
         sql.push_str("SELECT ");
         if self.distinct {
             sql.push_str("DISTINCT ");
@@ -141,10 +142,8 @@ impl Query for SelectQuery {
             sql.push_str(&quoted.join(", "));
         }
 
-        // FROM clause
         sql.push_str(&format!(" FROM {}", quote_identifier(table)));
 
-        // JOIN clauses
         for join in &self.joins {
             sql.push_str(&format!(
                 " {} {} ON {}",
@@ -154,7 +153,6 @@ impl Query for SelectQuery {
             ));
         }
 
-        // WHERE clause
         if !self.conditions.is_empty() {
             sql.push_str(" WHERE ");
             let cond_parts: Vec<String> = self
@@ -168,19 +166,16 @@ impl Query for SelectQuery {
             sql.push_str(&cond_parts.join(" AND "));
         }
 
-        // GROUP BY
         if !self.group_by.is_empty() {
             let quoted: Vec<String> = self.group_by.iter().map(|c| quote_identifier(c)).collect();
             sql.push_str(&format!(" GROUP BY {}", quoted.join(", ")));
         }
 
-        // HAVING
         if let Some((ref cond, ref params)) = self.having {
             all_params.extend(params.iter().cloned());
             sql.push_str(&format!(" HAVING {}", cond));
         }
 
-        // ORDER BY
         if !self.order_by.is_empty() {
             let parts: Vec<String> = self
                 .order_by
@@ -190,12 +185,10 @@ impl Query for SelectQuery {
             sql.push_str(&format!(" ORDER BY {}", parts.join(", ")));
         }
 
-        // LIMIT
         if let Some(limit) = self.limit {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
 
-        // OFFSET
         if let Some(offset) = self.offset {
             sql.push_str(&format!(" OFFSET {}", offset));
         }
@@ -206,7 +199,8 @@ impl Query for SelectQuery {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::query::Query;
+    use crate::select::SelectQuery;
 
     #[test]
     fn simple_select_all() {
@@ -341,12 +335,12 @@ mod tests {
     #[test]
     fn try_build_no_table_errors() {
         let q = SelectQuery::new().select(&["id"]);
-        assert_eq!(q.try_build(), Err(QueryError::NoTable));
+        assert!(q.try_build().unwrap_err().to_string().contains("no table"));
     }
 
     #[test]
     fn build_blank_table_errors() {
         let q = SelectQuery::new().from("   ");
-        assert_eq!(q.build(), Err(QueryError::NoTable));
+        assert!(q.build().unwrap_err().to_string().contains("no table"));
     }
 }

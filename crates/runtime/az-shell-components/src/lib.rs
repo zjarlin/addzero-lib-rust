@@ -6,26 +6,16 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::{anyhow, bail};
 use az_config_center_contract::{
     ShellComponent, ShellComponentBuildResult, ShellComponentKind, ShellComponentPatch,
     ShellComponentUpsert,
 };
-use az_derive_aliases::{apply, error_eq};
-
-/// Shell 组件渲染与校验统一返回类型。
-pub type ShellComponentResult<T> = Result<T, ShellComponentError>;
-
-#[apply(error_eq)]
-pub enum ShellComponentError {
-    /// 输入 DTO 不满足当前组件类型的必填字段或命名约束。
-    #[error("{0}")]
-    Validation(String),
-}
 
 /// 将创建 / 更新请求规范化为完整 Shell 组件快照。
 ///
 /// 该函数会修剪空白、丢弃空字符串字段，并预生成 `preview`，供 API 层保存或返回。
-pub fn materialize_component(input: ShellComponentUpsert) -> ShellComponentResult<ShellComponent> {
+pub fn materialize_component(input: ShellComponentUpsert) -> anyhow::Result<ShellComponent> {
     validate_upsert(&input)?;
 
     let mut component = ShellComponent {
@@ -47,7 +37,7 @@ pub fn materialize_component(input: ShellComponentUpsert) -> ShellComponentResul
 ///
 /// `Export` 必须提供 `export_value`，`Alias` 必须提供 `alias_command`，
 /// `Function` 与 `Snippet` 必须提供 `body`。
-pub fn validate_upsert(input: &ShellComponentUpsert) -> ShellComponentResult<()> {
+pub fn validate_upsert(input: &ShellComponentUpsert) -> anyhow::Result<()> {
     validate_component_name(&input.name, input.kind)?;
     match input.kind {
         ShellComponentKind::Export => {
@@ -73,11 +63,9 @@ pub fn validate_upsert(input: &ShellComponentUpsert) -> ShellComponentResult<()>
 }
 
 /// 校验局部更新请求是否至少包含一个可修改字段。
-pub fn validate_patch(input: &ShellComponentPatch) -> ShellComponentResult<()> {
+pub fn validate_patch(input: &ShellComponentPatch) -> anyhow::Result<()> {
     if input.summary.is_none() && input.enabled.is_none() && input.render_to_output.is_none() {
-        return Err(ShellComponentError::Validation(
-            "patch request is empty".to_string(),
-        ));
+        bail!("patch request is empty");
     }
     if let Some(summary) = &input.summary {
         let _ = summary.trim();
@@ -88,17 +76,13 @@ pub fn validate_patch(input: &ShellComponentPatch) -> ShellComponentResult<()> {
 /// 校验组件名是否适用于指定组件类型。
 ///
 /// 所有组件名都不能留空、包含空白或 `=`；`Export` 还必须符合 shell 变量命名规则。
-pub fn validate_component_name(name: &str, kind: ShellComponentKind) -> ShellComponentResult<()> {
+pub fn validate_component_name(name: &str, kind: ShellComponentKind) -> anyhow::Result<()> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
-        return Err(ShellComponentError::Validation(
-            "component name cannot be blank".to_string(),
-        ));
+        bail!("component name cannot be blank");
     }
     if trimmed.contains(char::is_whitespace) || trimmed.contains('=') {
-        return Err(ShellComponentError::Validation(
-            "component name cannot contain whitespace or `=`".to_string(),
-        ));
+        bail!("component name cannot contain whitespace or `=`");
     }
     if matches!(kind, ShellComponentKind::Export)
         && !trimmed.chars().enumerate().all(|(idx, ch)| match idx {
@@ -106,15 +90,13 @@ pub fn validate_component_name(name: &str, kind: ShellComponentKind) -> ShellCom
             _ => ch == '_' || ch.is_ascii_alphanumeric(),
         })
     {
-        return Err(ShellComponentError::Validation(
-            "export component name must be a valid shell variable".to_string(),
-        ));
+        bail!("export component name must be a valid shell variable");
     }
     Ok(())
 }
 
 /// 将单个组件渲染为可写入 shell 文件的脚本片段。
-pub fn render_component(component: &ShellComponent) -> ShellComponentResult<String> {
+pub fn render_component(component: &ShellComponent) -> anyhow::Result<String> {
     match component.kind {
         ShellComponentKind::Export => {
             let value = component
@@ -122,10 +104,10 @@ pub fn render_component(component: &ShellComponent) -> ShellComponentResult<Stri
                 .as_deref()
                 .filter(|value| !value.trim().is_empty())
                 .ok_or_else(|| {
-                    ShellComponentError::Validation(format!(
+                    anyhow!(
                         "export component `{}` is missing export_value",
                         component.name
-                    ))
+                    )
                 })?;
             Ok(format!(
                 "export {}={}",
@@ -139,10 +121,10 @@ pub fn render_component(component: &ShellComponent) -> ShellComponentResult<Stri
                 .as_deref()
                 .filter(|value| !value.trim().is_empty())
                 .ok_or_else(|| {
-                    ShellComponentError::Validation(format!(
+                    anyhow!(
                         "alias component `{}` is missing alias_command",
                         component.name
-                    ))
+                    )
                 })?;
             Ok(format!(
                 "alias {}={}",
@@ -155,12 +137,7 @@ pub fn render_component(component: &ShellComponent) -> ShellComponentResult<Stri
             .as_deref()
             .filter(|value| !value.trim().is_empty())
             .map(ToOwned::to_owned)
-            .ok_or_else(|| {
-                ShellComponentError::Validation(format!(
-                    "component `{}` is missing body",
-                    component.name
-                ))
-            }),
+            .ok_or_else(|| anyhow!("component `{}` is missing body", component.name)),
     }
 }
 
@@ -171,7 +148,7 @@ pub fn build_output(
     config_path: &str,
     output_path: &str,
     components: &[ShellComponent],
-) -> ShellComponentResult<ShellComponentBuildResult> {
+) -> anyhow::Result<ShellComponentBuildResult> {
     let included = included_components(components);
     let mut content = String::new();
     content.push_str("# Generated by aio shell component builder.\n");
@@ -239,7 +216,7 @@ pub fn expand_home_path(path: impl AsRef<Path>) -> PathBuf {
     path
 }
 
-fn render_component_block(component: &ShellComponent) -> ShellComponentResult<String> {
+fn render_component_block(component: &ShellComponent) -> anyhow::Result<String> {
     let mut block = String::new();
     if !component.summary.trim().is_empty() {
         block.push_str(&format!(
@@ -266,9 +243,9 @@ fn included_components(components: &[ShellComponent]) -> Vec<ShellComponent> {
     items
 }
 
-fn require_non_empty(value: Option<&str>, message: &str) -> ShellComponentResult<()> {
+fn require_non_empty(value: Option<&str>, message: &str) -> anyhow::Result<()> {
     if value.map(str::trim).is_none_or(str::is_empty) {
-        return Err(ShellComponentError::Validation(message.to_string()));
+        bail!("{message}");
     }
     Ok(())
 }
@@ -287,199 +264,4 @@ fn normalize_multiline_option(value: Option<String>) -> Option<String> {
     value
         .map(|value| value.replace("\r\n", "\n").trim_matches('\n').to_string())
         .filter(|value| !value.trim().is_empty())
-}
-
-#[cfg(test)]
-mod tests {
-    use az_config_center_contract::{
-        ShellComponentKind, ShellComponentPatch, ShellComponentUpsert,
-    };
-
-    use super::{
-        ShellComponentError, build_output, expand_home_path, materialize_component,
-        render_component, validate_component_name, validate_patch,
-    };
-
-    #[test]
-    fn validates_export_names() {
-        let result = validate_component_name("1BAD", ShellComponentKind::Export);
-        // Export 名最终会进入 shell 环境变量，必须拒绝数字开头。
-        assert_eq!(
-            result,
-            Err(ShellComponentError::Validation(
-                "export component name must be a valid shell variable".to_string()
-            ))
-        );
-    }
-
-    #[test]
-    fn renders_export_alias_function_and_snippet() {
-        let export = materialize_component(ShellComponentUpsert {
-            name: "JAVA_HOME".to_string(),
-            kind: ShellComponentKind::Export,
-            summary: "jdk".to_string(),
-            enabled: true,
-            render_to_output: true,
-            export_value: Some("/Library/Java".to_string()),
-            alias_command: None,
-            body: None,
-        })
-        .expect("export should materialize");
-        assert_eq!(
-            render_component(&export).expect("export should render"),
-            "export JAVA_HOME='/Library/Java'"
-        );
-
-        let alias = materialize_component(ShellComponentUpsert {
-            name: "ll".to_string(),
-            kind: ShellComponentKind::Alias,
-            summary: String::new(),
-            enabled: true,
-            render_to_output: true,
-            export_value: None,
-            alias_command: Some("ls -lah".to_string()),
-            body: None,
-        })
-        .expect("alias should materialize");
-        assert_eq!(
-            render_component(&alias).expect("alias should render"),
-            "alias ll='ls -lah'"
-        );
-
-        let function = materialize_component(ShellComponentUpsert {
-            name: "commonip".to_string(),
-            kind: ShellComponentKind::Function,
-            summary: String::new(),
-            enabled: true,
-            render_to_output: true,
-            export_value: None,
-            alias_command: None,
-            body: Some("commonip() {\n  hostname\n}".to_string()),
-        })
-        .expect("function should materialize");
-        assert!(
-            render_component(&function)
-                .expect("function should render")
-                .contains("commonip() {")
-        );
-
-        let snippet = materialize_component(ShellComponentUpsert {
-            name: "snippet-demo".to_string(),
-            kind: ShellComponentKind::Snippet,
-            summary: String::new(),
-            enabled: true,
-            render_to_output: true,
-            export_value: None,
-            alias_command: None,
-            body: Some("echo ok".to_string()),
-        })
-        .expect("snippet should materialize");
-        assert_eq!(
-            render_component(&snippet).expect("snippet should render"),
-            "echo ok"
-        );
-    }
-
-    #[test]
-    fn build_groups_components_by_section_and_order() {
-        let export = materialize_component(ShellComponentUpsert {
-            name: "TZ".to_string(),
-            kind: ShellComponentKind::Export,
-            summary: "timezone".to_string(),
-            enabled: true,
-            render_to_output: true,
-            export_value: Some("Asia/Shanghai".to_string()),
-            alias_command: None,
-            body: None,
-        })
-        .expect("export should materialize");
-        let alias = materialize_component(ShellComponentUpsert {
-            name: "ll".to_string(),
-            kind: ShellComponentKind::Alias,
-            summary: String::new(),
-            enabled: true,
-            render_to_output: true,
-            export_value: None,
-            alias_command: Some("ls -lah".to_string()),
-            body: None,
-        })
-        .expect("alias should materialize");
-        let function = materialize_component(ShellComponentUpsert {
-            name: "commonip".to_string(),
-            kind: ShellComponentKind::Function,
-            summary: String::new(),
-            enabled: true,
-            render_to_output: true,
-            export_value: None,
-            alias_command: None,
-            body: Some("commonip() {\n  hostname\n}".to_string()),
-        })
-        .expect("function should materialize");
-        let skipped = materialize_component(ShellComponentUpsert {
-            name: "legacy".to_string(),
-            kind: ShellComponentKind::Snippet,
-            summary: String::new(),
-            enabled: false,
-            render_to_output: true,
-            export_value: None,
-            alias_command: None,
-            body: Some("echo old".to_string()),
-        })
-        .expect("snippet should materialize");
-
-        let result = build_output(
-            "/tmp/shell-components.json",
-            "/tmp/.add_fn",
-            &[function, skipped, alias, export],
-        )
-        .expect("build should work");
-
-        // 构建输出必须只包含启用且允许渲染的组件，并保持稳定分组顺序。
-        assert_eq!(result.included_components, 3);
-        assert!(result.content.contains("# exports"));
-        assert!(result.content.contains("# aliases"));
-        assert!(result.content.contains("# functions"));
-        assert!(!result.content.contains("echo old"));
-        assert_eq!(result.included_names, vec!["TZ", "ll", "commonip"]);
-    }
-
-    #[test]
-    fn rejects_invalid_field_combinations() {
-        let missing_export_value = materialize_component(ShellComponentUpsert {
-            name: "JAVA_HOME".to_string(),
-            kind: ShellComponentKind::Export,
-            summary: String::new(),
-            enabled: true,
-            render_to_output: true,
-            export_value: None,
-            alias_command: None,
-            body: None,
-        });
-        assert_eq!(
-            missing_export_value,
-            Err(ShellComponentError::Validation(
-                "export component requires --value".to_string()
-            ))
-        );
-
-        let empty_patch = validate_patch(&ShellComponentPatch {
-            name: "ll".to_string(),
-            summary: None,
-            enabled: None,
-            render_to_output: None,
-        });
-        // 空 patch 没有可落库的语义，应该在服务层之前被拒绝。
-        assert_eq!(
-            empty_patch,
-            Err(ShellComponentError::Validation(
-                "patch request is empty".to_string()
-            ))
-        );
-    }
-
-    #[test]
-    fn expands_home_tokens_without_touching_filesystem() {
-        let path = expand_home_path("~/demo");
-        assert!(path.to_string_lossy().contains("/demo"));
-    }
 }

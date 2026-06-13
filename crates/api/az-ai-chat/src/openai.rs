@@ -1,9 +1,10 @@
 //! OpenAI 兼容聊天客户端实现。
 
 use az_derive_aliases::{apply, deserialize_debug, serialize_debug};
+use anyhow::{Context, Result, bail};
 use reqwest::Client;
 
-use crate::{ChatClient, ChatError, ChatOptions, ChatResponse, ChatResult, Message, Role, Usage};
+use crate::{ChatClient, ChatOptions, ChatResponse, Message, Role, Usage};
 
 /// OpenAI 兼容的聊天补全客户端。
 ///
@@ -105,7 +106,7 @@ impl ChatClient for OpenAiClient {
         model: &str,
         messages: &[Message],
         options: Option<&ChatOptions>,
-    ) -> ChatResult<ChatResponse> {
+    ) -> Result<ChatResponse> {
         let opts = options.cloned().unwrap_or_default();
 
         let api_messages: Vec<OpenAiMessage<'_>> = messages
@@ -137,10 +138,7 @@ impl ChatClient for OpenAiClient {
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            return Err(ChatError::ProviderError {
-                code: status.as_u16(),
-                message: body,
-            });
+            bail!("provider error ({}): {body}", status.as_u16());
         }
 
         let raw: OpenAiResponse = resp.json().await?;
@@ -148,12 +146,12 @@ impl ChatClient for OpenAiClient {
         let choice = raw
             .choices
             .and_then(|mut c| c.pop())
-            .ok_or_else(|| ChatError::MissingField("choices".into()))?;
+            .context("missing field in response: choices")?;
 
         let content = choice
             .message
             .and_then(|m| m.content)
-            .ok_or_else(|| ChatError::MissingField("message.content".into()))?;
+            .context("missing field in response: message.content")?;
 
         Ok(ChatResponse {
             content,

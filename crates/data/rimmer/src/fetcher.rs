@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::error::{OrmError, OrmResult};
 use crate::expression::{Field, IntoPredicate, Order, Predicate};
 use crate::metadata::{EntityDef, FieldKind};
+use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -65,38 +65,36 @@ impl<E> Fetcher<E> {
     }
 
     /// 从通用 Fetcher 形状创建类型化 Fetcher。
-    pub fn from_shape(entity: EntityDef<E>, shape: FetchShape) -> OrmResult<Self> {
+    pub fn from_shape(entity: EntityDef<E>, shape: FetchShape) -> anyhow::Result<Self> {
         if shape.entity_name() != entity.type_name() {
-            return Err(OrmError::FetcherEntityMismatch {
-                expected: entity.type_name().to_string(),
-                actual: shape.entity_name().to_string(),
-            });
+            bail!(
+                "fetcher shape targets '{}', expected '{}'",
+                shape.entity_name(),
+                entity.type_name()
+            );
         }
         if shape.table_name() != entity.table_name() {
-            return Err(OrmError::FetcherEntityMismatch {
-                expected: entity.table_name().to_string(),
-                actual: shape.table_name().to_string(),
-            });
+            bail!(
+                "fetcher shape targets '{}', expected '{}'",
+                shape.table_name(),
+                entity.table_name()
+            );
         }
         validate_shape(entity, &shape)?;
         Ok(Self::new(shape))
     }
 
     /// 从 JSON 形状创建类型化 Fetcher。
-    pub fn from_json(entity: EntityDef<E>, json: &str) -> OrmResult<Self> {
+    pub fn from_json(entity: EntityDef<E>, json: &str) -> anyhow::Result<Self> {
         let shape: FetchShape =
-            serde_json::from_str(json).map_err(|source| OrmError::FetcherJsonDeserialize {
-                message: source.to_string(),
-            })?;
+            serde_json::from_str(json).context("failed to deserialize fetcher shape")?;
         Self::from_shape(entity, shape)
     }
 
     /// 从 JSON Value 形状创建类型化 Fetcher。
-    pub fn from_json_value(entity: EntityDef<E>, value: Value) -> OrmResult<Self> {
+    pub fn from_json_value(entity: EntityDef<E>, value: Value) -> anyhow::Result<Self> {
         let shape: FetchShape =
-            serde_json::from_value(value).map_err(|source| OrmError::FetcherJsonDeserialize {
-                message: source.to_string(),
-            })?;
+            serde_json::from_value(value).context("failed to deserialize fetcher shape")?;
         Self::from_shape(entity, shape)
     }
 
@@ -106,28 +104,22 @@ impl<E> Fetcher<E> {
     }
 
     /// 将 Fetcher 形状序列化为紧凑 JSON。
-    pub fn to_json(&self) -> OrmResult<String> {
-        serde_json::to_string(&self.shape).map_err(|source| OrmError::FetcherJsonSerialize {
-            message: source.to_string(),
-        })
+    pub fn to_json(&self) -> anyhow::Result<String> {
+        serde_json::to_string(&self.shape).context("failed to serialize fetcher shape")
     }
 
     /// 将 Fetcher 形状序列化为 JSON Value。
-    pub fn to_json_value(&self) -> OrmResult<Value> {
-        serde_json::to_value(&self.shape).map_err(|source| OrmError::FetcherJsonSerialize {
-            message: source.to_string(),
-        })
+    pub fn to_json_value(&self) -> anyhow::Result<Value> {
+        serde_json::to_value(&self.shape).context("failed to serialize fetcher shape")
     }
 
     /// 将 Fetcher 形状序列化为易读 JSON。
-    pub fn to_pretty_json(&self) -> OrmResult<String> {
-        serde_json::to_string_pretty(&self.shape).map_err(|source| OrmError::FetcherJsonSerialize {
-            message: source.to_string(),
-        })
+    pub fn to_pretty_json(&self) -> anyhow::Result<String> {
+        serde_json::to_string_pretty(&self.shape).context("failed to serialize fetcher shape")
     }
 }
 
-fn validate_shape<E>(entity: EntityDef<E>, shape: &FetchShape) -> OrmResult<()> {
+fn validate_shape<E>(entity: EntityDef<E>, shape: &FetchShape) -> anyhow::Result<()> {
     for field in shape.fields() {
         validate_column_field(entity, field)?;
         validate_relation_field(entity, field)?;
@@ -135,7 +127,7 @@ fn validate_shape<E>(entity: EntityDef<E>, shape: &FetchShape) -> OrmResult<()> 
     Ok(())
 }
 
-fn validate_column_field<E>(entity: EntityDef<E>, field: &FetchField) -> OrmResult<()> {
+fn validate_column_field<E>(entity: EntityDef<E>, field: &FetchField) -> anyhow::Result<()> {
     let Some(column_name) = field.column_name() else {
         return Ok(());
     };
@@ -144,30 +136,26 @@ fn validate_column_field<E>(entity: EntityDef<E>, field: &FetchField) -> OrmResu
         .iter()
         .find(|metadata| metadata.rust_name() == field.name())
     else {
-        return Err(OrmError::InvalidFetcherShape {
-            message: format!(
-                "field '{}' does not exist on entity '{}'",
-                field.name(),
-                entity.type_name()
-            ),
-        });
+        bail!(
+            "invalid fetcher shape: field '{}' does not exist on entity '{}'",
+            field.name(),
+            entity.type_name()
+        );
     };
     if metadata.column_name() != column_name || metadata.kind() != field.kind() {
-        return Err(OrmError::InvalidFetcherShape {
-            message: format!(
-                "field '{}' maps to '{}:{:?}', expected '{}:{:?}'",
-                field.name(),
-                column_name,
-                field.kind(),
-                metadata.column_name(),
-                metadata.kind()
-            ),
-        });
+        bail!(
+            "invalid fetcher shape: field '{}' maps to '{}:{:?}', expected '{}:{:?}'",
+            field.name(),
+            column_name,
+            field.kind(),
+            metadata.column_name(),
+            metadata.kind()
+        );
     }
     Ok(())
 }
 
-fn validate_relation_field<E>(entity: EntityDef<E>, field: &FetchField) -> OrmResult<()> {
+fn validate_relation_field<E>(entity: EntityDef<E>, field: &FetchField) -> anyhow::Result<()> {
     let Some(relation) = field.relation() else {
         return Ok(());
     };
@@ -176,26 +164,22 @@ fn validate_relation_field<E>(entity: EntityDef<E>, field: &FetchField) -> OrmRe
         .iter()
         .any(|metadata| metadata.column_name() == relation.source_column())
     {
-        return Err(OrmError::InvalidFetcherShape {
-            message: format!(
-                "relation '{}' source column '{}' does not exist on entity '{}'",
-                field.name(),
-                relation.source_column(),
-                entity.type_name()
-            ),
-        });
+        bail!(
+            "invalid fetcher shape: relation '{}' source column '{}' does not exist on entity '{}'",
+            field.name(),
+            relation.source_column(),
+            entity.type_name()
+        );
     }
     if let Some(child) = field.child()
         && child.table_name() != relation.target_table()
     {
-        return Err(OrmError::InvalidFetcherShape {
-            message: format!(
-                "relation '{}' targets table '{}', but child shape targets '{}'",
-                field.name(),
-                relation.target_table(),
-                child.table_name()
-            ),
-        });
+        bail!(
+            "invalid fetcher shape: relation '{}' targets table '{}', but child shape targets '{}'",
+            field.name(),
+            relation.target_table(),
+            child.table_name()
+        );
     }
     Ok(())
 }

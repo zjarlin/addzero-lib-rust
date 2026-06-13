@@ -6,7 +6,8 @@
 //! # 快速开始
 //!
 //! ```no_run
-//! use az_api_translate::{MyMemoryClient, TranslateClient};
+//! use az_api_translate::memory::MyMemoryClient;
+//! use az_api_translate::TranslateClient;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = MyMemoryClient::new("user@example.com");
@@ -16,47 +17,11 @@
 //! # }
 //! ```
 
-use az_derive_aliases::{apply, error};
+use anyhow::Result;
 
-automod::dir!("src");
+automod::dir!(pub "src");
 
-pub use memory::MyMemoryClient;
-pub use model::{DetectedLanguage, TranslateOptions, TranslateResult};
-
-/// 翻译请求过程中可能出现的错误。
-#[apply(error)]
-pub enum TranslateError {
-    /// HTTP 请求失败。
-    #[error("http error: {0}")]
-    Http(#[from] reqwest::Error),
-
-    /// 响应 JSON 解析失败。
-    #[error("json error: {0}")]
-    Json(#[from] serde_json::Error),
-
-    /// 翻译服务提供商返回业务错误。
-    #[error("provider error: {0}")]
-    ProviderError(String),
-
-    /// 当前服务不支持请求的源语言与目标语言组合。
-    #[error("unsupported language pair: {from} -> {to}")]
-    UnsupportedLanguage { from: String, to: String },
-
-    /// 源文本长度超过服务提供商限制。
-    #[error("text too long: {length} chars (max {max})")]
-    TextTooLong { length: usize, max: usize },
-
-    /// API key 无效或认证失败。
-    #[error("authentication failed: {0}")]
-    AuthError(String),
-
-    /// 请求触发服务限流。
-    #[error("rate limit exceeded, retry after {retry_after_secs}s")]
-    RateLimited { retry_after_secs: u64 },
-}
-
-/// 翻译接口统一返回类型别名。
-pub type TranslateResult_ = Result<TranslateResult, TranslateError>;
+use model::{DetectedLanguage, TranslateOptions, TranslateResult};
 
 /// 所有翻译服务提供商需要实现的统一客户端接口。
 ///
@@ -67,12 +32,7 @@ pub trait TranslateClient: Send + Sync {
     /// 将文本从源语言翻译为目标语言。
     ///
     /// 语言代码遵循 ISO 639-1 或 provider 支持的扩展格式，例如 `en`、`zh-CN`、`ja`。
-    async fn translate(
-        &self,
-        text: &str,
-        from: &str,
-        to: &str,
-    ) -> Result<TranslateResult, TranslateError>;
+    async fn translate(&self, text: &str, from: &str, to: &str) -> Result<TranslateResult>;
 
     /// 使用附加选项执行翻译。
     async fn translate_with_options(
@@ -81,13 +41,13 @@ pub trait TranslateClient: Send + Sync {
         from: &str,
         to: &str,
         _options: &TranslateOptions,
-    ) -> Result<TranslateResult, TranslateError> {
+    ) -> Result<TranslateResult> {
         // 默认实现保持最小 provider 契约：不支持选项的客户端仍可只实现 translate。
         self.translate(text, from, to).await
     }
 
     /// 检测输入文本的语言。
-    async fn detect_language(&self, text: &str) -> Result<DetectedLanguage, TranslateError>;
+    async fn detect_language(&self, text: &str) -> Result<DetectedLanguage>;
 
     /// 返回 provider 显式支持的语言对列表。
     fn supported_pairs(&self) -> Vec<(&str, &str)> {

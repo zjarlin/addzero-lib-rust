@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use az_person_detection::logic_person_detection::assist::{
-    detect_persons_from_base64_with_options, detect_persons_from_bytes_with_options,
-    detect_persons_from_path_with_options, detect_persons_in_video_from_path,
+    detect_persons_from_base64_with_options, detect_persons_from_path_with_options,
+    detect_persons_in_video_from_path,
 };
 use az_person_detection::logic_person_detection::model::{
     DEFAULT_SCORE_THRESHOLD, PersonDetectionModelKind, PersonDetectionOptions, PersonDetectionRun,

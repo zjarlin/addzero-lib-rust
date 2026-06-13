@@ -1,4 +1,5 @@
-use crate::{OAuth2Error, OAuth2Result, PkcePair};
+use crate::pkce::PkcePair;
+use anyhow::bail;
 use az_derive_aliases::{apply, impl_default, plain_eq};
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -57,31 +58,21 @@ impl OAuth2Config {
         }
     }
 
-    pub(crate) fn validate(&self) -> OAuth2Result<()> {
+    pub(crate) fn validate(&self) -> anyhow::Result<()> {
         if self.authorization_url.trim().is_empty() {
-            return Err(OAuth2Error::InvalidConfig(
-                "authorization_url cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: authorization_url cannot be blank");
         }
         if self.token_url.trim().is_empty() {
-            return Err(OAuth2Error::InvalidConfig(
-                "token_url cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: token_url cannot be blank");
         }
         if self.client_id.trim().is_empty() {
-            return Err(OAuth2Error::InvalidConfig(
-                "client_id cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: client_id cannot be blank");
         }
         if self.connect_timeout.is_zero() {
-            return Err(OAuth2Error::InvalidConfig(
-                "connect_timeout must be greater than zero".to_owned(),
-            ));
+            bail!("invalid config: connect_timeout must be greater than zero");
         }
         if self.request_timeout.is_zero() {
-            return Err(OAuth2Error::InvalidConfig(
-                "request_timeout must be greater than zero".to_owned(),
-            ));
+            bail!("invalid config: request_timeout must be greater than zero");
         }
         Ok(())
     }
@@ -157,7 +148,7 @@ impl OAuth2ConfigBuilder {
     }
 
     /// Validates and returns the config.
-    pub fn build(self) -> OAuth2Result<OAuth2Config> {
+    pub fn build(self) -> anyhow::Result<OAuth2Config> {
         self.config.validate()?;
         Ok(self.config)
     }
@@ -182,7 +173,7 @@ pub struct AuthorizationCodeOptions {
     pub prompt: Option<String>,
     /// Extra authorization query parameters.
     pub extra_params: BTreeMap<String, String>,
-    /// Loopback bind address used by [`crate::OAuth2Client::begin_loopback_authorization`].
+    /// Loopback bind address used by [`crate::client::OAuth2Client::begin_loopback_authorization`].
     pub loopback_bind_addr: String,
     /// Loopback callback path.
     pub loopback_path: String,

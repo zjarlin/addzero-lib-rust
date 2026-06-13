@@ -1,5 +1,3 @@
-use crate::error::{OrmError, OrmResult};
-
 /// SQL 方言。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SqlDialect {
@@ -11,16 +9,14 @@ pub enum SqlDialect {
 
 impl SqlDialect {
     /// 从数据库 URL 推导 SQL 方言。
-    pub fn from_database_url(database_url: &str) -> OrmResult<Self> {
+    pub fn from_database_url(database_url: &str) -> anyhow::Result<Self> {
         if database_url.starts_with("postgres:") || database_url.starts_with("postgresql:") {
             return Ok(Self::Postgres);
         }
         if database_url.starts_with("sqlite:") {
             return Ok(Self::Sqlite);
         }
-        Err(OrmError::UnsupportedDialect {
-            database_url: database_url.to_string(),
-        })
+        anyhow::bail!("unsupported database dialect for url: {database_url}")
     }
 
     /// 将内部统一 SQL 渲染成目标方言 SQL。

@@ -1,4 +1,8 @@
-use az_assets::{AiProviderKind, AssetKind, AssetService, AssetUpsert, SecretCipher};
+use az_assets::{
+    secret::SecretCipher,
+    service::AssetService,
+    types::{AiProviderKind, AssetKind, AssetUpsert},
+};
 
 #[tokio::test]
 async fn public_api_should_store_assets_and_hash_content() {

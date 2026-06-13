@@ -17,6 +17,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, broadcast};
 
@@ -26,7 +27,6 @@ use crate::{
         SyncFilesQuery, SyncFilesResponse, SyncImportUpdateRequest, SyncImportUpdateResponse,
         SyncRootRequest, SyncStatusResponse, SyncWireMessage,
     },
-    error::{SyncError, SyncResult},
     finder_status::FinderSyncState,
     sync_engine::SyncEngine,
     sync_model::{SyncCrdtEnvelope, SyncDeviceInfo, SyncDocumentRecord, SyncFileStatus, SyncRoot},
@@ -91,7 +91,7 @@ impl SyncApiState {
         status
     }
 
-    pub async fn files(&self, query: SyncFilesQuery) -> SyncResult<SyncFilesResponse> {
+    pub async fn files(&self, query: SyncFilesQuery) -> Result<SyncFilesResponse> {
         let space_id = query.space_id();
         let limit = query.normalized_limit();
         let cursor = query.normalized_cursor()?;
@@ -118,7 +118,7 @@ impl SyncApiState {
         Ok(files_response_from_items(space_id, files, limit))
     }
 
-    pub async fn add_root(&self, request: SyncRootRequest) -> SyncResult<SyncStatusResponse> {
+    pub async fn add_root(&self, request: SyncRootRequest) -> Result<SyncStatusResponse> {
         let mut engine = self.engine.lock().await;
         let root = engine.add_root(
             request.alias,
@@ -140,7 +140,7 @@ impl SyncApiState {
     pub async fn apply_text(
         &self,
         request: SyncApplyTextRequest,
-    ) -> SyncResult<SyncApplyTextResponse> {
+    ) -> Result<SyncApplyTextResponse> {
         let mut engine = self.engine.lock().await;
         let local_path = engine
             .device()
@@ -165,7 +165,7 @@ impl SyncApiState {
     pub async fn delete_text(
         &self,
         request: SyncDeleteTextRequest,
-    ) -> SyncResult<SyncApplyTextResponse> {
+    ) -> Result<SyncApplyTextResponse> {
         let mut engine = self.engine.lock().await;
         let file = engine.delete_text(
             &request.relative_path,
@@ -191,7 +191,7 @@ impl SyncApiState {
     pub async fn import_update(
         &self,
         request: SyncImportUpdateRequest,
-    ) -> SyncResult<SyncImportUpdateResponse> {
+    ) -> Result<SyncImportUpdateResponse> {
         let mut engine = self.engine.lock().await;
         let envelope = request.envelope;
         let file = engine.import_remote_blob(envelope.clone())?;
@@ -214,7 +214,7 @@ impl SyncApiState {
         self.engine.lock().await.finder_state()
     }
 
-    pub async fn refresh_finder_state(&self) -> SyncResult<FinderSyncState> {
+    pub async fn refresh_finder_state(&self) -> Result<FinderSyncState> {
         let engine = self.engine.lock().await;
         engine.write_default_finder_state()?;
         Ok(engine.finder_state())
@@ -242,48 +242,52 @@ async fn status_handler(State(state): State<SyncApiState>) -> Json<SyncStatusRes
 async fn files_handler(
     State(state): State<SyncApiState>,
     Query(query): Query<SyncFilesQuery>,
-) -> Result<Json<SyncFilesResponse>, SyncApiError> {
-    state.files(query).await.map(Json).map_err(Into::into)
+) -> Result<Json<SyncFilesResponse>, Response> {
+    state.files(query).await.map(Json).map_err(sync_error_response)
 }
 
 async fn add_root_handler(
     State(state): State<SyncApiState>,
     Json(request): Json<SyncRootRequest>,
-) -> Result<Json<SyncStatusResponse>, SyncApiError> {
-    state.add_root(request).await.map(Json).map_err(Into::into)
+) -> Result<Json<SyncStatusResponse>, Response> {
+    state
+        .add_root(request)
+        .await
+        .map(Json)
+        .map_err(sync_error_response)
 }
 
 async fn apply_text_handler(
     State(state): State<SyncApiState>,
     Json(request): Json<SyncApplyTextRequest>,
-) -> Result<Json<SyncApplyTextResponse>, SyncApiError> {
+) -> Result<Json<SyncApplyTextResponse>, Response> {
     state
         .apply_text(request)
         .await
         .map(Json)
-        .map_err(Into::into)
+        .map_err(sync_error_response)
 }
 
 async fn delete_text_handler(
     State(state): State<SyncApiState>,
     Json(request): Json<SyncDeleteTextRequest>,
-) -> Result<Json<SyncApplyTextResponse>, SyncApiError> {
+) -> Result<Json<SyncApplyTextResponse>, Response> {
     state
         .delete_text(request)
         .await
         .map(Json)
-        .map_err(Into::into)
+        .map_err(sync_error_response)
 }
 
 async fn import_update_handler(
     State(state): State<SyncApiState>,
     Json(request): Json<SyncImportUpdateRequest>,
-) -> Result<Json<SyncImportUpdateResponse>, SyncApiError> {
+) -> Result<Json<SyncImportUpdateResponse>, Response> {
     state
         .import_update(request)
         .await
         .map(Json)
-        .map_err(Into::into)
+        .map_err(sync_error_response)
 }
 
 async fn ws_handler(
@@ -291,14 +295,18 @@ async fn ws_handler(
     headers: HeaderMap,
     Query(query): Query<SyncWsAuthQuery>,
     ws: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
-) -> Result<Response, SyncApiError> {
-    state.authorize_ws(&headers, query.token.as_deref())?;
-    let ws = ws.map_err(SyncApiError::from_websocket_rejection)?;
+) -> Result<Response, Response> {
+    state
+        .authorize_ws(&headers, query.token.as_deref())
+        .map_err(sync_error_response)?;
+    let ws = ws
+        .map_err(|value| anyhow::anyhow!("sync WebSocket upgrade failed: {value}"))
+        .map_err(sync_error_response)?;
     Ok(ws.on_upgrade(move |socket| run_sync_socket(state, socket)))
 }
 
 impl SyncApiState {
-    fn authorize_ws(&self, headers: &HeaderMap, query_token: Option<&str>) -> SyncResult<()> {
+    fn authorize_ws(&self, headers: &HeaderMap, query_token: Option<&str>) -> Result<()> {
         let Some(expected) = self.auth_token.as_deref() else {
             return Ok(());
         };
@@ -309,7 +317,7 @@ impl SyncApiState {
         if bearer_token == Some(expected) || query_token == Some(expected) {
             return Ok(());
         }
-        Err(SyncError::UnauthorizedWebSocket)
+        bail!("unauthorized sync WebSocket connection");
     }
 
     fn next_socket_id(&self) -> u64 {
@@ -327,7 +335,7 @@ impl SyncApiState {
         });
     }
 
-    async fn register_connected_device(&self, device: SyncDeviceInfo) -> SyncResult<()> {
+    async fn register_connected_device(&self, device: SyncDeviceInfo) -> Result<()> {
         if let Some(repository) = self.repository.as_ref() {
             repository.register_device(&device).await?;
         }
@@ -338,7 +346,7 @@ impl SyncApiState {
         Ok(())
     }
 
-    async fn persist_roots(&self, device_name: &str, roots: &[SyncRoot]) -> SyncResult<()> {
+    async fn persist_roots(&self, device_name: &str, roots: &[SyncRoot]) -> Result<()> {
         let Some(repository) = self.repository.as_ref() else {
             return Ok(());
         };
@@ -354,7 +362,7 @@ impl SyncApiState {
         &self,
         file: &SyncDocumentRecord,
         envelope: SyncCrdtEnvelope,
-    ) -> SyncResult<()> {
+    ) -> Result<()> {
         let Some(repository) = self.repository.as_ref() else {
             return Ok(());
         };
@@ -371,7 +379,7 @@ impl SyncApiState {
         &self,
         manifest: &SyncObjectManifest,
         source_device: &str,
-    ) -> SyncResult<()> {
+    ) -> Result<()> {
         self.object_manifests.lock().await.insert(
             (manifest.space_id.clone(), manifest.relative_path.clone()),
             SyncKnownObjectManifest {
@@ -389,7 +397,7 @@ impl SyncApiState {
         &self,
         relative_path: &str,
         source_device: &str,
-    ) -> SyncResult<String> {
+    ) -> Result<String> {
         let relative_path = crate::sync_model::normalize_home_relative_path(relative_path)?;
         self.file_tombstones.lock().await.insert(
             relative_path.clone(),
@@ -476,12 +484,12 @@ async fn run_sync_socket(state: SyncApiState, mut socket: WebSocket) {
     }
 }
 
-async fn send_wire_message(socket: &mut WebSocket, message: &SyncWireMessage) -> SyncResult<()> {
-    let text = serde_json::to_string(message).map_err(SyncError::WireJson)?;
+async fn send_wire_message(socket: &mut WebSocket, message: &SyncWireMessage) -> Result<()> {
+    let text = serde_json::to_string(message).context("sync wire JSON failed")?;
     socket
         .send(Message::Text(text.into()))
         .await
-        .map_err(|error| SyncError::WebSocketUpgrade(error.to_string()))
+        .context("sync WebSocket upgrade failed")
 }
 
 async fn handle_wire_message(
@@ -665,58 +673,36 @@ async fn finder_status_handler(State(state): State<SyncApiState>) -> Json<Finder
 
 async fn finder_refresh_handler(
     State(state): State<SyncApiState>,
-) -> Result<Json<FinderSyncState>, SyncApiError> {
+) -> Result<Json<FinderSyncState>, Response> {
     state
         .refresh_finder_state()
         .await
         .map(Json)
-        .map_err(Into::into)
+        .map_err(sync_error_response)
 }
 
-#[derive(Debug)]
-struct SyncApiError(SyncError);
-
-impl From<SyncError> for SyncApiError {
-    fn from(value: SyncError) -> Self {
-        Self(value)
-    }
+fn sync_error_response(error: anyhow::Error) -> Response {
+    let message = error.to_string();
+    let status = sync_error_status(&message);
+    (status, Json(SyncApiErrorBody { error: message })).into_response()
 }
 
-impl SyncApiError {
-    fn from_websocket_rejection(value: WebSocketUpgradeRejection) -> Self {
-        Self(SyncError::WebSocketUpgrade(value.to_string()))
-    }
-}
-
-impl IntoResponse for SyncApiError {
-    fn into_response(self) -> Response {
-        let status = match self.0 {
-            SyncError::InvalidRelativePath { .. }
-            | SyncError::InvalidFileKind { .. }
-            | SyncError::InvalidFileStatus { .. }
-            | SyncError::PathOutsideHome { .. }
-            | SyncError::IndexInsideSyncRoot { .. } => StatusCode::BAD_REQUEST,
-            SyncError::UnauthorizedWebSocket => StatusCode::UNAUTHORIZED,
-            SyncError::WebSocketUpgrade(_) => StatusCode::UPGRADE_REQUIRED,
-            SyncError::MissingDocument { .. } => StatusCode::NOT_FOUND,
-            SyncError::Crdt { .. }
-            | SyncError::Io { .. }
-            | SyncError::Json { .. }
-            | SyncError::ObjectHashMismatch { .. }
-            | SyncError::ObjectStorage(_)
-            | SyncError::Watch { .. }
-            | SyncError::WebSocketTransport(_)
-            | SyncError::WebSocketAuthHeader(_)
-            | SyncError::WireJson(_)
-            | SyncError::Sqlx(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        };
-        (
-            status,
-            Json(SyncApiErrorBody {
-                error: self.0.to_string(),
-            }),
-        )
-            .into_response()
+fn sync_error_status(message: &str) -> StatusCode {
+    if message.starts_with("invalid sync relative path")
+        || message.starts_with("invalid sync file kind")
+        || message.starts_with("invalid sync file status")
+        || message.starts_with("path `")
+        || message.starts_with("local index path")
+    {
+        StatusCode::BAD_REQUEST
+    } else if message.starts_with("unauthorized sync WebSocket connection") {
+        StatusCode::UNAUTHORIZED
+    } else if message.starts_with("sync WebSocket upgrade failed") {
+        StatusCode::UPGRADE_REQUIRED
+    } else if message.starts_with("sync document `") {
+        StatusCode::NOT_FOUND
+    } else {
+        StatusCode::INTERNAL_SERVER_ERROR
     }
 }
 
@@ -780,7 +766,7 @@ mod tests {
         body::Body,
         http::{Method, Request, StatusCode, header},
     };
-    use az_line_crdt::LineCrdtVersion;
+    use az_line_crdt::wire::LineCrdtVersion;
     use http_body_util::BodyExt;
     use tempfile::TempDir;
     use tokio::{net::TcpListener, task::JoinHandle, time::timeout};

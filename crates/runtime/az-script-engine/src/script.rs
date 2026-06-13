@@ -3,7 +3,7 @@
 //! 本模块只定义脚本运行请求、输出、引擎 trait、工厂和注册表。具体 Rhai、Python、
 //! Bash 等运行器放在各自实现 crate 中，通过 [`ScriptEngineFactory`] 注入宿主。
 
-use az_derive_aliases::{apply, error_eq, plain_default, serde_eq, serde_lower_code_enum};
+use az_derive_aliases::{apply, plain_default, serde_eq, serde_lower_code_enum};
 use az_sandbox::sandbox::SandboxPolicy;
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -182,28 +182,6 @@ impl ScriptEngineRegistry for InMemoryScriptEngineRegistry {
             .filter(|lang| self.get(*lang).is_some())
             .collect()
     }
-}
-
-// ─── Error ──────────────────────────────────────────────────────────
-
-/// 脚本引擎选择、沙箱校验和执行阶段的错误。
-#[apply(error_eq)]
-pub enum ScriptError {
-    /// 没有注册可处理该语言的引擎。
-    #[error("unsupported language: {0:?}")]
-    UnsupportedLanguage(ScriptLang),
-
-    /// 脚本执行超过指定超时时间。
-    #[error("script execution timed out after {0}s")]
-    Timeout(u64),
-
-    /// 请求的操作违反沙箱策略。
-    #[error("sandbox policy violation: {0}")]
-    SandboxViolation(String),
-
-    /// 具体引擎返回执行错误。
-    #[error("engine error: {0}")]
-    Engine(String),
 }
 
 #[cfg(test)]

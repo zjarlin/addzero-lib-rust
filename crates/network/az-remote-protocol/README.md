@@ -62,4 +62,4 @@ let bytes = heartbeat.to_json_bytes().unwrap();
 - `az-remote-model` — 远程桌面共享数据模型（设备描述、会话请求/授权、输入事件、剪贴板、文件传输、视频帧）
 - `serde` — 序列化/反序列化框架
 - `serde_json` — JSON 格式编解码
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误链与上下文

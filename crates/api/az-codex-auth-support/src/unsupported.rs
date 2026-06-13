@@ -1,4 +1,3 @@
-use crate::{CodexAuthSupportError, CodexAuthSupportResult};
 use az_derive_aliases::{apply, plain_code_display_no_default_enum};
 
 /// 这个 Rust 迁移版本刻意排除的自动化能力。
@@ -19,13 +18,13 @@ pub enum BlockedCapability {
 }
 
 /// 对不支持的自动化能力返回显式错误。
-pub fn unsupported_capability(capability: BlockedCapability) -> CodexAuthSupportResult<()> {
-    Err(CodexAuthSupportError::UnsupportedCapability { capability })
+pub fn unsupported_capability(capability: BlockedCapability) -> anyhow::Result<()> {
+    anyhow::bail!("unsupported capability: {capability}")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{BlockedCapability, unsupported_capability};
 
     #[test]
     fn unsupported_capabilities_display_machine_labels() {

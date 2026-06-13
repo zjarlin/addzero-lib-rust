@@ -1,4 +1,4 @@
-use az_mqtt::MqttConfig;
+use az_mqtt::api::MqttConfig;
 
 #[test]
 fn mqtt_config_debug_does_not_leak_credentials() {

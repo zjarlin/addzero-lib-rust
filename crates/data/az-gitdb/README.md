@@ -37,11 +37,12 @@ az-gitdb.workspace = true
 
 ```rust,no_run
 use az_gitdb::{
-    GitDbCluster, GitDbClusterConfig, GitDbClusterError, GitDbLoadBalanceStrategy,
-    GitDbNodeConfig, QueryResult,
+    cluster::GitDbCluster,
+    config::{GitDbClusterConfig, GitDbLoadBalanceStrategy, GitDbNodeConfig},
 };
+use gitdb::executor::QueryResult;
 
-fn main() -> Result<(), GitDbClusterError> {
+fn main() -> anyhow::Result<()> {
     let cluster = GitDbCluster::new(
         GitDbClusterConfig::new(vec![
             GitDbNodeConfig::new(
@@ -81,7 +82,7 @@ fn main() -> Result<(), GitDbClusterError> {
 ### 节点
 
 ```rust
-use az_gitdb::{GitDbNodeConfig, GitDbNodeRole};
+use az_gitdb::config::{GitDbNodeConfig, GitDbNodeRole};
 
 let node = GitDbNodeConfig::new(
     "primary",
@@ -117,7 +118,7 @@ let node = GitDbNodeConfig::new(
 ### 集群
 
 ```rust
-use az_gitdb::{GitDbClusterConfig, GitDbLoadBalanceStrategy, GitDbNodeConfig};
+use az_gitdb::config::{GitDbClusterConfig, GitDbLoadBalanceStrategy, GitDbNodeConfig};
 
 let config = GitDbClusterConfig::new(vec![
     GitDbNodeConfig::new(
@@ -149,9 +150,9 @@ let config = GitDbClusterConfig::new(vec![
 ### 自动分类路由
 
 ```rust
-use az_gitdb::{GitDbCluster, GitDbClusterError};
+use az_gitdb::cluster::GitDbCluster;
 
-fn route(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> {
+fn route(cluster: &GitDbCluster) -> anyhow::Result<()> {
     let result = cluster.execute("SELECT * FROM users")?;
     println!("served by {}", result.node_id);
     Ok(())
@@ -167,23 +168,23 @@ fn route(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> {
 ### 显式读写 API
 
 ```rust
-use az_gitdb::{GitDbCluster, GitDbClusterError};
+use az_gitdb::cluster::GitDbCluster;
 
-fn route(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> {
+fn route(cluster: &GitDbCluster) -> anyhow::Result<()> {
     cluster.execute_read("SELECT * FROM users")?;
     cluster.execute_write("UPDATE users SET name = 'Alicia' WHERE id = '1'")?;
     Ok(())
 }
 ```
 
-`execute_read()` 收到写 SQL，或 `execute_write()` 收到读 SQL，会返回 `UnexpectedQueryKind`。这个约束可以尽早暴露调用方把 SQL 放错通道的问题。
+`execute_read()` 收到写 SQL，或 `execute_write()` 收到读 SQL，会返回带上下文的 `anyhow::Error`。这个约束可以尽早暴露调用方把 SQL 放错通道的问题。
 
 ### 广播执行
 
 ```rust
-use az_gitdb::{GitDbCluster, GitDbClusterError};
+use az_gitdb::cluster::GitDbCluster;
 
-fn initialize(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> {
+fn initialize(cluster: &GitDbCluster) -> anyhow::Result<()> {
     let results = cluster.broadcast_execute(
         "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT)",
     )?;
@@ -203,9 +204,9 @@ fn initialize(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> {
 集群级 `execute()` 不接受事务控制语句。事务必须 checkout 一个写连接，保证 `BEGIN`、后续写入和 `COMMIT` 都打到同一个节点。
 
 ```rust
-use az_gitdb::{GitDbCluster, GitDbClusterError};
+use az_gitdb::cluster::GitDbCluster;
 
-fn write_in_transaction(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> {
+fn write_in_transaction(cluster: &GitDbCluster) -> anyhow::Result<()> {
     let mut connection = cluster.checkout_write()?;
     println!("transaction node={}", connection.node_id());
 
@@ -220,9 +221,9 @@ fn write_in_transaction(cluster: &GitDbCluster) -> Result<(), GitDbClusterError>
 如果中途出错，调用方负责在同一个连接上执行 `ROLLBACK`：
 
 ```rust
-use az_gitdb::{GitDbCluster, GitDbClusterError};
+use az_gitdb::cluster::GitDbCluster;
 
-fn write_with_rollback(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> {
+fn write_with_rollback(cluster: &GitDbCluster) -> anyhow::Result<()> {
     let mut connection = cluster.checkout_write()?;
     connection.execute("BEGIN")?;
 
@@ -240,9 +241,9 @@ fn write_with_rollback(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> 
 也可以直接 checkout 指定节点：
 
 ```rust
-use az_gitdb::{GitDbCluster, GitDbClusterError};
+use az_gitdb::cluster::GitDbCluster;
 
-fn inspect_primary(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> {
+fn inspect_primary(cluster: &GitDbCluster) -> anyhow::Result<()> {
     let mut primary = cluster.checkout_node("primary")?;
     primary.execute("SHOW TABLES")?;
     Ok(())
@@ -252,7 +253,7 @@ fn inspect_primary(cluster: &GitDbCluster) -> Result<(), GitDbClusterError> {
 ## 统计与观测
 
 ```rust
-use az_gitdb::GitDbCluster;
+use az_gitdb::cluster::GitDbCluster;
 
 fn print_stats(cluster: &GitDbCluster) {
     let stats = cluster.stats();
@@ -288,16 +289,16 @@ fn print_stats(cluster: &GitDbCluster) {
 
 如果需要正式业务数据的一致持久化，仍应优先使用 PostgreSQL；本仓库约定正式 admin 业务数据遵循 `all in pg`。
 
-## 错误类型
+## 错误上下文
 
-常见错误：
+`az-gitdb` 使用 `anyhow::Result` 暴露失败。常见错误消息会保留操作对象和节点信息：
 
-| 错误 | 含义 |
+| 消息片段 | 含义 |
 |---|---|
-| `InvalidConfig` | 集群或节点配置非法 |
-| `NoEligibleNode` | 没有节点能服务该类 SQL |
-| `NodeNotFound` | 指定节点 ID 不存在 |
-| `PoolExhausted` | 单节点连接池耗尽 |
+| `invalid GitDB cluster configuration` | 集群或节点配置非法 |
+| `no eligible GitDB node` | 没有节点能服务该类 SQL |
+| `GitDB node not found` | 指定节点 ID 不存在 |
+| `GitDB pool exhausted` | 单节点连接池耗尽 |
 | `PoolsExhausted` | 所有可服务节点连接池都耗尽 |
 | `NodeCheckout` | 节点远程仓库 clone/open 校验失败 |
 | `NodeCheckoutIo` | 节点本地 checkout 目录准备失败 |

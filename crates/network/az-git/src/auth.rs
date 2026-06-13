@@ -7,7 +7,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AzGitError, GitAccountConfig, GitHostingProvider, Result};
+use crate::{config::GitAccountConfig, provider::GitHostingProvider};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -66,7 +66,7 @@ pub struct CommandOutput {
 }
 
 pub trait CommandRunner {
-    fn run(&self, program: &str, args: &[&str]) -> Result<CommandOutput>;
+    fn run(&self, program: &str, args: &[&str]) -> anyhow::Result<CommandOutput>;
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -76,30 +76,23 @@ const COMMAND_TIMEOUT: Duration = Duration::from_secs(15);
 const COMMAND_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 impl CommandRunner for SystemCommandRunner {
-    fn run(&self, program: &str, args: &[&str]) -> Result<CommandOutput> {
+    fn run(&self, program: &str, args: &[&str]) -> anyhow::Result<CommandOutput> {
         let mut child =
             Command::new(program)
                 .args(args)
                 .spawn()
-                .map_err(|source| AzGitError::Command {
-                    program: program.to_string(),
-                    source,
-                })?;
+                .map_err(|source| anyhow::anyhow!("执行 {program} 失败：{source}"))?;
         let started_at = Instant::now();
 
         loop {
-            match child.try_wait().map_err(|source| AzGitError::Command {
-                program: program.to_string(),
-                source,
-            })? {
+            match child
+                .try_wait()
+                .map_err(|source| anyhow::anyhow!("执行 {program} 失败：{source}"))?
+            {
                 Some(_) => {
-                    let output =
-                        child
-                            .wait_with_output()
-                            .map_err(|source| AzGitError::Command {
-                                program: program.to_string(),
-                                source,
-                            })?;
+                    let output = child
+                        .wait_with_output()
+                        .map_err(|source| anyhow::anyhow!("执行 {program} 失败：{source}"))?;
 
                     return Ok(CommandOutput {
                         status_success: output.status.success(),
@@ -110,10 +103,8 @@ impl CommandRunner for SystemCommandRunner {
                 None if started_at.elapsed() >= COMMAND_TIMEOUT => {
                     let _ = child.kill();
                     let _ = child.wait();
-                    return Err(AzGitError::CommandTimeout {
-                        program: program.to_string(),
-                        timeout_ms: COMMAND_TIMEOUT.as_millis() as u64,
-                    });
+                    let timeout_ms = COMMAND_TIMEOUT.as_millis();
+                    anyhow::bail!("命令 {program} 在 {timeout_ms}ms 后超时");
                 }
                 None => thread::sleep(COMMAND_POLL_INTERVAL),
             }
@@ -310,7 +301,13 @@ fn parse_gh_auth_status(stdout: &str) -> Option<GhAccount> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::{
+        auth::{
+            AuthDiscovery, AuthDiscoveryOptions, AuthMethod, AuthState, CommandOutput,
+            CommandRunner,
+        },
+        provider::GitHostingProvider,
+    };
 
     #[derive(Clone, Debug)]
     struct FakeRunner {
@@ -318,7 +315,7 @@ mod tests {
     }
 
     impl CommandRunner for FakeRunner {
-        fn run(&self, _program: &str, _args: &[&str]) -> Result<CommandOutput> {
+        fn run(&self, _program: &str, _args: &[&str]) -> anyhow::Result<CommandOutput> {
             Ok(self.output.clone())
         }
     }

@@ -71,7 +71,7 @@ impl Relation {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::relation::{Relation, RelationKind};
 
     #[test]
     fn relation_builder() {

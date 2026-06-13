@@ -27,7 +27,7 @@ az-email = { path = "../az-email" }        # workspace 内部引用
 ## 用法
 
 \`\`\`rust,no_run
-use az_email::{EmailConfig, EmailMessage, send_with_config};
+use az_email::api::{EmailConfig, EmailMessage, send_with_config};
 
 // 构建配置
 let config = EmailConfig::builder("smtp.example.com", "user", "pass")
@@ -52,7 +52,7 @@ send_with_config(&config, &message).unwrap();
 ### 全局默认发送器
 
 \`\`\`rust,no_run
-use az_email::{EmailConfig, SmtpEmailSender, EmailMessage, set_default_sender, send};
+use az_email::api::{EmailConfig, EmailMessage, SmtpEmailSender, send, set_default_sender};
 use std::sync::Arc;
 
 let config = EmailConfig::builder("smtp.example.com", "user", "pass").build().unwrap();
@@ -73,7 +73,7 @@ send(&msg).unwrap();
 ### 通过 factory 构造 sender
 
 \`\`\`rust,no_run
-use az_email::{EmailConfig, EmailSenderConfig, EmailSenderKind, build_email_sender};
+use az_email::api::{EmailConfig, EmailSenderConfig, EmailSenderKind, build_email_sender};
 
 let config = EmailConfig::builder("smtp.example.com", "user", "pass")
     .build()
@@ -89,6 +89,6 @@ let sender = build_email_sender(sender_config).unwrap();
 
 - `lettre` — SMTP 协议实现
 - `mime_guess` — 文件 MIME 类型推断（用于附件）
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误链与上下文
 - `derive_more` — `EmailSenderConfig` 的轻量 `From` 派生
 - `strum` — `EmailSenderKind` 的 code / display / parse / variants 派生

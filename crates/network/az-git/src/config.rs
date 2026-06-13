@@ -5,7 +5,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AzGitError, GitHostingProvider, GitRemoteRepository, Result};
+use crate::{provider::GitHostingProvider, repository::GitRemoteRepository};
 
 /// Default root used when binding remote repositories to local project paths.
 pub const DEFAULT_SYNC_WORKSPACE: &str = "~/az-sync/workspace";
@@ -161,15 +161,15 @@ impl GitAccountConfigStore {
         Self { path: path.into() }
     }
 
-    pub fn default_path() -> Result<PathBuf> {
-        let config_dir = dirs::config_dir().ok_or(AzGitError::ConfigDirUnavailable)?;
+    pub fn default_path() -> anyhow::Result<PathBuf> {
+        let config_dir = dirs::config_dir().ok_or_else(|| anyhow::anyhow!("配置目录不可用"))?;
         Ok(config_dir
             .join("addzero")
             .join("az-git")
             .join("accounts.json"))
     }
 
-    pub fn default_store() -> Result<Self> {
+    pub fn default_store() -> anyhow::Result<Self> {
         Ok(Self::new(Self::default_path()?))
     }
 
@@ -177,40 +177,38 @@ impl GitAccountConfigStore {
         &self.path
     }
 
-    pub fn load(&self) -> Result<GitAccountConfig> {
+    pub fn load(&self) -> anyhow::Result<GitAccountConfig> {
         if !self.path.exists() {
             return Ok(GitAccountConfig::default());
         }
 
-        let content = fs::read_to_string(&self.path).map_err(|source| AzGitError::ReadConfig {
-            path: self.path.clone(),
-            source,
+        let content = fs::read_to_string(&self.path).map_err(|source| {
+            anyhow::anyhow!("读取配置 {} 失败：{source}", self.path.display())
         })?;
-        serde_json::from_str(&content).map_err(|source| AzGitError::ParseConfig {
-            path: self.path.clone(),
-            source,
+        serde_json::from_str(&content).map_err(|source| {
+            anyhow::anyhow!("解析配置 {} 失败：{source}", self.path.display())
         })
     }
 
-    pub fn save(&self, config: &GitAccountConfig) -> Result<()> {
+    pub fn save(&self, config: &GitAccountConfig) -> anyhow::Result<()> {
         if let Some(parent) = self.path.parent() {
-            fs::create_dir_all(parent).map_err(|source| AzGitError::WriteConfig {
-                path: parent.to_path_buf(),
-                source,
-            })?;
+            fs::create_dir_all(parent)
+                .map_err(|source| anyhow::anyhow!("写入配置 {} 失败：{source}", parent.display()))?;
         }
 
         let content = serde_json::to_string_pretty(config)?;
-        fs::write(&self.path, content).map_err(|source| AzGitError::WriteConfig {
-            path: self.path.clone(),
-            source,
-        })
+        fs::write(&self.path, content)
+            .map_err(|source| anyhow::anyhow!("写入配置 {} 失败：{source}", self.path.display()))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::{
+        config::{GitAccountConfig, GitAccountConfigStore},
+        provider::GitHostingProvider,
+        repository::GitRemoteRepository,
+    };
 
     #[test]
     fn config_store_round_trips_project_defaults() {

@@ -27,25 +27,40 @@ az-drive-core = { path = "../az-drive-core" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_drive_core::{
-    RootAlias, RelativePath, RootRegistry, EntryVersion,
-    decide_local_change, content_hash, expand_path_expression,
+use az_drive_core::api::{
+    ChangeDecision, RootAlias, RootRegistry, content_hash, decide_local_change,
 };
 
+fn main() -> anyhow::Result<()> {
 // 注册逻辑根并解析本地路径
 let mut registry = RootRegistry::default();
-registry.register(
-    RootAlias::try_new("home").unwrap(),
+registry.add_root(
+    RootAlias::parse("home")?,
     std::path::PathBuf::from("/Users/me/Documents"),
 )?;
 
-let mapping = registry.resolve_host_path(std::path::Path::new("/Users/me/Documents/report.docx"))?;
+let mapping = registry.resolve_host_path(
+    std::path::Path::new("/Users/me/Documents/report.docx"),
+    None,
+)?;
+assert_eq!(mapping.relative_path.as_str(), "report.docx");
 
 // 计算内容哈希
 let hash = content_hash(b"hello world");
 
 // 同步决策
-let decision = decide_local_change(&base_version, &remote_version, &content_hash, &lock);
+let decision = decide_local_change(
+    Some(1),
+    Some(1),
+    &hash,
+    Some(&hash),
+    None,
+    "device-a",
+    chrono::Utc::now(),
+);
+assert_eq!(decision, ChangeDecision::NoopSameContent);
+Ok(())
+}
 ```
 
 ## 依赖的 crates
@@ -53,5 +68,5 @@ let decision = decide_local_change(&base_version, &remote_version, &content_hash
 - `chrono` - 日期时间处理，用于版本时间戳
 - `serde` - 序列化与反序列化
 - `sha2` - SHA-256 内容哈希计算
-- `thiserror` - 错误类型派生
+- `anyhow` - 错误链与上下文
 - `uuid` - 通用唯一标识符，用于条目和设备标识

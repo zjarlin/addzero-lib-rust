@@ -22,10 +22,10 @@
 //! use az_stream_wrapper::lambdaquery;
 //!
 //! let items = vec!["apple", "banana", "avocado", "blueberry"];
-//! let result = lambdaquery(&items)
-//!     .like(true, |s: &&str| s, "av")
+//! let result = lambdaquery(items)
+//!     .like(true, |s: &&str| *s, "b")
 //!     .list();
-//! assert_eq!(result, vec!["apple", "avocado"]);
+//! assert_eq!(result, vec!["banana", "blueberry"]);
 //! ```
 
 use std::sync::Arc;

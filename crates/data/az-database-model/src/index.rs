@@ -37,7 +37,7 @@ impl Index {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::index::Index;
 
     #[test]
     fn index_builder() {

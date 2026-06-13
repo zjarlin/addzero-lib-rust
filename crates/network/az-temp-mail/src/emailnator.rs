@@ -5,7 +5,8 @@ use crate::model::{
 };
 use crate::provider::TempMailProvider;
 use crate::util::trim_non_blank;
-use crate::{ApiConfig, TempMailError, TempMailResult};
+use crate::config::ApiConfig;
+use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{
     apply, deserialize_debug, impl_default, plain_code_enum, plain_debug, plain_eq, serialize_eq,
 };
@@ -19,9 +20,8 @@ use std::sync::Mutex;
 
 const DEFAULT_EMAILNATOR_BASE_URL: &str = "https://www.emailnator.com";
 
-static HTTP_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"https?://[^\s<>"{}|\\^`\[\]]+"#).expect("http-link regex should compile")
-});
+static HTTP_LINK_RE: LazyLock<Option<Regex>> =
+    LazyLock::new(|| Regex::new(r#"https?://[^\s<>"{}|\\^`\[\]]+"#).ok());
 
 /// Emailnator `/generate-email` 端点接受的邮箱生成模式。
 #[apply(plain_code_enum)]
@@ -80,7 +80,7 @@ pub struct EmailnatorTempMailApi {
 
 impl EmailnatorTempMailApi {
     /// 根据显式 API 配置创建客户端。
-    pub fn new(config: ApiConfig) -> TempMailResult<Self> {
+    pub fn new(config: ApiConfig) -> anyhow::Result<Self> {
         Ok(Self {
             http: HttpApiClient::new(config)?,
             xsrf: Mutex::new(None),
@@ -88,11 +88,11 @@ impl EmailnatorTempMailApi {
     }
 
     /// 生成临时邮箱地址。
-    pub fn generate_email(&self, request: &EmailnatorEmailRequest) -> TempMailResult<String> {
+    pub fn generate_email(&self, request: &EmailnatorEmailRequest) -> anyhow::Result<String> {
         let response = self.post_json("/generate-email", &request.request_body())?;
         let response: EmailnatorGenerateEmailResponse = read_json_response(response)?;
         response.into_email().ok_or_else(|| {
-            TempMailError::InvalidResponse("Emailnator response did not include email".to_owned())
+            anyhow!("invalid response: Emailnator response did not include email")
         })
     }
 
@@ -100,7 +100,7 @@ impl EmailnatorTempMailApi {
     pub fn fetch_message_list(
         &self,
         email: impl AsRef<str>,
-    ) -> TempMailResult<Vec<TempMailMessageSummary>> {
+    ) -> anyhow::Result<Vec<TempMailMessageSummary>> {
         let email = required_email(email.as_ref())?;
         let response = self.post_json("/message-list", &json!({ "email": email }))?;
         let response: EmailnatorMessageListResponse = read_json_response(response)?;
@@ -116,7 +116,7 @@ impl EmailnatorTempMailApi {
         &self,
         email: impl AsRef<str>,
         message_id: impl AsRef<str>,
-    ) -> TempMailResult<String> {
+    ) -> anyhow::Result<String> {
         let email = required_email(email.as_ref())?;
         let message_id = required_message_id(message_id.as_ref())?;
         let response = self.post_json(
@@ -129,7 +129,7 @@ impl EmailnatorTempMailApi {
         read_text_response(response)
     }
 
-    fn post_json<T: Serialize>(&self, path: &str, body: &T) -> TempMailResult<Response> {
+    fn post_json<T: Serialize>(&self, path: &str, body: &T) -> anyhow::Result<Response> {
         let token = self.xsrf_token()?;
         self.http
             .post(path)?
@@ -137,23 +137,27 @@ impl EmailnatorTempMailApi {
             .header(COOKIE, format!("XSRF-TOKEN={}", token.raw_cookie_value))
             .json(body)
             .send()
-            .map_err(TempMailError::Transport)
+            .with_context(|| format!("failed to send Emailnator request `{path}`"))
     }
 
-    fn xsrf_token(&self) -> TempMailResult<XsrfToken> {
+    fn xsrf_token(&self) -> anyhow::Result<XsrfToken> {
         let existing = self
             .xsrf
             .lock()
-            .map_err(|_| TempMailError::InvalidConfig("Emailnator token lock poisoned".to_owned()))?
+            .map_err(|_| anyhow!("invalid config: Emailnator token lock poisoned"))?
             .clone();
         if let Some(token) = existing {
             return Ok(token);
         }
 
-        let response = self.http.get("/")?.send()?;
+        let response = self
+            .http
+            .get("/")?
+            .send()
+            .context("failed to fetch Emailnator XSRF token")?;
         let token = extract_xsrf_token(&response)?;
         let mut guard = self.xsrf.lock().map_err(|_| {
-            TempMailError::InvalidConfig("Emailnator token lock poisoned".to_owned())
+            anyhow!("invalid config: Emailnator token lock poisoned")
         })?;
         *guard = Some(token.clone());
         Ok(token)
@@ -165,7 +169,7 @@ impl TempMailProvider for EmailnatorTempMailApi {
         TempMailProviderKind::Emailnator
     }
 
-    fn create_mailbox(&self, _request: &CreateMailboxRequest) -> TempMailResult<TempMailMailbox> {
+    fn create_mailbox(&self, _request: &CreateMailboxRequest) -> anyhow::Result<TempMailMailbox> {
         let address = self.generate_email(&EmailnatorEmailRequest::default())?;
         Ok(TempMailMailbox {
             provider: TempMailProviderKind::Emailnator,
@@ -180,7 +184,7 @@ impl TempMailProvider for EmailnatorTempMailApi {
         &self,
         mailbox: &TempMailMailbox,
         _page: PageRequest,
-    ) -> TempMailResult<ListResponse<TempMailMessageSummary>> {
+    ) -> anyhow::Result<ListResponse<TempMailMessageSummary>> {
         let results = self.fetch_message_list(&mailbox.address)?;
         let count = u64::try_from(results.len()).unwrap_or(u64::MAX);
         Ok(ListResponse { results, count })
@@ -190,7 +194,7 @@ impl TempMailProvider for EmailnatorTempMailApi {
         &self,
         mailbox: &TempMailMailbox,
         message_id: &str,
-    ) -> TempMailResult<Option<TempMailMessageDetail>> {
+    ) -> anyhow::Result<Option<TempMailMessageDetail>> {
         let body = self.fetch_message_body(&mailbox.address, message_id)?;
         Ok(Some(TempMailMessageDetail {
             id: message_id.to_owned(),
@@ -207,7 +211,7 @@ impl TempMailProvider for EmailnatorTempMailApi {
 }
 
 /// 创建托管 Emailnator API 客户端。
-pub fn create_emailnator_api() -> TempMailResult<EmailnatorTempMailApi> {
+pub fn create_emailnator_api() -> anyhow::Result<EmailnatorTempMailApi> {
     EmailnatorTempMailApi::new(ApiConfig::builder(DEFAULT_EMAILNATOR_BASE_URL).build()?)
 }
 
@@ -216,6 +220,7 @@ pub fn create_emailnator_api() -> TempMailResult<EmailnatorTempMailApi> {
 pub fn extract_first_http_link(content: impl AsRef<str>, keyword: Option<&str>) -> Option<String> {
     let keyword = keyword.and_then(|value| trim_non_blank(Some(value)));
     HTTP_LINK_RE
+        .as_ref()?
         .find_iter(content.as_ref())
         .map(|link| link.as_str().trim_end_matches(['.', ',', ';']).to_owned())
         .find(|link| keyword.is_none_or(|keyword| link.contains(keyword)))
@@ -293,13 +298,13 @@ fn emailnator_summary_from_raw(raw: EmailnatorMessageSummaryRaw) -> Option<TempM
     })
 }
 
-fn extract_xsrf_token(response: &Response) -> TempMailResult<XsrfToken> {
+fn extract_xsrf_token(response: &Response) -> anyhow::Result<XsrfToken> {
     if !response.status().is_success() {
-        return Err(TempMailError::HttpStatus {
-            url: response.url().to_string(),
-            status: response.status().as_u16(),
-            body: String::new(),
-        });
+        bail!(
+            "request to `{}` returned HTTP {}: ",
+            response.url(),
+            response.status().as_u16()
+        );
     }
 
     for value in response.headers().get_all(SET_COOKIE) {
@@ -310,7 +315,7 @@ fn extract_xsrf_token(response: &Response) -> TempMailResult<XsrfToken> {
             continue;
         };
         let decoded = urlencoding::decode(raw_cookie_value)
-            .map_err(|error| TempMailError::InvalidResponse(error.to_string()))?
+            .with_context(|| format!("invalid response: failed to decode XSRF cookie `{raw_cookie_value}`"))?
             .into_owned();
         return Ok(XsrfToken {
             raw_cookie_value: raw_cookie_value.to_owned(),
@@ -318,9 +323,7 @@ fn extract_xsrf_token(response: &Response) -> TempMailResult<XsrfToken> {
         });
     }
 
-    Err(TempMailError::InvalidResponse(
-        "Emailnator XSRF-TOKEN cookie missing".to_owned(),
-    ))
+    bail!("invalid response: Emailnator XSRF-TOKEN cookie missing")
 }
 
 fn extract_cookie_value<'a>(cookie: &'a str, name: &str) -> Option<&'a str> {
@@ -331,43 +334,45 @@ fn extract_cookie_value<'a>(cookie: &'a str, name: &str) -> Option<&'a str> {
         .filter(|value| !value.is_empty())
 }
 
-fn read_json_response<T: for<'de> Deserialize<'de>>(response: Response) -> TempMailResult<T> {
+fn read_json_response<T: for<'de> Deserialize<'de>>(response: Response) -> anyhow::Result<T> {
     let response = ensure_success_response(response)?;
-    let bytes = response.bytes()?;
-    Ok(serde_json::from_slice(bytes.as_ref())?)
+    let url = response.url().to_string();
+    let bytes = response
+        .bytes()
+        .with_context(|| format!("failed to read response body from `{url}`"))?;
+    serde_json::from_slice(bytes.as_ref())
+        .with_context(|| format!("failed to parse JSON response from `{url}`"))
 }
 
-fn read_text_response(response: Response) -> TempMailResult<String> {
+fn read_text_response(response: Response) -> anyhow::Result<String> {
     let response = ensure_success_response(response)?;
-    Ok(response.text()?)
+    let url = response.url().to_string();
+    response
+        .text()
+        .with_context(|| format!("failed to read text response from `{url}`"))
 }
 
-fn ensure_success_response(response: Response) -> TempMailResult<Response> {
+fn ensure_success_response(response: Response) -> anyhow::Result<Response> {
     if response.status().is_success() {
         return Ok(response);
     }
 
     let status = response.status();
     let url = response.url().to_string();
-    let body = match response.text() {
-        Ok(body) => body,
-        Err(error) => return Err(TempMailError::Transport(error)),
-    };
-    Err(TempMailError::HttpStatus {
-        url,
-        status: status.as_u16(),
-        body,
-    })
+    let body = response
+        .text()
+        .with_context(|| format!("failed to read error response body from `{url}`"))?;
+    bail!("request to `{url}` returned HTTP {}: {body}", status.as_u16())
 }
 
-fn required_email(value: &str) -> TempMailResult<&str> {
+fn required_email(value: &str) -> anyhow::Result<&str> {
     trim_non_blank(Some(value))
-        .ok_or_else(|| TempMailError::InvalidConfig("email cannot be blank".to_owned()))
+        .ok_or_else(|| anyhow!("invalid config: email cannot be blank"))
 }
 
-fn required_message_id(value: &str) -> TempMailResult<&str> {
+fn required_message_id(value: &str) -> anyhow::Result<&str> {
     trim_non_blank(Some(value))
-        .ok_or_else(|| TempMailError::InvalidConfig("message_id cannot be blank".to_owned()))
+        .ok_or_else(|| anyhow!("invalid config: message_id cannot be blank"))
 }
 
 fn value_to_non_blank_string(value: &Value) -> Option<String> {

@@ -2,16 +2,18 @@
 
 use std::sync::Arc;
 
+use anyhow::{Result, bail};
 use toasty::stmt::{List, Query};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    error::{LowcodeError, LowcodeResult},
     model::{LowcodeApp, LowcodeAppSummary, LowcodePage, LowcodePageSummary},
 };
 
 const TABLE_NAME_PREFIX: &str = "biz_lowcode_";
+pub const INVALID_APP_ID_MESSAGE: &str = "invalid lowcode app id";
+pub const INVALID_PAGE_ID_MESSAGE: &str = "invalid lowcode page id";
 
 #[derive(Clone)]
 pub struct LowcodeStore {
@@ -19,7 +21,7 @@ pub struct LowcodeStore {
 }
 
 impl LowcodeStore {
-    pub async fn connect(database_url: &str) -> LowcodeResult<Self> {
+    pub async fn connect(database_url: &str) -> Result<Self> {
         let db = toasty::Db::builder()
             .models(toasty::models!(LowcodeApp, LowcodePage))
             .table_name_prefix(TABLE_NAME_PREFIX)
@@ -31,13 +33,13 @@ impl LowcodeStore {
         })
     }
 
-    pub async fn list_apps(&self) -> LowcodeResult<Vec<LowcodeAppSummary>> {
+    pub async fn list_apps(&self) -> Result<Vec<LowcodeAppSummary>> {
         let mut db = self.db.lock().await;
         let apps = Query::<List<LowcodeApp>>::all().exec(&mut *db).await?;
         Ok(apps.into_iter().map(Into::into).collect())
     }
 
-    pub async fn upsert_app(&self, input: LowcodeAppInput) -> LowcodeResult<LowcodeAppSummary> {
+    pub async fn upsert_app(&self, input: LowcodeAppInput) -> Result<LowcodeAppSummary> {
         let id = normalized_id(input.id);
         let now = timestamp_string();
         let mut db = self.db.lock().await;
@@ -77,8 +79,8 @@ impl LowcodeStore {
         Ok(app.into())
     }
 
-    pub async fn list_pages(&self, app_id: &str) -> LowcodeResult<Vec<LowcodePageSummary>> {
-        let app_id = normalize_required_id(app_id, LowcodeError::InvalidAppId)?;
+    pub async fn list_pages(&self, app_id: &str) -> Result<Vec<LowcodePageSummary>> {
+        let app_id = normalize_required_id(app_id, INVALID_APP_ID_MESSAGE)?;
         let mut db = self.db.lock().await;
         let pages = Query::<List<LowcodePage>>::filter(LowcodePage::fields().app_id().eq(&app_id))
             .exec(&mut *db)
@@ -86,9 +88,9 @@ impl LowcodeStore {
         Ok(pages.into_iter().map(Into::into).collect())
     }
 
-    pub async fn upsert_page(&self, input: LowcodePageInput) -> LowcodeResult<LowcodePageSummary> {
+    pub async fn upsert_page(&self, input: LowcodePageInput) -> Result<LowcodePageSummary> {
         let id = normalized_id(input.id);
-        let app_id = normalize_required_id(&input.app_id, LowcodeError::InvalidAppId)?;
+        let app_id = normalize_required_id(&input.app_id, INVALID_APP_ID_MESSAGE)?;
         let now = timestamp_string();
         let mut db = self.db.lock().await;
         let existing = Query::<List<LowcodePage>>::filter(LowcodePage::fields().id().eq(&id))
@@ -129,8 +131,8 @@ impl LowcodeStore {
         Ok(page.into())
     }
 
-    pub async fn delete_page(&self, page_id: &str) -> LowcodeResult<()> {
-        let page_id = normalize_required_id(page_id, LowcodeError::InvalidPageId)?;
+    pub async fn delete_page(&self, page_id: &str) -> Result<()> {
+        let page_id = normalize_required_id(page_id, INVALID_PAGE_ID_MESSAGE)?;
         let mut db = self.db.lock().await;
         Query::<List<LowcodePage>>::filter(LowcodePage::fields().id().eq(page_id))
             .delete()
@@ -166,10 +168,10 @@ fn normalized_id(value: Option<String>) -> String {
         .unwrap_or_else(|| Uuid::new_v4().to_string())
 }
 
-fn normalize_required_id(value: &str, error: LowcodeError) -> LowcodeResult<String> {
+fn normalize_required_id(value: &str, error_message: &'static str) -> Result<String> {
     let value = value.trim();
     if value.is_empty() {
-        return Err(error);
+        bail!(error_message);
     }
     Ok(value.to_string())
 }

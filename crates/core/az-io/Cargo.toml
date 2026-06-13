@@ -10,7 +10,7 @@ authors.workspace = true
 workspace = true
 
 [dependencies]
-thiserror.workspace = true
+anyhow.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

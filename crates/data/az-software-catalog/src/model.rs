@@ -1,11 +1,9 @@
 #[cfg(any(not(target_arch = "wasm32"), test))]
 use std::collections::BTreeSet;
-#[cfg(not(target_arch = "wasm32"))]
-use std::fmt;
 
-use az_derive_aliases::{
-    apply, error_eq, serde_code_default_ord_display_enum, serde_eq, serde_eq_default,
-};
+#[cfg(not(target_arch = "wasm32"))]
+use anyhow::{Context, bail};
+use az_derive_aliases::{apply, serde_code_default_ord_display_enum, serde_eq, serde_eq_default};
 #[cfg(any(not(target_arch = "wasm32"), test))]
 use uuid::Uuid;
 
@@ -169,43 +167,6 @@ pub struct SoftwareDraftInput {
     pub preferred_platforms: Vec<SoftwarePlatform>,
 }
 
-/// 软件目录服务返回的统一错误。
-#[apply(error_eq)]
-pub enum SoftwareCatalogError {
-    /// 连接持久化层失败。
-    #[error("connect software catalog persistence: {0}")]
-    Persistence(String),
-    /// 查询或写入软件目录数据失败。
-    #[error("query software catalog rows: {0}")]
-    Query(String),
-    /// 抓取软件主页元数据失败。
-    #[error("fetch software metadata: {0}")]
-    Fetch(String),
-    /// 输入校验或业务规则错误。
-    #[error("{0}")]
-    Message(String),
-}
-
-impl SoftwareCatalogError {
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn persistence(err: impl fmt::Display) -> Self {
-        Self::Persistence(err.to_string())
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn query(err: impl fmt::Display) -> Self {
-        Self::Query(err.to_string())
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn fetch(err: impl fmt::Display) -> Self {
-        Self::Fetch(err.to_string())
-    }
-}
-
-/// 软件目录服务使用的结果类型。
-pub type SoftwareCatalogResult<T> = Result<T, SoftwareCatalogError>;
-
 /// 返回当前编译目标对应的平台。
 pub fn current_platform() -> SoftwarePlatform {
     #[cfg(target_os = "windows")]
@@ -222,16 +183,14 @@ pub fn current_platform() -> SoftwarePlatform {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn parse_uuid(value: &str) -> SoftwareCatalogResult<Uuid> {
-    Uuid::parse_str(value).map_err(|err| SoftwareCatalogError::Message(format!("非法 UUID：{err}")))
+pub(crate) fn parse_uuid(value: &str) -> anyhow::Result<Uuid> {
+    Uuid::parse_str(value).with_context(|| format!("解析软件条目 UUID `{value}`"))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn validate_input(input: &SoftwareEntryInput) -> SoftwareCatalogResult<()> {
+pub(crate) fn validate_input(input: &SoftwareEntryInput) -> anyhow::Result<()> {
     if input.slug.trim().is_empty() || input.title.trim().is_empty() {
-        return Err(SoftwareCatalogError::Message(
-            "软件 slug 和标题不能为空。".to_string(),
-        ));
+        bail!("软件 slug 和标题不能为空。");
     }
     Ok(())
 }

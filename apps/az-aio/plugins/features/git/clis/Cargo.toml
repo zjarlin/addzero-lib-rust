@@ -11,6 +11,8 @@ description = "AZ AIO git CLI feature plugin and ~/.add_fn generator."
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+anyhow.workspace = true
+automod.workspace = true
 az-aio-plugin-api = { path = "../../../api" }
 wit-bindgen = "0.57.1"
 

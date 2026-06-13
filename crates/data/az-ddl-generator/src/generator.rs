@@ -1,7 +1,7 @@
-use crate::DdlError;
 use crate::column::{Column, ColumnType};
 use crate::dialect::Dialect;
 use crate::table::Table;
+use anyhow::{Result, bail};
 
 /// Quote a SQL identifier to prevent injection.
 ///
@@ -38,20 +38,19 @@ impl DdlGenerator {
     }
 
     /// Generate a CREATE TABLE statement from a [`Table`] definition.
-    pub fn generate_create_table(&self, table: &Table) -> Result<String, DdlError> {
+    pub fn generate_create_table(&self, table: &Table) -> Result<String> {
         if table.name.is_empty() {
-            return Err(DdlError::InvalidTableName("(empty)".to_string()));
+            bail!("invalid table name: (empty)");
         }
 
         if table.columns.is_empty() {
-            return Err(DdlError::EmptyTable(table.name.clone()));
+            bail!("table '{}' has no columns", table.name);
         }
 
-        // Check for duplicate column names
         let mut seen = std::collections::HashSet::new();
         for col in &table.columns {
             if !seen.insert(&col.name) {
-                return Err(DdlError::DuplicateColumn(col.name.clone()));
+                bail!("duplicate column name: '{}'", col.name);
             }
         }
 
@@ -68,7 +67,6 @@ impl DdlGenerator {
         sql.push_str(&column_defs.join(",\n"));
         sql.push_str("\n)");
 
-        // Add dialect-specific extras
         match self.dialect {
             Dialect::MySQL => {
                 if let Some(ref comment) = table.comment {
@@ -77,7 +75,6 @@ impl DdlGenerator {
                 }
             }
             Dialect::PostgreSQL | Dialect::SQLite => {
-                // PostgreSQL uses separate COMMENT ON statement
             }
         }
 
@@ -90,9 +87,9 @@ impl DdlGenerator {
         &self,
         table_name: &str,
         column: &Column,
-    ) -> Result<String, DdlError> {
+    ) -> Result<String> {
         if table_name.is_empty() {
-            return Err(DdlError::InvalidTableName("(empty)".to_string()));
+            bail!("invalid table name: (empty)");
         }
 
         let col_def = self.format_column_def(column);
@@ -110,15 +107,14 @@ impl DdlGenerator {
         table_name: &str,
         columns: &[&str],
         unique: bool,
-    ) -> Result<String, DdlError> {
+    ) -> Result<String> {
         if index_name.is_empty() || table_name.is_empty() {
             let name = if index_name.is_empty() {
                 "(empty index name)"
             } else {
                 "(empty table name)"
             };
-            let error = DdlError::InvalidTableName(name.to_string());
-            return Err(error);
+            bail!("invalid table name: {name}");
         }
 
         let unique_kw = if unique { "UNIQUE " } else { "" };
@@ -139,9 +135,9 @@ impl DdlGenerator {
         &self,
         table_name: &str,
         if_exists: bool,
-    ) -> Result<String, DdlError> {
+    ) -> Result<String> {
         if table_name.is_empty() {
-            return Err(DdlError::InvalidTableName("(empty)".to_string()));
+            bail!("invalid table name: (empty)");
         }
 
         let if_exists_kw = if if_exists { "IF EXISTS " } else { "" };
@@ -212,7 +208,10 @@ impl DdlGenerator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::column::{Column, ColumnType};
+    use crate::dialect::Dialect;
+    use crate::generator::DdlGenerator;
+    use crate::table::Table;
 
     fn sample_table() -> Table {
         Table::new("users")
@@ -256,10 +255,8 @@ mod tests {
         let ddl = DdlGenerator::new(Dialect::SQLite);
         let table = Table::new("").column(Column::new("id", ColumnType::Integer));
         let result = ddl.generate_create_table(&table);
-        assert_eq!(
-            result,
-            Err(DdlError::InvalidTableName("(empty)".to_string()))
-        );
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("invalid table name"));
     }
 
     #[test]
@@ -267,7 +264,8 @@ mod tests {
         let ddl = DdlGenerator::new(Dialect::PostgreSQL);
         let table = Table::new("empty_table");
         let result = ddl.generate_create_table(&table);
-        assert_eq!(result, Err(DdlError::EmptyTable("empty_table".to_string())));
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("empty_table"));
     }
 
     #[test]
@@ -277,7 +275,8 @@ mod tests {
             .column(Column::new("id", ColumnType::Integer))
             .column(Column::new("id", ColumnType::Text));
         let result = ddl.generate_create_table(&table);
-        assert_eq!(result, Err(DdlError::DuplicateColumn("id".to_string())));
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("duplicate column name"));
     }
 
     #[test]

@@ -1,4 +1,3 @@
-use crate::error::{LineCrdtError, LineCrdtResult, engine_error};
 use crate::line_index::{LineSpan, line_spans, unicode_len};
 use crate::wire::{
     LineCrdtImportReport, LineCrdtPendingRange, LineCrdtSnapshot, LineCrdtUpdate, LineCrdtVersion,
@@ -25,7 +24,7 @@ impl LineCrdtDocument {
         }
     }
 
-    pub fn with_peer_id(peer_id: u64) -> LineCrdtResult<Self> {
+    pub fn with_peer_id(peer_id: u64) -> anyhow::Result<Self> {
         let document = Self::new();
         document
             .doc
@@ -34,19 +33,19 @@ impl LineCrdtDocument {
         Ok(document)
     }
 
-    pub fn from_text(text: &str) -> LineCrdtResult<Self> {
+    pub fn from_text(text: &str) -> anyhow::Result<Self> {
         let document = Self::new();
         document.set_text(text)?;
         Ok(document)
     }
 
-    pub fn from_text_with_peer_id(text: &str, peer_id: u64) -> LineCrdtResult<Self> {
+    pub fn from_text_with_peer_id(text: &str, peer_id: u64) -> anyhow::Result<Self> {
         let document = Self::with_peer_id(peer_id)?;
         document.set_text(text)?;
         Ok(document)
     }
 
-    pub fn from_snapshot(snapshot: impl AsRef<[u8]>) -> LineCrdtResult<Self> {
+    pub fn from_snapshot(snapshot: impl AsRef<[u8]>) -> anyhow::Result<Self> {
         let doc = LoroDoc::from_snapshot(snapshot.as_ref())
             .map_err(|error| engine_error("import snapshot", error))?;
         Ok(Self { doc })
@@ -55,7 +54,7 @@ impl LineCrdtDocument {
     pub fn from_snapshot_with_peer_id(
         snapshot: impl AsRef<[u8]>,
         peer_id: u64,
-    ) -> LineCrdtResult<Self> {
+    ) -> anyhow::Result<Self> {
         let document = Self::with_peer_id(peer_id)?;
         document.import_blob(snapshot)?;
         Ok(document)
@@ -77,7 +76,7 @@ impl LineCrdtDocument {
         line_spans(&self.text()).len()
     }
 
-    pub fn set_text(&self, text: &str) -> LineCrdtResult<()> {
+    pub fn set_text(&self, text: &str) -> anyhow::Result<()> {
         let content = self.content();
         let current_len = content.len_unicode();
         if current_len > 0 {
@@ -94,7 +93,7 @@ impl LineCrdtDocument {
         Ok(())
     }
 
-    pub fn apply_text_by_line(&self, text: &str) -> LineCrdtResult<()> {
+    pub fn apply_text_by_line(&self, text: &str) -> anyhow::Result<()> {
         self.content()
             .update_by_line(text, UpdateOptions::default())
             .map_err(|error| engine_error("update text by line", error))?;
@@ -102,7 +101,7 @@ impl LineCrdtDocument {
         Ok(())
     }
 
-    pub fn apply_text_precise(&self, text: &str) -> LineCrdtResult<()> {
+    pub fn apply_text_precise(&self, text: &str) -> anyhow::Result<()> {
         self.content()
             .update(text, UpdateOptions::default())
             .map_err(|error| engine_error("update text", error))?;
@@ -110,16 +109,16 @@ impl LineCrdtDocument {
         Ok(())
     }
 
-    pub fn insert_line(&self, index: usize, line: &str) -> LineCrdtResult<()> {
+    pub fn insert_line(&self, index: usize, line: &str) -> anyhow::Result<()> {
         validate_single_line(line)?;
 
         let current = self.text();
         let spans = line_spans(&current);
         if index > spans.len() {
-            return Err(LineCrdtError::LineIndexOutOfBounds {
-                index,
-                line_count: spans.len(),
-            });
+            anyhow::bail!(
+                "line index {index} is out of bounds for {} lines",
+                spans.len()
+            );
         }
 
         let position = spans
@@ -137,11 +136,11 @@ impl LineCrdtDocument {
         Ok(())
     }
 
-    pub fn append_line(&self, line: &str) -> LineCrdtResult<()> {
+    pub fn append_line(&self, line: &str) -> anyhow::Result<()> {
         self.insert_line(self.line_count(), line)
     }
 
-    pub fn replace_line(&self, index: usize, line: &str) -> LineCrdtResult<()> {
+    pub fn replace_line(&self, index: usize, line: &str) -> anyhow::Result<()> {
         validate_single_line(line)?;
 
         let current = self.text();
@@ -165,7 +164,7 @@ impl LineCrdtDocument {
         Ok(())
     }
 
-    pub fn delete_line(&self, index: usize) -> LineCrdtResult<()> {
+    pub fn delete_line(&self, index: usize) -> anyhow::Result<()> {
         let current = self.text();
         let spans = line_spans(&current);
         let span = span_at(&spans, index)?;
@@ -181,7 +180,7 @@ impl LineCrdtDocument {
         Ok(())
     }
 
-    pub fn insert_text(&self, unicode_index: usize, text: &str) -> LineCrdtResult<()> {
+    pub fn insert_text(&self, unicode_index: usize, text: &str) -> anyhow::Result<()> {
         if text.is_empty() {
             return Ok(());
         }
@@ -193,7 +192,7 @@ impl LineCrdtDocument {
         Ok(())
     }
 
-    pub fn delete_text(&self, unicode_index: usize, unicode_len: usize) -> LineCrdtResult<()> {
+    pub fn delete_text(&self, unicode_index: usize, unicode_len: usize) -> anyhow::Result<()> {
         if unicode_len == 0 {
             return Ok(());
         }
@@ -210,7 +209,7 @@ impl LineCrdtDocument {
         unicode_index: usize,
         unicode_len: usize,
         replacement: &str,
-    ) -> LineCrdtResult<()> {
+    ) -> anyhow::Result<()> {
         self.content()
             .splice(unicode_index, unicode_len, replacement)
             .map_err(|error| engine_error("splice text", error))?;
@@ -222,14 +221,14 @@ impl LineCrdtDocument {
         LineCrdtVersion::from_bytes(self.doc.oplog_vv().encode())
     }
 
-    pub fn export_snapshot(&self) -> LineCrdtResult<LineCrdtSnapshot> {
+    pub fn export_snapshot(&self) -> anyhow::Result<LineCrdtSnapshot> {
         self.doc
             .export(ExportMode::Snapshot)
             .map(LineCrdtSnapshot::from_bytes)
             .map_err(|error| engine_error("export snapshot", error))
     }
 
-    pub fn export_all_updates(&self) -> LineCrdtResult<LineCrdtUpdate> {
+    pub fn export_all_updates(&self) -> anyhow::Result<LineCrdtUpdate> {
         self.doc
             .export(ExportMode::all_updates())
             .map(LineCrdtUpdate::from_bytes)
@@ -239,7 +238,7 @@ impl LineCrdtDocument {
     pub fn export_updates_since(
         &self,
         version: &LineCrdtVersion,
-    ) -> LineCrdtResult<LineCrdtUpdate> {
+    ) -> anyhow::Result<LineCrdtUpdate> {
         let version = decode_version(version)?;
         self.doc
             .export(ExportMode::updates(&version))
@@ -247,14 +246,14 @@ impl LineCrdtDocument {
             .map_err(|error| engine_error("export updates", error))
     }
 
-    pub fn import_update(&self, update: impl AsRef<[u8]>) -> LineCrdtResult<LineCrdtImportReport> {
+    pub fn import_update(&self, update: impl AsRef<[u8]>) -> anyhow::Result<LineCrdtImportReport> {
         self.import_blob(update)
     }
 
     pub fn import_snapshot(
         &self,
         snapshot: impl AsRef<[u8]>,
-    ) -> LineCrdtResult<LineCrdtImportReport> {
+    ) -> anyhow::Result<LineCrdtImportReport> {
         self.import_blob(snapshot)
     }
 
@@ -262,7 +261,7 @@ impl LineCrdtDocument {
         self.doc.get_text(CONTENT_CONTAINER)
     }
 
-    fn import_blob(&self, blob: impl AsRef<[u8]>) -> LineCrdtResult<LineCrdtImportReport> {
+    fn import_blob(&self, blob: impl AsRef<[u8]>) -> anyhow::Result<LineCrdtImportReport> {
         let status = self
             .doc
             .import(blob.as_ref())
@@ -286,28 +285,28 @@ impl LineCrdtDocument {
     }
 }
 
-fn decode_version(version: &LineCrdtVersion) -> LineCrdtResult<VersionVector> {
-    VersionVector::decode(version.as_bytes()).map_err(|error| LineCrdtError::InvalidVersion {
-        reason: format!("{error:?}"),
-    })
+fn decode_version(version: &LineCrdtVersion) -> anyhow::Result<VersionVector> {
+    VersionVector::decode(version.as_bytes())
+        .map_err(|error| anyhow::anyhow!("invalid CRDT version cursor: {error:?}"))
 }
 
-fn span_at(spans: &[LineSpan], index: usize) -> LineCrdtResult<LineSpan> {
+fn span_at(spans: &[LineSpan], index: usize) -> anyhow::Result<LineSpan> {
     spans
         .get(index)
         .copied()
-        .ok_or(LineCrdtError::LineIndexOutOfBounds {
-            index,
-            line_count: spans.len(),
-        })
+        .ok_or_else(|| anyhow::anyhow!("line index {index} is out of bounds for {} lines", spans.len()))
 }
 
-fn validate_single_line(line: &str) -> LineCrdtResult<()> {
+fn validate_single_line(line: &str) -> anyhow::Result<()> {
     if line.contains('\n') {
-        return Err(LineCrdtError::LineContainsNewline);
+        anyhow::bail!("line content must not contain '\\n'");
     }
 
     Ok(())
+}
+
+fn engine_error(operation: &'static str, error: impl std::fmt::Debug) -> anyhow::Error {
+    anyhow::anyhow!("{operation} failed: {error:?}")
 }
 
 fn insertion_text_for_line(current: &str, index: usize, line_count: usize, line: &str) -> String {

@@ -1,7 +1,7 @@
 use crate::config::GmailCodeQuery;
+use crate::config::GmailCodeConfig;
 use crate::model::{ExtractedGmailCode, GmailListMessagesResponse, GmailMessage};
 use crate::parser::{collect_message_body_candidates, extract_verification_code};
-use crate::{GmailCodeConfig, GmailCodeError, GmailCodeResult};
 use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
@@ -18,15 +18,15 @@ pub struct GmailCodeClient {
 
 impl GmailCodeClient {
     /// 使用默认 Gmail API 设置和必填 OAuth 访问令牌创建客户端。
-    pub fn new(access_token: impl Into<String>) -> GmailCodeResult<Self> {
+    pub fn new(access_token: impl Into<String>) -> anyhow::Result<Self> {
         Self::with_config(GmailCodeConfig::builder(access_token).build()?)
     }
 
     /// 使用显式配置创建客户端。
-    pub fn with_config(config: GmailCodeConfig) -> GmailCodeResult<Self> {
+    pub fn with_config(config: GmailCodeConfig) -> anyhow::Result<Self> {
         config.validate()?;
         let base_url = Url::parse(&config.base_url)
-            .map_err(|_| GmailCodeError::InvalidBaseUrl(config.base_url.clone()))?;
+            .map_err(|_| anyhow::anyhow!("invalid base url `{}`", config.base_url))?;
 
         let mut builder = Client::builder()
             .connect_timeout(config.connect_timeout)
@@ -44,7 +44,7 @@ impl GmailCodeClient {
     }
 
     /// 使用查询对象搜索 Gmail 邮件，并返回匹配的邮件 ID。
-    pub fn list_message_ids(&self, query: &GmailCodeQuery) -> GmailCodeResult<Vec<String>> {
+    pub fn list_message_ids(&self, query: &GmailCodeQuery) -> anyhow::Result<Vec<String>> {
         let response = self.list_messages(query)?;
         Ok(response
             .messages
@@ -54,7 +54,7 @@ impl GmailCodeClient {
     }
 
     /// 按邮件 ID 拉取 `format=full` 的 Gmail 邮件详情。
-    pub fn get_message(&self, message_id: impl AsRef<str>) -> GmailCodeResult<GmailMessage> {
+    pub fn get_message(&self, message_id: impl AsRef<str>) -> anyhow::Result<GmailMessage> {
         let message_id = message_id.as_ref();
         let path = format!(
             "users/{}/messages/{}",
@@ -74,7 +74,7 @@ impl GmailCodeClient {
     pub fn find_latest_code(
         &self,
         query: GmailCodeQuery,
-    ) -> GmailCodeResult<Option<ExtractedGmailCode>> {
+    ) -> anyhow::Result<Option<ExtractedGmailCode>> {
         let response = self.list_messages(&query)?;
         for summary in response.messages {
             let message = self.get_message(&summary.id)?;
@@ -85,7 +85,7 @@ impl GmailCodeClient {
         Ok(None)
     }
 
-    fn list_messages(&self, query: &GmailCodeQuery) -> GmailCodeResult<GmailListMessagesResponse> {
+    fn list_messages(&self, query: &GmailCodeQuery) -> anyhow::Result<GmailListMessagesResponse> {
         let path = format!("users/{}/messages", urlencoding::encode(&self.user_id));
         let gmail_q = query.gmail_q();
         let mut request = self
@@ -104,20 +104,20 @@ impl GmailCodeClient {
         Self::read_json(request.send()?)
     }
 
-    fn authenticated_get(&self, path: &str) -> GmailCodeResult<RequestBuilder> {
+    fn authenticated_get(&self, path: &str) -> anyhow::Result<RequestBuilder> {
         Ok(self
             .client
             .get(self.join_url(path)?)
             .bearer_auth(&self.access_token))
     }
 
-    fn read_json<T: DeserializeOwned>(response: Response) -> GmailCodeResult<T> {
+    fn read_json<T: DeserializeOwned>(response: Response) -> anyhow::Result<T> {
         let response = Self::ensure_success(response)?;
         let bytes = response.bytes()?;
         Ok(serde_json::from_slice(bytes.as_ref())?)
     }
 
-    fn ensure_success(response: Response) -> GmailCodeResult<Response> {
+    fn ensure_success(response: Response) -> anyhow::Result<Response> {
         let status = response.status();
         if status.is_success() {
             return Ok(response);
@@ -126,25 +126,22 @@ impl GmailCodeClient {
         let url = response.url().to_string();
         let body = match response.bytes() {
             Ok(bytes) => String::from_utf8_lossy(bytes.as_ref()).into_owned(),
-            Err(error) => return Err(GmailCodeError::Transport(error)),
+            Err(error) => anyhow::bail!("request failed: {error}"),
         };
-        Err(GmailCodeError::HttpStatus {
-            url,
-            status: status.as_u16(),
-            body,
-        })
+        anyhow::bail!(
+            "request to `{url}` returned HTTP {}: {body}",
+            status.as_u16()
+        )
     }
 
-    fn join_url(&self, path: &str) -> GmailCodeResult<Url> {
+    fn join_url(&self, path: &str) -> anyhow::Result<Url> {
         self.base_url
             .join(path)
-            .map_err(|_| GmailCodeError::InvalidPath(path.to_owned()))
+            .map_err(|_| anyhow::anyhow!("invalid request path `{path}`"))
     }
 }
 
-fn extract_code_from_message(
-    message: &GmailMessage,
-) -> GmailCodeResult<Option<ExtractedGmailCode>> {
+fn extract_code_from_message(message: &GmailMessage) -> anyhow::Result<Option<ExtractedGmailCode>> {
     for candidate in collect_message_body_candidates(message)? {
         if let Some(code) = extract_verification_code(&candidate.text) {
             return Ok(Some(ExtractedGmailCode {
@@ -163,7 +160,7 @@ fn extract_code_from_message(
 #[cfg(test)]
 mod tests {
     use super::GmailCodeClient;
-    use crate::{GmailCodeConfig, GmailCodeQuery};
+    use crate::config::{GmailCodeConfig, GmailCodeQuery};
     use az_derive_aliases::{apply, plain_clone_debug};
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;

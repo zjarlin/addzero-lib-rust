@@ -6,7 +6,7 @@ use std::io::{BufWriter, Write};
 
 automod::dir!(pub "src/logic_algorithm_video_pipeline/assist");
 
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 use crate::logic_algorithm_video_pipeline::model::{
     VideoAlgorithmBinding, VideoAlgorithmFrameResult, VideoAlgorithmRunSummary,
     VideoAlgorithmSchedule, VideoFrame, VideoPipelineOptions, VideoPipelineOutputFiles,
@@ -122,9 +122,7 @@ pub fn frame_interval_for_schedule(
         VideoAlgorithmSchedule::EveryFrame => Ok(1),
         VideoAlgorithmSchedule::EveryNFrames { n } => {
             if n == 0 {
-                return Err(anyhow!(
-                    "EveryNFrames.n 必须大于 0",
-                ));
+                anyhow::bail!("EveryNFrames.n 必须大于 0");
             }
             Ok(n)
         }
@@ -145,23 +143,18 @@ fn validate_options(
 ) -> anyhow::Result<()> {
     validate_positive_fps("source_fps", options.source_fps)?;
     if algorithms.is_empty() {
-        return Err(anyhow!(
-            "至少需要传入一个算法实例",
-        ));
+        anyhow::bail!("至少需要传入一个算法实例");
     }
 
     let mut codes = HashSet::new();
     for binding in algorithms {
         let code = binding.algorithm.code();
         if code.trim().is_empty() {
-            return Err(anyhow!(
-                "算法 code 不能为空",
-            ));
+            anyhow::bail!("算法 code 不能为空");
         }
         if !codes.insert(code) {
             let message = format!("重复算法 code：{code}");
-            let error = anyhow!(message);
-            return Err(error);
+            anyhow::bail!(message);
         }
         let _ = frame_interval_for_schedule(binding.schedule, options.source_fps)?;
     }
@@ -171,8 +164,7 @@ fn validate_options(
 fn validate_positive_fps(name: &str, fps: f32) -> anyhow::Result<()> {
     if !fps.is_finite() || fps <= 0.0 {
         let message = format!("{name} 必须是大于 0 的有限数字");
-        let error = anyhow!(message);
-        return Err(error);
+        anyhow::bail!(message);
     }
     Ok(())
 }
@@ -185,8 +177,7 @@ fn validate_frame(frame: &VideoFrame) -> anyhow::Result<()> {
             "帧 {} 声明尺寸 {}x{} 与 RGB 数据尺寸 {}x{} 不一致",
             frame.frame_index, frame.width, frame.height, actual_width, actual_height
         );
-        let error = anyhow!(message);
-        return Err(error);
+        anyhow::bail!(message);
     }
     Ok(())
 }
@@ -204,24 +195,25 @@ fn normalize_frame_result(
             "算法 {algorithm_code} 返回了不匹配的结果 code：{}",
             result.algorithm_code
         );
-        let error = anyhow!(message);
-        return Err(error);
+        anyhow::bail!(message);
     }
     if result.frame_index != frame.frame_index {
         let message = format!(
             "算法 {algorithm_code} 返回的帧序号 {} 与输入帧序号 {} 不一致",
             result.frame_index, frame.frame_index
         );
-        let error = anyhow!(message);
-        return Err(error);
+        anyhow::bail!(message);
     }
     if result.timestamp_ms != frame.timestamp_ms {
         let message = format!(
             "算法 {algorithm_code} 返回的时间戳 {} 与输入时间戳 {} 不一致",
             result.timestamp_ms, frame.timestamp_ms
         );
-        let error = anyhow!(message);
-        return Err(error);
+        anyhow::bail!(message);
     }
     Ok(())
+}
+
+fn path_error(path: std::path::PathBuf, source: std::io::Error) -> anyhow::Error {
+    anyhow!("filesystem error at `{}`: {source}", path.display())
 }

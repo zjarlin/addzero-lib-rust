@@ -13,8 +13,8 @@ use std::path::Path;
 use az_derive_aliases::{apply, plain_debug};
 use git2::{FileMode, ObjectType, Repository, Tree, TreeBuilder as Git2TreeBuilder};
 
+use crate::storage::error;
 use crate::storage::blob::BlobId;
-use crate::storage::error::{StorageError, StorageResult};
 use crate::storage::types::{RowKey, RowPath, TableName, TreeId};
 
 /// A read only handle to a git tree at a specific commit
@@ -81,15 +81,15 @@ impl<'repo> TreeHandle<'repo> {
         &self,
         repo: &'repo Repository,
         table: &TableName,
-    ) -> StorageResult<Option<TreeHandle<'repo>>> {
+    ) -> anyhow::Result<Option<TreeHandle<'repo>>> {
         match self.tree.get_name(table.as_str()) {
             Some(entry) => {
                 if entry.kind() != Some(ObjectType::Tree) {
-                    return Err(StorageError::UnexpectedEntryType {
-                        path: table.as_str().into(),
-                        expected: "tree (directory)".to_string(),
-                        found: format!("{:?}", entry.kind()),
-                    });
+                    let path = Path::new(table.as_str());
+                    let found = format!("{:?}", entry.kind());
+                    let error = error::unexpected_entry_type(path, "tree (directory)", found);
+
+                    return Err(error);
                 }
                 let tree = repo.find_tree(entry.id())?;
                 Ok(Some(TreeHandle::new(tree)))
@@ -99,10 +99,14 @@ impl<'repo> TreeHandle<'repo> {
     }
 
     /// list all row keys in a table
-    pub fn list_rows(&self, repo: &Repository, table: &TableName) -> StorageResult<Vec<RowKey>> {
+    pub fn list_rows(&self, repo: &Repository, table: &TableName) -> anyhow::Result<Vec<RowKey>> {
         let table_tree = match self.get_table_tree(repo, table)? {
             Some(t) => t,
-            None => return Err(StorageError::TableNotFound(table.clone())),
+            None => {
+                let error = error::table_not_found(table);
+
+                return Err(error);
+            }
         };
 
         let mut keys: Vec<_> = table_tree
@@ -134,21 +138,25 @@ impl<'repo> TreeHandle<'repo> {
         repo: &Repository,
         table: &TableName,
         key: &RowKey,
-    ) -> StorageResult<Option<BlobId>> {
+    ) -> anyhow::Result<Option<BlobId>> {
         let table_tree = match self.get_table_tree(repo, table)? {
             Some(t) => t,
-            None => return Err(StorageError::TableNotFound(table.clone())),
+            None => {
+                let error = error::table_not_found(table);
+
+                return Err(error);
+            }
         };
 
         let filename = format!("{}.json", key);
         let result = match table_tree.tree.get_name(&filename) {
             Some(entry) => {
                 if entry.kind() != Some(ObjectType::Blob) {
-                    return Err(StorageError::UnexpectedEntryType {
-                        path: RowPath::new(table.clone(), key.clone()).to_path_buf(),
-                        expected: "blob (file)".to_string(),
-                        found: format!("{:?}", entry.kind()),
-                    });
+                    let path = RowPath::new(table.clone(), key.clone()).to_path_buf();
+                    let found = format!("{:?}", entry.kind());
+                    let error = error::unexpected_entry_type(&path, "blob (file)", found);
+
+                    return Err(error);
                 }
                 Ok(Some(BlobId::new(entry.id())))
             }
@@ -163,7 +171,7 @@ impl<'repo> TreeHandle<'repo> {
         repo: &Repository,
         table: &TableName,
         key: &RowKey,
-    ) -> StorageResult<bool> {
+    ) -> anyhow::Result<bool> {
         Ok(self.get_row_blob_id(repo, table, key)?.is_some())
     }
 
@@ -173,7 +181,7 @@ impl<'repo> TreeHandle<'repo> {
     }
 
     /// count total rows across all tables (for stats)
-    pub fn count_all_rows(&self, repo: &Repository) -> StorageResult<usize> {
+    pub fn count_all_rows(&self, repo: &Repository) -> anyhow::Result<usize> {
         let mut count = 0;
         for table in self.list_tables() {
             count += self.list_rows(repo, &table)?.len();
@@ -208,7 +216,7 @@ pub struct TreeMutator<'repo> {
 
 impl<'repo> TreeMutator<'repo> {
     /// create a new TreeMutator from an existing tree
-    pub fn from_tree(repo: &'repo Repository, tree: &TreeHandle<'_>) -> StorageResult<Self> {
+    pub fn from_tree(repo: &'repo Repository, tree: &TreeHandle<'_>) -> anyhow::Result<Self> {
         let root_builder = repo.treebuilder(Some(tree.inner()))?;
 
         // cache all existing table tree IDs
@@ -230,7 +238,7 @@ impl<'repo> TreeMutator<'repo> {
     }
 
     /// create a new TreeMutator for an empty tree
-    pub fn empty(repo: &'repo Repository) -> StorageResult<Self> {
+    pub fn empty(repo: &'repo Repository) -> anyhow::Result<Self> {
         let root_builder = repo.treebuilder(None)?;
         Ok(Self {
             repo,
@@ -241,7 +249,7 @@ impl<'repo> TreeMutator<'repo> {
     }
 
     /// get or create a builder for a table's subtree
-    fn get_table_builder(&mut self, table: &str) -> StorageResult<&mut Git2TreeBuilder<'repo>> {
+    fn get_table_builder(&mut self, table: &str) -> anyhow::Result<&mut Git2TreeBuilder<'repo>> {
         if !self.modified_tables.contains_key(table) {
             // first modification to this table - create builder from original or empty
             let builder = if let Some(original_id) = self.original_tables.get(table) {
@@ -252,18 +260,22 @@ impl<'repo> TreeMutator<'repo> {
             };
             self.modified_tables.insert(table.to_string(), builder);
         }
-        Ok(self.modified_tables.get_mut(table).unwrap())
+        self.modified_tables.get_mut(table).ok_or_else(|| {
+            error::internal(format!("table builder was not initialized: {table}"))
+        })
     }
 
     /// create a new table (empty directory)
-    pub fn create_table(&mut self, table: &TableName) -> StorageResult<()> {
+    pub fn create_table(&mut self, table: &TableName) -> anyhow::Result<()> {
         let table_str = table.as_str();
 
         // check if table already exists
         if self.modified_tables.contains_key(table_str)
             || self.original_tables.contains_key(table_str)
         {
-            return Err(StorageError::TableAlreadyExists(table.clone()));
+            let error = error::table_already_exists(table);
+
+            return Err(error);
         }
 
         // create empty tree for the table
@@ -282,14 +294,16 @@ impl<'repo> TreeMutator<'repo> {
     }
 
     /// drop a table (remove directory)
-    pub fn drop_table(&mut self, table: &TableName) -> StorageResult<()> {
+    pub fn drop_table(&mut self, table: &TableName) -> anyhow::Result<()> {
         let table_str = table.as_str();
 
         // check if table exists
         if !self.modified_tables.contains_key(table_str)
             && !self.original_tables.contains_key(table_str)
         {
-            return Err(StorageError::TableNotFound(table.clone()));
+            let error = error::table_not_found(table);
+
+            return Err(error);
         }
 
         // remove from tracking
@@ -308,14 +322,16 @@ impl<'repo> TreeMutator<'repo> {
         table: &TableName,
         key: &RowKey,
         blob_id: BlobId,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let table_str = table.as_str();
 
         // Ensure table exists
         if !self.modified_tables.contains_key(table_str)
             && !self.original_tables.contains_key(table_str)
         {
-            return Err(StorageError::TableNotFound(table.clone()));
+            let error = error::table_not_found(table);
+
+            return Err(error);
         }
 
         let table_builder = self.get_table_builder(table_str)?;
@@ -334,27 +350,28 @@ impl<'repo> TreeMutator<'repo> {
         table: &TableName,
         key: &RowKey,
         blob_id: BlobId,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         // check if row already exists
         if current_tree.row_exists(repo, table, key)? {
-            return Err(StorageError::RowAlreadyExists {
-                table: table.clone(),
-                key: key.clone(),
-            });
+            let error = error::row_already_exists(table, key);
+
+            return Err(error);
         }
 
         self.upsert_row(table, key, blob_id)
     }
 
     /// delete a row from a table
-    pub fn delete_row(&mut self, table: &TableName, key: &RowKey) -> StorageResult<()> {
+    pub fn delete_row(&mut self, table: &TableName, key: &RowKey) -> anyhow::Result<()> {
         let table_str = table.as_str();
 
         // Ensure table exists
         if !self.modified_tables.contains_key(table_str)
             && !self.original_tables.contains_key(table_str)
         {
-            return Err(StorageError::TableNotFound(table.clone()));
+            let error = error::table_not_found(table);
+
+            return Err(error);
         }
 
         let table_builder = self.get_table_builder(table_str)?;
@@ -363,10 +380,7 @@ impl<'repo> TreeMutator<'repo> {
         // git2 returns error if entry doesn't exist, but we want to verify it existed
         table_builder
             .remove(&filename)
-            .map_err(|_| StorageError::RowNotFound {
-                table: table.clone(),
-                key: key.clone(),
-            })?;
+            .map_err(|_| error::row_not_found(table, key))?;
 
         Ok(())
     }
@@ -374,7 +388,7 @@ impl<'repo> TreeMutator<'repo> {
     /// write all changes and return the new root tree ID
     ///
     /// this is where the magic happens - we rebuild the tree hierarchy
-    pub fn write(mut self) -> StorageResult<TreeId> {
+    pub fn write(mut self) -> anyhow::Result<TreeId> {
         // First, write all modified table trees and update root builder
         for (table_name, table_builder) in self.modified_tables {
             let table_tree_id = table_builder.write()?;
@@ -389,7 +403,7 @@ impl<'repo> TreeMutator<'repo> {
 }
 
 /// helper function to create an initial empty tree with _schema directory
-pub fn create_initial_tree(repo: &Repository) -> StorageResult<TreeId> {
+pub fn create_initial_tree(repo: &Repository) -> anyhow::Result<TreeId> {
     let mut builder = TreeMutator::empty(repo)?;
 
     // create _schema directory (we'll allow this one since we control it)
@@ -482,7 +496,10 @@ mod tests {
 
         let mut mutator2 = TreeMutator::from_tree(&repo, &new_handle).unwrap();
         let result = mutator2.create_table(&TableName::new("users").unwrap());
-        assert!(matches!(result, Err(StorageError::TableAlreadyExists(_))));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .starts_with("table already exists:"));
     }
 
     #[test]

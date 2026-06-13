@@ -4,9 +4,6 @@
 
 use std::sync::Arc;
 
-use parking_lot::RwLock;
-
-use super::error::{PlanError, PlanResult};
 use super::logical::{
     AggregateExpr, AggregateFunction, ColumnRef, LogicalPlan, ProjectColumn, SortDirection,
     SortSpec,
@@ -16,6 +13,7 @@ use super::physical::PhysicalPlan;
 use crate::catalog::Catalog;
 use crate::sql::{Expr, OrderBy, Select, SelectColumn, Statement};
 use crate::storage::GitRepository;
+use parking_lot::RwLock;
 
 /// The query planner.
 pub struct QueryPlanner {
@@ -41,7 +39,7 @@ impl QueryPlanner {
     }
 
     /// Plan a SQL statement.
-    pub fn plan(&self, stmt: &Statement) -> PlanResult<QueryPlan> {
+    pub fn plan(&self, stmt: &Statement) -> anyhow::Result<QueryPlan> {
         match stmt {
             Statement::Select(select) => {
                 let logical = self.plan_select(select)?;
@@ -53,14 +51,12 @@ impl QueryPlanner {
                     physical,
                 })
             }
-            _ => Err(PlanError::Unsupported(
-                "Only SELECT statements can be planned".into(),
-            )),
+            _ => anyhow::bail!("unsupported plan: only SELECT statements can be planned"),
         }
     }
 
     /// Create a logical plan for a SELECT statement.
-    pub fn plan_select(&self, select: &Select) -> PlanResult<LogicalPlan> {
+    pub fn plan_select(&self, select: &Select) -> anyhow::Result<LogicalPlan> {
         // Start with table scan.
         let mut plan = self.plan_from(&select.from)?;
 
@@ -121,10 +117,10 @@ impl QueryPlanner {
         Ok(plan)
     }
 
-    fn plan_from(&self, table: &str) -> PlanResult<LogicalPlan> {
+    fn plan_from(&self, table: &str) -> anyhow::Result<LogicalPlan> {
         // Verify table exists.
         if !self.catalog.table_exists(table) {
-            return Err(PlanError::TableNotFound(table.to_string()));
+            anyhow::bail!("table not found: {table}");
         }
 
         Ok(LogicalPlan::Scan {
@@ -134,7 +130,7 @@ impl QueryPlanner {
         })
     }
 
-    fn convert_select_columns(&self, columns: &[SelectColumn]) -> PlanResult<Vec<ProjectColumn>> {
+    fn convert_select_columns(&self, columns: &[SelectColumn]) -> anyhow::Result<Vec<ProjectColumn>> {
         let mut result = Vec::new();
 
         for col in columns {
@@ -166,7 +162,7 @@ impl QueryPlanner {
         columns.len() == 1 && matches!(&columns[0], ProjectColumn::Star)
     }
 
-    fn convert_order_by(&self, order_by: &[OrderBy]) -> PlanResult<Vec<SortSpec>> {
+    fn convert_order_by(&self, order_by: &[OrderBy]) -> anyhow::Result<Vec<SortSpec>> {
         order_by
             .iter()
             .map(|item| {
@@ -227,7 +223,7 @@ impl QueryPlanner {
     fn extract_aggregates(
         &self,
         columns: &[SelectColumn],
-    ) -> PlanResult<(Vec<AggregateExpr>, Vec<ProjectColumn>)> {
+    ) -> anyhow::Result<(Vec<AggregateExpr>, Vec<ProjectColumn>)> {
         let mut aggregates = Vec::new();
         let mut non_agg = Vec::new();
 
@@ -285,7 +281,7 @@ impl QueryPlanner {
     }
 
     /// Explain a query plan.
-    pub fn explain(&self, stmt: &Statement) -> PlanResult<String> {
+    pub fn explain(&self, stmt: &Statement) -> anyhow::Result<String> {
         let plan = self.plan(stmt)?;
         Ok(format!(
             "=== Logical Plan ===\n{}\n=== Physical Plan ===\n{}",
@@ -402,6 +398,9 @@ mod tests {
         let stmt = Parser::parse("SELECT * FROM nonexistent").unwrap();
         let result = planner.plan(&stmt);
 
-        assert!(matches!(result, Err(PlanError::TableNotFound(_))));
+        match result {
+            Ok(_) => panic!("expected missing table to fail planning"),
+            Err(error) => assert!(error.to_string().starts_with("table not found:")),
+        }
     }
 }

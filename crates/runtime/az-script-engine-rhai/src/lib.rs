@@ -97,7 +97,15 @@ impl ScriptEngine for RhaiEngine {
         let stdout = Arc::new(Mutex::new(String::new()));
         let stderr = Arc::new(Mutex::new(String::new()));
 
-        let mut engine = self.engine.lock().unwrap();
+        let Ok(mut engine) = self.engine.lock() else {
+            return ScriptOutput {
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: "rhai engine lock poisoned".to_string(),
+                vars: BTreeMap::new(),
+                duration_ms: start.elapsed().as_millis() as u64,
+            };
+        };
         {
             let so = stdout.clone();
             let se = stderr.clone();

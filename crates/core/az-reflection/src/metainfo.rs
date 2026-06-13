@@ -1,13 +1,4 @@
-use regex::Regex;
-use std::sync::LazyLock;
-
 use az_derive_aliases::{apply, plain_eq};
-
-static TABLE_NAME_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| match Regex::new(r"(?i)\bfrom\s+([a-zA-Z0-9_]+)") {
-        Ok(regex) => regex,
-        Err(error) => panic!("table extraction regex should compile: {error}"),
-    });
 
 #[apply(plain_eq)]
 pub struct FieldInfoSimple {
@@ -115,9 +106,45 @@ pub fn get_simple_field_info_str<T: MetaInfo>() -> String {
 }
 
 pub fn extract_table_name(sql: impl AsRef<str>) -> Option<String> {
-    TABLE_NAME_REGEX
-        .captures(sql.as_ref())
-        .and_then(|captures| captures.get(1).map(|table| table.as_str().to_owned()))
+    let sql = sql.as_ref();
+    let lower = sql.to_ascii_lowercase();
+    let mut search_from = 0usize;
+
+    while let Some(relative_index) = lower[search_from..].find("from") {
+        let from_start = search_from + relative_index;
+        let from_end = from_start + "from".len();
+        if !is_sql_word_boundary(lower.as_bytes(), from_start, from_end) {
+            search_from = from_end;
+            continue;
+        }
+
+        let after_from = &sql[from_end..];
+        let table_start_offset = after_from
+            .char_indices()
+            .find_map(|(index, ch)| (!ch.is_whitespace()).then_some(index))?;
+        let table_start = from_end + table_start_offset;
+        let table = sql[table_start..]
+            .chars()
+            .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+            .collect::<String>();
+
+        if table.is_empty() {
+            return None;
+        }
+        return Some(table);
+    }
+
+    None
+}
+
+fn is_sql_word_boundary(bytes: &[u8], start: usize, end: usize) -> bool {
+    let before_ok = start == 0 || !is_sql_word_byte(bytes[start - 1]);
+    let after_ok = end >= bytes.len() || !is_sql_word_byte(bytes[end]);
+    before_ok && after_ok
+}
+
+fn is_sql_word_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
 pub fn guess_column_name(field_name: impl AsRef<str>) -> String {

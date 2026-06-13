@@ -9,7 +9,7 @@ use az_algorithm_onnx::logic_onnx_image::model::OnnxImageModelSpec;
 use image::DynamicImage;
 use serde_json::json;
 
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 use crate::logic_algorithm_video_pipeline::model::{
     VideoAlgorithmFrameResult, VideoFrame, VideoFrameAlgorithm,
 };

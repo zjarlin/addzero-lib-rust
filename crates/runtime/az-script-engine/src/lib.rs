@@ -5,4 +5,8 @@
 
 automod::dir!(pub "src");
 
-pub use script::*;
+pub use script::{
+    BoxScriptEngine, InMemoryScriptEngineRegistry, ScriptEngine, ScriptEngineFactory,
+    ScriptEngineRegistry, ScriptFuture, ScriptInput, ScriptLang, ScriptOutput,
+    register_engine_factory,
+};

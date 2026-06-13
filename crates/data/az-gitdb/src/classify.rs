@@ -1,7 +1,6 @@
 use az_derive_aliases::{apply, plain_code_display_no_default_enum};
+use anyhow::{Context, Result};
 use gitdb::sql::{Parser, Statement};
-
-use crate::error::{GitDbClusterError, GitDbClusterResult};
 
 /// High-level query kind used for cluster routing.
 #[apply(plain_code_display_no_default_enum)]
@@ -41,8 +40,8 @@ mod tests {
 }
 
 /// Classify SQL by parsing it with upstream GitDB's parser.
-pub fn classify_gitdb_query(sql: &str) -> GitDbClusterResult<GitDbQueryKind> {
-    let statement = Parser::parse(sql).map_err(GitDbClusterError::Parse)?;
+pub fn classify_gitdb_query(sql: &str) -> Result<GitDbQueryKind> {
+    let statement = Parser::parse(sql).context("failed to classify GitDB SQL")?;
 
     Ok(match statement {
         Statement::Select(_) | Statement::ShowTables | Statement::Describe(_) => {

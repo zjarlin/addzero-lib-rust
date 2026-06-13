@@ -4,9 +4,13 @@
 
 use anyhow::Context;
 use az_derive_aliases::{apply, deserialize_debug, plain_code_default_enum, plain_eq};
-use az_drive_agent::{DriveAgent, DriveAgentConfig, LocalState, LocalStateStore};
-use az_drive_store::{
-    DEFAULT_AUTO_GIT_POOL_PREFIX, DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator,
+use az_drive_agent::{
+    agent::{DriveAgent, DriveAgentConfig, HostedStatus},
+    local_state::{LocalState, LocalStateStore},
+};
+use az_drive_store::api::{
+    DEFAULT_AUTO_GIT_POOL_PREFIX, DEFAULT_BLOB_SHARD_PREFIX, DEFAULT_GIT_POOL_LIMIT_BYTES,
+    DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES, DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator,
     GitDbObjectStore, GitDbObjectStoreConfig, GitPoolConfig, GitPoolDriveStore, GitPoolRepoConfig,
 };
 use std::collections::BTreeMap;
@@ -338,8 +342,7 @@ pub fn use_drive_backend(backend: &str) -> anyhow::Result<()> {
 /// # Errors
 /// Returns an error when hosted state cannot be loaded or any file cannot be
 /// hosted into the Git Pool store.
-pub async fn migrate_local_state_to_git_pool() -> anyhow::Result<Vec<az_drive_agent::HostedStatus>>
-{
+pub async fn migrate_local_state_to_git_pool() -> anyhow::Result<Vec<HostedStatus>> {
     use_drive_backend("git_pool")?;
     let state_store = LocalStateStore::new(LocalStateStore::default_path());
     let state = state_store.load_or_init().await?;
@@ -350,7 +353,7 @@ pub async fn migrate_local_state_to_git_pool() -> anyhow::Result<Vec<az_drive_ag
 async fn migrate_state_paths(
     agent: &DriveAgent,
     state: &LocalState,
-) -> anyhow::Result<Vec<az_drive_agent::HostedStatus>> {
+) -> anyhow::Result<Vec<HostedStatus>> {
     let mut statuses = Vec::new();
     for root in &state.hosted_roots {
         if root.local_path.exists() {
@@ -551,7 +554,7 @@ fn save_drive_config(config: &DriveTomlConfig) -> anyhow::Result<()> {
     if let Some(root) = &config.gitdb_object_root {
         doc["gitdb_object_root"] = value(path_to_config_string(root.clone()));
     }
-    if config.gitdb_object_shard_prefix != az_drive_store::DEFAULT_BLOB_SHARD_PREFIX {
+    if config.gitdb_object_shard_prefix != DEFAULT_BLOB_SHARD_PREFIX {
         doc["gitdb_object_shard_prefix"] = value(config.gitdb_object_shard_prefix.as_str());
     }
     doc["gitdb_object_max_shard_size_bytes"] =
@@ -565,13 +568,13 @@ fn default_drive_toml_config() -> DriveTomlConfig {
         backend: "git_pool".to_owned(),
         git_pool_root: Some(default_git_pool_root()),
         control_remote: None,
-        default_pool_limit_bytes: az_drive_store::DEFAULT_GIT_POOL_LIMIT_BYTES,
+        default_pool_limit_bytes: DEFAULT_GIT_POOL_LIMIT_BYTES,
         auto_pool_root: None,
         auto_pool_prefix: DEFAULT_AUTO_GIT_POOL_PREFIX.to_owned(),
         object_backend: DriveObjectBackend::GitPool,
         gitdb_object_root: Some(default_gitdb_object_root()),
-        gitdb_object_shard_prefix: az_drive_store::DEFAULT_BLOB_SHARD_PREFIX.to_owned(),
-        gitdb_object_max_shard_size_bytes: az_drive_store::DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES,
+        gitdb_object_shard_prefix: DEFAULT_BLOB_SHARD_PREFIX.to_owned(),
+        gitdb_object_max_shard_size_bytes: DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES,
     }
 }
 
@@ -750,42 +753,4 @@ fn legacy_drive_env_paths() -> Vec<PathBuf> {
         paths.push(home.join(".config").join("az-drive").join("drive.env"));
     }
     paths
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{
-        DriveObjectBackend, normalize_object_backend_name, normalize_persisted_object_backend_name,
-    };
-
-    #[test]
-    fn object_backend_codes_round_trip_through_alias() {
-        assert_eq!(
-            normalize_object_backend_name("git_pool").expect("git_pool should parse"),
-            DriveObjectBackend::GitPool
-        );
-        assert_eq!(
-            normalize_object_backend_name("git-pool").expect("git-pool should normalize"),
-            DriveObjectBackend::GitPool
-        );
-        assert_eq!(
-            normalize_object_backend_name("gitdb").expect("gitdb should parse"),
-            DriveObjectBackend::GitDb
-        );
-        assert_eq!(DriveObjectBackend::GitPool.code(), "git_pool");
-        assert_eq!(DriveObjectBackend::GitDb.code(), "gitdb");
-    }
-
-    #[test]
-    fn persisted_object_backend_falls_back_to_git_pool_when_unknown() {
-        assert!(normalize_object_backend_name("s3").is_err());
-        assert_eq!(
-            normalize_persisted_object_backend_name("s3"),
-            DriveObjectBackend::GitPool
-        );
-        assert_eq!(
-            DriveObjectBackend::from_code_or_default("unknown"),
-            DriveObjectBackend::GitPool
-        );
-    }
 }

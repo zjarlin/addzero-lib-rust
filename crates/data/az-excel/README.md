@@ -26,10 +26,8 @@ az-excel = { path = "../az-excel" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_excel::{
-    ExcelWorkbook, ExcelSheet, CellValue,
-    ExportSheetConfig, write_xlsx, read_xlsx,
-};
+use az_excel::model::{CellValue, ExcelSheet, ExcelWorkbook, ExportSheetConfig};
+use az_excel::xlsx::{read_xlsx, write_xlsx};
 
 // --- 写入 ---
 let sheet = ExcelSheet::new("数据").with_rows(vec![
@@ -50,7 +48,8 @@ assert_eq!(first_sheet.name, "数据");
 ### 从 ExportSheetConfig 快速导出
 
 ```rust
-use az_excel::{ExportSheetConfig, write_export_sheet_configs, CellValue};
+use az_excel::model::{CellValue, ExportSheetConfig};
+use az_excel::xlsx::write_export_sheet_configs;
 
 let config = ExportSheetConfig::new("Sheet1")
     .with_headers(["列A", "列B"])
@@ -65,4 +64,4 @@ write_export_sheet_configs("/tmp/out.xlsx", [config]).unwrap();
 
 - `quick-xml` - XML 流式读写
 - `zip` - ZIP 归档读写（XLSX 文件格式基础）
-- `thiserror` - 错误类型派生宏
+- `anyhow` - 错误上下文与统一 `Result`

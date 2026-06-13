@@ -1,4 +1,8 @@
-use az_math::*;
+use az_math::api::{
+    ConstraintRelation, GoalType, LinearConstraint, LinearObjective, LinearProgrammingProblem,
+    MatrixElement, create_matrix, generate_index_groups, generate_vector, set_interval_elements,
+    set_matrix_elements, solve_linear_programming_with_prices, transpose_matrix,
+};
 
 #[test]
 fn transpose_and_matrix_updates_work() {

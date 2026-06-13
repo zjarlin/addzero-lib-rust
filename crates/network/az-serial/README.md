@@ -9,7 +9,7 @@
 - **帧解码**：`FrameDecoder` 支持三种工业常见帧格式——定长帧、分隔符帧和长度前缀帧
 - **串口枚举**：`SerialPort::list_ports()` 列出系统可用串口及其 USB VID/PID 信息
 - **配置序列化**：`SerialConfig` 可通过 serde 进行 JSON 序列化/反序列化，方便持久化配置
-- **统一错误模型**：`SerialError` 覆盖 I/O 错误、端口未找到、配置无效、超时、缓冲区溢出等场景
+- **统一错误上下文**：公开操作返回 `anyhow::Result`，配置和 I/O 失败直接带上下文返回
 
 ## 安装
 
@@ -27,7 +27,8 @@ az-serial = { path = "../az-serial" }       # workspace 内部引用
 ### 打开串口并读写数据
 
 ```rust
-use az_serial::{SerialPort, SerialConfig, BaudRate, Parity, StopBits};
+use az_serial::config::{BaudRate, Parity, SerialConfig, StopBits};
+use az_serial::port::SerialPort;
 
 let config = SerialConfig::new(BaudRate::Baud115200)
     .with_parity(Parity::None)
@@ -46,7 +47,7 @@ port.close()?;
 ### 使用帧解码器解析串口数据流
 
 ```rust
-use az_serial::{FrameDecoder, FrameFormat, FrameEvent};
+use az_serial::frame::{FrameDecoder, FrameEvent, FrameFormat};
 
 let mut decoder = FrameDecoder::new(FrameFormat::Delimiter(vec![0x0A]));
 decoder.push(b"Hello");
@@ -59,5 +60,5 @@ assert_eq!(decoder.poll(), Some(FrameEvent::Frame(b"Hello".to_vec())));
 
 - `serde` - 序列化/反序列化支持
 - `serde_json` - JSON 处理（用于配置序列化）
-- `thiserror` - 简化错误类型定义
+- `anyhow` - 错误上下文与统一 `Result`
 - `tokio` - 异步运行时（预留异步支持）

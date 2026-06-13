@@ -19,7 +19,7 @@
 //! 插件导出的生命周期函数签名为 `() -> i32`，返回 0 表示成功，非零表示失败。
 
 use az_derive_aliases::{apply, plain_default};
-use az_wasm_plugin_api::{PluginError, PluginHandle, PluginManifest, PluginRegistry, PluginState};
+use az_wasm_plugin_api::{PluginHandle, PluginManifest, PluginRegistry, PluginState};
 use std::collections::BTreeMap;
 use std::sync::RwLock;
 use uuid::Uuid;
@@ -74,21 +74,17 @@ impl RuntimePluginRegistry {
 }
 
 impl PluginRegistry for RuntimePluginRegistry {
-    fn load(
-        &self,
-        manifest: PluginManifest,
-        wasm_bytes: Vec<u8>,
-    ) -> Result<PluginHandle, PluginError> {
+    fn load(&self, manifest: PluginManifest, wasm_bytes: Vec<u8>) -> anyhow::Result<PluginHandle> {
         let mut plugins = self
             .plugins
             .write()
-            .map_err(|e| PluginError::Other(format!("registry lock poisoned: {e}")))?;
+            .map_err(|e| anyhow::anyhow!("registry lock poisoned: {e}"))?;
 
         if plugins
             .values()
             .any(|plugin| plugin.handle.manifest.id == manifest.id)
         {
-            return Err(PluginError::AlreadyLoaded(manifest.id.clone()));
+            anyhow::bail!("plugin already loaded: {}", manifest.id);
         }
 
         let execution = if is_builtin_manifest(&manifest) {
@@ -114,14 +110,14 @@ impl PluginRegistry for RuntimePluginRegistry {
         Ok(handle)
     }
 
-    fn unload(&self, id: &Uuid) -> Result<(), PluginError> {
+    fn unload(&self, id: &Uuid) -> anyhow::Result<()> {
         let mut plugins = self
             .plugins
             .write()
-            .map_err(|e| PluginError::Other(format!("registry lock poisoned: {e}")))?;
+            .map_err(|e| anyhow::anyhow!("registry lock poisoned: {e}"))?;
         let plugin = plugins
             .get_mut(id)
-            .ok_or_else(|| PluginError::NotFound(id.to_string()))?;
+            .ok_or_else(|| anyhow::anyhow!("plugin not found: {id}"))?;
         if let PluginExecution::Wasm(instance) = &mut plugin.execution {
             instance.call_lifecycle(ON_UNLOAD_EXPORT)?;
         }
@@ -129,14 +125,14 @@ impl PluginRegistry for RuntimePluginRegistry {
         Ok(())
     }
 
-    fn enable(&self, id: &Uuid) -> Result<(), PluginError> {
+    fn enable(&self, id: &Uuid) -> anyhow::Result<()> {
         let mut plugins = self
             .plugins
             .write()
-            .map_err(|e| PluginError::Other(format!("registry lock poisoned: {e}")))?;
+            .map_err(|e| anyhow::anyhow!("registry lock poisoned: {e}"))?;
         let plugin = plugins
             .get_mut(id)
-            .ok_or_else(|| PluginError::NotFound(id.to_string()))?;
+            .ok_or_else(|| anyhow::anyhow!("plugin not found: {id}"))?;
         if plugin.handle.state == PluginState::Active {
             return Ok(());
         }
@@ -147,14 +143,14 @@ impl PluginRegistry for RuntimePluginRegistry {
         Ok(())
     }
 
-    fn disable(&self, id: &Uuid) -> Result<(), PluginError> {
+    fn disable(&self, id: &Uuid) -> anyhow::Result<()> {
         let mut plugins = self
             .plugins
             .write()
-            .map_err(|e| PluginError::Other(format!("registry lock poisoned: {e}")))?;
+            .map_err(|e| anyhow::anyhow!("registry lock poisoned: {e}"))?;
         let plugin = plugins
             .get_mut(id)
-            .ok_or_else(|| PluginError::NotFound(id.to_string()))?;
+            .ok_or_else(|| anyhow::anyhow!("plugin not found: {id}"))?;
         if plugin.handle.state == PluginState::Disabled {
             return Ok(());
         }
@@ -174,22 +170,20 @@ impl PluginRegistry for RuntimePluginRegistry {
 }
 
 impl WasmPluginInstance {
-    fn call_lifecycle(&mut self, export: &str) -> Result<(), PluginError> {
+    fn call_lifecycle(&mut self, export: &str) -> anyhow::Result<()> {
         let Some(func) = self.instance.get_func(&mut self.store, export) else {
             return Ok(());
         };
         let typed = func
             .typed::<(), i32>(&self.store)
-            .map_err(|err| PluginError::Wasm(format!("{export} has invalid signature: {err}")))?;
+            .map_err(|err| anyhow::anyhow!("WASM error: {export} has invalid signature: {err}"))?;
         let status = typed
             .call(&mut self.store, ())
-            .map_err(|err| PluginError::Wasm(format!("{export} failed: {err}")))?;
+            .map_err(|err| anyhow::anyhow!("WASM error: {export} failed: {err}"))?;
         if status == 0 {
             Ok(())
         } else {
-            Err(PluginError::Wasm(format!(
-                "{export} returned non-zero status {status}"
-            )))
+            anyhow::bail!("WASM error: {export} returned non-zero status {status}")
         }
     }
 }
@@ -198,19 +192,20 @@ fn instantiate_wasm_plugin(
     engine: &Engine,
     manifest: &PluginManifest,
     wasm_bytes: &[u8],
-) -> Result<WasmPluginInstance, PluginError> {
+) -> anyhow::Result<WasmPluginInstance> {
     if wasm_bytes.is_empty() {
-        let message = format!("plugin `{}` did not provide wasm bytes", manifest.id);
-        let error = PluginError::Wasm(message);
-        return Err(error);
+        anyhow::bail!(
+            "WASM error: plugin `{}` did not provide wasm bytes",
+            manifest.id
+        );
     }
 
     let module = Module::from_binary(engine, wasm_bytes)
-        .map_err(|err| PluginError::Wasm(format!("failed to compile `{}`: {err}", manifest.id)))?;
+        .map_err(|err| anyhow::anyhow!("WASM error: failed to compile `{}`: {err}", manifest.id))?;
     let linker = Linker::new(engine);
     let mut store = Store::new(engine, ());
     let instance = linker.instantiate(&mut store, &module).map_err(|err| {
-        PluginError::Wasm(format!("failed to instantiate `{}`: {err}", manifest.id))
+        anyhow::anyhow!("WASM error: failed to instantiate `{}`: {err}", manifest.id)
     })?;
     Ok(WasmPluginInstance { store, instance })
 }

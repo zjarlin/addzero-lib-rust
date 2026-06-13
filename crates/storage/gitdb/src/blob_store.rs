@@ -12,7 +12,7 @@ use az_derive_aliases::{apply, plain_clone_debug, serde_eq};
 use git2::{ErrorCode, IndexAddOption, Repository, Signature, StatusOptions};
 use serde::{Deserialize, Serialize};
 
-use crate::storage::{StorageError, StorageResult};
+use crate::storage::error;
 
 /// Default soft limit for each blob shard repository.
 pub const DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
@@ -73,7 +73,7 @@ pub struct ShardedBlobStore {
 
 impl ShardedBlobStore {
     /// Open or initialize the blob store root.
-    pub fn open(config: BlobStoreConfig) -> StorageResult<Self> {
+    pub fn open(config: BlobStoreConfig) -> anyhow::Result<Self> {
         let store = Self { config };
         store.ensure_layout()?;
         Ok(store)
@@ -86,7 +86,7 @@ impl ShardedBlobStore {
     }
 
     /// Store an object if it does not already exist.
-    pub fn put(&self, key: &str, bytes: &[u8]) -> StorageResult<()> {
+    pub fn put(&self, key: &str, bytes: &[u8]) -> anyhow::Result<()> {
         validate_blob_key(key)?;
         if self.exists(key)? {
             return Ok(());
@@ -114,16 +114,16 @@ impl ShardedBlobStore {
     }
 
     /// Read an object by key.
-    pub fn get(&self, key: &str) -> StorageResult<Vec<u8>> {
+    pub fn get(&self, key: &str) -> anyhow::Result<Vec<u8>> {
         validate_blob_key(key)?;
         let shard = self
             .find_shard_for_key(key)?
-            .ok_or_else(|| StorageError::BlobNotFound(key.to_owned()))?;
-        fs::read(shard.repo_path.join(key)).map_err(StorageError::from)
+            .ok_or_else(|| error::blob_not_found(key))?;
+        fs::read(shard.repo_path.join(key)).map_err(Into::into)
     }
 
     /// Delete an object when present.
-    pub fn delete(&self, key: &str) -> StorageResult<()> {
+    pub fn delete(&self, key: &str) -> anyhow::Result<()> {
         validate_blob_key(key)?;
         let Some(shard) = self.find_shard_for_key(key)? else {
             return Ok(());
@@ -133,7 +133,11 @@ impl ShardedBlobStore {
         let size = match fs::metadata(&path) {
             Ok(metadata) => metadata.len(),
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => 0,
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                let error = anyhow::Error::from(err);
+
+                return Err(error);
+            }
         };
         if path.exists() {
             fs::remove_file(&path)?;
@@ -152,13 +156,13 @@ impl ShardedBlobStore {
     }
 
     /// Check whether an object exists.
-    pub fn exists(&self, key: &str) -> StorageResult<bool> {
+    pub fn exists(&self, key: &str) -> anyhow::Result<bool> {
         validate_blob_key(key)?;
         Ok(self.find_shard_for_key(key)?.is_some())
     }
 
     /// List all known shards.
-    pub fn list_shards(&self) -> StorageResult<Vec<BlobShardInfo>> {
+    pub fn list_shards(&self) -> anyhow::Result<Vec<BlobShardInfo>> {
         let mut shards: Vec<BlobShardInfo> = Vec::new();
         for path in json_files(&self.control_path().join("shards"))? {
             shards.push(read_json(&path)?);
@@ -167,14 +171,14 @@ impl ShardedBlobStore {
         Ok(shards)
     }
 
-    fn ensure_layout(&self) -> StorageResult<()> {
+    fn ensure_layout(&self) -> anyhow::Result<()> {
         fs::create_dir_all(self.control_path().join("shards"))?;
         fs::create_dir_all(self.control_path().join("index"))?;
         fs::create_dir_all(self.shards_path())?;
         Ok(())
     }
 
-    fn select_writable_shard(&self, bytes_len: u64) -> StorageResult<BlobShardInfo> {
+    fn select_writable_shard(&self, bytes_len: u64) -> anyhow::Result<BlobShardInfo> {
         let shards = self.list_shards()?;
         if let Some(shard) = shards
             .into_iter()
@@ -185,7 +189,7 @@ impl ShardedBlobStore {
         self.create_shard(bytes_len)
     }
 
-    fn create_shard(&self, bytes_len: u64) -> StorageResult<BlobShardInfo> {
+    fn create_shard(&self, bytes_len: u64) -> anyhow::Result<BlobShardInfo> {
         let name = self.next_shard_name()?;
         let repo_path = self.shards_path().join(&name);
         fs::create_dir_all(&repo_path)?;
@@ -200,7 +204,7 @@ impl ShardedBlobStore {
         Ok(shard)
     }
 
-    fn next_shard_name(&self) -> StorageResult<String> {
+    fn next_shard_name(&self) -> anyhow::Result<String> {
         let prefix = self.config.shard_prefix.trim();
         let prefix = if prefix.is_empty() {
             DEFAULT_BLOB_SHARD_PREFIX
@@ -214,12 +218,10 @@ impl ShardedBlobStore {
             }
             return Ok(name);
         }
-        Err(StorageError::Internal(
-            "blob shard namespace exhausted".to_owned(),
-        ))
+        Err(error::internal("blob shard namespace exhausted"))
     }
 
-    fn find_shard_for_key(&self, key: &str) -> StorageResult<Option<BlobShardInfo>> {
+    fn find_shard_for_key(&self, key: &str) -> anyhow::Result<Option<BlobShardInfo>> {
         if let Some(record) = self.read_index_record(key)? {
             let shard = self.read_shard_info(&record.shard_name)?;
             if shard.repo_path.join(key).exists() {
@@ -240,7 +242,7 @@ impl ShardedBlobStore {
         Ok(None)
     }
 
-    fn update_shard_used_bytes(&self, shard_name: &str, delta: i64) -> StorageResult<()> {
+    fn update_shard_used_bytes(&self, shard_name: &str, delta: i64) -> anyhow::Result<()> {
         let mut shard = self.read_shard_info(shard_name)?;
         shard.used_bytes = if delta.is_negative() {
             shard.used_bytes.saturating_sub(delta.unsigned_abs())
@@ -250,11 +252,11 @@ impl ShardedBlobStore {
         write_json(&self.shard_info_path(shard_name), &shard)
     }
 
-    fn read_shard_info(&self, shard_name: &str) -> StorageResult<BlobShardInfo> {
+    fn read_shard_info(&self, shard_name: &str) -> anyhow::Result<BlobShardInfo> {
         read_json(&self.shard_info_path(shard_name))
     }
 
-    fn read_index_record(&self, key: &str) -> StorageResult<Option<BlobIndexRecord>> {
+    fn read_index_record(&self, key: &str) -> anyhow::Result<Option<BlobIndexRecord>> {
         let path = self.index_path(key);
         if !path.exists() {
             return Ok(None);
@@ -262,7 +264,7 @@ impl ShardedBlobStore {
         Ok(Some(read_json(&path)?))
     }
 
-    fn write_index_record(&self, key: &str, record: &BlobIndexRecord) -> StorageResult<()> {
+    fn write_index_record(&self, key: &str, record: &BlobIndexRecord) -> anyhow::Result<()> {
         let path = self.index_path(key);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -296,7 +298,7 @@ impl ShardedBlobStore {
     }
 }
 
-fn open_or_init_repo(path: &Path) -> StorageResult<Repository> {
+fn open_or_init_repo(path: &Path) -> anyhow::Result<Repository> {
     match Repository::open(path) {
         Ok(repo) => Ok(repo),
         Err(err) if err.code() == ErrorCode::NotFound => Ok(Repository::init(path)?),
@@ -304,7 +306,7 @@ fn open_or_init_repo(path: &Path) -> StorageResult<Repository> {
     }
 }
 
-fn commit_repo_path(repo_path: &Path, relative: &Path, message: &str) -> StorageResult<()> {
+fn commit_repo_path(repo_path: &Path, relative: &Path, message: &str) -> anyhow::Result<()> {
     let repo = open_or_init_repo(repo_path)?;
     let mut index = repo.index()?;
     index.add_path(relative)?;
@@ -312,7 +314,7 @@ fn commit_repo_path(repo_path: &Path, relative: &Path, message: &str) -> Storage
     commit_index(&repo, &mut index, message)
 }
 
-fn commit_repo_delete(repo_path: &Path, relative: &Path, message: &str) -> StorageResult<()> {
+fn commit_repo_delete(repo_path: &Path, relative: &Path, message: &str) -> anyhow::Result<()> {
     let repo = open_or_init_repo(repo_path)?;
     let mut index = repo.index()?;
     if index.remove_path(relative).is_err() {
@@ -322,7 +324,7 @@ fn commit_repo_delete(repo_path: &Path, relative: &Path, message: &str) -> Stora
     commit_index(&repo, &mut index, message)
 }
 
-fn commit_index(repo: &Repository, index: &mut git2::Index, message: &str) -> StorageResult<()> {
+fn commit_index(repo: &Repository, index: &mut git2::Index, message: &str) -> anyhow::Result<()> {
     let mut options = StatusOptions::new();
     options.include_untracked(true).recurse_untracked_dirs(true);
     if repo.statuses(Some(&mut options))?.is_empty() {
@@ -343,7 +345,11 @@ fn commit_index(repo: &Repository, index: &mut git2::Index, message: &str) -> St
         Err(err) if matches!(err.code(), ErrorCode::UnbornBranch | ErrorCode::NotFound) => {
             Vec::new()
         }
-        Err(err) => return Err(err.into()),
+        Err(err) => {
+            let error = anyhow::Error::from(err);
+
+            return Err(error);
+        }
     };
     let parent_refs = parents.iter().collect::<Vec<_>>();
     repo.commit(
@@ -357,23 +363,29 @@ fn commit_index(repo: &Repository, index: &mut git2::Index, message: &str) -> St
     Ok(())
 }
 
-fn validate_blob_key(key: &str) -> StorageResult<()> {
+fn validate_blob_key(key: &str) -> anyhow::Result<()> {
     if key.trim().is_empty() {
-        return Err(StorageError::InvalidBlobKey(key.to_owned()));
+        let error = error::invalid_blob_key(key);
+
+        return Err(error);
     }
     let path = Path::new(key);
     if path.is_absolute() {
-        return Err(StorageError::InvalidBlobKey(key.to_owned()));
+        let error = error::invalid_blob_key(key);
+
+        return Err(error);
     }
     for component in path.components() {
         if !matches!(component, Component::Normal(_)) {
-            return Err(StorageError::InvalidBlobKey(key.to_owned()));
+            let error = error::invalid_blob_key(key);
+
+            return Err(error);
         }
     }
     Ok(())
 }
 
-fn remove_empty_parent_dirs(repo_root: &Path, relative: &Path) -> StorageResult<()> {
+fn remove_empty_parent_dirs(repo_root: &Path, relative: &Path) -> anyhow::Result<()> {
     let mut current = relative.parent().map(|path| repo_root.join(path));
     while let Some(path) = current {
         if path == repo_root {
@@ -387,13 +399,17 @@ fn remove_empty_parent_dirs(repo_root: &Path, relative: &Path) -> StorageResult<
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                 current = path.parent().map(Path::to_path_buf);
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                let error = anyhow::Error::from(err);
+
+                return Err(error);
+            }
         }
     }
     Ok(())
 }
 
-fn json_files(path: &Path) -> StorageResult<Vec<PathBuf>> {
+fn json_files(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
     if !path.exists() {
         return Ok(Vec::new());
     }
@@ -411,12 +427,12 @@ fn json_files(path: &Path) -> StorageResult<Vec<PathBuf>> {
     Ok(files)
 }
 
-fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> StorageResult<T> {
+fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> anyhow::Result<T> {
     let raw = fs::read_to_string(path)?;
     Ok(serde_json::from_str(&raw)?)
 }
 
-fn write_json<T: Serialize>(path: &Path, value: &T) -> StorageResult<()> {
+fn write_json<T: Serialize>(path: &Path, value: &T) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -425,7 +441,7 @@ fn write_json<T: Serialize>(path: &Path, value: &T) -> StorageResult<()> {
     Ok(())
 }
 
-fn remove_file_if_exists(path: &Path) -> StorageResult<()> {
+fn remove_file_if_exists(path: &Path) -> anyhow::Result<()> {
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),

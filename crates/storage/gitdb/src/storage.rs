@@ -52,16 +52,16 @@
 //! let user = repo.read_row(&table, &key, head)? ;
 //! ```
 
-automod::dir!("src/storage");
+automod::dir!(pub(crate) "src/storage");
 
 // 重新导出公开存储 API。
 pub use blob::Row;
 pub use commit::{CommitInfo, CommitMessage};
-pub use error::{StorageError, StorageResult};
+pub use error::{is_conflict, is_not_found, is_retriable};
 pub use repository::{GitRepository, RepositoryStats, TreeSnapshot};
 pub use types::{
-    BlobId, BranchName, Change, ChangeStatus, CommitId, GitSignature, InvalidNameError, RowKey,
-    RowPath, TableName, TreeId,
+    BlobId, BranchName, Change, ChangeStatus, CommitId, GitSignature, RowKey, RowPath, TableName,
+    TreeId,
 };
 
 // 重新导出给 crate 内其他模块使用。

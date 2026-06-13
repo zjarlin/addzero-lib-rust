@@ -157,7 +157,7 @@ impl SerialConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::config::{BaudRate, FlowControl, Parity, SerialConfig, StopBits};
 
     #[test]
     fn baud_rate_values() {

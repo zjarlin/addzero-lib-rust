@@ -7,18 +7,4 @@
 //! 包括 DuckMail 收件箱访问、OTP 解析、PKCE 生成、Codex 认证文件格式化，
 //! 以及可选的兼容 CLIProxyAPI 上传。
 
-automod::dir!("src");
-
-pub use auth_file::{
-    AuthFileWriteOutcome, CodexAuthFile, OAuthTokens, decode_jwt_payload, safe_auth_filename,
-};
-pub use config::{CpaUploadConfig, DuckMailConfig};
-pub use cpa::CpaClient;
-pub use duckmail::{
-    DuckMailAccount, DuckMailApi, DuckMailAttachment, DuckMailDomain, DuckMailMailbox,
-    DuckMailMessageDetail, DuckMailMessageSummary, DuckMailToken, MailAddress,
-};
-pub use error::{CodexAuthSupportError, CodexAuthSupportResult};
-pub use otp::extract_verification_code;
-pub use pkce::{PkcePair, build_authorize_url, generate_pkce_pair, generate_state};
-pub use unsupported::{BlockedCapability, unsupported_capability};
+automod::dir!(pub "src");

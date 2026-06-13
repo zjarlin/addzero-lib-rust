@@ -6,12 +6,10 @@ use az_derive_aliases::{
     apply, serde_code_display_props_enum, serde_code_partial_eq, serde_partial_eq,
 };
 use serde_json::Value;
-use strum::EnumProperty;
 
 /// GitDB 支持的 SQL 风格列类型。
 ///
-/// `code()` 和 serde wire value 保持小写 snake_case，`Display`/`sql_name()` 保持 SQL 大写名称，
-/// SQL 名通过 `strum::EnumProperty` 记录，避免另维护一张手写 match 表。
+/// `code()` 和 serde wire value 保持小写 snake_case，`Display`/`sql_name()` 保持 SQL 大写名称。
 #[apply(serde_code_display_props_enum)]
 pub enum DataType {
     /// 文本/字符串数据，对应 SQL 的 `TEXT`。
@@ -68,8 +66,15 @@ impl DataType {
 
     /// 返回用于 SQL 展示和 DDL 拼装的大写类型名。
     pub fn sql_name(&self) -> &'static str {
-        self.get_str("sql")
-            .expect("DataType sql property must exist")
+        match self {
+            DataType::Text => "TEXT",
+            DataType::Integer => "INTEGER",
+            DataType::Float => "REAL",
+            DataType::Boolean => "BOOLEAN",
+            DataType::Json => "JSON",
+            DataType::Timestamp => "TIMESTAMP",
+            DataType::Uuid => "UUID",
+        }
     }
 }
 
@@ -175,16 +180,20 @@ impl ColumnDef {
         match value {
             Some(v) => {
                 if !self.data_type.matches(v) {
-                    return Err(format!(
+                    let message = format!(
                         "column '{}' expects type {}, got {:?}",
                         self.name, self.data_type, v
-                    ));
+                    );
+
+                    return Err(message);
                 }
                 Ok(())
             }
             None => {
                 if !self.is_nullable() && self.default_value().is_none() {
-                    return Err(format!("column '{}' cannot be null", self.name));
+                    let message = format!("column '{}' cannot be null", self.name);
+
+                    return Err(message);
                 }
                 Ok(())
             }

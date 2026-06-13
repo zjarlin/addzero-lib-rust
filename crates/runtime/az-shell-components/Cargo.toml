@@ -8,10 +8,10 @@ authors.workspace = true
 description = "Shell 组件（export、alias、function、snippet）的校验与渲染引擎，将结构化组件描述转换为可执行 shell 脚本片段"
 
 [dependencies]
+anyhow.workspace = true
 az-config-center-contract.workspace = true
 az-derive-aliases.workspace = true
 serde.workspace = true
-thiserror.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

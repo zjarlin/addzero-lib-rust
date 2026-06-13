@@ -8,8 +8,8 @@ use sea_orm::{
 use uuid::Uuid;
 
 use crate::{
-    EncryptedSecret,
     entity::{ai_model_provider, ai_prompt_button, asset, asset_edge},
+    secret::EncryptedSecret,
     types::{
         AiModelProvider, AiModelProviderUpsert, AiPromptButton, AiPromptButtonUpsert,
         AiProviderKind, Asset, AssetEdge, AssetEdgeUpsert, AssetGraph, AssetKind, AssetUpsert,

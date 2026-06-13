@@ -24,7 +24,7 @@ toasty-driver-gitdb = { path = "../toasty-driver-gitdb" }   # workspace 内部�
 
 ```rust
 use toasty_core::driver::Driver;
-use toasty_driver_gitdb::GitDb;
+use toasty_driver_gitdb::connection::GitDb;
 
 let driver = GitDb::open("./my-gitdb-data");
 
@@ -35,7 +35,7 @@ let driver = GitDb::open("./my-gitdb-data");
 通过连接 URL 创建：
 
 ```rust
-use toasty_driver_gitdb::GitDb;
+use toasty_driver_gitdb::connection::GitDb;
 
 # fn main() -> toasty_core::Result<()> {
 let driver = GitDb::new("gitdb://./my-gitdb-data")?;

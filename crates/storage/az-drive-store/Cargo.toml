@@ -11,6 +11,7 @@ description = "独立网盘的元数据与对象存储抽象：DriveMetadataStor
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
 async-trait.workspace = true
 automod.workspace = true
 az-derive-aliases.workspace = true
@@ -22,7 +23,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 strum.workspace = true
 sqlx.workspace = true
-thiserror.workspace = true
 tokio.workspace = true
 uuid.workspace = true
 

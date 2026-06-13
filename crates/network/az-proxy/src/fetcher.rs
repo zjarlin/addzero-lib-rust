@@ -1,5 +1,6 @@
 use crate::parser::parse_subscription;
-use crate::types::{ProxyResult, ProxyNode};
+use crate::types::ProxyNode;
+use anyhow::{Context, Result};
 use az_derive_aliases::{apply, plain_eq};
 use reqwest::header::CONTENT_TYPE;
 
@@ -16,21 +17,25 @@ pub struct FetchedSubscription {
 ///
 /// # Errors
 ///
-/// 当请求失败、响应状态码不是成功状态，或响应体无法解码为文本时，返回
-/// [`crate::types::ProxyError::Http`]。
-pub async fn fetch_subscription(url: &str) -> ProxyResult<FetchedSubscription> {
+/// 当请求失败、响应状态码不是成功状态，或响应体无法解码为文本时返回错误。
+pub async fn fetch_subscription(url: &str) -> Result<FetchedSubscription> {
     let response = reqwest::Client::new()
         .get(url)
         .send()
-        .await?
-        .error_for_status()?;
+        .await
+        .with_context(|| format!("fetch proxy subscription `{url}`"))?
+        .error_for_status()
+        .with_context(|| format!("proxy subscription returned non-success status `{url}`"))?;
 
     let content_type = response
         .headers()
         .get(CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .map(ToOwned::to_owned);
-    let body = response.text().await?;
+    let body = response
+        .text()
+        .await
+        .with_context(|| format!("read proxy subscription body `{url}`"))?;
 
     tracing::debug!(
         url,
@@ -50,7 +55,7 @@ pub async fn fetch_subscription(url: &str) -> ProxyResult<FetchedSubscription> {
 /// # Errors
 ///
 /// 当订阅获取失败，或响应中没有任何可用节点时返回错误。
-pub async fn fetch_and_parse(url: &str) -> ProxyResult<Vec<ProxyNode>> {
+pub async fn fetch_and_parse(url: &str) -> Result<Vec<ProxyNode>> {
     let fetched = fetch_subscription(url).await?;
     parse_subscription(&fetched.body, fetched.content_type.as_deref())
 }

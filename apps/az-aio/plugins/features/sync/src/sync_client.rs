@@ -4,6 +4,7 @@ use futures_util::{
     SinkExt, StreamExt,
     stream::{SplitSink, SplitStream},
 };
+use anyhow::{Context, Result};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async,
@@ -14,10 +15,7 @@ use tokio_tungstenite::{
     },
 };
 
-use crate::{
-    contracts::SyncWireMessage,
-    error::{SyncError, SyncResult},
-};
+use crate::contracts::SyncWireMessage;
 
 type SyncWsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -27,11 +25,11 @@ pub struct SyncWsConnection {
 }
 
 impl SyncWsConnection {
-    pub async fn connect(endpoint: impl AsRef<str>, token: Option<&str>) -> SyncResult<Self> {
+    pub async fn connect(endpoint: impl AsRef<str>, token: Option<&str>) -> Result<Self> {
         let mut request = endpoint.as_ref().into_client_request()?;
         if let Some(token) = token.filter(|value| !value.trim().is_empty()) {
             let value = HeaderValue::from_str(&format!("Bearer {token}"))
-                .map_err(|error| SyncError::WebSocketAuthHeader(error.to_string()))?;
+                .context("invalid sync WebSocket auth header")?;
             request.headers_mut().insert(header::AUTHORIZATION, value);
         }
         let (stream, _) = connect_async(request).await?;
@@ -48,8 +46,8 @@ pub struct SyncWsWriter {
 }
 
 impl SyncWsWriter {
-    pub async fn send(&mut self, message: &SyncWireMessage) -> SyncResult<()> {
-        let text = serde_json::to_string(message).map_err(SyncError::WireJson)?;
+    pub async fn send(&mut self, message: &SyncWireMessage) -> Result<()> {
+        let text = serde_json::to_string(message).context("sync wire JSON failed")?;
         self.writer.send(Message::Text(text.into())).await?;
         Ok(())
     }
@@ -60,14 +58,14 @@ pub struct SyncWsReader {
 }
 
 impl SyncWsReader {
-    pub async fn recv(&mut self) -> SyncResult<Option<SyncWireMessage>> {
+    pub async fn recv(&mut self) -> Result<Option<SyncWireMessage>> {
         while let Some(message) = self.reader.next().await {
             let message = message?;
             match message {
                 Message::Text(text) => {
                     return serde_json::from_str(&text)
                         .map(Some)
-                        .map_err(SyncError::WireJson);
+                        .context("sync wire JSON failed");
                 }
                 Message::Binary(_) => {
                     return Ok(Some(SyncWireMessage::Error {

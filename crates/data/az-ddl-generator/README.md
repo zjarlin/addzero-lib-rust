@@ -24,7 +24,10 @@ az-ddl-generator = { path = "../az-ddl-generator" }       # workspace 内部引�
 ## 用法
 
 ```rust
-use az_ddl_generator::{DdlGenerator, Table, Column, ColumnType, Dialect};
+use az_ddl_generator::column::{Column, ColumnType};
+use az_ddl_generator::dialect::Dialect;
+use az_ddl_generator::generator::DdlGenerator;
+use az_ddl_generator::table::Table;
 
 let table = Table::new("users")
     .column(Column::new("id", ColumnType::BigInt).primary_key().not_null())
@@ -39,5 +42,5 @@ let ddl = DdlGenerator::new(Dialect::PostgreSQL)
 
 ## 依赖的 crates
 
-- `thiserror` - 错误类型派生宏
+- `anyhow` - 错误上下文与统一 `Result`
 - `serde` / `serde_json` - 序列化支持

@@ -4,16 +4,7 @@ use std::num::NonZeroUsize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use az_derive_aliases::{apply, error_eq, plain_debug};
-
-/// Errors that can occur when constructing or operating on an [`ExpiringCache`].
-#[apply(error_eq)]
-pub enum CacheError {
-    /// A poisoned mutex was encountered; the cache could not be locked.
-    /// This happens when another thread panicked while holding the lock.
-    #[error("cache mutex is poisoned")]
-    Poisoned,
-}
+use az_derive_aliases::{apply, plain_debug};
 
 #[apply(plain_debug)]
 struct CacheEntry<V> {
@@ -30,7 +21,7 @@ struct CacheEntry<V> {
 /// # Thread Safety
 ///
 /// Internally uses a [`Mutex`] and recovers from poisoned locks gracefully,
-/// returning [`CacheError::Poisoned`] instead of panicking.
+/// recovering poisoned locks instead of panicking.
 #[apply(plain_debug)]
 pub struct ExpiringCache<K, V> {
     expire_after: Duration,
@@ -61,8 +52,8 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`CacheError::Poisoned`] if the internal mutex is poisoned.
-    pub fn compute_if_absent<F>(&self, key: K, mapping: F) -> Result<V, CacheError>
+    /// Returns an error if cache access fails.
+    pub fn compute_if_absent<F>(&self, key: K, mapping: F) -> anyhow::Result<V>
     where
         F: FnOnce(&K) -> V,
     {
@@ -95,8 +86,8 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`CacheError::Poisoned`] if the internal mutex is poisoned.
-    pub fn cleanup_expired(&self) -> Result<(), CacheError> {
+    /// Returns an error if cache access fails.
+    pub fn cleanup_expired(&self) -> anyhow::Result<()> {
         let mut entries = self.lock_entries()?;
         let now = Instant::now();
         entries.retain(|_, entry| now.duration_since(entry.created_at) < self.expire_after);
@@ -107,8 +98,8 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`CacheError::Poisoned`] if the internal mutex is poisoned.
-    pub fn clear(&self) -> Result<(), CacheError> {
+    /// Returns an error if cache access fails.
+    pub fn clear(&self) -> anyhow::Result<()> {
         self.lock_entries()?.clear();
         Ok(())
     }
@@ -118,8 +109,8 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`CacheError::Poisoned`] if the internal mutex is poisoned.
-    pub fn len(&self) -> Result<usize, CacheError> {
+    /// Returns an error if cache access fails.
+    pub fn len(&self) -> anyhow::Result<usize> {
         Ok(self.lock_entries()?.len())
     }
 
@@ -127,8 +118,8 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`CacheError::Poisoned`] if the internal mutex is poisoned.
-    pub fn is_empty(&self) -> Result<bool, CacheError> {
+    /// Returns an error if cache access fails.
+    pub fn is_empty(&self) -> anyhow::Result<bool> {
         Ok(self.len()? == 0)
     }
 
@@ -151,9 +142,7 @@ where
     }
 
     /// Acquires the entries lock, recovering from poisoned mutexes gracefully.
-    fn lock_entries(
-        &self,
-    ) -> Result<std::sync::MutexGuard<'_, HashMap<K, CacheEntry<V>>>, CacheError> {
+    fn lock_entries(&self) -> anyhow::Result<std::sync::MutexGuard<'_, HashMap<K, CacheEntry<V>>>> {
         match self.entries.lock() {
             Ok(guard) => Ok(guard),
             Err(poisoned) => Ok(poisoned.into_inner()),
@@ -162,90 +151,4 @@ where
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::num::NonZeroUsize;
-
-    #[test]
-    fn cache_error_display_stays_stable() {
-        assert_eq!(CacheError::Poisoned.to_string(), "cache mutex is poisoned");
-    }
-
-    #[test]
-    fn test_compute_if_absent_inserts_and_returns() {
-        let cache = ExpiringCache::new(Duration::from_secs(60), NonZeroUsize::new(10).unwrap());
-        let result = cache.compute_if_absent("key1", |_| 42).unwrap();
-        assert_eq!(result, 42);
-        assert_eq!(cache.len().unwrap(), 1);
-    }
-
-    #[test]
-    fn test_compute_if_absent_returns_cached_value() {
-        let cache = ExpiringCache::new(Duration::from_secs(60), NonZeroUsize::new(10).unwrap());
-        cache.compute_if_absent("key1", |_| 42).unwrap();
-        let result = cache.compute_if_absent("key1", |_| 99).unwrap();
-        assert_eq!(result, 42);
-    }
-
-    #[test]
-    fn test_expired_entry_is_replaced() {
-        let cache = ExpiringCache::new(Duration::from_millis(1), NonZeroUsize::new(10).unwrap());
-        cache.compute_if_absent("key1", |_| "old").unwrap();
-        std::thread::sleep(Duration::from_millis(10));
-        let result = cache.compute_if_absent("key1", |_| "new").unwrap();
-        assert_eq!(result, "new");
-    }
-
-    #[test]
-    fn test_prune_on_max_size() {
-        let cache = ExpiringCache::new(Duration::from_secs(60), NonZeroUsize::new(2).unwrap());
-        cache.compute_if_absent("a", |_| 1).unwrap();
-        std::thread::sleep(Duration::from_millis(5));
-        cache.compute_if_absent("b", |_| 2).unwrap();
-        std::thread::sleep(Duration::from_millis(5));
-        cache.compute_if_absent("c", |_| 3).unwrap();
-        assert_eq!(cache.len().unwrap(), 2);
-    }
-
-    #[test]
-    fn test_cleanup_expired() {
-        let cache = ExpiringCache::new(Duration::from_millis(1), NonZeroUsize::new(10).unwrap());
-        cache.compute_if_absent("key1", |_| 1).unwrap();
-        std::thread::sleep(Duration::from_millis(10));
-        cache.cleanup_expired().unwrap();
-        assert_eq!(cache.len().unwrap(), 0);
-    }
-
-    #[test]
-    fn test_clear() {
-        let cache = ExpiringCache::new(Duration::from_secs(60), NonZeroUsize::new(10).unwrap());
-        cache.compute_if_absent("a", |_| 1).unwrap();
-        cache.compute_if_absent("b", |_| 2).unwrap();
-        cache.clear().unwrap();
-        assert!(cache.is_empty().unwrap());
-    }
-
-    #[test]
-    fn test_concurrent_access() {
-        use std::sync::Arc;
-
-        let cache = Arc::new(ExpiringCache::new(
-            Duration::from_secs(60),
-            NonZeroUsize::new(100).unwrap(),
-        ));
-
-        let mut handles = Vec::new();
-        for i in 0..10 {
-            let cache = Arc::clone(&cache);
-            handles.push(std::thread::spawn(move || {
-                cache.compute_if_absent(i, |_| i * 2).unwrap();
-            }));
-        }
-
-        for handle in handles {
-            handle.join().unwrap();
-        }
-
-        assert_eq!(cache.len().unwrap(), 10);
-    }
-}
+mod cache_tests;

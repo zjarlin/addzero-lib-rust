@@ -1,7 +1,8 @@
 //! 代理订阅解析分发层，负责识别 Clash YAML、明文 URI 列表和 base64 URI 列表。
 
 use crate::clash::parse_clash_yaml;
-use crate::types::{ProxyError, ProxyNode, ProxyResult};
+use crate::types::ProxyNode;
+use anyhow::{Result, bail};
 use base64::Engine;
 
 automod::dir!(pub "src/parser");
@@ -14,7 +15,7 @@ automod::dir!(pub "src/parser");
 /// # Errors
 ///
 /// 当 scheme 不受支持，或 URI 缺少生成 Clash 兼容代理项所需的数据时返回错误。
-pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
+pub fn parse_proxy_uri(input: &str) -> Result<ProxyNode> {
     uri::parse_proxy_uri(input)
 }
 
@@ -25,7 +26,7 @@ pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
 /// # Errors
 ///
 /// 当某个可识别 URI 行格式错误，或最终没有任何可用节点时返回错误。
-pub fn parse_uri_lines(input: &str) -> ProxyResult<Vec<ProxyNode>> {
+pub fn parse_uri_lines(input: &str) -> Result<Vec<ProxyNode>> {
     uri::parse_uri_lines(input)
 }
 
@@ -36,10 +37,10 @@ pub fn parse_uri_lines(input: &str) -> ProxyResult<Vec<ProxyNode>> {
 /// # Errors
 ///
 /// 当正文为空、疑似 YAML 但 YAML 非法、URI 数据非法，或没有任何可用节点时返回错误。
-pub fn parse_subscription(body: &str, content_type: Option<&str>) -> ProxyResult<Vec<ProxyNode>> {
+pub fn parse_subscription(body: &str, content_type: Option<&str>) -> Result<Vec<ProxyNode>> {
     let trimmed = body.trim();
     if trimmed.is_empty() {
-        return Err(ProxyError::NoUsableNodes);
+        bail!("subscription did not contain usable proxy nodes");
     }
 
     if looks_like_clash_yaml(trimmed, content_type) {
@@ -63,7 +64,7 @@ pub fn parse_subscription(body: &str, content_type: Option<&str>) -> ProxyResult
         return yaml_result;
     }
 
-    Err(ProxyError::NoUsableNodes)
+    bail!("subscription did not contain usable proxy nodes")
 }
 
 fn looks_like_clash_yaml(body: &str, content_type: Option<&str>) -> bool {

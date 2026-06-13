@@ -1,5 +1,6 @@
 use crate::parser::decode_base64_text;
-use crate::types::{ProxyError, ProxyResult, ProxyNode, ProxyType};
+use crate::types::{ProxyNode, ProxyType};
+use anyhow::{Context, Result, anyhow, bail};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serde_yaml::{Mapping, Number, Value};
@@ -14,12 +15,12 @@ use url::Url;
 /// # Errors
 ///
 /// 当 scheme 不受支持，或 URI 缺少生成 Clash 兼容代理项所需的数据时返回错误。
-pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
+pub fn parse_proxy_uri(input: &str) -> Result<ProxyNode> {
     let input = input.trim();
     let scheme = input
         .split_once("://")
         .map(|(scheme, _)| scheme.to_ascii_lowercase())
-        .ok_or_else(|| ProxyError::InvalidUri(input.to_owned()))?;
+        .with_context(|| format!("invalid proxy uri: {input}"))?;
 
     match scheme.as_str() {
         "ss" => parse_ss_uri(input),
@@ -29,7 +30,7 @@ pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
         "hysteria2" | "hy2" => parse_url_like_uri(input, ProxyType::Hysteria2),
         "tuic" => parse_url_like_uri(input, ProxyType::Tuic),
         "wireguard" => parse_url_like_uri(input, ProxyType::Wireguard),
-        _ => Err(ProxyError::UnsupportedProxyType(scheme)),
+        _ => bail!("unsupported proxy type `{scheme}`"),
     }
 }
 
@@ -40,7 +41,7 @@ pub fn parse_proxy_uri(input: &str) -> ProxyResult<ProxyNode> {
 /// # Errors
 ///
 /// 当某个可识别 URI 行格式错误，或最终没有任何可用节点时返回错误。
-pub fn parse_uri_lines(input: &str) -> ProxyResult<Vec<ProxyNode>> {
+pub fn parse_uri_lines(input: &str) -> Result<Vec<ProxyNode>> {
     let mut nodes = Vec::new();
     for line in input.lines().map(str::trim).filter(|line| !line.is_empty()) {
         if !has_supported_scheme(line) {
@@ -51,7 +52,7 @@ pub fn parse_uri_lines(input: &str) -> ProxyResult<Vec<ProxyNode>> {
     }
 
     if nodes.is_empty() {
-        return Err(ProxyError::NoUsableNodes);
+        bail!("subscription did not contain usable proxy nodes");
     }
 
     Ok(nodes)
@@ -64,13 +65,13 @@ fn has_supported_scheme(line: &str) -> bool {
     )
 }
 
-fn parse_url_like_uri(input: &str, node_type: ProxyType) -> ProxyResult<ProxyNode> {
-    let url = Url::parse(input)?;
+fn parse_url_like_uri(input: &str, node_type: ProxyType) -> Result<ProxyNode> {
+    let url = Url::parse(input).with_context(|| format!("parse proxy uri `{input}`"))?;
     let server = url
         .host_str()
-        .ok_or(ProxyError::MissingField("server"))?
+        .context("missing required field `server`")?
         .to_owned();
-    let port = url.port().ok_or(ProxyError::MissingField("port"))?;
+    let port = url.port().context("missing required field `port`")?;
     let query = query_pairs(&url);
     let name = decoded_fragment(&url).unwrap_or_else(|| server.clone());
     let raw = raw_from_url_like(&url, node_type, &name, &server, port, &query);
@@ -78,17 +79,17 @@ fn parse_url_like_uri(input: &str, node_type: ProxyType) -> ProxyResult<ProxyNod
     Ok(ProxyNode::new(name, node_type, server, port, raw))
 }
 
-fn parse_vmess_uri(input: &str) -> ProxyResult<ProxyNode> {
+fn parse_vmess_uri(input: &str) -> Result<ProxyNode> {
     let payload = input
         .strip_prefix("vmess://")
-        .ok_or_else(|| ProxyError::InvalidUri(input.to_owned()))?;
-    let decoded = decode_base64_text(payload).ok_or_else(|| {
-        ProxyError::InvalidUri("vmess payload is not valid base64 text".to_owned())
-    })?;
-    let json: JsonValue = serde_json::from_str(decoded.trim())?;
+        .with_context(|| format!("invalid proxy uri: {input}"))?;
+    let decoded = decode_base64_text(payload)
+        .context("invalid proxy uri: vmess payload is not valid base64 text")?;
+    let json: JsonValue =
+        serde_json::from_str(decoded.trim()).context("parse vmess uri json payload")?;
 
     let server = json_str(&json, "add")
-        .ok_or(ProxyError::MissingField("add"))?
+        .context("missing required field `add`")?
         .to_owned();
     let port = json_port(&json, "port")?;
     let name = json_str(&json, "ps").unwrap_or(&server).to_owned();
@@ -103,26 +104,26 @@ fn parse_vmess_uri(input: &str) -> ProxyResult<ProxyNode> {
     ))
 }
 
-fn parse_ss_uri(input: &str) -> ProxyResult<ProxyNode> {
+fn parse_ss_uri(input: &str) -> Result<ProxyNode> {
     let payload = input
         .strip_prefix("ss://")
-        .ok_or_else(|| ProxyError::InvalidUri(input.to_owned()))?;
+        .with_context(|| format!("invalid proxy uri: {input}"))?;
     let (without_fragment, fragment) = split_once(payload, '#');
     let (main, query) = split_once(without_fragment, '?');
     let decoded_main = if main.contains('@') {
         main.to_owned()
     } else {
         decode_base64_text(main)
-            .ok_or_else(|| ProxyError::InvalidUri("ss payload is not valid base64".to_owned()))?
+            .context("invalid proxy uri: ss payload is not valid base64")?
     };
 
     let (userinfo, server_port) = decoded_main
         .rsplit_once('@')
-        .ok_or_else(|| ProxyError::InvalidUri("ss uri is missing user info".to_owned()))?;
+        .context("invalid proxy uri: ss uri is missing user info")?;
     let userinfo = decode_ss_userinfo(userinfo)?;
     let (cipher, password) = userinfo
         .split_once(':')
-        .ok_or_else(|| ProxyError::InvalidUri("ss user info is missing cipher".to_owned()))?;
+        .context("invalid proxy uri: ss user info is missing cipher")?;
     let (server, port) = parse_server_port(server_port)?;
     let name = fragment
         .filter(|value| !value.is_empty())
@@ -375,36 +376,35 @@ fn split_once(input: &str, delimiter: char) -> (&str, Option<&str>) {
         .map_or((input, None), |(left, right)| (left, Some(right)))
 }
 
-fn decode_ss_userinfo(input: &str) -> ProxyResult<String> {
+fn decode_ss_userinfo(input: &str) -> Result<String> {
     let decoded = decode_component(input);
     if decoded.contains(':') {
         return Ok(decoded);
     }
 
-    decode_base64_text(input).ok_or_else(|| {
-        ProxyError::InvalidUri("ss user info is not method:password or base64".to_owned())
-    })
+    decode_base64_text(input)
+        .context("invalid proxy uri: ss user info is not method:password or base64")
 }
 
-fn parse_server_port(input: &str) -> ProxyResult<(String, u16)> {
+fn parse_server_port(input: &str) -> Result<(String, u16)> {
     let (server, port) = if let Some(rest) = input.strip_prefix('[') {
         let (server, rest) = rest
             .split_once(']')
-            .ok_or_else(|| ProxyError::InvalidUri("invalid bracketed ipv6 host".to_owned()))?;
+            .context("invalid proxy uri: invalid bracketed ipv6 host")?;
         let port = rest
             .strip_prefix(':')
-            .ok_or_else(|| ProxyError::InvalidUri("missing port after ipv6 host".to_owned()))?;
+            .context("invalid proxy uri: missing port after ipv6 host")?;
         (server.to_owned(), port)
     } else {
         let (server, port) = input
             .rsplit_once(':')
-            .ok_or_else(|| ProxyError::InvalidUri("missing server port separator".to_owned()))?;
+            .context("invalid proxy uri: missing server port separator")?;
         (server.to_owned(), port)
     };
 
     let port = port
         .parse::<u16>()
-        .map_err(|_| ProxyError::InvalidPort(port.to_owned()))?;
+        .with_context(|| format!("invalid proxy port `{port}`"))?;
     Ok((server, port))
 }
 
@@ -412,11 +412,13 @@ fn json_str<'a>(json: &'a JsonValue, key: &str) -> Option<&'a str> {
     json.get(key).and_then(JsonValue::as_str)
 }
 
-fn json_port(json: &JsonValue, key: &'static str) -> ProxyResult<u16> {
-    let value = json.get(key).ok_or(ProxyError::MissingField(key))?;
+fn json_port(json: &JsonValue, key: &'static str) -> Result<u16> {
+    let value = json
+        .get(key)
+        .ok_or_else(|| anyhow!("missing required field `{key}`"))?;
     let port = json_value_as_u64(value)
-        .ok_or_else(|| ProxyError::InvalidPort(format_json_value(value)))?;
-    u16::try_from(port).map_err(|_| ProxyError::InvalidPort(port.to_string()))
+        .ok_or_else(|| anyhow!("invalid proxy port `{}`", format_json_value(value)))?;
+    u16::try_from(port).with_context(|| format!("invalid proxy port `{port}`"))
 }
 
 fn json_value_as_u64(value: &JsonValue) -> Option<u64> {

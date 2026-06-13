@@ -7,13 +7,14 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+automod.workspace = true
 az-derive-aliases.workspace = true
 derive_more.workspace = true
 lettre.workspace = true
 mime_guess.workspace = true
 serde.workspace = true
 strum.workspace = true
-thiserror.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

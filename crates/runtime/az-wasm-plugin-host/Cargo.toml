@@ -7,9 +7,9 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 az-derive-aliases.workspace = true
 az-wasm-plugin-api.workspace = true
-thiserror.workspace = true
 uuid.workspace = true
 wasmtime = { version = "38.0.4", default-features = false, features = ["cranelift", "runtime", "std"] }
 

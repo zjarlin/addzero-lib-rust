@@ -10,8 +10,9 @@ use std::marker::PhantomData;
 use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 use serde_json::Value;
 
-use crate::storage::{BranchName, CommitId, GitRepository, Row, RowKey, StorageError, TableName};
-use crate::transaction::error::{TransactionError, TransactionResult};
+use crate::storage::{
+    BranchName, CommitId, GitRepository, Row, RowKey, TableName, is_retriable,
+};
 use crate::transaction::isolation::IsolationLevel;
 
 /// 活跃事务的状态标记。
@@ -106,7 +107,7 @@ impl Transaction<TxActive> {
     /// 当前实现始终从事务分支的当前提交读取，因此事务能读到自己的写入，
     /// 但不会看到并发事务已经提交到 `main` 的修改。`ReadCommitted` 与
     /// `RepeatableRead` 的语义差异后续应在这里收窄实现。
-    fn read_commit(&self) -> TransactionResult<CommitId> {
+    fn read_commit(&self) -> anyhow::Result<CommitId> {
         // Always read from transaction's current state to see own writes
         Ok(self.metadata.current_commit)
     }
@@ -119,7 +120,7 @@ impl Transaction<TxActive> {
     // ==================== Table Operations ====================
 
     /// 在事务分支中创建新表。
-    pub fn create_table(&mut self, table: &TableName) -> TransactionResult<()> {
+    pub fn create_table(&mut self, table: &TableName) -> anyhow::Result<()> {
         let new_commit = self.repo.create_table(
             table,
             self.metadata.current_commit,
@@ -131,7 +132,7 @@ impl Transaction<TxActive> {
     }
 
     /// 在事务分支中删除表。
-    pub fn drop_table(&mut self, table: &TableName) -> TransactionResult<()> {
+    pub fn drop_table(&mut self, table: &TableName) -> anyhow::Result<()> {
         let new_commit = self.repo.drop_table(
             table,
             self.metadata.current_commit,
@@ -143,25 +144,25 @@ impl Transaction<TxActive> {
     }
 
     /// 列出当前事务可见的所有表。
-    pub fn list_tables(&self) -> TransactionResult<Vec<TableName>> {
+    pub fn list_tables(&self) -> anyhow::Result<Vec<TableName>> {
         let commit = self.read_commit()?;
         self.repo
             .list_tables(commit)
-            .map_err(TransactionError::from)
+            .map_err(Into::into)
     }
 
     /// 检查当前事务视图中表是否存在。
-    pub fn table_exists(&self, table: &TableName) -> TransactionResult<bool> {
+    pub fn table_exists(&self, table: &TableName) -> anyhow::Result<bool> {
         let commit = self.read_commit()?;
         self.repo
             .table_exists(table, commit)
-            .map_err(TransactionError::from)
+            .map_err(Into::into)
     }
 
     // ==================== Row Operations ====================
 
     /// 插入一行新数据。
-    pub fn insert(&mut self, table: &TableName, row: Row) -> TransactionResult<()> {
+    pub fn insert(&mut self, table: &TableName, row: Row) -> anyhow::Result<()> {
         let new_commit = self.repo.insert_row(
             table,
             row,
@@ -179,13 +180,13 @@ impl Transaction<TxActive> {
         table: &TableName,
         key: RowKey,
         data: BTreeMap<String, Value>,
-    ) -> TransactionResult<()> {
+    ) -> anyhow::Result<()> {
         let row = Row::new(key, data);
         self.insert(table, row)
     }
 
     /// 更新已有行。
-    pub fn update(&mut self, table: &TableName, row: Row) -> TransactionResult<()> {
+    pub fn update(&mut self, table: &TableName, row: Row) -> anyhow::Result<()> {
         let new_commit = self.repo.update_row(
             table,
             row,
@@ -198,7 +199,7 @@ impl Transaction<TxActive> {
     }
 
     /// 插入或更新一行。
-    pub fn upsert(&mut self, table: &TableName, row: Row) -> TransactionResult<()> {
+    pub fn upsert(&mut self, table: &TableName, row: Row) -> anyhow::Result<()> {
         let new_commit = self.repo.upsert_row(
             table,
             row,
@@ -211,7 +212,7 @@ impl Transaction<TxActive> {
     }
 
     /// 删除一行。
-    pub fn delete(&mut self, table: &TableName, key: &RowKey) -> TransactionResult<()> {
+    pub fn delete(&mut self, table: &TableName, key: &RowKey) -> anyhow::Result<()> {
         let new_commit = self.repo.delete_row(
             table,
             key,
@@ -224,36 +225,36 @@ impl Transaction<TxActive> {
     }
 
     /// 读取单行。
-    pub fn read(&self, table: &TableName, key: &RowKey) -> TransactionResult<Option<Row>> {
+    pub fn read(&self, table: &TableName, key: &RowKey) -> anyhow::Result<Option<Row>> {
         let commit = self.read_commit()?;
         self.repo
             .read_row(table, key, commit)
-            .map_err(TransactionError::from)
+            .map_err(Into::into)
     }
 
     /// 扫描表内所有行。
-    pub fn scan(&self, table: &TableName) -> TransactionResult<Vec<Row>> {
+    pub fn scan(&self, table: &TableName) -> anyhow::Result<Vec<Row>> {
         let commit = self.read_commit()?;
         self.repo
             .scan_table(table, commit)
-            .map_err(TransactionError::from)
+            .map_err(Into::into)
     }
 
     /// 列出表内所有行键。
-    pub fn list_keys(&self, table: &TableName) -> TransactionResult<Vec<RowKey>> {
+    pub fn list_keys(&self, table: &TableName) -> anyhow::Result<Vec<RowKey>> {
         let commit = self.read_commit()?;
         self.repo
             .list_rows(table, commit)
-            .map_err(TransactionError::from)
+            .map_err(Into::into)
     }
 
     // ==================== Transaction Control ====================
 
     /// 将事务分支推进到当前提交。
-    fn update_branch(&self) -> TransactionResult<()> {
+    fn update_branch(&self) -> anyhow::Result<()> {
         self.repo
             .update_branch(&self.metadata.branch, self.metadata.current_commit)
-            .map_err(TransactionError::from)
+            .map_err(Into::into)
     }
 
     /// 提交事务。
@@ -261,7 +262,7 @@ impl Transaction<TxActive> {
     /// 提交时尝试把 `main` 快进到事务分支。
     ///
     /// 如果 `main` 已被并发事务推进，会先做冲突检测；检测到冲突时删除事务分支并返回错误。
-    pub fn commit(self) -> TransactionResult<Transaction<TxCommitted>> {
+    pub fn commit(self) -> anyhow::Result<Transaction<TxCommitted>> {
         // Check for conflicts by seeing if main has moved
         let main_head = self.repo.head()?;
 
@@ -273,7 +274,7 @@ impl Transaction<TxActive> {
             if !conflicts.is_empty() {
                 // Clean up the branch before returning error
                 let _ = self.repo.delete_transaction_branch(&self.metadata.tx_id);
-                return Err(TransactionError::Conflict { paths: conflicts });
+                anyhow::bail!("transaction conflict: {conflicts:?}");
             }
         }
 
@@ -283,18 +284,18 @@ impl Transaction<TxActive> {
             .fast_forward_main(&self.metadata.branch, self.metadata.base_commit)
         {
             Ok(_) => {}
-            Err(StorageError::ConcurrentModification { .. }) => {
+            Err(error) if is_retriable(&error) => {
                 // Another transaction just committed - retry detection
                 let main_head = self.repo.head()?;
                 let conflicts = self
                     .repo
                     .detect_conflicts(&self.metadata.branch, main_head)?;
                 let _ = self.repo.delete_transaction_branch(&self.metadata.tx_id);
-                return Err(TransactionError::Conflict { paths: conflicts });
+                anyhow::bail!("transaction conflict: {conflicts:?}");
             }
-            Err(e) => {
+            Err(error) => {
                 let _ = self.repo.delete_transaction_branch(&self.metadata.tx_id);
-                return Err(TransactionError::Storage(e));
+                return Err(error);
             }
         }
 
@@ -311,7 +312,7 @@ impl Transaction<TxActive> {
     /// 回滚事务。
     ///
     /// 回滚通过删除事务分支丢弃本事务的所有改动。
-    pub fn rollback(self) -> TransactionResult<Transaction<TxAborted>> {
+    pub fn rollback(self) -> anyhow::Result<Transaction<TxAborted>> {
         // Clean up the transaction branch
         let _ = self.repo.delete_transaction_branch(&self.metadata.tx_id);
 

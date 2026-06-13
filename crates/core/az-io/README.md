@@ -11,7 +11,7 @@
   - `ensure_dir()` — 确保路径存在且为目录，不存在则自动创建
   - `remove_if_exists()` — 安全删除路径，不存在时静默通过
 - **`MoveLink`** — builder 风格的 mvln 包装器，支持链式调用
-- **结构化错误** — `IoError` 使用 thiserror 派生，提供语义清晰的错误变体
+- **错误上下文** — 公开 API 使用 `anyhow::Result`，文件系统失败会保留底层错误并附带路径上下文
 
 ## 安装
 
@@ -51,8 +51,8 @@ Path::new("./temp").remove_if_exists()?;
 
 ## 依赖的 crates
 
-- `thiserror` — 错误类型派生
+- `anyhow` — 统一错误返回与上下文补充
 
 ## 平台说明
 
-符号链接操作仅在 Unix 平台可用；非 Unix 平台调用 `mvln` / `MoveLink` 时返回 `UnsupportedSymlink` 错误。
+符号链接操作仅在 Unix 平台可用；非 Unix 平台调用 `mvln` / `MoveLink` 时返回带上下文的错误。

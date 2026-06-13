@@ -15,11 +15,7 @@
 //! - [`Plugin`]：所有 WASM 插件必须实现的契约，包含生命周期钩子（`on_load`、`on_enable`、`on_disable`、`on_unload`）
 //! - [`PluginRegistry`]：宿主端插件管理器接口，负责加载、卸载、启用、禁用和列举插件
 //!
-//! ## 错误类型
-//!
-//! - [`PluginError`]：覆盖未找到、重复加载、权限拒绝、WASM 运行时错误等场景
-
-use az_derive_aliases::{apply, error_eq, serde_eq, serde_kebab_code_enum, serde_kebab_eq};
+use az_derive_aliases::{apply, serde_eq, serde_kebab_code_enum, serde_kebab_eq};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -104,16 +100,16 @@ pub struct PluginHandle {
 /// 这是宿主观察到的 trait 形态；具体 Wasmtime/WIT 绑定负责把 WASM 调用桥接到这些生命周期方法。
 pub trait Plugin: Send + Sync {
     /// 插件被加载到宿主时调用。
-    fn on_load(&mut self) -> Result<(), PluginError>;
+    fn on_load(&mut self) -> anyhow::Result<()>;
 
     /// 插件被启用、开始贡献扩展能力时调用。
-    fn on_enable(&mut self) -> Result<(), PluginError>;
+    fn on_enable(&mut self) -> anyhow::Result<()>;
 
     /// 插件被禁用、停止贡献扩展能力时调用。
-    fn on_disable(&mut self) -> Result<(), PluginError>;
+    fn on_disable(&mut self) -> anyhow::Result<()>;
 
     /// 插件从宿主卸载前调用。
-    fn on_unload(&mut self) -> Result<(), PluginError>;
+    fn on_unload(&mut self) -> anyhow::Result<()>;
 
     /// 返回插件清单。
     fn manifest(&self) -> &PluginManifest;
@@ -127,51 +123,17 @@ pub trait Plugin: Send + Sync {
 /// 宿主侧插件注册表，负责统一管理已加载插件的生命周期。
 pub trait PluginRegistry: Send + Sync {
     /// 根据插件清单和 WASM 字节加载插件。
-    fn load(
-        &self,
-        manifest: PluginManifest,
-        wasm_bytes: Vec<u8>,
-    ) -> Result<PluginHandle, PluginError>;
+    fn load(&self, manifest: PluginManifest, wasm_bytes: Vec<u8>) -> anyhow::Result<PluginHandle>;
 
     /// 按运行时 id 卸载插件。
-    fn unload(&self, id: &Uuid) -> Result<(), PluginError>;
+    fn unload(&self, id: &Uuid) -> anyhow::Result<()>;
 
     /// 启用已加载插件。
-    fn enable(&self, id: &Uuid) -> Result<(), PluginError>;
+    fn enable(&self, id: &Uuid) -> anyhow::Result<()>;
 
     /// 禁用已加载插件。
-    fn disable(&self, id: &Uuid) -> Result<(), PluginError>;
+    fn disable(&self, id: &Uuid) -> anyhow::Result<()>;
 
     /// 列出当前已加载插件。
     fn list(&self) -> Vec<PluginHandle>;
-}
-
-// ─── Error ──────────────────────────────────────────────────────────
-
-/// 插件加载、权限校验和运行期生命周期操作错误。
-#[apply(error_eq)]
-pub enum PluginError {
-    /// 请求的插件不存在。
-    #[error("plugin not found: {0}")]
-    NotFound(String),
-
-    /// 同一插件已被加载。
-    #[error("plugin already loaded: {0}")]
-    AlreadyLoaded(String),
-
-    /// 宿主不支持插件声明的扩展点。
-    #[error("unsupported extension point: {0}")]
-    UnsupportedExtension(String),
-
-    /// 插件请求的权限被宿主策略拒绝。
-    #[error("permission denied: {0}")]
-    PermissionDenied(String),
-
-    /// WASM 运行时或绑定层返回错误。
-    #[error("WASM error: {0}")]
-    Wasm(String),
-
-    /// 其他插件生命周期错误。
-    #[error("{0}")]
-    Other(String),
 }

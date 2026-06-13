@@ -13,20 +13,18 @@
 //!
 //! # 错误处理
 //!
-//! 所有公开函数返回 [`Result<T, IoError>`]，[`IoError`] 使用 `thiserror` 派生，
-//! 提供结构化的错误变体：路径缺失、目标缺失、文件类型不符、符号链接相关错误等。
+//! 所有公开函数返回 `anyhow::Result<T>`，文件系统失败会保留底层 `std::io::Error` 并附带路径上下文。
 //!
 //! # 平台说明
 //!
-//! 符号链接操作仅在 Unix 平台可用；非 Unix 平台调用时返回
-//! [`IoError::UnsupportedSymlink`]。
+//! 符号链接操作仅在 Unix 平台可用；非 Unix 平台调用时返回错误。
 //!
 //! # 典型用法
 //!
 //! ```rust,no_run
 //! use az_io::mvln;
 //! use std::path::Path;
-//! # fn main() -> az_io::IoResult<()> {
+//! # fn main() -> anyhow::Result<()> {
 //!
 //! // 将 data.db 移动到 /mnt/external/data.db，并在原位保留符号链接
 //! let new_path = mvln("data.db", "/mnt/external")?;
@@ -37,69 +35,27 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Result alias for filesystem helper operations.
-pub type IoResult<T> = Result<T, IoError>;
-
-/// Error type returned by filesystem helper operations.
-#[derive(Debug, thiserror::Error)]
-pub enum IoError {
-    /// The source path does not exist.
-    #[error("source path does not exist: {0}")]
-    SourceMissing(PathBuf),
-    /// The symlink target does not exist.
-    #[error("symlink target does not exist: {0}")]
-    TargetMissing(PathBuf),
-    /// The path exists but has an unexpected file type.
-    #[error("path has unexpected file type: {0}")]
-    InvalidFileType(PathBuf),
-    /// The path is expected to be a symbolic link.
-    #[error("path is not a symlink: {0}")]
-    NotSymlink(PathBuf),
-    /// The symlink target cannot be used to restore the original path.
-    #[error("symlink target is missing or invalid: {0}")]
-    BrokenSymlink(PathBuf),
-    /// Symbolic links are not supported by this platform build.
-    #[error("symbolic links are not supported on this platform")]
-    UnsupportedSymlink,
-    /// A filesystem operation failed.
-    #[error("filesystem operation failed for {path}: {source}")]
-    Fs {
-        /// Path involved in the failed operation.
-        path: PathBuf,
-        /// Original I/O error.
-        #[source]
-        source: std::io::Error,
-    },
-}
-
-impl IoError {
-    fn fs(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
-        Self::Fs {
-            path: path.into(),
-            source,
-        }
-    }
-}
+use anyhow::{Context, Result, bail};
 
 /// Extension methods for ensuring and removing filesystem paths.
 pub trait PathExt {
     /// Ensure the path exists and is a file, creating parent directories and the file when needed.
-    fn ensure_file(&self) -> IoResult<()>;
+    fn ensure_file(&self) -> Result<()>;
 
     /// Ensure the path exists and is a directory, creating it when needed.
-    fn ensure_dir(&self) -> IoResult<()>;
+    fn ensure_dir(&self) -> Result<()>;
 
     /// Remove the file, directory, or symlink when it exists.
-    fn remove_if_exists(&self) -> IoResult<()>;
+    fn remove_if_exists(&self) -> Result<()>;
 }
 
 impl PathExt for Path {
-    fn ensure_file(&self) -> IoResult<()> {
+    fn ensure_file(&self) -> Result<()> {
         if self.exists() {
             return if self.is_file() {
                 Ok(())
             } else {
-                Err(IoError::InvalidFileType(self.to_path_buf()))
+                bail!("path has unexpected file type: {}", self.display());
             };
         }
 
@@ -107,51 +63,60 @@ impl PathExt for Path {
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
         {
-            fs::create_dir_all(parent).map_err(|source| IoError::fs(parent, source))?;
+            fs::create_dir_all(parent)
+                .with_context(|| format!("filesystem operation failed for {}", parent.display()))?;
         }
         fs::File::create(self)
             .map(drop)
-            .map_err(|source| IoError::fs(self, source))
+            .with_context(|| format!("filesystem operation failed for {}", self.display()))
     }
 
-    fn ensure_dir(&self) -> IoResult<()> {
+    fn ensure_dir(&self) -> Result<()> {
         if self.exists() {
             return if self.is_dir() {
                 Ok(())
             } else {
-                Err(IoError::InvalidFileType(self.to_path_buf()))
+                bail!("path has unexpected file type: {}", self.display());
             };
         }
 
-        fs::create_dir_all(self).map_err(|source| IoError::fs(self, source))
+        fs::create_dir_all(self)
+            .with_context(|| format!("filesystem operation failed for {}", self.display()))
     }
 
-    fn remove_if_exists(&self) -> IoResult<()> {
+    fn remove_if_exists(&self) -> Result<()> {
         let metadata = match fs::symlink_metadata(self) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-            Err(error) => return Err(IoError::fs(self, error)),
+            Err(error) => {
+                let message = format!("filesystem operation failed for {}", self.display());
+                let error = anyhow::Error::new(error).context(message);
+
+                return Err(error);
+            }
         };
 
         let file_type = metadata.file_type();
         if file_type.is_dir() {
-            fs::remove_dir_all(self).map_err(|source| IoError::fs(self, source))
+            fs::remove_dir_all(self)
+                .with_context(|| format!("filesystem operation failed for {}", self.display()))
         } else {
-            fs::remove_file(self).map_err(|source| IoError::fs(self, source))
+            fs::remove_file(self)
+                .with_context(|| format!("filesystem operation failed for {}", self.display()))
         }
     }
 }
 
 impl PathExt for PathBuf {
-    fn ensure_file(&self) -> IoResult<()> {
+    fn ensure_file(&self) -> Result<()> {
         self.as_path().ensure_file()
     }
 
-    fn ensure_dir(&self) -> IoResult<()> {
+    fn ensure_dir(&self) -> Result<()> {
         self.as_path().ensure_dir()
     }
 
-    fn remove_if_exists(&self) -> IoResult<()> {
+    fn remove_if_exists(&self) -> Result<()> {
         self.as_path().remove_if_exists()
     }
 }
@@ -179,16 +144,16 @@ impl MoveLink {
     }
 
     /// Execute the configured move-and-link operation.
-    pub fn move_and_link(self) -> IoResult<PathBuf> {
-        let target = self
-            .target_dir
-            .ok_or_else(|| IoError::TargetMissing(PathBuf::new()))?;
+    pub fn move_and_link(self) -> Result<PathBuf> {
+        let Some(target) = self.target_dir else {
+            bail!("symlink target does not exist: ");
+        };
         mvln(self.source, target)
     }
 }
 
 /// Move a file or directory and create a symlink at the original path.
-pub fn mvln(source: impl AsRef<Path>, target: impl AsRef<Path>) -> IoResult<PathBuf> {
+pub fn mvln(source: impl AsRef<Path>, target: impl AsRef<Path>) -> Result<PathBuf> {
     let source = source.as_ref();
     let target = target.as_ref();
 
@@ -196,13 +161,16 @@ pub fn mvln(source: impl AsRef<Path>, target: impl AsRef<Path>) -> IoResult<Path
         return Ok(source.to_path_buf());
     }
 
-    let metadata = fs::symlink_metadata(source).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::NotFound {
-            IoError::SourceMissing(source.to_path_buf())
-        } else {
-            IoError::fs(source, error)
+    let metadata = match fs::symlink_metadata(source) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            bail!("source path does not exist: {}", source.display());
         }
-    })?;
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("filesystem operation failed for {}", source.display()));
+        }
+    };
 
     let destination = destination_path(source, target, &metadata)?;
     if let Some(parent) = destination
@@ -212,10 +180,11 @@ pub fn mvln(source: impl AsRef<Path>, target: impl AsRef<Path>) -> IoResult<Path
         parent.ensure_dir()?;
     }
 
-    fs::rename(source, &destination).map_err(|source_error| IoError::fs(source, source_error))?;
+    fs::rename(source, &destination)
+        .with_context(|| format!("filesystem operation failed for {}", source.display()))?;
 
     let link_target = fs::canonicalize(&destination)
-        .map_err(|source_error| IoError::fs(&destination, source_error))?;
+        .with_context(|| format!("filesystem operation failed for {}", destination.display()))?;
 
     create_symlink(&link_target, source).inspect_err(|_| {
         let _ = fs::rename(&destination, source);
@@ -225,21 +194,27 @@ pub fn mvln(source: impl AsRef<Path>, target: impl AsRef<Path>) -> IoResult<Path
 }
 
 /// Undo a previous [`mvln`] operation.
-pub fn undo_mvln(link_path: impl AsRef<Path>) -> IoResult<PathBuf> {
+pub fn undo_mvln(link_path: impl AsRef<Path>) -> Result<PathBuf> {
     let link_path = link_path.as_ref();
-    let metadata = fs::symlink_metadata(link_path).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::NotFound {
-            IoError::SourceMissing(link_path.to_path_buf())
-        } else {
-            IoError::fs(link_path, error)
+    let metadata = match fs::symlink_metadata(link_path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            bail!("source path does not exist: {}", link_path.display());
         }
-    })?;
+        Err(error) => {
+            let message = format!("filesystem operation failed for {}", link_path.display());
+            let error = anyhow::Error::new(error).context(message);
+
+            return Err(error);
+        }
+    };
 
     if !metadata.file_type().is_symlink() {
-        return Err(IoError::NotSymlink(link_path.to_path_buf()));
+        bail!("path is not a symlink: {}", link_path.display());
     }
 
-    let target = fs::read_link(link_path).map_err(|error| IoError::fs(link_path, error))?;
+    let target = fs::read_link(link_path)
+        .with_context(|| format!("filesystem operation failed for {}", link_path.display()))?;
     let target = if target.is_absolute() {
         target
     } else {
@@ -250,49 +225,52 @@ pub fn undo_mvln(link_path: impl AsRef<Path>) -> IoResult<PathBuf> {
     };
 
     if !target.exists() {
-        return Err(IoError::BrokenSymlink(link_path.to_path_buf()));
+        bail!(
+            "symlink target is missing or invalid: {}",
+            link_path.display()
+        );
     }
 
-    fs::remove_file(link_path).map_err(|error| IoError::fs(link_path, error))?;
-    fs::rename(&target, link_path).map_err(|error| IoError::fs(&target, error))?;
+    fs::remove_file(link_path)
+        .with_context(|| format!("filesystem operation failed for {}", link_path.display()))?;
+    fs::rename(&target, link_path)
+        .with_context(|| format!("filesystem operation failed for {}", target.display()))?;
     Ok(link_path.to_path_buf())
 }
 
-fn destination_path(source: &Path, target: &Path, metadata: &fs::Metadata) -> IoResult<PathBuf> {
+fn destination_path(source: &Path, target: &Path, metadata: &fs::Metadata) -> Result<PathBuf> {
     if target.exists() {
         if target.is_dir() {
-            return Ok(target.join(
-                source
-                    .file_name()
-                    .ok_or_else(|| IoError::InvalidFileType(source.to_path_buf()))?,
-            ));
+            let Some(file_name) = source.file_name() else {
+                bail!("path has unexpected file type: {}", source.display());
+            };
+            return Ok(target.join(file_name));
         }
-        return Err(IoError::InvalidFileType(target.to_path_buf()));
+        bail!("path has unexpected file type: {}", target.display());
     }
 
     if metadata.file_type().is_dir() {
-        Ok(target.join(
-            source
-                .file_name()
-                .ok_or_else(|| IoError::InvalidFileType(source.to_path_buf()))?,
-        ))
+        let Some(file_name) = source.file_name() else {
+            bail!("path has unexpected file type: {}", source.display());
+        };
+        Ok(target.join(file_name))
     } else if target.extension().is_some() {
         Ok(target.to_path_buf())
     } else {
-        Ok(target.join(
-            source
-                .file_name()
-                .ok_or_else(|| IoError::InvalidFileType(source.to_path_buf()))?,
-        ))
+        let Some(file_name) = source.file_name() else {
+            bail!("path has unexpected file type: {}", source.display());
+        };
+        Ok(target.join(file_name))
     }
 }
 
 #[cfg(unix)]
-fn create_symlink(target: &Path, link: &Path) -> IoResult<()> {
-    std::os::unix::fs::symlink(target, link).map_err(|error| IoError::fs(link, error))
+fn create_symlink(target: &Path, link: &Path) -> Result<()> {
+    std::os::unix::fs::symlink(target, link)
+        .with_context(|| format!("filesystem operation failed for {}", link.display()))
 }
 
 #[cfg(not(unix))]
-fn create_symlink(_target: &Path, _link: &Path) -> IoResult<()> {
-    Err(IoError::UnsupportedSymlink)
+fn create_symlink(_target: &Path, _link: &Path) -> Result<()> {
+    bail!("symbolic links are not supported on this platform");
 }

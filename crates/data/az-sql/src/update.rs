@@ -1,6 +1,8 @@
-use crate::quote_identifier;
-use crate::{Query, QueryError, require_table_name};
+use anyhow::{Result, bail};
 use az_derive_aliases::{apply, plain_default_clone_debug};
+
+use crate::identifier::{quote_identifier, require_table_name};
+use crate::query::Query;
 
 /// An UPDATE query builder.
 #[apply(plain_default_clone_debug)]
@@ -46,17 +48,17 @@ impl UpdateQuery {
     }
 
     /// Build and validate the query.
-    pub fn try_build(&self) -> Result<(String, Vec<String>), QueryError> {
+    pub fn try_build(&self) -> Result<(String, Vec<String>)> {
         require_table_name(self.table.as_deref())?;
         if self.set_clauses.is_empty() {
-            return Err(QueryError::NoSetClauses);
+            bail!("no set clauses specified for update");
         }
         self.build()
     }
 }
 
 impl Query for UpdateQuery {
-    fn build(&self) -> Result<(String, Vec<String>), QueryError> {
+    fn build(&self) -> Result<(String, Vec<String>)> {
         let mut all_params: Vec<String> = Vec::new();
         let table = quote_identifier(require_table_name(self.table.as_deref())?);
 
@@ -95,7 +97,8 @@ impl Query for UpdateQuery {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::query::Query;
+    use crate::update::UpdateQuery;
 
     #[test]
     fn simple_update() {
@@ -123,7 +126,7 @@ mod tests {
     #[test]
     fn try_build_no_table_errors() {
         let q = UpdateQuery::new().set("name", "Alice");
-        assert_eq!(q.try_build(), Err(QueryError::NoTable));
+        assert!(q.try_build().unwrap_err().to_string().contains("no table"));
     }
 
     #[test]
@@ -131,12 +134,12 @@ mod tests {
         let q = UpdateQuery::new()
             .table("users")
             .r#where("id = ?", vec!["1"]);
-        assert_eq!(q.try_build(), Err(QueryError::NoSetClauses));
+        assert!(q.try_build().unwrap_err().to_string().contains("no set"));
     }
 
     #[test]
     fn build_blank_table_errors() {
         let q = UpdateQuery::new().table(" ").set("name", "Alice");
-        assert_eq!(q.build(), Err(QueryError::NoTable));
+        assert!(q.build().unwrap_err().to_string().contains("no table"));
     }
 }

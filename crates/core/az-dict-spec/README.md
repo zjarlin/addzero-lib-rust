@@ -47,4 +47,4 @@ assert_eq!(spec.items.len(), 2);
 
 - `serde` — 序列化/反序列化支持
 - `serde_json` — JSON 处理
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误上下文与统一 `Result`

@@ -5,10 +5,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::{SyncError, SyncResult},
     sync_model::{SyncDocumentRecord, SyncFileStatus, SyncRoot},
 };
 
@@ -64,26 +64,17 @@ impl FinderSyncState {
         }
     }
 
-    pub fn to_pretty_json(&self) -> SyncResult<String> {
-        serde_json::to_string_pretty(self).map_err(|source| SyncError::Json {
-            path: PathBuf::from("<memory>"),
-            source,
-        })
+    pub fn to_pretty_json(&self) -> Result<String> {
+        serde_json::to_string_pretty(self).context("JSON failed for `<memory>`")
     }
 
-    pub fn write_to_path(&self, path: impl AsRef<Path>) -> SyncResult<()> {
+    pub fn write_to_path(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref();
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|source| SyncError::Io {
-                path: parent.to_path_buf(),
-                source,
-            })?;
+            fs::create_dir_all(parent).with_context(|| format!("I/O failed for `{parent:?}`"))?;
         }
         let json = self.to_pretty_json()?;
-        fs::write(path, json).map_err(|source| SyncError::Io {
-            path: path.to_path_buf(),
-            source,
-        })
+        fs::write(path, json).with_context(|| format!("I/O failed for `{path:?}`"))
     }
 }
 

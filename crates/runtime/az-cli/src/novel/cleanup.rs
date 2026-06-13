@@ -1,14 +1,8 @@
-use std::sync::OnceLock;
-
-use regex::Regex;
-
 use super::preset::NovelPreset;
 
 pub fn clean_body(raw: &str, preset: NovelPreset) -> String {
     let mut normalized = raw.replace("\r\n", "\n").replace('\r', "\n");
-    normalized = paragraph_breaks()
-        .replace_all(&normalized, "\n")
-        .into_owned();
+    normalized = collapse_wide_space_runs(&normalized);
     normalized = normalized.replace("&nbsp;", " ");
 
     let mut blocks = Vec::new();
@@ -28,9 +22,32 @@ pub fn clean_body(raw: &str, preset: NovelPreset) -> String {
     blocks.join("\n\n")
 }
 
-fn paragraph_breaks() -> &'static Regex {
-    static REGEX: OnceLock<Regex> = OnceLock::new();
-    REGEX.get_or_init(|| Regex::new(r"(?:\u{00a0}|\u{3000}){4,}").expect("regex compiles"))
+fn collapse_wide_space_runs(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut pending_wide_spaces = String::new();
+
+    for ch in raw.chars() {
+        if matches!(ch, '\u{00a0}' | '\u{3000}') {
+            pending_wide_spaces.push(ch);
+            continue;
+        }
+
+        if pending_wide_spaces.chars().count() >= 4 {
+            out.push('\n');
+        } else {
+            out.push_str(&pending_wide_spaces);
+        }
+        pending_wide_spaces.clear();
+        out.push(ch);
+    }
+
+    if pending_wide_spaces.chars().count() >= 4 {
+        out.push('\n');
+    } else {
+        out.push_str(&pending_wide_spaces);
+    }
+
+    out
 }
 
 fn is_noise_line(line: &str, preset: NovelPreset) -> bool {

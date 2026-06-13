@@ -1,8 +1,8 @@
-use rimmer::{
-    CollectionFetchOptions, Fetcher, JimmerClient, OrmError, QueryBuilderExt, ScalarValue,
-};
+use rimmer::fetcher::{CollectionFetchOptions, Fetcher};
+use rimmer::query::{JimmerClient, QueryBuilderExt};
+use rimmer::value::ScalarValue;
 
-#[derive(rimmer::Entity)]
+#[derive(rimmer::derive::Entity)]
 #[rimmer(table = "BOOK_STORE")]
 pub struct BookStore {
     #[rimmer(id, column = "ID")]
@@ -13,7 +13,7 @@ pub struct BookStore {
     pub website: Option<String>,
 }
 
-#[derive(rimmer::Entity)]
+#[derive(rimmer::derive::Entity)]
 #[rimmer(table = "BOOK")]
 pub struct Book {
     #[rimmer(id, column = "ID")]
@@ -155,7 +155,7 @@ fn fetcher_from_json_should_reject_root_field_drift() {
     let error = Fetcher::<Book>::from_json_value(Book::entity(), value).unwrap_err();
 
     // 断言持久化 Fetcher 形状不能绕过实体字段元模型。
-    assert!(matches!(error, OrmError::InvalidFetcherShape { .. }));
+    assert!(error.to_string().contains("invalid fetcher shape"));
 }
 
 #[test]
@@ -175,7 +175,7 @@ fn fetcher_from_json_should_reject_relation_metadata_drift() {
     let error = Fetcher::<Book>::from_json_value(Book::entity(), value).unwrap_err();
 
     // 断言关联 Fetcher 形状必须继续引用根实体真实列。
-    assert!(matches!(error, OrmError::InvalidFetcherShape { .. }));
+    assert!(error.to_string().contains("invalid fetcher shape"));
 }
 
 #[test]
@@ -211,7 +211,7 @@ fn derive_entity_should_generate_draft_entry() {
     });
     let plan = JimmerClient::new()
         .save(draft)
-        .set_mode(rimmer::SaveMode::UpdateOnly)
+        .set_mode(rimmer::save::SaveMode::UpdateOnly)
         .build()
         .unwrap();
 
@@ -242,7 +242,7 @@ fn derive_entity_should_generate_one_to_many_save_graph_plan() {
     });
     let plan = JimmerClient::new()
         .save(draft)
-        .set_mode(rimmer::SaveMode::InsertOnly)
+        .set_mode(rimmer::save::SaveMode::InsertOnly)
         .build()
         .unwrap();
 

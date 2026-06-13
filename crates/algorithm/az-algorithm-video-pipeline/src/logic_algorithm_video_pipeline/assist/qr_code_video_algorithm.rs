@@ -10,7 +10,6 @@ use az_qr_code_recognition::logic_qr_code_recognition::model::{
 use image::DynamicImage;
 use serde_json::json;
 
-use anyhow::{anyhow, bail};
 use crate::logic_algorithm_video_pipeline::model::{
     VideoAlgorithmEvent, VideoAlgorithmFrameResult, VideoBoundingBox, VideoDetection, VideoFrame,
     VideoFrameAlgorithm,
@@ -122,4 +121,8 @@ fn bounds_to_box(bounds: &[ImagePoint; 4]) -> VideoBoundingBox {
         x_max,
         y_max,
     }
+}
+
+fn path_error(path: PathBuf, source: std::io::Error) -> anyhow::Error {
+    anyhow::anyhow!("filesystem error at `{}`: {source}", path.display())
 }

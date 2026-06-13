@@ -26,13 +26,13 @@ az-shell-components = { path = "../az-shell-components" }   # workspace 内部�
 
 ```rust
 use az_shell_components::{
-    materialize_component, render_component, build_output, ShellComponentResult,
+    materialize_component, render_component, build_output,
 };
 use az_config_center_contract::{
     ShellComponentKind, ShellComponentUpsert,
 };
 
-fn main() -> ShellComponentResult<()> {
+fn main() -> anyhow::Result<()> {
     let component = materialize_component(ShellComponentUpsert {
         name: "JAVA_HOME".to_string(),
         kind: ShellComponentKind::Export,
@@ -58,4 +58,4 @@ fn main() -> ShellComponentResult<()> {
 
 - `az-config-center-contract` — Shell 组件的数据结构定义（`ShellComponent`、`ShellComponentUpsert` 等）
 - `serde` — 序列化支持
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误上下文与结果类型

@@ -26,7 +26,10 @@ az-yml = { path = "../az-yml" }        # workspace 内部引用
 ## 用法
 
 ```rust
-use az_yml::{load_yaml_value, SpringYaml, DatabaseConfigReader, YamlDoc};
+use az_yml::database_config_reader::DatabaseConfigReader;
+use az_yml::load::load_yaml_value;
+use az_yml::path::get_yaml_path_value;
+use az_yml::spring_yaml::SpringYaml;
 use az_yml::yaml_path;
 
 // 加载 YAML 文件
@@ -38,7 +41,7 @@ let port = doc.get("server.port")?;
 
 // 使用宏进行编译期路径解析
 let path = yaml_path!("spring.datasource.url");
-let value = az_yml::get_yaml_path_value(&doc, &path);
+let value = get_yaml_path_value(&doc, &path);
 
 // Spring Boot 风格配置加载（自动处理 profile）
 let spring = SpringYaml::from_dir("src/main/resources");
@@ -55,4 +58,4 @@ if let Some(config) = db_config {
 
 - `serde` — 序列化/反序列化框架
 - `serde_yaml` — YAML 解析
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误上下文与统一 `Result`

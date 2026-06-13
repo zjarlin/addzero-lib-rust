@@ -1,5 +1,5 @@
 use az_derive_aliases::{apply, plain_clone};
-use az_persistence::PersistenceContext;
+use az_persistence::context::PersistenceContext;
 use chrono::Utc;
 use sha2::{Digest, Sha256};
 
@@ -8,8 +8,7 @@ use crate::{
     repository::KnowledgeRepository,
     sqlite_repository::SqliteKnowledgeRepository,
     types::{
-        KnowledgeDocument, KnowledgeError, KnowledgeSourceSpec, KnowledgeSyncReport,
-        ManualKnowledgeDocumentInput,
+        KnowledgeDocument, KnowledgeSourceSpec, KnowledgeSyncReport, ManualKnowledgeDocumentInput,
     },
 };
 
@@ -25,7 +24,7 @@ enum KnowledgeBackend {
 }
 
 impl KnowledgeService {
-    pub async fn connect(database_url: &str) -> Result<Self, KnowledgeError> {
+    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         if database_url.starts_with("sqlite:") {
             return Ok(Self {
                 backend: KnowledgeBackend::Sqlite(
@@ -44,7 +43,7 @@ impl KnowledgeService {
         }
     }
 
-    pub async fn list_documents(&self) -> Result<Vec<KnowledgeDocument>, KnowledgeError> {
+    pub async fn list_documents(&self) -> anyhow::Result<Vec<KnowledgeDocument>> {
         match &self.backend {
             KnowledgeBackend::Postgres(repository) => repository.list_documents().await,
             KnowledgeBackend::Sqlite(repository) => repository.list_documents().await,
@@ -54,7 +53,7 @@ impl KnowledgeService {
     pub async fn sync_sources(
         &self,
         sources: &[KnowledgeSourceSpec],
-    ) -> Result<KnowledgeSyncReport, KnowledgeError> {
+    ) -> anyhow::Result<KnowledgeSyncReport> {
         let mut report = KnowledgeSyncReport::default();
 
         match &self.backend {
@@ -115,7 +114,7 @@ impl KnowledgeService {
     pub async fn upsert_manual_document(
         &self,
         input: ManualKnowledgeDocumentInput,
-    ) -> Result<KnowledgeDocument, KnowledgeError> {
+    ) -> anyhow::Result<KnowledgeDocument> {
         let source = KnowledgeSourceSpec::new(
             input.source_slug.clone(),
             input.source_name.clone(),
@@ -149,7 +148,7 @@ impl KnowledgeService {
     pub async fn delete_document_by_source_path(
         &self,
         source_path: &str,
-    ) -> Result<(), KnowledgeError> {
+    ) -> anyhow::Result<()> {
         match &self.backend {
             KnowledgeBackend::Postgres(repository) => {
                 repository

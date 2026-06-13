@@ -1,38 +1,35 @@
-//! SQL parsing errors.
+//! SQL parsing error message helpers.
 
-use az_derive_aliases::{apply, error_eq, impl_from_match};
+use anyhow::anyhow;
 
-/// Result type for parsing operations.
-pub type ParseResult<T> = Result<T, ParseError>;
-
-/// SQL parsing errors.
-#[apply(error_eq)]
-pub enum ParseError {
-    #[error("syntax error: {0}")]
-    Syntax(String),
-
-    #[error("unsupported statement: {0}")]
-    UnsupportedStatement(String),
-
-    #[error("unsupported expression: {0}")]
-    UnsupportedExpression(String),
-
-    #[error("unsupported data type: {0}")]
-    UnsupportedDataType(String),
-
-    #[error("invalid identifier: {0}")]
-    InvalidIdentifier(String),
-
-    #[error("missing required clause: {0}")]
-    MissingClause(String),
-
-    #[error("empty query")]
-    EmptyQuery,
-
-    #[error("multiple statements not supported")]
-    MultipleStatements,
+pub fn syntax(message: impl Into<String>) -> anyhow::Error {
+    anyhow!("syntax error: {}", message.into())
 }
 
-impl_from_match!(sqlparser::parser::ParserError => ParseError {
-    value => ParseError::Syntax(value.to_string()),
-});
+pub fn unsupported_statement(message: impl Into<String>) -> anyhow::Error {
+    anyhow!("unsupported statement: {}", message.into())
+}
+
+pub fn unsupported_expression(message: impl Into<String>) -> anyhow::Error {
+    anyhow!("unsupported expression: {}", message.into())
+}
+
+pub fn unsupported_data_type(message: impl Into<String>) -> anyhow::Error {
+    anyhow!("unsupported data type: {}", message.into())
+}
+
+pub fn invalid_identifier(message: impl Into<String>) -> anyhow::Error {
+    anyhow!("invalid identifier: {}", message.into())
+}
+
+pub fn missing_clause(message: impl Into<String>) -> anyhow::Error {
+    anyhow!("missing required clause: {}", message.into())
+}
+
+pub fn empty_query() -> anyhow::Error {
+    anyhow!("empty query")
+}
+
+pub fn multiple_statements() -> anyhow::Error {
+    anyhow!("multiple statements not supported")
+}

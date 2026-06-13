@@ -20,7 +20,6 @@ serde.workspace = true
 serde_json.workspace = true
 serde_json_path.workspace = true
 shaku.workspace = true
-thiserror.workspace = true
 tokio.workspace = true
 toasty.workspace = true
 uuid.workspace = true

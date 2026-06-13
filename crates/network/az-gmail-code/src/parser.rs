@@ -1,4 +1,4 @@
-use crate::{GmailCodeError, GmailCodeResult, GmailMessage, GmailMessagePart};
+use crate::model::{GmailMessage, GmailMessagePart};
 use az_derive_aliases::{apply, impl_default, plain_copy_eq, plain_eq};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE;
@@ -14,7 +14,7 @@ static DEFAULT_CODE_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
         r"(?:^|[^#&[:alnum:]])(\d[\d\s-]{2,14}\d)(?:[^[:alnum:]]|$)",
     ]
     .into_iter()
-    .map(|pattern| Regex::new(pattern).expect("verification-code regex should compile"))
+    .filter_map(|pattern| Regex::new(pattern).ok())
     .collect()
 });
 
@@ -96,7 +96,7 @@ pub fn extract_verification_code_with_options(
 /// 从 Gmail 邮件中收集已解码的 `text/plain` 和 `text/html` 正文候选。
 pub fn collect_message_body_candidates(
     message: &GmailMessage,
-) -> GmailCodeResult<Vec<MessageBodyCandidate>> {
+) -> anyhow::Result<Vec<MessageBodyCandidate>> {
     let mut plain = Vec::new();
     let mut html = Vec::new();
 
@@ -128,7 +128,7 @@ fn collect_part_candidates(
     fallback_id: &str,
     plain: &mut Vec<MessageBodyCandidate>,
     html: &mut Vec<MessageBodyCandidate>,
-) -> GmailCodeResult<()> {
+) -> anyhow::Result<()> {
     let part_id = part.part_id.as_deref().unwrap_or(fallback_id);
     if let Some(data) = part.body.as_ref().and_then(|body| body.data.as_deref()) {
         let decoded = decode_gmail_body(data, part_id)?;
@@ -155,7 +155,7 @@ fn collect_part_candidates(
     Ok(())
 }
 
-fn decode_gmail_body(data: &str, part_id: &str) -> GmailCodeResult<String> {
+fn decode_gmail_body(data: &str, part_id: &str) -> anyhow::Result<String> {
     let mut normalized = data.trim().to_owned();
     while !normalized.len().is_multiple_of(4) {
         normalized.push('=');
@@ -164,13 +164,13 @@ fn decode_gmail_body(data: &str, part_id: &str) -> GmailCodeResult<String> {
     let bytes =
         URL_SAFE
             .decode(normalized.as_bytes())
-            .map_err(|source| GmailCodeError::BodyDecode {
-                part_id: part_id.to_owned(),
-                source,
+            .map_err(|source| {
+                anyhow::anyhow!(
+                    "failed to decode Gmail message body for part `{part_id}`: {source}"
+                )
             })?;
-    String::from_utf8(bytes).map_err(|source| GmailCodeError::BodyUtf8 {
-        part_id: part_id.to_owned(),
-        source,
+    String::from_utf8(bytes).map_err(|source| {
+        anyhow::anyhow!("Gmail message body for part `{part_id}` is not valid UTF-8: {source}")
     })
 }
 
@@ -225,7 +225,7 @@ mod tests {
         ExtractCodeOptions, collect_message_body_candidates, extract_verification_code,
         extract_verification_code_with_options,
     };
-    use crate::{GmailMessage, GmailMessagePart};
+    use crate::model::{GmailMessage, GmailMessagePart};
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 

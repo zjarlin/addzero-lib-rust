@@ -5,7 +5,7 @@
 ## 功能
 
 - **从扁平列表构建树**：`build_tree` / `try_build_tree` 接收 `(id, parent_id)` 对列表，自动组装父子关系
-- **循环检测与错误处理**：`try_build_tree` 在检测到循环引用或缺失父节点时返回 `TreeError`
+- **循环检测与错误处理**：`try_build_tree` 在检测到循环引用或缺失父节点时返回 `anyhow::Error`
 - **节点查找**：`find` / `find_mut` 在子树中按 id 递归查找节点
 - **树度量**：`depth` 返回最大深度，`size` 返回节点总数
 - **路径追溯**：`ancestors` 返回从根到目标节点的 id 路径
@@ -60,3 +60,4 @@ assert!(result.is_err());                 // 缺失父节点 99
 
 - `serde` - 序列化/反序列化支持
 - `serde_json` - 节点附加 JSON 数据
+- `anyhow` - 构建失败错误返回

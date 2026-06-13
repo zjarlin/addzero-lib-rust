@@ -3,9 +3,10 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
+use anyhow::bail;
 use parking_lot::{Mutex, RwLock};
 
-use super::api::{DatabaseConfig, DatabaseError, DatabaseResult};
+use super::api::DatabaseConfig;
 use crate::executor::QueryExecutor;
 use crate::storage::GitRepository;
 
@@ -27,7 +28,7 @@ impl Connection {
     }
 
     /// Execute a SQL query.
-    pub fn execute(&mut self, sql: &str) -> DatabaseResult<crate::executor::QueryResult> {
+    pub fn execute(&mut self, sql: &str) -> anyhow::Result<crate::executor::QueryResult> {
         Ok(self.executor.execute(sql)?)
     }
 }
@@ -57,7 +58,7 @@ pub struct ConnectionPool {
 
 impl ConnectionPool {
     /// Create a new connection pool.
-    pub fn new(config: DatabaseConfig, max_connections: usize) -> DatabaseResult<Self> {
+    pub fn new(config: DatabaseConfig, max_connections: usize) -> anyhow::Result<Self> {
         let repo = if config.create_if_missing {
             GitRepository::open_or_init(&config.path)?
         } else {
@@ -76,7 +77,7 @@ impl ConnectionPool {
     }
 
     /// Get a connection from the pool.
-    pub fn get(&self) -> DatabaseResult<Connection> {
+    pub fn get(&self) -> anyhow::Result<Connection> {
         // Try to get an available connection.
         {
             let mut available = self.inner.available.lock();
@@ -106,9 +107,7 @@ impl ConnectionPool {
         }
 
         // Pool exhausted - in production we'd wait, but for now error.
-        Err(DatabaseError::InvalidConfig(
-            "connection pool exhausted".into(),
-        ))
+        bail!("invalid configuration: connection pool exhausted")
     }
 
     /// Get the number of available connections.

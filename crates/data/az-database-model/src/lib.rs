@@ -6,7 +6,9 @@
 //! # 快速开始
 //!
 //! ```no_run
-//! use az_database_model::{Schema, Table, Column, DataType, Relation, RelationKind};
+//! use az_database_model::column::{Column, DataType};
+//! use az_database_model::schema::Schema;
+//! use az_database_model::table::Table;
 //!
 //! let users = Table::new("users")
 //!     .column(Column::new("id", DataType::BigInt).primary_key().auto_increment())
@@ -19,52 +21,4 @@
 //! assert_eq!(schema.tables[0].name, "users");
 //! ```
 
-use az_derive_aliases::{apply, error_eq};
-
-automod::dir!("src");
-
-pub use column::{Column, DataType};
-pub use index::Index;
-pub use relation::{Relation, RelationKind};
-pub use schema::Schema;
-pub use table::Table;
-
-/// Errors that can occur during schema validation.
-#[apply(error_eq)]
-pub enum ModelError {
-    /// The schema name is empty.
-    #[error("empty schema name")]
-    EmptySchemaName,
-
-    /// A table name is empty.
-    #[error("empty table name in schema '{schema}'")]
-    EmptyTableName { schema: String },
-
-    /// A column name is empty.
-    #[error("empty column name in table '{table}'")]
-    EmptyColumnName { table: String },
-
-    /// Duplicate table name.
-    #[error("duplicate table name: '{0}'")]
-    DuplicateTable(String),
-
-    /// Duplicate column name within a table.
-    #[error("duplicate column '{column}' in table '{table}'")]
-    DuplicateColumn { table: String, column: String },
-
-    /// A relation references a non-existent table.
-    #[error("relation references unknown table '{0}'")]
-    UnknownTable(String),
-
-    /// A relation references a non-existent column.
-    #[error("relation references unknown column '{column}' in table '{table}'")]
-    UnknownColumn { table: String, column: String },
-
-    /// An index references a non-existent column.
-    #[error("index '{index}' references unknown column '{column}' in table '{table}'")]
-    UnknownIndexColumn {
-        index: String,
-        table: String,
-        column: String,
-    },
-}
+automod::dir!(pub "src");

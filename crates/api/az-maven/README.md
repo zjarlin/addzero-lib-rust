@@ -24,13 +24,16 @@ az-maven = { path = "../az-maven" }  # workspace 内部引用
 ## 用法
 
 ```rust
-use az_maven::{create_maven_central_api, MavenCentralApi, ApiConfig};
+use az_maven::config::ApiConfig;
+use az_maven::maven::{MavenCentralApi, create_maven_central_api};
+
+# fn main() -> anyhow::Result<()> {
 
 // 使用默认配置快速创建客户端
-let api = create_maven_central_api().expect("初始化失败");
+let api = create_maven_central_api()?;
 
 // 按关键词搜索
-let results = api.search_by_keyword("serde", 10).expect("搜索失败");
+let results = api.search_by_keyword("serde", 10)?;
 for artifact in &results {
     println!(
         "{}:{} v{}",
@@ -41,17 +44,16 @@ for artifact in &results {
 }
 
 // 获取最新版本号
-let version = api
-    .get_latest_version("com.google.guava", "guava")
-    .expect("查询失败");
+let version = api.get_latest_version("com.google.guava", "guava")?;
 println!("guava 最新版本: {:?}", version);
 
 // 自定义配置
 let config = ApiConfig::builder("https://search.maven.org")
     .connect_timeout_secs(5)
-    .build()
-    .expect("配置无效");
-let api = MavenCentralApi::new(config).expect("初始化失败");
+    .build()?;
+let api = MavenCentralApi::new(config)?;
+# Ok(())
+# }
 ```
 
 ## 依赖的 crates
@@ -60,4 +62,4 @@ let api = MavenCentralApi::new(config).expect("初始化失败");
 - `reqwest` — HTTP 同步客户端
 - `serde` / `serde_json` — API 响应反序列化
 - `sha2` — SHA256 哈希工具函数
-- `thiserror` — 错误类型派生
+- `anyhow` — 统一错误上下文

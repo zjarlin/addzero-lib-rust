@@ -6,7 +6,6 @@
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-use super::error::ExecuteResult;
 use super::eval::{evaluate, matches_where};
 use crate::sql::{Expr, OrderBy, SelectColumn};
 
@@ -16,10 +15,10 @@ pub type Row = BTreeMap<String, Value>;
 /// 所有查询算子的统一接口。
 pub trait Operator: Send {
     /// 拉取下一行；数据耗尽时返回 `None`。
-    fn next_row(&mut self) -> ExecuteResult<Option<Row>>;
+    fn next_row(&mut self) -> anyhow::Result<Option<Row>>;
 
     /// 重置算子，使后续读取从头开始。
-    fn reset(&mut self) -> ExecuteResult<()>;
+    fn reset(&mut self) -> anyhow::Result<()>;
 }
 
 /// 扫描算子，从表中顺序读取所有行。
@@ -35,7 +34,7 @@ impl ScanOperator {
 }
 
 impl Operator for ScanOperator {
-    fn next_row(&mut self) -> ExecuteResult<Option<Row>> {
+    fn next_row(&mut self) -> anyhow::Result<Option<Row>> {
         if self.position < self.rows.len() {
             let row = self.rows[self.position].clone();
             self.position += 1;
@@ -45,7 +44,7 @@ impl Operator for ScanOperator {
         }
     }
 
-    fn reset(&mut self) -> ExecuteResult<()> {
+    fn reset(&mut self) -> anyhow::Result<()> {
         self.position = 0;
         Ok(())
     }
@@ -64,7 +63,7 @@ impl FilterOperator {
 }
 
 impl Operator for FilterOperator {
-    fn next_row(&mut self) -> ExecuteResult<Option<Row>> {
+    fn next_row(&mut self) -> anyhow::Result<Option<Row>> {
         loop {
             match self.source.next_row()? {
                 Some(row) => {
@@ -79,7 +78,7 @@ impl Operator for FilterOperator {
         }
     }
 
-    fn reset(&mut self) -> ExecuteResult<()> {
+    fn reset(&mut self) -> anyhow::Result<()> {
         self.source.reset()
     }
 }
@@ -97,7 +96,7 @@ impl ProjectOperator {
 }
 
 impl Operator for ProjectOperator {
-    fn next_row(&mut self) -> ExecuteResult<Option<Row>> {
+    fn next_row(&mut self) -> anyhow::Result<Option<Row>> {
         match self.source.next_row()? {
             Some(row) => {
                 let row_map: serde_json::Map<String, Value> =
@@ -130,7 +129,7 @@ impl Operator for ProjectOperator {
         }
     }
 
-    fn reset(&mut self) -> ExecuteResult<()> {
+    fn reset(&mut self) -> anyhow::Result<()> {
         self.source.reset()
     }
 }
@@ -153,7 +152,7 @@ impl SortOperator {
         }
     }
 
-    fn materialize(&mut self) -> ExecuteResult<()> {
+    fn materialize(&mut self) -> anyhow::Result<()> {
         if self.sorted_rows.is_some() {
             return Ok(());
         }
@@ -183,7 +182,7 @@ impl SortOperator {
 }
 
 impl Operator for SortOperator {
-    fn next_row(&mut self) -> ExecuteResult<Option<Row>> {
+    fn next_row(&mut self) -> anyhow::Result<Option<Row>> {
         self.materialize()?;
 
         if let Some(ref rows) = self.sorted_rows {
@@ -196,7 +195,7 @@ impl Operator for SortOperator {
         Ok(None)
     }
 
-    fn reset(&mut self) -> ExecuteResult<()> {
+    fn reset(&mut self) -> anyhow::Result<()> {
         self.source.reset()?;
         self.sorted_rows = None;
         self.position = 0;
@@ -226,7 +225,7 @@ impl LimitOperator {
 }
 
 impl Operator for LimitOperator {
-    fn next_row(&mut self) -> ExecuteResult<Option<Row>> {
+    fn next_row(&mut self) -> anyhow::Result<Option<Row>> {
         // Skip offset rows
         while self.skipped < self.offset {
             if self.source.next_row()?.is_none() {
@@ -245,7 +244,7 @@ impl Operator for LimitOperator {
         Ok(None)
     }
 
-    fn reset(&mut self) -> ExecuteResult<()> {
+    fn reset(&mut self) -> anyhow::Result<()> {
         self.source.reset()?;
         self.current = 0;
         self.skipped = 0;

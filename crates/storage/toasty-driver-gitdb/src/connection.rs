@@ -1,7 +1,10 @@
-use crate::capability::CAPABILITY_GITDB;
-use crate::error::GitDbDriverError;
-use crate::sql::inline_indexed_params;
-use crate::value::from_json_value;
+//! Toasty driver connection implementation backed by gitdb.
+
+automod::dir!("src/connection");
+
+use capability::CAPABILITY_GITDB;
+use sql::inline_indexed_params;
+use value::from_json_value;
 use async_trait::async_trait;
 use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 use gitdb::db::{Database, DatabaseConfig};
@@ -16,7 +19,6 @@ use toasty_core::driver::operation::{Insert, IsolationLevel, Operation, QuerySql
 use toasty_core::driver::{Capability, Driver, ExecResponse};
 use toasty_core::schema::db::{self, AppliedMigration, Migration, SchemaDiff};
 use toasty_core::{Connection, Result, Schema, stmt};
-use toasty_sql as sql;
 
 const MIGRATIONS_TABLE: &str = "__toasty_migrations";
 
@@ -44,9 +46,10 @@ impl GitDb {
         } else if let Some(path) = url.strip_prefix("gitdb:") {
             PathBuf::from(path)
         } else {
-            return Err(toasty_core::Error::invalid_connection_url(format!(
-                "connection URL does not have a `gitdb:` scheme; url={url}"
-            )));
+            let message = format!("connection URL does not have a `gitdb:` scheme; url={url}");
+            let error = toasty_core::Error::invalid_connection_url(message);
+
+            return Err(error);
         };
 
         Ok(Self::open(path))
@@ -76,10 +79,11 @@ impl Driver for GitDb {
     }
 
     fn generate_migration(&self, schema_diff: &SchemaDiff<'_>) -> Migration {
-        let statements = sql::MigrationStatement::from_diff(schema_diff, &CAPABILITY_GITDB);
+        let statements =
+            toasty_sql::MigrationStatement::from_diff(schema_diff, &CAPABILITY_GITDB);
         let sql_strings: Vec<String> = statements
             .iter()
-            .map(|stmt| sql::Serializer::sqlite(stmt.schema()).serialize(stmt.statement()))
+            .map(|stmt| toasty_sql::Serializer::sqlite(stmt.schema()).serialize(stmt.statement()))
             .collect();
         Migration::new_sql_with_breakpoints(&sql_strings)
     }
@@ -152,9 +156,10 @@ impl GitDbConnection {
 
     fn exec_query_sql(&self, schema: &db::Schema, op: QuerySql) -> Result<ExecResponse> {
         if op.last_insert_id_hack.is_some() {
-            return Err(toasty_core::Error::unsupported_feature(
-                "gitdb does not support MySQL last_insert_id_hack semantics",
-            ));
+            let message = "gitdb does not support MySQL last_insert_id_hack semantics";
+            let error = toasty_core::Error::unsupported_feature(message);
+
+            return Err(error);
         }
 
         let sql = lower_sql_statement(schema, op.stmt, op.params)?;
@@ -164,9 +169,10 @@ impl GitDbConnection {
 
     fn exec_insert(&self, schema: &db::Schema, op: Insert) -> Result<ExecResponse> {
         if op.ret.is_some() {
-            return Err(toasty_core::Error::unsupported_feature(
-                "gitdb does not support RETURNING on insert mutations",
-            ));
+            let message = "gitdb does not support RETURNING on insert mutations";
+            let error = toasty_core::Error::unsupported_feature(message);
+
+            return Err(error);
         }
 
         let sql = lower_sql_statement(schema, op.stmt, op.params)?;
@@ -181,18 +187,20 @@ impl GitDbConnection {
         } = &op
         {
             if *read_only {
-                return Err(toasty_core::Error::unsupported_feature(
-                    "gitdb transactions do not support read_only mode",
-                ));
+                let message = "gitdb transactions do not support read_only mode";
+                let error = toasty_core::Error::unsupported_feature(message);
+
+                return Err(error);
             }
             if !matches!(isolation, Some(IsolationLevel::Serializable) | None) {
-                return Err(toasty_core::Error::unsupported_feature(
-                    "gitdb only supports default/serializable transaction semantics",
-                ));
+                let message = "gitdb only supports default/serializable transaction semantics";
+                let error = toasty_core::Error::unsupported_feature(message);
+
+                return Err(error);
             }
         }
 
-        let sql = sql::Serializer::sqlite(schema).serialize_transaction(&op);
+        let sql = toasty_sql::Serializer::sqlite(schema).serialize_transaction(&op);
         let result = self.execute_sql(sql.trim_end_matches(';').to_string())?;
         map_worker_result(result, None)
     }
@@ -243,9 +251,10 @@ impl Connection for GitDbConnection {
             self.execute_sql(format!("SELECT id FROM {MIGRATIONS_TABLE} ORDER BY id ASC"))?;
 
         let WorkerQueryResult::Rows { rows, .. } = result else {
-            return Err(toasty_core::Error::invalid_result(
-                "expected migration rows from gitdb",
-            ));
+            let message = "expected migration rows from gitdb";
+            let error = toasty_core::Error::invalid_result(message);
+
+            return Err(error);
         };
 
         rows.into_iter()
@@ -324,7 +333,8 @@ fn lower_sql_statement(
     statement: stmt::Statement,
     params: Vec<toasty_core::driver::operation::TypedValue>,
 ) -> Result<String> {
-    let sql = sql::Serializer::sqlite(schema).serialize(&sql::Statement::from(statement));
+    let sql =
+        toasty_sql::Serializer::sqlite(schema).serialize(&toasty_sql::Statement::from(statement));
     inline_indexed_params(&sql, &params).map_err(map_local_error)
 }
 
@@ -336,17 +346,21 @@ fn map_worker_result(
         WorkerQueryResult::Count(count) => Ok(ExecResponse::count(count)),
         WorkerQueryResult::Rows { columns, rows } => {
             let Some(ret_tys) = ret else {
-                return Err(toasty_core::Error::invalid_result(
-                    "gitdb returned rows for a Toasty statement without a return type",
-                ));
+                let message = "gitdb returned rows for a Toasty statement without a return type";
+                let error = toasty_core::Error::invalid_result(message);
+
+                return Err(error);
             };
 
             if columns.len() != ret_tys.len() {
-                return Err(toasty_core::Error::invalid_result(format!(
+                let message = format!(
                     "gitdb result width {} does not match Toasty return width {}",
                     columns.len(),
                     ret_tys.len()
-                )));
+                );
+                let error = toasty_core::Error::invalid_result(message);
+
+                return Err(error);
             }
 
             let values = rows
@@ -383,10 +397,13 @@ fn column_definition_sql(column: &db::Column) -> Result<String> {
         sql.push_str(" NOT NULL");
     }
     if column.auto_increment {
-        return Err(toasty_core::Error::unsupported_feature(format!(
+        let message = format!(
             "gitdb does not support auto_increment column `{}`",
             column.name
-        )));
+        );
+        let error = toasty_core::Error::unsupported_feature(message);
+
+        return Err(error);
     }
     Ok(sql)
 }
@@ -427,17 +444,13 @@ fn row_to_value_record(
     Ok(stmt::ValueRecord::from_vec(fields).into())
 }
 
-fn map_driver_error(error: impl std::error::Error + Send + Sync + 'static) -> toasty_core::Error {
-    toasty_core::Error::driver_operation_failed(error)
+fn map_driver_error(error: anyhow::Error) -> toasty_core::Error {
+    let source = std::io::Error::other(error.to_string());
+    toasty_core::Error::driver_operation_failed(source)
 }
 
-fn map_local_error(error: GitDbDriverError) -> toasty_core::Error {
-    match error {
-        GitDbDriverError::UnsupportedValue(message) => {
-            toasty_core::Error::unsupported_feature(message)
-        }
-        GitDbDriverError::InvalidResult(message) => toasty_core::Error::invalid_result(message),
-    }
+fn map_local_error(error: anyhow::Error) -> toasty_core::Error {
+    toasty_core::Error::invalid_result(error.to_string())
 }
 
 fn quote_sql(value: &str) -> String {

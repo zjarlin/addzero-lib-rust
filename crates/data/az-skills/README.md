@@ -56,4 +56,4 @@ async fn main() -> anyhow::Result<()> {
 - `chrono` — 时间戳管理
 - `regex` — 技能名称验证
 - `uuid` — 唯一标识生成
-- `thiserror` / `anyhow` — 错误处理
+- `anyhow` — 错误返回与上下文

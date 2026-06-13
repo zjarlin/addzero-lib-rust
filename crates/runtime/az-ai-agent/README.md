@@ -25,7 +25,7 @@ az-ai-agent = { path = "../az-ai-agent" }       # workspace 内部引用
 
 ```rust
 use az_ai_agent::AssetAgentService;
-use az_assets::AssetKind;
+use az_assets::types::AssetKind;
 
 let service = AssetAgentService::new();
 
@@ -44,4 +44,4 @@ println!("关联边: {:?}", output.suggested_edges);
 - `az-assets` — 资产类型定义（AssetKind、PromptRunOutput 等）
 - `rig-core` — LLM 提供商集成（OpenAI / Anthropic / Gemini）
 - `serde` / `serde_json` — 序列化
-- `anyhow` / `thiserror` — 错误处理
+- `anyhow` — 错误返回与上下文

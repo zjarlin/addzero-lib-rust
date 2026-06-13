@@ -5,7 +5,6 @@
 
 automod::dir!("src/planner");
 
-pub use error::{PlanError, PlanResult};
 pub use logical::{JoinType, LogicalPlan};
 pub use optimizer::{OptimizationRule, Optimizer};
 pub use physical::{PhysicalOperator, PhysicalPlan};

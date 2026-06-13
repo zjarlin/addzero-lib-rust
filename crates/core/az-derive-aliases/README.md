@@ -24,9 +24,6 @@
 - **from_copy_eq_display** — 在 `from_copy_eq` 基础上增加 `Display`
 - **serde_eq_no_debug** — 带 serde + 相等 trait 但保留自定义 `Debug` 的类型
 - **serde_eq_redacted** — 带 serde + 相等 trait 的 redacted `Debug` 类型，适合 `derive_more::Debug` + `#[debug(skip)]`
-- **error** — 带 `thiserror` + `Debug` 的基础库错误类型
-- **error_eq** — 带 `thiserror` + 常用相等/调试 trait 的错误类型
-- **error_copy_eq** — 在 `error_eq` 基础上增加 `Copy`，适合只含小型复制字段的错误枚举
 - **impl_from_match!** — 用显式 pattern 映射快速生成 `From` 实现
 - **impl_enum_kind!** — 用显式 pattern 到 kind 表达式的映射快速生成 `const fn kind(&self)` 等判别方法
 - **impl_default!** — 用显式表达式快速生成 `Default` 实现，适合默认值不能直接 derive 的配置类型
@@ -125,7 +122,7 @@
 - **seaorm_relation** — SeaORM relation 常用的 `Copy` + `Clone` + `Debug` + `EnumIter` + `DeriveRelation`
 
 所有宏设计为配合 [`macro_rules_attribute::apply`](https://docs.rs/macro_rules_attribute) 使用，保持 `#[serde(...)]` 和 `#[strum(...)]` 等辅助属性对编译器和 IDE 可见。
-`impl_enum_kind!` 只收“配置枚举到 kind 枚举”的机械判别映射，调用方仍显式写出每个 match pattern 和目标 kind 表达式，不隐藏 provider factory、错误传播或业务构造逻辑。`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法；带 `Default` 的 code enum alias 还会生成 `from_code_or_default()`。需要把 canonical wire 值、外部协议数字、分组或优先级等元数据挂在 variant 上时，用 `serde_code_props_enum` 叠加 `strum::EnumProperty`，不要再额外维护一张手写 match 表。`serde_code*` 同时派生 `strum::Display`，所以需要拥有字符串 code 时可以直接调用 `to_string()`；如果展示名必须不同于 wire code，使用 `serde_code_display*` 并继续通过 `#[display(...)]` 标注展示值；如果还需要 variant 元数据，用 `serde_code_display_props_enum`，它级联复用 display alias，只额外叠加 `EnumProperty`。需要同时具备 `Default`、`Ord` 和自定义展示名时，用 `serde_code_default_ord_display*`。`serde_kebab_code*` 是同一套语义的 kebab-case code enum 变体；只需要普通 serde 数据类型时用 `serde_kebab_eq`，只需要 snake_case 且不能 `Eq` 的数据 enum 时用 `serde_code_partial_eq`，不带 serde 的场景则用 `plain_code_display_enum`。`plain_code_enum` 和 `plain_code_default_enum` 默认按 snake_case 编码；需要特殊编码时仍可在具体 variant 上用 `#[strum(serialize = ...)]` 覆盖；需要固定说明文案时用 `plain_code_display_message_no_default_enum`，通过 `#[strum(message = "...")]` 挂载描述。`serde_upper_eq` 用于必须保留大写 wire 值且不需要 code helpers 的 provider 状态。`serde_camel*`、`serialize_camel*` 和 `deserialize_camel*` 是薄包装，只在对应基础 alias 上叠加 `camelCase` wire 约定，适合外部 JSON 协议请求/响应。`plain_*`、`serde_*`、`from_*` 和 `error_*` 这几组 alias 现在都按“基础能力 + 可选 Display/Hash/Ord/Copy”分层组织，能级联的就复用更底层 alias，减少重复实现面；`*_string_value_object` 只面向单字段 `String` newtype，统一补 `AsRef<str>`、`as_str()` 和 `into_string()`，不承载业务校验；不带自定义展示名的 code enum 也可以继续级联，例如 `plain_code_default_enum` 基于 `plain_code_enum` 增加 `Default`。`clap_value_enum`、`clap_args_default_clone`、`serde_partial_eq_display` 和 SeaORM 的 `*_eq` 变体也只叠加各自新增能力，不再重复展开完整 derive 列表。内部 code enum alias 共享同一套 derive 片段，`strum` 负责 wire/code 字符串，`derive_more::Display` 只负责展示名，避免为 struct/enum 或业务语义继续拆出过多平行宏。
+`impl_enum_kind!` 只收“配置枚举到 kind 枚举”的机械判别映射，调用方仍显式写出每个 match pattern 和目标 kind 表达式，不隐藏 provider factory、错误传播或业务构造逻辑。`serde_code*_enum` 会级联复用对应的 `serde_code*` 基础 alias，只额外生成代码枚举常用的 `ALL`、`as_str()`、`code()` 和 `from_code()`，避免每个 enum 手写同一套样板方法；带 `Default` 的 code enum alias 还会生成 `from_code_or_default()`。需要把 canonical wire 值、外部协议数字、分组或优先级等元数据挂在 variant 上时，用 `serde_code_props_enum` 叠加 `strum::EnumProperty`，不要再额外维护一张手写 match 表。`serde_code*` 同时派生 `strum::Display`，所以需要拥有字符串 code 时可以直接调用 `to_string()`；如果展示名必须不同于 wire code，使用 `serde_code_display*` 并继续通过 `#[display(...)]` 标注展示值；如果还需要 variant 元数据，用 `serde_code_display_props_enum`，它级联复用 display alias，只额外叠加 `EnumProperty`。需要同时具备 `Default`、`Ord` 和自定义展示名时，用 `serde_code_default_ord_display*`。`serde_kebab_code*` 是同一套语义的 kebab-case code enum 变体；只需要普通 serde 数据类型时用 `serde_kebab_eq`，只需要 snake_case 且不能 `Eq` 的数据 enum 时用 `serde_code_partial_eq`，不带 serde 的场景则用 `plain_code_display_enum`。`plain_code_enum` 和 `plain_code_default_enum` 默认按 snake_case 编码；需要特殊编码时仍可在具体 variant 上用 `#[strum(serialize = ...)]` 覆盖；需要固定说明文案时用 `plain_code_display_message_no_default_enum`，通过 `#[strum(message = "...")]` 挂载描述。`serde_upper_eq` 用于必须保留大写 wire 值且不需要 code helpers 的 provider 状态。`serde_camel*`、`serialize_camel*` 和 `deserialize_camel*` 是薄包装，只在对应基础 alias 上叠加 `camelCase` wire 约定，适合外部 JSON 协议请求/响应。`plain_*`、`serde_*` 和 `from_*` 这几组 alias 现在都按“基础能力 + 可选 Display/Hash/Ord/Copy”分层组织，能级联的就复用更底层 alias，减少重复实现面；`*_string_value_object` 只面向单字段 `String` newtype，统一补 `AsRef<str>`、`as_str()` 和 `into_string()`，不承载业务校验；不带自定义展示名的 code enum 也可以继续级联，例如 `plain_code_default_enum` 基于 `plain_code_enum` 增加 `Default`。`clap_value_enum`、`clap_args_default_clone`、`serde_partial_eq_display` 和 SeaORM 的 `*_eq` 变体也只叠加各自新增能力，不再重复展开完整 derive 列表。内部 code enum alias 共享同一套 derive 片段，`strum` 负责 wire/code 字符串，`derive_more::Display` 只负责展示名，避免为 struct/enum 或业务语义继续拆出过多平行宏。
 
 ## 安装
 
@@ -139,7 +136,7 @@ az-derive-aliases = { path = "../az-derive-aliases" }       # workspace 内部�
 ```
 
 调用侧不需要直接依赖 `macro_rules_attribute`，可以使用本 crate 重新导出的 `apply`。
-使用某个 alias 时，调用侧仍应显式声明该 alias 实际派生到的 crates，例如 `serde`、`thiserror`、`strum` 或 `derive_more`。
+使用某个 alias 时，调用侧仍应显式声明该 alias 实际派生到的 crates，例如 `serde`、`strum` 或 `derive_more`。
 SeaORM 相关 alias 仍要求调用侧引入 `sea_orm::entity::prelude::*`，以便 `DeriveEntityModel`、`DeriveRelation` 和 `EnumIter` 在展开后保持可见。
 Clap 相关 alias 仍要求调用侧引入 `clap` 的 derive 入口，通常通过该 crate 自身的 `clap` 依赖即可满足；`clap_code_enum` 还需要 `strum`。
 
@@ -147,7 +144,7 @@ Clap 相关 alias 仍要求调用侧引入 `clap` 的 derive 入口，通常通�
 
 ```rust
 use az_derive_aliases::{
-    apply, deserialize_debug, deserialize_eq, error, error_eq, impl_default, impl_from_str_parse,
+    apply, deserialize_debug, deserialize_eq, impl_default, impl_from_str_parse,
     plain_copy_eq_hash, plain_eq_hash, serde_code, serde_code_default_enum, serde_code_ord,
     serde_eq, serialize_debug, serialize_eq,
 };
@@ -173,22 +170,15 @@ struct WriteCommand {
     name: String,
 }
 
-// 带 thiserror 的错误类型
-#[apply(error)]
-enum TransportError {
-    #[error("io failed: {0}")]
-    Io(#[from] std::io::Error),
-}
-
 struct PathExpr(String);
 
 impl PathExpr {
-    fn parse(value: &str) -> Result<Self, TransportError> {
+    fn parse(value: &str) -> anyhow::Result<Self> {
         Ok(Self(value.trim().to_owned()))
     }
 }
 
-impl_from_str_parse!(PathExpr => TransportError);
+impl_from_str_parse!(PathExpr => anyhow::Error);
 
 // 默认值不能 derive，但可以用显式表达式收掉 trait glue
 struct RetryPolicy {
@@ -196,11 +186,6 @@ struct RetryPolicy {
 }
 
 impl_default!(RetryPolicy => RetryPolicy { max_retries: 3 });
-
-// 带 thiserror 且需要相等比较的错误类型
-#[apply(error_eq)]
-#[error("invalid input: {0}")]
-struct MyError(String);
 
 // 带 serde 的数据类型
 #[apply(serde_eq)]
@@ -251,7 +236,6 @@ enum Priority {
 
 - `macro_rules_attribute` — 将宏作为 derive 属性应用到类型定义
 - `serde` — serde 相关 alias 的 derive 和辅助属性
-- `thiserror` — `error` / `error_eq`
 - `derive_more` — `from_eq` / `from_plain_eq` / `from_copy_eq` / `from_copy_eq_display` / `from_display` / `serde_eq_copy_display` / `serde_partial_eq_display` / `serde_code_display*` / `serde_code_ord_display*` / `serde_code_default_ord_display*` / `plain_code_display_no_default_enum` / `plain_code_display_message_no_default_enum` / `plain_code_display_enum` / `serde_eq_hash_display` / `serde_eq_hash_ord_display` / `serde_eq_hash_ord_display_as_ref` / `serde_string_value_object` / `plain_string_value_object` / `plain_clone_debug_display` / `plain_clone_redacted` / `plain_eq_redacted` / `serde_eq_redacted` / `plain_eq_display` / `plain_eq_hash_display` / `plain_eq_hash_ord_display` / `plain_partial_eq_display` / `plain_copy_eq_display` / `plain_copy_eq_hash_display` / `plain_copy_eq_hash_ord_display` / `plain_default_copy_eq_display`
 - `clap` — `clap_parser` / `clap_args` / `clap_subcommand` / `clap_value_enum` / `clap_code_enum`
 - `strum` — `serde_code*` / `serde_code*_enum` / `serde_kebab_code*` / `serde_code_display*` / `plain_code_enum` / `plain_code_display_enum` / `plain_code_display_message_no_default_enum`

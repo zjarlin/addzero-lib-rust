@@ -1,7 +1,8 @@
 use crate::fetcher::fetch_and_parse;
 use crate::selector::select_fastest_node;
 use crate::speedtest::batch_speed_test;
-use crate::types::{DEFAULT_SPEEDTEST_TIMEOUT, ProxyNode, ProxyResult};
+use crate::types::{DEFAULT_SPEEDTEST_TIMEOUT, ProxyNode};
+use anyhow::{Context, Result};
 use az_derive_aliases::{apply, serde_eq, serde_partial_eq};
 use serde_yaml::{Mapping, Number, Value};
 
@@ -76,10 +77,10 @@ pub struct ProxyGroup {
 /// # Errors
 ///
 /// 当生成的配置无法序列化为 YAML 时返回错误。
-pub fn generate_clash_config(node: &ProxyNode, mixed_port: u16) -> ProxyResult<String> {
+pub fn generate_clash_config(node: &ProxyNode, mixed_port: u16) -> Result<String> {
     let proxy = normalized_proxy_value(node);
     let config = ClashConfig::minimal(mixed_port, proxy, node.name.clone());
-    Ok(serde_yaml::to_string(&config)?)
+    serde_yaml::to_string(&config).context("serialize Clash config")
 }
 
 /// 获取订阅、解析节点、测速、选择最快节点，并返回 Clash YAML。
@@ -89,7 +90,7 @@ pub fn generate_clash_config(node: &ProxyNode, mixed_port: u16) -> ProxyResult<S
 /// # Errors
 ///
 /// 当获取/解析失败、所有测速都失败，或选中配置无法序列化时返回错误。
-pub async fn select_fastest(url: &str, concurrency: usize) -> ProxyResult<String> {
+pub async fn select_fastest(url: &str, concurrency: usize) -> Result<String> {
     let nodes = fetch_and_parse(url).await?;
     let results = batch_speed_test(&nodes, concurrency, DEFAULT_SPEEDTEST_TIMEOUT).await;
     let node = select_fastest_node(&nodes, &results)?;

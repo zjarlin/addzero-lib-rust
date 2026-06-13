@@ -37,7 +37,7 @@ use az_person_detection::logic_person_detection::model::{
     PersonDetectionModelKind, PersonDetectionOptions,
 };
 
-# fn main() -> az_person_detection::error::PersonDetectionResult<()> {
+# fn main() -> anyhow::Result<()> {
 let mut runner = PersonDetectionRunner::new(PersonDetectionOptions {
     model_path: "/absolute/path/to/coco_ssd_mobilenet_v1_10.onnx".into(),
     model_kind: PersonDetectionModelKind::CocoSsdMobileNetV1,

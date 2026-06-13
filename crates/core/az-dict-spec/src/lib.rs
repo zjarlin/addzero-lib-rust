@@ -17,7 +17,8 @@
 //! - 条目的 `code` 和原始值（`rawIntValue` / `rawTextValue`）不能重复
 //! - 整数型字典只能使用 `rawIntValue`，字符串型字典只能使用 `rawTextValue`
 
-use az_derive_aliases::{apply, error, plain_copy_eq, serde_camel_eq, serde_code_enum};
+use anyhow::{Result, bail};
+use az_derive_aliases::{apply, plain_copy_eq, serde_camel_eq, serde_code_enum};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
@@ -50,18 +51,18 @@ pub struct DictionarySpec {
 }
 
 impl DictionarySpec {
-    pub fn from_json_str(input: &str) -> Result<Self, DictSpecError> {
+    pub fn from_json_str(input: &str) -> Result<Self> {
         let spec = serde_json::from_str::<Self>(input)?;
         spec.validate()?;
         Ok(spec)
     }
 
-    pub fn to_pretty_json_string(&self) -> Result<String, DictSpecError> {
+    pub fn to_pretty_json_string(&self) -> Result<String> {
         self.validate()?;
         Ok(serde_json::to_string_pretty(self)?)
     }
 
-    pub fn validate(&self) -> Result<(), DictSpecError> {
+    pub fn validate(&self) -> Result<()> {
         ensure_non_empty("code", &self.code)?;
         ensure_non_empty("name", &self.name)?;
         ensure_non_empty("scope", &self.scope)?;
@@ -72,9 +73,7 @@ impl DictionarySpec {
             )?;
         }
         if self.items.is_empty() {
-            return Err(DictSpecError::Validation(
-                "items cannot be empty".to_string(),
-            ));
+            bail!("invalid dictionary spec: items cannot be empty");
         }
 
         let mut item_codes = BTreeSet::new();
@@ -84,27 +83,27 @@ impl DictionarySpec {
             item.validate(self.raw_value_kind)?;
             if !item_codes.insert(item.code.clone()) {
                 let message = format!("duplicate item code: {}", item.code);
-                let error = DictSpecError::Validation(message);
-                return Err(error);
+                bail!("invalid dictionary spec: {message}");
             }
             match self.raw_value_kind {
                 RawValueKind::Int => {
-                    let value = item.raw_int_value.expect("validated raw_int_value");
+                    let Some(value) = item.raw_int_value else {
+                        let message = format!("item {} must define rawIntValue", item.code);
+                        bail!("invalid dictionary spec: {message}");
+                    };
                     if !int_values.insert(value) {
                         let message = format!("duplicate rawIntValue: {value}");
-                        let error = DictSpecError::Validation(message);
-                        return Err(error);
+                        bail!("invalid dictionary spec: {message}");
                     }
                 }
                 RawValueKind::String => {
-                    let value = item
-                        .raw_text_value
-                        .as_deref()
-                        .expect("validated raw_text_value");
+                    let Some(value) = item.raw_text_value.as_deref() else {
+                        let message = format!("item {} must define rawTextValue", item.code);
+                        bail!("invalid dictionary spec: {message}");
+                    };
                     if !text_values.insert(value.to_string()) {
                         let message = format!("duplicate rawTextValue: {value}");
-                        let error = DictSpecError::Validation(message);
-                        return Err(error);
+                        bail!("invalid dictionary spec: {message}");
                     }
                 }
             }
@@ -136,22 +135,20 @@ pub struct DictionaryItemSpec {
 }
 
 impl DictionaryItemSpec {
-    pub fn validate(&self, raw_value_kind: RawValueKind) -> Result<(), DictSpecError> {
+    pub fn validate(&self, raw_value_kind: RawValueKind) -> Result<()> {
         ensure_non_empty("item.code", &self.code)?;
         ensure_non_empty("item.label", &self.label)?;
         match raw_value_kind {
             RawValueKind::Int => {
                 if self.raw_int_value.is_none() || self.raw_text_value.is_some() {
                     let message = format!("item {} must define rawIntValue only", self.code);
-                    let error = DictSpecError::Validation(message);
-                    return Err(error);
+                    bail!("invalid dictionary spec: {message}");
                 }
             }
             RawValueKind::String => {
                 if self.raw_int_value.is_some() || self.raw_text_value.is_none() {
                     let message = format!("item {} must define rawTextValue only", self.code);
-                    let error = DictSpecError::Validation(message);
-                    return Err(error);
+                    bail!("invalid dictionary spec: {message}");
                 }
                 ensure_non_empty(
                     "item.rawTextValue",
@@ -173,23 +170,14 @@ pub enum RawValueKind {
     String,
 }
 
-#[apply(error)]
-pub enum DictSpecError {
-    #[error("invalid dictionary spec: {0}")]
-    Validation(String),
-    #[error("invalid dictionary spec json: {0}")]
-    Json(#[from] serde_json::Error),
-}
-
 fn default_true() -> bool {
     true
 }
 
-fn ensure_non_empty(field: &str, value: &str) -> Result<(), DictSpecError> {
+fn ensure_non_empty(field: &str, value: &str) -> Result<()> {
     if value.trim().is_empty() {
         let message = format!("{field} cannot be empty");
-        let error = DictSpecError::Validation(message);
-        return Err(error);
+        bail!("invalid dictionary spec: {message}");
     }
     Ok(())
 }

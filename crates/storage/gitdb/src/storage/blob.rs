@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use az_derive_aliases::{apply, plain_clone_debug, plain_eq, serde_partial_eq};
 use serde_json::Value;
 
-use crate::storage::error::{StorageError, StorageResult};
+use crate::storage::error;
 pub(crate) use crate::storage::types::{BlobId, RowKey};
 
 /// 带元数据的数据库行。
@@ -55,13 +55,14 @@ impl Row {
     }
 
     /// 从 JSON 对象创建新行，通常用于 `INSERT`。
-    pub fn from_value(key: RowKey, value: Value) -> StorageResult<Self> {
+    pub fn from_value(key: RowKey, value: Value) -> anyhow::Result<Self> {
         let data = match value {
             Value::Object(map) => map.into_iter().collect(),
             _ => {
-                return Err(StorageError::SchemaViolation(
-                    "row data must be a JSON object".to_string(),
-                ));
+                let message = "row data must be a JSON object".to_string();
+                let error = error::schema_violation(message);
+
+                return Err(error);
             }
         };
         Ok(Self::new(key, data))
@@ -120,7 +121,7 @@ struct RowJson {
 /// 将行序列化为 JSON 字节。
 ///
 /// 用户列使用 `BTreeMap` 保持稳定排序，便于 Git 复用相同内容。
-pub fn serialize_row(row: &Row) -> StorageResult<Vec<u8>> {
+pub fn serialize_row(row: &Row) -> anyhow::Result<Vec<u8>> {
     let json = RowJson {
         pk: row.key.to_string(),
         version: row.version,
@@ -136,18 +137,19 @@ pub fn serialize_row(row: &Row) -> StorageResult<Vec<u8>> {
 /// 从 JSON 字节反序列化行。
 ///
 /// 反序列化时会校验 JSON 内 `_pk` 是否与文件名推导出的行键一致。
-pub fn deserialize_row(bytes: &[u8], expected_key: &RowKey) -> StorageResult<Row> {
+pub fn deserialize_row(bytes: &[u8], expected_key: &RowKey) -> anyhow::Result<Row> {
     let json: RowJson = serde_json::from_slice(bytes)?;
 
     // Validate primary key consistency
     if json.pk != expected_key.as_str() {
-        return Err(StorageError::CorruptedData {
-            path: format!("{}.json", expected_key).into(),
-            reason: format!(
-                "primary key mismatch: file name suggests '{}' but content has '{}'",
-                expected_key, json.pk
-            ),
-        });
+        let path = format!("{}.json", expected_key);
+        let reason = format!(
+            "primary key mismatch: file name suggests '{}' but content has '{}'",
+            expected_key, json.pk
+        );
+        let error = error::corrupted_data(path.as_ref(), reason);
+
+        return Err(error);
     }
 
     Ok(Row {
@@ -162,14 +164,14 @@ pub fn deserialize_row(bytes: &[u8], expected_key: &RowKey) -> StorageResult<Row
 /// 将行写入 Git blob。
 ///
 /// 返回值是内容对应的 Git blob ID。
-pub fn write_blob(repo: &git2::Repository, row: &Row) -> StorageResult<BlobId> {
+pub fn write_blob(repo: &git2::Repository, row: &Row) -> anyhow::Result<BlobId> {
     let bytes = serialize_row(row)?;
     let oid = repo.blob(&bytes)?;
     Ok(BlobId::new(oid))
 }
 
 /// 从仓库读取 blob 内容。
-pub fn read_blob(repo: &git2::Repository, blob_id: BlobId) -> StorageResult<Vec<u8>> {
+pub fn read_blob(repo: &git2::Repository, blob_id: BlobId) -> anyhow::Result<Vec<u8>> {
     let blob = repo.find_blob(blob_id.raw())?;
     Ok(blob.content().to_vec())
 }
@@ -267,6 +269,9 @@ mod tests {
 
         let result = deserialize_row(&bytes, &wrong_key);
         assert!(result.is_err());
-        assert!(matches!(result, Err(StorageError::CorruptedData { .. })));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .starts_with("corrupted data at"));
     }
 }

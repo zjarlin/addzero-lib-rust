@@ -1,11 +1,11 @@
-use rimmer::{
-    CollectionFetchOptions, JimmerClient, ManyToManyJoin, QueryBuilderExt, SqlDialect,
-    SqlxJimmerClient,
-};
+use rimmer::dialect::SqlDialect;
+use rimmer::executor::SqlxJimmerClient;
+use rimmer::fetcher::{CollectionFetchOptions, ManyToManyJoin};
+use rimmer::query::{JimmerClient, QueryBuilderExt};
 use serde_json::json;
 use sqlx::any::AnyPoolOptions;
 
-#[derive(rimmer::Entity)]
+#[derive(rimmer::derive::Entity)]
 #[rimmer(table = "BOOK_STORE")]
 pub struct BookStore {
     #[rimmer(id, column = "ID")]
@@ -16,7 +16,7 @@ pub struct BookStore {
     pub website: Option<String>,
 }
 
-#[derive(rimmer::Entity)]
+#[derive(rimmer::derive::Entity)]
 #[rimmer(table = "BOOK")]
 pub struct Book {
     #[rimmer(id, column = "ID")]
@@ -29,7 +29,7 @@ pub struct Book {
     pub store_id: Option<i64>,
 }
 
-#[derive(rimmer::Entity)]
+#[derive(rimmer::derive::Entity)]
 #[rimmer(table = "AUTHOR")]
 pub struct Author {
     #[rimmer(id, column = "ID")]
@@ -370,7 +370,7 @@ async fn sqlx_client_should_execute_save_command() {
 
     let execution = client
         .save(draft)
-        .set_mode(rimmer::SaveMode::UpdateOnly)
+        .set_mode(rimmer::save::SaveMode::UpdateOnly)
         .execute()
         .await
         .unwrap();
@@ -415,7 +415,7 @@ async fn save_plan_should_execute_without_client_wrapper() {
     });
     let plan = JimmerClient::new()
         .save(draft)
-        .set_mode(rimmer::SaveMode::InsertOnly)
+        .set_mode(rimmer::save::SaveMode::InsertOnly)
         .build()
         .unwrap();
 
@@ -495,7 +495,7 @@ async fn seed_book_store(pool: &sqlx::AnyPool) {
     });
     JimmerClient::new()
         .save(draft)
-        .set_mode(rimmer::SaveMode::InsertOnly)
+        .set_mode(rimmer::save::SaveMode::InsertOnly)
         .build()
         .unwrap()
         .execute(pool)
@@ -534,7 +534,7 @@ async fn insert_book(pool: &sqlx::AnyPool, id: i64, name: &str, edition: i32, st
     });
     JimmerClient::new()
         .save(draft)
-        .set_mode(rimmer::SaveMode::InsertOnly)
+        .set_mode(rimmer::save::SaveMode::InsertOnly)
         .build()
         .unwrap()
         .execute(pool)
@@ -551,7 +551,7 @@ async fn insert_author(pool: &sqlx::AnyPool, id: i64, first_name: &str, last_nam
     });
     JimmerClient::new()
         .save(draft)
-        .set_mode(rimmer::SaveMode::InsertOnly)
+        .set_mode(rimmer::save::SaveMode::InsertOnly)
         .build()
         .unwrap()
         .execute(pool)

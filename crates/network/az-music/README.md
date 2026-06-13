@@ -17,8 +17,8 @@ az-music = { path = "/absolute/path/to/addzero-lib-rust/crates/music/az-music" }
 
 ## Basic Usage
 
-```rust
-use az_music::{Music, SunoMusicRequest};
+```no_run
+use az_music::api::{Music, SunoMusicRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let netease = Music::netease()?;

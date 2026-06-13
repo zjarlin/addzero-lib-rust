@@ -2,9 +2,8 @@
 
 use std::env;
 
-use az_config_center_client::ConfigCenterClient;
-
-use crate::error::{LowcodeError, LowcodeResult};
+use anyhow::{Result, bail};
+use az_config_center_client::client::ConfigCenterClient;
 
 pub const LOWCODE_CONFIG_NAMESPACE: &str = "az-aio.dev";
 pub const DATABASE_URL_CONFIG_KEY: &str = "lowcode.database_url";
@@ -12,6 +11,8 @@ pub const DATABASE_URL_ENV: &str = "AZ_AIO_LOWCODE_DATABASE_URL";
 pub const CONFIG_CENTER_BASE_URL_ENV: &str = "AZ_CONFIG_CENTER_BASE_URL";
 pub const CONFIG_CENTER_USERNAME_ENV: &str = "AZ_CONFIG_CENTER_USERNAME";
 pub const CONFIG_CENTER_PASSWORD_ENV: &str = "AZ_CONFIG_CENTER_PASSWORD";
+pub const MISSING_DATABASE_URL_MESSAGE: &str =
+    "missing lowcode database url in config center namespace az-aio.dev key lowcode.database_url";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LowcodeConfig {
@@ -25,19 +26,20 @@ pub enum LowcodeConfigSource {
     Environment,
 }
 
-pub fn resolve_lowcode_config() -> LowcodeResult<LowcodeConfig> {
+pub fn resolve_lowcode_config() -> Result<LowcodeConfig> {
     if let Some(config) = read_config_center_database_url()? {
         return Ok(config);
     }
-    env_database_url()
-        .map(|database_url| LowcodeConfig {
+    let Some(database_url) = env_database_url() else {
+        bail!(MISSING_DATABASE_URL_MESSAGE);
+    };
+    Ok(LowcodeConfig {
             database_url,
             source: LowcodeConfigSource::Environment,
-        })
-        .ok_or(LowcodeError::MissingDatabaseUrl)
+    })
 }
 
-fn read_config_center_database_url() -> LowcodeResult<Option<LowcodeConfig>> {
+fn read_config_center_database_url() -> Result<Option<LowcodeConfig>> {
     let Some(base_url) = env_value(CONFIG_CENTER_BASE_URL_ENV) else {
         return Ok(None);
     };

@@ -4,12 +4,13 @@ use sqlx::{AnyPool, Column, Row};
 
 use crate::dialect::SqlDialect;
 use crate::draft::Draft;
-use crate::error::{OrmError, OrmResult};
 use crate::expression::{IntoPredicate, Order};
-use crate::metadata::Table;
+use crate::fetcher::{CollectionFetchOptions, FetchRelation, FetchShape};
+use crate::metadata::{FieldKind, Table};
 use crate::query::{QueryBuilder, QueryBuilderExt, QueryPlan, Selection, child_column_alias};
 use crate::save::{SaveCommand, SaveMode, SavePlan};
 use crate::value::ScalarValue;
+use anyhow::{Context, anyhow, bail};
 
 /// 持有 sqlx 连接池的 Jimmer 风格客户端。
 #[derive(Clone, Debug)]
@@ -20,14 +21,14 @@ pub struct SqlxJimmerClient {
 
 impl SqlxJimmerClient {
     /// 使用数据库 URL 创建客户端。
-    pub async fn connect(database_url: &str) -> OrmResult<Self> {
+    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         install_default_drivers();
         let dialect = SqlDialect::from_database_url(database_url)?;
         let pool = AnyPoolOptions::new()
             .max_connections(5)
             .connect(database_url)
             .await
-            .map_err(database_error)?;
+            .with_context(|| format!("database execution failed: connect `{database_url}`"))?;
         Ok(Self { pool, dialect })
     }
 
@@ -113,12 +114,12 @@ impl<E> SqlxQueryBuilder<E> {
     }
 
     /// 构建 SQL plan。
-    pub fn build(self) -> OrmResult<QueryPlan> {
+    pub fn build(self) -> anyhow::Result<QueryPlan> {
         self.inner.build()
     }
 
     /// 执行查询并返回 JSON 行。
-    pub async fn execute_json(self) -> OrmResult<JsonQueryResult> {
+    pub async fn execute_json(self) -> anyhow::Result<JsonQueryResult> {
         let plan = self.inner.build()?;
         execute_query_plan_json(&self.pool, self.dialect, plan).await
     }
@@ -148,12 +149,12 @@ impl<E> SqlxSaveCommand<E> {
     }
 
     /// 构建 SQL plan。
-    pub fn build(self) -> OrmResult<SavePlan> {
+    pub fn build(self) -> anyhow::Result<SavePlan> {
         self.inner.build()
     }
 
     /// 执行保存命令。
-    pub async fn execute(self) -> OrmResult<SaveExecution> {
+    pub async fn execute(self) -> anyhow::Result<SaveExecution> {
         let plan = self.inner.build()?;
         execute_save_plan(&self.pool, self.dialect, plan).await
     }
@@ -163,7 +164,7 @@ impl<E> SqlxSaveCommand<E> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JsonQueryResult {
     /// 查询使用的 Fetcher 形状。
-    pub fetch_shape: Option<crate::FetchShape>,
+    pub fetch_shape: Option<FetchShape>,
     /// 查询返回的 JSON 行。
     pub rows: Vec<Value>,
 }
@@ -179,7 +180,7 @@ pub struct SaveExecution {
 
 impl QueryPlan {
     /// 使用 sqlx AnyPool 执行查询并返回 JSON 行。
-    pub async fn execute_json(self, pool: &AnyPool) -> OrmResult<JsonQueryResult> {
+    pub async fn execute_json(self, pool: &AnyPool) -> anyhow::Result<JsonQueryResult> {
         execute_query_plan_json(pool, SqlDialect::Sqlite, self).await
     }
 
@@ -188,14 +189,14 @@ impl QueryPlan {
         self,
         pool: &AnyPool,
         dialect: SqlDialect,
-    ) -> OrmResult<JsonQueryResult> {
+    ) -> anyhow::Result<JsonQueryResult> {
         execute_query_plan_json(pool, dialect, self).await
     }
 }
 
 impl SavePlan {
     /// 使用 sqlx AnyPool 执行保存命令。
-    pub async fn execute(self, pool: &AnyPool) -> OrmResult<SaveExecution> {
+    pub async fn execute(self, pool: &AnyPool) -> anyhow::Result<SaveExecution> {
         execute_save_plan(pool, SqlDialect::Sqlite, self).await
     }
 
@@ -204,7 +205,7 @@ impl SavePlan {
         self,
         pool: &AnyPool,
         dialect: SqlDialect,
-    ) -> OrmResult<SaveExecution> {
+    ) -> anyhow::Result<SaveExecution> {
         execute_save_plan(pool, dialect, self).await
     }
 }
@@ -213,13 +214,16 @@ async fn execute_query_plan_json(
     pool: &AnyPool,
     dialect: SqlDialect,
     plan: QueryPlan,
-) -> OrmResult<JsonQueryResult> {
+) -> anyhow::Result<JsonQueryResult> {
     let sql = dialect.render_sql(&plan.sql);
     let mut query = sqlx::query(&sql);
     for param in &plan.params {
         query = bind_scalar(query, param);
     }
-    let rows = query.fetch_all(pool).await.map_err(database_error)?;
+    let rows = query
+        .fetch_all(pool)
+        .await
+        .context("database execution failed: query fetch_all")?;
     let mut values = Vec::with_capacity(rows.len());
     for row in rows {
         let value = match plan.fetch_shape.as_ref() {
@@ -241,7 +245,7 @@ async fn execute_save_plan(
     pool: &AnyPool,
     dialect: SqlDialect,
     plan: SavePlan,
-) -> OrmResult<SaveExecution> {
+) -> anyhow::Result<SaveExecution> {
     let root_mode = plan.mode;
     let mut rows_affected = 0;
     let mut stack = vec![plan];
@@ -260,13 +264,16 @@ async fn execute_single_save_plan(
     pool: &AnyPool,
     dialect: SqlDialect,
     plan: &SavePlan,
-) -> OrmResult<u64> {
+) -> anyhow::Result<u64> {
     let sql = dialect.render_sql(&plan.sql);
     let mut query = sqlx::query(&sql);
     for param in &plan.params {
         query = bind_scalar(query, param);
     }
-    let result = query.execute(pool).await.map_err(database_error)?;
+    let result = query
+        .execute(pool)
+        .await
+        .context("database execution failed: save execute")?;
     Ok(result.rows_affected())
 }
 
@@ -284,7 +291,7 @@ fn bind_scalar<'q>(
     }
 }
 
-fn row_to_json(row: &AnyRow) -> OrmResult<Value> {
+fn row_to_json(row: &AnyRow) -> anyhow::Result<Value> {
     let mut object = Map::new();
     for (index, column) in row.columns().iter().enumerate() {
         let value = decode_cell(row, index)?;
@@ -293,7 +300,7 @@ fn row_to_json(row: &AnyRow) -> OrmResult<Value> {
     Ok(Value::Object(object))
 }
 
-fn row_to_nested_json(row: &AnyRow, shape: &crate::FetchShape) -> OrmResult<Value> {
+fn row_to_nested_json(row: &AnyRow, shape: &FetchShape) -> anyhow::Result<Value> {
     let mut object = Map::new();
     for column in row.columns() {
         if let Some(column_name) = column.name().strip_prefix("__rimmer__root__") {
@@ -307,7 +314,7 @@ fn row_to_nested_json(row: &AnyRow, shape: &crate::FetchShape) -> OrmResult<Valu
         };
         if matches!(
             relation.kind(),
-            crate::FieldKind::OneToMany | crate::FieldKind::ManyToMany
+            FieldKind::OneToMany | FieldKind::ManyToMany
         ) {
             object.insert(field.name().to_string(), Value::Array(Vec::new()));
             continue;
@@ -339,9 +346,9 @@ fn row_to_nested_json(row: &AnyRow, shape: &crate::FetchShape) -> OrmResult<Valu
 async fn load_collection_relations(
     pool: &AnyPool,
     dialect: SqlDialect,
-    shape: &crate::FetchShape,
+    shape: &FetchShape,
     parents: &mut [Value],
-) -> OrmResult<()> {
+) -> anyhow::Result<()> {
     for field in shape.fields() {
         let Some(relation) = field.relation() else {
             continue;
@@ -350,7 +357,7 @@ async fn load_collection_relations(
             continue;
         };
         match relation.kind() {
-            crate::FieldKind::OneToMany => {
+            FieldKind::OneToMany => {
                 load_one_to_many_relation(
                     pool,
                     dialect,
@@ -362,7 +369,7 @@ async fn load_collection_relations(
                 )
                 .await?;
             }
-            crate::FieldKind::ManyToMany => {
+            FieldKind::ManyToMany => {
                 load_many_to_many_relation(
                     pool,
                     dialect,
@@ -384,11 +391,11 @@ async fn load_one_to_many_relation(
     pool: &AnyPool,
     dialect: SqlDialect,
     field_name: &str,
-    relation: &crate::FetchRelation,
-    child_shape: &crate::FetchShape,
-    options: &crate::CollectionFetchOptions,
+    relation: &FetchRelation,
+    child_shape: &FetchShape,
+    options: &CollectionFetchOptions,
     parents: &mut [Value],
-) -> OrmResult<()> {
+) -> anyhow::Result<()> {
     let parent_ids = collect_parent_ids(parents, relation.source_column());
     if parent_ids.is_empty() {
         for parent in parents {
@@ -407,7 +414,10 @@ async fn load_one_to_many_relation(
     for param in &collection_sql.params {
         query = bind_scalar(query, param);
     }
-    let rows = query.fetch_all(pool).await.map_err(database_error)?;
+    let rows = query
+        .fetch_all(pool)
+        .await
+        .context("database execution failed: one-to-many fetch_all")?;
     let grouped = group_child_rows(field_name, child_shape, rows)?;
 
     for parent in parents {
@@ -426,11 +436,11 @@ async fn load_many_to_many_relation(
     pool: &AnyPool,
     dialect: SqlDialect,
     field_name: &str,
-    relation: &crate::FetchRelation,
-    child_shape: &crate::FetchShape,
-    options: &crate::CollectionFetchOptions,
+    relation: &FetchRelation,
+    child_shape: &FetchShape,
+    options: &CollectionFetchOptions,
     parents: &mut [Value],
-) -> OrmResult<()> {
+) -> anyhow::Result<()> {
     let parent_ids = collect_parent_ids(parents, relation.source_column());
     if parent_ids.is_empty() {
         for parent in parents {
@@ -449,7 +459,10 @@ async fn load_many_to_many_relation(
     for param in &collection_sql.params {
         query = bind_scalar(query, param);
     }
-    let rows = query.fetch_all(pool).await.map_err(database_error)?;
+    let rows = query
+        .fetch_all(pool)
+        .await
+        .context("database execution failed: many-to-many fetch_all")?;
     let grouped = group_child_rows(field_name, child_shape, rows)?;
 
     for parent in parents {
@@ -481,9 +494,9 @@ fn collect_parent_ids(parents: &[Value], source_column: &str) -> Vec<ScalarValue
 
 fn build_one_to_many_sql(
     field_name: &str,
-    relation: &crate::FetchRelation,
-    child_shape: &crate::FetchShape,
-    options: &crate::CollectionFetchOptions,
+    relation: &FetchRelation,
+    child_shape: &FetchShape,
+    options: &CollectionFetchOptions,
     parent_count: usize,
 ) -> CollectionSql {
     let parent_column = quoted_column(relation.target_table(), relation.target_column());
@@ -532,7 +545,7 @@ struct CollectionSelectInput<'a> {
     where_parts: Vec<String>,
     parent_column: String,
     fallback_order: Option<String>,
-    options: &'a crate::CollectionFetchOptions,
+    options: &'a CollectionFetchOptions,
     params: Vec<ScalarValue>,
 }
 
@@ -600,7 +613,7 @@ fn build_collection_select(input: CollectionSelectInput<'_>) -> CollectionSql {
 }
 
 fn push_filter(
-    options: &crate::CollectionFetchOptions,
+    options: &CollectionFetchOptions,
     where_parts: &mut Vec<String>,
     params: &mut Vec<ScalarValue>,
 ) {
@@ -611,13 +624,13 @@ fn push_filter(
 }
 
 fn collection_order_parts(
-    options: &crate::CollectionFetchOptions,
+    options: &CollectionFetchOptions,
     fallback_order: Option<String>,
 ) -> Vec<String> {
     let mut parts = options
         .orders()
         .iter()
-        .map(crate::Order::to_sql)
+        .map(Order::to_sql)
         .collect::<Vec<_>>();
     if parts.is_empty()
         && let Some(fallback_order) = fallback_order
@@ -627,7 +640,7 @@ fn collection_order_parts(
     parts
 }
 
-fn row_window_conditions(options: &crate::CollectionFetchOptions, row_alias: &str) -> Vec<String> {
+fn row_window_conditions(options: &CollectionFetchOptions, row_alias: &str) -> Vec<String> {
     let row_ref = crate::expression::quote_identifier(row_alias);
     let offset = options.offset_value().unwrap_or(0);
     let mut conditions = Vec::new();
@@ -646,15 +659,15 @@ fn row_number_alias(field_name: &str) -> String {
 
 fn build_many_to_many_sql(
     field_name: &str,
-    relation: &crate::FetchRelation,
-    child_shape: &crate::FetchShape,
-    options: &crate::CollectionFetchOptions,
+    relation: &FetchRelation,
+    child_shape: &FetchShape,
+    options: &CollectionFetchOptions,
     parent_count: usize,
-) -> OrmResult<CollectionSql> {
+) -> anyhow::Result<CollectionSql> {
     let join_table = relation
         .join_table()
-        .ok_or_else(|| OrmError::InvalidFetcherRelation {
-            message: format!("many-to-many relation '{field_name}' requires join table metadata"),
+        .ok_or_else(|| {
+            anyhow!("invalid fetcher relation: many-to-many relation '{field_name}' requires join table metadata")
         })?;
     let join_alias = many_to_many_join_alias(field_name);
     let parent_column = qualified_column(&join_alias, join_table.source_column());
@@ -702,9 +715,9 @@ fn build_many_to_many_sql(
 
 fn group_child_rows(
     field_name: &str,
-    child_shape: &crate::FetchShape,
+    child_shape: &FetchShape,
     rows: Vec<AnyRow>,
-) -> OrmResult<std::collections::BTreeMap<String, Vec<Value>>> {
+) -> anyhow::Result<std::collections::BTreeMap<String, Vec<Value>>> {
     let mut grouped = std::collections::BTreeMap::<String, Vec<Value>>::new();
     let parent_alias = parent_alias(field_name);
     for row in rows {
@@ -718,9 +731,9 @@ fn group_child_rows(
 
 fn child_row_to_json(
     field_name: &str,
-    child_shape: &crate::FetchShape,
+    child_shape: &FetchShape,
     row: &AnyRow,
-) -> OrmResult<Value> {
+) -> anyhow::Result<Value> {
     let mut object = Map::new();
     for child_field in child_shape.fields() {
         if child_field.visible()
@@ -734,7 +747,7 @@ fn child_row_to_json(
     Ok(Value::Object(object))
 }
 
-fn shape_has_relation(shape: &crate::FetchShape) -> bool {
+fn shape_has_relation(shape: &FetchShape) -> bool {
     shape
         .fields()
         .iter()
@@ -793,7 +806,7 @@ fn many_to_many_join_alias(field_name: &str) -> String {
     format!("__rimmer_m2m_join__{field_name}")
 }
 
-fn decode_cell(row: &AnyRow, index: usize) -> OrmResult<Value> {
+fn decode_cell(row: &AnyRow, index: usize) -> anyhow::Result<Value> {
     if let Ok(value) = row.try_get::<Option<i64>, _>(index) {
         return Ok(value.map_or(Value::Null, |value| Value::Number(value.into())));
     }
@@ -806,12 +819,12 @@ fn decode_cell(row: &AnyRow, index: usize) -> OrmResult<Value> {
     if let Ok(value) = row.try_get::<Option<String>, _>(index) {
         return Ok(value.map_or(Value::Null, Value::String));
     }
-    Err(OrmError::RowDecode {
-        message: format!("unsupported sqlx Any value at column index {index}"),
-    })
+    bail!(
+        "database row decode failed: unsupported sqlx Any value at column index {index}"
+    )
 }
 
-fn decode_cell_by_name(row: &AnyRow, name: &str) -> OrmResult<Value> {
+fn decode_cell_by_name(row: &AnyRow, name: &str) -> anyhow::Result<Value> {
     if let Ok(value) = row.try_get::<Option<i64>, _>(name) {
         return Ok(value.map_or(Value::Null, |value| Value::Number(value.into())));
     }
@@ -824,17 +837,11 @@ fn decode_cell_by_name(row: &AnyRow, name: &str) -> OrmResult<Value> {
     if let Ok(value) = row.try_get::<Option<String>, _>(name) {
         return Ok(value.map_or(Value::Null, Value::String));
     }
-    Err(OrmError::RowDecode {
-        message: format!("unsupported sqlx Any value at column '{name}'"),
-    })
+    bail!(
+        "database row decode failed: unsupported sqlx Any value at column '{name}'"
+    )
 }
 
 fn number_to_json(value: f64) -> Value {
     Number::from_f64(value).map_or(Value::Null, Value::Number)
-}
-
-fn database_error(source: sqlx::Error) -> OrmError {
-    OrmError::Database {
-        message: source.to_string(),
-    }
 }

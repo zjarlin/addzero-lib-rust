@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
+use anyhow::{anyhow, bail};
 use shaku::{Component, Interface, module};
 use toasty::stmt::{List, Query};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    error::{SoftwareCenterError, SoftwareCenterResult},
     model::{SoftwarePackageRecord, SoftwarePackageSummary, TABLE_NAME_PREFIX},
 };
 
@@ -16,7 +16,7 @@ pub struct SoftwareCenterStore {
 }
 
 impl SoftwareCenterStore {
-    pub async fn connect(database_url: &str) -> SoftwareCenterResult<Self> {
+    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         let database_url = validate_database_url(Some(database_url))?;
         let db = toasty::Db::builder()
             .models(toasty::models!(SoftwarePackageRecord))
@@ -29,7 +29,7 @@ impl SoftwareCenterStore {
         })
     }
 
-    pub async fn list_packages(&self) -> SoftwareCenterResult<Vec<SoftwarePackageSummary>> {
+    pub async fn list_packages(&self) -> anyhow::Result<Vec<SoftwarePackageSummary>> {
         let mut db = self.db.lock().await;
         let records = Query::<List<SoftwarePackageRecord>>::all().exec(&mut *db).await?;
         Ok(records.into_iter().map(Into::into).collect())
@@ -38,7 +38,7 @@ impl SoftwareCenterStore {
     pub async fn upsert_package(
         &self,
         input: SoftwarePackageInput,
-    ) -> SoftwareCenterResult<SoftwarePackageSummary> {
+    ) -> anyhow::Result<SoftwarePackageSummary> {
         validate_software_package_input(&input)?;
         let id = normalized_id(input.id);
         let now = timestamp_string();
@@ -124,22 +124,22 @@ pub fn build_software_center_module() -> SoftwareCenterModule {
     SoftwareCenterModule::builder().build()
 }
 
-pub fn validate_database_url(value: Option<&str>) -> SoftwareCenterResult<&str> {
+pub fn validate_database_url(value: Option<&str>) -> anyhow::Result<&str> {
     let value = value
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or(SoftwareCenterError::MissingDatabaseUrl)?;
+        .ok_or_else(|| anyhow!("missing software-center database url"))?;
     Ok(value)
 }
 
 pub fn validate_software_package_input(
     input: &SoftwarePackageInput,
-) -> SoftwareCenterResult<()> {
+) -> anyhow::Result<()> {
     if input.name.trim().is_empty() {
-        return Err(SoftwareCenterError::BlankPackageName);
+        bail!("software package name must not be blank");
     }
     if input.source_path.trim().is_empty() {
-        return Err(SoftwareCenterError::BlankSourcePath);
+        bail!("software package source path must not be blank");
     }
     Ok(())
 }
@@ -171,10 +171,8 @@ mod tests {
             validate_database_url(Some(" postgresql://localhost/software ")).unwrap(),
             "postgresql://localhost/software"
         );
-        assert!(matches!(
-            validate_database_url(None),
-            Err(SoftwareCenterError::MissingDatabaseUrl)
-        ));
+        let error = validate_database_url(None).unwrap_err();
+        assert_eq!(error.to_string(), "missing software-center database url");
     }
 
     #[test]
@@ -187,10 +185,8 @@ mod tests {
             arch: "arm64".to_string(),
             status: None,
         };
-        assert!(matches!(
-            validate_software_package_input(&input),
-            Err(SoftwareCenterError::BlankPackageName)
-        ));
+        let error = validate_software_package_input(&input).unwrap_err();
+        assert_eq!(error.to_string(), "software package name must not be blank");
     }
 
     #[test]

@@ -10,10 +10,9 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::{LowcodeConfig, LowcodeConfigSource},
-    error::{LowcodeError, LowcodeResult},
+    config::{LowcodeConfig, LowcodeConfigSource, MISSING_DATABASE_URL_MESSAGE},
     model::{LowcodeAppSummary, LowcodePageSummary},
-    store::{LowcodeAppInput, LowcodePageInput, LowcodeStore},
+    store::{INVALID_APP_ID_MESSAGE, INVALID_PAGE_ID_MESSAGE, LowcodeAppInput, LowcodePageInput, LowcodeStore},
 };
 
 #[derive(Clone)]
@@ -27,7 +26,7 @@ impl LowcodeApiState {
         Self { store, config }
     }
 
-    pub async fn connect(config: LowcodeConfig) -> LowcodeResult<Self> {
+    pub async fn connect(config: LowcodeConfig) -> anyhow::Result<Self> {
         let store = LowcodeStore::connect(&config.database_url).await?;
         Ok(Self::new(store, config))
     }
@@ -59,20 +58,20 @@ async fn status_handler(State(state): State<LowcodeApiState>) -> Json<LowcodeSta
 
 async fn list_apps_handler(
     State(state): State<LowcodeApiState>,
-) -> Result<Json<ApiResponse<Vec<LowcodeAppSummary>>>, LowcodeApiError> {
+) -> Result<Json<ApiResponse<Vec<LowcodeAppSummary>>>, Response> {
     state
         .store
         .list_apps()
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(lowcode_error_response)
 }
 
 async fn upsert_app_handler(
     State(state): State<LowcodeApiState>,
     Json(request): Json<UpsertLowcodeAppRequest>,
-) -> Result<Json<ApiResponse<LowcodeAppSummary>>, LowcodeApiError> {
+) -> Result<Json<ApiResponse<LowcodeAppSummary>>, Response> {
     let input = LowcodeAppInput {
         id: request.id,
         slug: request.slug,
@@ -86,26 +85,26 @@ async fn upsert_app_handler(
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(lowcode_error_response)
 }
 
 async fn list_pages_handler(
     State(state): State<LowcodeApiState>,
     Query(query): Query<ListPagesQuery>,
-) -> Result<Json<ApiResponse<Vec<LowcodePageSummary>>>, LowcodeApiError> {
+) -> Result<Json<ApiResponse<Vec<LowcodePageSummary>>>, Response> {
     state
         .store
         .list_pages(&query.app_id)
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(lowcode_error_response)
 }
 
 async fn upsert_page_handler(
     State(state): State<LowcodeApiState>,
     Json(request): Json<UpsertLowcodePageRequest>,
-) -> Result<Json<ApiResponse<LowcodePageSummary>>, LowcodeApiError> {
+) -> Result<Json<ApiResponse<LowcodePageSummary>>, Response> {
     let input = LowcodePageInput {
         id: request.id,
         app_id: request.app_id,
@@ -120,14 +119,18 @@ async fn upsert_page_handler(
         .await
         .map(ApiResponse::ok)
         .map(Json)
-        .map_err(Into::into)
+        .map_err(lowcode_error_response)
 }
 
 async fn delete_page_handler(
     State(state): State<LowcodeApiState>,
     Json(request): Json<DeleteLowcodePageRequest>,
-) -> Result<Json<ApiResponse<DeleteLowcodePageResponse>>, LowcodeApiError> {
-    state.store.delete_page(&request.page_id).await?;
+) -> Result<Json<ApiResponse<DeleteLowcodePageResponse>>, Response> {
+    state
+        .store
+        .delete_page(&request.page_id)
+        .await
+        .map_err(lowcode_error_response)?;
     Ok(Json(ApiResponse::ok(DeleteLowcodePageResponse {
         deleted: true,
     })))
@@ -196,30 +199,22 @@ pub struct DeleteLowcodePageResponse {
     pub deleted: bool,
 }
 
-#[derive(Debug)]
-pub struct LowcodeApiError {
-    source: LowcodeError,
+fn lowcode_error_response(error: anyhow::Error) -> Response {
+    let message = error.to_string();
+    let status = lowcode_error_status(&message);
+    let body = ApiResponse::<()> {
+        success: false,
+        message,
+        data: None,
+    };
+    (status, Json(body)).into_response()
 }
 
-impl From<LowcodeError> for LowcodeApiError {
-    fn from(source: LowcodeError) -> Self {
-        Self { source }
-    }
-}
-
-impl IntoResponse for LowcodeApiError {
-    fn into_response(self) -> Response {
-        let status = match self.source {
-            LowcodeError::InvalidAppId | LowcodeError::InvalidPageId => StatusCode::BAD_REQUEST,
-            LowcodeError::MissingDatabaseUrl => StatusCode::SERVICE_UNAVAILABLE,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        };
-        let body = ApiResponse::<()> {
-            success: false,
-            message: self.source.to_string(),
-            data: None,
-        };
-        (status, Json(body)).into_response()
+fn lowcode_error_status(message: &str) -> StatusCode {
+    match message {
+        INVALID_APP_ID_MESSAGE | INVALID_PAGE_ID_MESSAGE => StatusCode::BAD_REQUEST,
+        MISSING_DATABASE_URL_MESSAGE => StatusCode::SERVICE_UNAVAILABLE,
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 

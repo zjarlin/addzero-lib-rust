@@ -1,5 +1,19 @@
 use az_derive_aliases::{apply, plain_clone_debug};
-use az_temp_mail::*;
+use az_temp_mail::{
+    client::{CloudflareTempMailApi, TempMailApi, create_temp_mail_api},
+    cloudflare::CloudflareTempMailContext,
+    config::ApiConfig,
+    emailnator::EmailnatorTempMailApi,
+    mail_tm::MailTmTempMailApi,
+    model::{
+        CreateMailboxRequest, NewAddressRequest, PageRequest, SendMailRequest, TempMailProviderKind,
+    },
+    provider::{
+        BuiltinTempMailProviderFactory, TempMailProvider, TempMailProviderConfig,
+        TempMailProviderFactory, build_temp_mail_provider,
+    },
+    temp_mail::TempMail,
+};
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::io::{Read, Write};
@@ -383,10 +397,10 @@ fn read_request(stream: &mut TcpStream) -> std::io::Result<CapturedRequest> {
     let header_end = loop {
         let read = stream.read(&mut chunk)?;
         if read == 0 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                "request ended before headers",
-            ));
+            let kind = std::io::ErrorKind::UnexpectedEof;
+            let error = std::io::Error::new(kind, "request ended before headers");
+
+            return Err(error);
         }
         buffer.extend_from_slice(&chunk[..read]);
         if let Some(index) = find_bytes(&buffer, b"\r\n\r\n") {

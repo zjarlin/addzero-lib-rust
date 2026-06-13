@@ -3,84 +3,104 @@
 use std::sync::OnceLock;
 use std::time::Duration;
 
+use anyhow::{Context, anyhow, bail};
 use regex::Regex;
 use reqwest::{Client, Url};
 
 use crate::model::{
-    InstallerKind, SoftwareCatalogError, SoftwareCatalogResult, SoftwareDraftInput,
-    SoftwareEntryInput, SoftwareInstallMethodDto, SoftwareMetadataDto, SoftwareMetadataFetchInput,
-    SoftwarePlatform,
+    InstallerKind, SoftwareDraftInput, SoftwareEntryInput, SoftwareInstallMethodDto,
+    SoftwareMetadataDto, SoftwareMetadataFetchInput, SoftwarePlatform,
 };
 
-fn http_client() -> &'static Client {
+fn http_client() -> anyhow::Result<&'static Client> {
     static CLIENT: OnceLock<Client> = OnceLock::new();
-    CLIENT.get_or_init(|| {
-        Client::builder()
-            .timeout(Duration::from_secs(8))
-            .build()
-            .expect("failed to build reqwest::Client")
-    })
+    if let Some(client) = CLIENT.get() {
+        return Ok(client);
+    }
+
+    let client = Client::builder()
+        .timeout(Duration::from_secs(8))
+        .build()
+        .context("构建软件元数据 HTTP 客户端")?;
+    let _ = CLIENT.set(client);
+    CLIENT
+        .get()
+        .ok_or_else(|| anyhow!("软件元数据 HTTP 客户端初始化失败"))
 }
 
-fn title_re() -> &'static Regex {
+fn title_re() -> anyhow::Result<&'static Regex> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?is)<title[^>]*>(.*?)</title>").unwrap())
+    get_or_init_regex(&RE, r"(?is)<title[^>]*>(.*?)</title>")
 }
 
-fn description_meta_re() -> &'static Regex {
+fn description_meta_re() -> anyhow::Result<&'static Regex> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r#"(?is)<meta[^>]+name=["']description["'][^>]+content=["'](.*?)["'][^>]*>"#)
-            .unwrap()
-    })
+    get_or_init_regex(
+        &RE,
+        r#"(?is)<meta[^>]+name=["']description["'][^>]+content=["'](.*?)["'][^>]*>"#,
+    )
 }
 
-fn description_meta_reversed_re() -> &'static Regex {
+fn description_meta_reversed_re() -> anyhow::Result<&'static Regex> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r#"(?is)<meta[^>]+content=["'](.*?)["'][^>]+name=["']description["'][^>]*>"#)
-            .unwrap()
-    })
+    get_or_init_regex(
+        &RE,
+        r#"(?is)<meta[^>]+content=["'](.*?)["'][^>]+name=["']description["'][^>]*>"#,
+    )
 }
 
-fn icon_href_re() -> &'static Regex {
+fn icon_href_re() -> anyhow::Result<&'static Regex> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r#"(?is)<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["'](.*?)["'][^>]*>"#)
-            .unwrap()
-    })
+    get_or_init_regex(
+        &RE,
+        r#"(?is)<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["'](.*?)["'][^>]*>"#,
+    )
+}
+
+fn get_or_init_regex(lock: &'static OnceLock<Regex>, pattern: &str) -> anyhow::Result<&'static Regex> {
+    if let Some(regex) = lock.get() {
+        return Ok(regex);
+    }
+
+    let regex = Regex::new(pattern)
+        .with_context(|| format!("构建软件元数据解析正则 `{pattern}`"))?;
+    let _ = lock.set(regex);
+    lock.get()
+        .ok_or_else(|| anyhow!("软件元数据解析正则初始化失败"))
 }
 
 pub(crate) async fn fetch_metadata(
     input: SoftwareMetadataFetchInput,
-) -> SoftwareCatalogResult<SoftwareMetadataDto> {
+) -> anyhow::Result<SoftwareMetadataDto> {
     let homepage_url = input.homepage_url.trim().to_string();
     if homepage_url.is_empty() {
-        return Err(SoftwareCatalogError::Message(
-            "请先填写官网 URL，再执行抓取。".to_string(),
-        ));
+        bail!("请先填写官网 URL，再执行抓取。");
     }
 
     let url = Url::parse(&homepage_url)
-        .map_err(|err| SoftwareCatalogError::fetch(format!("官网 URL 非法：{err}")))?;
-    let client = http_client();
+        .with_context(|| format!("解析软件官网 URL `{homepage_url}`"))?;
+    let client = http_client()?;
     let response = client
         .get(url.clone())
         .send()
         .await
-        .map_err(|err| SoftwareCatalogError::fetch(format!("抓取官网失败：{err}")))?;
+        .with_context(|| format!("抓取软件官网 `{url}`"))?;
     let final_url = response.url().clone();
     let body = response
         .text()
         .await
-        .map_err(|err| SoftwareCatalogError::fetch(format!("读取官网响应失败：{err}")))?;
+        .with_context(|| format!("读取软件官网响应 `{final_url}`"))?;
 
-    let title = extract_first(&body, title_re()).unwrap_or_default();
-    let summary = extract_first(&body, description_meta_re())
-        .or_else(|| extract_first(&body, description_meta_reversed_re()))
+    let title_regex = title_re()?;
+    let description_regex = description_meta_re()?;
+    let description_reversed_regex = description_meta_reversed_re()?;
+
+    let title = extract_first(&body, title_regex).unwrap_or_default();
+    let summary = extract_first(&body, description_regex)
+        .or_else(|| extract_first(&body, description_reversed_regex))
         .unwrap_or_default();
     let icon_url =
-        extract_icon_url(&body, &final_url).unwrap_or_else(|| default_favicon_url(&final_url));
+        extract_icon_url(&body, &final_url)?.unwrap_or_else(|| default_favicon_url(&final_url));
 
     Ok(SoftwareMetadataDto {
         title: html_unescape(&title),
@@ -90,9 +110,7 @@ pub(crate) async fn fetch_metadata(
     })
 }
 
-pub(crate) async fn build_draft(
-    input: SoftwareDraftInput,
-) -> SoftwareCatalogResult<SoftwareEntryInput> {
+pub(crate) async fn build_draft(input: SoftwareDraftInput) -> anyhow::Result<SoftwareEntryInput> {
     let metadata = fetch_metadata(SoftwareMetadataFetchInput {
         homepage_url: input.homepage_url,
     })
@@ -315,7 +333,7 @@ fn method(
     }
 }
 
-fn infer_slug(metadata: &SoftwareMetadataDto) -> SoftwareCatalogResult<String> {
+fn infer_slug(metadata: &SoftwareMetadataDto) -> anyhow::Result<String> {
     let mut candidates = Vec::new();
     if !metadata.title.trim().is_empty() {
         candidates.push(metadata.title.trim().to_string());
@@ -337,9 +355,7 @@ fn infer_slug(metadata: &SoftwareMetadataDto) -> SoftwareCatalogResult<String> {
         }
     }
 
-    Err(SoftwareCatalogError::fetch(
-        "无法从官网标题或 URL 推断软件 slug",
-    ))
+    bail!("无法从官网标题或 URL 推断软件 slug")
 }
 
 fn normalized_title(raw_title: &str, slug: &str) -> String {
@@ -537,12 +553,15 @@ fn extract_first(body: &str, re: &Regex) -> Option<String> {
         .map(|found| found.as_str().trim().to_string())
 }
 
-fn extract_icon_url(body: &str, base_url: &Url) -> Option<String> {
-    let href = icon_href_re()
-        .captures(body)?
-        .get(1)
-        .map(|found| found.as_str().trim().to_string())?;
-    base_url.join(&href).ok().map(|url| url.to_string())
+fn extract_icon_url(body: &str, base_url: &Url) -> anyhow::Result<Option<String>> {
+    let Some(captures) = icon_href_re()?.captures(body) else {
+        return Ok(None);
+    };
+    let Some(found) = captures.get(1) else {
+        return Ok(None);
+    };
+    let href = found.as_str().trim().to_string();
+    Ok(base_url.join(&href).ok().map(|url| url.to_string()))
 }
 
 fn default_favicon_url(url: &Url) -> String {

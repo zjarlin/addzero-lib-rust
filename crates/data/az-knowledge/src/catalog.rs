@@ -3,6 +3,12 @@ use std::{collections::BTreeMap, fmt::Write as _};
 use crate::{KnowledgeSourceSpec, types::KnowledgeDocument};
 use az_derive_aliases::{apply, plain_eq};
 
+macro_rules! push_catalog_line {
+    ($output:expr, $($arg:tt)*) => {
+        let _ = writeln!($output, $($arg)*);
+    };
+}
+
 pub fn render_catalog(
     mode: &str,
     sources: &[KnowledgeSourceSpec],
@@ -11,62 +17,58 @@ pub fn render_catalog(
     let mut output = String::new();
     let summaries = build_source_summaries(sources, docs);
 
-    writeln!(
+    push_catalog_line!(
         output,
         "pub const KNOWLEDGE_SOURCE_AVAILABLE: bool = {};",
         if docs.is_empty() { "false" } else { "true" }
-    )
-    .unwrap();
-    writeln!(
+    );
+    push_catalog_line!(
         output,
         "pub const KNOWLEDGE_DATA_MODE: &str = {};",
         quote(mode)
-    )
-    .unwrap();
-    writeln!(output, "pub const KNOWLEDGE_DOCS: &[KnowledgeDoc] = &[").unwrap();
+    );
+    push_catalog_line!(output, "pub const KNOWLEDGE_DOCS: &[KnowledgeDoc] = &[");
 
     for doc in docs {
-        writeln!(output, "    KnowledgeDoc {{").unwrap();
-        writeln!(output, "        source_slug: {},", quote(&doc.source_slug)).unwrap();
-        writeln!(output, "        source_name: {},", quote(&doc.source_name)).unwrap();
-        writeln!(output, "        source_root: {},", quote(&doc.source_root)).unwrap();
-        writeln!(output, "        slug: {},", quote(&doc.slug)).unwrap();
-        writeln!(output, "        title: {},", quote(&doc.title)).unwrap();
-        writeln!(output, "        filename: {},", quote(&doc.filename)).unwrap();
-        writeln!(output, "        source_path: {},", quote(&doc.source_path)).unwrap();
-        writeln!(
+        push_catalog_line!(output, "    KnowledgeDoc {{");
+        push_catalog_line!(output, "        source_slug: {},", quote(&doc.source_slug));
+        push_catalog_line!(output, "        source_name: {},", quote(&doc.source_name));
+        push_catalog_line!(output, "        source_root: {},", quote(&doc.source_root));
+        push_catalog_line!(output, "        slug: {},", quote(&doc.slug));
+        push_catalog_line!(output, "        title: {},", quote(&doc.title));
+        push_catalog_line!(output, "        filename: {},", quote(&doc.filename));
+        push_catalog_line!(output, "        source_path: {},", quote(&doc.source_path));
+        push_catalog_line!(
             output,
             "        relative_path: {},",
             quote(&doc.relative_path)
-        )
-        .unwrap();
-        writeln!(output, "        bytes: {},", doc.bytes).unwrap();
-        writeln!(output, "        section_count: {},", doc.section_count).unwrap();
-        writeln!(output, "        preview: {},", quote(&doc.preview)).unwrap();
-        writeln!(output, "        excerpt: {},", quote(&doc.excerpt)).unwrap();
-        writeln!(output, "        headings: &[").unwrap();
+        );
+        push_catalog_line!(output, "        bytes: {},", doc.bytes);
+        push_catalog_line!(output, "        section_count: {},", doc.section_count);
+        push_catalog_line!(output, "        preview: {},", quote(&doc.preview));
+        push_catalog_line!(output, "        excerpt: {},", quote(&doc.excerpt));
+        push_catalog_line!(output, "        headings: &[");
         for heading in &doc.headings {
-            writeln!(output, "            {},", quote(heading)).unwrap();
+            push_catalog_line!(output, "            {},", quote(heading));
         }
-        writeln!(output, "        ],").unwrap();
-        writeln!(output, "    }},").unwrap();
+        push_catalog_line!(output, "        ],");
+        push_catalog_line!(output, "    }},");
     }
-    writeln!(output, "];").unwrap();
+    push_catalog_line!(output, "];");
 
-    writeln!(
+    push_catalog_line!(
         output,
         "pub const KNOWLEDGE_SOURCE_SUMMARIES: &[KnowledgeSourceSummary] = &["
-    )
-    .unwrap();
+    );
     for summary in summaries {
-        writeln!(output, "    KnowledgeSourceSummary {{").unwrap();
-        writeln!(output, "        slug: {},", quote(&summary.slug)).unwrap();
-        writeln!(output, "        label: {},", quote(&summary.label)).unwrap();
-        writeln!(output, "        root: {},", quote(&summary.root)).unwrap();
-        writeln!(output, "        count: {},", summary.count).unwrap();
-        writeln!(output, "    }},").unwrap();
+        push_catalog_line!(output, "    KnowledgeSourceSummary {{");
+        push_catalog_line!(output, "        slug: {},", quote(&summary.slug));
+        push_catalog_line!(output, "        label: {},", quote(&summary.label));
+        push_catalog_line!(output, "        root: {},", quote(&summary.root));
+        push_catalog_line!(output, "        count: {},", summary.count);
+        push_catalog_line!(output, "    }},");
     }
-    writeln!(output, "];").unwrap();
+    push_catalog_line!(output, "];");
 
     output
 }

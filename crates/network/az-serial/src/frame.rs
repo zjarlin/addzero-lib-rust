@@ -38,7 +38,7 @@ pub enum FrameEvent {
 /// # Examples
 ///
 /// ```
-/// use az_serial::{FrameDecoder, FrameFormat, FrameEvent};
+/// use az_serial::frame::{FrameDecoder, FrameEvent, FrameFormat};
 ///
 /// let mut decoder = FrameDecoder::new(FrameFormat::Delimiter(vec![0x0A]));
 /// decoder.push(b"Hello");
@@ -162,7 +162,7 @@ fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::frame::{FrameDecoder, FrameEvent, FrameFormat, find_subsequence};
 
     #[test]
     fn fixed_length_frame() {

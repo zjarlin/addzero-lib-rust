@@ -28,7 +28,7 @@ impl AzAioPlugin for ProjectsPlugin {
         }
     }
 
-    fn contributions(&self) -> Result<ContributionSet, az_aio_plugin_api::PluginError> {
+    fn contributions(&self) -> anyhow::Result<ContributionSet> {
         Ok(ContributionSet {
             nav_items: vec![NavItemContribution {
                 id: "projects.nav".to_string(),

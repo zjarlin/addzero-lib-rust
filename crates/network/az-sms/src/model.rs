@@ -1,4 +1,4 @@
-use crate::error::{SmsError, SmsResult};
+use anyhow::bail;
 use az_derive_aliases::{
     apply, impl_default, plain_copy_eq, serde_eq, serde_partial_eq, serde_upper_eq,
 };
@@ -34,7 +34,7 @@ impl SmsActivationRequest {
         country: impl Into<String>,
         operator: impl Into<String>,
         product: impl Into<String>,
-    ) -> SmsResult<Self> {
+    ) -> anyhow::Result<Self> {
         let request = Self {
             country: country.into(),
             operator: operator.into(),
@@ -80,7 +80,7 @@ impl SmsActivationRequest {
     }
 
     /// 发送给 provider 前校验本地不变量。
-    pub fn validate(&self) -> SmsResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         validate_non_blank("country", &self.country)?;
         validate_non_blank("operator", &self.operator)?;
         validate_non_blank("product", &self.product)?;
@@ -107,7 +107,7 @@ impl SmsHostingRequest {
         country: impl Into<String>,
         operator: impl Into<String>,
         product: impl Into<String>,
-    ) -> SmsResult<Self> {
+    ) -> anyhow::Result<Self> {
         let request = Self {
             country: country.into(),
             operator: operator.into(),
@@ -118,7 +118,7 @@ impl SmsHostingRequest {
     }
 
     /// 发送给 provider 前校验本地不变量。
-    pub fn validate(&self) -> SmsResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         validate_non_blank("country", &self.country)?;
         validate_non_blank("operator", &self.operator)?;
         validate_non_blank("product", &self.product)?;
@@ -260,38 +260,34 @@ impl_default!(WaitForSmsOptions => WaitForSmsOptions {
 
 impl WaitForSmsOptions {
     /// 创建轮询选项，并校验两个时长均非零。
-    pub fn new(timeout: Duration, interval: Duration) -> SmsResult<Self> {
+    pub fn new(timeout: Duration, interval: Duration) -> anyhow::Result<Self> {
         let options = Self { timeout, interval };
         options.validate()?;
         Ok(options)
     }
 
     /// 校验本地轮询不变量。
-    pub fn validate(&self) -> SmsResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         if self.timeout.is_zero() {
-            return Err(SmsError::InvalidRequest(
-                "timeout cannot be zero".to_owned(),
-            ));
+            bail!("invalid request: timeout cannot be zero");
         }
         if self.interval.is_zero() {
-            return Err(SmsError::InvalidRequest(
-                "interval cannot be zero".to_owned(),
-            ));
+            bail!("invalid request: interval cannot be zero");
         }
         Ok(())
     }
 }
 
-fn validate_non_blank(name: &str, value: &str) -> SmsResult<()> {
+fn validate_non_blank(name: &str, value: &str) -> anyhow::Result<()> {
     if value.trim().is_empty() {
-        return Err(SmsError::InvalidRequest(format!("{name} cannot be blank")));
+        bail!("invalid request: {name} cannot be blank");
     }
     Ok(())
 }
 
-fn validate_optional_non_blank(name: &str, value: Option<&str>) -> SmsResult<()> {
+fn validate_optional_non_blank(name: &str, value: Option<&str>) -> anyhow::Result<()> {
     if value.is_some_and(|item| item.trim().is_empty()) {
-        return Err(SmsError::InvalidRequest(format!("{name} cannot be blank")));
+        bail!("invalid request: {name} cannot be blank");
     }
     Ok(())
 }

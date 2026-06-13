@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use anyhow::{Context, anyhow};
 use az_derive_aliases::{apply, plain_clone};
 use chrono::Utc;
 use sea_orm::{
@@ -11,7 +12,7 @@ use uuid::Uuid;
 
 use crate::{
     entity::{knowledge_document, knowledge_source},
-    types::{KnowledgeDocument, KnowledgeError, KnowledgeSourceSpec},
+    types::{KnowledgeDocument, KnowledgeSourceSpec},
 };
 
 #[apply(plain_clone)]
@@ -24,11 +25,11 @@ impl KnowledgeRepository {
         Self { db }
     }
 
-    pub(crate) async fn list_documents(&self) -> Result<Vec<KnowledgeDocument>, KnowledgeError> {
+    pub(crate) async fn list_documents(&self) -> anyhow::Result<Vec<KnowledgeDocument>> {
         let sources = knowledge_source::Entity::find()
             .all(&self.db)
             .await
-            .map_err(KnowledgeError::Query)?;
+            .context("query knowledge sources")?;
         let source_map = sources
             .into_iter()
             .map(|source| (source.id, source))
@@ -40,15 +41,15 @@ impl KnowledgeRepository {
             .order_by_asc(knowledge_document::Column::RelativePath)
             .all(&self.db)
             .await
-            .map_err(KnowledgeError::Query)?;
+            .context("query active knowledge documents")?;
 
         docs.into_iter()
             .map(|doc| {
                 let source = source_map.get(&doc.source_id).ok_or_else(|| {
-                    KnowledgeError::Message(format!(
+                    anyhow!(
                         "missing knowledge source for document {}",
                         doc.source_path
-                    ))
+                    )
                 })?;
                 Ok(KnowledgeDocument {
                     source_slug: source.slug.clone(),
@@ -76,7 +77,7 @@ impl KnowledgeRepository {
     pub(crate) async fn upsert_source(
         &self,
         source: &KnowledgeSourceSpec,
-    ) -> Result<Uuid, KnowledgeError> {
+    ) -> anyhow::Result<Uuid> {
         let now = Utc::now();
         let active = knowledge_source::ActiveModel {
             id: Set(Uuid::new_v4()),
@@ -101,24 +102,22 @@ impl KnowledgeRepository {
             )
             .exec(&self.db)
             .await
-            .map_err(KnowledgeError::Query)?;
+            .with_context(|| format!("upsert knowledge source `{}`", source.slug))?;
 
         knowledge_source::Entity::find()
             .filter(knowledge_source::Column::Slug.eq(source.slug.clone()))
             .one(&self.db)
             .await
-            .map_err(KnowledgeError::Query)?
+            .with_context(|| format!("load knowledge source `{}`", source.slug))?
             .map(|model| model.id)
-            .ok_or_else(|| {
-                KnowledgeError::Message(format!("failed to load source {}", source.slug))
-            })
+            .ok_or_else(|| anyhow!("failed to load source {}", source.slug))
     }
 
     pub(crate) async fn upsert_document(
         &self,
         source_id: Uuid,
         doc: &KnowledgeDocument,
-    ) -> Result<(), KnowledgeError> {
+    ) -> anyhow::Result<()> {
         let active = knowledge_document::ActiveModel {
             id: Set(Uuid::new_v4()),
             source_id: Set(source_id),
@@ -164,7 +163,7 @@ impl KnowledgeRepository {
             )
             .exec(&self.db)
             .await
-            .map_err(KnowledgeError::Query)?;
+            .with_context(|| format!("upsert knowledge document `{}`", doc.source_path))?;
 
         Ok(())
     }
@@ -172,19 +171,19 @@ impl KnowledgeRepository {
     pub(crate) async fn source_by_slug(
         &self,
         slug: &str,
-    ) -> Result<Option<knowledge_source::Model>, KnowledgeError> {
+    ) -> anyhow::Result<Option<knowledge_source::Model>> {
         knowledge_source::Entity::find()
             .filter(knowledge_source::Column::Slug.eq(slug.to_string()))
             .one(&self.db)
             .await
-            .map_err(KnowledgeError::Query)
+            .with_context(|| format!("load knowledge source `{slug}`"))
     }
 
     pub(crate) async fn deactivate_missing_documents(
         &self,
         source_id: Uuid,
         active_paths: &[String],
-    ) -> Result<(), KnowledgeError> {
+    ) -> anyhow::Result<()> {
         let now = Utc::now();
         let mut update = knowledge_document::Entity::update_many()
             .col_expr(knowledge_document::Column::IsActive, Expr::value(false))
@@ -197,14 +196,17 @@ impl KnowledgeRepository {
             );
         }
 
-        update.exec(&self.db).await.map_err(KnowledgeError::Query)?;
+        update
+            .exec(&self.db)
+            .await
+            .context("deactivate missing knowledge documents")?;
         Ok(())
     }
 
     pub(crate) async fn deactivate_document_by_source_path(
         &self,
         source_path: &str,
-    ) -> Result<(), KnowledgeError> {
+    ) -> anyhow::Result<()> {
         let now = Utc::now();
         knowledge_document::Entity::update_many()
             .col_expr(knowledge_document::Column::IsActive, Expr::value(false))
@@ -212,7 +214,7 @@ impl KnowledgeRepository {
             .filter(knowledge_document::Column::SourcePath.eq(source_path.to_string()))
             .exec(&self.db)
             .await
-            .map_err(KnowledgeError::Query)?;
+            .with_context(|| format!("deactivate knowledge document `{source_path}`"))?;
         Ok(())
     }
 }

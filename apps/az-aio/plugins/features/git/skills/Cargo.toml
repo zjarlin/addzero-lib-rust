@@ -11,6 +11,7 @@ description = "AZ AIO git skills feature plugin."
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+anyhow.workspace = true
 az-aio-plugin-api = { path = "../../../api" }
 wit-bindgen = "0.57.1"
 

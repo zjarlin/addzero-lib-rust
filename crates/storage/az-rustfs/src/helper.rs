@@ -1,4 +1,5 @@
-use crate::client::{S3StorageClient, StorageError, StorageResult};
+use anyhow::{anyhow, bail};
+use crate::client::S3StorageClient;
 use crate::progress::{
     InMemoryUploadProgressStorage, MultipartUploadConfig, MultipartUploadResult, PartInfo,
     PartStatus, UploadProgress, UploadProgressData, UploadStatus, UploadStatusType, now_millis,
@@ -241,16 +242,14 @@ pub fn upload_multipart(
     config: &MultipartUploadConfig,
     progress_storage: Option<Arc<dyn crate::progress::UploadProgressStorage>>,
     resume_upload_id: Option<&str>,
-) -> StorageResult<MultipartUploadResult> {
+) -> anyhow::Result<MultipartUploadResult> {
     let file_size = std::fs::metadata(file)?.len();
     let part_size = config
         .part_size
         .max(MultipartUploadConfig::DEFAULT_PART_SIZE);
     let parts = generate_part_infos(file_size, part_size);
     if parts.is_empty() {
-        return Err(StorageError::InvalidConfig(
-            "cannot multipart upload an empty file".to_owned(),
-        ));
+        bail!("invalid storage configuration: cannot multipart upload an empty file");
     }
 
     let metadata = BTreeMap::new();
@@ -311,7 +310,7 @@ pub fn upload_multipart(
             let content_type = guess_content_type(file);
             let max_retries = config.max_retries;
             handles.push(thread::spawn(
-                move || -> StorageResult<(u32, String, u64)> {
+                move || -> anyhow::Result<(u32, String, u64)> {
                     let bytes = read_part_bytes(&file_path, part.start, part.size)?;
                     let mut last_error = None;
                     for _ in 0..=max_retries {
@@ -328,8 +327,7 @@ pub fn upload_multipart(
                         }
                     }
                     Err(last_error.unwrap_or_else(|| {
-                        StorageError::Backend(
-                            "multipart upload failed without detailed error".to_owned(),
+                        anyhow!("storage backend error: {}", "multipart upload failed without detailed error".to_owned(),
                         )
                     }))
                 },
@@ -339,7 +337,7 @@ pub fn upload_multipart(
         for handle in handles {
             let (part_number, etag, size) = handle
                 .join()
-                .map_err(|_| StorageError::Backend("multipart worker panicked".to_owned()))??;
+                .map_err(|_| anyhow!("storage backend error: {}", "multipart worker panicked".to_owned()))??;
             completed_parts = completed_parts
                 .into_iter()
                 .map(|part| {
@@ -457,7 +455,7 @@ pub fn get_presigned_object_url(
     bucket_name: &str,
     key: &str,
     expires_in_seconds: u64,
-) -> StorageResult<String> {
+) -> anyhow::Result<String> {
     client
         .generate_presigned_url(bucket_name, key, expires_in_seconds)
         .map(|url| url.url)
@@ -467,7 +465,7 @@ pub fn metadata_keys(objects: &[ObjectMetadata]) -> Vec<String> {
     objects.iter().map(|object| object.key.clone()).collect()
 }
 
-fn read_part_bytes(path: &Path, start: u64, size: u64) -> StorageResult<Vec<u8>> {
+fn read_part_bytes(path: &Path, start: u64, size: u64) -> anyhow::Result<Vec<u8>> {
     let mut file = File::open(path)?;
     file.seek(SeekFrom::Start(start))?;
     let mut buffer = vec![0u8; size as usize];

@@ -2,8 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
+use anyhow::Result;
+
 use crate::{
-    error::SyncResult,
     sync_index::SyncIndexSummary,
     sync_index::SyncIndexedFileKind,
     sync_model::{
@@ -70,7 +71,7 @@ impl SyncFilesQuery {
             .to_string()
     }
 
-    pub fn normalized_cursor(&self) -> SyncResult<Option<String>> {
+    pub fn normalized_cursor(&self) -> Result<Option<String>> {
         self.cursor
             .as_deref()
             .map(str::trim)

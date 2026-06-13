@@ -1,4 +1,3 @@
-use crate::OAuth2Result;
 use crate::random::random_bytes;
 use az_derive_aliases::{apply, plain_eq};
 use base64::Engine;
@@ -17,12 +16,12 @@ pub struct PkcePair {
 }
 
 /// Generates a high-entropy OAuth state value.
-pub fn generate_state() -> OAuth2Result<String> {
+pub fn generate_state() -> anyhow::Result<String> {
     Ok(URL_SAFE_NO_PAD.encode(random_bytes::<32>()?))
 }
 
 /// Generates an RFC 7636 S256 PKCE pair.
-pub fn generate_pkce_pair() -> OAuth2Result<PkcePair> {
+pub fn generate_pkce_pair() -> anyhow::Result<PkcePair> {
     let code_verifier = URL_SAFE_NO_PAD.encode(random_bytes::<64>()?);
     let digest = Sha256::digest(code_verifier.as_bytes());
     let code_challenge = URL_SAFE_NO_PAD.encode(digest);

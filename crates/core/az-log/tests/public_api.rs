@@ -1,4 +1,4 @@
-use az_log::*;
+use az_log::{logger_target, value_logger_target};
 
 struct TestLogger;
 

@@ -3,55 +3,16 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use az_derive_aliases::{apply, error, impl_default, plain_clone_debug};
+use anyhow::bail;
+use az_derive_aliases::{apply, impl_default, plain_clone_debug};
 use parking_lot::RwLock;
 
 use crate::catalog::Catalog;
-use crate::executor::{ExecuteError, QueryExecutor, QueryResult};
-use crate::planner::{PlanError, QueryPlanner};
-use crate::sql::{ParseError, Parser, Statement};
-use crate::storage::{GitRepository, StorageError};
-use crate::transaction::{Transaction, TransactionError, TransactionManager, TxActive};
-
-/// Result type for database operations.
-pub type DatabaseResult<T> = Result<T, DatabaseError>;
-
-/// Database errors.
-#[apply(error)]
-pub enum DatabaseError {
-    #[error("storage error: {0}")]
-    Storage(#[from] StorageError),
-
-    #[error("parse error: {0}")]
-    Parse(#[from] ParseError),
-
-    #[error("execution error: {0}")]
-    Execute(#[from] ExecuteError),
-
-    #[error("planning error: {0}")]
-    Plan(#[from] PlanError),
-
-    #[error("transaction error: {0}")]
-    Transaction(#[from] TransactionError),
-
-    #[error("schema error: {0}")]
-    Schema(#[from] crate::catalog::SchemaError),
-
-    #[error("database not open")]
-    NotOpen,
-
-    #[error("database already exists: {0}")]
-    AlreadyExists(PathBuf),
-
-    #[error("database not found: {0}")]
-    NotFound(PathBuf),
-
-    #[error("invalid configuration: {0}")]
-    InvalidConfig(String),
-
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
-}
+use crate::executor::{QueryExecutor, QueryResult};
+use crate::planner::QueryPlanner;
+use crate::sql::{Parser, Statement};
+use crate::storage::{GitRepository, is_not_found};
+use crate::transaction::{Transaction, TransactionManager, TxActive};
 
 /// Database configuration options.
 #[apply(plain_clone_debug)]
@@ -116,18 +77,18 @@ pub struct Database {
 
 impl Database {
     /// Open or create a database at the given path.
-    pub fn open(path: impl AsRef<Path>) -> DatabaseResult<Self> {
+    pub fn open(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         Self::open_with_config(DatabaseConfig::new(path.as_ref()))
     }
 
     /// Open or create a database with custom configuration.
-    pub fn open_with_config(config: DatabaseConfig) -> DatabaseResult<Self> {
+    pub fn open_with_config(config: DatabaseConfig) -> anyhow::Result<Self> {
         let repo = if config.create_if_missing {
             GitRepository::open_or_init(&config.path)?
         } else if config.path.exists() {
             GitRepository::open(&config.path)?
         } else {
-            return Err(DatabaseError::NotFound(config.path.clone()));
+            bail!("database not found: {}", config.path.display());
         };
 
         let shared_repo = Arc::new(RwLock::new(repo.clone()));
@@ -152,13 +113,13 @@ impl Database {
     }
 
     /// Create a new in-memory database (for testing).
-    pub fn in_memory() -> DatabaseResult<Self> {
+    pub fn in_memory() -> anyhow::Result<Self> {
         let dir = tempfile::TempDir::new()?;
         Self::open(dir.path())
     }
 
     /// Execute a SQL query string.
-    pub fn execute(&mut self, sql: &str) -> DatabaseResult<QueryResult> {
+    pub fn execute(&mut self, sql: &str) -> anyhow::Result<QueryResult> {
         if self.config.verbose {
             eprintln!("[SQL] {}", sql);
         }
@@ -174,7 +135,7 @@ impl Database {
     }
 
     /// Execute multiple SQL statements separated by semicolons.
-    pub fn execute_batch(&mut self, sql: &str) -> DatabaseResult<Vec<QueryResult>> {
+    pub fn execute_batch(&mut self, sql: &str) -> anyhow::Result<Vec<QueryResult>> {
         let mut results = Vec::new();
 
         for stmt in sql.split(';') {
@@ -189,12 +150,12 @@ impl Database {
     }
 
     /// Parse a SQL statement without executing.
-    pub fn parse(&self, sql: &str) -> DatabaseResult<Statement> {
+    pub fn parse(&self, sql: &str) -> anyhow::Result<Statement> {
         Ok(Parser::parse(sql)?)
     }
 
     /// Explain a query (show the execution plan).
-    pub fn explain(&self, sql: &str) -> DatabaseResult<String> {
+    pub fn explain(&self, sql: &str) -> anyhow::Result<String> {
         let stmt = Parser::parse(sql)?;
 
         if let Some(ref planner) = self.planner {
@@ -224,7 +185,7 @@ impl Database {
     }
 
     /// List all tables.
-    pub fn tables(&self) -> DatabaseResult<Vec<String>> {
+    pub fn tables(&self) -> anyhow::Result<Vec<String>> {
         Ok(self.catalog.list_tables()?)
     }
 
@@ -234,23 +195,23 @@ impl Database {
     }
 
     /// Get the schema for a table.
-    pub fn table_schema(&self, name: &str) -> DatabaseResult<Option<crate::catalog::TableSchema>> {
+    pub fn table_schema(&self, name: &str) -> anyhow::Result<Option<crate::catalog::TableSchema>> {
         match self.catalog.get_table(name) {
             Ok(schema) => Ok(Some(schema)),
-            Err(crate::catalog::SchemaError::TableNotFound(_)) => Ok(None),
-            Err(e) => Err(e.into()),
+            Err(error) if is_not_found(&error) => Ok(None),
+            Err(error) => Err(error),
         }
     }
 
     /// Begin a new transaction.
-    pub fn begin(&mut self) -> DatabaseResult<Transaction<TxActive>> {
+    pub fn begin(&mut self) -> anyhow::Result<Transaction<TxActive>> {
         Ok(self.tx_manager.begin()?)
     }
 
     /// Execute within a transaction.
-    pub fn transaction<F, T>(&mut self, f: F) -> DatabaseResult<T>
+    pub fn transaction<F, T>(&mut self, f: F) -> anyhow::Result<T>
     where
-        F: FnOnce(&mut Self) -> DatabaseResult<T>,
+        F: FnOnce(&mut Self) -> anyhow::Result<T>,
     {
         self.execute("BEGIN")?;
         match f(self) {
@@ -276,7 +237,7 @@ impl Database {
     }
 
     /// Get the version/commit history.
-    pub fn history(&self, limit: Option<usize>) -> DatabaseResult<Vec<CommitInfo>> {
+    pub fn history(&self, limit: Option<usize>) -> anyhow::Result<Vec<CommitInfo>> {
         let repo = self.repo.read();
         let head = repo.head()?;
         let commits_result = repo.history(head, limit);
@@ -295,7 +256,7 @@ impl Database {
     }
 
     /// Create a backup/snapshot at current state.
-    pub fn snapshot(&self, _message: &str) -> DatabaseResult<String> {
+    pub fn snapshot(&self, _message: &str) -> anyhow::Result<String> {
         let repo = self.repo.read();
         let head = repo.head()?;
         Ok(head.to_string())

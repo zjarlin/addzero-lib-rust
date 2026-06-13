@@ -10,6 +10,8 @@ authors.workspace = true
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
+automod.workspace = true
 az-derive-aliases.workspace = true
 az-drive-core.workspace = true
 az-drive-store.workspace = true
@@ -20,7 +22,6 @@ ignore = "0.4"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 strum.workspace = true
-thiserror.workspace = true
 tokio.workspace = true
 uuid.workspace = true
 

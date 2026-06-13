@@ -13,12 +13,10 @@ pub(crate) fn trim_non_blank(value: Option<&str>) -> Option<&str> {
     })
 }
 
-pub(crate) fn required_non_blank(value: &str, name: &str) -> crate::TempMailResult<String> {
+pub(crate) fn required_non_blank(value: &str, name: &str) -> anyhow::Result<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return Err(crate::TempMailError::InvalidConfig(format!(
-            "{name} cannot be blank"
-        )));
+        anyhow::bail!("invalid config: {name} cannot be blank");
     }
     Ok(trimmed.to_owned())
 }

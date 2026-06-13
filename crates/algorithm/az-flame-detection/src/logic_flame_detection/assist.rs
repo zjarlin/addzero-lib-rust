@@ -12,7 +12,6 @@ use ndarray::{ArrayD, IxDyn};
 use ort::session::Session;
 use ort::value::{Tensor, TensorElementType, ValueType};
 
-use anyhow::{anyhow, bail};
 use crate::logic_flame_detection::model::{
     DEFAULT_MODEL_RESOURCE_DIR, DEFAULT_NMS_THRESHOLD, DEFAULT_RESULT_DIR, DEFAULT_SCORE_THRESHOLD,
     FLAME_DETECTION_FIRE_SMOKE_YOLOV8N, FlameDetectionBox, FlameDetectionClass,
@@ -20,6 +19,7 @@ use crate::logic_flame_detection::model::{
     FlameDetectionRun, FlameVideoDetectionOptions, FlameVideoDetectionOutputFiles,
     FlameVideoDetectionRun, FlameVideoFrameDetection,
 };
+use anyhow::{anyhow, bail};
 
 const OUTPUT_SAMPLE_VALUES: usize = 8;
 const YOLO_OUTPUT: &str = "output0";
@@ -140,9 +140,7 @@ impl FlameDetectionRunner {
 ///
 /// # Errors
 /// 图片读取、模型加载、推理或输出文件写入失败时返回错误。
-pub fn detect_flames_from_path(
-    image_path: impl AsRef<Path>,
-) -> anyhow::Result<FlameDetectionRun> {
+pub fn detect_flames_from_path(image_path: impl AsRef<Path>) -> anyhow::Result<FlameDetectionRun> {
     let options = FlameDetectionOptions::default_workspace()?;
     detect_flames_from_path_with_options(image_path, &options)
 }
@@ -241,11 +239,11 @@ pub fn detect_flames_in_video_from_path(
         let annotated_frame_path = files
             .annotated_frame_dir
             .join(format!("frame_{frame_index:05}.png"));
-        fs::copy(&image_run.files.detected_flames_image, &annotated_frame_path).map_err(
-            |source| {
-                path_error(image_run.files.detected_flames_image.clone(), source)
-            },
-        )?;
+        fs::copy(
+            &image_run.files.detected_flames_image,
+            &annotated_frame_path,
+        )
+        .map_err(|source| path_error(image_run.files.detected_flames_image.clone(), source))?;
         frames.push(FlameVideoFrameDetection {
             frame_index,
             timestamp_ms: frame_timestamp_ms(frame_index, options.sample_fps),
@@ -325,7 +323,13 @@ fn run_yolo_session(
         IxDyn(FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.input.shape),
         tensor_data,
     )
-    .map_err(|source| anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, source.to_string(),))?;
+    .map_err(|source| {
+        anyhow!(
+            "invalid tensor shape for `{}`: {}",
+            FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+            source.to_string(),
+        )
+    })?;
     let input = Tensor::from_array(input_array)?;
     let output_names = session
         .outputs()
@@ -350,10 +354,18 @@ fn collect_yolo_outputs(
             .cloned()
             .unwrap_or_else(|| format!("output_{index}"));
         let ValueType::Tensor { ty, .. } = value.dtype() else {
-            bail!("unsupported ONNX output tensor type `{}` from output `{}`", value.dtype(), output_name);
+            bail!(
+                "unsupported ONNX output tensor type `{}` from output `{}`",
+                value.dtype(),
+                output_name
+            );
         };
         if !matches!(ty, TensorElementType::Float32) {
-            bail!("unsupported ONNX output tensor type `{}` from output `{}`", ty, output_name);
+            bail!(
+                "unsupported ONNX output tensor type `{}` from output `{}`",
+                ty,
+                output_name
+            );
         }
 
         let (shape, data) = value.try_extract_tensor::<f32>()?;
@@ -528,7 +540,10 @@ fn draw_flame_box(image: &mut RgbImage, detection: &FlameDetectionBox) {
     draw_hollow_rect_mut(image, Rect::at(x, y).of_size(width, height), color);
     draw_hollow_rect_mut(
         image,
-        Rect::at(x + 1, y + 1).of_size(width.saturating_sub(2).max(1), height.saturating_sub(2).max(1)),
+        Rect::at(x + 1, y + 1).of_size(
+            width.saturating_sub(2).max(1),
+            height.saturating_sub(2).max(1),
+        ),
         color,
     );
     draw_boxed_text_label(
@@ -735,10 +750,18 @@ fn validate_detection_options(options: &FlameDetectionOptions) -> anyhow::Result
         bail!("model file `{}` is missing", options.model_path.display());
     }
     if !(0.0..=1.0).contains(&options.score_threshold) || !options.score_threshold.is_finite() {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "score_threshold must be finite and within 0.0..=1.0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+            "score_threshold must be finite and within 0.0..=1.0"
+        );
     }
     if !(0.0..=1.0).contains(&options.nms_threshold) || !options.nms_threshold.is_finite() {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "nms_threshold must be finite and within 0.0..=1.0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+            "nms_threshold must be finite and within 0.0..=1.0"
+        );
     }
     Ok(())
 }
@@ -748,16 +771,32 @@ fn validate_video_options(options: &FlameVideoDetectionOptions) -> anyhow::Resul
         bail!("model file `{}` is missing", options.model_path.display());
     }
     if options.sample_fps == 0 {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "sample_fps must be greater than 0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+            "sample_fps must be greater than 0"
+        );
     }
     if options.output_fps == 0 {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "output_fps must be greater than 0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+            "output_fps must be greater than 0"
+        );
     }
     if !(0.0..=1.0).contains(&options.score_threshold) || !options.score_threshold.is_finite() {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "score_threshold must be finite and within 0.0..=1.0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+            "score_threshold must be finite and within 0.0..=1.0"
+        );
     }
     if !(0.0..=1.0).contains(&options.nms_threshold) || !options.nms_threshold.is_finite() {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code, "nms_threshold must be finite and within 0.0..=1.0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
+            "nms_threshold must be finite and within 0.0..=1.0"
+        );
     }
     Ok(())
 }
@@ -817,11 +856,7 @@ fn encode_annotated_video(
     )
 }
 
-fn run_ffmpeg(
-    ffmpeg_path: &Path,
-    args: &[String],
-    context_path: &Path,
-) -> anyhow::Result<()> {
+fn run_ffmpeg(ffmpeg_path: &Path, args: &[String], context_path: &Path) -> anyhow::Result<()> {
     let output = Command::new(ffmpeg_path)
         .args(args)
         .output()
@@ -858,10 +893,11 @@ fn collected_frame_paths(
         frame_paths.truncate(limit);
     }
     if frame_paths.is_empty() {
-        return Err(path_error(
-            extracted_frame_dir.to_path_buf(),
-            std::io::Error::other("ffmpeg did not extract any video frames"),
-        ));
+        let path = extracted_frame_dir.to_path_buf();
+        let source = std::io::Error::other("ffmpeg did not extract any video frames");
+        let error = path_error(path, source);
+
+        return Err(error);
     }
     Ok(frame_paths)
 }

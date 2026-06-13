@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use az_derive_aliases::impl_default;
 
-use super::error::PlanResult;
 use super::logical::{LogicalPlan, ProjectColumn};
 use super::physical::{
     AggregatePhysical, JoinPhysicalType, PhysicalAggregate, PhysicalOperator, PhysicalPlan,
@@ -211,7 +210,7 @@ impl Optimizer {
     }
 
     /// Optimize a logical plan.
-    pub fn optimize(&self, plan: LogicalPlan) -> PlanResult<LogicalPlan> {
+    pub fn optimize(&self, plan: LogicalPlan) -> anyhow::Result<LogicalPlan> {
         let mut current = plan;
 
         for _ in 0..self.max_iterations {
@@ -297,12 +296,12 @@ impl Optimizer {
     }
 
     /// Convert a logical plan to a physical plan.
-    pub fn to_physical(&self, plan: &LogicalPlan) -> PlanResult<PhysicalPlan> {
+    pub fn to_physical(&self, plan: &LogicalPlan) -> anyhow::Result<PhysicalPlan> {
         let root = self.logical_to_physical(plan)?;
         Ok(PhysicalPlan::new(root))
     }
 
-    fn logical_to_physical(&self, plan: &LogicalPlan) -> PlanResult<PhysicalPlanNode> {
+    fn logical_to_physical(&self, plan: &LogicalPlan) -> anyhow::Result<PhysicalPlanNode> {
         match plan {
             LogicalPlan::Scan { table, columns, .. } => {
                 let estimated_rows = 1000; // Default estimate.

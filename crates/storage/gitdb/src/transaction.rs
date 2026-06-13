@@ -42,6 +42,5 @@
 automod::dir!("src/transaction");
 
 pub use context::{Transaction, TxAborted, TxActive, TxCommitted};
-pub use error::{TransactionError, TransactionResult};
 pub use isolation::IsolationLevel;
 pub use manager::TransactionManager;

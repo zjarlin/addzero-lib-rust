@@ -1,4 +1,4 @@
-use crate::{CodexAuthSupportError, CodexAuthSupportResult};
+use anyhow::bail;
 use az_derive_aliases::{apply, impl_default, plain_eq_redacted};
 use std::time::Duration;
 
@@ -79,27 +79,21 @@ impl DuckMailConfig {
     }
 
     /// 构造网络客户端前校验配置。
-    pub fn validate(&self) -> CodexAuthSupportResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         if self.base_url.trim().is_empty() {
-            return Err(CodexAuthSupportError::InvalidConfig(
-                "base_url cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: base_url cannot be blank");
         }
         if self.connect_timeout.is_zero() {
-            return Err(CodexAuthSupportError::InvalidConfig(
-                "connect_timeout must be greater than zero".to_owned(),
-            ));
+            bail!("invalid config: connect_timeout must be greater than zero");
         }
         if self.request_timeout.is_zero() {
-            return Err(CodexAuthSupportError::InvalidConfig(
-                "request_timeout must be greater than zero".to_owned(),
-            ));
+            bail!("invalid config: request_timeout must be greater than zero");
         }
         Ok(())
     }
 
     /// 完成构建器校验并返回最终配置。
-    pub fn build(self) -> CodexAuthSupportResult<Self> {
+    pub fn build(self) -> anyhow::Result<Self> {
         self.validate()?;
         Ok(self)
     }
@@ -180,27 +174,21 @@ impl CpaUploadConfig {
     }
 
     /// 构造网络客户端前校验配置。
-    pub fn validate(&self) -> CodexAuthSupportResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         if self.upload_url.trim().is_empty() {
-            return Err(CodexAuthSupportError::InvalidConfig(
-                "upload_url cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: upload_url cannot be blank");
         }
         if self.connect_timeout.is_zero() {
-            return Err(CodexAuthSupportError::InvalidConfig(
-                "connect_timeout must be greater than zero".to_owned(),
-            ));
+            bail!("invalid config: connect_timeout must be greater than zero");
         }
         if self.request_timeout.is_zero() {
-            return Err(CodexAuthSupportError::InvalidConfig(
-                "request_timeout must be greater than zero".to_owned(),
-            ));
+            bail!("invalid config: request_timeout must be greater than zero");
         }
         Ok(())
     }
 
     /// 完成构建器校验并返回最终配置。
-    pub fn build(self) -> CodexAuthSupportResult<Self> {
+    pub fn build(self) -> anyhow::Result<Self> {
         self.validate()?;
         Ok(self)
     }

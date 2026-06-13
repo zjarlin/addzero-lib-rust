@@ -7,8 +7,6 @@ pub use descriptor::SyncPlugin;
 #[cfg(not(target_arch = "wasm32"))]
 pub use contracts::SyncWireMessage;
 #[cfg(not(target_arch = "wasm32"))]
-pub use error::{SyncError, SyncResult};
-#[cfg(not(target_arch = "wasm32"))]
 pub use finder_status::{FinderBadge, FinderHostedItem, FinderSyncState};
 #[cfg(not(target_arch = "wasm32"))]
 pub use sync_agent::{

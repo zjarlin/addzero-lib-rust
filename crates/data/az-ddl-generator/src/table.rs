@@ -38,8 +38,8 @@ impl Table {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::column::ColumnType;
+    use crate::column::{Column, ColumnType};
+    use crate::table::Table;
 
     #[test]
     fn table_builder() {

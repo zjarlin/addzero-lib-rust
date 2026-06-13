@@ -1,12 +1,14 @@
 use az_derive_aliases::{apply, serde_eq};
 
+use crate::column::Column;
+
 /// Represents a table definition in the database schema.
 #[apply(serde_eq)]
 pub struct Table {
     /// Table name.
     pub name: String,
     /// Columns in this table.
-    pub columns: Vec<super::Column>,
+    pub columns: Vec<Column>,
     /// Optional table comment.
     pub comment: Option<String>,
 }
@@ -22,7 +24,7 @@ impl Table {
     }
 
     /// Add a column.
-    pub fn column(mut self, col: super::Column) -> Self {
+    pub fn column(mut self, col: Column) -> Self {
         self.columns.push(col);
         self
     }
@@ -34,31 +36,31 @@ impl Table {
     }
 
     /// Get a column by name.
-    pub fn get_column(&self, name: &str) -> Option<&super::Column> {
+    pub fn get_column(&self, name: &str) -> Option<&Column> {
         self.columns.iter().find(|c| c.name == name)
     }
 
     /// Get the primary key column, if any.
-    pub fn primary_key(&self) -> Option<&super::Column> {
+    pub fn primary_key(&self) -> Option<&Column> {
         self.columns.iter().find(|c| c.primary_key)
     }
 
     /// Get all columns marked as NOT NULL.
-    pub fn required_columns(&self) -> Vec<&super::Column> {
+    pub fn required_columns(&self) -> Vec<&Column> {
         self.columns.iter().filter(|c| c.not_null).collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::column::DataType;
+    use crate::column::{Column, DataType};
+    use crate::table::Table;
 
     #[test]
     fn table_builder() {
         let table = Table::new("users")
-            .column(super::super::Column::new("id", DataType::BigInt).primary_key())
-            .column(super::super::Column::new("name", DataType::Varchar(100)).not_null())
+            .column(Column::new("id", DataType::BigInt).primary_key())
+            .column(Column::new("name", DataType::Varchar(100)).not_null())
             .comment("User accounts");
 
         assert_eq!(table.name, "users");
@@ -70,8 +72,8 @@ mod tests {
     #[test]
     fn get_column_by_name() {
         let table = Table::new("orders")
-            .column(super::super::Column::new("id", DataType::BigInt))
-            .column(super::super::Column::new(
+            .column(Column::new("id", DataType::BigInt))
+            .column(Column::new(
                 "total",
                 DataType::Decimal {
                     precision: 10,
@@ -95,9 +97,9 @@ mod tests {
     #[test]
     fn required_columns() {
         let table = Table::new("items")
-            .column(super::super::Column::new("id", DataType::BigInt).not_null())
-            .column(super::super::Column::new("name", DataType::Varchar(255)).not_null())
-            .column(super::super::Column::new("description", DataType::Text));
+            .column(Column::new("id", DataType::BigInt).not_null())
+            .column(Column::new("name", DataType::Varchar(255)).not_null())
+            .column(Column::new("description", DataType::Text));
 
         let required = table.required_columns();
         assert_eq!(required.len(), 2);

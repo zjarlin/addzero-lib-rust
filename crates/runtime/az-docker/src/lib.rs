@@ -14,19 +14,10 @@
 //! - 通过 `shlex` 正确处理 shell 引号与转义
 //! - 未知的 `--key=value` 选项会被归入 `other_options` 字段
 
-use az_derive_aliases::{apply, error_eq, impl_from_str_parse, plain_eq};
+use anyhow::bail;
+use az_derive_aliases::{apply, plain_eq};
 use std::collections::BTreeMap;
-
-/// Docker Run 到 Compose 转换过程中的错误。
-#[apply(error_eq)]
-pub enum DockerComposeError {
-    /// 输入无法按 shell 规则拆分为参数列表。
-    #[error("invalid docker run command")]
-    InvalidCommandLine,
-    /// 参数列表中没有找到镜像名。
-    #[error("docker image was not found in command")]
-    MissingImage,
-}
+use std::str::FromStr;
 
 /// 解析后的 `docker run` 命令结构。
 ///
@@ -59,19 +50,27 @@ impl DockerComposeConverter {
     /// 将 `docker run` 命令字符串转换为 Compose v3.8 YAML。
     pub fn convert_to_docker_compose(
         docker_run_command: impl AsRef<str>,
-    ) -> Result<String, DockerComposeError> {
+    ) -> anyhow::Result<String> {
         DockerRunCommand::parse(docker_run_command).map(|command| command.to_docker_compose_yml())
     }
 }
 
-impl_from_str_parse!(DockerRunCommand => DockerComposeError);
+impl FromStr for DockerRunCommand {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::parse(value)
+    }
+}
 
 impl DockerRunCommand {
     /// 按 shell 引号规则解析 `docker run` 命令。
     ///
     /// 支持常见短参数、长参数和 `--key=value` 形式；第一个非选项参数会被视为镜像名。
-    pub fn parse(command: impl AsRef<str>) -> Result<Self, DockerComposeError> {
-        let args = shlex::split(command.as_ref()).ok_or(DockerComposeError::InvalidCommandLine)?;
+    pub fn parse(command: impl AsRef<str>) -> anyhow::Result<Self> {
+        let Some(args) = shlex::split(command.as_ref()) else {
+            bail!("invalid docker run command");
+        };
         let mut args = args.into_iter().peekable();
 
         let mut image = None;
@@ -133,7 +132,7 @@ impl DockerRunCommand {
         }
 
         Ok(Self {
-            image: image.ok_or(DockerComposeError::MissingImage)?,
+            image: image.ok_or_else(|| anyhow::anyhow!("docker image was not found in command"))?,
             name,
             ports,
             environment,

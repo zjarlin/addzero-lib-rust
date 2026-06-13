@@ -1,4 +1,6 @@
-use az_cli_repl::*;
+use az_cli_repl::api::{
+    Command, ParamDef, ParamType, ParsedParams, ReplEngine, ReplOutcome, parse_params,
+};
 
 struct SumCommand {
     params: Vec<ParamDef>,
@@ -28,7 +30,7 @@ impl Command for SumCommand {
         &self.params
     }
 
-    fn eval(&self, params: ParsedParams) -> Result<String, ReplError> {
+    fn eval(&self, params: ParsedParams) -> anyhow::Result<String> {
         Ok(
             (params.get_i64(0).unwrap_or_default() + params.get_i64(1).unwrap_or_default())
                 .to_string(),
@@ -64,7 +66,7 @@ impl Command for EchoCommand {
         &self.params
     }
 
-    fn eval(&self, params: ParsedParams) -> Result<String, ReplError> {
+    fn eval(&self, params: ParsedParams) -> anyhow::Result<String> {
         let message = params.get_string(0).unwrap_or_default();
         let uppercase = params.get_bool(1).unwrap_or(false);
         Ok(if uppercase {
@@ -115,12 +117,8 @@ fn parse_params_reports_param_type_code_in_errors() {
     .expect_err("invalid integer should fail");
 
     assert_eq!(
-        err,
-        ReplError::InvalidValue {
-            name: "count".to_owned(),
-            value: "abc".to_owned(),
-            expected: "int",
-        }
+        err.to_string(),
+        "invalid value `abc` for parameter `count`, expected int"
     );
 }
 

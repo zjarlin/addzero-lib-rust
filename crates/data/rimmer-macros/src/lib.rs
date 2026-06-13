@@ -32,7 +32,7 @@ fn expand_entity(input: DeriveInput) -> Result<proc_macro2::TokenStream> {
         let column_name = &field.column_name;
         let kind = field.kind.tokens();
         quote! {
-            ::rimmer::FieldMetadata::new(#rust_name, #column_name, #kind)
+            ::rimmer::metadata::FieldMetadata::new(#rust_name, #column_name, #kind)
         }
     });
 
@@ -44,46 +44,46 @@ fn expand_entity(input: DeriveInput) -> Result<proc_macro2::TokenStream> {
         let kind = field.kind.tokens();
         quote! {
             #[doc = concat!("返回字段 `", stringify!(#ident), "` 的强类型表达式。")]
-            pub fn #ident() -> ::rimmer::Field<Self, #ty> {
-                ::rimmer::Field::new(Self::entity(), #rust_name, #column_name, #kind)
+            pub fn #ident() -> ::rimmer::expression::Field<Self, #ty> {
+                ::rimmer::expression::Field::new(Self::entity(), #rust_name, #column_name, #kind)
             }
         }
     });
 
     Ok(quote! {
-        static #static_ident: &[::rimmer::FieldMetadata] = &[
+        static #static_ident: &[::rimmer::metadata::FieldMetadata] = &[
             #(#field_metadata,)*
         ];
 
         impl #entity_ident {
             /// 返回当前实体的元模型定义。
-            pub fn entity() -> ::rimmer::EntityDef<Self> {
-                ::rimmer::EntityDef::new(#type_name, #table_name, #static_ident)
+            pub fn entity() -> ::rimmer::metadata::EntityDef<Self> {
+                ::rimmer::metadata::EntityDef::new(#type_name, #table_name, #static_ident)
             }
 
             /// 返回当前实体的表对象。
-            pub fn table() -> ::rimmer::Table<Self> {
-                ::rimmer::Table::new(Self::entity())
+            pub fn table() -> ::rimmer::metadata::Table<Self> {
+                ::rimmer::metadata::Table::new(Self::entity())
             }
 
             /// 返回当前实体的 Fetcher 创建器。
-            pub fn fetcher() -> ::rimmer::FetcherCreator<Self> {
-                ::rimmer::new_fetcher(Self::entity())
+            pub fn fetcher() -> ::rimmer::fetcher::FetcherCreator<Self> {
+                ::rimmer::fetcher::new_fetcher(Self::entity())
             }
 
             /// 使用闭包创建当前实体的部分对象 Draft。
-            pub fn draft<F>(block: F) -> ::rimmer::Draft<Self>
+            pub fn draft<F>(block: F) -> ::rimmer::draft::Draft<Self>
             where
-                F: FnOnce(::rimmer::Draft<Self>) -> ::rimmer::Draft<Self>,
+                F: FnOnce(::rimmer::draft::Draft<Self>) -> ::rimmer::draft::Draft<Self>,
             {
-                ::rimmer::new_draft(Self::entity()).by(block)
+                ::rimmer::draft::new_draft(Self::entity()).by(block)
             }
 
             #(#field_methods)*
         }
 
-        impl ::rimmer::Entity for #entity_ident {
-            fn entity() -> ::rimmer::EntityDef<Self> {
+        impl ::rimmer::metadata::Entity for #entity_ident {
+            fn entity() -> ::rimmer::metadata::EntityDef<Self> {
                 Self::entity()
             }
         }
@@ -111,16 +111,16 @@ fn parse_entity_table_name(attrs: &[syn::Attribute], type_name: &str) -> Result<
 
 fn parse_named_fields(data: Data) -> Result<Vec<EntityField>> {
     let Data::Struct(data) = data else {
-        return Err(Error::new(
-            Span::call_site(),
-            "rimmer Entity can only be derived for structs",
-        ));
+        let span = Span::call_site();
+        let error = Error::new(span, "rimmer Entity can only be derived for structs");
+
+        return Err(error);
     };
     let Fields::Named(fields) = data.fields else {
-        return Err(Error::new(
-            data.struct_token.span(),
-            "rimmer Entity requires named struct fields",
-        ));
+        let span = data.struct_token.span();
+        let error = Error::new(span, "rimmer Entity requires named struct fields");
+
+        return Err(error);
     };
 
     fields
@@ -223,14 +223,14 @@ impl GeneratedFieldKind {
 
     fn tokens(self) -> proc_macro2::TokenStream {
         match self {
-            Self::Id => quote!(::rimmer::FieldKind::Id),
-            Self::Key => quote!(::rimmer::FieldKind::Key),
-            Self::Scalar => quote!(::rimmer::FieldKind::Scalar),
-            Self::ManyToOne => quote!(::rimmer::FieldKind::ManyToOne),
-            Self::OneToMany => quote!(::rimmer::FieldKind::OneToMany),
-            Self::ManyToMany => quote!(::rimmer::FieldKind::ManyToMany),
-            Self::Transient => quote!(::rimmer::FieldKind::Transient),
-            Self::IdView => quote!(::rimmer::FieldKind::IdView),
+            Self::Id => quote!(::rimmer::metadata::FieldKind::Id),
+            Self::Key => quote!(::rimmer::metadata::FieldKind::Key),
+            Self::Scalar => quote!(::rimmer::metadata::FieldKind::Scalar),
+            Self::ManyToOne => quote!(::rimmer::metadata::FieldKind::ManyToOne),
+            Self::OneToMany => quote!(::rimmer::metadata::FieldKind::OneToMany),
+            Self::ManyToMany => quote!(::rimmer::metadata::FieldKind::ManyToMany),
+            Self::Transient => quote!(::rimmer::metadata::FieldKind::Transient),
+            Self::IdView => quote!(::rimmer::metadata::FieldKind::IdView),
         }
     }
 }

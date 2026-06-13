@@ -38,7 +38,7 @@ DogeSMS 使用 Control API：读接口通过 `X-API-Key` 鉴权，创建或取�
 use az_sms::dogsms::client::{DogSmsActivationRequest, DogSmsClient};
 
 #[tokio::main]
-async fn main() -> az_sms::error::SmsResult<()> {
+async fn main() -> anyhow::Result<()> {
     let api_key = std::env::var("DOGSMS_API_KEY")
         .expect("DOGSMS_API_KEY is required");
 
@@ -75,7 +75,7 @@ async fn main() -> az_sms::error::SmsResult<()> {
 ```rust,no_run
 use az_sms::dogsms::client::{DogSmsClient, DogSmsRentalRequest};
 
-async fn rent(client: &DogSmsClient) -> az_sms::error::SmsResult<()> {
+async fn rent(client: &DogSmsClient) -> anyhow::Result<()> {
     let request = DogSmsRentalRequest::new("GB", 3)?.note("project-alpha");
     let rental = client
         .create_rental_with_idempotency_key(request, "rent-gb-3m-001")
@@ -99,7 +99,7 @@ use az_sms::model::SmsActivationRequest;
 use az_sms::provider::SmsProvider;
 
 #[tokio::main]
-async fn main() -> az_sms::error::SmsResult<()> {
+async fn main() -> anyhow::Result<()> {
     let api_key = std::env::var("GRIZZLYSMS_API_KEY")
         .expect("GRIZZLYSMS_API_KEY is required");
 
@@ -113,7 +113,7 @@ async fn main() -> az_sms::error::SmsResult<()> {
 }
 ```
 
-Grizzly SMS 官方文档当前没有公开托管/租号 inbox API，因此 `buy_hosting_number` 和 `inbox` 会返回 `SmsError::UnsupportedOperation`。
+Grizzly SMS 官方文档当前没有公开托管/租号 inbox API，因此 `buy_hosting_number` 和 `inbox` 会返回 `anyhow` 错误。
 
 ## Provider Factory
 
@@ -123,7 +123,7 @@ Grizzly SMS 官方文档当前没有公开托管/租号 inbox API，因此 `buy_
 use az_sms::dogsms::client::DogSmsConfig;
 use az_sms::provider::{SmsProviderConfig, build_sms_provider};
 
-fn provider(api_key: String) -> az_sms::error::SmsResult<az_sms::provider::BoxSmsProvider> {
+fn provider(api_key: String) -> anyhow::Result<az_sms::provider::BoxSmsProvider> {
     let config = DogSmsConfig::builder(api_key).build()?;
     build_sms_provider(SmsProviderConfig::from(config))
 }
@@ -177,7 +177,6 @@ DOGSMS_API_KEY='...' cargo test -p az-sms --test dogsms_07_create_rental -- --ig
 - `az_sms::model::SmsOrder`
 - `az_sms::model::SmsMessage`
 - `az_sms::model::WaitForSmsOptions`
-- `az_sms::error::SmsError`
-- `az_sms::error::SmsResult`
+- 所有可失败 API 统一返回 `anyhow::Result`
 
 `SmsProvider` 是通用 trait，后续接入其他短信服务商时应实现这个 trait，而不是让调用方直接绑定某个供应商。

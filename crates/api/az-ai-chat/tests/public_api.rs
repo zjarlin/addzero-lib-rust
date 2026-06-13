@@ -1,4 +1,4 @@
-use az_ai_chat::{ChatError, ChatOptions, ChatResponse, Message, Role};
+use az_ai_chat::{ChatOptions, ChatResponse, Message, Role};
 
 #[test]
 fn message_constructors() {
@@ -57,13 +57,10 @@ fn chat_response_deserialization() {
 }
 
 #[test]
-fn chat_error_display() {
-    let err = ChatError::InvalidConfig("empty api key".into());
+fn chat_errors_use_anyhow_messages() {
+    let err = anyhow::anyhow!("invalid config: empty api key");
     assert_eq!(err.to_string(), "invalid config: empty api key");
 
-    let err = ChatError::ProviderError {
-        code: 429,
-        message: "rate limited".into(),
-    };
+    let err = anyhow::anyhow!("provider error (429): rate limited");
     assert!(err.to_string().contains("429"));
 }

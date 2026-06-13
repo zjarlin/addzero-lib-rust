@@ -23,27 +23,37 @@ az-cli-repl = { path = "../az-cli-repl" }       # workspace 内部引用
 
 ## 用法
 
-```rust
-use az_cli_repl::{Command, ParamDef, ParamType, ParsedParams, ReplEngine, ReplError};
+```rust,no_run
+use az_cli_repl::api::{Command, ParamDef, ParamType, ParsedParams, ReplEngine};
 
-struct GreetCommand;
+struct GreetCommand {
+    params: Vec<ParamDef>,
+}
+
+impl GreetCommand {
+    fn new() -> Self {
+        Self {
+            params: vec![ParamDef::new("name", ParamType::String, "你的名字")],
+        }
+    }
+}
 
 impl Command for GreetCommand {
     fn command(&self) -> &str { "greet" }
     fn description(&self) -> &str { "打招呼" }
     fn param_defs(&self) -> &[ParamDef] {
-        &[ParamDef::new("name", ParamType::String, "你的名字")]
+        &self.params
     }
-    fn eval(&self, params: ParsedParams) -> Result<String, ReplError> {
+    fn eval(&self, params: ParsedParams) -> anyhow::Result<String> {
         let name = params.get_string(0).unwrap_or("世界");
         Ok(format!("你好，{name}！"))
     }
 }
 
-let engine = ReplEngine::new(vec![Box::new(GreetCommand)]);
+let engine = ReplEngine::new(vec![Box::new(GreetCommand::new())]);
 let outcome = engine.run_line("greet Rust");
 ```
 
 ## 依赖的 crates
 
-- `thiserror` - 错误类型派生宏
+- `anyhow` - 命令执行和参数解析错误返回

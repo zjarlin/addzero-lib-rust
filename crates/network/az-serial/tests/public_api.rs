@@ -1,4 +1,5 @@
-use az_serial::{BaudRate, PortInfo, SerialConfig, SerialError, SerialPort};
+use az_serial::config::{BaudRate, SerialConfig};
+use az_serial::port::{PortInfo, SerialPort};
 
 #[test]
 fn open_empty_port_name_errors() {
@@ -38,10 +39,12 @@ fn port_info_fields() {
 }
 
 #[test]
-fn serial_error_display() {
-    let err = SerialError::PortNotFound("COM99".into());
-    assert_eq!(err.to_string(), "port not found: COM99");
+fn serial_errors_use_anyhow_messages() {
+    let config = SerialConfig::new(BaudRate::Baud0);
+    let error = SerialPort::open("/dev/ttyUSB0", &config).unwrap_err();
 
-    let err = SerialError::Timeout(5000);
-    assert_eq!(err.to_string(), "timeout after 5000ms");
+    assert_eq!(
+        error.to_string(),
+        "invalid config: baud rate cannot be zero"
+    );
 }

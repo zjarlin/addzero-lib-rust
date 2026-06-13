@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
+use anyhow::{anyhow, bail};
 use shaku::{Component, Interface, module};
 use toasty::stmt::{List, Query};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    error::{EdgeGatewayError, EdgeGatewayResult},
     model::{GatewayFlow, GatewayFlowSummary, TABLE_NAME_PREFIX},
 };
 
@@ -16,7 +16,7 @@ pub struct EdgeGatewayStore {
 }
 
 impl EdgeGatewayStore {
-    pub async fn connect(database_url: &str) -> EdgeGatewayResult<Self> {
+    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         let database_url = validate_database_url(Some(database_url))?;
         let db = toasty::Db::builder()
             .models(toasty::models!(GatewayFlow))
@@ -29,7 +29,7 @@ impl EdgeGatewayStore {
         })
     }
 
-    pub async fn list_flows(&self) -> EdgeGatewayResult<Vec<GatewayFlowSummary>> {
+    pub async fn list_flows(&self) -> anyhow::Result<Vec<GatewayFlowSummary>> {
         let mut db = self.db.lock().await;
         let flows = Query::<List<GatewayFlow>>::all().exec(&mut *db).await?;
         Ok(flows.into_iter().map(Into::into).collect())
@@ -38,7 +38,7 @@ impl EdgeGatewayStore {
     pub async fn upsert_flow(
         &self,
         input: GatewayFlowInput,
-    ) -> EdgeGatewayResult<GatewayFlowSummary> {
+    ) -> anyhow::Result<GatewayFlowSummary> {
         validate_gateway_flow_input(&input)?;
         let id = normalized_id(input.id);
         let now = timestamp_string();
@@ -115,20 +115,20 @@ pub fn build_edge_gateway_module() -> EdgeGatewayModule {
     EdgeGatewayModule::builder().build()
 }
 
-pub fn validate_database_url(value: Option<&str>) -> EdgeGatewayResult<&str> {
+pub fn validate_database_url(value: Option<&str>) -> anyhow::Result<&str> {
     let value = value
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or(EdgeGatewayError::MissingDatabaseUrl)?;
+        .ok_or_else(|| anyhow!("missing edge-gateway database url"))?;
     Ok(value)
 }
 
-pub fn validate_gateway_flow_input(input: &GatewayFlowInput) -> EdgeGatewayResult<()> {
+pub fn validate_gateway_flow_input(input: &GatewayFlowInput) -> anyhow::Result<()> {
     if input.name.trim().is_empty() {
-        return Err(EdgeGatewayError::BlankFlowName);
+        bail!("gateway flow name must not be blank");
     }
     if input.route.trim().is_empty() {
-        return Err(EdgeGatewayError::BlankRoute);
+        bail!("gateway flow route must not be blank");
     }
     Ok(())
 }
@@ -160,10 +160,8 @@ mod tests {
             validate_database_url(Some(" postgresql://localhost/gateway ")).unwrap(),
             "postgresql://localhost/gateway"
         );
-        assert!(matches!(
-            validate_database_url(None),
-            Err(EdgeGatewayError::MissingDatabaseUrl)
-        ));
+        let error = validate_database_url(None).unwrap_err();
+        assert_eq!(error.to_string(), "missing edge-gateway database url");
     }
 
     #[test]
@@ -174,10 +172,8 @@ mod tests {
             name: "Proxy".to_string(),
             status: None,
         };
-        assert!(matches!(
-            validate_gateway_flow_input(&input),
-            Err(EdgeGatewayError::BlankRoute)
-        ));
+        let error = validate_gateway_flow_input(&input).unwrap_err();
+        assert_eq!(error.to_string(), "gateway flow route must not be blank");
     }
 
     #[test]

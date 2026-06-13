@@ -14,6 +14,7 @@ serde.workspace = true
 serde_json.workspace = true
 
 [build-dependencies]
+anyhow.workspace = true
 az-openapi-codegen = { path = "../../micro/az-openapi-codegen" }
 
 [lints]

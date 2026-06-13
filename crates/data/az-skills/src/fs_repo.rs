@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use az_derive_aliases::{apply, deserialize_debug};
 use chrono::{DateTime, Utc};
-use regex::Regex;
 use uuid::Uuid;
 
 use crate::types::{Skill, SkillSource, SkillUpsert};
@@ -215,16 +214,18 @@ fn extract_keywords_from_description(description: &str) -> (Vec<String>, String)
         }
     }
 
-    // 回退策略：用正则解析自由文本开头，例如：
-    //   "当用户提到 a、b、c 时使用..."
-    let re = Regex::new(r"当用户提到\s*([^，。\n]+?)\s*时").expect("static regex");
-    if let Some(caps) = re.captures(description) {
-        let raw_list = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+    if let Some(raw_list) = fallback_keyword_phrase(description) {
         let keywords = split_keywords(raw_list);
         return (keywords, description.trim().to_string());
     }
 
     (Vec::new(), description.trim().to_string())
+}
+
+fn fallback_keyword_phrase(description: &str) -> Option<&str> {
+    let after_prefix = description.trim_start().strip_prefix("当用户提到")?.trim_start();
+    let (raw_list, _) = after_prefix.split_once('时')?;
+    Some(raw_list.trim())
 }
 
 fn parse_keyword_phrase(inner: &str) -> Vec<String> {

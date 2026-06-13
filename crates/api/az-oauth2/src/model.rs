@@ -1,4 +1,4 @@
-use crate::{OAuth2Error, OAuth2Result};
+use anyhow::bail;
 use az_derive_aliases::{apply, plain_eq, plain_partial_eq, serde_partial_eq_default};
 use serde_json::Value;
 
@@ -52,7 +52,7 @@ impl OAuth2TokenResponse {
     }
 
     /// Returns the access token or maps the provider error to a typed error.
-    pub fn require_access_token(&self) -> OAuth2Result<&str> {
+    pub fn require_access_token(&self) -> anyhow::Result<&str> {
         if let Some(token) = self
             .access_token
             .as_deref()
@@ -63,24 +63,20 @@ impl OAuth2TokenResponse {
         }
 
         if let Some(error) = self.error.as_deref() {
-            return Err(OAuth2Error::ProviderError {
-                error: error.to_owned(),
-                description: self.error_description.clone().unwrap_or_default(),
-            });
+            let description = self.error_description.clone().unwrap_or_default();
+            bail!("oauth provider error `{error}`: {description}");
         }
 
-        Err(OAuth2Error::InvalidResponse(
-            "token response did not include access_token".to_owned(),
-        ))
+        bail!("invalid response: token response did not include access_token")
     }
 
-    pub(crate) fn into_success(self) -> OAuth2Result<Self> {
+    pub(crate) fn into_success(self) -> anyhow::Result<Self> {
         self.require_access_token()?;
         Ok(self)
     }
 
     /// Converts the response to a compact success-only shape.
-    pub fn into_token_success(self) -> OAuth2Result<OAuth2TokenSuccess> {
+    pub fn into_token_success(self) -> anyhow::Result<OAuth2TokenSuccess> {
         let access_token = self.require_access_token()?.to_owned();
         Ok(OAuth2TokenSuccess {
             access_token,

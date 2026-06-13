@@ -1,4 +1,4 @@
-use crate::{TempMailError, TempMailResult};
+use anyhow::bail;
 use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -31,21 +31,15 @@ impl ApiConfig {
     }
 
     /// 在 IO 开始前校验超时和基础 URL 字段。
-    pub fn validate(&self) -> TempMailResult<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         if self.base_url.trim().is_empty() {
-            return Err(TempMailError::InvalidConfig(
-                "base_url cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: base_url cannot be blank");
         }
         if self.connect_timeout.is_zero() {
-            return Err(TempMailError::InvalidConfig(
-                "connect_timeout cannot be zero".to_owned(),
-            ));
+            bail!("invalid config: connect_timeout cannot be zero");
         }
         if self.request_timeout.is_zero() {
-            return Err(TempMailError::InvalidConfig(
-                "request_timeout cannot be zero".to_owned(),
-            ));
+            bail!("invalid config: request_timeout cannot be zero");
         }
         Ok(())
     }
@@ -98,7 +92,7 @@ impl ApiConfigBuilder {
     }
 
     /// 构建并校验最终配置。
-    pub fn build(self) -> TempMailResult<ApiConfig> {
+    pub fn build(self) -> anyhow::Result<ApiConfig> {
         let config = ApiConfig {
             base_url: self.base_url,
             connect_timeout: self.connect_timeout,

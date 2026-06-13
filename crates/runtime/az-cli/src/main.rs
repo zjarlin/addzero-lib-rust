@@ -1,4 +1,4 @@
-automod::dir!("src");
+automod::dir!(pub "src");
 
 use anyhow::Result;
 

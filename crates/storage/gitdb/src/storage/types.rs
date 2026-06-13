@@ -1,11 +1,12 @@
 //! 存储层围绕 Git 原语建立的类型安全包装。
 
 use az_derive_aliases::{
-    apply, error_eq, impl_default, plain_copy_eq, plain_copy_eq_hash_ord_display, plain_eq,
+    apply, impl_default, plain_copy_eq, plain_copy_eq_hash_ord_display, plain_eq,
     plain_eq_display, plain_string_value_object, serde_string_value_object,
 };
 use git2::Oid;
 use std::path::PathBuf;
+use anyhow::bail;
 
 /// Git 提交 ID。
 ///
@@ -78,40 +79,39 @@ impl TableName {
     const RESERVED: &'static [&'static str] = &["_schema", "_meta", "_system", "_git"];
 
     /// 创建并校验表名。
-    pub fn new(name: impl Into<String>) -> Result<Self, InvalidNameError> {
+    pub fn new(name: impl Into<String>) -> anyhow::Result<Self> {
         let name = name.into();
         Self::validate(&name)?;
         Ok(Self(name))
     }
 
     /// 校验表名。
-    fn validate(name: &str) -> Result<(), InvalidNameError> {
+    fn validate(name: &str) -> anyhow::Result<()> {
         if name.is_empty() {
-            return Err(InvalidNameError::Empty);
+            bail!("name cannot be empty");
         }
 
         if name.len() > 64 {
-            return Err(InvalidNameError::TooLong(name.len()));
+            bail!("name too long: {} characters", name.len());
         }
 
-        let first_char = name.chars().next().unwrap();
+        let Some(first_char) = name.chars().next() else {
+            bail!("name cannot be empty");
+        };
 
         // Must start with a letter or underscore (not a digit)
         if !first_char.is_ascii_alphabetic() && first_char != '_' {
-            return Err(InvalidNameError::InvalidStart(first_char));
+            bail!("name cannot start with '{first_char}'");
         }
 
         for (i, c) in name.chars().enumerate() {
             if !c.is_ascii_alphanumeric() && c != '_' && c != '-' {
-                return Err(InvalidNameError::InvalidCharacter {
-                    char: c,
-                    position: i,
-                });
+                bail!("invalid character '{c}' at position {i}");
             }
         }
 
         if Self::RESERVED.contains(&name.to_lowercase().as_str()) {
-            return Err(InvalidNameError::Reserved(name.to_string()));
+            bail!("'{name}' is a reserved name");
         }
 
         Ok(())
@@ -127,29 +127,26 @@ impl TableName {
 pub struct RowKey(String);
 
 impl RowKey {
-    pub fn new(key: impl Into<String>) -> Result<Self, InvalidNameError> {
+    pub fn new(key: impl Into<String>) -> anyhow::Result<Self> {
         let key = key.into();
         Self::validate(&key)?;
         Ok(Self(key))
     }
 
     /// 校验行键。
-    fn validate(key: &str) -> Result<(), InvalidNameError> {
+    fn validate(key: &str) -> anyhow::Result<()> {
         if key.is_empty() {
-            return Err(InvalidNameError::Empty);
+            bail!("name cannot be empty");
         }
 
         if key.len() > 128 {
-            return Err(InvalidNameError::TooLong(key.len()));
+            bail!("name too long: {} characters", key.len());
         }
 
         for (i, c) in key.chars().enumerate() {
             // alphanumeric, underscore, hyphen allowed
             if !c.is_ascii_alphanumeric() && c != '_' && c != '-' {
-                return Err(InvalidNameError::InvalidCharacter {
-                    char: c,
-                    position: i,
-                });
+                bail!("invalid character '{c}' at position {i}");
             }
         }
 
@@ -197,14 +194,14 @@ impl BranchName {
     pub const TX_PREFIX: &'static str = "tx/";
 
     /// 创建并校验分支名。
-    pub fn new(name: impl Into<String>) -> Result<Self, InvalidNameError> {
+    pub fn new(name: impl Into<String>) -> anyhow::Result<Self> {
         let name = name.into();
         // basic validation , git is more permissive but we gon be restrictive
         if name.is_empty() {
-            return Err(InvalidNameError::Empty);
+            bail!("name cannot be empty");
         }
         if name.contains("..") || name.ends_with('/') || name.starts_with('/') {
-            return Err(InvalidNameError::InvalidPath(name));
+            bail!("invalid path: '{name}'");
         }
         Ok(Self(name))
     }
@@ -267,23 +264,6 @@ impl GitSignature {
 }
 
 impl_default!(GitSignature => GitSignature::gitdb());
-
-/// 表名、行键、分支名校验失败时返回的错误。
-#[apply(error_eq)]
-pub enum InvalidNameError {
-    #[error("name cannot be empty")]
-    Empty,
-    #[error("name too long: {0} characters")]
-    TooLong(usize),
-    #[error("name cannot start with '{0}'")]
-    InvalidStart(char),
-    #[error("invalid character '{char}' at position {position}")]
-    InvalidCharacter { char: char, position: usize },
-    #[error("'{0}' is a reserved name")]
-    Reserved(String),
-    #[error("invalid path: '{0}'")]
-    InvalidPath(String),
-}
 
 /// 两个提交之间的一条路径变更。
 #[apply(plain_eq)]

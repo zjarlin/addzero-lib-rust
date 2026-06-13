@@ -13,9 +13,9 @@ use az_derive_aliases::{apply, plain_clone, plain_clone_debug, plain_clone_debug
 use git2::Repository;
 use parking_lot::RwLock;
 
+use crate::storage::error;
 use crate::storage::blob::{self, Row};
 use crate::storage::commit::{self, CommitBuilder, CommitInfo, CommitMessage};
-use crate::storage::error::{StorageError, StorageResult};
 use crate::storage::refs::RefManager;
 use crate::storage::tree::TreeMutator;
 use crate::storage::types::{BranchName, CommitId, GitSignature, RowKey, TableName, TreeId};
@@ -37,10 +37,10 @@ struct GitRepositoryInner {
 
 impl GitRepository {
     /// Open an existing repository.
-    pub fn open(path: impl AsRef<Path>) -> StorageResult<Self> {
+    pub fn open(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = path.as_ref();
         let repo =
-            Repository::open(path).map_err(|_| StorageError::NotInitialized(path.to_path_buf()))?;
+            Repository::open(path).map_err(|_| error::not_initialized(&path.to_path_buf()))?;
 
         Ok(Self {
             inner: Arc::new(GitRepositoryInner {
@@ -52,7 +52,7 @@ impl GitRepository {
     }
 
     /// Initialize a new repository.
-    pub fn init(path: impl AsRef<Path>) -> StorageResult<Self> {
+    pub fn init(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = path.as_ref();
         let repo = Repository::init(path)?;
 
@@ -75,7 +75,7 @@ impl GitRepository {
     }
 
     /// Open or initialize a repository.
-    pub fn open_or_init(path: impl AsRef<Path>) -> StorageResult<Self> {
+    pub fn open_or_init(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = path.as_ref();
         if path.join(".git").exists() {
             Self::open(path)
@@ -90,26 +90,30 @@ impl GitRepository {
     }
 
     /// Set the signature for commits.
-    pub fn with_signature(mut self, signature: GitSignature) -> Self {
-        // We need to recreate the Arc with the new signature
-        let inner = Arc::get_mut(&mut self.inner).expect("cannot modify shared repository");
+    pub fn with_signature(mut self, signature: GitSignature) -> anyhow::Result<Self> {
+        let Some(inner) = Arc::get_mut(&mut self.inner) else {
+            let message = "cannot modify signature after repository has been cloned".to_string();
+            let error = error::internal(message);
+
+            return Err(error);
+        };
         inner.signature = signature;
-        self
+        Ok(self)
     }
 
     /// Execute a function with read access to the repository.
-    pub fn with_repo<F, T>(&self, f: F) -> StorageResult<T>
+    pub fn with_repo<F, T>(&self, f: F) -> anyhow::Result<T>
     where
-        F: FnOnce(&Repository) -> StorageResult<T>,
+        F: FnOnce(&Repository) -> anyhow::Result<T>,
     {
         let repo = self.inner.repo.read();
         f(&repo)
     }
 
     /// Execute a function with write access to the repository.
-    pub fn with_repo_mut<F, T>(&self, f: F) -> StorageResult<T>
+    pub fn with_repo_mut<F, T>(&self, f: F) -> anyhow::Result<T>
     where
-        F: FnOnce(&Repository) -> StorageResult<T>,
+        F: FnOnce(&Repository) -> anyhow::Result<T>,
     {
         let repo = self.inner.repo.write();
         f(&repo)
@@ -118,22 +122,22 @@ impl GitRepository {
     // ==================== High-level Operations ====================
 
     /// Get the current HEAD commit (tip of main branch).
-    pub fn head(&self) -> StorageResult<CommitId> {
+    pub fn head(&self) -> anyhow::Result<CommitId> {
         self.with_repo(|repo| RefManager::head_commit(repo))
     }
 
     /// Get the commit ID for a branch.
-    pub fn resolve_branch(&self, branch: &BranchName) -> StorageResult<CommitId> {
+    pub fn resolve_branch(&self, branch: &BranchName) -> anyhow::Result<CommitId> {
         self.with_repo(|repo| RefManager::resolve_branch(repo, branch))
     }
 
     /// Get information about a commit.
-    pub fn get_commit(&self, id: CommitId) -> StorageResult<CommitInfo> {
+    pub fn get_commit(&self, id: CommitId) -> anyhow::Result<CommitInfo> {
         self.with_repo(|repo| commit::get_commit(repo, id))
     }
 
     /// Get the tree at a specific commit.
-    pub fn tree_at(&self, commit_id: CommitId) -> StorageResult<TreeSnapshot> {
+    pub fn tree_at(&self, commit_id: CommitId) -> anyhow::Result<TreeSnapshot> {
         self.with_repo(|repo| {
             let tree = commit::get_tree_at_commit(repo, commit_id)?;
             Ok(TreeSnapshot {
@@ -146,7 +150,7 @@ impl GitRepository {
     // ==================== Table Operations ====================
 
     /// List all tables at a commit.
-    pub fn list_tables(&self, at: CommitId) -> StorageResult<Vec<TableName>> {
+    pub fn list_tables(&self, at: CommitId) -> anyhow::Result<Vec<TableName>> {
         self.with_repo(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
             Ok(tree.list_tables())
@@ -154,7 +158,7 @@ impl GitRepository {
     }
 
     /// Check if a table exists at a commit.
-    pub fn table_exists(&self, table: &TableName, at: CommitId) -> StorageResult<bool> {
+    pub fn table_exists(&self, table: &TableName, at: CommitId) -> anyhow::Result<bool> {
         self.with_repo(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
             Ok(tree.table_exists(table))
@@ -169,7 +173,7 @@ impl GitRepository {
         table: &TableName,
         at: CommitId,
         tx_id: Option<&str>,
-    ) -> StorageResult<CommitId> {
+    ) -> anyhow::Result<CommitId> {
         self.with_repo_mut(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
             let mut mutator = TreeMutator::from_tree(repo, &tree)?;
@@ -194,7 +198,7 @@ impl GitRepository {
         table: &TableName,
         at: CommitId,
         tx_id: Option<&str>,
-    ) -> StorageResult<CommitId> {
+    ) -> anyhow::Result<CommitId> {
         self.with_repo_mut(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
             let mut mutator = TreeMutator::from_tree(repo, &tree)?;
@@ -214,7 +218,7 @@ impl GitRepository {
     // ==================== Row Operations ====================
 
     /// List all row keys in a table.
-    pub fn list_rows(&self, table: &TableName, at: CommitId) -> StorageResult<Vec<RowKey>> {
+    pub fn list_rows(&self, table: &TableName, at: CommitId) -> anyhow::Result<Vec<RowKey>> {
         self.with_repo(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
             tree.list_rows(repo, table)
@@ -227,7 +231,7 @@ impl GitRepository {
         table: &TableName,
         key: &RowKey,
         at: CommitId,
-    ) -> StorageResult<Option<Row>> {
+    ) -> anyhow::Result<Option<Row>> {
         self.with_repo(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
 
@@ -254,16 +258,15 @@ impl GitRepository {
         row: Row,
         at: CommitId,
         tx_id: Option<&str>,
-    ) -> StorageResult<CommitId> {
+    ) -> anyhow::Result<CommitId> {
         self.with_repo_mut(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
 
             // Check if row already exists
             if tree.row_exists(repo, table, &row.key)? {
-                return Err(StorageError::RowAlreadyExists {
-                    table: table.clone(),
-                    key: row.key.clone(),
-                });
+                let error = error::row_already_exists(table, &row.key);
+
+                return Err(error);
             }
 
             // Write the row as a blob
@@ -295,16 +298,15 @@ impl GitRepository {
         row: Row,
         at: CommitId,
         tx_id: Option<&str>,
-    ) -> StorageResult<CommitId> {
+    ) -> anyhow::Result<CommitId> {
         self.with_repo_mut(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
 
             // Check if row exists
             if !tree.row_exists(repo, table, &row.key)? {
-                return Err(StorageError::RowNotFound {
-                    table: table.clone(),
-                    key: row.key.clone(),
-                });
+                let error = error::row_not_found(table, &row.key);
+
+                return Err(error);
             }
 
             // Write the row as a blob
@@ -335,7 +337,7 @@ impl GitRepository {
         row: Row,
         at: CommitId,
         tx_id: Option<&str>,
-    ) -> StorageResult<CommitId> {
+    ) -> anyhow::Result<CommitId> {
         self.with_repo_mut(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
             let exists = tree.row_exists(repo, table, &row.key)?;
@@ -374,7 +376,7 @@ impl GitRepository {
         key: &RowKey,
         at: CommitId,
         tx_id: Option<&str>,
-    ) -> StorageResult<CommitId> {
+    ) -> anyhow::Result<CommitId> {
         self.with_repo_mut(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
 
@@ -397,19 +399,16 @@ impl GitRepository {
     /// Scan all rows in a table.
     ///
     /// Warning: This reads all rows into memory.  Use with caution on large tables.
-    pub fn scan_table(&self, table: &TableName, at: CommitId) -> StorageResult<Vec<Row>> {
+    pub fn scan_table(&self, table: &TableName, at: CommitId) -> anyhow::Result<Vec<Row>> {
         self.with_repo(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
             let keys = tree.list_rows(repo, table)?;
 
             let mut rows = Vec::with_capacity(keys.len());
             for key in keys {
-                let blob_id = tree.get_row_blob_id(repo, table, &key)?.ok_or_else(|| {
-                    StorageError::RowNotFound {
-                        table: table.clone(),
-                        key: key.clone(),
-                    }
-                })?;
+                let blob_id = tree
+                    .get_row_blob_id(repo, table, &key)?
+                    .ok_or_else(|| error::row_not_found(table, &key))?;
 
                 let bytes = blob::read_blob(repo, blob_id)?;
                 let row = blob::deserialize_row(&bytes, &key)?;
@@ -423,27 +422,27 @@ impl GitRepository {
     // ==================== Branch Operations ====================
 
     /// Create a new branch at the given commit.
-    pub fn create_branch(&self, branch: &BranchName, at: CommitId) -> StorageResult<()> {
+    pub fn create_branch(&self, branch: &BranchName, at: CommitId) -> anyhow::Result<()> {
         self.with_repo_mut(|repo| RefManager::create_branch(repo, branch, at))
     }
 
     /// Delete a branch.
-    pub fn delete_branch(&self, branch: &BranchName) -> StorageResult<()> {
+    pub fn delete_branch(&self, branch: &BranchName) -> anyhow::Result<()> {
         self.with_repo_mut(|repo| RefManager::delete_branch(repo, branch))
     }
 
     /// Update a branch to point to a new commit.
-    pub fn update_branch(&self, branch: &BranchName, target: CommitId) -> StorageResult<()> {
+    pub fn update_branch(&self, branch: &BranchName, target: CommitId) -> anyhow::Result<()> {
         self.with_repo_mut(|repo| RefManager::update_branch(repo, branch, target))
     }
 
     /// Check if a branch exists.
-    pub fn branch_exists(&self, branch: &BranchName) -> StorageResult<bool> {
+    pub fn branch_exists(&self, branch: &BranchName) -> anyhow::Result<bool> {
         self.with_repo(|repo| Ok(RefManager::branch_exists(repo, branch)))
     }
 
     /// List all branches.
-    pub fn list_branches(&self) -> StorageResult<Vec<BranchName>> {
+    pub fn list_branches(&self) -> anyhow::Result<Vec<BranchName>> {
         self.with_repo(|repo| RefManager::list_branches(repo, None))
     }
 
@@ -452,12 +451,12 @@ impl GitRepository {
         &self,
         tx_id: &str,
         base: CommitId,
-    ) -> StorageResult<BranchName> {
+    ) -> anyhow::Result<BranchName> {
         self.with_repo_mut(|repo| RefManager::create_transaction_branch(repo, tx_id, base))
     }
 
     /// Delete a transaction branch.
-    pub fn delete_transaction_branch(&self, tx_id: &str) -> StorageResult<()> {
+    pub fn delete_transaction_branch(&self, tx_id: &str) -> anyhow::Result<()> {
         self.with_repo_mut(|repo| RefManager::delete_transaction_branch(repo, tx_id))
     }
 
@@ -471,7 +470,7 @@ impl GitRepository {
         &self,
         tx_branch: &BranchName,
         expected_main: CommitId,
-    ) -> StorageResult<CommitId> {
+    ) -> anyhow::Result<CommitId> {
         self.with_repo_mut(|repo| {
             let tx_commit = RefManager::resolve_branch(repo, tx_branch)?;
             let main = BranchName::main();
@@ -489,7 +488,7 @@ impl GitRepository {
         &self,
         tx_branch: &BranchName,
         main_head: CommitId,
-    ) -> StorageResult<Vec<PathBuf>> {
+    ) -> anyhow::Result<Vec<PathBuf>> {
         self.with_repo(|repo| {
             let tx_commit = RefManager::resolve_branch(repo, tx_branch)?;
             commit::detect_conflicts(repo, tx_commit, main_head)
@@ -497,7 +496,7 @@ impl GitRepository {
     }
 
     /// Get the merge base between a transaction branch and main.
-    pub fn merge_base(&self, tx_branch: &BranchName) -> StorageResult<Option<CommitId>> {
+    pub fn merge_base(&self, tx_branch: &BranchName) -> anyhow::Result<Option<CommitId>> {
         self.with_repo(|repo| {
             let tx_commit = RefManager::resolve_branch(repo, tx_branch)?;
             let main_commit = RefManager::resolve_branch(repo, &BranchName::main())?;
@@ -506,7 +505,7 @@ impl GitRepository {
     }
 
     /// Get commit history.
-    pub fn history(&self, from: CommitId, limit: Option<usize>) -> StorageResult<Vec<CommitInfo>> {
+    pub fn history(&self, from: CommitId, limit: Option<usize>) -> anyhow::Result<Vec<CommitInfo>> {
         self.with_repo(|repo| {
             let iter = commit::history(repo, from)?;
             let commits: Result<Vec<_>, _> = match limit {
@@ -522,19 +521,19 @@ impl GitRepository {
         &self,
         old: CommitId,
         new: CommitId,
-    ) -> StorageResult<Vec<crate::storage::types::Change>> {
+    ) -> anyhow::Result<Vec<crate::storage::types::Change>> {
         self.with_repo(|repo| commit::diff_commits(repo, old, new))
     }
 
     // ==================== Utility Operations ====================
 
     /// Count rows in a table.
-    pub fn count_rows(&self, table: &TableName, at: CommitId) -> StorageResult<usize> {
+    pub fn count_rows(&self, table: &TableName, at: CommitId) -> anyhow::Result<usize> {
         Ok(self.list_rows(table, at)?.len())
     }
 
     /// Get statistics about the repository.
-    pub fn stats(&self, at: CommitId) -> StorageResult<RepositoryStats> {
+    pub fn stats(&self, at: CommitId) -> anyhow::Result<RepositoryStats> {
         self.with_repo(|repo| {
             let tree = commit::get_tree_at_commit(repo, at)?;
             let tables = tree.list_tables();
@@ -834,7 +833,10 @@ mod tests {
 
         // Try to insert again
         let result = repo.insert_row(&table, Row::new(key, BTreeMap::new()), head, None);
-        assert!(matches!(result, Err(StorageError::RowAlreadyExists { .. })));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .starts_with("row already exists:"));
     }
 
     #[test]
@@ -849,7 +851,10 @@ mod tests {
         let row = Row::new(key, BTreeMap::new());
 
         let result = repo.update_row(&table, row, head, None);
-        assert!(matches!(result, Err(StorageError::RowNotFound { .. })));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .starts_with("row not found:"));
     }
 
     #[test]
@@ -863,7 +868,10 @@ mod tests {
         let key = RowKey::new("nonexistent").unwrap();
 
         let result = repo.delete_row(&table, &key, head, None);
-        assert!(matches!(result, Err(StorageError::RowNotFound { .. })));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .starts_with("row not found:"));
     }
 
     #[test]
@@ -880,9 +888,6 @@ mod tests {
 
         // Try to fast-forward with stale expected_main
         let result = repo.fast_forward_main(&tx_branch, head);
-        assert!(matches!(
-            result,
-            Err(StorageError::ConcurrentModification { .. })
-        ));
+        assert!(crate::storage::is_retriable(&result.unwrap_err()));
     }
 }

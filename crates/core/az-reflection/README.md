@@ -24,7 +24,9 @@ az-reflection = { path = "../az-reflection" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_reflection::{field_info, reflect_meta, FieldInfo, MetaInfo, ExpiringCache};
+use az_reflection::cache::ExpiringCache;
+use az_reflection::metainfo::{FieldInfo, MetaInfo};
+use az_reflection::{field_info, reflect_meta};
 use std::num::NonZeroUsize;
 use std::time::Duration;
 
@@ -51,6 +53,6 @@ assert_eq!(value, 42);
 
 ## 依赖的 crates
 
+- `anyhow` — 缓存操作错误返回
 - `regex` — 正则表达式，用于 SQL 表名提取
 - `serde` / `serde_json` — JSON 序列化，用于值判断辅助函数
-- `thiserror` — 错误类型派生

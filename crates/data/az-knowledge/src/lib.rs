@@ -16,8 +16,9 @@
 //! ```rust,no_run
 //! use az_knowledge::{KnowledgeService, KnowledgeSourceSpec, source_specs};
 //!
-//! # async fn example() -> Result<(), az_knowledge::KnowledgeError> {
-//! let url = az_knowledge::database_url().expect("DATABASE_URL 未设置");
+//! # async fn example() -> anyhow::Result<()> {
+//! let url = az_knowledge::database_url()
+//!     .ok_or_else(|| anyhow::anyhow!("DATABASE_URL 未设置"))?;
 //! let service = KnowledgeService::connect(&url).await?;
 //! let docs = service.list_documents().await?;
 //! println!("已索引 {} 篇文档", docs.len());
@@ -32,6 +33,6 @@ pub use config::{database_url, local_env_path, source_specs};
 pub use discovery::{discover_documents, discover_source_documents};
 pub use service::KnowledgeService;
 pub use types::{
-    KnowledgeDocument, KnowledgeError, KnowledgeScan, KnowledgeSourceSpec, KnowledgeSyncReport,
+    KnowledgeDocument, KnowledgeScan, KnowledgeSourceSpec, KnowledgeSyncReport,
     ManualKnowledgeDocumentInput,
 };

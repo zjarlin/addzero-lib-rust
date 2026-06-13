@@ -7,10 +7,11 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+automod.workspace = true
 az-derive-aliases.workspace = true
 derive_more.workspace = true
 ssh2.workspace = true
-thiserror.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

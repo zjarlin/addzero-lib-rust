@@ -8,6 +8,12 @@ use axum::{
     response::{Html, IntoResponse, Response},
     routing::{get, post},
 };
+use az_config_center_app::{
+    config_validation::{
+        normalize_optional, normalize_required, normalize_value_type, validate_config_value,
+    },
+    database_url::{database_name_from_url, database_url_for_database, quote_pg_identifier},
+};
 use az_config_center_contract::{
     ApiResponse, ConfigItem, DeleteRequest, DeleteResult, ErrorBody, GetQuery, ListQuery,
     LoginPayload, LoginRequest, StatusPayload, ToggleRequest, UpsertRequest,
@@ -20,8 +26,6 @@ use ring::{
 use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Row, postgres::PgPoolOptions};
 use std::{env, net::SocketAddr, num::NonZeroU32, time::Duration};
-use thiserror::Error;
-use url::Url;
 use uuid::Uuid;
 
 const DEFAULT_BIND: &str = "0.0.0.0:8080";
@@ -51,16 +55,6 @@ struct Cli {
 #[derive(Clone)]
 struct AppState {
     pool: PgPool,
-}
-
-#[derive(Debug, Error)]
-enum AppError {
-    #[error("{0}")]
-    BadRequest(String),
-    #[error(transparent)]
-    Sqlx(#[from] sqlx::Error),
-    #[error("未登录或登录已失效")]
-    Unauthorized,
 }
 
 #[derive(Debug, Clone)]
@@ -127,11 +121,12 @@ async fn health() -> &'static str {
 async fn api_status(
     State(state): State<AppState>,
     session: AuthSession,
-) -> Result<Json<ApiResponse<StatusPayload>>, AppError> {
+) -> Result<Json<ApiResponse<StatusPayload>>, Response> {
     let _ = (session.user_id, session.username.as_str());
     sqlx::query_scalar::<_, i64>("SELECT 1::BIGINT")
         .fetch_one(&state.pool)
-        .await?;
+        .await
+        .map_err(internal_error_response)?;
     Ok(success(
         "配置中心运行正常",
         StatusPayload {
@@ -144,9 +139,9 @@ async fn api_status(
 async fn login(
     State(state): State<AppState>,
     Json(request): Json<LoginRequest>,
-) -> Result<Json<ApiResponse<LoginPayload>>, AppError> {
-    let username = normalize_required("用户名", &request.username)?;
-    let password = normalize_required("密码", &request.password)?;
+) -> Result<Json<ApiResponse<LoginPayload>>, Response> {
+    let username = normalize_required("用户名", &request.username).map_err(bad_request_response)?;
+    let password = normalize_required("密码", &request.password).map_err(bad_request_response)?;
     let row = sqlx::query(
         r#"
         SELECT id, username, password_hash
@@ -156,15 +151,20 @@ async fn login(
     )
     .bind(&username)
     .fetch_optional(&state.pool)
-    .await?;
+    .await
+    .map_err(internal_error_response)?;
 
     let Some(row) = row else {
-        return Err(AppError::Unauthorized);
+        let error = unauthorized_response();
+
+        return Err(error);
     };
     let user_id: Uuid = row.get("id");
     let stored_hash: String = row.get("password_hash");
     if !verify_password_hash(&stored_hash, &password) {
-        return Err(AppError::Unauthorized);
+        let error = unauthorized_response();
+
+        return Err(error);
     }
 
     let token = format!("cc_{}", Uuid::new_v4().simple());
@@ -179,7 +179,8 @@ async fn login(
     .bind(user_id)
     .bind(token_hash)
     .execute(&state.pool)
-    .await?;
+    .await
+    .map_err(internal_error_response)?;
 
     Ok(success("登录成功", LoginPayload { token, username }))
 }
@@ -188,7 +189,7 @@ async fn list_configs(
     State(state): State<AppState>,
     session: AuthSession,
     Query(query): Query<ListQuery>,
-) -> Result<Json<ApiResponse<Vec<ConfigItem>>>, AppError> {
+) -> Result<Json<ApiResponse<Vec<ConfigItem>>>, Response> {
     let _ = (session.user_id, session.username.as_str());
     let namespace = normalize_optional(query.namespace);
     let keyword = normalize_optional(query.keyword);
@@ -208,7 +209,8 @@ async fn list_configs(
     .bind(keyword)
     .bind(include_disabled)
     .fetch_all(&state.pool)
-    .await?;
+    .await
+    .map_err(internal_error_response)?;
 
     Ok(success(
         "查询成功",
@@ -220,10 +222,11 @@ async fn get_config(
     State(state): State<AppState>,
     session: AuthSession,
     Query(query): Query<GetQuery>,
-) -> Result<Json<ApiResponse<ConfigItem>>, AppError> {
+) -> Result<Json<ApiResponse<ConfigItem>>, Response> {
     let _ = (session.user_id, session.username.as_str());
-    let namespace = normalize_required("命名空间", &query.namespace)?;
-    let key = normalize_required("配置键", &query.key)?;
+    let namespace =
+        normalize_required("命名空间", &query.namespace).map_err(bad_request_response)?;
+    let key = normalize_required("配置键", &query.key).map_err(bad_request_response)?;
     let row = sqlx::query(
         r#"
         SELECT id, namespace, config_key, config_value, value_type, description,
@@ -235,10 +238,13 @@ async fn get_config(
     .bind(namespace)
     .bind(key)
     .fetch_optional(&state.pool)
-    .await?;
+    .await
+    .map_err(internal_error_response)?;
 
     let Some(row) = row else {
-        return Err(AppError::BadRequest("配置不存在".to_owned()));
+        let error = bad_request_message_response("配置不存在");
+
+        return Err(error);
     };
     Ok(success("查询成功", config_item_from_row(row)))
 }
@@ -247,10 +253,11 @@ async fn get_config_value(
     State(state): State<AppState>,
     session: AuthSession,
     Query(query): Query<GetQuery>,
-) -> Result<Json<ApiResponse<Option<ConfigItem>>>, AppError> {
+) -> Result<Json<ApiResponse<Option<ConfigItem>>>, Response> {
     let _ = (session.user_id, session.username.as_str());
-    let namespace = normalize_required("命名空间", &query.namespace)?;
-    let key = normalize_required("配置键", &query.key)?;
+    let namespace =
+        normalize_required("命名空间", &query.namespace).map_err(bad_request_response)?;
+    let key = normalize_required("配置键", &query.key).map_err(bad_request_response)?;
     let row = sqlx::query(
         r#"
         SELECT id, namespace, config_key, config_value, value_type, description,
@@ -262,7 +269,8 @@ async fn get_config_value(
     .bind(namespace)
     .bind(key)
     .fetch_optional(&state.pool)
-    .await?;
+    .await
+    .map_err(internal_error_response)?;
     let item = row.map(config_item_from_row);
     let message = if item.is_some() {
         "查询成功"
@@ -277,7 +285,7 @@ async fn upsert_config(
     State(state): State<AppState>,
     session: AuthSession,
     Json(request): Json<UpsertRequest>,
-) -> Result<Json<ApiResponse<ConfigItem>>, AppError> {
+) -> Result<Json<ApiResponse<ConfigItem>>, Response> {
     let item = upsert_config_item(&state.pool, session, request).await?;
     Ok(success("保存成功", item))
 }
@@ -286,7 +294,7 @@ async fn put_config_value(
     State(state): State<AppState>,
     session: AuthSession,
     Json(request): Json<UpsertRequest>,
-) -> Result<Json<ApiResponse<ConfigItem>>, AppError> {
+) -> Result<Json<ApiResponse<ConfigItem>>, Response> {
     let item = upsert_config_item(&state.pool, session, request).await?;
     Ok(success("写入成功", item))
 }
@@ -295,7 +303,7 @@ async fn upsert_config_item(
     pool: &PgPool,
     session: AuthSession,
     request: UpsertRequest,
-) -> Result<ConfigItem, AppError> {
+) -> Result<ConfigItem, Response> {
     let AuthSession {
         user_id: _,
         username,
@@ -309,10 +317,10 @@ async fn upsert_config_item(
         enabled,
         updated_by,
     } = request;
-    let namespace = normalize_required("命名空间", &namespace)?;
-    let key = normalize_required("配置键", &key)?;
-    let value_type = normalize_value_type(&value_type)?;
-    validate_config_value(&value_type, &value)?;
+    let namespace = normalize_required("命名空间", &namespace).map_err(bad_request_response)?;
+    let key = normalize_required("配置键", &key).map_err(bad_request_response)?;
+    let value_type = normalize_value_type(&value_type).map_err(bad_request_response)?;
+    validate_config_value(&value_type, &value).map_err(bad_request_response)?;
     let updated_by = normalize_optional(Some(updated_by)).unwrap_or(username);
     let id = Uuid::new_v4();
     let row = sqlx::query(
@@ -342,7 +350,8 @@ async fn upsert_config_item(
     .bind(enabled)
     .bind(updated_by)
     .fetch_one(pool)
-    .await?;
+    .await
+    .map_err(internal_error_response)?;
 
     Ok(config_item_from_row(row))
 }
@@ -351,10 +360,11 @@ async fn toggle_config(
     State(state): State<AppState>,
     session: AuthSession,
     Json(request): Json<ToggleRequest>,
-) -> Result<Json<ApiResponse<ConfigItem>>, AppError> {
+) -> Result<Json<ApiResponse<ConfigItem>>, Response> {
     let _ = session.user_id;
-    let namespace = normalize_required("命名空间", &request.namespace)?;
-    let key = normalize_required("配置键", &request.key)?;
+    let namespace =
+        normalize_required("命名空间", &request.namespace).map_err(bad_request_response)?;
+    let key = normalize_required("配置键", &request.key).map_err(bad_request_response)?;
     let updated_by = normalize_optional(Some(request.updated_by)).unwrap_or(session.username);
     let row = sqlx::query(
         r#"
@@ -373,10 +383,13 @@ async fn toggle_config(
     .bind(request.enabled)
     .bind(updated_by)
     .fetch_optional(&state.pool)
-    .await?;
+    .await
+    .map_err(internal_error_response)?;
 
     let Some(row) = row else {
-        return Err(AppError::BadRequest("配置不存在".to_owned()));
+        let error = bad_request_message_response("配置不存在");
+
+        return Err(error);
     };
     Ok(success("状态已更新", config_item_from_row(row)))
 }
@@ -385,16 +398,18 @@ async fn delete_config(
     State(state): State<AppState>,
     session: AuthSession,
     Json(request): Json<DeleteRequest>,
-) -> Result<Json<ApiResponse<DeleteResult>>, AppError> {
+) -> Result<Json<ApiResponse<DeleteResult>>, Response> {
     let _ = (session.user_id, session.username.as_str());
-    let namespace = normalize_required("命名空间", &request.namespace)?;
-    let key = normalize_required("配置键", &request.key)?;
+    let namespace =
+        normalize_required("命名空间", &request.namespace).map_err(bad_request_response)?;
+    let key = normalize_required("配置键", &request.key).map_err(bad_request_response)?;
     let deleted =
         sqlx::query(r#"DELETE FROM "config-center" WHERE namespace = $1 AND config_key = $2"#)
             .bind(namespace)
             .bind(key)
             .execute(&state.pool)
-            .await?
+            .await
+            .map_err(internal_error_response)?
             .rows_affected();
     Ok(success("删除完成", DeleteResult { deleted }))
 }
@@ -600,65 +615,6 @@ fn success<T>(message: impl Into<String>, data: T) -> Json<ApiResponse<T>> {
     })
 }
 
-fn normalize_optional(value: Option<String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-}
-
-fn normalize_required(label: &str, value: &str) -> Result<String, AppError> {
-    let value = value.trim();
-    if value.is_empty() {
-        return Err(AppError::BadRequest(format!("{label}不能为空")));
-    }
-    Ok(value.to_owned())
-}
-
-fn normalize_value_type(value: &str) -> Result<String, AppError> {
-    let value = value.trim();
-    if matches!(value, "text" | "json" | "number" | "boolean" | "secret") {
-        Ok(value.to_owned())
-    } else {
-        Err(AppError::BadRequest(
-            "配置类型只能是 text/json/number/boolean/secret".to_owned(),
-        ))
-    }
-}
-
-fn validate_config_value(value_type: &str, value: &str) -> Result<(), AppError> {
-    match value_type {
-        "text" | "secret" => Ok(()),
-        "json" => validate_json_config_value(value),
-        "number" => validate_number_config_value(value),
-        "boolean" => validate_boolean_config_value(value),
-        _ => Err(AppError::BadRequest(
-            "配置类型只能是 text/json/number/boolean/secret".to_owned(),
-        )),
-    }
-}
-
-fn validate_json_config_value(value: &str) -> Result<(), AppError> {
-    serde_json::from_str::<serde_json::Value>(value)
-        .map(|_| ())
-        .map_err(|error| AppError::BadRequest(format!("JSON 配置值不合法：{error}")))
-}
-
-fn validate_number_config_value(value: &str) -> Result<(), AppError> {
-    serde_json::from_str::<serde_json::Number>(value.trim())
-        .map(|_| ())
-        .map_err(|error| AppError::BadRequest(format!("数字配置值不合法：{error}")))
-}
-
-fn validate_boolean_config_value(value: &str) -> Result<(), AppError> {
-    if matches!(value.trim(), "true" | "false") {
-        Ok(())
-    } else {
-        Err(AppError::BadRequest(
-            "布尔配置值只能是 true 或 false".to_owned(),
-        ))
-    }
-}
-
 fn create_password_hash(password: &str) -> Result<String> {
     let mut salt = [0_u8; PASSWORD_SALT_BYTES];
     SystemRandom::new()
@@ -755,28 +711,6 @@ fn hex_value(byte: u8) -> Option<u8> {
     }
 }
 
-fn database_url_for_database(database_url: &str, database_name: &str) -> Result<String> {
-    let mut url = Url::parse(database_url).context("PostgreSQL 连接串格式无效")?;
-    if !is_postgres_url(database_url) {
-        anyhow::bail!("仅支持 postgres:// 或 postgresql:// 连接");
-    }
-    url.set_path(database_name);
-    Ok(url.to_string())
-}
-
-fn database_name_from_url(database_url: &str) -> Result<String> {
-    let url = Url::parse(database_url).context("PostgreSQL 连接串格式无效")?;
-    let name = url.path().trim_start_matches('/').trim();
-    if name.is_empty() {
-        anyhow::bail!("PostgreSQL 连接缺少数据库名");
-    }
-    Ok(name.to_owned())
-}
-
-fn is_postgres_url(value: &str) -> bool {
-    value.starts_with("postgres://") || value.starts_with("postgresql://")
-}
-
 fn is_missing_database_error(error: &sqlx::Error) -> bool {
     error.to_string().contains("database") && error.to_string().contains("does not exist")
         || error.to_string().contains("3D000")
@@ -786,43 +720,56 @@ fn is_duplicate_database_error(error: &sqlx::Error) -> bool {
     error.to_string().contains("already exists") || error.to_string().contains("42P04")
 }
 
-fn quote_pg_identifier(value: &str) -> String {
-    format!("\"{}\"", value.replace('"', "\"\""))
+fn bad_request_response(error: anyhow::Error) -> Response {
+    bad_request_message_response(error.to_string())
 }
 
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let status = match self {
-            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            AppError::Sqlx(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::Unauthorized => StatusCode::UNAUTHORIZED,
-        };
-        let body = Json(ErrorBody {
-            success: false,
-            message: self.to_string(),
-        });
-        (status, body).into_response()
-    }
+fn bad_request_message_response(message: impl Into<String>) -> Response {
+    error_response(StatusCode::BAD_REQUEST, message)
+}
+
+fn internal_error_response(error: impl std::fmt::Display) -> Response {
+    error_response(StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+}
+
+fn unauthorized_response() -> Response {
+    error_response(StatusCode::UNAUTHORIZED, "未登录或登录已失效")
+}
+
+fn error_response(status: StatusCode, message: impl Into<String>) -> Response {
+    let body = Json(ErrorBody {
+        success: false,
+        message: message.into(),
+    });
+    (status, body).into_response()
 }
 
 impl FromRequestParts<AppState> for AuthSession {
-    type Rejection = AppError;
+    type Rejection = Response;
 
     async fn from_request_parts(
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         let Some(header) = parts.headers.get("authorization") else {
-            return Err(AppError::Unauthorized);
+            let error = unauthorized_response();
+
+            return Err(error);
         };
         let Ok(header) = header.to_str() else {
-            return Err(AppError::Unauthorized);
+            let error = unauthorized_response();
+
+            return Err(error);
         };
         let Some(token) = header.strip_prefix("Bearer ").map(str::trim) else {
-            return Err(AppError::Unauthorized);
+            let error = unauthorized_response();
+
+            return Err(error);
         };
         if token.is_empty() {
-            return Err(AppError::Unauthorized);
+            let error = unauthorized_response();
+
+            return Err(error);
         }
         let row = sqlx::query(
             r#"
@@ -836,9 +783,12 @@ impl FromRequestParts<AppState> for AuthSession {
         )
         .bind(token_hash(token))
         .fetch_optional(&state.pool)
-        .await?;
+        .await
+        .map_err(internal_error_response)?;
         let Some(row) = row else {
-            return Err(AppError::Unauthorized);
+            let error = unauthorized_response();
+
+            return Err(error);
         };
         Ok(Self {
             user_id: row.get("id"),
@@ -1761,57 +1711,3 @@ instance.set(
 </body>
 </html>
 "#;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn database_url_is_for_config_center_database() {
-        let url = database_url_for_database(
-            "postgresql://postgres:secret@macmini.local:5432/postgres?sslmode=disable",
-            DEFAULT_DATABASE_NAME,
-        )
-        .expect("rewrite database url");
-
-        assert_eq!(
-            url,
-            "postgresql://postgres:secret@macmini.local:5432/config-center?sslmode=disable"
-        );
-    }
-
-    #[test]
-    fn quote_pg_identifier_preserves_hyphenated_database_name() {
-        assert_eq!(quote_pg_identifier("config-center"), "\"config-center\"");
-    }
-
-    #[test]
-    fn normalize_value_type_rejects_unknown_types() {
-        assert!(normalize_value_type("json").is_ok());
-        assert!(normalize_value_type("yaml").is_err());
-    }
-
-    #[test]
-    fn validate_config_value_rejects_invalid_json() {
-        let error = validate_config_value("json", "{bad").unwrap_err();
-
-        // 关键断言：JSON 类型不能把错误文本写入正式配置。
-        assert!(error.to_string().contains("JSON 配置值不合法"));
-    }
-
-    #[test]
-    fn validate_config_value_rejects_invalid_number() {
-        let error = validate_config_value("number", "NaN").unwrap_err();
-
-        // 关键断言：数字类型必须保持 JSON number 兼容，方便跨语言 SDK 读取。
-        assert!(error.to_string().contains("数字配置值不合法"));
-    }
-
-    #[test]
-    fn validate_config_value_rejects_non_strict_boolean() {
-        let error = validate_config_value("boolean", "yes").unwrap_err();
-
-        // 关键断言：布尔类型和 Kotlin strict boolean 解码保持一致。
-        assert!(error.to_string().contains("布尔配置值只能是 true 或 false"));
-    }
-}

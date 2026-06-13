@@ -2,11 +2,12 @@
 
 use std::{collections::BTreeMap, fs, path::Path};
 
-use az_line_crdt::{LineCrdtDocument, LineCrdtUpdate, LineCrdtVersion};
+use anyhow::{Context, Result};
+use az_line_crdt::document::LineCrdtDocument;
+use az_line_crdt::wire::{LineCrdtUpdate, LineCrdtVersion};
 
 use crate::{
     contracts::{SyncStatusResponse, SyncTransportSummary},
-    error::{SyncError, SyncResult},
     finder_status::{FinderSyncState, default_finder_state_path},
     sync_index::{SyncLocalIndex, default_local_index_path},
     sync_model::{
@@ -48,7 +49,7 @@ impl SyncEngine {
         alias: impl Into<String>,
         relative_path: &str,
         space_id: impl Into<String>,
-    ) -> SyncResult<SyncRoot> {
+    ) -> Result<SyncRoot> {
         let root = SyncRoot::from_home_relative(&self.device, alias, relative_path, space_id)?;
         self.roots.insert(root.alias.clone(), root.clone());
         Ok(root)
@@ -95,7 +96,7 @@ impl SyncEngine {
         index
     }
 
-    pub fn write_default_local_index(&self) -> SyncResult<()> {
+    pub fn write_default_local_index(&self) -> Result<()> {
         self.local_index()
             .write_to_path(default_local_index_path(&self.device.home_dir))
     }
@@ -104,13 +105,13 @@ impl SyncEngine {
         &mut self,
         local_path: impl AsRef<Path>,
         text: &str,
-    ) -> SyncResult<SyncDocumentRecord> {
+    ) -> Result<SyncDocumentRecord> {
         let relative_path = self.device.home_relative_path(local_path.as_ref())?;
         let entry = self.entry_for_relative_path(&relative_path)?;
         entry
             .document
             .apply_text_by_line(text)
-            .map_err(|source| SyncError::crdt("apply local text by line", source))?;
+            .context("CRDT apply local text by line failed")?;
         entry.status = SyncFileStatus::Syncing;
         Ok(self.record_for_relative_path(&relative_path)?)
     }
@@ -119,13 +120,13 @@ impl SyncEngine {
         &mut self,
         local_path: impl AsRef<Path>,
         text: &str,
-    ) -> SyncResult<SyncDocumentRecord> {
+    ) -> Result<SyncDocumentRecord> {
         let relative_path = self.device.home_relative_path(local_path.as_ref())?;
         let entry = self.entry_for_relative_path(&relative_path)?;
         entry
             .document
             .apply_text_precise(text)
-            .map_err(|source| SyncError::crdt("apply local precise text", source))?;
+            .context("CRDT apply local precise text failed")?;
         entry.status = SyncFileStatus::Syncing;
         Ok(self.record_for_relative_path(&relative_path)?)
     }
@@ -135,13 +136,13 @@ impl SyncEngine {
         relative_path: &str,
         line_index: usize,
         line: &str,
-    ) -> SyncResult<SyncDocumentRecord> {
+    ) -> Result<SyncDocumentRecord> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let entry = self.entry_for_relative_path(&relative_path)?;
         entry
             .document
             .replace_line(line_index, line)
-            .map_err(|source| SyncError::crdt("replace line", source))?;
+            .context("CRDT replace line failed")?;
         entry.status = SyncFileStatus::Syncing;
         Ok(self.record_for_relative_path(&relative_path)?)
     }
@@ -151,71 +152,61 @@ impl SyncEngine {
         relative_path: &str,
         unicode_index: usize,
         unicode_len: usize,
-    ) -> SyncResult<SyncDocumentRecord> {
+    ) -> Result<SyncDocumentRecord> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let entry = self.entry_for_relative_path(&relative_path)?;
         entry
             .document
             .delete_text(unicode_index, unicode_len)
-            .map_err(|source| SyncError::crdt("delete text", source))?;
+            .context("CRDT delete text failed")?;
         entry.status = SyncFileStatus::Syncing;
         Ok(self.record_for_relative_path(&relative_path)?)
     }
 
-    pub fn delete_file(&mut self, relative_path: &str) -> SyncResult<SyncDocumentRecord> {
+    pub fn delete_file(&mut self, relative_path: &str) -> Result<SyncDocumentRecord> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let entry = self.entry_for_relative_path(&relative_path)?;
         entry
             .document
             .apply_text_by_line("")
-            .map_err(|source| SyncError::crdt("mark file deleted", source))?;
+            .context("CRDT mark file deleted failed")?;
         entry.status = SyncFileStatus::Deleted;
         Ok(self.record_for_relative_path(&relative_path)?)
     }
 
-    pub fn materialize_text(&self, relative_path: &str) -> SyncResult<String> {
+    pub fn materialize_text(&self, relative_path: &str) -> Result<String> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let entry =
             self.documents
                 .get(&relative_path)
-                .ok_or_else(|| SyncError::MissingDocument {
-                    relative_path: relative_path.clone(),
-                })?;
+                .with_context(|| format!("sync document `{relative_path}` does not exist"))?;
         Ok(entry.document.text())
     }
 
     pub fn materialize_text_to_local_file(
         &self,
         relative_path: &str,
-    ) -> SyncResult<std::path::PathBuf> {
+    ) -> Result<std::path::PathBuf> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let local_path = self.device.local_path_for_home_relative(&relative_path)?;
         if let Some(parent) = local_path.parent() {
-            fs::create_dir_all(parent).map_err(|source| SyncError::Io {
-                path: parent.to_path_buf(),
-                source,
-            })?;
+            fs::create_dir_all(parent).with_context(|| format!("I/O failed for `{parent:?}`"))?;
         }
         let text = self.materialize_text(&relative_path)?;
-        fs::write(&local_path, text).map_err(|source| SyncError::Io {
-            path: local_path.clone(),
-            source,
-        })?;
+        fs::write(&local_path, text).with_context(|| format!("I/O failed for `{local_path:?}`"))?;
         Ok(local_path)
     }
 
-    pub fn export_snapshot(&self, relative_path: &str) -> SyncResult<SyncCrdtEnvelope> {
+    pub fn export_snapshot(&self, relative_path: &str) -> Result<SyncCrdtEnvelope> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let entry =
             self.documents
                 .get(&relative_path)
-                .ok_or_else(|| SyncError::MissingDocument {
-                    relative_path: relative_path.clone(),
-                })?;
+                .with_context(|| format!("sync document `{relative_path}` does not exist"))?;
         let snapshot = entry
             .document
             .export_snapshot()
-            .map_err(|source| SyncError::crdt("export snapshot", source))?;
+            .context("CRDT export snapshot failed")?;
         Ok(SyncCrdtEnvelope {
             relative_path,
             source_device: self.device.device_name.clone(),
@@ -231,23 +222,21 @@ impl SyncEngine {
         &self,
         relative_path: &str,
         remote_version: Option<&LineCrdtVersion>,
-    ) -> SyncResult<SyncCrdtEnvelope> {
+    ) -> Result<SyncCrdtEnvelope> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         let entry =
             self.documents
                 .get(&relative_path)
-                .ok_or_else(|| SyncError::MissingDocument {
-                    relative_path: relative_path.clone(),
-                })?;
+                .with_context(|| format!("sync document `{relative_path}` does not exist"))?;
         let update = match remote_version {
             Some(version) => entry
                 .document
                 .export_updates_since(version)
-                .map_err(|source| SyncError::crdt("export incremental update", source))?,
+                .context("CRDT export incremental update failed")?,
             None => entry
                 .document
                 .export_all_updates()
-                .map_err(|source| SyncError::crdt("export full update stream", source))?,
+                .context("CRDT export full update stream failed")?,
         };
         Ok(SyncCrdtEnvelope {
             relative_path,
@@ -263,12 +252,12 @@ impl SyncEngine {
     pub fn import_remote_blob(
         &mut self,
         envelope: SyncCrdtEnvelope,
-    ) -> SyncResult<SyncDocumentRecord> {
+    ) -> Result<SyncDocumentRecord> {
         let relative_path = normalize_home_relative_path(&envelope.relative_path)?;
         if !self.documents.contains_key(&relative_path) {
             let document =
                 LineCrdtDocument::with_peer_id(self.device.peer_id_for_path(&relative_path))
-                    .map_err(|source| SyncError::crdt("create CRDT document", source))?;
+                    .context("CRDT create document failed")?;
             self.documents.insert(
                 relative_path.clone(),
                 SyncDocumentEntry {
@@ -282,22 +271,20 @@ impl SyncEngine {
         let entry =
             self.documents
                 .get_mut(&relative_path)
-                .ok_or_else(|| SyncError::MissingDocument {
-                    relative_path: relative_path.clone(),
-                })?;
+                .with_context(|| format!("sync document `{relative_path}` does not exist"))?;
         match envelope.kind {
             SyncBlobKind::Snapshot => {
                 entry
                     .document
                     .import_snapshot(envelope.blob)
-                    .map_err(|source| SyncError::crdt("import snapshot", source))?;
+                    .context("CRDT import snapshot failed")?;
             }
             SyncBlobKind::Update => {
                 let update = LineCrdtUpdate::from_bytes(envelope.blob);
                 entry
                     .document
                     .import_update(update)
-                    .map_err(|source| SyncError::crdt("import update", source))?;
+                    .context("CRDT import update failed")?;
             }
         }
         entry.status = SyncFileStatus::Synced;
@@ -308,7 +295,7 @@ impl SyncEngine {
         FinderSyncState::from_roots_and_files(&self.roots(), &self.files())
     }
 
-    pub fn write_default_finder_state(&self) -> SyncResult<()> {
+    pub fn write_default_finder_state(&self) -> Result<()> {
         self.finder_state()
             .write_to_path(default_finder_state_path(&self.device.home_dir))
     }
@@ -316,12 +303,12 @@ impl SyncEngine {
     fn entry_for_relative_path(
         &mut self,
         relative_path: &str,
-    ) -> SyncResult<&mut SyncDocumentEntry> {
+    ) -> Result<&mut SyncDocumentEntry> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         if !self.documents.contains_key(&relative_path) {
             let document =
                 LineCrdtDocument::with_peer_id(self.device.peer_id_for_path(&relative_path))
-                    .map_err(|source| SyncError::crdt("create CRDT document", source))?;
+                    .context("CRDT create document failed")?;
             self.documents.insert(
                 relative_path.clone(),
                 SyncDocumentEntry {
@@ -334,16 +321,14 @@ impl SyncEngine {
         }
         self.documents
             .get_mut(&relative_path)
-            .ok_or(SyncError::MissingDocument { relative_path })
+            .with_context(|| format!("sync document `{relative_path}` does not exist"))
     }
 
-    fn record_for_relative_path(&self, relative_path: &str) -> SyncResult<SyncDocumentRecord> {
+    fn record_for_relative_path(&self, relative_path: &str) -> Result<SyncDocumentRecord> {
         let entry =
             self.documents
                 .get(relative_path)
-                .ok_or_else(|| SyncError::MissingDocument {
-                    relative_path: relative_path.to_string(),
-                })?;
+                .with_context(|| format!("sync document `{relative_path}` does not exist"))?;
         Ok(self.record_for_entry(entry))
     }
 
@@ -382,7 +367,7 @@ struct SyncDocumentEntry {
 mod tests {
     use std::path::PathBuf;
 
-    use az_line_crdt::LineCrdtVersion;
+    use az_line_crdt::wire::LineCrdtVersion;
 
     use crate::sync_model::SyncDeviceInfo;
 

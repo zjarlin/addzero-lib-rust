@@ -17,7 +17,7 @@
 use az_face_detection::logic_face_detection::assist::FaceDetectionRunner;
 use az_face_detection::logic_face_detection::model::FaceDetectionOptions;
 
-# fn main() -> az_face_detection::error::FaceDetectionResult<()> {
+# fn main() -> anyhow::Result<()> {
 let mut runner = FaceDetectionRunner::new(FaceDetectionOptions {
     model_path: "/absolute/path/to/face_detection_scrfd_500m.onnx".into(),
     output_dir: "/absolute/path/to/default-output".into(),

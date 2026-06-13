@@ -7,11 +7,12 @@
 //!
 //! - [`RemoteRelayService`]：中继服务主入口，管理设备与会话的生命周期。
 //! - [`RelayRuntimeConfig`]：运行时配置（绑定地址、最大并发数、空闲超时）。
-//! - [`RemoteSessionError`]：统一错误枚举，涵盖设备未找到、会话未找到及会话被拒绝等场景。
+//! - 远程会话操作直接返回 [`anyhow::Result`]，查找和授权失败用错误消息携带上下文。
 
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, error_eq, impl_default, plain_clone_debug, plain_default_debug};
+use anyhow::{anyhow, bail};
+use az_derive_aliases::{apply, impl_default, plain_clone_debug, plain_default_debug};
 use az_remote_model::{
     ClipboardPayload, DeviceDescriptor, DeviceId, FileTransferEnvelope, OnlineStatus, SessionGrant,
     SessionId, SessionRequest, SessionState, SessionSummary, VideoFrameEnvelope,
@@ -20,23 +21,6 @@ use chrono::Utc;
 use quinn::VarInt;
 use std::collections::HashMap;
 use uuid::Uuid;
-
-/// 远程会话中继操作使用的结果类型。
-pub type RemoteSessionResult<T> = Result<T, RemoteSessionError>;
-
-/// 远程会话中继在设备和会话生命周期中返回的错误。
-#[apply(error_eq)]
-pub enum RemoteSessionError {
-    /// 参与会话的设备尚未注册。
-    #[error("device `{0}` was not found")]
-    DeviceNotFound(DeviceId),
-    /// 指定会话不存在。
-    #[error("session `{0}` was not found")]
-    SessionNotFound(SessionId),
-    /// host 设备显式拒绝了会话请求。
-    #[error("host `{0}` rejected the request: {1}")]
-    SessionRejected(SessionId, String),
-}
 
 /// QUIC 中继运行时配置。
 #[apply(plain_clone_debug)]
@@ -94,13 +78,13 @@ impl RemoteRelayService {
         viewer_id: DeviceId,
         host_id: DeviceId,
         capability: az_remote_model::SessionCapability,
-    ) -> RemoteSessionResult<SessionRequest> {
+    ) -> anyhow::Result<SessionRequest> {
         self.devices
             .get(&viewer_id)
-            .ok_or(RemoteSessionError::DeviceNotFound(viewer_id))?;
+            .ok_or_else(|| anyhow!("device `{viewer_id}` was not found"))?;
         self.devices
             .get(&host_id)
-            .ok_or(RemoteSessionError::DeviceNotFound(host_id))?;
+            .ok_or_else(|| anyhow!("device `{host_id}` was not found"))?;
 
         let request = SessionRequest {
             session_id: Uuid::new_v4(),
@@ -126,17 +110,17 @@ impl RemoteRelayService {
 
     /// host 对会话请求做授权决策。
     ///
-    /// 接受时会话进入 `Active`；拒绝时会话进入 `Rejected` 并返回 [`RemoteSessionError::SessionRejected`]。
+    /// 接受时会话进入 `Active`；拒绝时会话进入 `Rejected` 并返回错误。
     pub fn grant_session(
         &mut self,
         session_id: SessionId,
         accepted: bool,
         reason: Option<String>,
-    ) -> RemoteSessionResult<SessionGrant> {
+    ) -> anyhow::Result<SessionGrant> {
         let summary = self
             .sessions
             .get_mut(&session_id)
-            .ok_or(RemoteSessionError::SessionNotFound(session_id))?;
+            .ok_or_else(|| anyhow!("session `{session_id}` was not found"))?;
         summary.state = if accepted {
             SessionState::Active
         } else {
@@ -150,10 +134,8 @@ impl RemoteRelayService {
             granted_at: Utc::now(),
         };
         if !grant.accepted {
-            return Err(RemoteSessionError::SessionRejected(
-                grant.session_id,
-                grant.reason.clone().unwrap_or_else(|| "rejected".into()),
-            ));
+            let reason = grant.reason.clone().unwrap_or_else(|| "rejected".into());
+            bail!("host `{}` rejected the request: {reason}", grant.session_id);
         }
         Ok(grant)
     }
@@ -163,11 +145,11 @@ impl RemoteRelayService {
         &mut self,
         session_id: SessionId,
         clipboard: ClipboardPayload,
-    ) -> RemoteSessionResult<()> {
+    ) -> anyhow::Result<()> {
         let summary = self
             .sessions
             .get_mut(&session_id)
-            .ok_or(RemoteSessionError::SessionNotFound(session_id))?;
+            .ok_or_else(|| anyhow!("session `{session_id}` was not found"))?;
         summary.clipboard = Some(clipboard);
         Ok(())
     }
@@ -177,11 +159,11 @@ impl RemoteRelayService {
         &mut self,
         session_id: SessionId,
         frame: VideoFrameEnvelope,
-    ) -> RemoteSessionResult<()> {
+    ) -> anyhow::Result<()> {
         let summary = self
             .sessions
             .get_mut(&session_id)
-            .ok_or(RemoteSessionError::SessionNotFound(session_id))?;
+            .ok_or_else(|| anyhow!("session `{session_id}` was not found"))?;
         summary.latest_frame = Some(frame);
         Ok(())
     }
@@ -191,20 +173,20 @@ impl RemoteRelayService {
         &mut self,
         session_id: SessionId,
         transfer: FileTransferEnvelope,
-    ) -> RemoteSessionResult<()> {
+    ) -> anyhow::Result<()> {
         let summary = self
             .sessions
             .get_mut(&session_id)
-            .ok_or(RemoteSessionError::SessionNotFound(session_id))?;
+            .ok_or_else(|| anyhow!("session `{session_id}` was not found"))?;
         summary.pending_transfer = Some(transfer);
         Ok(())
     }
 
     /// 获取指定会话的当前快照。
-    pub fn session_summary(&self, session_id: SessionId) -> RemoteSessionResult<SessionSummary> {
+    pub fn session_summary(&self, session_id: SessionId) -> anyhow::Result<SessionSummary> {
         self.sessions
             .get(&session_id)
             .cloned()
-            .ok_or(RemoteSessionError::SessionNotFound(session_id))
+            .ok_or_else(|| anyhow!("session `{session_id}` was not found"))
     }
 }

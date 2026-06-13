@@ -7,13 +7,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    error::{SyncError, SyncResult},
-    sync_model::{
-        SyncDeviceInfo, SyncDocumentRecord, SyncFileStatus, SyncRoot, normalize_home_relative_path,
-    },
+use crate::sync_model::{
+    SyncDeviceInfo, SyncDocumentRecord, SyncFileStatus, SyncRoot, normalize_home_relative_path,
 };
 
 pub const SYNC_INDEX_SCHEMA_VERSION: u32 = 1;
@@ -36,38 +34,25 @@ impl SyncLocalIndex {
         }
     }
 
-    pub fn read_from_path(path: impl AsRef<Path>) -> SyncResult<Self> {
+    pub fn read_from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
-        let json = fs::read_to_string(path).map_err(|source| SyncError::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        serde_json::from_str(&json).map_err(|source| SyncError::Json {
-            path: path.to_path_buf(),
-            source,
-        })
+        let json =
+            fs::read_to_string(path).with_context(|| format!("I/O failed for `{path:?}`"))?;
+        serde_json::from_str(&json).with_context(|| format!("JSON failed for `{path:?}`"))
     }
 
-    pub fn write_to_path(&self, path: impl AsRef<Path>) -> SyncResult<()> {
+    pub fn write_to_path(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref();
         validate_index_path_outside_roots(path, &self.roots)?;
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|source| SyncError::Io {
-                path: parent.to_path_buf(),
-                source,
-            })?;
+            fs::create_dir_all(parent).with_context(|| format!("I/O failed for `{parent:?}`"))?;
         }
-        let json = serde_json::to_string_pretty(self).map_err(|source| SyncError::Json {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        fs::write(path, json).map_err(|source| SyncError::Io {
-            path: path.to_path_buf(),
-            source,
-        })
+        let json = serde_json::to_string_pretty(self)
+            .with_context(|| format!("JSON failed for `{path:?}`"))?;
+        fs::write(path, json).with_context(|| format!("I/O failed for `{path:?}`"))
     }
 
-    pub fn upsert_document(&mut self, document: &SyncDocumentRecord) -> SyncResult<()> {
+    pub fn upsert_document(&mut self, document: &SyncDocumentRecord) -> Result<()> {
         let metadata = SyncFileMetadata::from_path(&document.local_path)?;
         self.upsert_document_with_metadata(document, metadata)
     }
@@ -76,7 +61,7 @@ impl SyncLocalIndex {
         &mut self,
         document: &SyncDocumentRecord,
         metadata: SyncFileMetadata,
-    ) -> SyncResult<()> {
+    ) -> Result<()> {
         let relative_path = normalize_home_relative_path(&document.relative_path)?;
         self.files.insert(
             relative_path.clone(),
@@ -99,13 +84,13 @@ impl SyncLocalIndex {
         Ok(())
     }
 
-    pub fn mark_sent(&mut self, relative_path: &str, version: Vec<u8>) -> SyncResult<()> {
+    pub fn mark_sent(&mut self, relative_path: &str, version: Vec<u8>) -> Result<()> {
         let record = self.record_mut(relative_path)?;
         record.sent_version = Some(version);
         Ok(())
     }
 
-    pub fn mark_acked(&mut self, relative_path: &str, version: Vec<u8>) -> SyncResult<()> {
+    pub fn mark_acked(&mut self, relative_path: &str, version: Vec<u8>) -> Result<()> {
         let record = self.record_mut(relative_path)?;
         record.acked_version = Some(version);
         record.status = SyncFileStatus::Synced;
@@ -148,11 +133,11 @@ impl SyncLocalIndex {
         summary
     }
 
-    fn record_mut(&mut self, relative_path: &str) -> SyncResult<&mut SyncIndexRecord> {
+    fn record_mut(&mut self, relative_path: &str) -> Result<&mut SyncIndexRecord> {
         let relative_path = normalize_home_relative_path(relative_path)?;
         self.files
             .get_mut(&relative_path)
-            .ok_or(SyncError::MissingDocument { relative_path })
+            .with_context(|| format!("sync document `{relative_path}` does not exist"))
     }
 }
 
@@ -221,7 +206,7 @@ impl SyncFileMetadata {
         }
     }
 
-    pub fn from_path(path: impl AsRef<Path>) -> SyncResult<Self> {
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let metadata = match fs::metadata(path) {
             Ok(metadata) => metadata,
@@ -229,10 +214,8 @@ impl SyncFileMetadata {
                 return Ok(Self::missing());
             }
             Err(source) => {
-                return Err(SyncError::Io {
-                    path: path.to_path_buf(),
-                    source,
-                });
+                let result = Err(source).with_context(|| format!("I/O failed for `{path:?}`"));
+                return result;
             }
         };
         let file_kind = if metadata.is_dir() {
@@ -261,13 +244,13 @@ pub fn default_local_index_path(home_dir: impl AsRef<Path>) -> PathBuf {
         .join("index.db")
 }
 
-pub fn validate_index_path_outside_roots(path: &Path, roots: &[SyncRoot]) -> SyncResult<()> {
+pub fn validate_index_path_outside_roots(path: &Path, roots: &[SyncRoot]) -> Result<()> {
     for root in roots {
         if path.starts_with(&root.local_path) {
-            return Err(SyncError::IndexInsideSyncRoot {
-                path: path.to_path_buf(),
-                root: root.local_path.clone(),
-            });
+            bail!(
+                "local index path `{path:?}` is inside sync root `{:?}`",
+                root.local_path
+            );
         }
     }
     Ok(())

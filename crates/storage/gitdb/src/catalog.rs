@@ -6,5 +6,5 @@
 automod::dir!("src/catalog");
 
 pub use manager::Catalog;
-pub use schema::{SchemaBuilder, SchemaError, SchemaVersion, TableSchema};
+pub use schema::{SchemaBuilder, SchemaVersion, TableSchema};
 pub use types::{ColumnDef, Constraint, DataType};

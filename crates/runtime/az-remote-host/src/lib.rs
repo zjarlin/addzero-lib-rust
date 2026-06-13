@@ -7,7 +7,7 @@
 //! - [`HostPlatformAdapter`] trait：为不同操作系统实现宿主端设备描述和权限提示的统一接口。
 //! - [`MockHostPlatformAdapter`]：开箱即用的默认实现，可直接用于测试或快速集成。
 //! - [`current_platform`]：运行时平台检测函数，支持 macOS、Windows、Linux (X11/Wayland) 及浏览器环境。
-//! - [`HostError`] / [`HostResult`]：统一的错误类型与结果别名。
+//! - 平台适配接口直接返回 [`anyhow::Result`]，错误上下文由调用边界补充。
 //!
 //! ## 设备描述
 //!
@@ -21,30 +21,19 @@
 
 #![forbid(unsafe_code)]
 
-use az_derive_aliases::{apply, error_eq, plain_default_copy_eq};
+use az_derive_aliases::{apply, plain_default_copy_eq};
 use az_remote_model::{
     DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability,
 };
 use chrono::Utc;
 use uuid::Uuid;
 
-/// 远程宿主平台适配层统一返回类型。
-pub type HostResult<T> = Result<T, HostError>;
-
-/// 宿主平台适配错误。
-#[apply(error_eq)]
-pub enum HostError {
-    /// 当前平台适配器不可用。
-    #[error("platform adapter is unavailable: {0}")]
-    Unavailable(String),
-}
-
 /// 远程宿主端平台适配器接口。
 ///
 /// 不同操作系统可通过该 trait 注入设备描述和权限提示，信令层只依赖统一契约。
 pub trait HostPlatformAdapter {
     /// 生成当前宿主设备描述。
-    fn descriptor(&self, device_name: &str) -> HostResult<DeviceDescriptor>;
+    fn descriptor(&self, device_name: &str) -> anyhow::Result<DeviceDescriptor>;
     /// 返回当前平台需要用户授予的权限提示。
     fn permission_hint(&self) -> &'static str;
 }
@@ -56,7 +45,7 @@ pub trait HostPlatformAdapter {
 pub struct MockHostPlatformAdapter;
 
 impl HostPlatformAdapter for MockHostPlatformAdapter {
-    fn descriptor(&self, device_name: &str) -> HostResult<DeviceDescriptor> {
+    fn descriptor(&self, device_name: &str) -> anyhow::Result<DeviceDescriptor> {
         Ok(DeviceDescriptor {
             device_id: Uuid::new_v4(),
             device_name: device_name.into(),

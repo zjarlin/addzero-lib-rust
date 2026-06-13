@@ -1,7 +1,8 @@
 use crate::progress::{InMemoryUploadProgressStorage, PartInfo};
 use crate::types::{ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig};
+use anyhow::{anyhow, bail, Context};
 use az_derive_aliases::{
-    apply, error, impl_default, plain_clone, plain_clone_debug, plain_default_clone_debug,
+    apply, impl_default, plain_clone, plain_clone_debug, plain_default_clone_debug,
     plain_default_debug,
 };
 use base64::Engine as _;
@@ -31,45 +32,22 @@ fn recover_lock<T>(mutex: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> 
 const AWS_SERVICE_NAME: &str = "s3";
 const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
 
-/// 对象存储客户端返回的错误。
-#[apply(error)]
-pub enum StorageError {
-    /// 客户端配置非法。
-    #[error("invalid storage configuration: {0}")]
-    InvalidConfig(String),
-    /// 指定 bucket 不存在。
-    #[error("bucket `{bucket}` was not found")]
-    BucketNotFound { bucket: String },
-    /// 指定对象不存在。
-    #[error("object `{bucket}/{key}` was not found")]
-    ObjectNotFound { bucket: String, key: String },
-    /// 后端服务或协议返回错误。
-    #[error("storage backend error: {0}")]
-    Backend(String),
-    /// 本地文件读写错误。
-    #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
-}
-
-/// 对象存储操作统一结果类型。
-pub type StorageResult<T> = Result<T, StorageError>;
-
 /// S3 兼容对象存储客户端接口。
 ///
 /// trait 覆盖 bucket、对象、分片上传和预签名 URL 四类操作，便于在真实 HTTP
 /// 客户端和内存实现之间切换。
 pub trait S3StorageClient: Send + Sync {
-    fn bucket_exists(&self, bucket_name: &str) -> StorageResult<bool>;
-    fn create_bucket(&self, bucket_name: &str) -> StorageResult<()>;
-    fn list_buckets(&self) -> StorageResult<Vec<String>>;
-    fn delete_bucket(&self, bucket_name: &str) -> StorageResult<()>;
+    fn bucket_exists(&self, bucket_name: &str) -> anyhow::Result<bool>;
+    fn create_bucket(&self, bucket_name: &str) -> anyhow::Result<()>;
+    fn list_buckets(&self) -> anyhow::Result<Vec<String>>;
+    fn delete_bucket(&self, bucket_name: &str) -> anyhow::Result<()>;
 
-    fn object_exists(&self, bucket_name: &str, key: &str) -> StorageResult<bool>;
+    fn object_exists(&self, bucket_name: &str, key: &str) -> anyhow::Result<bool>;
     fn get_object_metadata(
         &self,
         bucket_name: &str,
         key: &str,
-    ) -> StorageResult<Option<ObjectMetadata>>;
+    ) -> anyhow::Result<Option<ObjectMetadata>>;
     fn put_object_bytes(
         &self,
         bucket_name: &str,
@@ -77,7 +55,7 @@ pub trait S3StorageClient: Send + Sync {
         data: &[u8],
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
-    ) -> StorageResult<()>;
+    ) -> anyhow::Result<()>;
     fn put_object_file(
         &self,
         bucket_name: &str,
@@ -85,25 +63,25 @@ pub trait S3StorageClient: Send + Sync {
         path: &Path,
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
-    ) -> StorageResult<()>;
-    fn get_object(&self, bucket_name: &str, key: &str) -> StorageResult<Vec<u8>>;
-    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> StorageResult<()>;
-    fn delete_object(&self, bucket_name: &str, key: &str) -> StorageResult<()>;
-    fn delete_objects(&self, bucket_name: &str, keys: &[String]) -> StorageResult<()>;
+    ) -> anyhow::Result<()>;
+    fn get_object(&self, bucket_name: &str, key: &str) -> anyhow::Result<Vec<u8>>;
+    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> anyhow::Result<()>;
+    fn delete_object(&self, bucket_name: &str, key: &str) -> anyhow::Result<()>;
+    fn delete_objects(&self, bucket_name: &str, keys: &[String]) -> anyhow::Result<()>;
     fn copy_object(
         &self,
         source_bucket: &str,
         source_key: &str,
         target_bucket: &str,
         target_key: &str,
-    ) -> StorageResult<()>;
+    ) -> anyhow::Result<()>;
     fn list_objects(
         &self,
         bucket_name: &str,
         prefix: Option<&str>,
         recursive: bool,
         max_keys: usize,
-    ) -> StorageResult<Vec<ObjectMetadata>>;
+    ) -> anyhow::Result<Vec<ObjectMetadata>>;
 
     fn init_multipart_upload(
         &self,
@@ -111,7 +89,7 @@ pub trait S3StorageClient: Send + Sync {
         key: &str,
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
-    ) -> StorageResult<String>;
+    ) -> anyhow::Result<String>;
     fn upload_part(
         &self,
         bucket_name: &str,
@@ -120,34 +98,34 @@ pub trait S3StorageClient: Send + Sync {
         part_number: u32,
         data: &[u8],
         content_type: Option<&str>,
-    ) -> StorageResult<String>;
+    ) -> anyhow::Result<String>;
     fn complete_multipart_upload(
         &self,
         bucket_name: &str,
         key: &str,
         upload_id: &str,
         parts: &[PartInfo],
-    ) -> StorageResult<()>;
+    ) -> anyhow::Result<()>;
     fn abort_multipart_upload(
         &self,
         bucket_name: &str,
         key: &str,
         upload_id: &str,
-    ) -> StorageResult<()>;
-    fn list_multipart_uploads(&self, bucket_name: &str) -> StorageResult<Vec<String>>;
+    ) -> anyhow::Result<()>;
+    fn list_multipart_uploads(&self, bucket_name: &str) -> anyhow::Result<Vec<String>>;
 
     fn generate_presigned_url(
         &self,
         bucket_name: &str,
         key: &str,
         expiration_seconds: u64,
-    ) -> StorageResult<PresignedUrl>;
+    ) -> anyhow::Result<PresignedUrl>;
     fn generate_presigned_upload_url(
         &self,
         bucket_name: &str,
         key: &str,
         expiration_seconds: u64,
-    ) -> StorageResult<PresignedUrl>;
+    ) -> anyhow::Result<PresignedUrl>;
 }
 
 /// S3 兼容客户端工厂接口。
@@ -227,12 +205,12 @@ impl BlockingS3StorageClient {
         &self.config
     }
 
-    fn endpoint_url(&self) -> StorageResult<Url> {
-        Url::parse(&self.config.endpoint).map_err(|error| {
-            StorageError::InvalidConfig(format!(
-                "invalid endpoint `{}`: {error}",
+    fn endpoint_url(&self) -> anyhow::Result<Url> {
+        Url::parse(&self.config.endpoint).with_context(|| {
+            format!(
+                "invalid storage configuration: invalid endpoint `{}`",
                 self.config.endpoint
-            ))
+            )
         })
     }
 
@@ -250,11 +228,13 @@ impl BlockingS3StorageClient {
         bucket_name: Option<&str>,
         key: Option<&str>,
         query_pairs: &[(String, String)],
-    ) -> StorageResult<RequestTarget> {
+    ) -> anyhow::Result<RequestTarget> {
         let endpoint = self.endpoint_url()?;
         let scheme = endpoint.scheme();
         let endpoint_host = endpoint.host_str().ok_or_else(|| {
-            StorageError::InvalidConfig(format!(
+            anyhow!(
+                "invalid storage configuration: {}",
+                format!(
                 "endpoint `{}` does not contain a host",
                 self.config.endpoint
             ))
@@ -308,9 +288,8 @@ impl BlockingS3StorageClient {
             raw_url.push_str(&canonical_query);
         }
 
-        let url = Url::parse(&raw_url).map_err(|error| {
-            StorageError::InvalidConfig(format!("failed to build request URL `{raw_url}`: {error}"))
-        })?;
+        let url = Url::parse(&raw_url)
+            .with_context(|| format!("invalid storage configuration: failed to build request URL `{raw_url}`"))?;
 
         Ok(RequestTarget {
             host_header: build_host_header(&url)?,
@@ -328,7 +307,7 @@ impl BlockingS3StorageClient {
         query_pairs: Vec<(String, String)>,
         extra_headers: BTreeMap<String, String>,
         body: Vec<u8>,
-    ) -> StorageResult<Response> {
+    ) -> anyhow::Result<Response> {
         let request_target = self.build_request_target(bucket_name, key, &query_pairs)?;
         let now = Utc::now();
         let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
@@ -385,7 +364,7 @@ impl BlockingS3StorageClient {
             .header("Authorization", authorization)
             .body(body)
             .send()
-            .map_err(|error| StorageError::Backend(format!("request failed: {error}")))
+            .map_err(|error| anyhow!("storage backend error: {}", format!("request failed: {error}")))
     }
 
     fn execute_empty_body_request(
@@ -395,7 +374,7 @@ impl BlockingS3StorageClient {
         key: Option<&str>,
         query_pairs: Vec<(String, String)>,
         headers: BTreeMap<String, String>,
-    ) -> StorageResult<Response> {
+    ) -> anyhow::Result<Response> {
         self.execute_signed_request(method, bucket_name, key, query_pairs, headers, Vec::new())
     }
 
@@ -404,7 +383,7 @@ impl BlockingS3StorageClient {
         response: Response,
         bucket_name: Option<&str>,
         key: Option<&str>,
-    ) -> StorageResult<Response> {
+    ) -> anyhow::Result<Response> {
         if response.status().is_success() {
             return Ok(response);
         }
@@ -417,16 +396,12 @@ impl BlockingS3StorageClient {
         bucket_name: &str,
         key: &str,
         expiration_seconds: u64,
-    ) -> StorageResult<PresignedUrl> {
+    ) -> anyhow::Result<PresignedUrl> {
         if expiration_seconds == 0 {
-            return Err(StorageError::InvalidConfig(
-                "presigned URL expiration must be greater than zero".to_owned(),
-            ));
+            bail!("invalid storage configuration: presigned URL expiration must be greater than zero");
         }
         if expiration_seconds > 7 * 24 * 60 * 60 {
-            return Err(StorageError::InvalidConfig(
-                "presigned URL expiration cannot exceed 7 days".to_owned(),
-            ));
+            bail!("invalid storage configuration: presigned URL expiration cannot exceed 7 days");
         }
 
         let now = Utc::now();
@@ -481,7 +456,7 @@ impl BlockingS3StorageClient {
 }
 
 impl S3StorageClient for BlockingS3StorageClient {
-    fn bucket_exists(&self, bucket_name: &str) -> StorageResult<bool> {
+    fn bucket_exists(&self, bucket_name: &str) -> anyhow::Result<bool> {
         let response = self.execute_empty_body_request(
             Method::HEAD,
             Some(bucket_name),
@@ -493,12 +468,15 @@ impl S3StorageClient for BlockingS3StorageClient {
             StatusCode::OK | StatusCode::NO_CONTENT => true,
             StatusCode::NOT_FOUND => false,
             _ => {
-                return Err(response_to_storage_error(response, Some(bucket_name), None));
+                let bucket = Some(bucket_name);
+                let error = response_to_storage_error(response, bucket, None);
+
+                return Err(error);
             }
         })
     }
 
-    fn create_bucket(&self, bucket_name: &str) -> StorageResult<()> {
+    fn create_bucket(&self, bucket_name: &str) -> anyhow::Result<()> {
         let body = if self.normalized_region() == "us-east-1" {
             Vec::new()
         } else {
@@ -527,7 +505,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         Ok(())
     }
 
-    fn list_buckets(&self) -> StorageResult<Vec<String>> {
+    fn list_buckets(&self) -> anyhow::Result<Vec<String>> {
         let response =
             self.execute_empty_body_request(Method::GET, None, None, Vec::new(), BTreeMap::new())?;
         let body = response_to_text(self.ensure_success(response, None, None)?)?;
@@ -537,7 +515,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         )
     }
 
-    fn delete_bucket(&self, bucket_name: &str) -> StorageResult<()> {
+    fn delete_bucket(&self, bucket_name: &str) -> anyhow::Result<()> {
         let response = self.execute_empty_body_request(
             Method::DELETE,
             Some(bucket_name),
@@ -549,7 +527,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         Ok(())
     }
 
-    fn object_exists(&self, bucket_name: &str, key: &str) -> StorageResult<bool> {
+    fn object_exists(&self, bucket_name: &str, key: &str) -> anyhow::Result<bool> {
         let response = self.execute_empty_body_request(
             Method::HEAD,
             Some(bucket_name),
@@ -561,11 +539,11 @@ impl S3StorageClient for BlockingS3StorageClient {
             StatusCode::OK => true,
             StatusCode::NOT_FOUND => false,
             _ => {
-                return Err(response_to_storage_error(
-                    response,
-                    Some(bucket_name),
-                    Some(key),
-                ));
+                let bucket = Some(bucket_name);
+                let object_key = Some(key);
+                let error = response_to_storage_error(response, bucket, object_key);
+
+                return Err(error);
             }
         })
     }
@@ -574,7 +552,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         &self,
         bucket_name: &str,
         key: &str,
-    ) -> StorageResult<Option<ObjectMetadata>> {
+    ) -> anyhow::Result<Option<ObjectMetadata>> {
         let response = self.execute_empty_body_request(
             Method::HEAD,
             Some(bucket_name),
@@ -586,11 +564,11 @@ impl S3StorageClient for BlockingS3StorageClient {
             StatusCode::OK => Some(metadata_from_headers(key, response.headers())),
             StatusCode::NOT_FOUND => None,
             _ => {
-                return Err(response_to_storage_error(
-                    response,
-                    Some(bucket_name),
-                    Some(key),
-                ));
+                let bucket = Some(bucket_name);
+                let object_key = Some(key);
+                let error = response_to_storage_error(response, bucket, object_key);
+
+                return Err(error);
             }
         })
     }
@@ -602,7 +580,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         data: &[u8],
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let mut headers = metadata_headers(metadata);
         if let Some(content_type) = content_type.filter(|value| !value.trim().is_empty()) {
             headers.insert(CONTENT_TYPE.as_str().to_owned(), content_type.to_owned());
@@ -626,12 +604,12 @@ impl S3StorageClient for BlockingS3StorageClient {
         path: &Path,
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let bytes = std::fs::read(path)?;
         self.put_object_bytes(bucket_name, key, &bytes, content_type, metadata)
     }
 
-    fn get_object(&self, bucket_name: &str, key: &str) -> StorageResult<Vec<u8>> {
+    fn get_object(&self, bucket_name: &str, key: &str) -> anyhow::Result<Vec<u8>> {
         let response = self.execute_empty_body_request(
             Method::GET,
             Some(bucket_name),
@@ -644,11 +622,11 @@ impl S3StorageClient for BlockingS3StorageClient {
             .bytes()
             .map(|bytes| bytes.to_vec())
             .map_err(|error| {
-                StorageError::Backend(format!("failed to read response body: {error}"))
+                anyhow!("storage backend error: {}", format!("failed to read response body: {error}"))
             })
     }
 
-    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> StorageResult<()> {
+    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> anyhow::Result<()> {
         let bytes = self.get_object(bucket_name, key)?;
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)?;
@@ -657,7 +635,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         Ok(())
     }
 
-    fn delete_object(&self, bucket_name: &str, key: &str) -> StorageResult<()> {
+    fn delete_object(&self, bucket_name: &str, key: &str) -> anyhow::Result<()> {
         let response = self.execute_empty_body_request(
             Method::DELETE,
             Some(bucket_name),
@@ -669,7 +647,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         Ok(())
     }
 
-    fn delete_objects(&self, bucket_name: &str, keys: &[String]) -> StorageResult<()> {
+    fn delete_objects(&self, bucket_name: &str, keys: &[String]) -> anyhow::Result<()> {
         if keys.is_empty() {
             return Ok(());
         }
@@ -702,7 +680,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         source_key: &str,
         target_bucket: &str,
         target_key: &str,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let response = self.execute_empty_body_request(
             Method::PUT,
             Some(target_bucket),
@@ -727,7 +705,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         prefix: Option<&str>,
         recursive: bool,
         max_keys: usize,
-    ) -> StorageResult<Vec<ObjectMetadata>> {
+    ) -> anyhow::Result<Vec<ObjectMetadata>> {
         if max_keys == 0 {
             return Ok(Vec::new());
         }
@@ -789,7 +767,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         key: &str,
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
-    ) -> StorageResult<String> {
+    ) -> anyhow::Result<String> {
         let mut headers = metadata_headers(metadata);
         if let Some(content_type) = content_type.filter(|value| !value.trim().is_empty()) {
             headers.insert(CONTENT_TYPE.as_str().to_owned(), content_type.to_owned());
@@ -805,7 +783,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         let body =
             response_to_text(self.ensure_success(response, Some(bucket_name), Some(key))?)?;
         collect_first_path_text(&body, &["InitiateMultipartUploadResult", "UploadId"])?.ok_or_else(
-            || StorageError::Backend("multipart upload response missing UploadId".to_owned()),
+            || anyhow!("storage backend error: {}", "multipart upload response missing UploadId".to_owned()),
         )
     }
 
@@ -817,7 +795,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         part_number: u32,
         data: &[u8],
         content_type: Option<&str>,
-    ) -> StorageResult<String> {
+    ) -> anyhow::Result<String> {
         let mut headers = BTreeMap::new();
         if let Some(content_type) = content_type.filter(|value| !value.trim().is_empty()) {
             headers.insert(CONTENT_TYPE.as_str().to_owned(), content_type.to_owned());
@@ -848,7 +826,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         key: &str,
         upload_id: &str,
         parts: &[PartInfo],
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let body = build_complete_multipart_body(parts);
         let response = self.execute_signed_request(
             Method::POST,
@@ -870,7 +848,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         bucket_name: &str,
         key: &str,
         upload_id: &str,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let response = self.execute_empty_body_request(
             Method::DELETE,
             Some(bucket_name),
@@ -882,7 +860,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         Ok(())
     }
 
-    fn list_multipart_uploads(&self, bucket_name: &str) -> StorageResult<Vec<String>> {
+    fn list_multipart_uploads(&self, bucket_name: &str) -> anyhow::Result<Vec<String>> {
         let response = self.execute_empty_body_request(
             Method::GET,
             Some(bucket_name),
@@ -902,7 +880,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         bucket_name: &str,
         key: &str,
         expiration_seconds: u64,
-    ) -> StorageResult<PresignedUrl> {
+    ) -> anyhow::Result<PresignedUrl> {
         self.presigned_url("GET", bucket_name, key, expiration_seconds)
     }
 
@@ -911,7 +889,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         bucket_name: &str,
         key: &str,
         expiration_seconds: u64,
-    ) -> StorageResult<PresignedUrl> {
+    ) -> anyhow::Result<PresignedUrl> {
         self.presigned_url("PUT", bucket_name, key, expiration_seconds)
     }
 }
@@ -928,9 +906,9 @@ fn metadata_headers(metadata: &BTreeMap<String, String>) -> BTreeMap<String, Str
         .collect()
 }
 
-fn build_host_header(url: &Url) -> StorageResult<String> {
+fn build_host_header(url: &Url) -> anyhow::Result<String> {
     let host = url.host_str().ok_or_else(|| {
-        StorageError::InvalidConfig(format!("request URL `{url}` does not contain a host"))
+        anyhow!("invalid storage configuration: {}", format!("request URL `{url}` does not contain a host"))
     })?;
     let include_port = match (url.scheme(), url.port()) {
         ("http", Some(80)) | ("https", Some(443)) | (_, None) => false,
@@ -943,26 +921,26 @@ fn build_host_header(url: &Url) -> StorageResult<String> {
     })
 }
 
-fn response_to_text(response: Response) -> StorageResult<String> {
+fn response_to_text(response: Response) -> anyhow::Result<String> {
     response
         .bytes()
         .map(|bytes| String::from_utf8_lossy(bytes.as_ref()).into_owned())
-        .map_err(|error| StorageError::Backend(format!("failed to read response body: {error}")))
+        .map_err(|error| anyhow!("storage backend error: failed to read response body: {error}"))
 }
 
 fn response_to_storage_error(
     response: Response,
     bucket_name: Option<&str>,
     key: Option<&str>,
-) -> StorageError {
+) -> anyhow::Error {
     let status = response.status();
     let body = match response.bytes() {
         Ok(bytes) => String::from_utf8_lossy(bytes.as_ref()).into_owned(),
         Err(error) => {
-            return StorageError::Backend(format!(
+            return anyhow!(
                 "S3 request failed with HTTP {} and body read error: {error}",
                 status.as_u16()
-            ));
+            );
         }
     };
     let error_code = collect_first_local_name_text(&body, "Code").ok().flatten();
@@ -972,24 +950,18 @@ fn response_to_storage_error(
 
     match (status, error_code.as_deref(), bucket_name, key) {
         (StatusCode::NOT_FOUND, Some("NoSuchBucket"), Some(bucket_name), _) => {
-            StorageError::BucketNotFound {
-                bucket: bucket_name.to_owned(),
-            }
+            anyhow!("bucket `{}` was not found", bucket_name.to_owned())
         }
         (StatusCode::NOT_FOUND, Some("NoSuchKey"), Some(bucket_name), Some(key)) => {
-            StorageError::ObjectNotFound {
-                bucket: bucket_name.to_owned(),
-                key: key.to_owned(),
-            }
+            anyhow!("object `{}/{}` was not found", bucket_name.to_owned(), key.to_owned())
         }
-        (StatusCode::NOT_FOUND, _, Some(bucket_name), Some(key)) => StorageError::ObjectNotFound {
-            bucket: bucket_name.to_owned(),
-            key: key.to_owned(),
-        },
-        (StatusCode::NOT_FOUND, _, Some(bucket_name), None) => StorageError::BucketNotFound {
-            bucket: bucket_name.to_owned(),
-        },
-        _ => StorageError::Backend(format!(
+        (StatusCode::NOT_FOUND, _, Some(bucket_name), Some(key)) => {
+            anyhow!("object `{}/{}` was not found", bucket_name, key)
+        }
+        (StatusCode::NOT_FOUND, _, Some(bucket_name), None) => {
+            anyhow!("bucket `{}` was not found", bucket_name)
+        }
+        _ => anyhow!(
             "S3 request failed with HTTP {}{}{}",
             status.as_u16(),
             error_code
@@ -1005,8 +977,8 @@ fn response_to_storage_error(
                     } else {
                         format!(", body={body}")
                     }
-                })
-        )),
+                }),
+        ),
     }
 }
 
@@ -1077,7 +1049,7 @@ struct ParsedListObjectsResponse {
     next_continuation_token: Option<String>,
 }
 
-fn parse_list_objects_response(xml: &str) -> StorageResult<ParsedListObjectsResponse> {
+fn parse_list_objects_response(xml: &str) -> anyhow::Result<ParsedListObjectsResponse> {
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
     let mut buffer = Vec::new();
@@ -1158,7 +1130,11 @@ fn parse_list_objects_response(xml: &str) -> StorageResult<ParsedListObjectsResp
             }
             Ok(Event::Eof) => break,
             Ok(_) => {}
-            Err(error) => return Err(xml_parse_error(error)),
+            Err(error) => {
+                let error = xml_parse_error(error);
+
+                return Err(error);
+            }
         }
         buffer.clear();
     }
@@ -1233,7 +1209,7 @@ mod tests {
     }
 }
 
-fn collect_path_texts(xml: &str, target_path: &[&str]) -> StorageResult<Vec<String>> {
+fn collect_path_texts(xml: &str, target_path: &[&str]) -> anyhow::Result<Vec<String>> {
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
     let mut buffer = Vec::new();
@@ -1258,7 +1234,11 @@ fn collect_path_texts(xml: &str, target_path: &[&str]) -> StorageResult<Vec<Stri
             }
             Ok(Event::Eof) => break,
             Ok(_) => {}
-            Err(error) => return Err(xml_parse_error(error)),
+            Err(error) => {
+                let error = xml_parse_error(error);
+
+                return Err(error);
+            }
         }
         buffer.clear();
     }
@@ -1266,11 +1246,11 @@ fn collect_path_texts(xml: &str, target_path: &[&str]) -> StorageResult<Vec<Stri
     Ok(values)
 }
 
-fn collect_first_path_text(xml: &str, target_path: &[&str]) -> StorageResult<Option<String>> {
+fn collect_first_path_text(xml: &str, target_path: &[&str]) -> anyhow::Result<Option<String>> {
     Ok(collect_path_texts(xml, target_path)?.into_iter().next())
 }
 
-fn collect_first_local_name_text(xml: &str, name: &str) -> StorageResult<Option<String>> {
+fn collect_first_local_name_text(xml: &str, name: &str) -> anyhow::Result<Option<String>> {
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
     let mut buffer = Vec::new();
@@ -1294,7 +1274,11 @@ fn collect_first_local_name_text(xml: &str, name: &str) -> StorageResult<Option<
             }
             Ok(Event::Eof) => break,
             Ok(_) => {}
-            Err(error) => return Err(xml_parse_error(error)),
+            Err(error) => {
+                let error = xml_parse_error(error);
+
+                return Err(error);
+            }
         }
         buffer.clear();
     }
@@ -1302,8 +1286,8 @@ fn collect_first_local_name_text(xml: &str, name: &str) -> StorageResult<Option<
     Ok(None)
 }
 
-fn xml_parse_error(error: impl std::fmt::Display) -> StorageError {
-    StorageError::Backend(format!("failed to parse S3 XML response: {error}"))
+fn xml_parse_error(error: impl std::fmt::Display) -> anyhow::Error {
+    anyhow!("storage backend error: failed to parse S3 XML response: {error}")
 }
 
 fn path_matches(path: &[String], target_path: &[&str]) -> bool {
@@ -1349,7 +1333,7 @@ fn derive_signing_key(
     date_stamp: &str,
     region: &str,
     service: &str,
-) -> StorageResult<Vec<u8>> {
+) -> anyhow::Result<Vec<u8>> {
     let k_date = sign_hmac(
         format!("AWS4{secret_key}").as_bytes(),
         date_stamp.as_bytes(),
@@ -1359,9 +1343,9 @@ fn derive_signing_key(
     sign_hmac(&k_service, b"aws4_request")
 }
 
-fn sign_hmac(key: &[u8], data: &[u8]) -> StorageResult<Vec<u8>> {
+fn sign_hmac(key: &[u8], data: &[u8]) -> anyhow::Result<Vec<u8>> {
     let mut mac = HmacSha256::new_from_slice(key)
-        .map_err(|error| StorageError::Backend(format!("failed to initialize HMAC: {error}")))?;
+        .map_err(|error| anyhow!("storage backend error: failed to initialize HMAC: {error}"))?;
     mac.update(data);
     Ok(mac.finalize().into_bytes().to_vec())
 }
@@ -1484,11 +1468,11 @@ impl InMemoryS3StorageClient {
 }
 
 impl S3StorageClient for InMemoryS3StorageClient {
-    fn bucket_exists(&self, bucket_name: &str) -> StorageResult<bool> {
+    fn bucket_exists(&self, bucket_name: &str) -> anyhow::Result<bool> {
         Ok(recover_lock(&self.state).buckets.contains_key(bucket_name))
     }
 
-    fn create_bucket(&self, bucket_name: &str) -> StorageResult<()> {
+    fn create_bucket(&self, bucket_name: &str) -> anyhow::Result<()> {
         recover_lock(&self.state)
             .buckets
             .entry(bucket_name.to_owned())
@@ -1496,21 +1480,19 @@ impl S3StorageClient for InMemoryS3StorageClient {
         Ok(())
     }
 
-    fn list_buckets(&self) -> StorageResult<Vec<String>> {
+    fn list_buckets(&self) -> anyhow::Result<Vec<String>> {
         Ok(recover_lock(&self.state).buckets.keys().cloned().collect())
     }
 
-    fn delete_bucket(&self, bucket_name: &str) -> StorageResult<()> {
+    fn delete_bucket(&self, bucket_name: &str) -> anyhow::Result<()> {
         recover_lock(&self.state)
             .buckets
             .remove(bucket_name)
-            .ok_or_else(|| StorageError::BucketNotFound {
-                bucket: bucket_name.to_owned(),
-            })?;
+            .ok_or_else(|| anyhow!("bucket `{}` was not found", bucket_name.to_owned()))?;
         Ok(())
     }
 
-    fn object_exists(&self, bucket_name: &str, key: &str) -> StorageResult<bool> {
+    fn object_exists(&self, bucket_name: &str, key: &str) -> anyhow::Result<bool> {
         Ok(recover_lock(&self.state)
             .buckets
             .get(bucket_name)
@@ -1522,7 +1504,7 @@ impl S3StorageClient for InMemoryS3StorageClient {
         &self,
         bucket_name: &str,
         key: &str,
-    ) -> StorageResult<Option<ObjectMetadata>> {
+    ) -> anyhow::Result<Option<ObjectMetadata>> {
         Ok(recover_lock(&self.state)
             .buckets
             .get(bucket_name)
@@ -1537,7 +1519,7 @@ impl S3StorageClient for InMemoryS3StorageClient {
         data: &[u8],
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let mut state = recover_lock(&self.state);
         let etag = Self::next_id(&mut state, "etag");
         state
@@ -1564,24 +1546,21 @@ impl S3StorageClient for InMemoryS3StorageClient {
         path: &Path,
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let bytes = std::fs::read(path)?;
         self.put_object_bytes(bucket_name, key, &bytes, content_type, metadata)
     }
 
-    fn get_object(&self, bucket_name: &str, key: &str) -> StorageResult<Vec<u8>> {
+    fn get_object(&self, bucket_name: &str, key: &str) -> anyhow::Result<Vec<u8>> {
         recover_lock(&self.state)
             .buckets
             .get(bucket_name)
             .and_then(|bucket| bucket.get(key))
             .map(|object| object.bytes.clone())
-            .ok_or_else(|| StorageError::ObjectNotFound {
-                bucket: bucket_name.to_owned(),
-                key: key.to_owned(),
-            })
+            .ok_or_else(|| anyhow!("object `{}/{}` was not found", bucket_name.to_owned(), key.to_owned()))
     }
 
-    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> StorageResult<()> {
+    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> anyhow::Result<()> {
         let bytes = self.get_object(bucket_name, key)?;
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)?;
@@ -1590,19 +1569,16 @@ impl S3StorageClient for InMemoryS3StorageClient {
         Ok(())
     }
 
-    fn delete_object(&self, bucket_name: &str, key: &str) -> StorageResult<()> {
+    fn delete_object(&self, bucket_name: &str, key: &str) -> anyhow::Result<()> {
         recover_lock(&self.state)
             .buckets
             .get_mut(bucket_name)
             .and_then(|bucket| bucket.remove(key))
-            .ok_or_else(|| StorageError::ObjectNotFound {
-                bucket: bucket_name.to_owned(),
-                key: key.to_owned(),
-            })?;
+            .ok_or_else(|| anyhow!("object `{}/{}` was not found", bucket_name.to_owned(), key.to_owned()))?;
         Ok(())
     }
 
-    fn delete_objects(&self, bucket_name: &str, keys: &[String]) -> StorageResult<()> {
+    fn delete_objects(&self, bucket_name: &str, keys: &[String]) -> anyhow::Result<()> {
         for key in keys {
             let _ = self.delete_object(bucket_name, key);
         }
@@ -1615,7 +1591,7 @@ impl S3StorageClient for InMemoryS3StorageClient {
         source_key: &str,
         target_bucket: &str,
         target_key: &str,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let metadata = self.get_object_metadata(source_bucket, source_key)?;
         let bytes = self.get_object(source_bucket, source_key)?;
         let content_type = metadata.as_ref().and_then(|meta| meta.content_type.clone());
@@ -1635,7 +1611,7 @@ impl S3StorageClient for InMemoryS3StorageClient {
         prefix: Option<&str>,
         recursive: bool,
         max_keys: usize,
-    ) -> StorageResult<Vec<ObjectMetadata>> {
+    ) -> anyhow::Result<Vec<ObjectMetadata>> {
         let prefix = prefix.unwrap_or_default();
         let bucket = recover_lock(&self.state)
             .buckets
@@ -1660,7 +1636,7 @@ impl S3StorageClient for InMemoryS3StorageClient {
         key: &str,
         content_type: Option<&str>,
         metadata: &BTreeMap<String, String>,
-    ) -> StorageResult<String> {
+    ) -> anyhow::Result<String> {
         let mut state = recover_lock(&self.state);
         let upload_id = Self::next_id(&mut state, "upload");
         state.uploads.insert(
@@ -1684,12 +1660,12 @@ impl S3StorageClient for InMemoryS3StorageClient {
         part_number: u32,
         data: &[u8],
         _content_type: Option<&str>,
-    ) -> StorageResult<String> {
+    ) -> anyhow::Result<String> {
         let mut state = recover_lock(&self.state);
         let upload = state
             .uploads
             .get_mut(upload_id)
-            .ok_or_else(|| StorageError::Backend(format!("unknown upload id `{upload_id}`")))?;
+            .ok_or_else(|| anyhow!("storage backend error: {}", format!("unknown upload id `{upload_id}`")))?;
         upload.parts.insert(part_number, data.to_vec());
         Ok(format!("etag-{upload_id}-{part_number}"))
     }
@@ -1700,12 +1676,12 @@ impl S3StorageClient for InMemoryS3StorageClient {
         key: &str,
         upload_id: &str,
         parts: &[PartInfo],
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         let mut state = recover_lock(&self.state);
         let upload = state
             .uploads
             .remove(upload_id)
-            .ok_or_else(|| StorageError::Backend(format!("unknown upload id `{upload_id}`")))?;
+            .ok_or_else(|| anyhow!("storage backend error: {}", format!("unknown upload id `{upload_id}`")))?;
 
         let mut ordered = parts.to_vec();
         ordered.sort_by_key(|part| part.part_number);
@@ -1738,12 +1714,12 @@ impl S3StorageClient for InMemoryS3StorageClient {
         _bucket_name: &str,
         _key: &str,
         upload_id: &str,
-    ) -> StorageResult<()> {
+    ) -> anyhow::Result<()> {
         recover_lock(&self.state).uploads.remove(upload_id);
         Ok(())
     }
 
-    fn list_multipart_uploads(&self, bucket_name: &str) -> StorageResult<Vec<String>> {
+    fn list_multipart_uploads(&self, bucket_name: &str) -> anyhow::Result<Vec<String>> {
         Ok(recover_lock(&self.state)
             .uploads
             .iter()
@@ -1757,7 +1733,7 @@ impl S3StorageClient for InMemoryS3StorageClient {
         bucket_name: &str,
         key: &str,
         expiration_seconds: u64,
-    ) -> StorageResult<PresignedUrl> {
+    ) -> anyhow::Result<PresignedUrl> {
         Ok(PresignedUrl {
             url: format!("memory://{bucket_name}/{key}?op=get"),
             expiration: SystemTime::now() + Duration::from_secs(expiration_seconds),
@@ -1769,7 +1745,7 @@ impl S3StorageClient for InMemoryS3StorageClient {
         bucket_name: &str,
         key: &str,
         expiration_seconds: u64,
-    ) -> StorageResult<PresignedUrl> {
+    ) -> anyhow::Result<PresignedUrl> {
         Ok(PresignedUrl {
             url: format!("memory://{bucket_name}/{key}?op=put"),
             expiration: SystemTime::now() + Duration::from_secs(expiration_seconds),

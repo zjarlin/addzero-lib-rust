@@ -29,9 +29,8 @@ az-rustfs = { path = "../az-rustfs" }       # workspace 内部引用
 ## 用法
 
 ```rust,no_run
-use az_rustfs::{
-    get_object, ensure_bucket, put_object_bytes, Rustfs,
-};
+use az_rustfs::object_ops::{ensure_bucket, get_object, put_object_bytes};
+use az_rustfs::rustfs::Rustfs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Rustfs::default_client();
@@ -50,7 +49,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 工厂注入
 
 ```rust
-use az_rustfs::{DefaultS3StorageClientFactory, Rustfs, RustfsConfig};
+use az_rustfs::client::DefaultS3StorageClientFactory;
+use az_rustfs::rustfs::Rustfs;
+use az_rustfs::types::RustfsConfig;
 
 let factory = DefaultS3StorageClientFactory::default();
 let client = Rustfs::storage_client_with_factory(&factory, RustfsConfig::default());
@@ -65,4 +66,4 @@ assert_eq!(std::sync::Arc::strong_count(&client), 1);
 - `quick-xml` — S3 XML 响应解析
 - `reqwest` — HTTP 客户端（S3 API 调用）
 - `mime_guess` — 根据扩展名推断 Content-Type
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误返回与上下文

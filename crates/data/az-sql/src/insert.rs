@@ -1,6 +1,8 @@
-use crate::quote_identifier;
-use crate::{Query, QueryError, require_table_name};
+use anyhow::{Result, bail};
 use az_derive_aliases::{apply, plain_default_clone_debug};
+
+use crate::identifier::{quote_identifier, require_table_name};
+use crate::query::Query;
 
 /// An INSERT query builder.
 #[apply(plain_default_clone_debug)]
@@ -36,24 +38,21 @@ impl InsertQuery {
     }
 
     /// Build and validate the query, returning an error if invalid.
-    pub fn try_build(&self) -> Result<(String, Vec<String>), QueryError> {
+    pub fn try_build(&self) -> Result<(String, Vec<String>)> {
         require_table_name(self.table.as_deref())?;
         if self.columns.is_empty() {
-            return Err(QueryError::NoColumns);
+            bail!("no columns specified for insert");
         }
         if self.rows.is_empty() {
-            return Err(QueryError::ColumnValueMismatch {
-                columns: self.columns.len(),
-                values: 0,
-            });
+            bail!("column count ({}) does not match value count (0)", self.columns.len());
         }
         let expected = self.columns.len();
         for row in &self.rows {
             if row.len() != expected {
-                return Err(QueryError::ColumnValueMismatch {
-                    columns: expected,
-                    values: row.len(),
-                });
+                bail!(
+                    "column count ({expected}) does not match value count ({})",
+                    row.len()
+                );
             }
         }
         self.build()
@@ -61,7 +60,7 @@ impl InsertQuery {
 }
 
 impl Query for InsertQuery {
-    fn build(&self) -> Result<(String, Vec<String>), QueryError> {
+    fn build(&self) -> Result<(String, Vec<String>)> {
         let mut all_params: Vec<String> = Vec::new();
 
         let table = quote_identifier(require_table_name(self.table.as_deref())?);
@@ -91,7 +90,8 @@ impl Query for InsertQuery {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::insert::InsertQuery;
+    use crate::query::Query;
 
     #[test]
     fn single_row_insert() {
@@ -128,13 +128,13 @@ mod tests {
     #[test]
     fn try_build_no_table_errors() {
         let q = InsertQuery::new().columns(&["name"]).values(vec!["Alice"]);
-        assert_eq!(q.try_build(), Err(QueryError::NoTable));
+        assert!(q.try_build().unwrap_err().to_string().contains("no table"));
     }
 
     #[test]
     fn try_build_no_columns_errors() {
         let q = InsertQuery::new().into("users").values(vec!["Alice"]);
-        assert_eq!(q.try_build(), Err(QueryError::NoColumns));
+        assert!(q.try_build().unwrap_err().to_string().contains("no columns"));
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
             .into("")
             .columns(&["name"])
             .values(vec!["Alice"]);
-        assert_eq!(q.build(), Err(QueryError::NoTable));
+        assert!(q.build().unwrap_err().to_string().contains("no table"));
     }
 
     #[test]
@@ -152,13 +152,7 @@ mod tests {
             .into("users")
             .columns(&["name", "email", "age"])
             .values(vec!["Alice", "alice@example.com"]);
-        assert_eq!(
-            q.try_build(),
-            Err(QueryError::ColumnValueMismatch {
-                columns: 3,
-                values: 2,
-            })
-        );
+        assert!(q.try_build().unwrap_err().to_string().contains("column count"));
     }
 
     #[test]

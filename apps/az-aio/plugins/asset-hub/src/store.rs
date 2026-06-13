@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
+use anyhow::{anyhow, bail};
 use shaku::{Component, Interface, module};
 use toasty::stmt::{List, Query};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    error::{AssetHubError, AssetHubResult},
     model::{AssetRecord, AssetSummary, TABLE_NAME_PREFIX},
 };
 
@@ -16,7 +16,7 @@ pub struct AssetHubStore {
 }
 
 impl AssetHubStore {
-    pub async fn connect(database_url: &str) -> AssetHubResult<Self> {
+    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         let database_url = validate_database_url(Some(database_url))?;
         let db = toasty::Db::builder()
             .models(toasty::models!(AssetRecord))
@@ -29,13 +29,13 @@ impl AssetHubStore {
         })
     }
 
-    pub async fn list_assets(&self) -> AssetHubResult<Vec<AssetSummary>> {
+    pub async fn list_assets(&self) -> anyhow::Result<Vec<AssetSummary>> {
         let mut db = self.db.lock().await;
         let records = Query::<List<AssetRecord>>::all().exec(&mut *db).await?;
         Ok(records.into_iter().map(Into::into).collect())
     }
 
-    pub async fn upsert_asset(&self, input: AssetInput) -> AssetHubResult<AssetSummary> {
+    pub async fn upsert_asset(&self, input: AssetInput) -> anyhow::Result<AssetSummary> {
         validate_asset_input(&input)?;
         let id = normalized_id(input.id);
         let now = timestamp_string();
@@ -115,20 +115,20 @@ pub fn build_asset_hub_module() -> AssetHubModule {
     AssetHubModule::builder().build()
 }
 
-pub fn validate_database_url(value: Option<&str>) -> AssetHubResult<&str> {
+pub fn validate_database_url(value: Option<&str>) -> anyhow::Result<&str> {
     let value = value
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or(AssetHubError::MissingDatabaseUrl)?;
+        .ok_or_else(|| anyhow!("missing asset-hub database url"))?;
     Ok(value)
 }
 
-pub fn validate_asset_input(input: &AssetInput) -> AssetHubResult<()> {
+pub fn validate_asset_input(input: &AssetInput) -> anyhow::Result<()> {
     if input.title.trim().is_empty() {
-        return Err(AssetHubError::BlankTitle);
+        bail!("asset title must not be blank");
     }
     if input.status.trim().is_empty() {
-        return Err(AssetHubError::BlankStatus);
+        bail!("asset status must not be blank");
     }
     Ok(())
 }
@@ -160,10 +160,8 @@ mod tests {
             validate_database_url(Some(" postgresql://localhost/assets ")).unwrap(),
             "postgresql://localhost/assets"
         );
-        assert!(matches!(
-            validate_database_url(Some("")),
-            Err(AssetHubError::MissingDatabaseUrl)
-        ));
+        let error = validate_database_url(Some("")).unwrap_err();
+        assert_eq!(error.to_string(), "missing asset-hub database url");
     }
 
     #[test]
@@ -175,10 +173,8 @@ mod tests {
             status: "active".to_string(),
             source: "test".to_string(),
         };
-        assert!(matches!(
-            validate_asset_input(&input),
-            Err(AssetHubError::BlankTitle)
-        ));
+        let error = validate_asset_input(&input).unwrap_err();
+        assert_eq!(error.to_string(), "asset title must not be blank");
     }
 
     #[test]

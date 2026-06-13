@@ -4,7 +4,7 @@
 //! HTTP/SOCKS5 代理。
 //!
 //! ```no_run
-//! # async fn run() -> az_proxy::types::ProxyResult<()> {
+//! # async fn run() -> anyhow::Result<()> {
 //! let config = az_proxy::clash::ResidentialProxyConfig::new("https://example.com/sub");
 //! let proxy = az_proxy::clash::ResidentialProxy::start(config).await?;
 //! println!("Residential proxy ready at {}", proxy.http_proxy);
@@ -19,8 +19,9 @@ use crate::fetcher::fetch_and_parse;
 use crate::selector::select_fastest_node;
 use crate::speedtest::batch_speed_test;
 use crate::types::{
-    DEFAULT_SPEEDTEST_CONCURRENCY, DEFAULT_SPEEDTEST_TIMEOUT, ProxyError, ProxyNode, ProxyResult,
+    DEFAULT_SPEEDTEST_CONCURRENCY, DEFAULT_SPEEDTEST_TIMEOUT, ProxyNode,
 };
+use anyhow::{Context, Result, bail};
 use az_derive_aliases::{apply, plain_clone_debug};
 use std::fs;
 use std::net::TcpStream;
@@ -110,7 +111,7 @@ impl ResidentialProxy {
     ///
     /// 当获取/解析失败、没有节点通过测速、找不到 Clash 可执行文件，或代理端口没有在
     /// `config.ready_timeout` 内就绪时返回错误。
-    pub async fn start(config: ResidentialProxyConfig) -> ProxyResult<Self> {
+    pub async fn start(config: ResidentialProxyConfig) -> Result<Self> {
         let nodes = fetch_and_parse(&config.subscription_url).await?;
 
         let results = batch_speed_test(
@@ -129,7 +130,7 @@ impl ResidentialProxy {
             .clash_binary
             .clone()
             .or_else(find_clash_binary)
-            .ok_or(ProxyError::ClashBinaryNotFound)?;
+            .context("could not find Clash/Mihomo binary; set CLASH_BINARY env var")?;
 
         let work_dir = config_path
             .parent()
@@ -144,17 +145,17 @@ impl ResidentialProxy {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|error| ProxyError::ClashProcess(format!("failed to start clash: {error}")))?;
+            .with_context(|| format!("failed to start clash `{}`", clash_binary.display()))?;
 
         if !wait_for_port(config.mixed_port, config.ready_timeout) {
             let _ = child.kill();
             let _ = child.wait();
             let _ = fs::remove_file(&config_path);
-            return Err(ProxyError::ClashProcess(format!(
+            bail!(
                 "proxy port {} not ready after {}s",
                 config.mixed_port,
                 config.ready_timeout.as_secs()
-            )));
+            );
         }
 
         Ok(Self {
@@ -185,13 +186,13 @@ impl Drop for ResidentialProxy {
     }
 }
 
-fn write_temp_config(yaml: &str) -> ProxyResult<PathBuf> {
+fn write_temp_config(yaml: &str) -> Result<PathBuf> {
     let dir = std::env::temp_dir().join("az-proxy");
     fs::create_dir_all(&dir)
-        .map_err(|error| ProxyError::ClashProcess(format!("create temp dir: {error}")))?;
+        .with_context(|| format!("create Clash temp config dir `{}`", dir.display()))?;
     let path = dir.join(format!("residential-{}.yaml", std::process::id()));
     fs::write(&path, yaml)
-        .map_err(|error| ProxyError::ClashProcess(format!("write config: {error}")))?;
+        .with_context(|| format!("write Clash temp config `{}`", path.display()))?;
     Ok(path)
 }
 

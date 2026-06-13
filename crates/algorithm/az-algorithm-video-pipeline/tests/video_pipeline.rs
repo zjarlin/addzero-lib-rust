@@ -352,10 +352,7 @@ impl VideoFrameAlgorithm for RecordingAlgorithm {
         self.code
     }
 
-    fn process_frame(
-        &mut self,
-        frame: &VideoFrame,
-    ) -> anyhow::Result<VideoAlgorithmFrameResult> {
+    fn process_frame(&mut self, frame: &VideoFrame) -> anyhow::Result<VideoAlgorithmFrameResult> {
         self.processed_frames.push(frame.frame_index);
         Ok(VideoAlgorithmFrameResult {
             algorithm_code: self.code.to_owned(),
@@ -403,11 +400,7 @@ impl RealPersonDetectionVideoAlgorithm {
             output_dir: output_dir.join("unused_default_output"),
             score_threshold: DEFAULT_SCORE_THRESHOLD,
         })
-        .map_err(|source| {
-            az_algorithm_video_pipeline::error::anyhow!(
-                source.to_string(),
-            )
-        })?;
+        .map_err(|source| anyhow::anyhow!(source.to_string(),))?;
         Ok(Self { runner, output_dir })
     }
 }
@@ -417,10 +410,7 @@ impl VideoFrameAlgorithm for RealPersonDetectionVideoAlgorithm {
         PERSON_DETECTION_CODE
     }
 
-    fn process_frame(
-        &mut self,
-        frame: &VideoFrame,
-    ) -> anyhow::Result<VideoAlgorithmFrameResult> {
+    fn process_frame(&mut self, frame: &VideoFrame) -> anyhow::Result<VideoAlgorithmFrameResult> {
         let frame_output_dir = self
             .output_dir
             .join("person_detection_frames")
@@ -428,11 +418,7 @@ impl VideoFrameAlgorithm for RealPersonDetectionVideoAlgorithm {
         let run = self
             .runner
             .detect_rgb_image_with_output_dir(frame.rgb.clone(), frame_output_dir)
-            .map_err(|source| {
-                az_algorithm_video_pipeline::error::anyhow!(
-                    source.to_string(),
-                )
-            })?;
+            .map_err(|source| anyhow::anyhow!(source.to_string(),))?;
 
         Ok(VideoAlgorithmFrameResult {
             algorithm_code: PERSON_DETECTION_CODE.to_owned(),
@@ -480,11 +466,7 @@ impl RealFaceDetectionVideoAlgorithm {
             score_threshold: 0.5,
             nms_threshold: 0.4,
         })
-        .map_err(|source| {
-            az_algorithm_video_pipeline::error::anyhow!(
-                source.to_string(),
-            )
-        })?;
+        .map_err(|source| anyhow::anyhow!(source.to_string(),))?;
         Ok(Self { runner, output_dir })
     }
 }
@@ -494,10 +476,7 @@ impl VideoFrameAlgorithm for RealFaceDetectionVideoAlgorithm {
         "face_detection"
     }
 
-    fn process_frame(
-        &mut self,
-        frame: &VideoFrame,
-    ) -> anyhow::Result<VideoAlgorithmFrameResult> {
+    fn process_frame(&mut self, frame: &VideoFrame) -> anyhow::Result<VideoAlgorithmFrameResult> {
         let frame_output_dir = self
             .output_dir
             .join("face_detection_frames")
@@ -505,11 +484,7 @@ impl VideoFrameAlgorithm for RealFaceDetectionVideoAlgorithm {
         let run = self
             .runner
             .detect_rgb_image_with_output_dir(frame.rgb.clone(), frame_output_dir)
-            .map_err(|source| {
-                az_algorithm_video_pipeline::error::anyhow!(
-                    source.to_string(),
-                )
-            })?;
+            .map_err(|source| anyhow::anyhow!(source.to_string(),))?;
 
         Ok(VideoAlgorithmFrameResult {
             algorithm_code: self.code().to_owned(),
@@ -545,8 +520,8 @@ impl VideoFrameAlgorithm for RealFaceDetectionVideoAlgorithm {
 // 视频流水线应在同一帧上调度多个实时算法
 #[test]
 #[expect(clippy::dbg_macro, reason = "用户要求测试直接打印输入、输出的绝对路径")]
-fn video_pipeline_should_schedule_multiple_realtime_algorithms_on_same_frames()
--> anyhow::Result<()> {
+fn video_pipeline_should_schedule_multiple_realtime_algorithms_on_same_frames() -> anyhow::Result<()>
+{
     // 这个测试只验证视频实时 pipeline 的调度和落盘行为。
     // 这里的 RecordingAlgorithm 是可观测测试算法，不是人脸、安全帽或抽烟检测模型。
     //
@@ -708,8 +683,8 @@ fn video_pipeline_should_run_real_face_detection_runner_without_reloading_model(
     clippy::dbg_macro,
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
-fn video_pipeline_should_stack_real_person_and_face_detection_on_same_frames()
--> anyhow::Result<()> {
+fn video_pipeline_should_stack_real_person_and_face_detection_on_same_frames() -> anyhow::Result<()>
+{
     // 这个测试验证“同一条视频帧流叠加多个真实算法”：
     // - 视频帧只构造一次，两个 runner 共享同一批 VideoFrame。
     // - person_detection 每 2 帧跑一次，face_detection 每帧跑一次。
@@ -781,8 +756,8 @@ fn video_pipeline_should_stack_real_person_and_face_detection_on_same_frames()
     clippy::dbg_macro,
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
-fn video_pipeline_should_run_real_safety_helmet_raw_runner_without_fake_boxes()
--> anyhow::Result<()> {
+fn video_pipeline_should_run_real_safety_helmet_raw_runner_without_fake_boxes() -> anyhow::Result<()>
+{
     // 这个测试验证安全帽模型可以进入实时视频管线：
     // - OnnxRawImageVideoAlgorithm 只加载一次 ONNX Session。
     // - 当前 crate 尚未实现 YOLO 安全帽框后处理，所以 detections 必须保持为空。
@@ -843,8 +818,8 @@ fn video_pipeline_should_run_real_safety_helmet_raw_runner_without_fake_boxes()
     clippy::dbg_macro,
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
-fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream()
--> anyhow::Result<()> {
+fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() -> anyhow::Result<()>
+{
     // 这个测试验证“其余图像识别怎么做视频实时计算”：
     // - 合成一张包含多种真实素材的测试帧，模拟视频解码层输出的同一帧。
     // - 人员、人脸使用已实现后处理的真实 runner，会输出检测框。

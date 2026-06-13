@@ -2,14 +2,14 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use az_derive_aliases::{apply, plain_clone, plain_default};
-use az_persistence::PersistenceContext;
+use az_persistence::context::PersistenceContext;
 use chrono::Utc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    SecretCipher,
     pg_repo::PgRepo,
+    secret::{EncryptedSecret, SecretCipher},
     types::{
         AiModelProvider, AiModelProviderUpsert, AiPromptButton, AiPromptButtonUpsert,
         AiProviderKind, Asset, AssetEdge, AssetEdgeUpsert, AssetGraph, AssetKind,
@@ -280,7 +280,7 @@ impl AssetService {
             provider: record.provider,
             base_url: record.base_url.clone(),
             default_model: record.default_model.clone(),
-            api_key: cipher.decrypt(&crate::EncryptedSecret {
+            api_key: cipher.decrypt(&EncryptedSecret {
                 key_id: record.key_id.clone(),
                 ciphertext: ciphertext.clone(),
             })?,
@@ -343,8 +343,11 @@ fn secret_cipher(master_key: Option<&str>) -> Option<SecretCipher> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::types::{AiModelProviderUpsert, AiProviderKind, AssetKind};
+    use crate::secret::SecretCipher;
+    use crate::service::AssetService;
+    use crate::types::{
+        AiModelProviderUpsert, AiProviderKind, AssetEdgeUpsert, AssetKind, AssetUpsert,
+    };
 
     #[tokio::test]
     async fn asset_service_should_crud_asset_and_edge_in_memory() {

@@ -1,8 +1,8 @@
 use crate::draft::{Draft, DraftField, ErasedDraft};
-use crate::error::{OrmError, OrmResult};
 use crate::expression::quote_identifier;
 use crate::metadata::FieldKind;
 use crate::value::ScalarValue;
+use anyhow::{anyhow, bail};
 
 /// 保存模式。
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -38,12 +38,12 @@ impl<E> SaveCommand<E> {
     }
 
     /// 构建保存 SQL plan。
-    pub fn build(self) -> OrmResult<SavePlan> {
+    pub fn build(self) -> anyhow::Result<SavePlan> {
         build_save_plan(self.draft.into_erased(), self.mode)
     }
 }
 
-fn build_save_plan(draft: ErasedDraft, requested_mode: SaveMode) -> OrmResult<SavePlan> {
+fn build_save_plan(draft: ErasedDraft, requested_mode: SaveMode) -> anyhow::Result<SavePlan> {
     let mode = actual_mode(&draft, requested_mode);
     let mut plan = match mode {
         SaveMode::InsertOnly => build_insert_plan(&draft)?,
@@ -67,14 +67,14 @@ fn actual_mode(draft: &ErasedDraft, requested_mode: SaveMode) -> SaveMode {
     }
 }
 
-fn build_insert_plan(draft: &ErasedDraft) -> OrmResult<SavePlan> {
+fn build_insert_plan(draft: &ErasedDraft) -> anyhow::Result<SavePlan> {
     let writable_fields = draft
         .fields()
         .iter()
         .filter(|field| field.kind().is_persistent_column())
         .collect::<Vec<_>>();
     if writable_fields.is_empty() {
-        return Err(OrmError::NoWritableFields);
+        bail!("save command has no writable fields");
     }
 
     let columns = writable_fields
@@ -101,18 +101,19 @@ fn build_insert_plan(draft: &ErasedDraft) -> OrmResult<SavePlan> {
     })
 }
 
-fn build_update_plan(draft: &ErasedDraft) -> OrmResult<SavePlan> {
-    let id_metadata = draft.entity().id_field().ok_or(OrmError::EntityHasNoId {
-        entity: draft.entity().type_name(),
+fn build_update_plan(draft: &ErasedDraft) -> anyhow::Result<SavePlan> {
+    let id_metadata = draft.entity().id_field().ok_or_else(|| {
+        anyhow!("entity '{}' has no id field", draft.entity().type_name())
     })?;
-    let id_field = id_draft_field(draft).ok_or(OrmError::MissingId)?;
+    let id_field = id_draft_field(draft)
+        .ok_or_else(|| anyhow!("save command requires id field for update"))?;
     let writable_fields = draft
         .fields()
         .iter()
         .filter(|field| field.kind().is_persistent_column() && field.kind() != FieldKind::Id)
         .collect::<Vec<_>>();
     if writable_fields.is_empty() {
-        return Err(OrmError::NoWritableFields);
+        bail!("save command has no writable fields");
     }
 
     let assignments = writable_fields
@@ -139,15 +140,18 @@ fn build_update_plan(draft: &ErasedDraft) -> OrmResult<SavePlan> {
     })
 }
 
-fn build_child_plans(draft: &ErasedDraft, mode: SaveMode) -> OrmResult<Vec<SavePlan>> {
+fn build_child_plans(draft: &ErasedDraft, mode: SaveMode) -> anyhow::Result<Vec<SavePlan>> {
     let mut plans = Vec::new();
     for collection in draft.collections() {
         let parent_value = draft
             .field_by_column(collection.source_column())
-            .ok_or_else(|| OrmError::GraphSaveMissingParentValue {
-                entity: draft.entity().type_name().to_string(),
-                column: collection.source_column().to_string(),
-                collection: collection.name().to_string(),
+            .ok_or_else(|| {
+                anyhow!(
+                    "graph save requires parent value for entity '{}', column '{}', collection '{}'",
+                    draft.entity().type_name(),
+                    collection.source_column(),
+                    collection.name()
+                )
             })?
             .value()
             .clone();

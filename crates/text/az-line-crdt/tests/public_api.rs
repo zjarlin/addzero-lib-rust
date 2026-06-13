@@ -1,4 +1,4 @@
-use az_line_crdt::{LineCrdtDocument, LineCrdtError};
+use az_line_crdt::document::LineCrdtDocument;
 
 #[test]
 fn line_operations_preserve_file_text() -> Result<(), Box<dyn std::error::Error>> {
@@ -23,7 +23,7 @@ fn line_insert_rejects_embedded_newline() -> Result<(), Box<dyn std::error::Erro
         .insert_line(0, "bad\nline")
         .expect_err("embedded newline should be rejected");
 
-    assert!(matches!(error, LineCrdtError::LineContainsNewline));
+    assert_eq!(error.to_string(), "line content must not contain '\\n'");
     Ok(())
 }
 

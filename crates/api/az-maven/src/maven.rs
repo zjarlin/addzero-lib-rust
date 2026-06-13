@@ -1,6 +1,6 @@
 use crate::http::HttpApiClient;
 use crate::util::non_blank;
-use crate::{ApiConfig, CreatesResult};
+use crate::config::ApiConfig;
 use az_derive_aliases::{apply, deserialize_debug, impl_from_match, plain_clone_debug, serde_eq};
 
 #[apply(serde_eq)]
@@ -26,7 +26,7 @@ pub struct MavenCentralApi {
 }
 
 impl MavenCentralApi {
-    pub fn new(config: ApiConfig) -> CreatesResult<Self> {
+    pub fn new(config: ApiConfig) -> anyhow::Result<Self> {
         Ok(Self {
             http: HttpApiClient::new(config)?,
         })
@@ -36,7 +36,7 @@ impl MavenCentralApi {
         &self,
         group_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         self.search(format!("g:{}", group_id.as_ref().trim()), rows, None)
     }
 
@@ -44,7 +44,7 @@ impl MavenCentralApi {
         &self,
         artifact_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         self.search(format!("a:{}", artifact_id.as_ref().trim()), rows, None)
     }
 
@@ -53,7 +53,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         artifact_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         let query = format!(
             "g:{} AND a:{}",
             group_id.as_ref().trim(),
@@ -67,7 +67,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         artifact_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         let query = format!(
             "g:{} AND a:{}",
             group_id.as_ref().trim(),
@@ -84,7 +84,7 @@ impl MavenCentralApi {
         packaging: Option<&str>,
         classifier: Option<&str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         let mut conditions = vec![
             format!("g:{}", group_id.as_ref().trim()),
             format!("a:{}", artifact_id.as_ref().trim()),
@@ -107,7 +107,7 @@ impl MavenCentralApi {
         &self,
         class_name: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         self.search(format!("c:{}", class_name.as_ref().trim()), rows, None)
     }
 
@@ -115,7 +115,7 @@ impl MavenCentralApi {
         &self,
         class_name: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         self.search(format!("fc:{}", class_name.as_ref().trim()), rows, None)
     }
 
@@ -123,7 +123,7 @@ impl MavenCentralApi {
         &self,
         sha1: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         self.search(format!("1:{}", sha1.as_ref().trim()), rows, None)
     }
 
@@ -131,7 +131,7 @@ impl MavenCentralApi {
         &self,
         tag: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         self.search(format!("tags:{}", tag.as_ref().trim()), rows, None)
     }
 
@@ -139,7 +139,7 @@ impl MavenCentralApi {
         &self,
         keyword: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         self.search(keyword.as_ref().trim().to_owned(), rows, None)
     }
 
@@ -147,7 +147,7 @@ impl MavenCentralApi {
         &self,
         group_id: impl AsRef<str>,
         artifact_id: impl AsRef<str>,
-    ) -> CreatesResult<Option<String>> {
+    ) -> anyhow::Result<Option<String>> {
         let artifacts = self.search_by_coordinates(group_id, artifact_id, 1)?;
         Ok(artifacts
             .first()
@@ -158,7 +158,7 @@ impl MavenCentralApi {
         &self,
         group_id: impl AsRef<str>,
         rows: usize,
-    ) -> CreatesResult<Option<String>> {
+    ) -> anyhow::Result<Option<String>> {
         let artifacts = self.search_by_group_id(group_id, rows)?;
         Ok(artifacts
             .first()
@@ -171,7 +171,7 @@ impl MavenCentralApi {
         artifact_id: impl AsRef<str>,
         version: impl AsRef<str>,
         filename: impl AsRef<str>,
-    ) -> CreatesResult<Vec<u8>> {
+    ) -> anyhow::Result<Vec<u8>> {
         let filepath = format!(
             "{}/{}/{}/{}",
             group_id.as_ref().replace('.', "/"),
@@ -193,7 +193,7 @@ impl MavenCentralApi {
         query: String,
         rows: usize,
         core: Option<&str>,
-    ) -> CreatesResult<Vec<MavenArtifact>> {
+    ) -> anyhow::Result<Vec<MavenArtifact>> {
         let mut params = vec![
             ("q", query),
             ("rows", rows.max(1).to_string()),
@@ -216,7 +216,7 @@ impl MavenCentralApi {
     }
 }
 
-pub fn create_maven_central_api() -> CreatesResult<MavenCentralApi> {
+pub fn create_maven_central_api() -> anyhow::Result<MavenCentralApi> {
     let config = ApiConfig::builder("https://search.maven.org").build()?;
     MavenCentralApi::new(config)
 }

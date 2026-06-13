@@ -1,10 +1,13 @@
 use anyhow::Result;
 use az_derive_aliases::{apply, clap_args, clap_subcommand, clap_value_enum, impl_from_match};
-use az_drive_agent::{
-    ConflictResolution, HostedStatus, ListTrackedOptions, LocalRootState, PullRemoteItem,
-    PullRemoteOptions, PullRemoteStatus, TrackedItem, TrackedItemSource, TrackedItemStatus,
+use az_drive_agent::agent::{
+    ConflictResolution, HostedStatus, ListTrackedOptions, PullRemoteItem, PullRemoteOptions,
+    PullRemoteStatus, TrackedItem, TrackedItemSource, TrackedItemStatus,
 };
-use az_drive_store::{DriveConflict, DriveSyncQueueItem, DriveSyncTaskStatus};
+use az_drive_agent::local_state::LocalRootState;
+use az_drive_store::api::{
+    DriveConflict, DriveSyncQueueItem, DriveSyncTaskKind, DriveSyncTaskStatus,
+};
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -788,12 +791,12 @@ fn queue_status_text(status: DriveSyncTaskStatus) -> &'static str {
     }
 }
 
-fn queue_kind_text(kind: az_drive_store::DriveSyncTaskKind) -> &'static str {
+fn queue_kind_text(kind: DriveSyncTaskKind) -> &'static str {
     match kind {
-        az_drive_store::DriveSyncTaskKind::Upload => "upload",
-        az_drive_store::DriveSyncTaskKind::Download => "download",
-        az_drive_store::DriveSyncTaskKind::Materialize => "materialize",
-        az_drive_store::DriveSyncTaskKind::Conflict => "conflict",
+        DriveSyncTaskKind::Upload => "upload",
+        DriveSyncTaskKind::Download => "download",
+        DriveSyncTaskKind::Materialize => "materialize",
+        DriveSyncTaskKind::Conflict => "conflict",
     }
 }
 

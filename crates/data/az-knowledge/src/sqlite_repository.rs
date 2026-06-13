@@ -1,5 +1,6 @@
 use std::{fs, path::PathBuf, str::FromStr, time::Duration};
 
+use anyhow::Context;
 use az_derive_aliases::{apply, plain_clone};
 use chrono::{DateTime, Utc};
 use sqlx::{
@@ -8,7 +9,7 @@ use sqlx::{
 };
 use uuid::Uuid;
 
-use crate::types::{KnowledgeDocument, KnowledgeError, KnowledgeSourceSpec};
+use crate::types::{KnowledgeDocument, KnowledgeSourceSpec};
 
 const SQLITE_SCHEMA: &[&str] = &[
     r#"
@@ -56,11 +57,11 @@ pub(crate) struct SqliteKnowledgeRepository {
 }
 
 impl SqliteKnowledgeRepository {
-    pub(crate) async fn connect(database_url: &str) -> Result<Self, KnowledgeError> {
+    pub(crate) async fn connect(database_url: &str) -> anyhow::Result<Self> {
         ensure_sqlite_parent_dir(database_url)?;
 
         let options = SqliteConnectOptions::from_str(database_url)
-            .map_err(|err| KnowledgeError::Message(format!("parse sqlite url: {err}")))?
+            .with_context(|| format!("parse sqlite database url `{database_url}`"))?
             .create_if_missing(true)
             .foreign_keys(true);
         let pool = SqlitePoolOptions::new()
@@ -69,24 +70,24 @@ impl SqliteKnowledgeRepository {
             .acquire_timeout(Duration::from_secs(5))
             .connect_with(options)
             .await
-            .map_err(KnowledgeError::Sqlite)?;
+            .with_context(|| format!("connect sqlite database `{database_url}`"))?;
 
         let repository = Self { pool };
         repository.ensure_schema().await?;
         Ok(repository)
     }
 
-    async fn ensure_schema(&self) -> Result<(), KnowledgeError> {
+    async fn ensure_schema(&self) -> anyhow::Result<()> {
         for statement in SQLITE_SCHEMA {
             sqlx::query(statement)
                 .execute(&self.pool)
                 .await
-                .map_err(KnowledgeError::Sqlite)?;
+                .context("ensure sqlite knowledge schema")?;
         }
         Ok(())
     }
 
-    pub(crate) async fn list_documents(&self) -> Result<Vec<KnowledgeDocument>, KnowledgeError> {
+    pub(crate) async fn list_documents(&self) -> anyhow::Result<Vec<KnowledgeDocument>> {
         let rows = sqlx::query(
             r#"
             SELECT
@@ -115,7 +116,7 @@ impl SqliteKnowledgeRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(KnowledgeError::Sqlite)?;
+        .context("query active sqlite knowledge documents")?;
 
         rows.into_iter().map(row_to_document).collect()
     }
@@ -123,7 +124,7 @@ impl SqliteKnowledgeRepository {
     pub(crate) async fn upsert_source(
         &self,
         source: &KnowledgeSourceSpec,
-    ) -> Result<String, KnowledgeError> {
+    ) -> anyhow::Result<String> {
         let now = Utc::now().to_rfc3339();
         let id = Uuid::new_v4().to_string();
         let root_path = source.root_path.display().to_string();
@@ -149,29 +150,29 @@ impl SqliteKnowledgeRepository {
         .bind(now)
         .execute(&self.pool)
         .await
-        .map_err(KnowledgeError::Sqlite)?;
+        .with_context(|| format!("upsert sqlite knowledge source `{}`", source.slug))?;
 
         let row = sqlx::query("SELECT id FROM knowledge_sources WHERE slug = ?1")
             .bind(&source.slug)
             .fetch_one(&self.pool)
             .await
-            .map_err(KnowledgeError::Sqlite)?;
+            .with_context(|| format!("load sqlite knowledge source `{}`", source.slug))?;
         row.try_get("id")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite source id: {err}")))
+            .with_context(|| format!("load sqlite source id for `{}`", source.slug))
     }
 
     pub(crate) async fn source_root_by_slug(
         &self,
         slug: &str,
-    ) -> Result<Option<String>, KnowledgeError> {
+    ) -> anyhow::Result<Option<String>> {
         let row = sqlx::query("SELECT root_path FROM knowledge_sources WHERE slug = ?1")
             .bind(slug)
             .fetch_optional(&self.pool)
             .await
-            .map_err(KnowledgeError::Sqlite)?;
+            .with_context(|| format!("load sqlite knowledge source root `{slug}`"))?;
         row.map(|row| {
             row.try_get("root_path")
-                .map_err(|err| KnowledgeError::Message(format!("load sqlite source root: {err}")))
+                .with_context(|| format!("decode sqlite knowledge source root `{slug}`"))
         })
         .transpose()
     }
@@ -180,12 +181,12 @@ impl SqliteKnowledgeRepository {
         &self,
         source_id: &str,
         doc: &KnowledgeDocument,
-    ) -> Result<(), KnowledgeError> {
+    ) -> anyhow::Result<()> {
         let now = doc.updated_at.to_rfc3339();
         let headings_json = serde_json::to_string(&doc.headings)
-            .map_err(|err| KnowledgeError::Message(format!("encode sqlite headings: {err}")))?;
+            .with_context(|| format!("encode sqlite headings for `{}`", doc.source_path))?;
         let tags_json = serde_json::to_string(&doc.tags)
-            .map_err(|err| KnowledgeError::Message(format!("encode sqlite tags: {err}")))?;
+            .with_context(|| format!("encode sqlite tags for `{}`", doc.source_path))?;
 
         sqlx::query(
             r#"
@@ -235,7 +236,7 @@ impl SqliteKnowledgeRepository {
         .bind(now)
         .execute(&self.pool)
         .await
-        .map_err(KnowledgeError::Sqlite)?;
+        .with_context(|| format!("upsert sqlite knowledge document `{}`", doc.source_path))?;
 
         Ok(())
     }
@@ -244,7 +245,7 @@ impl SqliteKnowledgeRepository {
         &self,
         source_id: &str,
         active_paths: &[String],
-    ) -> Result<(), KnowledgeError> {
+    ) -> anyhow::Result<()> {
         let mut builder = QueryBuilder::<Sqlite>::new(
             "UPDATE knowledge_documents SET is_active = 0, updated_at = ",
         );
@@ -265,14 +266,14 @@ impl SqliteKnowledgeRepository {
             .build()
             .execute(&self.pool)
             .await
-            .map_err(KnowledgeError::Sqlite)?;
+            .context("deactivate missing sqlite knowledge documents")?;
         Ok(())
     }
 
     pub(crate) async fn deactivate_document_by_source_path(
         &self,
         source_path: &str,
-    ) -> Result<(), KnowledgeError> {
+    ) -> anyhow::Result<()> {
         sqlx::query(
             "UPDATE knowledge_documents SET is_active = 0, updated_at = ?1 WHERE source_path = ?2",
         )
@@ -280,89 +281,65 @@ impl SqliteKnowledgeRepository {
         .bind(source_path)
         .execute(&self.pool)
         .await
-        .map_err(KnowledgeError::Sqlite)?;
+        .with_context(|| format!("deactivate sqlite knowledge document `{source_path}`"))?;
         Ok(())
     }
 }
 
-fn row_to_document(row: sqlx::sqlite::SqliteRow) -> Result<KnowledgeDocument, KnowledgeError> {
+fn row_to_document(row: sqlx::sqlite::SqliteRow) -> anyhow::Result<KnowledgeDocument> {
     let headings_json: String = row
         .try_get("headings_json")
-        .map_err(|err| KnowledgeError::Message(format!("load sqlite headings json: {err}")))?;
+        .context("load sqlite headings json")?;
     let tags_json: String = row
         .try_get("tags_json")
-        .map_err(|err| KnowledgeError::Message(format!("load sqlite tags json: {err}")))?;
+        .context("load sqlite tags json")?;
     let updated_at_raw: String = row
         .try_get("updated_at")
-        .map_err(|err| KnowledgeError::Message(format!("load sqlite updated_at: {err}")))?;
+        .context("load sqlite updated_at")?;
     let updated_at = parse_timestamp(&updated_at_raw)?;
 
     Ok(KnowledgeDocument {
-        source_slug: row
-            .try_get("source_slug")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite source_slug: {err}")))?,
-        source_name: row
-            .try_get("source_name")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite source_name: {err}")))?,
-        source_root: row
-            .try_get("source_root")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite source_root: {err}")))?,
-        slug: row
-            .try_get("slug")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite slug: {err}")))?,
-        title: row
-            .try_get("title")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite title: {err}")))?,
-        filename: row
-            .try_get("filename")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite filename: {err}")))?,
-        source_path: row
-            .try_get("source_path")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite source_path: {err}")))?,
+        source_slug: row.try_get("source_slug").context("load sqlite source_slug")?,
+        source_name: row.try_get("source_name").context("load sqlite source_name")?,
+        source_root: row.try_get("source_root").context("load sqlite source_root")?,
+        slug: row.try_get("slug").context("load sqlite slug")?,
+        title: row.try_get("title").context("load sqlite title")?,
+        filename: row.try_get("filename").context("load sqlite filename")?,
+        source_path: row.try_get("source_path").context("load sqlite source_path")?,
         relative_path: row
             .try_get("relative_path")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite relative_path: {err}")))?,
+            .context("load sqlite relative_path")?,
         bytes: usize::try_from(row.get::<i64, _>("bytes")).unwrap_or_default(),
         section_count: usize::try_from(row.get::<i32, _>("section_count")).unwrap_or_default(),
-        preview: row
-            .try_get("preview")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite preview: {err}")))?,
-        excerpt: row
-            .try_get("excerpt")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite excerpt: {err}")))?,
+        preview: row.try_get("preview").context("load sqlite preview")?,
+        excerpt: row.try_get("excerpt").context("load sqlite excerpt")?,
         headings: serde_json::from_str(&headings_json)
-            .map_err(|err| KnowledgeError::Message(format!("decode sqlite headings: {err}")))?,
+            .context("decode sqlite headings")?,
         tags: serde_json::from_str(&tags_json)
-            .map_err(|err| KnowledgeError::Message(format!("decode sqlite tags: {err}")))?,
-        body: row
-            .try_get("body")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite body: {err}")))?,
+            .context("decode sqlite tags")?,
+        body: row.try_get("body").context("load sqlite body")?,
         content_hash: row
             .try_get("content_hash")
-            .map_err(|err| KnowledgeError::Message(format!("load sqlite content_hash: {err}")))?,
+            .context("load sqlite content_hash")?,
         updated_at,
     })
 }
 
-fn parse_timestamp(value: &str) -> Result<DateTime<Utc>, KnowledgeError> {
+fn parse_timestamp(value: &str) -> anyhow::Result<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(value)
         .map(|timestamp| timestamp.with_timezone(&Utc))
-        .map_err(|err| KnowledgeError::Message(format!("parse sqlite timestamp: {err}")))
+        .with_context(|| format!("parse sqlite timestamp `{value}`"))
 }
 
-fn ensure_sqlite_parent_dir(database_url: &str) -> Result<(), KnowledgeError> {
+fn ensure_sqlite_parent_dir(database_url: &str) -> anyhow::Result<()> {
     let Some(path) = sqlite_file_path(database_url) else {
         return Ok(());
     };
     let Some(parent) = path.parent() else {
         return Ok(());
     };
-    fs::create_dir_all(parent).map_err(|err| {
-        KnowledgeError::Message(format!(
-            "create sqlite directory {}: {err}",
-            parent.display()
-        ))
-    })
+    fs::create_dir_all(parent)
+        .with_context(|| format!("create sqlite directory `{}`", parent.display()))
 }
 
 fn sqlite_file_path(database_url: &str) -> Option<PathBuf> {

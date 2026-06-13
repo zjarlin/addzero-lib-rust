@@ -37,7 +37,7 @@ impl AzAioPlugin for SyncPlugin {
         }
     }
 
-    fn contributions(&self) -> Result<ContributionSet, az_aio_plugin_api::PluginError> {
+    fn contributions(&self) -> anyhow::Result<ContributionSet> {
         Ok(ContributionSet {
             nav_items: vec![NavItemContribution {
                 id: "sync.nav".to_string(),
@@ -230,7 +230,7 @@ mod tests {
     use super::SyncPlugin;
 
     #[test]
-    fn plugin_declares_sync_surfaces() -> Result<(), az_aio_plugin_api::PluginError> {
+    fn plugin_declares_sync_surfaces() -> anyhow::Result<()> {
         let descriptor = SyncPlugin.descriptor();
         assert_eq!(descriptor.id, "sync");
         assert!(

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use serde_json::Value;
 
-use super::error::{ExecuteError, ExecuteResult};
+use anyhow::{anyhow, bail};
 use super::eval::evaluate;
 use super::operators::{
     FilterOperator, LimitOperator, Operator, ProjectOperator, Row, ScanOperator, SortOperator,
@@ -43,13 +43,13 @@ impl QueryExecutor {
     }
 
     /// Execute a SQL string.
-    pub fn execute(&mut self, sql: &str) -> ExecuteResult<QueryResult> {
+    pub fn execute(&mut self, sql: &str) -> anyhow::Result<QueryResult> {
         let stmt = Parser::parse(sql)?;
         self.execute_statement(stmt)
     }
 
     /// Execute a parsed statement.
-    pub fn execute_statement(&mut self, stmt: Statement) -> ExecuteResult<QueryResult> {
+    pub fn execute_statement(&mut self, stmt: Statement) -> anyhow::Result<QueryResult> {
         match stmt {
             Statement::CreateTable(ct) => self.execute_create_table(ct),
             Statement::DropTable(dt) => self.execute_drop_table(dt),
@@ -65,7 +65,7 @@ impl QueryExecutor {
         }
     }
 
-    fn execute_create_table(&mut self, ct: CreateTable) -> ExecuteResult<QueryResult> {
+    fn execute_create_table(&mut self, ct: CreateTable) -> anyhow::Result<QueryResult> {
         // Check if already exists
         if self.catalog.table_exists(&ct.name) {
             if ct.if_not_exists {
@@ -74,10 +74,8 @@ impl QueryExecutor {
                     ct.name
                 )));
             }
-            return Err(ExecuteError::TableNotFound(format!(
-                "Table '{}' already exists",
-                ct.name
-            )));
+            let message = format!("Table '{}' already exists", ct.name);
+            bail!("{message}");
         }
 
         // Convert SQL column defs to catalog column defs
@@ -103,7 +101,7 @@ impl QueryExecutor {
             builder = builder.column(col_def);
         }
 
-        let schema = builder.build().map_err(ExecuteError::Schema)?;
+        let schema = builder.build()?;
         self.catalog.create_table(schema)?;
 
         // Also create the actual table in storage
@@ -116,7 +114,7 @@ impl QueryExecutor {
         Ok(QueryResult::success(format!("Created table '{}'", ct.name)))
     }
 
-    fn execute_drop_table(&mut self, dt: DropTable) -> ExecuteResult<QueryResult> {
+    fn execute_drop_table(&mut self, dt: DropTable) -> anyhow::Result<QueryResult> {
         if !self.catalog.table_exists(&dt.name) {
             if dt.if_exists {
                 return Ok(QueryResult::success(format!(
@@ -124,7 +122,7 @@ impl QueryExecutor {
                     dt.name
                 )));
             }
-            return Err(ExecuteError::TableNotFound(dt.name));
+            bail!("table not found: {}", dt.name);
         }
 
         self.catalog.drop_table(&dt.name)?;
@@ -139,7 +137,7 @@ impl QueryExecutor {
         Ok(QueryResult::success(format!("Dropped table '{}'", dt.name)))
     }
 
-    fn execute_select(&self, select: Select) -> ExecuteResult<QueryResult> {
+    fn execute_select(&self, select: Select) -> anyhow::Result<QueryResult> {
         // Get table rows
         let rows = self.scan_table(&select.from)?;
 
@@ -206,7 +204,7 @@ impl QueryExecutor {
         }))
     }
 
-    fn execute_insert(&mut self, insert: Insert) -> ExecuteResult<QueryResult> {
+    fn execute_insert(&mut self, insert: Insert) -> anyhow::Result<QueryResult> {
         let schema = self.catalog.get_table(&insert.table)?;
         let repo = self.repo.write();
         let mut head = repo.head()?;
@@ -256,7 +254,7 @@ impl QueryExecutor {
                 let pk_value = data
                     .get(pk)
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ExecuteError::MissingColumn(pk.clone()))?;
+                    .ok_or_else(|| anyhow!("missing column: {pk}"))?;
                 RowKey::new(pk_value)?
             } else {
                 RowKey::generate()
@@ -271,7 +269,7 @@ impl QueryExecutor {
         Ok(QueryResult::modified(inserted))
     }
 
-    fn execute_update(&mut self, update: Update) -> ExecuteResult<QueryResult> {
+    fn execute_update(&mut self, update: Update) -> anyhow::Result<QueryResult> {
         let _schema = self.catalog.get_table(&update.table)?;
         let repo = self.repo.write();
         let mut head = repo.head()?;
@@ -313,7 +311,7 @@ impl QueryExecutor {
         Ok(QueryResult::modified(updated))
     }
 
-    fn execute_delete(&mut self, delete: Delete) -> ExecuteResult<QueryResult> {
+    fn execute_delete(&mut self, delete: Delete) -> anyhow::Result<QueryResult> {
         let repo = self.repo.write();
         let mut head = repo.head()?;
         let table_name = TableName::new(&delete.table)?;
@@ -346,28 +344,34 @@ impl QueryExecutor {
         Ok(QueryResult::modified(deleted))
     }
 
-    fn execute_begin(&mut self) -> ExecuteResult<QueryResult> {
+    fn execute_begin(&mut self) -> anyhow::Result<QueryResult> {
         if self.current_tx.is_some() {
-            return Err(ExecuteError::Internal("transaction already active".into()));
+            bail!("internal error: transaction already active");
         }
         let tx = self.tx_manager.begin()?;
         self.current_tx = Some(tx);
         Ok(QueryResult::transaction("BEGIN"))
     }
 
-    fn execute_commit(&mut self) -> ExecuteResult<QueryResult> {
-        let tx = self.current_tx.take().ok_or(ExecuteError::NoTransaction)?;
+    fn execute_commit(&mut self) -> anyhow::Result<QueryResult> {
+        let tx = self
+            .current_tx
+            .take()
+            .ok_or_else(|| anyhow!("no active transaction"))?;
         tx.commit()?;
         Ok(QueryResult::transaction("COMMIT"))
     }
 
-    fn execute_rollback(&mut self) -> ExecuteResult<QueryResult> {
-        let tx = self.current_tx.take().ok_or(ExecuteError::NoTransaction)?;
+    fn execute_rollback(&mut self) -> anyhow::Result<QueryResult> {
+        let tx = self
+            .current_tx
+            .take()
+            .ok_or_else(|| anyhow!("no active transaction"))?;
         tx.rollback()?;
         Ok(QueryResult::transaction("ROLLBACK"))
     }
 
-    fn execute_show_tables(&self) -> ExecuteResult<QueryResult> {
+    fn execute_show_tables(&self) -> anyhow::Result<QueryResult> {
         let tables = self.catalog.list_tables()?;
         let rows: Vec<Row> = tables
             .into_iter()
@@ -384,7 +388,7 @@ impl QueryExecutor {
         }))
     }
 
-    fn execute_describe(&self, table: &str) -> ExecuteResult<QueryResult> {
+    fn execute_describe(&self, table: &str) -> anyhow::Result<QueryResult> {
         let schema = self.catalog.get_table(table)?;
         let rows: Vec<Row> = schema
             .columns
@@ -416,7 +420,7 @@ impl QueryExecutor {
         }))
     }
 
-    fn scan_table(&self, table: &str) -> ExecuteResult<Vec<Row>> {
+    fn scan_table(&self, table: &str) -> anyhow::Result<Vec<Row>> {
         let repo = self.repo.read();
         let head = repo.head()?;
         let table_name = TableName::new(table)?;

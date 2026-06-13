@@ -32,7 +32,10 @@ fn main() -> ExitCode {
 fn run() -> Result<(), XtaskError> {
     let mut args = env::args().skip(1).collect::<Vec<_>>();
     if args.is_empty() {
-        return Err(XtaskError::Usage(usage()));
+        let message = usage();
+        let error = XtaskError::Usage(message);
+
+        return Err(error);
     }
 
     match args.remove(0).as_str() {
@@ -46,12 +49,18 @@ fn run() -> Result<(), XtaskError> {
 
 fn run_az_platform(mut args: Vec<String>) -> Result<(), XtaskError> {
     if args.first().map(String::as_str) != Some("plugin") {
-        return Err(XtaskError::Usage(az_platform_usage()));
+        let message = az_platform_usage();
+        let error = XtaskError::Usage(message);
+
+        return Err(error);
     }
     args.remove(0);
 
     let Some(command) = args.first().map(String::as_str) else {
-        return Err(XtaskError::Usage(az_platform_usage()));
+        let message = az_platform_usage();
+        let error = XtaskError::Usage(message);
+
+        return Err(error);
     };
     match command {
         "list" => {
@@ -78,7 +87,10 @@ fn run_az_platform(mut args: Vec<String>) -> Result<(), XtaskError> {
 
 fn package_plugins(args: &[String]) -> Result<(), XtaskError> {
     let Some(name) = args.get(1) else {
-        return Err(XtaskError::Usage(az_platform_usage()));
+        let message = az_platform_usage();
+        let error = XtaskError::Usage(message);
+
+        return Err(error);
     };
     if name == "all" {
         for plugin in PLUGIN_TARGETS {
@@ -93,7 +105,10 @@ fn package_plugins(args: &[String]) -> Result<(), XtaskError> {
 
 fn run_plugin_build_arg(args: &[String]) -> Result<(), XtaskError> {
     let Some(name) = args.get(1) else {
-        return Err(XtaskError::Usage(az_platform_usage()));
+        let message = az_platform_usage();
+        let error = XtaskError::Usage(message);
+
+        return Err(error);
     };
     if name == "all" {
         for plugin in PLUGIN_TARGETS {
@@ -108,7 +123,10 @@ fn run_plugin_build_arg(args: &[String]) -> Result<(), XtaskError> {
 
 fn run_sandbox_arg(args: &[String]) -> Result<(), XtaskError> {
     let Some(name_or_manifest) = args.get(1) else {
-        return Err(XtaskError::Usage(az_platform_usage()));
+        let message = az_platform_usage();
+        let error = XtaskError::Usage(message);
+
+        return Err(error);
     };
     if name_or_manifest == "all" {
         for plugin in PLUGIN_TARGETS {
@@ -126,12 +144,16 @@ fn run_sandbox_arg(args: &[String]) -> Result<(), XtaskError> {
 
 fn required_plugin_arg(args: &[String]) -> Result<&'static PluginTarget, XtaskError> {
     let Some(name) = args.get(1) else {
-        return Err(XtaskError::Usage(az_platform_usage()));
+        let message = az_platform_usage();
+        let error = XtaskError::Usage(message);
+
+        return Err(error);
     };
     if name == "all" {
-        return Err(XtaskError::Usage(
-            "`build-wasm all` is handled as a command target, not a plugin".to_string(),
-        ));
+        let message = "`build-wasm all` is handled as a command target, not a plugin".to_string();
+        let error = XtaskError::Usage(message);
+
+        return Err(error);
     }
     plugin_target(name).ok_or_else(|| XtaskError::Usage(format!("unknown plugin `{name}`")))
 }
@@ -217,10 +239,13 @@ fn run_plugin_package(plugin: &PluginTarget) -> Result<(), XtaskError> {
 
 fn run_plugin_wasm_build(plugin: &PluginTarget) -> Result<PathBuf, XtaskError> {
     let Some(wasm_artifact_stem) = plugin.wasm_artifact_stem else {
-        return Err(XtaskError::Usage(format!(
+        let message = format!(
             "plugin `{}` does not expose a wasm component target yet",
             plugin.name
-        )));
+        );
+        let error = XtaskError::Usage(message);
+
+        return Err(error);
     };
     let repo_root = repo_root();
     let status = Command::new("cargo")
@@ -236,13 +261,13 @@ fn run_plugin_wasm_build(plugin: &PluginTarget) -> Result<PathBuf, XtaskError> {
         .map_err(XtaskError::Io)?;
 
     if !status.success() {
-        return Err(XtaskError::Command {
-            command: format!(
-                "cargo build -p {} --target wasm32-unknown-unknown",
-                plugin.package
-            ),
-            status,
-        });
+        let command = format!(
+            "cargo build -p {} --target wasm32-unknown-unknown",
+            plugin.package
+        );
+        let error = XtaskError::Command { command, status };
+
+        return Err(error);
     }
 
     let core_wasm_path = target_root()
@@ -423,15 +448,20 @@ fn load_wasm_sandbox_snapshot(
         .map_err(XtaskError::Io)?;
 
     if !output.status.success() {
-        return Err(XtaskError::CommandOutput {
-            command: format!(
-                "cargo run -p az-aio-plugin-host --example sandbox -- --json --wasm-file {} {}",
-                wasm_file.display(),
-                plugin_id,
-            ),
-            status: output.status,
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
+        let command = format!(
+            "cargo run -p az-aio-plugin-host --example sandbox -- --json --wasm-file {} {}",
+            wasm_file.display(),
+            plugin_id,
+        );
+        let status = output.status;
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let error = XtaskError::CommandOutput {
+            command,
+            status,
+            stderr,
+        };
+
+        return Err(error);
     }
 
     serde_json::from_slice(&output.stdout).map_err(XtaskError::Json)

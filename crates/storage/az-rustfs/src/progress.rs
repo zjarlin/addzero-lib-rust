@@ -445,7 +445,7 @@ impl UploadProgressListener for SpeedTrackingProgressListener {
 pub fn now_millis() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .expect("system time should be after unix epoch")
+        .unwrap_or_default()
         .as_millis()
 }
 

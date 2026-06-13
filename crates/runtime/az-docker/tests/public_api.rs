@@ -1,4 +1,4 @@
-use az_docker::*;
+use az_docker::{DockerComposeConverter, DockerRunCommand};
 
 #[test]
 fn parse_docker_run_command_supports_common_flags() {
@@ -67,5 +67,5 @@ fn missing_image_returns_error() {
     let error =
         DockerRunCommand::parse("docker run --name app").expect_err("image should be required");
 
-    assert!(matches!(error, DockerComposeError::MissingImage));
+    assert_eq!(error.to_string(), "docker image was not found in command");
 }

@@ -102,7 +102,7 @@ impl SecretCipher {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::secret::SecretCipher;
 
     #[test]
     fn secret_cipher_should_roundtrip_api_key() {

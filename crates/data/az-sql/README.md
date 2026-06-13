@@ -14,7 +14,7 @@
 - **DELETE 查询构建** — 支持 `from`、`where`、`limit`
 - **参数化查询** — `where` 条件与 `values` 使用占位符 `?`，返回独立的参数列表，防止 SQL 注入
 - **标识符自动引用** — 表名和列名自动以 ANSI SQL 双引号包裹，内部双引号自动转义（`"` → `""`）
-- **构建前校验** — `try_build()` 方法在缺少表名、列名或参数数量不匹配时返回明确的 `QueryError`
+- **构建前校验** — `try_build()` 方法在缺少表名、列名或参数数量不匹配时返回明确的 `anyhow::Error`
 - **统一的 `Query` trait** — 所有查询构建器实现 `Query` trait，提供 `build()` 和 `to_sql()` 方法
 
 ## 安装
@@ -40,9 +40,10 @@ az-sql = "0.1"
 ### SELECT 查询
 
 ```rust
-use az_sql::{Query, QueryError, SelectQuery};
+use az_sql::query::Query;
+use az_sql::select::SelectQuery;
 
-fn main() -> Result<(), QueryError> {
+fn main() -> anyhow::Result<()> {
     let query = SelectQuery::new()
         .select(&["id", "name", "email"])
         .from("users")
@@ -60,7 +61,8 @@ fn main() -> Result<(), QueryError> {
 ### INSERT 查询
 
 ```rust
-use az_sql::{InsertQuery, Query};
+use az_sql::insert::InsertQuery;
+use az_sql::query::Query;
 
 let query = InsertQuery::new()
     .into("users")
@@ -76,7 +78,8 @@ let (sql, params) = query.build()?;
 ### UPDATE 查询
 
 ```rust
-use az_sql::{UpdateQuery, Query};
+use az_sql::query::Query;
+use az_sql::update::UpdateQuery;
 
 let query = UpdateQuery::new()
     .table("users")
@@ -92,7 +95,8 @@ let (sql, params) = query.build()?;
 ### DELETE 查询
 
 ```rust
-use az_sql::{DeleteQuery, Query};
+use az_sql::delete::DeleteQuery;
+use az_sql::query::Query;
 
 let query = DeleteQuery::new()
     .from("users")
@@ -106,15 +110,15 @@ let (sql, params) = query.build()?;
 ### 使用 `try_build()` 进行校验
 
 ```rust
-use az_sql::{SelectQuery, QueryError};
+use az_sql::select::SelectQuery;
 
 let result = SelectQuery::new().select(&["id"]).try_build();
-assert_eq!(result, Err(QueryError::NoTable));
+assert!(result.unwrap_err().to_string().contains("no table"));
 ```
 
 ## 依赖的 crates
 
 | crate | 说明 |
 |-------|------|
-| [`thiserror`](https://crates.io/crates/thiserror) | 用于派生 `QueryError` 的错误类型 |
+| [`anyhow`](https://crates.io/crates/anyhow) | 错误上下文与统一 `Result` |
 | [`serde`](https://crates.io/crates/serde) | 序列化/反序列化支持 |

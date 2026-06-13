@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use az_persistence as persistence;
+use az_persistence::context as persistence;
 use deunicode::deunicode;
 
 use crate::types::KnowledgeSourceSpec;

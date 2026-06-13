@@ -1,4 +1,4 @@
-use crate::OAuth2Config;
+use crate::config::OAuth2Config;
 use az_derive_aliases::{apply, plain_default_copy_eq};
 
 const GOOGLE_AUTHORIZATION_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -22,7 +22,7 @@ impl GoogleOAuth2 {
     /// Creates a Google installed-app OAuth config builder.
     ///
     /// Desktop and CLI callers normally pair this with a loopback redirect and PKCE.
-    pub fn installed_app(client_id: impl Into<String>) -> crate::OAuth2ConfigBuilder {
+    pub fn installed_app(client_id: impl Into<String>) -> crate::config::OAuth2ConfigBuilder {
         OAuth2Config::builder(GOOGLE_AUTHORIZATION_URL, GOOGLE_TOKEN_URL, client_id)
             .device_authorization_url(GOOGLE_DEVICE_AUTHORIZATION_URL)
     }

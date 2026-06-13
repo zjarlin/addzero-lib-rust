@@ -1,5 +1,9 @@
 use az_derive_aliases::{apply, plain_clone_debug, plain_default_debug};
-use az_rustfs::{BlockingS3StorageClient, PartInfo, PartStatus, S3ClientConfig, S3StorageClient};
+use az_rustfs::{
+    client::{BlockingS3StorageClient, S3StorageClient},
+    progress::{PartInfo, PartStatus},
+    types::S3ClientConfig,
+};
 use quick_xml::Reader;
 use quick_xml::events::Event;
 use std::collections::{BTreeMap, HashMap};
@@ -973,10 +977,10 @@ fn read_request(stream: &mut std::net::TcpStream) -> std::io::Result<CapturedReq
     let header_end = loop {
         let read = stream.read(&mut chunk)?;
         if read == 0 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                "request ended before headers",
-            ));
+            let kind = std::io::ErrorKind::UnexpectedEof;
+            let error = std::io::Error::new(kind, "request ended before headers");
+
+            return Err(error);
         }
         buffer.extend_from_slice(&chunk[..read]);
         if let Some(index) = find_bytes(&buffer, b"\r\n\r\n") {

@@ -1,26 +1,13 @@
-use az_api_translate::{
-    DetectedLanguage, TranslateClient, TranslateError, TranslateOptions, TranslateResult,
-};
+use anyhow::Result;
+use az_api_translate::TranslateClient;
+use az_api_translate::model::{DetectedLanguage, TranslateOptions, TranslateResult};
 
 #[test]
-fn translate_error_display_includes_variant_context() {
-    let err = TranslateError::UnsupportedLanguage {
-        from: "xx".into(),
-        to: "yy".into(),
-    };
+fn translate_result_alias_uses_anyhow_error_context() {
+    let err = anyhow::anyhow!("unsupported language pair: xx -> yy");
+
     assert!(err.to_string().contains("xx"));
     assert!(err.to_string().contains("yy"));
-
-    let err = TranslateError::TextTooLong {
-        length: 5000,
-        max: 1000,
-    };
-    assert!(err.to_string().contains("5000"));
-
-    let err = TranslateError::RateLimited {
-        retry_after_secs: 60,
-    };
-    assert!(err.to_string().contains("60"));
 }
 
 #[test]
@@ -29,12 +16,7 @@ fn default_translate_with_options_preserves_minimal_provider_contract() {
 
     #[async_trait::async_trait]
     impl TranslateClient for MockClient {
-        async fn translate(
-            &self,
-            _text: &str,
-            _from: &str,
-            _to: &str,
-        ) -> Result<TranslateResult, TranslateError> {
+        async fn translate(&self, _text: &str, _from: &str, _to: &str) -> Result<TranslateResult> {
             Ok(TranslateResult {
                 translated_text: "mocked".into(),
                 source_language: "en".into(),
@@ -44,7 +26,7 @@ fn default_translate_with_options_preserves_minimal_provider_contract() {
             })
         }
 
-        async fn detect_language(&self, _text: &str) -> Result<DetectedLanguage, TranslateError> {
+        async fn detect_language(&self, _text: &str) -> Result<DetectedLanguage> {
             Ok(DetectedLanguage {
                 language: "en".into(),
                 confidence: 0.95,

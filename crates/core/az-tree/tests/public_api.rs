@@ -1,4 +1,4 @@
-use az_tree::{TreeError, TreeNode, build_tree, try_build_tree};
+use az_tree::{TreeNode, build_tree, try_build_tree};
 
 #[test]
 fn build_tree_from_flat_pairs() {
@@ -114,22 +114,31 @@ fn find_mut_allows_node_data_update() {
 fn try_build_tree_rejects_missing_parent() {
     let items = vec![(1, Some(99))];
     let result = try_build_tree(items);
-    assert!(matches!(result, Err(TreeError::MissingParent(1))));
+    assert_eq!(
+        result
+            .expect_err("missing parent should be rejected")
+            .to_string(),
+        "node 1 references a missing parent"
+    );
 }
 
 #[test]
 fn try_build_tree_rejects_cycle() {
     let items = vec![(1, Some(2)), (2, Some(1))];
     let result = try_build_tree(items);
-    assert!(matches!(result, Err(TreeError::Cycle(_))));
+    assert!(
+        result
+            .expect_err("cycle should be rejected")
+            .to_string()
+            .starts_with("cycle detected involving node ")
+    );
 }
 
 #[test]
 fn tree_error_display_is_readable() {
-    assert_eq!(
-        TreeError::MissingParent(42).to_string(),
-        "node 42 references a missing parent"
-    );
+    let error = try_build_tree(vec![(42, Some(99))]).expect_err("missing parent should fail");
+
+    assert_eq!(error.to_string(), "node 42 references a missing parent");
 }
 
 #[test]

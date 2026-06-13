@@ -5,6 +5,9 @@
 
 automod::dir!("src/sql");
 
-pub use ast::*;
-pub use error::{ParseError, ParseResult};
+pub use ast::{
+    Assignment, BinaryOperator, ColumnConstraint, ColumnDef, CreateTable, Delete, DropTable, Expr,
+    Insert, LiteralValue, OrderBy, Select, SelectColumn, SqlDataType, Statement, UnaryOperator,
+    Update,
+};
 pub use parser::Parser;

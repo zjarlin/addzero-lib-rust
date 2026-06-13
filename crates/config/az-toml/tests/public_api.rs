@@ -1,4 +1,6 @@
-use az_toml::*;
+use az_toml::catalog;
+use az_toml::insert_after_table::insert_after_table;
+use az_toml::model::{DEFAULT_VERSION_CATALOG_TEMPLATE, VersionCatalog, VersionEntry};
 use tempfile::TempDir;
 
 #[test]

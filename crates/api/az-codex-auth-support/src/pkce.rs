@@ -1,5 +1,5 @@
 use crate::random::random_bytes;
-use crate::{CodexAuthSupportError, CodexAuthSupportResult};
+use anyhow::Context;
 use az_derive_aliases::{apply, plain_eq};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -18,12 +18,12 @@ pub struct PkcePair {
 }
 
 /// 生成高熵 OAuth state 值。
-pub fn generate_state() -> CodexAuthSupportResult<String> {
+pub fn generate_state() -> anyhow::Result<String> {
     Ok(URL_SAFE_NO_PAD.encode(random_bytes::<32>()?))
 }
 
 /// 生成 PKCE verifier 和 S256 challenge。
-pub fn generate_pkce_pair() -> CodexAuthSupportResult<PkcePair> {
+pub fn generate_pkce_pair() -> anyhow::Result<PkcePair> {
     let code_verifier = URL_SAFE_NO_PAD.encode(random_bytes::<64>()?);
     let digest = Sha256::digest(code_verifier.as_bytes());
     let code_challenge = URL_SAFE_NO_PAD.encode(digest);
@@ -43,11 +43,11 @@ pub fn build_authorize_url(
     scope: impl AsRef<str>,
     state: impl AsRef<str>,
     pkce: &PkcePair,
-) -> CodexAuthSupportResult<String> {
+) -> anyhow::Result<String> {
     let mut url = Url::parse(issuer.as_ref())
-        .map_err(|_| CodexAuthSupportError::InvalidBaseUrl(issuer.as_ref().to_owned()))?
+        .with_context(|| format!("invalid base url `{}`", issuer.as_ref()))?
         .join("/oauth/authorize")
-        .map_err(|_| CodexAuthSupportError::InvalidPath("/oauth/authorize".to_owned()))?;
+        .context("invalid request path `/oauth/authorize`")?;
 
     url.query_pairs_mut()
         .append_pair("response_type", "code")

@@ -24,14 +24,22 @@ az-drive-webdav = { path = "../az-drive-webdav" }  # workspace 内部引用
 
 ## 用法
 
-```rust
-use az_drive_webdav::{DriveWebdavState, drive_webdav_router};
+```rust,no_run
+use az_drive_store::api::{DriveMetadataStore, DriveObjectStore};
+use az_drive_webdav::api::{DriveWebdavState, drive_webdav_router};
 use std::sync::Arc;
+
+# fn my_metadata_store() -> Arc<dyn DriveMetadataStore> {
+#     todo!("provide metadata store")
+# }
+# fn my_object_store() -> Arc<dyn DriveObjectStore> {
+#     todo!("provide object store")
+# }
 
 // 构造 WebDAV 路由（需要已实现的元数据存储和对象存储）
 let state = DriveWebdavState::new(
-    Arc::new(my_metadata_store),
-    Arc::new(my_object_store),
+    my_metadata_store(),
+    my_object_store(),
 );
 let router = drive_webdav_router(state);
 // 将 router 挂载到 Axum 服务器即可使用
@@ -44,5 +52,5 @@ let router = drive_webdav_router(state);
 - `axum` - HTTP 框架，提供路由和请求处理
 - `chrono` - 时间处理（锁过期等）
 - `serde` - 序列化支持
-- `thiserror` - 错误类型派生
+- `anyhow` - 错误上下文与统一 `Result`
 - `uuid` - 锁令牌生成

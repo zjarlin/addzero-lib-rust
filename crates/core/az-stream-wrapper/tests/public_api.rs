@@ -1,5 +1,5 @@
 use az_derive_aliases::{apply, plain_eq};
-use az_stream_wrapper::*;
+use az_stream_wrapper::{lambdaquery, stream_query};
 
 #[apply(plain_eq)]
 struct User {

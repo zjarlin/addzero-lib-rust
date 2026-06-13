@@ -1,6 +1,7 @@
 //! Table schema definitions and validation.
 
-use az_derive_aliases::{apply, error_eq, serde_partial_eq};
+use anyhow::bail;
+use az_derive_aliases::{apply, serde_partial_eq};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
@@ -68,19 +69,19 @@ impl TableSchema {
     }
 
     /// Validate the schema itself (e.g., primary key exists).
-    pub fn validate(&self) -> Result<(), SchemaError> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         // Check for duplicate column names
         let mut seen = std::collections::HashSet::new();
         for col in &self.columns {
             if !seen.insert(&col.name) {
-                return Err(SchemaError::DuplicateColumn(col.name.clone()));
+                bail!("duplicate column: {}", col.name);
             }
         }
 
         // Check primary key references valid column
         if let Some(pk) = &self.primary_key {
             if !self.columns.iter().any(|c| &c.name == pk) {
-                return Err(SchemaError::InvalidPrimaryKey(pk.clone()));
+                bail!("invalid primary key reference: {pk}");
             }
         }
 
@@ -88,27 +89,29 @@ impl TableSchema {
     }
 
     /// Validate a row against this schema.
-    pub fn validate_row(&self, row: &Value) -> Result<(), SchemaError> {
-        let obj = row
-            .as_object()
-            .ok_or_else(|| SchemaError::InvalidRow("row must be a JSON object".into()))?;
+    pub fn validate_row(&self, row: &Value) -> anyhow::Result<()> {
+        let obj = match row.as_object() {
+            Some(obj) => obj,
+            None => bail!("invalid row: row must be a JSON object"),
+        };
 
         // Check all columns
         for col in &self.columns {
             let value = obj.get(&col.name);
-            col.validate(value)
-                .map_err(|e| SchemaError::InvalidRow(e))?;
+            if let Err(error) = col.validate(value) {
+                bail!("invalid row: {error}");
+            }
         }
 
         Ok(())
     }
 
     /// Apply defaults to a row, returning a new row with defaults filled in.
-    pub fn apply_defaults(&self, row: &Value) -> Result<Value, SchemaError> {
-        let mut obj = row
-            .as_object()
-            .cloned()
-            .ok_or_else(|| SchemaError::InvalidRow("row must be a JSON object".into()))?;
+    pub fn apply_defaults(&self, row: &Value) -> anyhow::Result<Value> {
+        let mut obj = match row.as_object().cloned() {
+            Some(obj) => obj,
+            None => bail!("invalid row: row must be a JSON object"),
+        };
 
         for col in &self.columns {
             if !obj.contains_key(&col.name) {
@@ -128,9 +131,9 @@ impl TableSchema {
     }
 
     /// Add a new column (schema migration).
-    pub fn add_column(&mut self, column: ColumnDef) -> Result<(), SchemaError> {
+    pub fn add_column(&mut self, column: ColumnDef) -> anyhow::Result<()> {
         if self.columns.iter().any(|c| c.name == column.name) {
-            return Err(SchemaError::DuplicateColumn(column.name.clone()));
+            bail!("duplicate column: {}", column.name);
         }
         self.columns.push(column);
         self.bump_version();
@@ -138,56 +141,20 @@ impl TableSchema {
     }
 
     /// Remove a column (schema migration).
-    pub fn remove_column(&mut self, name: &str) -> Result<ColumnDef, SchemaError> {
-        let pos = self
-            .columns
-            .iter()
-            .position(|c| c.name == name)
-            .ok_or_else(|| SchemaError::ColumnNotFound(name.to_string()))?;
+    pub fn remove_column(&mut self, name: &str) -> anyhow::Result<ColumnDef> {
+        let Some(pos) = self.columns.iter().position(|c| c.name == name) else {
+            bail!("column not found: {name}");
+        };
 
         // Don't allow removing primary key
         if self.primary_key.as_deref() == Some(name) {
-            return Err(SchemaError::CannotRemovePrimaryKey(name.to_string()));
+            bail!("cannot remove primary key column: {name}");
         }
 
         let col = self.columns.remove(pos);
         self.bump_version();
         Ok(col)
     }
-}
-
-/// Schema-related errors.
-#[apply(error_eq)]
-pub enum SchemaError {
-    #[error("duplicate column: {0}")]
-    DuplicateColumn(String),
-
-    #[error("invalid primary key reference: {0}")]
-    InvalidPrimaryKey(String),
-
-    #[error("column not found: {0}")]
-    ColumnNotFound(String),
-
-    #[error("cannot remove primary key column: {0}")]
-    CannotRemovePrimaryKey(String),
-
-    #[error("invalid row: {0}")]
-    InvalidRow(String),
-
-    #[error("table already exists: {0}")]
-    TableExists(String),
-
-    #[error("table not found: {0}")]
-    TableNotFound(String),
-
-    #[error("schema version mismatch: expected {expected}, found {found}")]
-    VersionMismatch {
-        expected: SchemaVersion,
-        found: SchemaVersion,
-    },
-
-    #[error("storage error: {0}")]
-    Storage(String),
 }
 
 /// Builder for creating table schemas.
@@ -241,7 +208,7 @@ impl SchemaBuilder {
     }
 
     /// Build the schema.
-    pub fn build(self) -> Result<TableSchema, SchemaError> {
+    pub fn build(self) -> anyhow::Result<TableSchema> {
         let mut schema = TableSchema::new(self.name, self.columns);
         if let Some(pk) = self.primary_key {
             schema = schema.with_primary_key(pk);
@@ -285,7 +252,7 @@ mod tests {
             .add_column("name", DataType::Integer) // duplicate!
             .build();
 
-        assert!(matches!(result, Err(SchemaError::DuplicateColumn(_))));
+        assert_eq!(result.unwrap_err().to_string(), "duplicate column: name");
     }
 
     #[test]
@@ -295,7 +262,10 @@ mod tests {
             .primary_key("id") // doesn't exist!
             .build();
 
-        assert!(matches!(result, Err(SchemaError::InvalidPrimaryKey(_))));
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "invalid primary key reference: id"
+        );
     }
 
     #[test]
@@ -362,10 +332,10 @@ mod tests {
 
         // Cannot remove primary key
         let result = schema.remove_column("id");
-        assert!(matches!(
-            result,
-            Err(SchemaError::CannotRemovePrimaryKey(_))
-        ));
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "cannot remove primary key column: id"
+        );
     }
 
     #[test]

@@ -1,4 +1,5 @@
-use crate::{CodexAuthSupportError, CodexAuthSupportResult, DuckMailConfig};
+use crate::config::DuckMailConfig;
+use anyhow::{Context, bail};
 use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
@@ -12,10 +13,10 @@ pub(crate) struct HttpClient {
 }
 
 impl HttpClient {
-    pub(crate) fn new(config: &DuckMailConfig) -> CodexAuthSupportResult<Self> {
+    pub(crate) fn new(config: &DuckMailConfig) -> anyhow::Result<Self> {
         config.validate()?;
         let base_url = Url::parse(&config.base_url)
-            .map_err(|_| CodexAuthSupportError::InvalidBaseUrl(config.base_url.clone()))?;
+            .with_context(|| format!("invalid base url `{}`", config.base_url))?;
 
         let mut default_headers = HeaderMap::new();
         default_headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
@@ -31,15 +32,17 @@ impl HttpClient {
 
         Ok(Self {
             base_url,
-            client: builder.build()?,
+            client: builder
+                .build()
+                .context("failed to build DuckMail HTTP client")?,
         })
     }
 
-    pub(crate) fn get(&self, path: &str) -> CodexAuthSupportResult<RequestBuilder> {
+    pub(crate) fn get(&self, path: &str) -> anyhow::Result<RequestBuilder> {
         Ok(self.client.get(self.join_url(path)?))
     }
 
-    pub(crate) fn post(&self, path: &str) -> CodexAuthSupportResult<RequestBuilder> {
+    pub(crate) fn post(&self, path: &str) -> anyhow::Result<RequestBuilder> {
         Ok(self.client.post(self.join_url(path)?))
     }
 
@@ -56,34 +59,36 @@ impl HttpClient {
         }
     }
 
-    pub(crate) fn read_json<T: DeserializeOwned>(response: Response) -> CodexAuthSupportResult<T> {
+    pub(crate) fn read_json<T: DeserializeOwned>(response: Response) -> anyhow::Result<T> {
         let response = Self::ensure_success(response)?;
-        let bytes = response.bytes()?;
-        Ok(serde_json::from_slice(bytes.as_ref())?)
+        let url = response.url().to_string();
+        let bytes = response
+            .bytes()
+            .with_context(|| format!("failed to read response body from `{url}`"))?;
+        serde_json::from_slice(bytes.as_ref())
+            .with_context(|| format!("failed to parse JSON response from `{url}`"))
     }
 
-    pub(crate) fn ensure_success(response: Response) -> CodexAuthSupportResult<Response> {
+    pub(crate) fn ensure_success(response: Response) -> anyhow::Result<Response> {
         let status = response.status();
         if status.is_success() {
             return Ok(response);
         }
 
         let url = response.url().to_string();
-        let body = match response.bytes() {
-            Ok(bytes) => String::from_utf8_lossy(bytes.as_ref()).into_owned(),
-            Err(error) => return Err(CodexAuthSupportError::Transport(error)),
-        };
-
-        Err(CodexAuthSupportError::HttpStatus {
-            url,
-            status: status.as_u16(),
-            body,
-        })
+        let bytes = response
+            .bytes()
+            .with_context(|| format!("failed to read error response body from `{url}`"))?;
+        bail!(
+            "request to `{url}` returned HTTP {}: {}",
+            status.as_u16(),
+            String::from_utf8_lossy(bytes.as_ref())
+        )
     }
 
-    fn join_url(&self, path: &str) -> CodexAuthSupportResult<Url> {
+    fn join_url(&self, path: &str) -> anyhow::Result<Url> {
         self.base_url
             .join(path)
-            .map_err(|_| CodexAuthSupportError::InvalidPath(path.to_owned()))
+            .with_context(|| format!("invalid request path `{path}`"))
     }
 }

@@ -1,6 +1,10 @@
 use az_derive_aliases::{apply, serde_eq};
 
-use crate::{Index, ModelError, Relation, Table};
+use anyhow::{Result, bail};
+
+use crate::index::Index;
+use crate::relation::Relation;
+use crate::table::Table;
 
 /// Represents a complete database schema.
 #[apply(serde_eq)]
@@ -50,81 +54,80 @@ impl Schema {
     }
 
     /// Validate the schema for consistency.
-    #[allow(clippy::collapsible_if)]
-    pub fn validate(&self) -> Result<(), Vec<ModelError>> {
+    pub fn validate(&self) -> Result<()> {
         let mut errors = Vec::new();
 
         if self.name.is_empty() {
-            errors.push(ModelError::EmptySchemaName);
+            errors.push("empty schema name".to_owned());
         }
 
-        // Check for duplicate table names
         let mut seen_tables = std::collections::HashSet::new();
         for table in &self.tables {
             if table.name.is_empty() {
-                errors.push(ModelError::EmptyTableName {
-                    schema: self.name.clone(),
-                });
+                errors.push(format!("empty table name in schema '{}'", self.name));
             }
             if !seen_tables.insert(&table.name) {
-                errors.push(ModelError::DuplicateTable(table.name.clone()));
+                errors.push(format!("duplicate table name: '{}'", table.name));
             }
 
-            // Check for duplicate columns
             let mut seen_cols = std::collections::HashSet::new();
             for col in &table.columns {
                 if col.name.is_empty() {
-                    errors.push(ModelError::EmptyColumnName {
-                        table: table.name.clone(),
-                    });
+                    errors.push(format!("empty column name in table '{}'", table.name));
                 }
                 if !seen_cols.insert(&col.name) {
-                    errors.push(ModelError::DuplicateColumn {
-                        table: table.name.clone(),
-                        column: col.name.clone(),
-                    });
+                    errors.push(format!(
+                        "duplicate column '{}' in table '{}'",
+                        col.name, table.name
+                    ));
                 }
             }
         }
 
-        // Validate relations reference existing tables/columns
         for rel in &self.relations {
             let from_table = self.get_table(&rel.from_table);
             let to_table = self.get_table(&rel.to_table);
 
-            if from_table.is_none() {
-                errors.push(ModelError::UnknownTable(rel.from_table.clone()));
-            } else if let Some(t) = from_table {
-                if t.get_column(&rel.from_column).is_none() {
-                    errors.push(ModelError::UnknownColumn {
-                        table: rel.from_table.clone(),
-                        column: rel.from_column.clone(),
-                    });
+            match from_table {
+                Some(table) => {
+                    if table.get_column(&rel.from_column).is_none() {
+                        errors.push(format!(
+                            "relation references unknown column '{}' in table '{}'",
+                            rel.from_column, rel.from_table
+                        ));
+                    }
+                }
+                None => {
+                    errors.push(format!("relation references unknown table '{}'", rel.from_table));
                 }
             }
 
-            if to_table.is_none() {
-                errors.push(ModelError::UnknownTable(rel.to_table.clone()));
-            } else if let Some(t) = to_table {
-                if t.get_column(&rel.to_column).is_none() {
-                    errors.push(ModelError::UnknownColumn {
-                        table: rel.to_table.clone(),
-                        column: rel.to_column.clone(),
-                    });
+            match to_table {
+                Some(table) => {
+                    if table.get_column(&rel.to_column).is_none() {
+                        errors.push(format!(
+                            "relation references unknown column '{}' in table '{}'",
+                            rel.to_column, rel.to_table
+                        ));
+                    }
+                }
+                None => {
+                    errors.push(format!(
+                        "relation references unknown table '{}'",
+                        rel.to_table
+                    ));
                 }
             }
         }
 
-        // Validate indexes reference existing columns
         for idx in &self.indexes {
             if let Some(table) = self.get_table(&idx.table) {
                 for col_name in &idx.columns {
                     if table.get_column(col_name).is_none() {
-                        errors.push(ModelError::UnknownIndexColumn {
-                            index: idx.name.clone(),
-                            table: idx.table.clone(),
-                            column: col_name.clone(),
-                        });
+                        errors.push(format!(
+                            "index '{}' references unknown column '{}' in table '{}'",
+                            idx.name, col_name, idx.table
+                        ));
                     }
                 }
             }
@@ -133,26 +136,28 @@ impl Schema {
         if errors.is_empty() {
             Ok(())
         } else {
-            Err(errors)
+            bail!("schema validation failed: {}", errors.join("; "))
         }
     }
 
     /// Serialize the schema to JSON.
-    pub fn to_json(&self) -> Result<String, serde_json::Error> {
-        serde_json::to_string_pretty(self)
+    pub fn to_json(&self) -> Result<String> {
+        Ok(serde_json::to_string_pretty(self)?)
     }
 
     /// Deserialize a schema from JSON.
-    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(json)
+    pub fn from_json(json: &str) -> Result<Self> {
+        Ok(serde_json::from_str(json)?)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::column::{Column, DataType};
-    use crate::relation::RelationKind;
+    use crate::index::Index;
+    use crate::relation::{Relation, RelationKind};
+    use crate::schema::Schema;
+    use crate::table::Table;
 
     fn sample_schema() -> Schema {
         Schema::new("myapp")
@@ -189,7 +194,7 @@ mod tests {
                 )
                 .on_delete_cascade(),
             )
-            .index(crate::Index::new(
+            .index(Index::new(
                 "idx_order_user",
                 "orders",
                 vec!["user_id".into()],
@@ -222,8 +227,8 @@ mod tests {
     #[test]
     fn empty_schema_name_fails_validation() {
         let schema = Schema::new("");
-        let errors = schema.validate().unwrap_err();
-        assert!(errors.contains(&ModelError::EmptySchemaName));
+        let error = schema.validate().unwrap_err();
+        assert!(error.to_string().contains("empty schema name"));
     }
 
     #[test]
@@ -231,8 +236,8 @@ mod tests {
         let schema = Schema::new("test")
             .table(Table::new("users").column(Column::new("id", DataType::Integer)))
             .table(Table::new("users").column(Column::new("id", DataType::Integer)));
-        let errors = schema.validate().unwrap_err();
-        assert!(errors.contains(&ModelError::DuplicateTable("users".to_string())));
+        let error = schema.validate().unwrap_err();
+        assert!(error.to_string().contains("duplicate table name"));
     }
 
     #[test]
@@ -242,11 +247,8 @@ mod tests {
                 .column(Column::new("id", DataType::Integer))
                 .column(Column::new("id", DataType::Text)),
         );
-        let errors = schema.validate().unwrap_err();
-        assert!(errors.contains(&ModelError::DuplicateColumn {
-            table: "t".to_string(),
-            column: "id".to_string(),
-        }));
+        let error = schema.validate().unwrap_err();
+        assert!(error.to_string().contains("duplicate column"));
     }
 
     #[test]
@@ -261,8 +263,8 @@ mod tests {
                 "id",
                 RelationKind::ManyToOne,
             ));
-        let errors = schema.validate().unwrap_err();
-        assert!(errors.contains(&ModelError::UnknownTable("nonexistent".to_string())));
+        let error = schema.validate().unwrap_err();
+        assert!(error.to_string().contains("unknown table 'nonexistent'"));
     }
 
     #[test]
@@ -278,11 +280,8 @@ mod tests {
                 "id",
                 RelationKind::ManyToOne,
             ));
-        let errors = schema.validate().unwrap_err();
-        assert!(errors.contains(&ModelError::UnknownColumn {
-            table: "orders".to_string(),
-            column: "nonexistent_col".to_string(),
-        }));
+        let error = schema.validate().unwrap_err();
+        assert!(error.to_string().contains("unknown column 'nonexistent_col'"));
     }
 
     #[test]
@@ -299,16 +298,13 @@ mod tests {
     fn index_references_unknown_column() {
         let schema = Schema::new("test")
             .table(Table::new("users").column(Column::new("id", DataType::BigInt)))
-            .index(crate::Index::new(
+            .index(Index::new(
                 "idx_bad",
                 "users",
                 vec!["nonexistent".into()],
             ));
-        let errors = schema.validate().unwrap_err();
-        assert!(errors.contains(&ModelError::UnknownIndexColumn {
-            index: "idx_bad".to_string(),
-            table: "users".to_string(),
-            column: "nonexistent".to_string(),
-        }));
+        let error = schema.validate().unwrap_err();
+        assert!(error.to_string().contains("idx_bad"));
+        assert!(error.to_string().contains("nonexistent"));
     }
 }

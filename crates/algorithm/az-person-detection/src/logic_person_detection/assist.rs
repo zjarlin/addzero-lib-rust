@@ -15,7 +15,6 @@ use ndarray::{ArrayD, IxDyn};
 use ort::session::Session;
 use ort::value::{Tensor, TensorElementType, ValueType};
 
-use anyhow::{anyhow, bail};
 use crate::logic_person_detection::model::{
     COCO_PERSON_CLASS_ID, DEFAULT_MODEL_RESOURCE_DIR, DEFAULT_RESULT_DIR, DEFAULT_SCORE_THRESHOLD,
     PERSON_DETECTION_COCO_SSD_MOBILENET_V1, PERSON_DETECTION_YOLO11N_COCO, PersonDetectionBox,
@@ -23,6 +22,7 @@ use crate::logic_person_detection::model::{
     PersonDetectionOutputSummary, PersonDetectionRun, PersonVideoDetectionOptions,
     PersonVideoDetectionOutputFiles, PersonVideoDetectionRun, PersonVideoFrameDetection,
 };
+use anyhow::{anyhow, bail};
 
 const OUTPUT_SAMPLE_VALUES: usize = 8;
 const DETECTION_BOXES_OUTPUT: &str = "detection_boxes:0";
@@ -207,9 +207,7 @@ pub fn detect_persons_from_bytes_with_options(
 ///
 /// # Errors
 /// base64 解码、图片解码、模型加载、推理或输出文件写入失败时返回错误。
-pub fn detect_persons_from_base64(
-    base64_image: &str,
-) -> anyhow::Result<PersonDetectionRun> {
+pub fn detect_persons_from_base64(base64_image: &str) -> anyhow::Result<PersonDetectionRun> {
     let options = PersonDetectionOptions::default_workspace()?;
     detect_persons_from_base64_with_options(base64_image, &options)
 }
@@ -309,11 +307,11 @@ pub fn detect_persons_in_video_from_path(
         let annotated_frame_path = files
             .annotated_frame_dir
             .join(format!("frame_{frame_index:05}.png"));
-        fs::copy(&image_run.files.detected_persons_image, &annotated_frame_path).map_err(
-            |source| {
-                path_error(image_run.files.detected_persons_image.clone(), source)
-            },
-        )?;
+        fs::copy(
+            &image_run.files.detected_persons_image,
+            &annotated_frame_path,
+        )
+        .map_err(|source| path_error(image_run.files.detected_persons_image.clone(), source))?;
         frames.push(PersonVideoFrameDetection {
             frame_index,
             timestamp_ms: frame_timestamp_ms(frame_index, options.sample_fps),
@@ -349,8 +347,7 @@ fn detect_persons_from_bytes_named(
     fs::create_dir_all(&options.output_dir)
         .map_err(|source| path_error(options.output_dir.clone(), source))?;
     let input_path = options.output_dir.join(input_file_name);
-    fs::write(&input_path, bytes)
-        .map_err(|source| path_error(input_path.clone(), source))?;
+    fs::write(&input_path, bytes).map_err(|source| path_error(input_path.clone(), source))?;
     let image = image::load_from_memory(bytes)?;
     run_detection(image, input_path, options)
 }
@@ -369,11 +366,16 @@ fn run_detection(
             let prepared = prepare_image_tensor_for_spec(
                 &PERSON_DETECTION_COCO_SSD_MOBILENET_V1,
                 &input_path,
-            )
-?;
+            )?;
             let tensor_data = prepared
                 .u8_tensor_data()
-                .ok_or_else(|| anyhow!("invalid tensor shape for `{}`: {}", PERSON_DETECTION_COCO_SSD_MOBILENET_V1.code, "prepared image does not contain u8 tensor data".to_owned(),))?
+                .ok_or_else(|| {
+                    anyhow!(
+                        "invalid tensor shape for `{}`: {}",
+                        PERSON_DETECTION_COCO_SSD_MOBILENET_V1.code,
+                        "prepared image does not contain u8 tensor data".to_owned(),
+                    )
+                })?
                 .to_vec();
             let inference = run_coco_ssd_model(&options.model_path, tensor_data)?;
             let persons = decode_coco_ssd_person_boxes(
@@ -435,7 +437,13 @@ fn run_coco_ssd_session(
         IxDyn(PERSON_DETECTION_COCO_SSD_MOBILENET_V1.input.shape),
         tensor_data,
     )
-    .map_err(|source| anyhow!("invalid tensor shape for `{}`: {}", PERSON_DETECTION_COCO_SSD_MOBILENET_V1.code, source.to_string(),))?;
+    .map_err(|source| {
+        anyhow!(
+            "invalid tensor shape for `{}`: {}",
+            PERSON_DETECTION_COCO_SSD_MOBILENET_V1.code,
+            source.to_string(),
+        )
+    })?;
     let input = Tensor::from_array(input_array)?;
     let output_names = session
         .outputs()
@@ -464,9 +472,17 @@ fn run_yolo11n_session(
     session: &mut Session,
     tensor_data: Vec<f16>,
 ) -> anyhow::Result<CocoSsdInferenceOutput> {
-    let input_array =
-        ArrayD::from_shape_vec(IxDyn(PERSON_DETECTION_YOLO11N_COCO.input.shape), tensor_data)
-            .map_err(|source| anyhow!("invalid tensor shape for `{}`: {}", PERSON_DETECTION_YOLO11N_COCO.code, source.to_string(),))?;
+    let input_array = ArrayD::from_shape_vec(
+        IxDyn(PERSON_DETECTION_YOLO11N_COCO.input.shape),
+        tensor_data,
+    )
+    .map_err(|source| {
+        anyhow!(
+            "invalid tensor shape for `{}`: {}",
+            PERSON_DETECTION_YOLO11N_COCO.code,
+            source.to_string(),
+        )
+    })?;
     let input = Tensor::from_array(input_array)?;
     let output_names = session
         .outputs()
@@ -491,10 +507,18 @@ fn collect_yolo_outputs(
             .cloned()
             .unwrap_or_else(|| format!("output_{index}"));
         let ValueType::Tensor { ty, .. } = value.dtype() else {
-            bail!("unsupported ONNX output tensor type `{}` from output `{}`", value.dtype(), output_name);
+            bail!(
+                "unsupported ONNX output tensor type `{}` from output `{}`",
+                value.dtype(),
+                output_name
+            );
         };
         if !matches!(ty, TensorElementType::Float16) {
-            bail!("unsupported ONNX output tensor type `{}` from output `{}`", ty, output_name);
+            bail!(
+                "unsupported ONNX output tensor type `{}` from output `{}`",
+                ty,
+                output_name
+            );
         }
 
         let (shape, data) = value.try_extract_tensor::<f16>()?;
@@ -529,10 +553,18 @@ fn collect_coco_ssd_outputs(
             .cloned()
             .unwrap_or_else(|| format!("output_{index}"));
         let ValueType::Tensor { ty, .. } = value.dtype() else {
-            bail!("unsupported ONNX output tensor type `{}` from output `{}`", value.dtype(), output_name);
+            bail!(
+                "unsupported ONNX output tensor type `{}` from output `{}`",
+                value.dtype(),
+                output_name
+            );
         };
         if !matches!(ty, TensorElementType::Float32) {
-            bail!("unsupported ONNX output tensor type `{}` from output `{}`", ty, output_name);
+            bail!(
+                "unsupported ONNX output tensor type `{}` from output `{}`",
+                ty,
+                output_name
+            );
         }
 
         let (shape, data) = value.try_extract_tensor::<f32>()?;
@@ -577,9 +609,7 @@ fn decode_coco_ssd_person_boxes(
     for index in 0..detection_count {
         let class_id = classes.data[index];
         let confidence = scores.data[index];
-        if (class_id - COCO_PERSON_CLASS_ID).abs() > f32::EPSILON
-            || confidence < score_threshold
-        {
+        if (class_id - COCO_PERSON_CLASS_ID).abs() > f32::EPSILON || confidence < score_threshold {
             continue;
         }
 
@@ -702,7 +732,9 @@ fn write_output_files(
 }
 
 fn prepare_coco_ssd_image(image: &DynamicImage) -> PreparedCocoSsdImage {
-    let preview = image.resize_exact(1200, 1200, FilterType::Triangle).to_rgb8();
+    let preview = image
+        .resize_exact(1200, 1200, FilterType::Triangle)
+        .to_rgb8();
     let tensor_data = rgb_to_nhwc_u8(&preview);
     PreparedCocoSsdImage {
         preview,
@@ -811,10 +843,7 @@ fn validate_boxes(boxes: &CocoSsdOutputTensor) -> anyhow::Result<()> {
     )
 }
 
-fn validate_vector(
-    output: &CocoSsdOutputTensor,
-    expected_name: &str,
-) -> anyhow::Result<()> {
+fn validate_vector(output: &CocoSsdOutputTensor, expected_name: &str) -> anyhow::Result<()> {
     if output.shape.as_slice() == [1, 100] && output.data.len() == 100 {
         return Ok(());
     }
@@ -845,10 +874,18 @@ fn validate_video_options(options: &PersonVideoDetectionOptions) -> anyhow::Resu
         bail!("model file `{}` is missing", options.model_path.display());
     }
     if options.sample_fps == 0 {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", PERSON_DETECTION_COCO_SSD_MOBILENET_V1.code, "sample_fps must be greater than 0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            PERSON_DETECTION_COCO_SSD_MOBILENET_V1.code,
+            "sample_fps must be greater than 0"
+        );
     }
     if !(0.0..=1.0).contains(&options.score_threshold) || !options.score_threshold.is_finite() {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", PERSON_DETECTION_COCO_SSD_MOBILENET_V1.code, "score_threshold must be finite and within 0.0..=1.0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            PERSON_DETECTION_COCO_SSD_MOBILENET_V1.code,
+            "score_threshold must be finite and within 0.0..=1.0"
+        );
     }
     Ok(())
 }
@@ -858,18 +895,20 @@ fn validate_detection_options(options: &PersonDetectionOptions) -> anyhow::Resul
         bail!("model file `{}` is missing", options.model_path.display());
     }
     if !(0.0..=1.0).contains(&options.score_threshold) || !options.score_threshold.is_finite() {
-        return Err(anyhow!("invalid tensor shape for `{}`: {}", options.model_kind.spec().code, "score_threshold must be finite and within 0.0..=1.0".to_owned(),));
+        bail!(
+            "invalid tensor shape for `{}`: {}",
+            options.model_kind.spec().code,
+            "score_threshold must be finite and within 0.0..=1.0"
+        );
     }
     Ok(())
 }
 
 fn recreate_dir(path: &Path) -> anyhow::Result<()> {
     if path.exists() {
-        fs::remove_dir_all(path)
-            .map_err(|source| path_error(path.to_path_buf(), source))?;
+        fs::remove_dir_all(path).map_err(|source| path_error(path.to_path_buf(), source))?;
     }
-    fs::create_dir_all(path)
-        .map_err(|source| path_error(path.to_path_buf(), source))
+    fs::create_dir_all(path).map_err(|source| path_error(path.to_path_buf(), source))
 }
 
 fn extract_video_frames(
@@ -920,14 +959,11 @@ fn encode_annotated_video(
     )
 }
 
-fn run_ffmpeg(
-    ffmpeg_path: &Path,
-    args: &[String],
-    context_path: &Path,
-) -> anyhow::Result<()> {
-    let output = Command::new(ffmpeg_path).args(args).output().map_err(|source| {
-        path_error(ffmpeg_path.to_path_buf(), source)
-    })?;
+fn run_ffmpeg(ffmpeg_path: &Path, args: &[String], context_path: &Path) -> anyhow::Result<()> {
+    let output = Command::new(ffmpeg_path)
+        .args(args)
+        .output()
+        .map_err(|source| path_error(ffmpeg_path.to_path_buf(), source))?;
     if output.status.success() {
         return Ok(());
     }
@@ -960,10 +996,11 @@ fn collected_frame_paths(
         frame_paths.truncate(limit);
     }
     if frame_paths.is_empty() {
-        return Err(path_error(
-            extracted_frame_dir.to_path_buf(),
-            std::io::Error::other("ffmpeg did not extract any video frames"),
-        ));
+        let path = extracted_frame_dir.to_path_buf();
+        let source = std::io::Error::other("ffmpeg did not extract any video frames");
+        let error = path_error(path, source);
+
+        return Err(error);
     }
     Ok(frame_paths)
 }

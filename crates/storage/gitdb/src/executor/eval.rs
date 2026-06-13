@@ -2,19 +2,19 @@
 
 use serde_json::Value;
 
-use super::error::{ExecuteError, ExecuteResult};
+use anyhow::{anyhow, bail};
 use crate::sql::{BinaryOperator, Expr, UnaryOperator};
 
 #[cfg(test)]
 use crate::sql::LiteralValue;
 
 /// Evaluate an expression against a row.
-pub fn evaluate(expr: &Expr, row: &serde_json::Map<String, Value>) -> ExecuteResult<Value> {
+pub fn evaluate(expr: &Expr, row: &serde_json::Map<String, Value>) -> anyhow::Result<Value> {
     match expr {
         Expr::Column(name) => row
             .get(name)
             .cloned()
-            .ok_or_else(|| ExecuteError::ColumnNotFound(name.clone())),
+            .ok_or_else(|| anyhow!("column not found: {name}")),
 
         Expr::Literal(lit) => Ok(lit.to_json()),
 
@@ -78,7 +78,7 @@ pub fn evaluate(expr: &Expr, row: &serde_json::Map<String, Value>) -> ExecuteRes
             let evaluated: Vec<Value> = args
                 .iter()
                 .map(|a| evaluate(a, row))
-                .collect::<ExecuteResult<_>>()?;
+                .collect::<anyhow::Result<_>>()?;
             eval_function(name, &evaluated)
         }
 
@@ -87,12 +87,12 @@ pub fn evaluate(expr: &Expr, row: &serde_json::Map<String, Value>) -> ExecuteRes
 }
 
 /// Evaluate a WHERE clause, returning true if row matches.
-pub fn matches_where(expr: &Expr, row: &serde_json::Map<String, Value>) -> ExecuteResult<bool> {
+pub fn matches_where(expr: &Expr, row: &serde_json::Map<String, Value>) -> anyhow::Result<bool> {
     let result = evaluate(expr, row)?;
     Ok(value_to_bool(&result))
 }
 
-fn eval_binary_op(left: &Value, op: BinaryOperator, right: &Value) -> ExecuteResult<Value> {
+fn eval_binary_op(left: &Value, op: BinaryOperator, right: &Value) -> anyhow::Result<Value> {
     match op {
         // Comparison operators
         BinaryOperator::Eq => Ok(Value::Bool(values_equal(left, right))),
@@ -121,7 +121,7 @@ fn eval_binary_op(left: &Value, op: BinaryOperator, right: &Value) -> ExecuteRes
         BinaryOperator::Divide => {
             let r = value_to_f64(right);
             if r == 0.0 {
-                Err(ExecuteError::DivisionByZero)
+                bail!("division by zero")
             } else {
                 eval_arithmetic(left, right, |a, b| a / b)
             }
@@ -137,7 +137,7 @@ fn eval_binary_op(left: &Value, op: BinaryOperator, right: &Value) -> ExecuteRes
     }
 }
 
-fn eval_unary_op(op: UnaryOperator, value: &Value) -> ExecuteResult<Value> {
+fn eval_unary_op(op: UnaryOperator, value: &Value) -> anyhow::Result<Value> {
     match op {
         UnaryOperator::Not => Ok(Value::Bool(!value_to_bool(value))),
         UnaryOperator::Minus => {
@@ -154,7 +154,7 @@ fn eval_unary_op(op: UnaryOperator, value: &Value) -> ExecuteResult<Value> {
     }
 }
 
-fn eval_arithmetic<F>(left: &Value, right: &Value, f: F) -> ExecuteResult<Value>
+fn eval_arithmetic<F>(left: &Value, right: &Value, f: F) -> anyhow::Result<Value>
 where
     F: Fn(f64, f64) -> f64,
 {
@@ -172,7 +172,7 @@ where
     }
 }
 
-fn eval_function(name: &str, args: &[Value]) -> ExecuteResult<Value> {
+fn eval_function(name: &str, args: &[Value]) -> anyhow::Result<Value> {
     let lower_name = name.to_lowercase();
     match lower_name.as_str() {
         "count" => Ok(Value::Number(1.into())), // Counting is done at aggregate level
@@ -200,10 +200,7 @@ fn eval_function(name: &str, args: &[Value]) -> ExecuteResult<Value> {
             let now = chrono::Utc::now().to_rfc3339();
             Ok(Value::String(now))
         }
-        _ => Err(ExecuteError::InvalidExpression(format!(
-            "unknown function: {}",
-            name
-        ))),
+        _ => bail!("invalid expression: unknown function: {name}"),
     }
 }
 

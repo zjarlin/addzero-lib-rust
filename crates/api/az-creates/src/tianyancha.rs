@@ -3,7 +3,8 @@ use crate::util::{
     canonical_query_string, canonical_uri, encode_url_component, hex_string, sha256_hex,
     trim_non_blank,
 };
-use crate::{ApiConfig, CreatesError, CreatesResult};
+use crate::ApiConfig;
+use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{
     apply, deserialize_debug, plain_clone_debug, serde_eq_default, serde_partial_eq_default,
 };
@@ -32,18 +33,14 @@ impl TianyanchaApi {
         authorization: impl Into<String>,
         auth_token: impl Into<String>,
         config: ApiConfig,
-    ) -> CreatesResult<Self> {
+    ) -> anyhow::Result<Self> {
         let authorization = authorization.into();
         let auth_token = auth_token.into();
         if trim_non_blank(Some(authorization.as_str())).is_none() {
-            return Err(CreatesError::InvalidConfig(
-                "tianyancha authorization cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: tianyancha authorization cannot be blank");
         }
         if trim_non_blank(Some(auth_token.as_str())).is_none() {
-            return Err(CreatesError::InvalidConfig(
-                "tianyancha auth_token cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: tianyancha auth_token cannot be blank");
         }
         Ok(Self {
             authorization,
@@ -61,9 +58,9 @@ impl TianyanchaApi {
         page_num: usize,
         page_size: usize,
         sort_type: impl AsRef<str>,
-    ) -> CreatesResult<TianyanchaCompanySearchData> {
+    ) -> anyhow::Result<TianyanchaCompanySearchData> {
         let company_name = trim_non_blank(Some(company_name.as_ref())).ok_or_else(|| {
-            CreatesError::InvalidConfig("company_name cannot be blank".to_owned())
+            anyhow!("invalid config: company_name cannot be blank")
         })?;
         let path = format!(
             "/services/v3/search/sNorV4/{}",
@@ -76,17 +73,19 @@ impl TianyanchaApi {
                     ("pageSize", page_size.max(1).to_string()),
                     ("sortType", sort_type.as_ref().trim().to_owned()),
                 ])
-                .send()?;
+                .send()
+                .context("failed to search tianyancha company")?;
         let response: TianyanchaSearchResponse = HttpApiClient::read_json(response)?;
         response.into_data("search tianyancha company")
     }
 
     /// 获取企业基础详情。
-    pub fn get_base_info(&self, company_id: i64) -> CreatesResult<TianyanchaCompanyDetail> {
+    pub fn get_base_info(&self, company_id: i64) -> anyhow::Result<TianyanchaCompanyDetail> {
         let path = format!("/services/v3/t/common/baseinfoV5/{company_id}");
         let response =
             HttpApiClient::with_headers(self.http.get(path.as_str())?, &self.request_headers())?
-                .send()?;
+                .send()
+                .context("failed to get tianyancha base info")?;
         let response: TianyanchaDetailResponse = HttpApiClient::read_json(response)?;
         response.into_data("get tianyancha base info")
     }
@@ -103,7 +102,7 @@ impl TianyanchaApi {
 pub fn create_tianyancha_api(
     authorization: impl Into<String>,
     auth_token: impl Into<String>,
-) -> CreatesResult<TianyanchaApi> {
+) -> anyhow::Result<TianyanchaApi> {
     let config = ApiConfig::builder("https://api9.tianyancha.com")
         .default_header(CONTENT_TYPE.as_str(), "application/json")
         .default_header(HOST.as_str(), "api9.tianyancha.com")
@@ -122,7 +121,7 @@ pub fn create_tianyancha_api(
 pub fn create_tianyancha_huawei_api(
     access_key: impl Into<String>,
     secret_key: impl Into<String>,
-) -> CreatesResult<TianyanchaHuaweiApi> {
+) -> anyhow::Result<TianyanchaHuaweiApi> {
     let config = ApiConfig::builder("http://kzenterprisewmh.apistore.huaweicloud.com")
         .default_header(ACCEPT.as_str(), "application/json")
         .build()?;
@@ -260,18 +259,14 @@ impl TianyanchaHuaweiApi {
         access_key: impl Into<String>,
         secret_key: impl Into<String>,
         config: ApiConfig,
-    ) -> CreatesResult<Self> {
+    ) -> anyhow::Result<Self> {
         let access_key = access_key.into();
         let secret_key = secret_key.into();
         if trim_non_blank(Some(access_key.as_str())).is_none() {
-            return Err(CreatesError::InvalidConfig(
-                "huawei access_key cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: huawei access_key cannot be blank");
         }
         if trim_non_blank(Some(secret_key.as_str())).is_none() {
-            return Err(CreatesError::InvalidConfig(
-                "huawei secret_key cannot be blank".to_owned(),
-            ));
+            bail!("invalid config: huawei secret_key cannot be blank");
         }
         Ok(Self {
             access_key,
@@ -288,9 +283,9 @@ impl TianyanchaHuaweiApi {
         keyword: impl AsRef<str>,
         page_num: usize,
         page_size: usize,
-    ) -> CreatesResult<TianyanchaHuaweiCompanySearchData> {
+    ) -> anyhow::Result<TianyanchaHuaweiCompanySearchData> {
         let keyword = trim_non_blank(Some(keyword.as_ref()))
-            .ok_or_else(|| CreatesError::InvalidConfig("keyword cannot be blank".to_owned()))?;
+            .ok_or_else(|| anyhow!("invalid config: keyword cannot be blank"))?;
         let query = vec![
             ("keyword", keyword.to_owned()),
             ("pageNum", page_num.max(1).to_string()),
@@ -301,7 +296,9 @@ impl TianyanchaHuaweiApi {
             .build_url("/api-mall/api/company_search/query", &query)?;
         let signed_headers = self.sign_headers(Method::GET.as_str(), &url, None, None)?;
         let response =
-            HttpApiClient::with_headers(self.http.get_url(url), &signed_headers)?.send()?;
+            HttpApiClient::with_headers(self.http.get_url(url), &signed_headers)?
+                .send()
+                .context("failed to search huawei tianyancha company")?;
         let response: TianyanchaHuaweiResponse = HttpApiClient::read_json(response)?;
         response.into_data("search huawei tianyancha company")
     }
@@ -312,7 +309,7 @@ impl TianyanchaHuaweiApi {
         url: &Url,
         body: Option<&[u8]>,
         timestamp: Option<&str>,
-    ) -> CreatesResult<BTreeMap<String, String>> {
+    ) -> anyhow::Result<BTreeMap<String, String>> {
         let payload_hash = sha256_hex(body.unwrap_or_default());
         let host = url
             .host_str()
@@ -320,7 +317,7 @@ impl TianyanchaHuaweiApi {
                 Some(port) => format!("{host}:{port}"),
                 None => host.to_owned(),
             })
-            .ok_or_else(|| CreatesError::InvalidResponse("huawei url missing host".to_owned()))?;
+            .ok_or_else(|| anyhow!("invalid response: huawei url missing host"))?;
         let request_time = timestamp.map_or_else(
             || Utc::now().format("%Y%m%dT%H%M%SZ").to_string(),
             ToOwned::to_owned,
@@ -337,7 +334,7 @@ impl TianyanchaHuaweiApi {
         let string_to_sign = format!("SDK-HMAC-SHA256\n{request_time}\n{hashed_request}");
 
         let mut mac = Hmac::<Sha256>::new_from_slice(self.secret_key.as_bytes())
-            .map_err(|error| CreatesError::Signature(error.to_string()))?;
+            .context("signature error")?;
         mac.update(string_to_sign.as_bytes());
         let signature = hex_string(&mac.finalize().into_bytes());
         let authorization = format!(
@@ -406,18 +403,18 @@ struct TianyanchaSearchResponse {
 }
 
 impl TianyanchaSearchResponse {
-    fn into_data(self, action: &str) -> CreatesResult<TianyanchaCompanySearchData> {
+    fn into_data(self, action: &str) -> anyhow::Result<TianyanchaCompanySearchData> {
         if matches!(self.state.as_deref(), Some("ok")) {
             return self.data.ok_or_else(|| {
-                CreatesError::InvalidResponse(format!("{action} returned ok without data"))
+                anyhow!("invalid response: {action} returned ok without data")
             });
         }
-        Err(CreatesError::InvalidResponse(format!(
-            "{action} failed: {}",
+        bail!(
+            "invalid response: {action} failed: {}",
             self.message
                 .or(self.vip_message)
                 .unwrap_or_else(|| "unknown error".to_owned())
-        )))
+        )
     }
 }
 
@@ -434,10 +431,10 @@ struct TianyanchaDetailResponse {
 }
 
 impl TianyanchaDetailResponse {
-    fn into_data(self, action: &str) -> CreatesResult<TianyanchaCompanyDetail> {
+    fn into_data(self, action: &str) -> anyhow::Result<TianyanchaCompanyDetail> {
         if matches!(self.state.as_deref(), Some("ok")) {
             return self.data.ok_or_else(|| {
-                CreatesError::InvalidResponse(format!("{action} returned ok without data"))
+                anyhow!("invalid response: {action} returned ok without data")
             });
         }
         let error_message = self.error_message.and_then(|value| match value {
@@ -445,12 +442,12 @@ impl TianyanchaDetailResponse {
             Value::String(value) => Some(value),
             other => Some(other.to_string()),
         });
-        Err(CreatesError::InvalidResponse(format!(
-            "{action} failed: {}",
+        bail!(
+            "invalid response: {action} failed: {}",
             self.message
                 .or(error_message)
                 .unwrap_or_else(|| "unknown error".to_owned())
-        )))
+        )
     }
 }
 
@@ -467,16 +464,16 @@ struct TianyanchaHuaweiResponse {
 }
 
 impl TianyanchaHuaweiResponse {
-    fn into_data(self, action: &str) -> CreatesResult<TianyanchaHuaweiCompanySearchData> {
+    fn into_data(self, action: &str) -> anyhow::Result<TianyanchaHuaweiCompanySearchData> {
         if self.code == 200 || self.success == Some(true) {
             return self.data.ok_or_else(|| {
-                CreatesError::InvalidResponse(format!("{action} returned success without data"))
+                anyhow!("invalid response: {action} returned success without data")
             });
         }
-        Err(CreatesError::InvalidResponse(format!(
-            "{action} failed: {}",
+        bail!(
+            "invalid response: {action} failed: {}",
             self.msg.unwrap_or_else(|| format!("code={}", self.code))
-        )))
+        )
     }
 }
 

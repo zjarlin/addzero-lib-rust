@@ -13,7 +13,7 @@ use az_derive_aliases::{apply, plain_clone_debug};
 use chrono::{DateTime, TimeZone, Utc};
 use git2::{Delta, Diff, DiffOptions, Repository, Revwalk, Sort};
 
-use crate::storage::error::{StorageError, StorageResult};
+use crate::storage::error;
 use crate::storage::tree::TreeHandle;
 use crate::storage::types::{Change, ChangeStatus, CommitId, GitSignature, TreeId};
 
@@ -126,10 +126,10 @@ impl<'a> CommitBuilder<'a> {
     }
 
     /// create the commit and return its ID
-    pub fn commit(self) -> StorageResult<CommitId> {
+    pub fn commit(self) -> anyhow::Result<CommitId> {
         let tree_id = self
             .tree_id
-            .ok_or_else(|| StorageError::Internal("commit requires a tree".to_string()))?;
+            .ok_or_else(|| error::internal("commit requires a tree"))?;
 
         let tree = self.repo.find_tree(tree_id.raw())?;
         let sig = self.signature.to_git2_signature()?;
@@ -157,19 +157,19 @@ impl<'a> CommitBuilder<'a> {
 }
 
 /// get information about a commit
-pub fn get_commit(repo: &Repository, id: CommitId) -> StorageResult<CommitInfo> {
+pub fn get_commit(repo: &Repository, id: CommitId) -> anyhow::Result<CommitInfo> {
     let commit = repo
         .find_commit(id.raw())
-        .map_err(|_| StorageError::CommitNotFound(id.to_string()))?;
+        .map_err(|_| error::commit_not_found(id.to_string()))?;
 
     Ok(CommitInfo::from_git2(&commit))
 }
 
 /// get the tree snapshot at a specific commit
-pub fn get_tree_at_commit(repo: &Repository, commit_id: CommitId) -> StorageResult<TreeHandle<'_>> {
+pub fn get_tree_at_commit(repo: &Repository, commit_id: CommitId) -> anyhow::Result<TreeHandle<'_>> {
     let commit = repo
         .find_commit(commit_id.raw())
-        .map_err(|_| StorageError::CommitNotFound(commit_id.to_string()))?;
+        .map_err(|_| error::commit_not_found(commit_id.to_string()))?;
 
     let tree = commit.tree()?;
     Ok(TreeHandle::new(tree))
@@ -179,7 +179,7 @@ pub fn get_tree_at_commit(repo: &Repository, commit_id: CommitId) -> StorageResu
 pub fn create_initial_commit(
     repo: &Repository,
     signature: &GitSignature,
-) -> StorageResult<CommitId> {
+) -> anyhow::Result<CommitId> {
     let tree_id = crate::storage::tree::create_initial_tree(repo)?;
 
     CommitBuilder::new(repo)
@@ -193,7 +193,7 @@ pub fn create_initial_commit(
 /// compute the diff between two commits
 ///
 /// returns a list of changed paths
-pub fn diff_commits(repo: &Repository, old: CommitId, new: CommitId) -> StorageResult<Vec<Change>> {
+pub fn diff_commits(repo: &Repository, old: CommitId, new: CommitId) -> anyhow::Result<Vec<Change>> {
     let old_commit = repo.find_commit(old.raw())?;
     let new_commit = repo.find_commit(new.raw())?;
 
@@ -208,7 +208,7 @@ pub fn diff_commits(repo: &Repository, old: CommitId, new: CommitId) -> StorageR
 }
 
 /// compute changes from a diff
-fn extract_changes_from_diff(diff: &Diff<'_>) -> StorageResult<Vec<Change>> {
+fn extract_changes_from_diff(diff: &Diff<'_>) -> anyhow::Result<Vec<Change>> {
     let mut changes = Vec::new();
 
     for delta in diff.deltas() {
@@ -241,11 +241,11 @@ pub fn find_merge_base(
     repo: &Repository,
     a: CommitId,
     b: CommitId,
-) -> StorageResult<Option<CommitId>> {
+) -> anyhow::Result<Option<CommitId>> {
     match repo.merge_base(a.raw(), b.raw()) {
         Ok(oid) => Ok(Some(CommitId::new(oid))),
         Err(e) if e.code() == git2::ErrorCode::NotFound => Ok(None),
-        Err(e) => Err(StorageError::Git(e)),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -257,7 +257,7 @@ pub struct HistoryIterator<'repo> {
 
 impl<'repo> HistoryIterator<'repo> {
     /// create a new history iterator
-    pub fn new(repo: &'repo Repository, start: CommitId) -> StorageResult<Self> {
+    pub fn new(repo: &'repo Repository, start: CommitId) -> anyhow::Result<Self> {
         let mut revwalk = repo.revwalk()?;
         revwalk.push(start.raw())?;
         revwalk.set_sorting(Sort::TIME | Sort::TOPOLOGICAL)?;
@@ -273,21 +273,21 @@ impl<'repo> HistoryIterator<'repo> {
 }
 
 impl<'repo> Iterator for HistoryIterator<'repo> {
-    type Item = StorageResult<CommitInfo>;
+    type Item = anyhow::Result<CommitInfo>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.revwalk.next()? {
             Ok(oid) => match self.repo.find_commit(oid) {
                 Ok(commit) => Some(Ok(CommitInfo::from_git2(&commit))),
-                Err(e) => Some(Err(StorageError::Git(e))),
+                Err(e) => Some(Err(e.into())),
             },
-            Err(e) => Some(Err(StorageError::Git(e))),
+            Err(e) => Some(Err(e.into())),
         }
     }
 }
 
 /// get history for a commit
-pub fn history(repo: &Repository, start: CommitId) -> StorageResult<HistoryIterator<'_>> {
+pub fn history(repo: &Repository, start: CommitId) -> anyhow::Result<HistoryIterator<'_>> {
     HistoryIterator::new(repo, start)
 }
 
@@ -299,9 +299,9 @@ pub fn detect_conflicts(
     repo: &Repository,
     ours: CommitId,
     theirs: CommitId,
-) -> StorageResult<Vec<PathBuf>> {
+) -> anyhow::Result<Vec<PathBuf>> {
     let base = find_merge_base(repo, ours, theirs)?.ok_or_else(|| {
-        StorageError::Internal("no common ancestor found for conflict detection".to_string())
+        error::internal("no common ancestor found for conflict detection")
     })?;
 
     let our_changes = diff_commits(repo, base, ours)?;

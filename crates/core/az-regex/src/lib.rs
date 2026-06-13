@@ -31,8 +31,11 @@ impl CachedRegex {
     /// ```
     /// use az_regex::CachedRegex;
     ///
-    /// let re = CachedRegex::new(r"\d+").unwrap();
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let re = CachedRegex::new(r"\d+")?;
     /// assert!(re.is_match("foo 42 bar"));
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn new(pattern: &str) -> Result<Self, regex::Error> {
         let re = Regex::new(pattern)?;
@@ -49,9 +52,12 @@ impl CachedRegex {
     /// ```
     /// use az_regex::CachedRegex;
     ///
-    /// let re = CachedRegex::new(r"hello").unwrap();
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let re = CachedRegex::new(r"hello")?;
     /// assert!(re.is_match("say hello world"));
     /// assert!(!re.is_match("nothing here"));
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn is_match(&self, text: &str) -> bool {
         self.re.is_match(text)
@@ -64,9 +70,12 @@ impl CachedRegex {
     /// ```
     /// use az_regex::CachedRegex;
     ///
-    /// let re = CachedRegex::new(r"\d+").unwrap();
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let re = CachedRegex::new(r"\d+")?;
     /// assert_eq!(re.find("abc 123 def"), Some("123"));
     /// assert_eq!(re.find("no digits"), None);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn find<'h>(&self, text: &'h str) -> Option<&'h str> {
         self.re.find(text).map(|m| m.as_str())
@@ -80,9 +89,12 @@ impl CachedRegex {
     /// ```
     /// use az_regex::CachedRegex;
     ///
-    /// let re = CachedRegex::new(r"(?<year>\d{4})-(?<month>\d{2})").unwrap();
-    /// let caps = re.captures("2026-04").unwrap();
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let re = CachedRegex::new(r"(?<year>\d{4})-(?<month>\d{2})")?;
+    /// let caps = re.captures("2026-04").ok_or("missing captures")?;
     /// assert_eq!(&caps["year"], "2026");
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn captures<'h>(&self, text: &'h str) -> Option<Captures<'h>> {
         self.re.captures(text)
@@ -95,8 +107,11 @@ impl CachedRegex {
     /// ```
     /// use az_regex::CachedRegex;
     ///
-    /// let re = CachedRegex::new(r"\d+").unwrap();
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let re = CachedRegex::new(r"\d+")?;
     /// assert_eq!(re.replace_all("foo 1 bar 2", "#"), "foo # bar #");
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn replace_all(&self, text: &str, replacement: &str) -> String {
         self.re.replace_all(text, replacement).into_owned()
@@ -111,12 +126,14 @@ impl CachedRegex {
     /// use az_regex::CachedRegex;
     /// use regex::Captures;
     ///
-    /// let re = CachedRegex::new(r"(\d+)").unwrap();
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let re = CachedRegex::new(r"(\d+)")?;
     /// let result = re.replace_all_fn("a 2 b 3", |caps: &Captures| {
-    ///     let n: i32 = caps[1].parse().unwrap();
-    ///     (n * 10).to_string()
+    ///     format!("[{}]", &caps[1])
     /// });
-    /// assert_eq!(result, "a 20 b 30");
+    /// assert_eq!(result, "a [2] b [3]");
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn replace_all_fn(&self, text: &str, f: impl Fn(&Captures) -> String) -> String {
         self.re.replace_all(text, f).into_owned()
@@ -145,11 +162,14 @@ impl CachedRegex {
 /// ```
 /// use az_regex::{CachedRegex, named_captures_to_map};
 ///
-/// let re = CachedRegex::new(r"(?<host>[^:]+):(?<port>\d+)").unwrap();
-/// let caps = re.captures("localhost:8080").unwrap();
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let re = CachedRegex::new(r"(?<host>[^:]+):(?<port>\d+)")?;
+/// let caps = re.captures("localhost:8080").ok_or("missing captures")?;
 /// let map = named_captures_to_map(re.regex(), &caps);
 /// assert_eq!(map["host"], "localhost");
 /// assert_eq!(map["port"], "8080");
+/// # Ok(())
+/// # }
 /// ```
 #[must_use]
 pub fn named_captures_to_map(re: &Regex, caps: &Captures) -> HashMap<String, String> {

@@ -5,28 +5,20 @@
 //!
 //! ## 核心能力
 //!
-//! - **软件条目管理**：通过 [`SoftwareEntryDto`] 描述软件的基本信息（名称、厂商、官网、图标等）。
-//! - **多平台安装方式**：每条软件可关联多种 [`SoftwareInstallMethodDto`]，
+//! - **软件条目管理**：通过 [`model::SoftwareEntryDto`] 描述软件的基本信息（名称、厂商、官网、图标等）。
+//! - **多平台安装方式**：每条软件可关联多种 [`model::SoftwareInstallMethodDto`]，
 //!   涵盖 Homebrew、winget、Scoop、Chocolatey、curl 下载等安装渠道。
 //! - **元数据抓取**：从官网 URL 自动提取软件元数据（标题、描述、图标）。
-//! - **平台感知**：[`current_platform()`] 根据编译目标自动识别当前操作系统。
+//! - **平台感知**：[`model::current_platform()`] 根据编译目标自动识别当前操作系统。
 //! - **WASM 兼容**：核心模型层（`model` 模块）可在 `wasm32` 目标下使用，
 //!   仅实体层和持久化层限定为 native 构建。
 //!
 //! ## 关键类型
 //!
-//! - [`SoftwareCatalogDto`] — 按平台分组的软件目录快照。
-//! - [`SoftwareEntryDto`] — 单个软件条目，包含标签和安装方式列表。
-//! - [`SoftwarePlatform`] — 平台枚举（macOS / Windows / Linux）。
-//! - [`InstallerKind`] — 安装方式枚举（Brew / winget / Scoop 等）。
-//! - [`SoftwareCatalogService`] — 服务层门面（仅 native 可用）。
+//! - [`model::SoftwareCatalogDto`] — 按平台分组的软件目录快照。
+//! - [`model::SoftwareEntryDto`] — 单个软件条目，包含标签和安装方式列表。
+//! - [`model::SoftwarePlatform`] — 平台枚举（macOS / Windows / Linux）。
+//! - [`model::InstallerKind`] — 安装方式枚举（Brew / winget / Scoop 等）。
+//! - [`service::SoftwareCatalogService`] — 服务层门面（仅 native 可用）。
 
-automod::dir!("src");
-
-pub use model::{
-    InstallerKind, SoftwareCatalogDto, SoftwareCatalogError, SoftwareCatalogResult,
-    SoftwareDraftInput, SoftwareEntryDto, SoftwareEntryInput, SoftwareInstallMethodDto,
-    SoftwareMetadataDto, SoftwareMetadataFetchInput, SoftwarePlatform, current_platform,
-};
-#[cfg(not(target_arch = "wasm32"))]
-pub use service::SoftwareCatalogService;
+automod::dir!(pub "src");

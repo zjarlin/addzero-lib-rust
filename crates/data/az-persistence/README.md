@@ -23,11 +23,11 @@ az-persistence = { path = "../az-persistence" }       # workspace 内部引用
 
 ## 用法
 
-```rust
-use az_persistence::PersistenceContext;
+```rust,no_run
+use az_persistence::context::PersistenceContext;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     // 自动从环境变量或配置文件发现数据库 URL 并建立连接
     let ctx = PersistenceContext::connect().await?;
 
@@ -41,13 +41,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 也可以指定连接地址：
 
-```rust
+```rust,no_run
+use az_persistence::context::PersistenceContext;
+
+async fn connect_explicitly() -> anyhow::Result<()> {
 let ctx = PersistenceContext::connect_with_url("postgresql://user:pass@localhost/mydb").await?;
+let _db = ctx.db();
+
+Ok(())
+}
 ```
 
 ## 依赖的 crates
 
 - `sea-orm` / `sea-orm-migration` — 数据库 ORM 和迁移框架
 - `async-trait` — async trait 支持
-- `thiserror` — 错误类型派生
+- `anyhow` — 错误返回与上下文
 - `tokio` — 异步运行时（用于迁移锁）

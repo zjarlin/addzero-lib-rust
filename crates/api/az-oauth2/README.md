@@ -16,11 +16,11 @@
 ## Gmail 只读 Token 示例
 
 ```rust,no_run
-use az_oauth2::{
-    AuthorizationCodeOptions, GoogleOAuth2, OAuth2Client, OAuth2Config,
-};
+use az_oauth2::client::OAuth2Client;
+use az_oauth2::config::AuthorizationCodeOptions;
+use az_oauth2::google::GoogleOAuth2;
 
-# fn run() -> az_oauth2::OAuth2Result<()> {
+# fn run() -> anyhow::Result<()> {
 let config = GoogleOAuth2::installed_app("google-client-id")
     .scope(GoogleOAuth2::GMAIL_READONLY_SCOPE)
     .build()?;

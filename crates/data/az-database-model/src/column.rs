@@ -129,7 +129,7 @@ impl Column {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::column::{Column, DataType};
 
     #[test]
     fn column_builder_chain() {
