@@ -550,7 +550,7 @@ fn load_native_plugin(
     let contributions = plugin.contributions().map_err(|error| {
         anyhow::anyhow!(lifecycle_message(&descriptor.id, "native-contributions", error))
     })?;
-    let runtime = plugin.runtime(context).map_err(|error| {
+    let runtime = plugin.runtime(context.clone()).map_err(|error| {
         anyhow::anyhow!(
             "插件 `{}` native runtime 阶段失败：{}",
             descriptor.id,
@@ -558,7 +558,7 @@ fn load_native_plugin(
         )
     })?;
     if let Some(startup) = runtime.startup {
-        startup(NativePluginContext::default()).map_err(|error| {
+        startup(context).map_err(|error| {
             anyhow::anyhow!("插件 `{}` native startup 阶段失败：{}", descriptor.id, error)
         })?;
     }
@@ -1147,7 +1147,10 @@ fn plugin_catalog_items(records: &[PluginRuntimeRecord]) -> Vec<CatalogItemContr
             }
             .to_string(),
             kind: CatalogItemKind::Plugin,
-            source: CatalogSource::Wasm,
+            source: match record.descriptor.kind {
+                PluginKind::WasmComponent => CatalogSource::Wasm,
+                PluginKind::Native => CatalogSource::Bundled,
+            },
             installed: record.state == PluginState::Active || record.state == PluginState::Loaded,
             tags: Vec::new(),
             permissions: record.descriptor.permissions.clone(),

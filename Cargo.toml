@@ -16,7 +16,6 @@ members = [
     "crates/algorithm/az-vehicle-detection",
     "crates/algorithm/az-worker-hit-counting",
     "crates/api/*",
-    "crates/apps/*",
     "crates/config/*",
     "crates/core/*",
     "crates/data/*",
