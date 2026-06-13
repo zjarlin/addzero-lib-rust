@@ -72,7 +72,9 @@ impl VideoFrameAlgorithm for OnnxRawImageVideoAlgorithm {
         frame: &VideoFrame,
     ) -> AlgorithmVideoPipelineResult<VideoAlgorithmFrameResult> {
         let image = DynamicImage::ImageRgb8(frame.rgb.clone());
-        let frame_output_dir = self.output_dir.join(format!("frame_{:05}", frame.frame_index));
+        let frame_output_dir = self
+            .output_dir
+            .join(format!("frame_{:05}", frame.frame_index));
         let (prepared, summary) = self
             .session
             .run_dynamic_image(&self.model_spec, &image)
@@ -86,22 +88,25 @@ impl VideoFrameAlgorithm for OnnxRawImageVideoAlgorithm {
         )
         .map_err(|source| AlgorithmVideoPipelineError::invalid_input(source.to_string()))?;
 
-        Ok(VideoAlgorithmFrameResult {
+        let value = json!({
+            "model_code": self.model_spec.code,
+            "model_label": self.model_spec.label,
+            "model_path": self.model_path,
+            "source_input": files.source_input,
+            "model_input_preview": files.model_input_preview,
+            "raw_outputs_json": files.raw_outputs_json,
+            "raw_output_review": files.raw_output_review,
+            "raw_output_count": summary.outputs.len(),
+            "说明": "当前适配器只输出真实 ONNX raw 摘要；需要对应算法 crate 实现后处理后才会产生检测框或文本"
+        });
+        let result = VideoAlgorithmFrameResult {
             algorithm_code: self.algorithm_code.to_owned(),
             frame_index: frame.frame_index,
             timestamp_ms: frame.timestamp_ms,
             detections: Vec::new(),
             events: Vec::new(),
-            raw_json: json!({
-                "model_code": self.model_spec.code,
-                "model_label": self.model_spec.label,
-                "model_path": self.model_path,
-                "source_input": files.source_input,
-                "model_input_preview": files.model_input_preview,
-                "raw_outputs_json": files.raw_outputs_json,
-                "raw_output_count": summary.outputs.len(),
-                "说明": "当前适配器只输出真实 ONNX raw 摘要；需要对应算法 crate 实现后处理后才会产生检测框或文本"
-            }),
-        })
+            raw_json: value,
+        };
+        Ok(result)
     }
 }

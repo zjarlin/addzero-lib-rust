@@ -30,6 +30,10 @@ pub enum AlgorithmPipelineError {
     #[error("person detection failed: {0}")]
     PersonDetection(#[from] az_person_detection::error::PersonDetectionError),
 
+    /// 火焰检测算法失败。
+    #[error("flame detection failed: {0}")]
+    FlameDetection(#[from] az_flame_detection::error::FlameDetectionError),
+
     /// 车辆检测算法失败。
     #[error("vehicle detection failed: {0}")]
     VehicleDetection(#[from] az_vehicle_detection::error::VehicleDetectionError),

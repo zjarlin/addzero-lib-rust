@@ -1,14 +1,21 @@
-//! User organization role assignments REST endpoint contract.
+// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+//! UserOrganizationRoleAssignments REST endpoint contract.
 
 use async_trait::async_trait;
 
-use crate::bodies::*;
+use crate::models::{
+    DeletedRoleAssignmentResource,
+    PublicAssignOrganizationGroupRoleBody,
+    RoleListResource,
+    UserRoleAssignment,
+};
 
-/// User organization role assignments REST endpoints.
+/// UserOrganizationRoleAssignments REST endpoints.
 #[async_trait]
 pub trait OpenAiUserOrganizationRoleAssignmentsApi: Send + Sync {
     /// Error type returned by the application-layer implementation.
     type Error: std::error::Error + Send + Sync + 'static;
+
     /// Lists the organization roles assigned to a user within the organization.
     ///
     /// REST: `GET /organization/users/{user_id}/roles`.
@@ -16,10 +23,10 @@ pub trait OpenAiUserOrganizationRoleAssignmentsApi: Send + Sync {
     async fn list_user_role_assignments(
         &self,
         user_id: String,
-        limit: Option<i64>,
+        limit: Option<i32>,
         after: Option<String>,
         order: Option<String>,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<RoleListResource, Self::Error>;
 
     /// Assigns an organization role to a user within the organization.
     ///
@@ -28,8 +35,8 @@ pub trait OpenAiUserOrganizationRoleAssignmentsApi: Send + Sync {
     async fn assign_user_role(
         &self,
         user_id: String,
-        body: OpenAiRequestBody,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+        body: PublicAssignOrganizationGroupRoleBody,
+    ) -> Result<UserRoleAssignment, Self::Error>;
 
     /// Unassigns an organization role from a user within the organization.
     ///
@@ -39,5 +46,5 @@ pub trait OpenAiUserOrganizationRoleAssignmentsApi: Send + Sync {
         &self,
         user_id: String,
         role_id: String,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<DeletedRoleAssignmentResource, Self::Error>;
 }

@@ -1,10 +1,12 @@
 [package]
 name = "az-config-center-client"
-version.workspace = true
+version = "2026.6.13"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
 description = "配置中心 Rust 同步客户端：登录、命名空间切换、强类型配置读写"
 
 [dependencies]

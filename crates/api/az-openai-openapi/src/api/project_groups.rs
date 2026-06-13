@@ -1,14 +1,21 @@
-//! Project groups REST endpoint contract.
+// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+//! ProjectGroups REST endpoint contract.
 
 use async_trait::async_trait;
 
-use crate::bodies::*;
+use crate::models::{
+    InviteProjectGroupBody,
+    ProjectGroup,
+    ProjectGroupDeletedResource,
+    ProjectGroupListResource,
+};
 
-/// Project groups REST endpoints.
+/// ProjectGroups REST endpoints.
 #[async_trait]
 pub trait OpenAiProjectGroupsApi: Send + Sync {
     /// Error type returned by the application-layer implementation.
     type Error: std::error::Error + Send + Sync + 'static;
+
     /// Lists the groups that have access to a project.
     ///
     /// REST: `GET /organization/projects/{project_id}/groups`.
@@ -16,10 +23,10 @@ pub trait OpenAiProjectGroupsApi: Send + Sync {
     async fn list_project_groups(
         &self,
         project_id: String,
-        limit: Option<i64>,
+        limit: Option<i32>,
         after: Option<String>,
         order: Option<String>,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<ProjectGroupListResource, Self::Error>;
 
     /// Grants a group access to a project.
     ///
@@ -28,8 +35,8 @@ pub trait OpenAiProjectGroupsApi: Send + Sync {
     async fn add_project_group(
         &self,
         project_id: String,
-        body: OpenAiRequestBody,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+        body: InviteProjectGroupBody,
+    ) -> Result<ProjectGroup, Self::Error>;
 
     /// Revokes a group's access to a project.
     ///
@@ -39,5 +46,5 @@ pub trait OpenAiProjectGroupsApi: Send + Sync {
         &self,
         project_id: String,
         group_id: String,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<ProjectGroupDeletedResource, Self::Error>;
 }

@@ -1,11 +1,13 @@
 [package]
 name = "az-derive-aliases"
 description = "Reusable macro aliases for repetitive derive bundles and helper attributes"
-version.workspace = true
+version = "2026.6.13"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 derive_more.workspace = true

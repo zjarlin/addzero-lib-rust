@@ -84,6 +84,7 @@ fn run_one_algorithm(
                 run.files.source_input,
                 run.files.model_input_preview,
                 run.files.raw_outputs_json,
+                run.files.raw_output_review,
             ]
         }
         ImageAlgorithmKind::PersonDetection => {
@@ -109,9 +110,11 @@ fn run_one_algorithm(
                 run.detection.files.source_input,
                 run.detection.files.model_input_preview,
                 run.detection.files.raw_outputs_json,
+                run.detection.files.raw_output_review,
                 run.recognition.files.source_input,
                 run.recognition.files.model_input_preview,
                 run.recognition.files.raw_outputs_json,
+                run.recognition.files.raw_output_review,
             ]
         }
         ImageAlgorithmKind::FlameDetection => {
@@ -123,6 +126,8 @@ fn run_one_algorithm(
                 run.files.source_input,
                 run.files.model_input_preview,
                 run.files.raw_outputs_json,
+                run.files.detected_flames_json,
+                run.files.detected_flames_image,
             ]
         }
         ImageAlgorithmKind::SafetyHelmetDetection => {
@@ -134,6 +139,7 @@ fn run_one_algorithm(
                 run.files.source_input,
                 run.files.model_input_preview,
                 run.files.raw_outputs_json,
+                run.files.raw_output_review,
             ]
         }
         ImageAlgorithmKind::VehicleDetection => {
@@ -145,6 +151,8 @@ fn run_one_algorithm(
                 run.files.source_input,
                 run.files.model_input_preview,
                 run.files.raw_outputs_json,
+                run.files.detected_vehicles_json,
+                run.files.detected_vehicles_image,
             ]
         }
         ImageAlgorithmKind::QrCodeRecognition => {

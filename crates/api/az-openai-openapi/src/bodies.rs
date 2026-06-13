@@ -1,12 +1,11 @@
-//! Generic request and response body aliases used by generated OpenAI REST traits.
+// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+//! Shared body aliases used by generated OpenAI REST traits.
 
-/// Generic JSON request body.
-pub type OpenAiRequestBody = serde_json::Value;
-/// Generic JSON response body.
-pub type OpenAiResponseBody = serde_json::Value;
-/// Generic object-like query value for structured query filters.
-pub type OpenAiQueryObject = serde_json::Value;
+/// JSON value used only for schema fields that are intentionally open-ended.
+pub type OpenAiJsonValue = serde_json::Value;
+/// JSON object used only for schema fields that are intentionally open-ended.
+pub type OpenAiJsonObject = std::collections::BTreeMap<String, serde_json::Value>;
 /// Binary response body for content download endpoints.
 pub type OpenAiBinaryBody = Vec<u8>;
-/// Text body used by non-JSON endpoints such as SDP.
+/// Text body used by non-JSON endpoints such as SDP and event streams.
 pub type OpenAiTextBody = String;

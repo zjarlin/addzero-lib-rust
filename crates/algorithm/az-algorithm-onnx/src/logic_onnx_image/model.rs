@@ -156,6 +156,8 @@ pub struct OnnxImageOutputFiles {
     pub model_input_preview: PathBuf,
     /// ONNX 原始输出摘要 JSON。
     pub raw_outputs_json: PathBuf,
+    /// ONNX 原始输出的可视化审阅图。
+    pub raw_output_review: PathBuf,
 }
 
 /// ONNX 图片推理运行结果。

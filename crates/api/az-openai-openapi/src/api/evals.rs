@@ -1,14 +1,28 @@
+// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
 //! Evals REST endpoint contract.
 
 use async_trait::async_trait;
 
-use crate::bodies::*;
+use crate::models::{
+    CreateEvalRequest,
+    CreateEvalRunRequest,
+    DeleteEvalResponse,
+    DeleteEvalRunResponse,
+    Eval,
+    EvalList,
+    EvalRun,
+    EvalRunList,
+    EvalRunOutputItem,
+    EvalRunOutputItemList,
+    UpdateEvalRequest,
+};
 
 /// Evals REST endpoints.
 #[async_trait]
 pub trait OpenAiEvalsApi: Send + Sync {
     /// Error type returned by the application-layer implementation.
     type Error: std::error::Error + Send + Sync + 'static;
+
     /// List evaluations for a project.
     ///
     /// REST: `GET /evals`.
@@ -16,29 +30,26 @@ pub trait OpenAiEvalsApi: Send + Sync {
     async fn list_evals(
         &self,
         after: Option<String>,
-        limit: Option<i64>,
+        limit: Option<i32>,
         order: Option<String>,
         order_by: Option<String>,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<EvalList, Self::Error>;
 
-    /// Create the structure of an evaluation that can be used to test a model's performance. An evaluation is a set of testing criteria and the config for a data source, which dictates the schema of the data used in the evaluation. After creating an evaluation, you can run it on different models and model parameters. We support several types of graders and datasources. For more information, see the [Evals guide](/docs/guides/evals).
+    /// Create the structure of an evaluation that can be used to test a model's performance. An evaluation
+    /// is a set of testing criteria and the config for a data source, which dictates the schema of the data
+    /// used in the evaluation. After creating an evaluation, you can run it on different models and model
+    /// parameters. We support several types of graders and datasources. For more information, see the
+    /// [Evals guide](/docs/guides/evals).
     ///
     /// REST: `POST /evals`.
     /// Path constant: [`OpenAiApiPath::EVALS`](crate::paths::OpenAiApiPath::EVALS).
-    async fn create_eval(&self, body: OpenAiRequestBody)
-    -> Result<OpenAiResponseBody, Self::Error>;
-
-    /// Delete an evaluation.
-    ///
-    /// REST: `DELETE /evals/{eval_id}`.
-    /// Path constant: [`OpenAiApiPath::EVALS_BY_EVAL_ID`](crate::paths::OpenAiApiPath::EVALS_BY_EVAL_ID).
-    async fn delete_eval(&self, eval_id: String) -> Result<OpenAiResponseBody, Self::Error>;
+    async fn create_eval(&self, body: CreateEvalRequest) -> Result<Eval, Self::Error>;
 
     /// Get an evaluation by ID.
     ///
     /// REST: `GET /evals/{eval_id}`.
     /// Path constant: [`OpenAiApiPath::EVALS_BY_EVAL_ID`](crate::paths::OpenAiApiPath::EVALS_BY_EVAL_ID).
-    async fn get_eval(&self, eval_id: String) -> Result<OpenAiResponseBody, Self::Error>;
+    async fn get_eval(&self, eval_id: String) -> Result<Eval, Self::Error>;
 
     /// Update certain properties of an evaluation.
     ///
@@ -47,8 +58,14 @@ pub trait OpenAiEvalsApi: Send + Sync {
     async fn update_eval(
         &self,
         eval_id: String,
-        body: OpenAiRequestBody,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+        body: UpdateEvalRequest,
+    ) -> Result<Eval, Self::Error>;
+
+    /// Delete an evaluation.
+    ///
+    /// REST: `DELETE /evals/{eval_id}`.
+    /// Path constant: [`OpenAiApiPath::EVALS_BY_EVAL_ID`](crate::paths::OpenAiApiPath::EVALS_BY_EVAL_ID).
+    async fn delete_eval(&self, eval_id: String) -> Result<DeleteEvalResponse, Self::Error>;
 
     /// Get a list of runs for an evaluation.
     ///
@@ -58,40 +75,28 @@ pub trait OpenAiEvalsApi: Send + Sync {
         &self,
         eval_id: String,
         after: Option<String>,
-        limit: Option<i64>,
+        limit: Option<i32>,
         order: Option<String>,
         status: Option<String>,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<EvalRunList, Self::Error>;
 
-    /// Kicks off a new run for a given evaluation, specifying the data source, and what model configuration to use to test. The datasource will be validated against the schema specified in the config of the evaluation.
+    /// Kicks off a new run for a given evaluation, specifying the data source, and what model configuration
+    /// to use to test. The datasource will be validated against the schema specified in the config of the
+    /// evaluation.
     ///
     /// REST: `POST /evals/{eval_id}/runs`.
     /// Path constant: [`OpenAiApiPath::EVALS_BY_EVAL_ID_BY_RUNS`](crate::paths::OpenAiApiPath::EVALS_BY_EVAL_ID_BY_RUNS).
     async fn create_eval_run(
         &self,
         eval_id: String,
-        body: OpenAiRequestBody,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
-
-    /// Delete an eval run.
-    ///
-    /// REST: `DELETE /evals/{eval_id}/runs/{run_id}`.
-    /// Path constant: [`OpenAiApiPath::EVALS_BY_EVAL_ID_BY_RUNS_BY_RUN_ID`](crate::paths::OpenAiApiPath::EVALS_BY_EVAL_ID_BY_RUNS_BY_RUN_ID).
-    async fn delete_eval_run(
-        &self,
-        eval_id: String,
-        run_id: String,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+        body: CreateEvalRunRequest,
+    ) -> Result<EvalRun, Self::Error>;
 
     /// Get an evaluation run by ID.
     ///
     /// REST: `GET /evals/{eval_id}/runs/{run_id}`.
     /// Path constant: [`OpenAiApiPath::EVALS_BY_EVAL_ID_BY_RUNS_BY_RUN_ID`](crate::paths::OpenAiApiPath::EVALS_BY_EVAL_ID_BY_RUNS_BY_RUN_ID).
-    async fn get_eval_run(
-        &self,
-        eval_id: String,
-        run_id: String,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    async fn get_eval_run(&self, eval_id: String, run_id: String) -> Result<EvalRun, Self::Error>;
 
     /// Cancel an ongoing evaluation run.
     ///
@@ -101,7 +106,17 @@ pub trait OpenAiEvalsApi: Send + Sync {
         &self,
         eval_id: String,
         run_id: String,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<EvalRun, Self::Error>;
+
+    /// Delete an eval run.
+    ///
+    /// REST: `DELETE /evals/{eval_id}/runs/{run_id}`.
+    /// Path constant: [`OpenAiApiPath::EVALS_BY_EVAL_ID_BY_RUNS_BY_RUN_ID`](crate::paths::OpenAiApiPath::EVALS_BY_EVAL_ID_BY_RUNS_BY_RUN_ID).
+    async fn delete_eval_run(
+        &self,
+        eval_id: String,
+        run_id: String,
+    ) -> Result<DeleteEvalRunResponse, Self::Error>;
 
     /// Get a list of output items for an evaluation run.
     ///
@@ -112,10 +127,10 @@ pub trait OpenAiEvalsApi: Send + Sync {
         eval_id: String,
         run_id: String,
         after: Option<String>,
-        limit: Option<i64>,
+        limit: Option<i32>,
         status: Option<String>,
         order: Option<String>,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<EvalRunOutputItemList, Self::Error>;
 
     /// Get an evaluation run output item by ID.
     ///
@@ -126,5 +141,5 @@ pub trait OpenAiEvalsApi: Send + Sync {
         eval_id: String,
         run_id: String,
         output_item_id: String,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<EvalRunOutputItem, Self::Error>;
 }

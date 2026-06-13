@@ -1,14 +1,21 @@
-//! Project user role assignments REST endpoint contract.
+// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+//! ProjectUserRoleAssignments REST endpoint contract.
 
 use async_trait::async_trait;
 
-use crate::bodies::*;
+use crate::models::{
+    DeletedRoleAssignmentResource,
+    PublicAssignOrganizationGroupRoleBody,
+    RoleListResource,
+    UserRoleAssignment,
+};
 
-/// Project user role assignments REST endpoints.
+/// ProjectUserRoleAssignments REST endpoints.
 #[async_trait]
 pub trait OpenAiProjectUserRoleAssignmentsApi: Send + Sync {
     /// Error type returned by the application-layer implementation.
     type Error: std::error::Error + Send + Sync + 'static;
+
     /// Lists the project roles assigned to a user within a project.
     ///
     /// REST: `GET /projects/{project_id}/users/{user_id}/roles`.
@@ -17,10 +24,10 @@ pub trait OpenAiProjectUserRoleAssignmentsApi: Send + Sync {
         &self,
         project_id: String,
         user_id: String,
-        limit: Option<i64>,
+        limit: Option<i32>,
         after: Option<String>,
         order: Option<String>,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<RoleListResource, Self::Error>;
 
     /// Assigns a project role to a user within a project.
     ///
@@ -30,8 +37,8 @@ pub trait OpenAiProjectUserRoleAssignmentsApi: Send + Sync {
         &self,
         project_id: String,
         user_id: String,
-        body: OpenAiRequestBody,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+        body: PublicAssignOrganizationGroupRoleBody,
+    ) -> Result<UserRoleAssignment, Self::Error>;
 
     /// Unassigns a project role from a user within a project.
     ///
@@ -42,5 +49,5 @@ pub trait OpenAiProjectUserRoleAssignmentsApi: Send + Sync {
         project_id: String,
         user_id: String,
         role_id: String,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<DeletedRoleAssignmentResource, Self::Error>;
 }

@@ -96,7 +96,7 @@ trybuild = "1.0.112"
 zip = "4.6.1"
 anyhow = "1.0.99"
 async-trait = "0.1.89"
-az-derive-aliases = { version = "=2026.5.10", path = "crates/core/az-derive-aliases" }
+az-derive-aliases = { version = "=2026.6.13", path = "crates/core/az-derive-aliases" }
 urlencoding = "2.1"
 uuid = { version = "1.23.1", features = ["v4", "serde", "js"] }
 tokio = { version = "1.47.1", features = ["full"] }
@@ -136,8 +136,8 @@ az-aio-plugin-edge-gateway = { version = "=2026.5.10", path = "crates/apps/az-ai
 az-aio-plugin-software-center = { version = "=2026.5.10", path = "crates/apps/az-aio-plugin-software-center" }
 az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
 az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
-az-config-center-client = { version = "=2026.5.10", path = "crates/api/az-config-center-client" }
-az-config-center-contract = { version = "=2026.5.10", path = "crates/api/az-config-center-contract" }
+az-config-center-client = { version = "=2026.6.13", path = "crates/api/az-config-center-client" }
+az-config-center-contract = { version = "=2026.6.13", path = "crates/api/az-config-center-contract" }
 az-context = { version = "=2026.5.10", path = "crates/core/az-context" }
 az-dioxus-components = { version = "=2026.5.10", path = "crates/ui/az-dioxus-components" }
 az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }

@@ -944,6 +944,7 @@ version = "2026.5.10"
 dependencies = [
  "automod",
  "image",
+ "imageproc",
  "ndarray",
  "ort",
  "serde",
@@ -1114,7 +1115,7 @@ dependencies = [
 
 [[package]]
 name = "az-config-center-client"
-version = "2026.5.10"
+version = "2026.6.13"
 dependencies = [
  "az-config-center-contract",
  "reqwest 0.12.28",
@@ -1125,7 +1126,7 @@ dependencies = [
 
 [[package]]
 name = "az-config-center-contract"
-version = "2026.5.10"
+version = "2026.6.13"
 dependencies = [
  "az-derive-aliases",
  "chrono",
@@ -1197,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "az-derive-aliases"
-version = "2026.5.10"
+version = "2026.6.13"
 dependencies = [
  "clap",
  "derive_more 2.1.1",
@@ -1436,7 +1437,12 @@ version = "2026.5.10"
 dependencies = [
  "automod",
  "az-algorithm-onnx",
+ "image",
+ "imageproc",
+ "ndarray",
+ "ort",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
 ]
 

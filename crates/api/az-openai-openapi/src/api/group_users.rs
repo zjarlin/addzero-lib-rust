@@ -1,14 +1,21 @@
-//! Group users REST endpoint contract.
+// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+//! GroupUsers REST endpoint contract.
 
 use async_trait::async_trait;
 
-use crate::bodies::*;
+use crate::models::{
+    CreateGroupUserBody,
+    GroupUserAssignment,
+    GroupUserDeletedResource,
+    UserListResource,
+};
 
-/// Group users REST endpoints.
+/// GroupUsers REST endpoints.
 #[async_trait]
 pub trait OpenAiGroupUsersApi: Send + Sync {
     /// Error type returned by the application-layer implementation.
     type Error: std::error::Error + Send + Sync + 'static;
+
     /// Lists the users assigned to a group.
     ///
     /// REST: `GET /organization/groups/{group_id}/users`.
@@ -16,10 +23,10 @@ pub trait OpenAiGroupUsersApi: Send + Sync {
     async fn list_group_users(
         &self,
         group_id: String,
-        limit: Option<i64>,
+        limit: Option<i32>,
         after: Option<String>,
         order: Option<String>,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<UserListResource, Self::Error>;
 
     /// Adds a user to a group.
     ///
@@ -28,8 +35,8 @@ pub trait OpenAiGroupUsersApi: Send + Sync {
     async fn add_group_user(
         &self,
         group_id: String,
-        body: OpenAiRequestBody,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+        body: CreateGroupUserBody,
+    ) -> Result<GroupUserAssignment, Self::Error>;
 
     /// Removes a user from a group.
     ///
@@ -39,5 +46,5 @@ pub trait OpenAiGroupUsersApi: Send + Sync {
         &self,
         group_id: String,
         user_id: String,
-    ) -> Result<OpenAiResponseBody, Self::Error>;
+    ) -> Result<GroupUserDeletedResource, Self::Error>;
 }

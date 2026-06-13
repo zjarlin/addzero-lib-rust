@@ -313,6 +313,7 @@ fn worker_hit_counting_should_build_default_one_line_video_options() -> WorkerHi
     Ok(())
 }
 
+// 合成视频
 #[test]
 fn worker_hit_counting_should_reject_missing_video_for_one_line_api() {
     let err =

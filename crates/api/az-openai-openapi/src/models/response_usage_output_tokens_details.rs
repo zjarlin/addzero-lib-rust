@@ -1,0 +1,11 @@
+// Generated from openai/openai-openapi openapi.yaml. Do not edit by hand.
+//! `ResponseUsageOutputTokensDetails` DTO.
+
+use serde::{Deserialize, Serialize};
+
+/// A detailed breakdown of the output tokens.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResponseUsageOutputTokensDetails {
+    /// The number of reasoning tokens.
+    pub reasoning_tokens: i32,
+}

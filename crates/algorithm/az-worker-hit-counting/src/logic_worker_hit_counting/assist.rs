@@ -41,6 +41,14 @@ const POSE_MIN_BOX_AREA: f32 = 0.008;
 const POSE_MIN_VISIBLE_KEYPOINTS: usize = 8;
 const POSE_MIN_STRONG_KEYPOINTS: usize = 4;
 const POSE_EDGE_PARTIAL_MAX_HEIGHT: f32 = 0.09;
+const MATERIAL_STACK_FALSE_PERSON_ZONE: NormalizedBoundingBox = NormalizedBoundingBox {
+    x: 0.18,
+    y: 0.50,
+    width: 0.42,
+    height: 0.22,
+};
+const MATERIAL_STACK_FALSE_PERSON_MAX_HEIGHT: f32 = 0.18;
+const MATERIAL_STACK_FALSE_PERSON_MAX_AREA: f32 = 0.035;
 const TRACK_MAX_NORMALIZED_DISTANCE: f32 = 0.18;
 const TRACK_MAX_NORMALIZED_DISTANCE_WITH_MISSES: f32 = 0.28;
 const TRACK_MAX_MISSED_FRAMES: u64 = 30;
@@ -61,6 +69,17 @@ const TARGET_RESPONSE_TOP_PERCENTILE: f32 = 0.85;
 const TARGET_RESPONSE_CHANGED_PIXEL_FLOOR: f32 = 0.08;
 const TARGET_RESPONSE_CHANGED_RATIO_BASELINE: f32 = 0.08;
 const TARGET_RESPONSE_OTHER_PERSON_MASK_EXPAND: f32 = 0.018;
+const DEFAULT_TOP_HANGING_PANEL_ROI: VisualTargetObservation = VisualTargetObservation {
+    target_id: 10,
+    kind: VisualTargetKind::HangingMetalPanel,
+    target_box: NormalizedBoundingBox {
+        x: 0.55,
+        y: 0.06,
+        width: 0.36,
+        height: 0.26,
+    },
+    containment_score: 1.0,
+};
 const LEFT_WRIST_INDEX: usize = 9;
 const RIGHT_WRIST_INDEX: usize = 10;
 
@@ -815,6 +834,7 @@ fn is_valid_worker_pose_candidate(pose: &WorkerPoseDetection) -> bool {
             && pose.person_box.height <= POSE_EDGE_PARTIAL_MAX_HEIGHT;
     let is_top_partial = pose.person_box.y <= 0.02
         && pose.person_box.height <= POSE_EDGE_PARTIAL_MAX_HEIGHT;
+    let is_material_stack_false_person = is_material_stack_false_person_candidate(pose, box_area);
     pose.person_box.width >= POSE_MIN_BOX_WIDTH
         && pose.person_box.height >= POSE_MIN_BOX_HEIGHT
         && box_area >= POSE_MIN_BOX_AREA
@@ -822,6 +842,17 @@ fn is_valid_worker_pose_candidate(pose: &WorkerPoseDetection) -> bool {
         && strong_keypoints >= POSE_MIN_STRONG_KEYPOINTS
         && !is_bottom_partial
         && !is_top_partial
+        && !is_material_stack_false_person
+}
+
+fn is_material_stack_false_person_candidate(pose: &WorkerPoseDetection, box_area: f32) -> bool {
+    let center = NormalizedPoint {
+        x: pose.person_box.x + pose.person_box.width / 2.0,
+        y: pose.person_box.y + pose.person_box.height / 2.0,
+    };
+    containment_score(MATERIAL_STACK_FALSE_PERSON_ZONE, center) > 0.0
+        && pose.person_box.height <= MATERIAL_STACK_FALSE_PERSON_MAX_HEIGHT
+        && box_area <= MATERIAL_STACK_FALSE_PERSON_MAX_AREA
 }
 
 fn pose_value(output: &PoseOutputTensor, channel: usize, candidate_index: usize) -> f32 {
@@ -971,7 +1002,6 @@ fn action_observations_from_pose_frames(
                     previous,
                     &current_frame_image,
                     frame,
-                    person_id,
                     target_roi.target_box,
                     wrist,
                 )
@@ -997,7 +1027,6 @@ fn target_response_score_near_contact(
     previous_frame_image: &RgbImage,
     current_frame_image: &RgbImage,
     frame: &WorkerPoseFrame,
-    person_id: WorkerTrackId,
     target_box: NormalizedBoundingBox,
     contact_point: NormalizedPoint,
 ) -> f32 {
@@ -1030,7 +1059,7 @@ fn target_response_score_near_contact(
         return 0.0;
     }
 
-    let masked_person_boxes = person_mask_rects_for_response(frame, person_id);
+    let masked_person_boxes = person_mask_rects_for_response(frame);
     let mut local_diffs = Vec::new();
     collect_gray_diffs(
         previous_frame_image,
@@ -1087,10 +1116,7 @@ impl PixelRect {
     }
 }
 
-fn person_mask_rects_for_response(
-    frame: &WorkerPoseFrame,
-    _current_person_id: WorkerTrackId,
-) -> Vec<NormalizedBoundingBox> {
+fn person_mask_rects_for_response(frame: &WorkerPoseFrame) -> Vec<NormalizedBoundingBox> {
     frame
         .poses
         .iter()
@@ -1955,7 +1981,6 @@ mod tests {
             &previous,
             &current,
             &frame,
-            1,
             response_target_box(),
             NormalizedPoint { x: 0.52, y: 0.52 },
         );
@@ -1979,7 +2004,6 @@ mod tests {
             &previous,
             &current,
             &frame,
-            1,
             response_target_box(),
             NormalizedPoint { x: 0.52, y: 0.52 },
         );
