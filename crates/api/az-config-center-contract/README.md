@@ -25,7 +25,7 @@ az-config-center-contract = { path = "../az-config-center-contract" }  # workspa
 ## 用法
 
 ```rust
-use az_config_center_contract::{
+use az_config_center_contract::api::{
     ConfigItem, DesktopBackendStatus, GetQuery, ShellComponent, ShellComponentKind,
     ShellComponentPatch, ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,
     UpsertRequest,

@@ -867,6 +867,7 @@ dependencies = [
  "az-worker-hit-counting",
  "image",
  "imageproc",
+ "inventory",
  "serde",
  "serde_json",
  "strum 0.28.0",
@@ -1066,6 +1067,7 @@ dependencies = [
 name = "az-config-center-contract"
 version = "2026.6.13"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "chrono",
  "derive_more 2.1.1",
@@ -1706,6 +1708,7 @@ dependencies = [
 name = "az-remote-model"
 version = "2026.5.10"
 dependencies = [
+ "automod",
  "az-derive-aliases",
  "chrono",
  "derive_more 2.1.1",
@@ -2017,6 +2020,7 @@ name = "az-tree"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "automod",
  "az-derive-aliases",
  "serde",
  "serde_json",

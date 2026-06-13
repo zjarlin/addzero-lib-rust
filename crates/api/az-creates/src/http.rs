@@ -1,4 +1,4 @@
-use crate::ApiConfig;
+use crate::config::ApiConfig;
 use anyhow::{Context, bail};
 use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;

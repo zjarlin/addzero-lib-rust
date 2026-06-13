@@ -10,6 +10,7 @@ repository.workspace = true
 description = "AIO Desktop 配置中心契约层：Shell 组件类型、注册表、构建结果及桌面后端状态的数据类型定义"
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 derive_more.workspace = true

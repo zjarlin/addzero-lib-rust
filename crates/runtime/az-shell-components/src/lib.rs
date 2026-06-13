@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail};
-use az_config_center_contract::{
+use az_config_center_contract::api::{
     ShellComponent, ShellComponentBuildResult, ShellComponentKind, ShellComponentPatch,
     ShellComponentUpsert,
 };

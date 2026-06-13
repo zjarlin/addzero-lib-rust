@@ -28,7 +28,7 @@
 //!
 //! ```rust
 //! use az_remote_protocol::{ControlFrame, DeviceHello, StreamKind};
-//! use az_remote_model::{DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability};
+//! use az_remote_model::api::{DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability};
 //! use chrono::Utc;
 //! use uuid::Uuid;
 //!
@@ -58,7 +58,7 @@
 
 use anyhow::{Context, Result};
 use az_derive_aliases::{apply, serde_code_enum, serde_eq, serde_eq_redacted};
-use az_remote_model::{
+use az_remote_model::api::{
     ClipboardPayload, DeviceDescriptor, FileTransferEnvelope, RemoteInputEvent, SessionGrant,
     SessionRequest, VideoFrameEnvelope,
 };

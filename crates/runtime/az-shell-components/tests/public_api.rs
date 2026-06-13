@@ -1,4 +1,6 @@
-use az_config_center_contract::{ShellComponentKind, ShellComponentPatch, ShellComponentUpsert};
+use az_config_center_contract::api::{
+    ShellComponentKind, ShellComponentPatch, ShellComponentUpsert,
+};
 use az_shell_components::{
     build_output, expand_home_path, materialize_component, render_component,
     validate_component_name, validate_patch,

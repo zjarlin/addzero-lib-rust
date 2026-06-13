@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 
 use anyhow::{Context, Result, bail};
-use az_config_center_contract::{
+use az_config_center_contract::api::{
     DESKTOP_SESSION_TOKEN_HEADER, DesktopBackendStatus, ShellComponent, ShellComponentBuildRequest,
     ShellComponentBuildResult, ShellComponentConfigUpdate, ShellComponentPatch,
     ShellComponentRegistry, ShellComponentRemove, ShellComponentUpsert,

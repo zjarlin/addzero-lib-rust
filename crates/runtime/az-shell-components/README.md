@@ -28,7 +28,7 @@ az-shell-components = { path = "../az-shell-components" }   # workspace 内部�
 use az_shell_components::{
     materialize_component, render_component, build_output,
 };
-use az_config_center_contract::{
+use az_config_center_contract::api::{
     ShellComponentKind, ShellComponentUpsert,
 };
 

@@ -1,5 +1,5 @@
 use az_config_center_client::client::ConfigCenterClient;
-use az_config_center_contract::UpsertRequest;
+use az_config_center_contract::api::UpsertRequest;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]

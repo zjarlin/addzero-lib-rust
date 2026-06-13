@@ -12,6 +12,7 @@ repository.workspace = true
 [dependencies]
 automod.workspace = true
 az-derive-aliases.workspace = true
+inventory.workspace = true
 serde.workspace = true
 strum.workspace = true
 

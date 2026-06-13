@@ -1,4 +1,4 @@
-use az_remote_model::{
+use az_remote_model::api::{
     ClipboardPayload, DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability,
 };
 use az_remote_protocol::{ControlFrame, DeviceHello, StreamKind};

@@ -1,4 +1,4 @@
-use crate::ApiConfig;
+use crate::config::ApiConfig;
 use az_derive_aliases::{apply, plain_clone_debug};
 
 /// Maven Central 构件搜索结果模型，直接复用 `az-maven` 的 wire DTO。

@@ -11,7 +11,7 @@
 //!
 //! ## 设备描述
 //!
-//! 通过 [`az_remote_model::DeviceDescriptor`] 填充宿主设备的唯一标识、平台类型、角色（Host）、
+//! 通过 [`az_remote_model::api::DeviceDescriptor`] 填充宿主设备的唯一标识、平台类型、角色（Host）、
 //! 在线状态和完整会话能力，供远控信令层直接使用。
 //!
 //! ## 平台感知
@@ -22,7 +22,7 @@
 #![forbid(unsafe_code)]
 
 use az_derive_aliases::{apply, plain_default_copy_eq};
-use az_remote_model::{
+use az_remote_model::api::{
     DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability,
 };
 use chrono::Utc;

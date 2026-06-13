@@ -1,4 +1,4 @@
-use az_config_center_contract::ShellComponentKind;
+use az_config_center_contract::api::ShellComponentKind;
 
 #[test]
 fn shell_component_kind_keeps_wire_codes() {

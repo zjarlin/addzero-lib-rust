@@ -13,9 +13,10 @@
 
 use anyhow::{anyhow, bail};
 use az_derive_aliases::{apply, impl_default, plain_clone_debug, plain_default_debug};
-use az_remote_model::{
-    ClipboardPayload, DeviceDescriptor, DeviceId, FileTransferEnvelope, OnlineStatus, SessionGrant,
-    SessionId, SessionRequest, SessionState, SessionSummary, VideoFrameEnvelope,
+use az_remote_model::api::{
+    ClipboardPayload, DeviceDescriptor, DeviceId, FileTransferEnvelope, OnlineStatus,
+    SessionCapability, SessionGrant, SessionId, SessionRequest, SessionState, SessionSummary,
+    VideoFrameEnvelope,
 };
 use chrono::Utc;
 use quinn::VarInt;
@@ -77,7 +78,7 @@ impl RemoteRelayService {
         &mut self,
         viewer_id: DeviceId,
         host_id: DeviceId,
-        capability: az_remote_model::SessionCapability,
+        capability: SessionCapability,
     ) -> anyhow::Result<SessionRequest> {
         self.devices
             .get(&viewer_id)

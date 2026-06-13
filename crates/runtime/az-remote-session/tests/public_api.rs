@@ -1,4 +1,4 @@
-use az_remote_model::{
+use az_remote_model::api::{
     ClipboardPayload, DeviceDescriptor, DeviceRole, FileTransferEnvelope, OnlineStatus,
     RemotePlatform, SessionCapability, VideoCodec, VideoFrameEnvelope,
 };

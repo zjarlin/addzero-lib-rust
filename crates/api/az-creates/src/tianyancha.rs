@@ -3,7 +3,7 @@ use crate::util::{
     canonical_query_string, canonical_uri, encode_url_component, hex_string, sha256_hex,
     trim_non_blank,
 };
-use crate::ApiConfig;
+use crate::config::ApiConfig;
 use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{
     apply, deserialize_debug, plain_clone_debug, serde_eq_default, serde_partial_eq_default,

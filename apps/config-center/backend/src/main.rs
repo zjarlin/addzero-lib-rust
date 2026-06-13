@@ -14,7 +14,7 @@ use az_config_center_app::{
     },
     database_url::{database_name_from_url, database_url_for_database, quote_pg_identifier},
 };
-use az_config_center_contract::{
+use az_config_center_contract::api::{
     ApiResponse, ConfigItem, DeleteRequest, DeleteResult, ErrorBody, GetQuery, ListQuery,
     LoginPayload, LoginRequest, StatusPayload, ToggleRequest, UpsertRequest,
 };

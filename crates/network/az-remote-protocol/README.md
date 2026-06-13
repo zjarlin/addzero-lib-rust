@@ -24,16 +24,24 @@ az-remote-protocol = { path = "../az-remote-protocol" }   # workspace 内部引�
 ## 用法
 
 \`\`\`rust
+use az_remote_model::api::{
+    DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability,
+};
 use az_remote_protocol::{ControlFrame, DeviceHello};
-use az_remote_model::DeviceDescriptor;
+use chrono::Utc;
+use uuid::Uuid;
 
 // 构建设备握手帧
 let hello = DeviceHello {
     device: DeviceDescriptor {
-        id: "device-001".into(),
-        name: "我的电脑".into(),
-        os: "Linux".into(),
-        ..Default::default()
+        device_id: Uuid::new_v4(),
+        device_name: "我的电脑".into(),
+        platform: RemotePlatform::LinuxX11,
+        role: DeviceRole::Host,
+        capabilities: SessionCapability::full_host(),
+        online_status: OnlineStatus::Online,
+        last_seen_at: Utc::now(),
+        notes: None,
     },
     relay_token: "secret-token".into(),
 };

@@ -27,7 +27,10 @@ az-remote-model = { path = "../az-remote-model" }   # workspace 内部引用
 ## 用法
 
 ```rust
-use az_remote_model::*;
+use az_remote_model::api::{
+    DeviceDescriptor, DeviceRole, OnlineStatus, RemoteInputEvent, RemotePlatform,
+    SessionCapability, SessionRequest,
+};
 use chrono::Utc;
 use uuid::Uuid;
 

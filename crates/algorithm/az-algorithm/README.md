@@ -32,11 +32,12 @@
 ```rust
 use az_algorithm::catalog::{AlgorithmTaskKind, algorithm_components_by_task};
 
-let recognition_components: Vec<_> =
+let mut recognition_components: Vec<_> =
     algorithm_components_by_task(AlgorithmTaskKind::Recognition).collect();
+recognition_components.sort_by_key(|c| c.label);
 
 assert_eq!(recognition_components.len(), 3);
-assert_eq!(recognition_components[0].label, "人脸识别");
+assert_eq!(recognition_components[0].label, "OCR文字识别");
 ```
 
 ## 运行测试

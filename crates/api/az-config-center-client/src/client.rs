@@ -1,7 +1,7 @@
 use std::fmt;
 
 use anyhow::{Context, Result, bail};
-use az_config_center_contract::{
+use az_config_center_contract::api::{
     ApiResponse, ConfigItem, DeleteRequest, DeleteResult, LoginPayload, LoginRequest,
     StatusPayload, ToggleRequest, UpsertRequest,
 };

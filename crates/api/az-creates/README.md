@@ -33,8 +33,8 @@ az-creates = { path = "/absolute/path/to/addzero-lib-rust/crates/api/az-creates"
 
 ## 基础用法
 
-```rust
-use az_creates::Creates;
+```rust,no_run
+use az_creates::api::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let maven = Creates::maven_central()?;
@@ -55,8 +55,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Maven Central
 
-```rust
-use az_creates::Creates;
+```rust,no_run
+use az_creates::api::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::maven_central()?;
@@ -100,8 +100,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 网易云音乐搜索
 
-```rust
-use az_creates::Creates;
+```rust,no_run
+use az_creates::api::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::music_search()?;
@@ -133,8 +133,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Suno
 
-```rust
-use az_creates::{Creates, SunoMusicRequest};
+```rust,no_run
+use az_creates::api::{Creates, SunoMusicRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::suno("your-suno-token")?;
@@ -166,8 +166,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 天眼查
 
-```rust
-use az_creates::Creates;
+```rust,no_run
+use az_creates::api::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha("your-authorization", "your-x-auth-token")?;
@@ -190,8 +190,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 这个版本会在 Rust 侧真实生成 `SDK-HMAC-SHA256` 签名头，而不是简单拼 URL。
 
-```rust
-use az_creates::Creates;
+```rust,no_run
+use az_creates::api::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha_huawei("your-ak", "your-sk")?;
@@ -207,8 +207,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Temp Mail
 
-```rust
-use az_creates::{Creates, TempMailNewAddressRequest, TempMailPageRequest};
+```rust,no_run
+use az_creates::api::{Creates, TempMailNewAddressRequest, TempMailPageRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::temp_mail_cloudflare("https://mail.example.com")?;
@@ -227,8 +227,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Provider factory 注入：
 
-```rust
-use az_creates::{
+```rust,no_run
+use az_creates::api::{
     Creates, TempMailApiConfig, TempMailProviderConfig, TempMailProviderKind,
 };
 
@@ -256,20 +256,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## SMS provider
 
 ```rust
-use az_creates::{
-    BuiltinSmsProviderFactory, Creates, DogSmsConfig, GrizzlySmsConfig, SmsProviderConfig, SmsProviderFactory,
-    SmsProviderKind,
+use az_creates::api::{
+    BuiltinSmsProviderFactory, Creates, DogSmsConfig, GrizzlySmsConfig, SmsProviderConfig,
+    SmsProviderFactory, SmsProviderKind,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = DogSmsConfig::builder("token").build()?;
+    assert_eq!(SmsProviderConfig::from(config.clone()).kind(), SmsProviderKind::DogSms);
     let provider = Creates::sms_provider(SmsProviderConfig::from(config))?;
-    assert_eq!(provider.provider_kind(), SmsProviderKind::DogSms);
+    drop(provider);
 
     let factory: &dyn SmsProviderFactory = &BuiltinSmsProviderFactory;
     let grizzly = GrizzlySmsConfig::builder("token").build()?;
+    assert_eq!(SmsProviderConfig::from(grizzly.clone()).kind(), SmsProviderKind::GrizzlySms);
     let provider = Creates::sms_provider_with_factory(factory, grizzly.into())?;
-    assert_eq!(provider.provider_kind(), SmsProviderKind::GrizzlySms);
+    drop(provider);
     Ok(())
 }
 ```
@@ -281,8 +283,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Email sender
 
-```rust
-use az_creates::{
+```rust,no_run
+use az_creates::api::{
     BuiltinEmailSenderFactory, Creates, EmailConfig, EmailSenderConfig, EmailSenderFactory,
     EmailSenderKind,
 };
@@ -312,9 +314,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## 自定义配置
 
-```rust
+```rust,no_run
 use std::time::Duration;
-use az_creates::{ApiConfig, Creates};
+use az_creates::api::{ApiConfig, Creates};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ApiConfig::builder("https://api.vectorengine.ai")
