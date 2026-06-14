@@ -36,3 +36,7 @@ uuid.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+tokio-tungstenite = "0.26"
+base64 = "0.22"
+serde_json.workspace = true
+futures-util.workspace = true

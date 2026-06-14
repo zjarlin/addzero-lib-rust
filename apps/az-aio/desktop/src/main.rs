@@ -10,7 +10,7 @@ use dioxus::desktop::{Config, WindowBuilder};
 use dioxus::desktop::tao::{dpi::LogicalPosition, platform::macos::WindowBuilderExtMacOS};
 
 fn main() {
-    az_aio_plugin_bundled::api::ensure_linked();
+    az_aio_shared::plugin::load_snapshot();
 
     dioxus::LaunchBuilder::desktop()
         .with_cfg(Config::new().with_window(app_window_builder()))

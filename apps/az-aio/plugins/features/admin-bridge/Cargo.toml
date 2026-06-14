@@ -1,0 +1,21 @@
+[package]
+name = "az-aio-plugin-admin-bridge"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "AZ AIO admin plugin registry bridge."
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+automod.workspace = true
+anyhow.workspace = true
+az-aio-plugin-api = { path = "../../api" }
+az-admin-plugin-registry.workspace = true
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

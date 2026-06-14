@@ -25,6 +25,8 @@ config-center = { path = "../config-center" }
 drive-center = { path = "../drive-center" }
 edge-gateway = { path = "../edge-gateway" }
 software-center = { path = "../software-center" }
+az-aio-plugin-admin-bridge = { path = "../features/admin-bridge" }
+az-system-starters.workspace = true
 
 [dev-dependencies]
 az-aio-plugin-api = { path = "../api" }

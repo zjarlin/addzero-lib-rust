@@ -369,15 +369,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-admin-plugin-registry"
+version = "2026.5.10"
+dependencies = [
+ "automod",
+ "az-derive-aliases 2026.6.13",
+ "inventory",
+ "strum",
+]
+
+[[package]]
 name = "az-aio-desktop"
 version = "2026.5.10"
 dependencies = [
  "automod",
  "az-aio-plugin-api",
- "az-aio-plugin-bundled",
  "az-aio-plugin-host",
+ "az-aio-shared",
  "dioxus",
  "tokio",
+]
+
+[[package]]
+name = "az-aio-plugin-admin-bridge"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "automod",
+ "az-admin-plugin-registry",
+ "az-aio-plugin-api",
 ]
 
 [[package]]
@@ -411,6 +431,7 @@ dependencies = [
  "az-aio-plugin-search",
  "az-aio-plugin-settings",
  "az-aio-plugin-sync",
+ "az-system-starters",
  "config-center",
  "drive-center",
  "edge-gateway",
@@ -557,17 +578,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "az-aio-web"
+name = "az-aio-shared"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "axum",
  "az-aio-plugin-api",
  "az-aio-plugin-bundled",
  "az-aio-plugin-host",
  "az-config-center-client",
  "serde",
  "serde_json",
+ "shaku",
+ "tokio",
+]
+
+[[package]]
+name = "az-aio-web"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "axum",
+ "az-aio-plugin-api",
+ "az-aio-shared",
+ "serde",
+ "serde_json",
+ "shaku",
  "tokio",
  "tower",
  "tower-http",
@@ -653,6 +688,68 @@ dependencies = [
  "reqwest",
  "sha2 0.10.9",
  "strum",
+]
+
+[[package]]
+name = "az-starter-audit"
+version = "2026.5.10"
+dependencies = [
+ "automod",
+ "az-admin-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-dictionary"
+version = "2026.5.10"
+dependencies = [
+ "automod",
+ "az-admin-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-identity"
+version = "2026.5.10"
+dependencies = [
+ "automod",
+ "az-admin-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-menu"
+version = "2026.5.10"
+dependencies = [
+ "automod",
+ "az-admin-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-organization"
+version = "2026.5.10"
+dependencies = [
+ "automod",
+ "az-admin-plugin-registry",
+]
+
+[[package]]
+name = "az-starter-storage"
+version = "2026.5.10"
+dependencies = [
+ "automod",
+ "az-admin-plugin-registry",
+]
+
+[[package]]
+name = "az-system-starters"
+version = "2026.5.10"
+dependencies = [
+ "automod",
+ "az-admin-plugin-registry",
+ "az-starter-audit",
+ "az-starter-dictionary",
+ "az-starter-identity",
+ "az-starter-menu",
+ "az-starter-organization",
+ "az-starter-storage",
 ]
 
 [[package]]

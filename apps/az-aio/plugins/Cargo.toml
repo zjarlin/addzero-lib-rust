@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "../desktop",
+    "../shared",
     "../web",
     "api",
     "asset-hub",
@@ -20,6 +21,7 @@ members = [
     "features/navigation",
     "features/projects",
     "features/search",
+    "features/admin-bridge",
     "features/settings",
     "features/sync",
 ]
@@ -35,6 +37,14 @@ authors = ["zjarlin"]
 anyhow = "1.0.99"
 axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
 automod = "1.0.16"
+az-admin-plugin-registry = { version = "=2026.5.10", path = "../../../crates/runtime/az-admin-plugin-registry" }
+az-starter-audit = { version = "=2026.5.10", path = "../../../crates/runtime/az-starter-audit" }
+az-starter-dictionary = { version = "=2026.5.10", path = "../../../crates/runtime/az-starter-dictionary" }
+az-starter-identity = { version = "=2026.5.10", path = "../../../crates/runtime/az-starter-identity" }
+az-starter-menu = { version = "=2026.5.10", path = "../../../crates/runtime/az-starter-menu" }
+az-starter-organization = { version = "=2026.5.10", path = "../../../crates/runtime/az-starter-organization" }
+az-starter-storage = { version = "=2026.5.10", path = "../../../crates/runtime/az-starter-storage" }
+az-system-starters = { version = "=2026.5.10", path = "../../../crates/runtime/az-system-starters" }
 az-derive-aliases = { version = "=2026.6.13", path = "../../../crates/core/az-derive-aliases" }
 dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
 handlebars = "6.4.1"
