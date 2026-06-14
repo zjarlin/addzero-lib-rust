@@ -142,9 +142,9 @@ pub enum ScreenLayout {
 impl ScreenLayout {
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Table => "增删改查表格",
+            Self::Table => "表格 · CRUD",
             Self::MasterDetail => "左树右表",
-            Self::TreeTable => "树形表格",
+            Self::TreeTable => "树形表",
             Self::Accordion => "手风琴",
             Self::Form => "表单",
         }

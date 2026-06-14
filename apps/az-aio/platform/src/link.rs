@@ -4,6 +4,11 @@
 /// `inventory::submit!`. Without an explicit symbol reference from the
 /// host binary, the linker may discard plugin rlibs.
 pub fn link_plugins() {
+    // algorithm-center
+    {
+        extern crate algorithm_center;
+        let _ = &algorithm_center::plugin::AlgorithmCenterPlugin;
+    }
     // asset-hub
     {
         extern crate asset_hub;

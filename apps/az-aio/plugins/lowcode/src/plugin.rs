@@ -23,7 +23,7 @@ impl NativeAzAioPlugin for LowcodePlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: PLUGIN_ID.into(),
-            name: "Lowcode Studio".into(),
+            name: "低代码工作台".into(),
             version: env!("CARGO_PKG_VERSION").into(),
             description: "元数据建模与低代码 AppScreen 管理".into(),
             activation: PluginActivation::Eager,
@@ -39,14 +39,14 @@ impl NativeAzAioPlugin for LowcodePlugin {
         Ok(ContributionSet {
             nav_items: vec![NavItemContribution {
                 id: "lowcode.nav".into(),
-                label: "Lowcode".into(),
+                label: "低代码".into(),
                 icon: "▣".into(),
                 route: ROUTE.into(),
                 order: 50,
             }],
             pages: vec![PageContribution {
                 route: ROUTE.into(),
-                title: "Lowcode Studio".into(),
+                title: "低代码工作台".into(),
                 subtitle: "元数据建模 & AppScreen 低代码管理".into(),
                 renderer_id: RENDERER_ID.into(),
                 placeholder_mark: "▣".into(),

@@ -80,6 +80,7 @@ async fn health() -> &'static str {
     "ok"
 }
 // Force-link plugin crates so inventory sections are preserved.
+use algorithm_center as _;
 use asset_hub as _;
 use config_center as _;
 use drive_center as _;

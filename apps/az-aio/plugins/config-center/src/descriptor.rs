@@ -11,7 +11,7 @@ pub const RENDERER_ID: &str = "config-center.page";
 pub fn descriptor() -> PluginDescriptor {
     PluginDescriptor {
         id: PLUGIN_ID.to_string(),
-        name: "Config Center".to_string(),
+        name: "配置中心".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         description: "Dotfiles monitor, pairing identity, XDG paths, and provider configuration."
             .to_string(),
@@ -38,15 +38,15 @@ pub fn contributions() -> ContributionSet {
     ContributionSet {
         nav_items: vec![NavItemContribution {
             id: "config-center.nav".to_string(),
-            label: "Config".to_string(),
+            label: "配置".to_string(),
             icon: "⚙".to_string(),
             route: ROUTE.to_string(),
             order: 30,
         }],
         pages: vec![PageContribution {
             route: ROUTE.to_string(),
-            title: "Config Center".to_string(),
-            subtitle: "Dotfiles monitor, pairing identity, and path configuration.".to_string(),
+            title: "配置中心".to_string(),
+            subtitle: "Dotfiles 监控 · 配对身份 · 路径配置".to_string(),
             renderer_id: RENDERER_ID.to_string(),
             placeholder_mark: "⚙".to_string(),
             order: 30,

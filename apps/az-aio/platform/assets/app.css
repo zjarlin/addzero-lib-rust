@@ -1,3 +1,9 @@
+/* ===== Light Theme ===== */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* ===== Dark Theme (default) ===== */
 :root {
   color-scheme: dark;
   --bg: #101112;
@@ -22,6 +28,23 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+}
+:root[data-theme="light"] {
+  --bg: #f5f5f6;
+  --panel: rgba(240, 240, 242, 0.92);
+  --panel-strong: rgba(228, 230, 233, 0.95);
+  --panel-muted: #5a5e62;
+  --line: rgba(0, 0, 0, 0.11);
+  --line-soft: rgba(0, 0, 0, 0.07);
+  --text: #1a1b1c;
+  --text-muted: #3a3d40;
+  --text-subtle: #5f6368;
+  --content: #ffffff;
+  --content-raised: #f0f1f2;
+  --accent: #0066cc;
+  --warning: #d45214;
+  --skeleton-surface: rgba(0, 0, 0, 0.06);
+  --skeleton-highlight: rgba(0, 0, 0, 0.09);
 }
 
 * {
@@ -49,6 +72,10 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+:root[data-theme="light"] body {
+  background: #f0f1f2;
+}
+
 button {
   font: inherit;
 }
@@ -62,6 +89,10 @@ button {
   overflow: hidden;
   background: linear-gradient(135deg, #2e454d 0%, #161819 44%, #090a0a 100%);
   transition: grid-template-columns 160ms ease;
+}
+
+:root[data-theme="light"] .az-aio-shell {
+  background: linear-gradient(135deg, #c8d6db 0%, #e8eaec 44%, #f5f6f7 100%);
 }
 
 .az-aio-shell--collapsed {
@@ -95,6 +126,13 @@ button {
   backdrop-filter: blur(22px) saturate(138%);
   -webkit-backdrop-filter: blur(22px) saturate(138%);
   box-shadow: inset -1px 0 rgba(255, 255, 255, 0.045);
+}
+
+:root[data-theme="light"] .sidebar::before {
+  background:
+    linear-gradient(180deg, var(--panel-strong), var(--panel)),
+    rgba(220, 224, 228, 0.56);
+}
 }
 
 .az-aio-shell--collapsed .sidebar {
@@ -166,11 +204,11 @@ button {
 .project-row:hover,
 .thread-row:hover,
 .settings-button:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(128, 128, 128, 0.12);
 }
 
 .nav-button--active {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(128, 128, 128, 0.15);
 }
 
 .nav-button--tree {
@@ -381,8 +419,13 @@ button {
 .workspace__body {
   min-height: 0;
   display: grid;
-  place-items: center;
-  padding: 24px;
+  overflow: hidden;
+}
+
+.workspace__body--lowcode {
+  padding: 0;
+  grid-template-rows: 1fr;
+  overflow: hidden;
 }
 
 .workspace__body--catalog {
@@ -1889,6 +1932,13 @@ button {
   box-shadow: inset -1px 0 rgba(255, 255, 255, 0.045);
 }
 
+:root[data-theme="light"] .sidebar::before {
+  background:
+    linear-gradient(180deg, var(--panel-strong), var(--panel)),
+    rgba(220, 224, 228, 0.56);
+}
+}
+
 .settings-tree__brand {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
@@ -2780,42 +2830,56 @@ button {
   border-collapse: collapse;
   color: var(--text-muted);
   font-size: 12px;
+  table-layout: auto;
 }
 
 .az-table--bordered {
-  border: 1px solid var(--line-soft);
-  border-radius: 8px;
   border-collapse: separate;
   border-spacing: 0;
-  overflow: hidden;
 }
 
 .az-table__header-cell,
 .az-table__cell {
-  min-width: 116px;
-  padding: 9px 10px;
-  border-bottom: 1px solid var(--line-soft);
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .az-table__header-cell {
-  background: rgba(255, 255, 255, 0.055);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(24, 26, 27, 0.96);
   color: var(--text);
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 640;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .az-table__cell {
-  overflow-wrap: anywhere;
-  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+/* Zebra striping */
+.az-table__body tr:nth-child(even) .az-table__cell {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.az-table__body tr:hover .az-table__cell {
+  background: rgba(255, 255, 255, 0.055);
 }
 
 .az-table--dense .az-table__header-cell,
 .az-table--dense .az-table__cell {
-  padding: 7px 9px;
+  padding: 4px 8px;
 }
 
-.az-table__body .az-table__row:last-child .az-table__cell {
+.az-table__body tr:last-child .az-table__cell {
   border-bottom: 0;
 }
 
@@ -2831,6 +2895,7 @@ button {
 .az-table__cell--empty {
   color: var(--text-subtle);
   text-align: center;
+  white-space: normal;
 }
 
 .empty-panel {
@@ -3007,49 +3072,47 @@ button {
 /* ── Lowcode Studio ──────────────────────────────────────────────── */
 
 .lowcode-page {
-  min-height: 100%;
+  height: 100%;
   display: grid;
   grid-template-rows: auto 1fr;
+  overflow: hidden;
 }
 
 .lowcode-page__header {
-  padding: 18px 24px 12px;
+  padding: 12px 18px 10px;
   border-bottom: 1px solid var(--line-soft);
+  flex-shrink: 0;
 }
 
 .lowcode-page__header h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 660;
 }
 
 .lowcode-page__header p {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--text-subtle);
   font-size: 13px;
 }
 
 .lowcode-workbench {
-  min-width: 0;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 18px;
-  padding: 16px 20px;
-  align-items: start;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
 }
 
 .lowcode-tree {
-  position: sticky;
-  top: 12px;
-  min-width: 0;
-  max-height: calc(100vh - 148px);
+  min-height: 0;
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  overflow: auto;
-  border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
+  grid-template-rows: auto 1fr auto;
+  gap: 0;
+  padding: 4px 0;
+  overflow: hidden;
+  border-right: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .lowcode-tree__header {
@@ -3057,28 +3120,50 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  padding: 0 10px 6px;
+  border-bottom: 1px solid var(--line-soft);
+  flex-shrink: 0;
 }
 
 .lowcode-tree__header h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 640;
 }
 
 .lowcode-tree__list {
+  overflow: auto;
+  padding: 4px 6px;
   display: grid;
-  gap: 6px;
+  gap: 1px;
 }
 
+.lowcode-tree__footer {
+  padding: 8px 10px 0;
+  border-top: 1px solid var(--line-soft);
+  flex-shrink: 0;
+}
+
+
+
 .lowcode-detail {
+  min-height: 0;
   min-width: 0;
   display: grid;
-  gap: 14px;
+  grid-template-rows: auto 1fr;
+  gap: 0;
+  overflow: hidden;
+}
+
+.lowcode-detail__header {
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  flex-shrink: 0;
 }
 
 .lowcode-detail__header h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 640;
 }
 
@@ -3089,17 +3174,19 @@ button {
 }
 
 .lowcode-table-scroll {
+  min-height: 0;
   min-width: 0;
   overflow: auto;
+  flex: 1;
 }
 
 /* ── Lowcode Accordion ───────────────────────────────────────────── */
 
 .lowcode-accordion {
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.035);
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .lowcode-accordion__summary {
@@ -3131,4 +3218,59 @@ button {
   background: rgba(0, 0, 0, 0.16);
   color: var(--text-muted);
   font-size: 14px;
+}
+
+/* Lowcode tree nav buttons — compact */
+.lowcode-tree__list .nav-button {
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 13px;
+  border-radius: 5px;
+}
+
+.lowcode-tree__list .nav-button__meta {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-subtle);
+}
+
+/* Toolbar button danger variant */
+.toolbar-button--danger {
+  border-color: rgba(220, 95, 69, 0.3);
+  background: rgba(220, 95, 69, 0.1);
+  color: var(--warning);
+}
+
+.toolbar-button--danger:hover {
+  background: rgba(220, 95, 69, 0.2);
+}
+
+/* Badge variants */
+.az-badge--accent {
+  border-color: rgba(47, 155, 255, 0.3);
+  background: rgba(47, 155, 255, 0.12);
+  color: var(--accent);
+}
+
+.az-badge--warn {
+  border-color: rgba(255, 122, 50, 0.3);
+  background: rgba(255, 122, 50, 0.1);
+  color: var(--warning);
+}
+
+/* Inline code in table cells */
+.az-table__cell code {
+  font-size: 11px;
+  color: var(--accent);
+  background: rgba(47, 155, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* Toolbar button sizing inside table */
+.az-table__cell .toolbar-button {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  border-radius: 5px;
 }

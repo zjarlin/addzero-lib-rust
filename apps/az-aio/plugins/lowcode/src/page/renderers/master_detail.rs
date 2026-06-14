@@ -73,9 +73,9 @@ pub fn render_master_detail(
 
     rsx! {
         section { class: "lowcode-page",
-            header { class: "lowcode-page__header",
-                h1 { "{title}" }
-                p { "左树右表 — 点击树节点过滤右侧数据" }
+            header { class: "lowcode-page__header", style: "padding: 10px 16px 8px;",
+                h1 { style: "font-size: 17px; font-weight: 640; margin: 0;", "{title}" }
+                p { "左树右表 · 点击树节点过滤" }
                 a { href: "/?route={lowcode_route}&mode=screens", class: "toolbar-button", "← 返回" }
             }
             div { class: "lowcode-workbench",
@@ -83,7 +83,6 @@ pub fn render_master_detail(
                     div { class: "lowcode-tree__header", h2 { "导航" } }
                     div { class: "lowcode-tree__list",
                         if has_tree {
-                            // "全部" link to reset filter
                             a {
                                 href: "/?route={lowcode_route}&screen={screen_id}",
                                 class: if expand.is_none() { "nav-button nav-button--active" } else { "nav-button" },
@@ -111,6 +110,35 @@ pub fn render_master_detail(
                             }
                         }
                         span { class: "lowcode-detail__subtitle", "{filtered_records.len()} 条" }
+                    }
+                    // Create record form
+                    details { class: "lowcode-accordion",
+                        summary { class: "lowcode-accordion__summary", "＋ 新建记录" }
+                        div { class: "lowcode-accordion__body",
+                            form {
+                                method: "get",
+                                action: "/",
+                                input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
+                                input { r#type: "hidden", name: "action", value: "new-record" }
+                                input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
+                                input { r#type: "hidden", name: "screen", value: "{screen_id}" }
+                                for f in fields.iter() {
+                                    div { class: "settings-form-row",
+                                        label { "{f.label}" }
+                                        if f.field_type == "Relation" {
+                                            {relation_select_md(f, &rec_store)}
+                                        } else {
+                                            input {
+                                                class: "settings-input",
+                                                name: "rec_{f.name}",
+                                                placeholder: "输入{f.label}",
+                                            }
+                                        }
+                                    }
+                                }
+                                button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "创建" }
+                            }
+                        }
                     }
                     div { class: "lowcode-table-scroll",
                         table { class: "az-table az-table--bordered az-table--dense",
@@ -182,8 +210,34 @@ fn render_tree_nodes(
     }
 }
 
+fn relation_select_md(field: &MetaFieldView, rec_store: &RecordStore) -> Element {
+    if let Some(ref rel_model_id) = field.relation_model_id {
+        let options = rec_store.list(rel_model_id);
+        rsx! {
+            select { class: "settings-input", name: "rec_{field.name}",
+                option { value: "", "— 选择 —" }
+                for opt in &options {
+                    option {
+                        value: "{opt.id}",
+                        "{opt.fields.get(\"name\").or(opt.fields.get(\"label\")).cloned().unwrap_or_else(|| opt.id.clone())}"
+                    }
+                }
+            }
+        }
+    } else {
+        rsx! {
+            input {
+                class: "settings-input",
+                name: "rec_{field.name}",
+                placeholder: "关联ID",
+            }
+        }
+    }
+}
+
 fn parse_q<'a>(query: &'a str, key: &str) -> Option<String> {
-    for pair in query.split('&') {
+    let qs = query.split('?').nth(1).unwrap_or(query);
+    for pair in qs.split('&') {
         let mut parts = pair.splitn(2, '=');
         if parts.next()? == key {
             return parts.next().map(|v| urlencoding::decode(v).unwrap_or_else(|_| v.into()).into());

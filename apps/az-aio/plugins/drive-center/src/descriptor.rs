@@ -11,7 +11,7 @@ pub const RENDERER_ID: &str = "drive-center.page";
 pub fn descriptor() -> PluginDescriptor {
     PluginDescriptor {
         id: PLUGIN_ID.to_string(),
-        name: "Drive Center".to_string(),
+        name: "网盘中心".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         description: "Drive hosting, tracked items, queue, conflicts, and root aliases."
             .to_string(),
@@ -33,14 +33,14 @@ pub fn contributions() -> ContributionSet {
     ContributionSet {
         nav_items: vec![NavItemContribution {
             id: "drive-center.nav".to_string(),
-            label: "Drive".to_string(),
+            label: "网盘".to_string(),
             icon: "⇄".to_string(),
             route: ROUTE.to_string(),
             order: 40,
         }],
         pages: vec![PageContribution {
             route: ROUTE.to_string(),
-            title: "Drive Center".to_string(),
+            title: "网盘中心".to_string(),
             subtitle: "Drive hosting, tracked items, queue, conflicts, and root aliases."
                 .to_string(),
             renderer_id: RENDERER_ID.to_string(),

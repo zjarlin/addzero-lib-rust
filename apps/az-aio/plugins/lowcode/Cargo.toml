@@ -8,6 +8,7 @@ authors = ["zjarlin"]
 description = "AZ AIO lowcode plugin: meta-model driven AppScreen generation."
 
 [dependencies]
+tower-http = { version = "0.6", features = ["cors"] }
 anyhow.workspace = true
 axum.workspace = true
 chrono = { version = "0.4.42", features = ["clock"] }
@@ -20,3 +21,7 @@ urlencoding = "2"
 tokio.workspace = true
 toasty.workspace = true
 uuid.workspace = true
+
+[[bin]]
+name = "lowcode-api"
+path = "src/bin/lowcode-api.rs"

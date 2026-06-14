@@ -30,6 +30,7 @@ fn AppLayout(props: ShellProps) -> Element {
     let page = props.pages.iter().find(|p| p.route == route);
     let page_title = page.map(|p| p.title.clone()).unwrap_or_default();
     let page_mark = page.map(|p| p.placeholder_mark.clone()).unwrap_or_default();
+    let is_lowcode = route.starts_with("/lowcode");
 
     let make_ctx = || NativeRenderContext {
         active_route: format!("{}{}", route, query),
@@ -65,9 +66,17 @@ fn AppLayout(props: ShellProps) -> Element {
                                 span { "AZ AIO" }
                             }
                         }
+                        span { " " }
+                        a {
+                            class: "toolbar-button",
+                            style: "margin-left: auto; font-size: 13px; padding: 4px 10px; cursor: pointer;",
+                            href: "#",
+                            id: "theme-toggle",
+                            "🌓"
+                        }
                     }
                 }
-                div { class: "workspace__body",
+                div { class: if is_lowcode { "workspace__body workspace__body--lowcode" } else { "workspace__body" },
                     if let Some(render) = content_renderer {
                         {render(make_ctx())}
                     } else {
@@ -136,6 +145,7 @@ pub fn render_app_html(snapshot: &az_aio_platform::plugin_host::HostSnapshot, ro
             "</head>\n",
             "<body>\n",
             "    {body}\n",
+            "    <script>document.getElementById('theme-toggle').onclick=function(){{var e=document.documentElement;var t=e.getAttribute('data-theme')==='light'?'dark':'light';e.setAttribute('data-theme',t);localStorage.setItem('az-theme',t);return false;}};</script>\n",
             "</body>\n",
             "</html>",
         ),
@@ -145,22 +155,22 @@ pub fn render_app_html(snapshot: &az_aio_platform::plugin_host::HostSnapshot, ro
 
 fn default_nav_items() -> Vec<NavItemContribution> {
     vec![
-        nav("assets", "Assets", "◆", "/assets", 10),
-        nav("config", "Config", "⚙", "/config", 20),
-        nav("gateway", "Gateway", "↗", "/gateway", 30),
-        nav("software", "Software", "⬢", "/software", 40),
-        nav("drive", "Drive", "⇄", "/drive", 50),
-        nav("lowcode", "Lowcode", "▣", "/lowcode", 60),
+        nav("assets", "资产", "◆", "/assets", 10),
+        nav("config", "配置", "⚙", "/config", 20),
+        nav("gateway", "网关", "↗", "/gateway", 30),
+        nav("software", "软件", "⬢", "/software", 40),
+        nav("drive", "网盘", "⇄", "/drive", 50),
+        nav("lowcode", "低代码", "▣", "/lowcode", 60),
     ]
 }
 
 fn default_pages() -> Vec<PageContribution> {
     vec![
-        page("/assets", "Asset Hub", "Knowledge / Assets", "◆", "asset-hub.page", 10),
-        page("/config", "Config Center", "Configuration Management", "⚙", "config-center.page", 20),
-        page("/gateway", "Edge Gateway", "Operations / Network", "↗", "edge-gateway.page", 30),
-        page("/software", "Software Center", "Installer & Catalog", "⬢", "software-center.page", 40),
-        page("/drive", "Drive Center", "Cloud Drive", "⇄", "drive-center.page", 50),
+        page("/assets", "资产中心", "知识库 · 资产管理", "◆", "asset-hub.page", 10),
+        page("/config", "配置中心", "配置管理", "⚙", "config-center.page", 20),
+        page("/gateway", "边缘网关", "运维 · 网络", "↗", "edge-gateway.page", 30),
+        page("/software", "软件中心", "安装器 · 目录", "⬢", "software-center.page", 40),
+        page("/drive", "网盘中心", "云存储", "⇄", "drive-center.page", 50),
     ]
 }
 

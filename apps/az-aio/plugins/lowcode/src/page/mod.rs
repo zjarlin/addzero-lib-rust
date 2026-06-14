@@ -41,7 +41,7 @@ pub fn LowcodePage(context: NativeRenderContext) -> Element {
         return render_dynamic_screen(sid, route);
     }
 
-    render_model_editor(model_id)
+    render_model_editor(model_id, route)
 }
 
 fn parse_query_param(route: &str, key: &str) -> Option<String> {
@@ -89,6 +89,9 @@ fn handle_action(store: &LowcodeStore, action: &Option<String>, route: &str) {
                 .filter(|v| !v.is_empty());
             let rel_model_id = parse_query_param(route, "rel_model_id")
                 .filter(|v| !v.is_empty());
+            let is_req = parse_query_param(route, "is_req").as_deref() == Some("1");
+            let is_uniq = parse_query_param(route, "is_uniq").as_deref() == Some("1");
+            let def_val = parse_query_param(route, "def_val").filter(|v| !v.is_empty());
             if !name.is_empty() && !model_id.is_empty() {
                 let now = Utc::now().to_rfc3339();
                 let count = store.list_fields_sync(&model_id).len() as i32;
@@ -100,10 +103,10 @@ fn handle_action(store: &LowcodeStore, action: &Option<String>, route: &str) {
                     field_type: ft,
                     relation_type: rel_type,
                     relation_model_id: rel_model_id,
-                    is_required: false,
-                    is_unique: false,
+                    is_required: is_req,
+                    is_unique: is_uniq,
                     order: count + 1,
-                    default_value: None,
+                    default_value: def_val,
                     created_at: now.clone(),
                     updated_at: now,
                 };
@@ -191,6 +194,9 @@ fn handle_action(store: &LowcodeStore, action: &Option<String>, route: &str) {
             let ft = parse_query_param(route, "field_type").unwrap_or_default();
             let rel_type = parse_query_param(route, "rel_type");
             let rel_model_id = parse_query_param(route, "rel_model_id");
+            let is_req = parse_query_param(route, "is_req").as_deref() == Some("1");
+            let is_uniq = parse_query_param(route, "is_uniq").as_deref() == Some("1");
+            let def_val = parse_query_param(route, "def_val");
             if !fid.is_empty() {
                 let mut fields = store.mem_fields_sync();
                 if let Some(f) = fields.iter_mut().find(|f| f.id == fid) {
@@ -202,6 +208,9 @@ fn handle_action(store: &LowcodeStore, action: &Option<String>, route: &str) {
                     }
                     f.relation_type = rel_type.filter(|v| !v.is_empty());
                     f.relation_model_id = rel_model_id.filter(|v| !v.is_empty());
+                    f.is_required = is_req;
+                    f.is_unique = is_uniq;
+                    f.default_value = def_val.filter(|v| !v.is_empty());
                     f.updated_at = Utc::now().to_rfc3339();
                     store.update_field_sync_v(f);
                 }
@@ -216,8 +225,25 @@ fn handle_action(store: &LowcodeStore, action: &Option<String>, route: &str) {
         "edit-screen" => {
             let sid = parse_query_param(route, "scr_id").unwrap_or_default();
             let label = parse_query_param(route, "scr_label").unwrap_or_default();
-            if !sid.is_empty() && !label.is_empty() {
-                store.update_screen_label_sync(&sid, &label);
+            let layout = parse_query_param(route, "scr_layout");
+            let model_id = parse_query_param(route, "scr_model_id");
+            if !sid.is_empty() {
+                // Update label if provided
+                if !label.is_empty() {
+                    store.update_screen_label_sync(&sid, &label);
+                }
+                // Update layout + model_id + regenerate config_json
+                if let (Some(new_layout), Some(new_model_id)) = (layout.as_deref(), model_id.as_deref()) {
+                    let fields = store.list_fields_sync(new_model_id);
+                    let config_json = auto_config_json(new_layout, &fields);
+                    // Update screen fields via mem access
+                    let mut screens = store.mem.screens.lock();
+                    if let Some(s) = screens.iter_mut().find(|s| s.id == sid) {
+                        s.layout = new_layout.to_string();
+                        s.model_id = new_model_id.to_string();
+                        s.config_json = config_json;
+                    }
+                }
             }
         }
         "new-screen" => {

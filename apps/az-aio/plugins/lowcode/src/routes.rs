@@ -36,6 +36,7 @@ pub fn lowcode_router(state: LowcodeApiState) -> Router {
             "/api/lowcode/screens/{id}",
             get(get_screen).delete(delete_screen),
         )
+        .merge(record_router())
         // Form POST → redirect
         .route(
             "/api/lowcode/models/create-redirect",
@@ -372,4 +373,51 @@ async fn delete_field_redirect(
 ) -> axum::response::Redirect {
     let _ = s.store.delete_field(&id).await;
     axum::response::Redirect::to(&format!("/?route=/lowcode&model={}", form.redirect_model))
+}
+
+// ── Record API ────────────────────────────────────────────────────
+
+use crate::record::{RecordStore, RecordWithId};
+
+pub fn record_router() -> axum::Router<LowcodeApiState> {
+    axum::Router::new()
+        .route("/api/lowcode/records/{model_id}", axum::routing::get(list_records).post(create_record))
+        .route("/api/lowcode/records/{model_id}/{id}", axum::routing::put(update_record).delete(delete_record))
+}
+
+async fn list_records(
+    Path(model_id): Path<String>,
+) -> Json<Vec<RecordWithId>> {
+    let store = RecordStore::global();
+    Json(store.list(&model_id))
+}
+
+#[derive(Deserialize)]
+struct RecordInput {
+    #[serde(flatten)]
+    fields: std::collections::HashMap<String, String>,
+}
+
+async fn create_record(
+    Path(model_id): Path<String>,
+    Json(input): Json<RecordInput>,
+) -> Json<RecordWithId> {
+    let store = RecordStore::global();
+    Json(store.create(&model_id, input.fields))
+}
+
+async fn update_record(
+    Path((model_id, id)): Path<(String, String)>,
+    Json(input): Json<RecordInput>,
+) -> Json<Option<RecordWithId>> {
+    let store = RecordStore::global();
+    Json(store.update(&model_id, &id, input.fields))
+}
+
+async fn delete_record(
+    Path((model_id, id)): Path<(String, String)>,
+) -> Json<serde_json::Value> {
+    let store = RecordStore::global();
+    let ok = store.delete(&model_id, &id);
+    Json(serde_json::json!({ "ok": ok }))
 }

@@ -15,10 +15,38 @@ pub fn render_accordion(
 
     rsx! {
         section { class: "lowcode-page",
-            header { class: "lowcode-page__header",
-                h1 { "{title}" }
-                p { "手风琴布局 — {records.len()} 条记录" }
+            header { class: "lowcode-page__header", style: "padding: 10px 16px 8px;",
+                h1 { style: "font-size: 17px; font-weight: 640; margin: 0;", "{title}" }
+                p { "{records.len()} 条记录" }
                 a { href: "/?route={lowcode_route}&mode=screens", class: "toolbar-button", "← 返回" }
+                // Create form
+                details { class: "lowcode-accordion",
+                    summary { class: "lowcode-accordion__summary", "＋ 新建记录" }
+                    div { class: "lowcode-accordion__body",
+                        form {
+                            method: "get",
+                            action: "/",
+                            input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
+                            input { r#type: "hidden", name: "action", value: "new-record" }
+                            input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
+                            for f in fields.iter() {
+                                div { class: "settings-form-row",
+                                    label { "{f.label}" }
+                                    if f.field_type == "Relation" {
+                                        {relation_select_acc(f, &rec_store)}
+                                    } else {
+                                        input {
+                                            class: "settings-input",
+                                            name: "rec_{f.name}",
+                                            placeholder: "输入{f.label}",
+                                        }
+                                    }
+                                }
+                            }
+                            button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "创建" }
+                        }
+                    }
+                }
             }
             div { style: "padding: 16px 20px;",
                 if records.is_empty() {
@@ -59,6 +87,31 @@ pub fn render_accordion(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+fn relation_select_acc(field: &MetaFieldView, rec_store: &RecordStore) -> Element {
+    if let Some(ref rel_model_id) = field.relation_model_id {
+        let options = rec_store.list(rel_model_id);
+        rsx! {
+            select { class: "settings-input", name: "rec_{field.name}",
+                option { value: "", "— 选择 —" }
+                for opt in &options {
+                    option {
+                        value: "{opt.id}",
+                        "{opt.fields.get(\"name\").or(opt.fields.get(\"label\")).cloned().unwrap_or_else(|| opt.id.clone())}"
+                    }
+                }
+            }
+        }
+    } else {
+        rsx! {
+            input {
+                class: "settings-input",
+                name: "rec_{field.name}",
+                placeholder: "关联ID",
             }
         }
     }

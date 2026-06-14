@@ -11,7 +11,7 @@ pub const RENDERER_ID: &str = "edge-gateway.page";
 pub fn descriptor() -> PluginDescriptor {
     PluginDescriptor {
         id: PLUGIN_ID.to_string(),
-        name: "Edge Gateway".to_string(),
+        name: "边缘网关".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         description: "Gateway flow editor, plan generation, runtime execution, and helper references."
             .to_string(),
@@ -36,15 +36,15 @@ pub fn contributions() -> ContributionSet {
     ContributionSet {
         nav_items: vec![NavItemContribution {
             id: "edge-gateway.nav".to_string(),
-            label: "Gateway".to_string(),
+            label: "网关".to_string(),
             icon: "↗".to_string(),
             route: ROUTE.to_string(),
             order: 50,
         }],
         pages: vec![PageContribution {
             route: ROUTE.to_string(),
-            title: "Edge Gateway".to_string(),
-            subtitle: "Gateway flow templates, runtime execution, and result panels.".to_string(),
+            title: "边缘网关".to_string(),
+            subtitle: "网关流模板 · 运行时执行 · 结果面板".to_string(),
             renderer_id: RENDERER_ID.to_string(),
             placeholder_mark: "↗".to_string(),
             order: 50,

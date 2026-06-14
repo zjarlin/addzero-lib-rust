@@ -46,9 +46,9 @@ pub fn render_tree_table(
 
     rsx! {
         section { class: "lowcode-page",
-            header { class: "lowcode-page__header",
-                h1 { "{title}" }
-                p { "树形表格 — {records.len()} 条记录" }
+            header { class: "lowcode-page__header", style: "padding: 10px 16px 8px;",
+                h1 { style: "font-size: 17px; font-weight: 640; margin: 0;", "{title}" }
+                p { "{records.len()} 条记录" }
                 a { href: "/?route={lowcode_route}&mode=screens", class: "toolbar-button", "← 返回" }
             }
             div { class: "lowcode-table-scroll",
@@ -79,10 +79,13 @@ pub fn render_tree_table(
                                         }
                                     }
                                     td { class: "az-table__cell",
-                                        a {
-                                            href: "/?route={lowcode_route}&action=delete-record&rec_model={model_id}&rec_id={rec.id}",
-                                            class: "toolbar-button toolbar-button--danger",
-                                            "删除"
+                                        div { style: "display: flex; gap: 4px; align-items: center;",
+                                            a {
+                                                href: "/?route={lowcode_route}&action=delete-record&rec_model={model_id}&rec_id={rec.id}",
+                                                class: "toolbar-button toolbar-button--danger",
+                                                style: "font-size: 11px; padding: 2px 7px;",
+                                                "删除"
+                                            }
                                         }
                                     }
                                 }
@@ -170,10 +173,13 @@ fn tree_rows_flat(
                     }
                 }
                 td { class: "az-table__cell",
-                    a {
-                        href: "/?route={lowcode_route}&action=delete-record&rec_model={model_id}&rec_id={node.id}",
-                        class: "toolbar-button toolbar-button--danger",
-                        "删除"
+                    div { style: "display: flex; gap: 4px; align-items: center;",
+                        a {
+                            href: "/?route={lowcode_route}&action=delete-record&rec_model={model_id}&rec_id={node.id}",
+                            class: "toolbar-button toolbar-button--danger",
+                            style: "font-size: 11px; padding: 2px 7px;",
+                            "删除"
+                        }
                     }
                 }
             }

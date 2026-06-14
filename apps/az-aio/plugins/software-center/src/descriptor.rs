@@ -11,7 +11,7 @@ pub const RENDERER_ID: &str = "software-center.page";
 pub fn descriptor() -> PluginDescriptor {
     PluginDescriptor {
         id: PLUGIN_ID.to_string(),
-        name: "Software Center".to_string(),
+        name: "软件中心".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         description: "Installer scan, organize/archive, and catalog-linked package detail surfaces."
             .to_string(),
@@ -37,15 +37,15 @@ pub fn contributions() -> ContributionSet {
     ContributionSet {
         nav_items: vec![NavItemContribution {
             id: "software-center.nav".to_string(),
-            label: "Software".to_string(),
+            label: "软件".to_string(),
             icon: "⬢".to_string(),
             route: ROUTE.to_string(),
             order: 60,
         }],
         pages: vec![PageContribution {
             route: ROUTE.to_string(),
-            title: "Software Center".to_string(),
-            subtitle: "Installer scan, archive targets, and catalog linkage.".to_string(),
+            title: "软件中心".to_string(),
+            subtitle: "安装包扫描 · 归档目标 · 目录关联".to_string(),
             renderer_id: RENDERER_ID.to_string(),
             placeholder_mark: "⬢".to_string(),
             order: 60,

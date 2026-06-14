@@ -825,19 +825,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "az-aio-plugin-api"
-version = "2026.5.10"
-dependencies = [
- "anyhow",
- "automod",
- "axum",
- "dioxus",
- "inventory",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "az-algorithm"
 version = "2026.5.10"
 dependencies = [
@@ -12735,7 +12722,6 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 name = "xtask"
 version = "2026.5.10"
 dependencies = [
- "az-aio-plugin-api",
  "serde",
  "serde_json",
  "wit-component 0.247.0",

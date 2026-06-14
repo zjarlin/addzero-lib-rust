@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 
 use crate::model::{FormConfig, FormField, MetaFieldView};
-use crate::page::helpers::ft_html;
 use crate::record::RecordStore;
 
 pub fn render_form(
@@ -29,11 +28,78 @@ pub fn render_form(
     let lowcode_route = "/lowcode";
     let rec_store = RecordStore::global();
 
+    // Pre-build field elements to avoid "let" inside rsx!
+    let field_els: Vec<Element> = config
+        .fields
+        .iter()
+        .map(|field| {
+            // Find matching MetaFieldView for Relation info
+            let meta = meta_fields.iter().find(|mf| mf.name == field.field_name);
+            let is_rel = meta.map(|m| m.field_type.as_str() == "Relation").unwrap_or(false);
+
+            let label_el = rsx! {
+                label {
+                    "{field.label}"
+                    if field.required {
+                        span { style: "color: var(--warning); margin-left: 4px;", "*" }
+                    }
+                }
+            };
+
+            let input_el = if is_rel {
+                if let Some(mf) = meta.and_then(|m| m.relation_model_id.as_ref()) {
+                    let options = rec_store.list(mf);
+                    rsx! {
+                        select { class: "settings-input", name: "rec_{field.field_name}",
+                            option { value: "", "— 选择 —" }
+                            for opt in &options {
+                                option {
+                                    value: "{opt.id}",
+                                    "{opt.fields.get(\"name\").or(opt.fields.get(\"label\")).cloned().unwrap_or_else(|| opt.id.clone())}"
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    rsx! {
+                        input {
+                            class: "settings-input",
+                            name: "rec_{field.field_name}",
+                            placeholder: "关联ID",
+                        }
+                    }
+                }
+            } else if field.options.is_empty() {
+                rsx! {
+                    input {
+                        class: "settings-input",
+                        name: "rec_{field.field_name}",
+                        r#type: ft_html_simple(&field.field_type),
+                        placeholder: "{field.placeholder}",
+                    }
+                }
+            } else {
+                rsx! {
+                    select { class: "settings-input", name: "rec_{field.field_name}",
+                        for opt in &field.options { option { value: "{opt}", "{opt}" } }
+                    }
+                }
+            };
+
+            rsx! {
+                div { class: "settings-form-row",
+                    {label_el}
+                    {input_el}
+                }
+            }
+        })
+        .collect();
+
     rsx! {
         section { class: "lowcode-page",
-            header { class: "lowcode-page__header",
-                h1 { "{title}" }
-                p { "表单布局" }
+            header { class: "lowcode-page__header", style: "padding: 10px 16px 8px;",
+                h1 { style: "font-size: 17px; font-weight: 640; margin: 0;", "{title}" }
+                p { "表单" }
                 a { href: "/?route={lowcode_route}&mode=screens", class: "toolbar-button", "← 返回" }
             }
             form {
@@ -43,45 +109,7 @@ pub fn render_form(
                     input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
                     input { r#type: "hidden", name: "action", value: "new-record" }
                     input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
-                    for field in &config.fields {
-                        // Find the matching MetaFieldView for Relation info
-                        let meta = meta_fields.iter().find(|mf| mf.name == field.field_name);
-                        div { class: "settings-form-row",
-                            label {
-                                "{field.label}"
-                                if field.required {
-                                    span { style: "color: var(--warning); margin-left: 4px;", "*" }
-                                }
-                            }
-                            if let Some(mf) = meta {
-                                if mf.field_type == "Relation" {
-                                    {render_relation_select(mf, &rec_store)}
-                                } else if field.options.is_empty() {
-                                    input {
-                                        class: "settings-input",
-                                        name: "rec_{field.field_name}",
-                                        r#type: ft_html(&field.field_type),
-                                        placeholder: "{field.placeholder}",
-                                    }
-                                } else {
-                                    select { class: "settings-input", name: "rec_{field.field_name}",
-                                        for opt in &field.options { option { value: "{opt}", "{opt}" } }
-                                    }
-                                }
-                            } else if field.options.is_empty() {
-                                input {
-                                    class: "settings-input",
-                                    name: "rec_{field.field_name}",
-                                    r#type: ft_html(&field.field_type),
-                                    placeholder: "{field.placeholder}",
-                                }
-                            } else {
-                                select { class: "settings-input", name: "rec_{field.field_name}",
-                                    for opt in &field.options { option { value: "{opt}", "{opt}" } }
-                                }
-                            }
-                        }
-                    }
+                    {field_els.into_iter().map(|el| el)}
                     div { style: "margin-top: 18px;",
                         button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "{config.submit_label}" }
                     }
@@ -91,27 +119,12 @@ pub fn render_form(
     }
 }
 
-fn render_relation_select(field: &MetaFieldView, rec_store: &RecordStore) -> Element {
-    if let Some(ref rel_model_id) = field.relation_model_id {
-        let options = rec_store.list(rel_model_id);
-        rsx! {
-            select { class: "settings-input", name: "rec_{field.name}",
-                option { value: "", "— 选择 —" }
-                for opt in &options {
-                    option {
-                        value: "{opt.id}",
-                        "{opt.fields.get(\"name\").or(opt.fields.get(\"label\")).cloned().unwrap_or_else(|| opt.id.clone())}"
-                    }
-                }
-            }
-        }
-    } else {
-        rsx! {
-            input {
-                class: "settings-input",
-                name: "rec_{field.name}",
-                placeholder: "关联ID",
-            }
-        }
+fn ft_html_simple(ft: &str) -> &str {
+    match ft {
+        "integer" | "Integer" => "number",
+        "float" | "Float" => "number",
+        "boolean" | "Boolean" => "checkbox",
+        "datetime" | "DateTime" => "datetime-local",
+        _ => "text",
     }
 }

@@ -11,7 +11,7 @@ pub const RENDERER_ID: &str = "asset-hub.page";
 pub fn descriptor() -> PluginDescriptor {
     PluginDescriptor {
         id: PLUGIN_ID.to_string(),
-        name: "Asset Hub".to_string(),
+        name: "资产中心".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         description: "Asset feed, skill scan, compose assets, and subtype metadata.".to_string(),
         activation: PluginActivation::Eager,
@@ -35,15 +35,15 @@ pub fn contributions() -> ContributionSet {
     ContributionSet {
         nav_items: vec![NavItemContribution {
             id: "asset-hub.nav".to_string(),
-            label: "Assets".to_string(),
+            label: "资产".to_string(),
             icon: "◆".to_string(),
             route: ROUTE.to_string(),
             order: 20,
         }],
         pages: vec![PageContribution {
             route: ROUTE.to_string(),
-            title: "Asset Hub".to_string(),
-            subtitle: "Asset feed, skill scan, and subtype-backed metadata.".to_string(),
+            title: "资产中心".to_string(),
+            subtitle: "资产订阅 · 技能扫描 · 子类型元数据".to_string(),
             renderer_id: RENDERER_ID.to_string(),
             placeholder_mark: "◆".to_string(),
             order: 20,

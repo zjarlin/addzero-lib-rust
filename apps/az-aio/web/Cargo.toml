@@ -16,6 +16,7 @@ asset-hub = { path = "../plugins/asset-hub" }
 config-center = { path = "../plugins/config-center" }
 drive-center = { path = "../plugins/drive-center" }
 edge-gateway = { path = "../plugins/edge-gateway" }
+algorithm-center = { path = "../plugins/algorithm-center" }
 software-center = { path = "../plugins/software-center" }
 lowcode = { path = "../plugins/lowcode" }
 dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
