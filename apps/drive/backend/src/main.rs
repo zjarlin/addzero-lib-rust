@@ -9,6 +9,7 @@ use az_drive_webdav::api::{DriveWebdavState, drive_webdav_router};
 use clap::Parser;
 use std::io::{self, Write};
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 #[cfg(target_os = "macos")]
 use az_drive_app::macos_actions;
@@ -164,12 +165,39 @@ async fn main() -> Result<()> {
 }
 
 async fn serve(args: ServeArgs) -> Result<()> {
-    let (metadata, objects, _sync) = az_drive_app::build_stores().await?;
+    use az_drive_app::ws::CrdtSyncState;
+
+    let (metadata, objects, sync) = az_drive_app::build_stores().await?;
     let webdav_state = DriveWebdavState::new(metadata.clone(), objects.clone());
     let owner_drive_id = az_drive_app::default_owner_drive_id();
-    let crdt_state = std::sync::Arc::new(az_drive_app::ws::CrdtSyncState::new(
-        metadata, objects, owner_drive_id,
+    let crdt_state = Arc::new(CrdtSyncState::new(
+        metadata.clone(), objects.clone(), owner_drive_id.clone(),
     ));
+
+    // Build agent with on_file_synced → notify WS peers.
+    let state_store = LocalStateStore::new(LocalStateStore::default_path());
+    let state = state_store.load_or_init().await?;
+    let crdt_for_agent = crdt_state.clone();
+    let config = DriveAgentConfig::new(
+        owner_drive_id.clone(),
+        state.device_id,
+        state.device_name,
+    )
+    .with_fused_space_ids(az_drive_app::default_fused_space_ids(&owner_drive_id))
+    .with_auto_materialize_space_ids(az_drive_app::default_auto_materialize_space_ids(&owner_drive_id))
+    .with_on_file_synced(move |remote_path| {
+        let crdt = crdt_for_agent.clone();
+        tokio::spawn(async move {
+            crdt.notify_text_changed(&remote_path).await;
+        });
+    });
+
+    let agent = DriveAgent::new_with_sync(metadata, objects, sync, state_store, config);
+    if owner_drive_id != "main" {
+        agent.migrate_legacy_owner_drive("main", &owner_drive_id).await
+            .context("failed to migrate legacy main drive namespace")?;
+    }
+
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
         .merge(drive_webdav_router(webdav_state))
@@ -189,8 +217,24 @@ async fn serve(args: ServeArgs) -> Result<()> {
         .with_context(|| format!("failed to bind {bind}"))?;
     println!("az-drive-app serving WebDAV at http://{bind}/dav/main/home");
     println!("CRDT WebSocket at ws://{bind}/ws/sync");
+    println!("file-polling daemon active (interval {:?})", agent_config_poll_interval(&agent));
+
+    // Spawn the file-polling daemon alongside the HTTP server.
+    let daemon = tokio::spawn(async move {
+        if let Err(err) = agent.run_polling_daemon().await {
+            log::error!("drive daemon exited: {err:#}");
+        }
+    });
+
     axum::serve(listener, app).await?;
+    daemon.abort();
     Ok(())
+}
+
+fn agent_config_poll_interval(_agent: &DriveAgent) -> std::time::Duration {
+    // The agent doesn't expose config publicly, so use a hardcoded fallback.
+    // In practice this is 2 seconds from DriveAgentConfig::new().
+    std::time::Duration::from_secs(2)
 }
 
 async fn build_agent() -> Result<DriveAgent> {

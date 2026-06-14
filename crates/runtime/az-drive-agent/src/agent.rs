@@ -32,7 +32,7 @@ use crate::local_state::{
 };
 
 /// Agent configuration that is stable across CLI and future AIO embedding.
-#[apply(plain_eq)]
+#[apply(plain_clone)]
 pub struct DriveAgentConfig {
     /// Primary owner Drive namespace.
     pub space_id: String,
@@ -46,6 +46,24 @@ pub struct DriveAgentConfig {
     pub device_name: String,
     /// Poll interval for the daemon loop.
     pub poll_interval: Duration,
+    /// Optional callback invoked after each file content change is synced.
+    /// Receives the `remote_path` (root-relative) of the changed file.
+    pub on_file_synced: Option<Arc<dyn Fn(String) + Send + Sync>>,
+}
+
+
+impl std::fmt::Debug for DriveAgentConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DriveAgentConfig")
+            .field("space_id", &self.space_id)
+            .field("fused_space_ids", &self.fused_space_ids)
+            .field("auto_materialize_space_ids", &self.auto_materialize_space_ids)
+            .field("device_id", &self.device_id)
+            .field("device_name", &self.device_name)
+            .field("poll_interval", &self.poll_interval)
+            .field("on_file_synced", &self.on_file_synced.as_ref().map(|_| ".."))
+            .finish()
+    }
 }
 
 impl DriveAgentConfig {
@@ -60,6 +78,7 @@ impl DriveAgentConfig {
             device_id,
             device_name,
             poll_interval: Duration::from_secs(2),
+            on_file_synced: None,
         }
     }
 
@@ -89,6 +108,16 @@ impl DriveAgentConfig {
                 self.auto_materialize_space_ids.push(space);
             }
         }
+        self
+    }
+
+    /// Sets a callback invoked after each file content change is synced.
+    #[must_use]
+    pub fn with_on_file_synced(
+        mut self,
+        f: impl Fn(String) + Send + Sync + 'static,
+    ) -> Self {
+        self.on_file_synced = Some(Arc::new(f));
         self
     }
 
@@ -1146,6 +1175,9 @@ impl DriveAgent {
             hosted.base_hash = Some(remote.content_hash.clone());
             hosted.content_hash = Some(remote.content_hash.clone());
             hosted.last_synced_at = Some(Utc::now());
+            if let Some(ref notify) = self.config.on_file_synced {
+                notify(hosted.relative_path.clone());
+            }
             self.finish_sync_task(task_id).await?;
             return Ok(());
         }
@@ -1187,6 +1219,9 @@ impl DriveAgent {
                     hosted.base_hash = Some(local_hash.clone());
                     hosted.content_hash = Some(local_hash);
                     hosted.last_synced_at = Some(Utc::now());
+                    if let Some(ref notify) = self.config.on_file_synced {
+                        notify(hosted.relative_path.clone());
+                    }
                 }
                 self.finish_sync_task(task_id).await?;
             }

@@ -186,7 +186,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
- "az-derive-aliases",
+ "az-derive-aliases 2026.6.13",
  "dioxus",
  "serde",
  "shaku",
@@ -565,11 +565,39 @@ dependencies = [
  "az-aio-plugin-api",
  "az-aio-plugin-bundled",
  "az-aio-plugin-host",
+ "az-config-center-client",
  "serde",
  "serde_json",
  "tokio",
  "tower",
  "tower-http",
+]
+
+[[package]]
+name = "az-config-center-client"
+version = "2026.6.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4c0a949e41cf9f77498128724d51f7b14db64f3dab5987a4c9cbc506a375df6"
+dependencies = [
+ "az-config-center-contract",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-config-center-contract"
+version = "2026.6.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e94abd77fcda56085973ecf1061b9903cd27dae084f90b3249a0e8b466537ee"
+dependencies = [
+ "az-derive-aliases 2026.6.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "chrono",
+ "derive_more 2.1.1",
+ "serde",
+ "strum",
+ "uuid",
 ]
 
 [[package]]
@@ -595,12 +623,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-derive-aliases"
+version = "2026.6.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b095630fe4678233c2f1b62ec31ccfbe08f1a6f6a2b8544caad7c05b49d2410"
+dependencies = [
+ "clap",
+ "derive_more 2.1.1",
+ "macro_rules_attribute",
+ "serde",
+ "strum",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "az-rustfs"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
  "automod",
- "az-derive-aliases",
+ "az-derive-aliases 2026.6.13",
  "base64",
  "chrono",
  "derive_more 2.1.1",
@@ -856,6 +898,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link 0.2.1",
 ]
@@ -983,7 +1026,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
- "az-derive-aliases",
+ "az-derive-aliases 2026.6.13",
  "dioxus",
  "serde",
  "serde_json",
@@ -2035,7 +2078,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
- "az-derive-aliases",
+ "az-derive-aliases 2026.6.13",
  "dioxus",
  "serde",
  "shaku",
@@ -2073,7 +2116,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
- "az-derive-aliases",
+ "az-derive-aliases 2026.6.13",
  "dioxus",
  "handlebars",
  "reqwest",
@@ -6368,7 +6411,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
- "az-derive-aliases",
+ "az-derive-aliases 2026.6.13",
  "dioxus",
  "md5 0.8.0",
  "serde",

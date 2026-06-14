@@ -14,6 +14,7 @@ axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
 az-aio-plugin-api = { path = "../plugins/api" }
 az-aio-plugin-bundled = { path = "../plugins/bundled" }
 az-aio-plugin-host = { path = "../plugins/host" }
+az-config-center-client = "=2026.6.13"
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

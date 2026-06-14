@@ -1,29 +1,9 @@
-//! # WebSocket CRDT sync endpoint
+//! # WebSocket CRDT sync endpoint with peer broadcast
 //!
-//! Accepts az-aio web client connections on `/ws/sync` and runs a
-//! per-connection loop that exchanges [`LineCrdtDocument`] state for
-//! each tracked text file. The server keeps an in-memory document cache
-//! keyed by `remote_path`.
-//!
-//! # Protocol
-//!
-//! All messages are JSON text frames carrying base64-encoded CRDT blobs:
-//!
-//! | Direction | Message               | Meaning                                      |
-//! |-----------|-----------------------|----------------------------------------------|
-//! | C→S       | `hello`               | Client announces device id                    |
-//! | S→C       | `hello_ack`           | Server confirms connection with peer id       |
-//! | C→S       | `open`                | Client wants to sync a file                   |
-//! | S→C       | `snapshot`            | Full CRDT snapshot for opened file            |
-//! | C→S       | `update`              | Client pushes a local CRDT update             |
-//! | S→C       | `update`              | Server pushes a remote CRDT update            |
-//! | C→S       | `close`               | Client stops syncing a file                   |
-//! | S→C       | `error`               | Error for the last message                    |
-//! | S→C       | `text_changed`        | Notifies client that file text was updated    |
-//!
-//! The `remote_path` in protocol messages is the drive-relative path
-//! (e.g. `README.md` or `docs/guide.md`). The server maps this to an
-//! [`EntryKey`] using the configured default root alias.
+//! Accepts az-aio web client connections on `/ws/sync`. Each connection
+//! receives a unique `peer_id`. When one peer pushes a CRDT update, the
+//! server persists it and broadcasts the update to every other peer
+//! watching the same `remote_path`.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -34,69 +14,57 @@ use az_crdt::document::LineCrdtDocument;
 use az_drive_core::api::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
 use az_drive_store::api::{DriveEntryKind, DriveMetadataStore, DriveObjectStore};
 use axum::extract::ws::{Message, WebSocket};
+use futures_util::{SinkExt, StreamExt};
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, mpsc};
 
 static NEXT_PEER_ID: AtomicU64 = AtomicU64::new(1);
+fn next_peer_id() -> u64 { NEXT_PEER_ID.fetch_add(1, Ordering::Relaxed) }
 
-fn next_peer_id() -> u64 {
-    NEXT_PEER_ID.fetch_add(1, Ordering::Relaxed)
-}
-
-// ── wire messages ──────────────────────────────────────────────────────
+// ── wire messages ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum CrdtSyncMsg {
-    Hello {
-        device_id: String,
-    },
-    HelloAck {
-        peer_id: u64,
-    },
-    Open {
-        remote_path: String,
-    },
-    Snapshot {
-        remote_path: String,
-        snapshot: String,
-        version: String,
-    },
-    Update {
-        remote_path: String,
-        update: String,
-        base_version: Option<String>,
-    },
-    Close {
-        remote_path: String,
-    },
-    TextChanged {
-        remote_path: String,
-        hash: String,
-        peer_count: usize,
-    },
-    Error {
-        message: String,
-    },
+    Hello { device_id: String },
+    HelloAck { peer_id: u64 },
+    Open { remote_path: String },
+    Snapshot { remote_path: String, snapshot: String, version: String },
+    Update { remote_path: String, update: String, base_version: Option<String> },
+    Close { remote_path: String },
+    Error { message: String },
 }
 
-// ── per-file document entry ────────────────────────────────────────────
+// ── internal peer handle ─────────────────────────────────────────────
+
+#[derive(Debug)]
+enum PeerCmd {
+    SendText(String),
+}
+
+#[derive(Debug, Clone)]
+struct PeerHandle {
+    cmd_tx: mpsc::UnboundedSender<PeerCmd>,
+}
+
+// ── per-file document cache entry ────────────────────────────────────
 
 struct DocEntry {
     doc: LineCrdtDocument,
+    version: Vec<u8>,
     hash: String,
-    peer_count: usize,
 }
 
-// ── shared server state ────────────────────────────────────────────────
+// ── shared server state ──────────────────────────────────────────────
 
 pub struct CrdtSyncState {
     metadata: Arc<dyn DriveMetadataStore>,
     objects: Arc<dyn DriveObjectStore>,
     owner_drive_id: String,
     root_alias: RootAlias,
-    docs: Mutex<HashMap<String, DocEntry>>,
+    docs: Mutex<HashMap<String, Option<DocEntry>>>,
+    peers: Mutex<HashMap<String, Vec<PeerHandle>>>,
 }
 
 impl CrdtSyncState {
@@ -111,6 +79,7 @@ impl CrdtSyncState {
             owner_drive_id,
             root_alias: RootAlias::parse("home").unwrap(),
             docs: Mutex::new(HashMap::new()),
+            peers: Mutex::new(HashMap::new()),
         }
     }
 
@@ -122,192 +91,235 @@ impl CrdtSyncState {
         ))
     }
 
-    /// Notify all peers watching a file that its content changed.
-    pub async fn notify_text_changed(&self, remote_path: &str, _hash: &str) {
-        let docs = self.docs.lock().await;
-        if let Some(entry) = docs.get(remote_path) {
-            info!(
-                "notified {n} peer(s) about {path}",
-                n = entry.peer_count,
-                path = remote_path
-            );
+    // ── peer registry ────────────────────────────────────────────────
+
+    async fn register_peer(&self, remote_path: &str, handle: PeerHandle) {
+        let mut peers = self.peers.lock().await;
+        peers.entry(remote_path.to_owned()).or_default().push(handle);
+    }
+
+    async fn unregister_peer(&self, remote_path: &str, cmd_tx: &mpsc::UnboundedSender<PeerCmd>) {
+        let mut peers = self.peers.lock().await;
+        if let Some(list) = peers.get_mut(remote_path) {
+            list.retain(|h| !h.cmd_tx.same_channel(cmd_tx));
+            if list.is_empty() {
+                peers.remove(remote_path);
+            }
         }
     }
 
-    /// Load or create a `LineCrdtDocument` for `remote_path`, seeding from
-    /// the object store if we have existing content.
-    async fn load_doc(
+    async fn broadcast_to_others(
         &self,
         remote_path: &str,
-        peer_id: u64,
-    ) -> anyhow::Result<LineCrdtDocument> {
+        exclude: &mpsc::UnboundedSender<PeerCmd>,
+        text: String,
+    ) {
+        let peers = self.peers.lock().await;
+        let Some(list) = peers.get(remote_path) else { return };
+        for h in list {
+            if h.cmd_tx.same_channel(exclude) {
+                continue;
+            }
+            let _ = h.cmd_tx.send(PeerCmd::SendText(text.clone()));
+        }
+    }
+
+    async fn broadcast_to_all(&self, remote_path: &str, text: String) {
+        let peers = self.peers.lock().await;
+        let Some(list) = peers.get(remote_path) else { return };
+        for h in list {
+            let _ = h.cmd_tx.send(PeerCmd::SendText(text.clone()));
+        }
+    }
+
+    // ── document lifecycle ───────────────────────────────────────────
+
+    async fn load_doc(&self, remote_path: &str, peer_id: u64) -> anyhow::Result<LineCrdtDocument> {
         let key = self.entry_key(remote_path)?;
         let entry = self.metadata.get_entry(&key).await?;
         match entry {
-            Some(entry) if entry.latest_hash.as_deref().is_some_and(|h| !h.is_empty()) => {
-                let hash = entry.latest_hash.as_ref().unwrap();
-                let object_key = object_key_for_hash(hash);
+            Some(e) if e.latest_hash.as_deref().is_some_and(|h| !h.is_empty()) => {
+                let object_key = object_key_for_hash(e.latest_hash.as_ref().unwrap());
                 match self.objects.get_object(&object_key).await {
-                    Ok(snapshot_blob) => {
-                        LineCrdtDocument::from_snapshot_with_peer_id(snapshot_blob, peer_id)
-                            .with_context(|| format!("restore CRDT snapshot for {remote_path}"))
-                    }
-                    Err(_) => {
-                        let doc = LineCrdtDocument::with_peer_id(peer_id)?;
-                        Ok(doc)
-                    }
+                    Ok(blob) => LineCrdtDocument::from_snapshot_with_peer_id(blob, peer_id)
+                        .with_context(|| format!("restore CRDT snapshot for {remote_path}")),
+                    Err(_) => LineCrdtDocument::with_peer_id(peer_id).map_err(Into::into),
                 }
             }
-            _ => {
-                let doc = LineCrdtDocument::with_peer_id(peer_id)?;
-                Ok(doc)
-            }
+            _ => LineCrdtDocument::with_peer_id(peer_id).map_err(Into::into),
         }
     }
 
-    /// Persist the current CRDT snapshot into the object store and
-    /// upsert the metadata entry.
-    async fn save_doc(
-        &self,
-        remote_path: &str,
-        doc: &LineCrdtDocument,
-    ) -> anyhow::Result<String> {
+    async fn save_doc(&self, remote_path: &str, doc: &LineCrdtDocument) -> anyhow::Result<String> {
         let snapshot = doc.export_snapshot()?;
         let hash = content_hash(snapshot.as_bytes());
         let object_key = object_key_for_hash(&hash);
-        self.objects
-            .put_object(&object_key, snapshot.as_bytes())
-            .await?;
+        self.objects.put_object(&object_key, snapshot.as_bytes()).await?;
         let key = self.entry_key(remote_path)?;
-        self.metadata
-            .upsert_entry(&key, DriveEntryKind::File)
-            .await?;
+        self.metadata.upsert_entry(&key, DriveEntryKind::File).await?;
         Ok(hash)
+    }
+
+    // ── external trigger from DriveAgent ─────────────────────────────
+
+    /// Called when the local DriveAgent detects a file change.
+    /// Re-loads the document from the store, computes a CRDT delta,
+    /// and broadcasts it to every connected peer.
+    pub async fn notify_text_changed(&self, remote_path: &str) {
+        let (update_b64, version_b64) = {
+            let mut docs = self.docs.lock().await;
+            let Some(Some(entry)) = docs.get_mut(remote_path) else {
+                return;
+            };
+            let fresh = match self.load_doc(remote_path, entry.doc.peer_id()).await {
+                Ok(d) => d,
+                Err(e) => {
+                    warn!("crdt-sync reload failed for {remote_path}: {e:#}");
+                    return;
+                }
+            };
+            let old_vv = std::mem::take(&mut entry.version);
+            let update_bytes = fresh.export_updates_since_bytes(&old_vv);
+            entry.version = fresh.version_bytes();
+            entry.doc = fresh;
+            if update_bytes.is_empty() {
+                return;
+            }
+            (base64(&update_bytes), base64(&entry.version))
+        };
+
+        let msg = serde_json::to_string(&CrdtSyncMsg::Update {
+            remote_path: remote_path.to_owned(),
+            update: update_b64,
+            base_version: Some(version_b64),
+        });
+        let Ok(json) = msg else { return };
+        self.broadcast_to_all(remote_path, json).await;
     }
 }
 
-// ── WS handler ─────────────────────────────────────────────────────────
+// ── WS handler ────────────────────────────────────────────────────────
 
-/// Axum handler: upgrade to WebSocket and run the CRDT sync loop.
 pub async fn handle_crdt_sync(ws: WebSocket, state: Arc<CrdtSyncState>) {
     let peer_id = next_peer_id();
     info!("crdt-sync: new connection peer_id={peer_id}");
-
     if let Err(err) = run_sync_loop(ws, state, peer_id).await {
         warn!("crdt-sync peer_id={peer_id} disconnected: {err:#}");
     }
 }
 
 async fn run_sync_loop(
-    mut ws: WebSocket,
+    ws: WebSocket,
     state: Arc<CrdtSyncState>,
     peer_id: u64,
 ) -> anyhow::Result<()> {
-    // Send hello_ack first.
-    let ack = serde_json::to_string(&CrdtSyncMsg::HelloAck { peer_id })?;
-    ws.send(Message::Text(ack.into())).await?;
+    let (mut ws_tx, mut ws_rx) = ws.split();
+    let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel::<PeerCmd>();
 
-    // Track which files this peer is watching.
+    let ack = serde_json::to_string(&CrdtSyncMsg::HelloAck { peer_id })?;
+    ws_tx.send(Message::Text(ack.into())).await?;
+
     let mut watched: Vec<String> = Vec::new();
 
     loop {
-        let msg = match ws.recv().await {
-            Some(Ok(Message::Text(text))) => text,
-            Some(Ok(Message::Close(_))) | None => break,
-            Some(Err(err)) => {
-                warn!("crdt-sync peer_id={peer_id} ws error: {err}");
-                break;
-            }
-            _ => continue,
-        };
-
-        let parsed: CrdtSyncMsg = match serde_json::from_str(&msg) {
-            Ok(m) => m,
-            Err(err) => {
-                let err_msg = serde_json::to_string(&CrdtSyncMsg::Error {
-                    message: format!("invalid message: {err}"),
-                })?;
-                ws.send(Message::Text(err_msg.into())).await?;
-                continue;
-            }
-        };
-
-        match parsed {
-            CrdtSyncMsg::Hello { .. } => {
-                // Already handled; ignore duplicate hello.
-            }
-            CrdtSyncMsg::Open { remote_path } => {
-                if let Err(err) = handle_open(&mut ws, &state, &remote_path, peer_id, &mut watched).await {
-                    let err_msg = serde_json::to_string(&CrdtSyncMsg::Error {
-                        message: format!("open failed: {err:#}"),
-                    })?;
-                    ws.send(Message::Text(err_msg.into())).await?;
+        tokio::select! {
+            msg = ws_rx.next() => {
+                let Some(msg) = msg else { break };
+                match msg {
+                    Ok(Message::Text(text)) => {
+                        let parsed = match serde_json::from_str::<CrdtSyncMsg>(&text) {
+                            Ok(m) => m,
+                            Err(err) => {
+                                let e = json_err(&format!("invalid message: {err}"));
+                                let _ = ws_tx.send(Message::Text(e.into())).await;
+                                continue;
+                            }
+                        };
+                        match parsed {
+                            CrdtSyncMsg::Hello { .. } => {}
+                            CrdtSyncMsg::Open { remote_path } => {
+                                if let Err(err) = handle_open(
+                                    &mut ws_tx, &state, &remote_path, peer_id,
+                                    &cmd_tx, &mut watched,
+                                ).await {
+                                    let e = json_err(&format!("open failed: {err:#}"));
+                                    let _ = ws_tx.send(Message::Text(e.into())).await;
+                                }
+                            }
+                            CrdtSyncMsg::Update { remote_path, update, base_version } => {
+                                if let Err(err) = handle_update(
+                                    &state, &remote_path, &update,
+                                    base_version.as_deref(),
+                                    &cmd_tx, peer_id,
+                                ).await {
+                                    let e = json_err(&format!("update failed: {err:#}"));
+                                    let _ = ws_tx.send(Message::Text(e.into())).await;
+                                }
+                            }
+                            CrdtSyncMsg::Close { remote_path } => {
+                                handle_close(&state, &remote_path, &cmd_tx).await;
+                                watched.retain(|p| p != &remote_path);
+                            }
+                            _ => {
+                                let e = json_err("unexpected message type");
+                                let _ = ws_tx.send(Message::Text(e.into())).await;
+                            }
+                        }
+                    }
+                    Ok(Message::Close(_)) | Err(_) => break,
+                    _ => {}
                 }
             }
-            CrdtSyncMsg::Update { remote_path, update, base_version } => {
-                if let Err(err) = handle_update(&state, &remote_path, &update, base_version.as_deref(), peer_id).await {
-                    let err_msg = serde_json::to_string(&CrdtSyncMsg::Error {
-                        message: format!("update failed: {err:#}"),
-                    })?;
-                    ws.send(Message::Text(err_msg.into())).await?;
+
+            cmd = cmd_rx.recv() => {
+                match cmd {
+                    Some(PeerCmd::SendText(text)) => {
+                        let _ = ws_tx.send(Message::Text(text.into())).await;
+                    }
+                    None => break,
                 }
-            }
-            CrdtSyncMsg::Close { remote_path } => {
-                handle_close(&state, &remote_path, peer_id).await;
-                watched.retain(|p| p != &remote_path);
-            }
-            _ => {
-                let err_msg = serde_json::to_string(&CrdtSyncMsg::Error {
-                    message: "unexpected message type".into(),
-                })?;
-                ws.send(Message::Text(err_msg.into())).await?;
             }
         }
     }
 
-    // Clean up watched files on disconnect.
     for path in &watched {
-        handle_close(&state, path, peer_id).await;
+        handle_close(&state, path, &cmd_tx).await;
     }
-
     Ok(())
 }
 
 async fn handle_open(
-    ws: &mut WebSocket,
+    ws_tx: &mut (impl SinkExt<Message, Error = axum::Error> + Unpin),
     state: &CrdtSyncState,
     remote_path: &str,
     peer_id: u64,
+    cmd_tx: &mpsc::UnboundedSender<PeerCmd>,
     watched: &mut Vec<String>,
 ) -> anyhow::Result<()> {
-    let mut docs = state.docs.lock().await;
+    state.register_peer(remote_path, PeerHandle { cmd_tx: cmd_tx.clone() }).await;
 
-    let entry = if let Some(entry) = docs.get_mut(remote_path) {
-        entry.peer_count += 1;
-        entry
-    } else {
-        let doc = state.load_doc(remote_path, peer_id).await?;
-        let hash = content_hash(doc.text().as_bytes());
-        docs.insert(
-            remote_path.to_owned(),
-            DocEntry {
-                doc,
-                hash: hash.clone(),
-                peer_count: 1,
-            },
-        );
-        docs.get_mut(remote_path).unwrap()
+    let (snapshot_b64, version_b64) = {
+        let mut docs = state.docs.lock().await;
+        let entry = if let Some(Some(entry)) = docs.get_mut(remote_path) {
+            entry
+        } else {
+            let doc = state.load_doc(remote_path, peer_id).await?;
+            let version = doc.version_bytes();
+            let hash = content_hash(doc.text().as_bytes());
+            docs.insert(remote_path.to_owned(), Some(DocEntry { doc, version: version.clone(), hash }));
+            docs.get_mut(remote_path).unwrap().as_mut().unwrap()
+        };
+        let snapshot = entry.doc.export_snapshot()?;
+        let version = entry.doc.version();
+        (base64(snapshot.as_bytes()), base64(version.as_bytes()))
     };
 
-    let snapshot = entry.doc.export_snapshot()?;
-    let version = entry.doc.version();
     let msg = serde_json::to_string(&CrdtSyncMsg::Snapshot {
         remote_path: remote_path.to_owned(),
-        snapshot: base64(snapshot.as_bytes()),
-        version: base64(version.as_bytes()),
+        snapshot: snapshot_b64,
+        version: version_b64,
     })?;
-    ws.send(Message::Text(msg.into())).await?;
-
+    ws_tx.send(Message::Text(msg.into())).await?;
     watched.push(remote_path.to_owned());
     Ok(())
 }
@@ -317,41 +329,64 @@ async fn handle_update(
     remote_path: &str,
     update_b64: &str,
     _base_version: Option<&str>,
+    cmd_tx: &mpsc::UnboundedSender<PeerCmd>,
     peer_id: u64,
 ) -> anyhow::Result<()> {
     let update_bytes = unbase64(update_b64)?;
-    let mut docs = state.docs.lock().await;
 
-    let entry = docs
-        .get_mut(remote_path)
-        .ok_or_else(|| anyhow::anyhow!("file {remote_path} not opened"))?;
+    let (export_update_b64, version_b64) = {
+        let mut docs = state.docs.lock().await;
+        let entry = docs
+            .get_mut(remote_path)
+            .and_then(|e| e.as_mut())
+            .ok_or_else(|| anyhow::anyhow!("file {remote_path} not opened"))?;
 
-    let report = entry.doc.import_update(&update_bytes)?;
-    if report.is_complete() {
-        let hash = state.save_doc(remote_path, &entry.doc).await?;
-        entry.hash = hash;
-    } else {
-        warn!(
-            "crdt-sync peer_id={peer_id} incomplete update for {path}: {report:?}",
-            path = remote_path
-        );
-    }
+        let report = entry.doc.import_update(&update_bytes)?;
+        if !report.is_complete() {
+            warn!("crdt-sync p{peer_id} incomplete update for {remote_path}: {report:?}");
+        }
+        let _hash = state.save_doc(remote_path, &entry.doc).await?;
 
+        let old_vv = std::mem::take(&mut entry.version);
+        let export = entry.doc.export_updates_since_bytes(&old_vv);
+        entry.version = entry.doc.version_bytes();
+        if export.is_empty() {
+            return Ok(());
+        }
+        (base64(&export), base64(&entry.version))
+    };
+
+    let msg = serde_json::to_string(&CrdtSyncMsg::Update {
+        remote_path: remote_path.to_owned(),
+        update: export_update_b64,
+        base_version: Some(version_b64),
+    })?;
+    state.broadcast_to_others(remote_path, cmd_tx, msg).await;
     Ok(())
 }
 
-async fn handle_close(state: &CrdtSyncState, remote_path: &str, _peer_id: u64) {
-    let mut docs = state.docs.lock().await;
-    if let Some(entry) = docs.get_mut(remote_path) {
-        entry.peer_count = entry.peer_count.saturating_sub(1);
-        if entry.peer_count == 0 {
-            docs.remove(remote_path);
-            info!("crdt-sync: evicted document cache for {remote_path}");
-        }
+async fn handle_close(
+    state: &CrdtSyncState,
+    remote_path: &str,
+    cmd_tx: &mpsc::UnboundedSender<PeerCmd>,
+) {
+    state.unregister_peer(remote_path, cmd_tx).await;
+    let has_peers = {
+        let peers = state.peers.lock().await;
+        peers.contains_key(remote_path)
+    };
+    if !has_peers {
+        let mut docs = state.docs.lock().await;
+        docs.remove(remote_path);
+        info!("crdt-sync: evicted document cache for {remote_path}");
     }
 }
 
-// ── helpers ────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────
+
+fn json_err(msg: &str) -> String {
+    serde_json::to_string(&CrdtSyncMsg::Error { message: msg.to_owned() }).unwrap_or_default()
+}
 
 fn base64(bytes: &[u8]) -> String {
     use base64::Engine as _;
@@ -363,4 +398,31 @@ fn unbase64(encoded: &str) -> anyhow::Result<Vec<u8>> {
     base64::engine::general_purpose::STANDARD
         .decode(encoded)
         .context("invalid base64")
+}
+
+// ── LineCrdtDocument extension trait ──────────────────────────────────
+
+use az_crdt::wire::LineCrdtVersion;
+
+trait LineCrdtDocExt {
+    fn version_bytes(&self) -> Vec<u8>;
+    fn export_updates_since_bytes(&self, version: &[u8]) -> Vec<u8>;
+}
+
+impl LineCrdtDocExt for LineCrdtDocument {
+    fn version_bytes(&self) -> Vec<u8> {
+        self.version().into_bytes()
+    }
+
+    fn export_updates_since_bytes(&self, version: &[u8]) -> Vec<u8> {
+        if version.is_empty() {
+            return self.export_all_updates()
+                .map(|u| u.into_bytes())
+                .unwrap_or_default();
+        }
+        let vv = LineCrdtVersion::from_bytes(version.to_vec());
+        self.export_updates_since(&vv)
+            .map(|u| u.into_bytes())
+            .unwrap_or_default()
+    }
 }
