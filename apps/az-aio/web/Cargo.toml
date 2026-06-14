@@ -1,0 +1,28 @@
+[package]
+name = "az-aio-web"
+version = "2026.5.10"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+authors = ["zjarlin"]
+description = "AZ AIO web workbench — Axum + SSR."
+workspace = "../plugins"
+
+[dependencies]
+anyhow.workspace = true
+axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
+az-aio-plugin-api = { path = "../plugins/api" }
+az-aio-plugin-bundled = { path = "../plugins/bundled" }
+az-aio-plugin-host = { path = "../plugins/host" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tower = "0.5.2"
+tower-http = { version = "0.6.2", features = ["fs"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

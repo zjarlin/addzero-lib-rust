@@ -502,7 +502,6 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
- "az-config-center-client",
  "http-body-util",
  "serde",
  "serde_json",
@@ -568,28 +567,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "az-config-center-client"
-version = "2026.6.13"
+name = "az-aio-web"
+version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
- "az-config-center-contract",
- "reqwest",
+ "axum",
+ "az-aio-plugin-api",
+ "az-aio-plugin-bundled",
+ "az-aio-plugin-host",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "az-config-center-contract"
-version = "2026.6.13"
-dependencies = [
- "automod",
- "az-derive-aliases",
- "chrono",
- "derive_more 2.1.1",
- "serde",
- "strum",
- "uuid",
+ "tokio",
+ "tower",
+ "tower-http",
 ]
 
 [[package]]
@@ -879,7 +869,6 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
- "serde",
  "wasm-bindgen",
  "windows-link 0.2.1",
 ]
@@ -3266,6 +3255,12 @@ dependencies = [
  "http-body",
  "pin-project-lite",
 ]
+
+[[package]]
+name = "http-range-header"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9171a2ea8a68358193d15dd5d70c1c10a2afc3e7e4c5bc92bc9f025cebd7359c"
 
 [[package]]
 name = "httparse"
@@ -7507,10 +7502,19 @@ checksum = "4cfcf7e2740e6fc6d4d688b4ef00650406bb94adf4731e43c096c3a19fe40840"
 dependencies = [
  "bitflags 2.13.0",
  "bytes",
+ "futures-core",
  "futures-util",
  "http",
  "http-body",
+ "http-body-util",
+ "http-range-header",
+ "httpdate",
+ "mime",
+ "mime_guess",
+ "percent-encoding",
  "pin-project-lite",
+ "tokio",
+ "tokio-util",
  "tower",
  "tower-layer",
  "tower-service",
