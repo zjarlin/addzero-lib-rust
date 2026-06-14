@@ -13,6 +13,7 @@ workspace = "../plugins"
 [dependencies]
 automod.workspace = true
 az-aio-plugin-api = { path = "../plugins/api" }
+az-aio-plugin-bundled = { path = "../plugins/bundled" }
 az-aio-plugin-host = { path = "../plugins/host" }
 az-aio-shared = { path = "../shared" }
 dioxus = { version = "0.7.9", default-features = false, features = [

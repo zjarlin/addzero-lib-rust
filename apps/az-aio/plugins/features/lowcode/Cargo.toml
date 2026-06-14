@@ -15,6 +15,7 @@ name = "az-aio-lowcode"
 path = "src/main.rs"
 
 [dependencies]
+az-aio-shared = { path = "../../../shared" }
 automod.workspace = true
 az-aio-plugin-api = { path = "../../api" }
 anyhow.workspace = true

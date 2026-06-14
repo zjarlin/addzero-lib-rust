@@ -140,7 +140,6 @@ az-starter-dictionary = { version = "=2026.5.10", path = "crates/runtime/az-star
 az-starter-identity = { version = "=2026.5.10", path = "crates/runtime/az-starter-identity" }
 az-starter-menu = { version = "=2026.5.10", path = "crates/runtime/az-starter-menu" }
 az-starter-organization = { version = "=2026.5.10", path = "crates/runtime/az-starter-organization" }
-az-starter-storage = { version = "=2026.5.10", path = "crates/runtime/az-starter-storage" }
 az-system-starters = { version = "=2026.5.10", path = "crates/runtime/az-system-starters" }
 az-temp-mail = { version = "=2026.5.10", path = "crates/network/az-temp-mail" }
 az-wasm-plugin-api = { version = "=2026.5.10", path = "crates/runtime/az-wasm-plugin-api" }

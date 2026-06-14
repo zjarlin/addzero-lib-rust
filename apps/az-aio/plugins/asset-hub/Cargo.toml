@@ -8,6 +8,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+az-aio-shared = { path = "../../shared" }
 anyhow.workspace = true
 axum.workspace = true
 az-aio-plugin-api = { path = "../api" }

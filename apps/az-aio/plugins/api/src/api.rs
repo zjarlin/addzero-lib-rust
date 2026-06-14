@@ -499,7 +499,7 @@ impl Default for NativePluginContext {
     fn default() -> Self {
         Self {
             api_base_url: "http://127.0.0.1:0".to_string(),
-            database_url: std::env::var("AZ_AIO_DATABASE_URL").ok(),
+            database_url: None,
             config_dir: std::path::PathBuf::from("."),
             data_dir: std::path::PathBuf::from("."),
         }

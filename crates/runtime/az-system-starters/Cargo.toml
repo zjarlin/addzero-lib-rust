@@ -13,7 +13,6 @@ az-starter-dictionary.workspace = true
 az-starter-identity.workspace = true
 az-starter-menu.workspace = true
 az-starter-organization.workspace = true
-az-starter-storage.workspace = true
 
 automod.workspace = true
 [lints]

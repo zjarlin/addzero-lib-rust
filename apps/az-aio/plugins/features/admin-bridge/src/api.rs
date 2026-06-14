@@ -5,11 +5,11 @@
 //! `PageContribution` 和 `NavItemContribution`，使 admin 路由可在 AZ AIO 界面的
 //! nav 和路由匹配中正常工作。
 
-use az_admin_plugin_registry::api::{registered_domains, section_for_path};
+use az_admin_plugin_registry::api::registered_domains;
 use az_aio_plugin_api::api::{
     ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
-    NativeUiRenderer, PluginActivation, PluginDescriptor, PluginKind,
-    NavItemContribution, PageContribution, UiContributionSlot,
+    PluginActivation, PluginDescriptor, PluginKind,
+    NavItemContribution, PageContribution,
 };
 use az_aio_plugin_api::register_native_plugin;
 
@@ -69,22 +69,12 @@ impl NativeAzAioPlugin for AdminBridgePlugin {
         Ok(ContributionSet {
             nav_items,
             pages,
-            ui_contributions: Vec::new(),
-            backend_apis: Vec::new(),
-            toolbar_actions: Vec::new(),
-            catalog_providers: Vec::new(),
-            settings_sections: Vec::new(),
-            shell_entries: Vec::new(),
-            generated_files: Vec::new(),
+            ..ContributionSet::default()
         })
     }
 
     fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        Ok(NativePluginRuntime {
-            renderers: vec![],
-            router: axum::Router::new(),
-            startup: None,
-        })
+        Ok(NativePluginRuntime::default())
     }
 }
 

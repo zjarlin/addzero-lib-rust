@@ -12,6 +12,7 @@ automod.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 az-aio-plugin-api = { path = "../api" }
+az-io = { path = "../../../../crates/core/az-io" }
 dirs = "6"
 inventory.workspace = true
 serde.workspace = true

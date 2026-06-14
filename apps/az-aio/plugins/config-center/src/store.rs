@@ -1,9 +1,7 @@
-use std::sync::Arc;
-
-use anyhow::{anyhow, bail};
+use anyhow::bail;
+use az_aio_shared::db;
 use shaku::{Component, Interface, module};
 use toasty::stmt::{List, Query};
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
@@ -12,20 +10,20 @@ use crate::{
 
 #[derive(Clone)]
 pub struct ConfigCenterStore {
-    db: Arc<Mutex<toasty::Db>>,
+    db: db::SharedDb,
 }
 
 impl ConfigCenterStore {
     pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
-        let database_url = validate_database_url(Some(database_url))?;
-        let db = toasty::Db::builder()
+        let database_url = db::verify_database_url(database_url)?;
+        let toasty = toasty::Db::builder()
             .models(toasty::models!(ConfigEntry))
             .table_name_prefix(TABLE_NAME_PREFIX)
             .connect(database_url)
             .await?;
-        db.push_schema().await?;
+        toasty.push_schema().await?;
         Ok(Self {
-            db: Arc::new(Mutex::new(db)),
+            db: db::SharedDb::new(toasty),
         })
     }
 
@@ -48,7 +46,7 @@ impl ConfigCenterStore {
     ) -> anyhow::Result<ConfigEntrySummary> {
         validate_config_entry_input(&input)?;
         let id = normalized_id(input.id);
-        let now = timestamp_string();
+        let now = db::timestamp_secs();
         let mut db = self.db.lock().await;
         let existing = Query::<List<ConfigEntry>>::filter(ConfigEntry::fields().id().eq(&id))
             .first()
@@ -122,14 +120,6 @@ pub fn build_config_center_module() -> ConfigCenterModule {
     ConfigCenterModule::builder().build()
 }
 
-pub fn validate_database_url(value: Option<&str>) -> anyhow::Result<&str> {
-    let value = value
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| anyhow!("missing config-center database url"))?;
-    Ok(value)
-}
-
 pub fn validate_config_entry_input(input: &ConfigEntryInput) -> anyhow::Result<()> {
     if input.key.trim().is_empty() {
         bail!("config key must not be blank");
@@ -156,29 +146,11 @@ fn normalized_id(value: Option<String>) -> String {
         .unwrap_or_else(|| Uuid::new_v4().to_string())
 }
 
-fn timestamp_string() -> String {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-        .to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use shaku::HasComponent;
 
     use super::*;
-
-    #[test]
-    fn validates_database_url() {
-        assert_eq!(
-            validate_database_url(Some(" postgresql://localhost/config ")).unwrap(),
-            "postgresql://localhost/config"
-        );
-        let error = validate_database_url(None).unwrap_err();
-        assert_eq!(error.to_string(), "missing config-center database url");
-    }
 
     #[test]
     fn rejects_blank_config_entry_input() {

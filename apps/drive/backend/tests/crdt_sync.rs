@@ -241,3 +241,91 @@ async fn binary_upload_single_chunk() {
 
     let _ = client.close(None).await;
 }
+
+// ── GetBinary / List tests ────────────────────────────────────────────
+
+#[tokio::test]
+async fn binary_roundtrip() {
+    let metadata = Arc::new(InMemoryDriveMetadataStore::new());
+    let objects = Arc::new(InMemoryDriveObjectStore::new());
+    let state = Arc::new(CrdtSyncState::new(
+        metadata.clone(), objects.clone(), "test".to_owned(),
+    ));
+    let port = test_server(state.clone()).await;
+
+    let (mut client, _peer) = connect(port).await;
+
+    // Upload a binary file.
+    let payload = b"binary roundtrip test data";
+    let data_b64 = base64::engine::general_purpose::STANDARD.encode(payload);
+    client
+        .send(put_binary_msg("data.bin", 0, &data_b64, true))
+        .await
+        .unwrap();
+    let ack: Value = read_json(&mut client).await;
+    assert_eq!(ack["type"], "binary_ack");
+
+    // Download it back.
+    client
+        .send(Message::Text(
+            r#"{"type":"get_binary","remote_path":"data.bin"}"#.into(),
+        ))
+        .await
+        .unwrap();
+
+    let mut downloaded = Vec::new();
+    loop {
+        let chunk: Value = read_json(&mut client).await;
+        assert_eq!(chunk["type"], "binary_chunk");
+        let chunk_data = b64decode(chunk["data"].as_str().unwrap());
+        downloaded.extend_from_slice(&chunk_data);
+        if chunk["is_last"].as_bool().unwrap() {
+            break;
+        }
+    }
+    assert_eq!(downloaded, payload);
+
+    let _ = client.close(None).await;
+}
+
+#[tokio::test]
+async fn list_entries() {
+    let metadata = Arc::new(InMemoryDriveMetadataStore::new());
+    let objects = Arc::new(InMemoryDriveObjectStore::new());
+    let state = Arc::new(CrdtSyncState::new(
+        metadata.clone(), objects.clone(), "test".to_owned(),
+    ));
+    let port = test_server(state.clone()).await;
+
+    let (mut client, _peer) = connect(port).await;
+
+    // Upload two files first so we have something to list.
+    let d1 = base64::engine::general_purpose::STANDARD.encode(b"aaa");
+    client.send(put_binary_msg("notes/a.txt", 0, &d1, true)).await.unwrap();
+    let _: Value = read_json(&mut client).await;
+
+    let d2 = base64::engine::general_purpose::STANDARD.encode(b"bbb");
+    client.send(put_binary_msg("notes/b.txt", 0, &d2, true)).await.unwrap();
+    let _: Value = read_json(&mut client).await;
+
+    // List all entries.
+    client
+        .send(Message::Text(r#"{"type":"list"}"#.into()))
+        .await
+        .unwrap();
+    let result: Value = read_json(&mut client).await;
+    assert_eq!(result["type"], "list_result");
+    let entries = result["entries"].as_array().unwrap();
+    assert!(entries.len() >= 2);
+
+    // List with prefix.
+    client
+        .send(Message::Text(r#"{"type":"list","prefix":"notes/"}"#.into()))
+        .await
+        .unwrap();
+    let result2: Value = read_json(&mut client).await;
+    let entries2 = result2["entries"].as_array().unwrap();
+    assert_eq!(entries2.len(), 2);
+
+    let _ = client.close(None).await;
+}

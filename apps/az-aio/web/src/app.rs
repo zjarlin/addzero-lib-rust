@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use az_aio_plugin_host::host::HostSnapshot;
+use az_aio_shared::state::HostSnapshot;
 
 const DEFAULT_ROUTE: &str = "/assets";
 

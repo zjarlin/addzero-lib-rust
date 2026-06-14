@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use anyhow::{Result, bail};
+use az_aio_shared::db;
 use toasty::stmt::{List, Query};
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
@@ -15,19 +13,20 @@ pub const INVALID_PAGE_ID_MESSAGE: &str = "invalid lowcode page id";
 
 #[derive(Clone)]
 pub struct LowcodeStore {
-    db: Arc<Mutex<toasty::Db>>,
+    db: db::SharedDb,
 }
 
 impl LowcodeStore {
     pub async fn connect(database_url: &str) -> Result<Self> {
-        let db = toasty::Db::builder()
+        let database_url = db::verify_database_url(database_url)?;
+        let toasty = toasty::Db::builder()
             .models(toasty::models!(LowcodeApp, LowcodePage))
             .table_name_prefix(TABLE_NAME_PREFIX)
             .connect(database_url)
             .await?;
-        db.push_schema().await?;
+        toasty.push_schema().await?;
         Ok(Self {
-            db: Arc::new(Mutex::new(db)),
+            db: db::SharedDb::new(toasty),
         })
     }
 
@@ -39,7 +38,7 @@ impl LowcodeStore {
 
     pub async fn upsert_app(&self, input: LowcodeAppInput) -> Result<LowcodeAppSummary> {
         let id = normalized_id(input.id);
-        let now = timestamp_string();
+        let now = db::timestamp_secs();
         let mut db = self.db.lock().await;
         let existing = Query::<List<LowcodeApp>>::filter(LowcodeApp::fields().id().eq(&id))
             .first()
@@ -89,7 +88,7 @@ impl LowcodeStore {
     pub async fn upsert_page(&self, input: LowcodePageInput) -> Result<LowcodePageSummary> {
         let id = normalized_id(input.id);
         let app_id = normalize_required_id(&input.app_id, INVALID_APP_ID_MESSAGE)?;
-        let now = timestamp_string();
+        let now = db::timestamp_secs();
         let mut db = self.db.lock().await;
         let existing = Query::<List<LowcodePage>>::filter(LowcodePage::fields().id().eq(&id))
             .first()
@@ -172,13 +171,6 @@ fn normalize_required_id(value: &str, error_message: &'static str) -> Result<Str
         bail!(error_message);
     }
     Ok(value.to_string())
-}
-
-fn timestamp_string() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    now.as_secs().to_string()
 }
 
 #[cfg(test)]

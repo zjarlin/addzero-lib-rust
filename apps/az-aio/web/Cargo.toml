@@ -12,6 +12,7 @@ workspace = "../plugins"
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
 az-aio-plugin-api = { path = "../plugins/api" }
+az-aio-plugin-bundled = { path = "../plugins/bundled" }
 az-aio-plugin-host = { path = "../plugins/host" }
 az-aio-shared = { path = "../shared" }
 serde.workspace = true

@@ -2,6 +2,7 @@
 
 pub fn ensure_linked() {
     asset_hub::plugin::ensure_linked();
+    az_aio_plugin_admin_bridge::api::ensure_linked();
     az_aio_plugin_catalog::api::ensure_linked();
     az_aio_plugin_core_nav::api::ensure_linked();
     az_aio_plugin_git_clis::plugin::ensure_linked();

@@ -12,7 +12,6 @@
 //! | `az-starter-dictionary` | 数据字典与枚举常量管理 |
 //! | `az-starter-menu` | 系统菜单配置与路由管理 |
 //! | `az-starter-audit` | 操作日志与审计追踪 |
-//! | `az-starter-storage` | 上传下载与插件包仓库 |
 //!
 //! ## 用法
 //!
@@ -40,5 +39,4 @@ pub fn link_all() {
     az_starter_dictionary::api::ensure_linked();
     az_starter_menu::api::ensure_linked();
     az_starter_audit::api::ensure_linked();
-    az_starter_storage::api::ensure_linked();
 }

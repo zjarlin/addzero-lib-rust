@@ -5,7 +5,7 @@ use az_aio_plugin_api::api::{
     NativeRenderContext, NavItemContribution, PageContribution, UiContribution, UiContributionSlot,
 };
 use az_aio_plugin_host::host::{
-    load_az_aio_native_snapshot, native_renderer, start_native_loopback_server, HostSnapshot,
+    native_renderer, start_native_loopback_server, HostSnapshot,
 };
 use dioxus::prelude::*;
 use dioxus::signals::SyncStorage;
@@ -100,7 +100,15 @@ fn load_native_snapshot_async(
     mut api_base_url: Signal<String, SyncStorage>,
 ) {
     std::thread::spawn(move || {
-        let next_snapshot = load_az_aio_native_snapshot();
+        let context = az_aio_plugin_api::api::NativePluginContext {
+            api_base_url: "http://127.0.0.1:0".to_string(),
+            database_url: None,
+            config_dir: std::path::PathBuf::from("."),
+            data_dir: std::path::PathBuf::from("."),
+        };
+        az_aio_plugin_bundled::api::ensure_linked();
+        let next_snapshot =
+            az_aio_plugin_host::host::load_az_aio_native_snapshot(context);
         let loopback_url = start_loopback_server(next_snapshot.clone()).unwrap_or_default();
         snapshot.set(next_snapshot);
         api_base_url.set(loopback_url);

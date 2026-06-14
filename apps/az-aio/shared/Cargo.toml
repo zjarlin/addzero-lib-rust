@@ -5,19 +5,21 @@ edition = "2024"
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
 authors = ["zjarlin"]
-description = "AZ AIO 共享逻辑：插件加载、DI 配置、公共状态"
+description = "AZ AIO 共享底座：数据库连接、配置中心客户端、DI 容器、应用状态"
 workspace = "../plugins"
 
 [dependencies]
+automod.workspace = true
 anyhow.workspace = true
 az-aio-plugin-api = { path = "../plugins/api" }
-az-aio-plugin-bundled = { path = "../plugins/bundled" }
 az-aio-plugin-host = { path = "../plugins/host" }
 az-config-center-client = "=2026.6.13"
 serde.workspace = true
 serde_json.workspace = true
 shaku = "0.6.2"
+toasty.workspace = true
 tokio.workspace = true
+uuid.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

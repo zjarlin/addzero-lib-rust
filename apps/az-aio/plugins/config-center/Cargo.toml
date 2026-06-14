@@ -11,6 +11,7 @@ authors.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 az-aio-plugin-api = { path = "../api" }
+az-aio-shared = { path = "../../shared" }
 automod.workspace = true
 az-derive-aliases.workspace = true
 dioxus.workspace = true

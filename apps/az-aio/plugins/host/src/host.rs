@@ -21,9 +21,9 @@ use serde::{Deserialize, Serialize};
 const PLUGIN_STATE_FILE: &str = "plugin-state.json";
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn load_az_aio_native_snapshot() -> HostSnapshot {
+pub fn load_az_aio_native_snapshot(context: NativePluginContext) -> HostSnapshot {
     let enablement = load_plugin_enablement();
-    NativePluginHost::from_inventory(NativePluginContext::default())
+    NativePluginHost::from_inventory(context)
         .load_snapshot_with_enablement(&enablement)
 }
 
@@ -220,7 +220,7 @@ pub fn set_plugin_enabled_at(
 
 pub fn plugin_enablement_store_path() -> PathBuf {
     dirs::config_dir()
-        .unwrap_or_else(|| home_dir().join(".config"))
+        .unwrap_or_else(|| az_io::home_dir::home_dir().join(".config"))
         .join("addzero")
         .join("az-aio")
         .join(PLUGIN_STATE_FILE)
@@ -497,8 +497,3 @@ fn write_plugin_enablement_store(path: &Path, store: &PluginEnablementStore) -> 
     fs::write(path, contents)
 }
 
-fn home_dir() -> PathBuf {
-    std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."))
-}

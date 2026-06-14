@@ -186,6 +186,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
+ "az-aio-shared",
  "az-derive-aliases 2026.6.13",
  "dioxus",
  "serde",
@@ -384,6 +385,7 @@ version = "2026.5.10"
 dependencies = [
  "automod",
  "az-aio-plugin-api",
+ "az-aio-plugin-bundled",
  "az-aio-plugin-host",
  "az-aio-shared",
  "dioxus",
@@ -419,6 +421,7 @@ version = "2026.5.10"
 dependencies = [
  "asset-hub",
  "automod",
+ "az-aio-plugin-admin-bridge",
  "az-aio-plugin-api",
  "az-aio-plugin-catalog",
  "az-aio-plugin-core-nav",
@@ -502,6 +505,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
+ "az-io",
  "dirs",
  "inventory",
  "serde",
@@ -518,6 +522,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
+ "az-aio-shared",
  "http-body-util",
  "serde",
  "serde_json",
@@ -582,14 +587,16 @@ name = "az-aio-shared"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
+ "automod",
  "az-aio-plugin-api",
- "az-aio-plugin-bundled",
  "az-aio-plugin-host",
  "az-config-center-client",
  "serde",
  "serde_json",
  "shaku",
+ "toasty",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -599,6 +606,8 @@ dependencies = [
  "anyhow",
  "axum",
  "az-aio-plugin-api",
+ "az-aio-plugin-bundled",
+ "az-aio-plugin-host",
  "az-aio-shared",
  "serde",
  "serde_json",
@@ -669,6 +678,14 @@ dependencies = [
  "serde",
  "strum",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "az-io"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "automod",
 ]
 
 [[package]]
@@ -1123,6 +1140,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
+ "az-aio-shared",
  "az-derive-aliases 2026.6.13",
  "dioxus",
  "serde",
@@ -2175,6 +2193,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
+ "az-aio-shared",
  "az-derive-aliases 2026.6.13",
  "dioxus",
  "serde",
@@ -2213,6 +2232,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
+ "az-aio-shared",
  "az-derive-aliases 2026.6.13",
  "dioxus",
  "handlebars",
@@ -6508,6 +6528,7 @@ dependencies = [
  "automod",
  "axum",
  "az-aio-plugin-api",
+ "az-aio-shared",
  "az-derive-aliases 2026.6.13",
  "dioxus",
  "md5 0.8.0",

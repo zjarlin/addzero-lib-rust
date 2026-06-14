@@ -1,5 +1,5 @@
 [package]
-name = "az-common"
+name = "az-time"
 description = "通用日期与时间工具集，基于 chrono 提供本地化日期转换、工作日计算与时间范围工具。"
 version.workspace = true
 edition.workspace = true
@@ -11,9 +11,6 @@ authors.workspace = true
 automod.workspace = true
 chrono.workspace = true
 az-derive-aliases.workspace = true
-
-[dev-dependencies]
-anyhow.workspace = true
 
 [lints]
 workspace = true
