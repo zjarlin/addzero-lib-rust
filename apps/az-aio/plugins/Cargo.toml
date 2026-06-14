@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "../desktop",
     "../shared",
     "../web",
     "api",
@@ -24,6 +23,7 @@ members = [
     "features/admin-bridge",
     "features/settings",
     "features/sync",
+    "../workers/drive-worker",
 ]
 
 [workspace.package]

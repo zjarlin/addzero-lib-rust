@@ -9,6 +9,8 @@ description = "AZ AIO web workbench — Axum + SSR."
 workspace = "../plugins"
 
 [dependencies]
+dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
+dioxus-ssr = "0.7.9"
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
 az-aio-plugin-api = { path = "../plugins/api" }

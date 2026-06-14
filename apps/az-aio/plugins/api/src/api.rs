@@ -486,7 +486,7 @@ pub enum GeneratedFileStatus {
 pub type NativeRenderFn = fn(NativeRenderContext) -> dioxus::prelude::Element;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct NativePluginContext {
     pub api_base_url: String,
     pub database_url: Option<String>,
@@ -514,7 +514,7 @@ pub struct NativeRenderContext {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct NativeUiRenderer {
     pub renderer_id: String,
     pub slot: UiContributionSlot,
