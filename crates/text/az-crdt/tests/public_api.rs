@@ -1,4 +1,4 @@
-use az_line_crdt::document::LineCrdtDocument;
+use az_crdt::document::LineCrdtDocument;
 
 #[test]
 fn line_operations_preserve_file_text() -> Result<(), Box<dyn std::error::Error>> {

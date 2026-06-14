@@ -1,5 +1,3 @@
-#![cfg(not(target_arch = "wasm32"))]
-
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},

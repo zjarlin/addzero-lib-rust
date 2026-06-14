@@ -1,14 +1,16 @@
-#![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
+#![forbid(unsafe_code)]
 
 use az_aio_plugin_api::api::{
-    AzAioPlugin, BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
-    PluginActivation, PluginDescriptor, PluginKind, UiContribution, UiContributionSlot,
+    BackendApiContribution, ContributionSet, NativeAzAioPlugin, NativePluginContext,
+    NativePluginRuntime, NavItemContribution, PageContribution, PluginActivation, PluginDescriptor,
+    PluginKind, UiContribution, UiContributionSlot,
 };
+use az_aio_plugin_api::register_native_plugin;
 
 #[derive(Default)]
 pub struct SearchPlugin;
 
-impl AzAioPlugin for SearchPlugin {
+impl NativeAzAioPlugin for SearchPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "search".to_string(),
@@ -20,7 +22,7 @@ impl AzAioPlugin for SearchPlugin {
             dependencies: Vec::new(),
             capabilities: vec!["nav-items".to_string(), "search-content".to_string()],
             permissions: Vec::new(),
-            kind: PluginKind::WasmComponent,
+            kind: PluginKind::Native,
         }
     }
 
@@ -64,49 +66,12 @@ impl AzAioPlugin for SearchPlugin {
             generated_files: Vec::new(),
         })
     }
-}
 
-#[cfg(target_arch = "wasm32")]
-mod component {
-    use az_aio_plugin_api::api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
-
-    use super::SearchPlugin;
-
-    wit_bindgen::generate!({
-        path: "../../wit",
-        world: "az-aio-plugin",
-    });
-
-    struct SearchWasm;
-
-    impl Guest for SearchWasm {
-        fn describe() -> Result<String, String> {
-            descriptor_to_json(&SearchPlugin.descriptor()).map_err(|error| error.to_string())
-        }
-
-        fn contributions() -> Result<String, String> {
-            let contributions = SearchPlugin
-                .contributions()
-                .map_err(|error| error.to_string())?;
-            contributions_to_json(&contributions).map_err(|error| error.to_string())
-        }
-
-        fn on_load() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_enable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_disable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_unload() -> Result<(), String> {
-            Ok(())
-        }
+    fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        Ok(NativePluginRuntime::default())
     }
-
-    export!(SearchWasm);
 }
+
+register_native_plugin!(SearchPlugin);
+
+pub fn ensure_linked() {}

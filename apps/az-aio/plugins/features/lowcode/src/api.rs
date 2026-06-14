@@ -1,5 +1,3 @@
-#![cfg(not(target_arch = "wasm32"))]
-
 use axum::{
     Json, Router,
     extract::{Query, State},

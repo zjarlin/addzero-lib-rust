@@ -8,7 +8,7 @@ authors.workspace = true
 description = "AZ AIO CRDT file synchronization feature plugin."
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [[bin]]
 name = "az-aio"
@@ -17,12 +17,9 @@ path = "src/main.rs"
 [dependencies]
 automod.workspace = true
 az-aio-plugin-api = { path = "../../api" }
-wit-bindgen = "0.57.1"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["json", "ws"] }
-az-line-crdt = { path = "../../../../../crates/text/az-line-crdt" }
+az-crdt = { path = "../../../../../crates/text/az-crdt" }
 az-rustfs = { path = "../../../../../crates/storage/az-rustfs" }
 futures-util = "0.3.31"
 notify = "8.2.0"
@@ -41,10 +38,6 @@ http-body-util = "0.1.3"
 serde_json = "1.0.145"
 tempfile = "3.23.0"
 tower = { version = "0.5.2", features = ["util"] }
-
-[lints.rust]
-# wit-bindgen exports a component ABI that expands to unsafe C-ABI glue.
-unsafe_code = "allow"
 
 [lints.clippy]
 dbg_macro = "deny"

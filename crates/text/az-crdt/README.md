@@ -1,6 +1,6 @@
-# az-line-crdt
+# az-crdt
 
-`az-line-crdt` provides a narrow Rust API for synchronizing text file content with CRDT semantics.
+`az-crdt` provides a narrow Rust API for synchronizing text file content with CRDT semantics.
 
 The crate intentionally hides the underlying CRDT engine from callers. The public surface works with:
 

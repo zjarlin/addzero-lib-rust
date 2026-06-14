@@ -1,5 +1,3 @@
-#![cfg(not(target_arch = "wasm32"))]
-
 use std::{
     fs,
     path::{Path, PathBuf},

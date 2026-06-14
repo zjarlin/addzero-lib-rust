@@ -1,15 +1,17 @@
 use az_aio_plugin_api::api::{
-    AzAioPlugin, BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
-    PluginActivation, PluginDescriptor, PluginKind, SettingsDefaultContribution,
-    SettingsSectionContribution, UiContribution, UiContributionSlot,
+    BackendApiContribution, ContributionSet, NativeAzAioPlugin, NativePluginContext,
+    NativePluginRuntime, NavItemContribution, PageContribution, PluginActivation, PluginDescriptor,
+    PluginKind, SettingsDefaultContribution, SettingsSectionContribution, UiContribution,
+    UiContributionSlot,
 };
+use az_aio_plugin_api::register_native_plugin;
 
 const DEFAULT_SYNC_ROOT_SETTING: &str = "az-sync";
 
 #[derive(Default)]
 pub struct SyncPlugin;
 
-impl AzAioPlugin for SyncPlugin {
+impl NativeAzAioPlugin for SyncPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "sync".to_string(),
@@ -33,7 +35,7 @@ impl AzAioPlugin for SyncPlugin {
                 "network-sync".to_string(),
                 "finder-status-state".to_string(),
             ],
-            kind: PluginKind::WasmComponent,
+            kind: PluginKind::Native,
         }
     }
 
@@ -108,7 +110,15 @@ impl AzAioPlugin for SyncPlugin {
             generated_files: Vec::new(),
         })
     }
+
+    fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        Ok(NativePluginRuntime::default())
+    }
 }
+
+register_native_plugin!(SyncPlugin);
+
+pub fn ensure_linked() {}
 
 fn sync_backend_apis() -> Vec<BackendApiContribution> {
     vec![
@@ -225,7 +235,7 @@ fn backend_api(
 
 #[cfg(test)]
 mod tests {
-    use az_aio_plugin_api::api::AzAioPlugin;
+    use az_aio_plugin_api::api::NativeAzAioPlugin;
 
     use super::SyncPlugin;
 
@@ -233,33 +243,25 @@ mod tests {
     fn plugin_declares_sync_surfaces() -> anyhow::Result<()> {
         let descriptor = SyncPlugin.descriptor();
         assert_eq!(descriptor.id, "sync");
-        assert!(
-            descriptor
-                .capabilities
-                .iter()
-                .any(|capability| capability == "crdt-line-sync")
-        );
-        assert!(
-            descriptor
-                .capabilities
-                .iter()
-                .any(|capability| capability == "finder-status")
-        );
+        assert!(descriptor
+            .capabilities
+            .iter()
+            .any(|capability| capability == "crdt-line-sync"));
+        assert!(descriptor
+            .capabilities
+            .iter()
+            .any(|capability| capability == "finder-status"));
 
         let contributions = SyncPlugin.contributions()?;
-        assert!(
-            contributions
-                .backend_apis
-                .iter()
-                .any(|api| api.path == "/api/sync/ws")
-        );
-        assert!(
-            contributions
-                .settings_sections
-                .iter()
-                .flat_map(|section| section.defaults.iter())
-                .any(|default| default.key == "sync.default_root" && default.value == "az-sync")
-        );
+        assert!(contributions
+            .backend_apis
+            .iter()
+            .any(|api| api.path == "/api/sync/ws"));
+        assert!(contributions
+            .settings_sections
+            .iter()
+            .flat_map(|section| section.defaults.iter())
+            .any(|default| default.key == "sync.default_root" && default.value == "az-sync"));
         Ok(())
     }
 }

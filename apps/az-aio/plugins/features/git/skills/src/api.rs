@@ -1,4 +1,4 @@
-#![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
+#![forbid(unsafe_code)]
 
 use std::{
     collections::HashSet,
@@ -7,11 +7,12 @@ use std::{
 };
 
 use az_aio_plugin_api::api::{
-    AzAioPlugin, BackendApiContribution, CatalogItemContribution, CatalogItemKind,
-    CatalogProviderContribution, CatalogSource, CatalogTagContribution, CatalogTagGroup,
-    ContributionSet, PluginActivation, PluginDescriptor, PluginKind, UiContribution,
-    UiContributionSlot,
+    BackendApiContribution, CatalogItemContribution, CatalogItemKind, CatalogProviderContribution,
+    CatalogSource, CatalogTagContribution, CatalogTagGroup, ContributionSet, NativeAzAioPlugin,
+    NativePluginContext, NativePluginRuntime, PluginActivation, PluginDescriptor, PluginKind,
+    UiContribution, UiContributionSlot,
 };
+use az_aio_plugin_api::register_native_plugin;
 
 const SYSTEM_SKILLS_ROOT: &str = "/Users/zjarlin/.codex/skills/.system";
 const USER_SKILLS_ROOT: &str = "/Users/zjarlin/.agents/skills";
@@ -59,7 +60,7 @@ impl Default for GitSkillsPlugin {
     }
 }
 
-impl AzAioPlugin for GitSkillsPlugin {
+impl NativeAzAioPlugin for GitSkillsPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "git/skills".to_string(),
@@ -75,7 +76,7 @@ impl AzAioPlugin for GitSkillsPlugin {
                 .iter()
                 .map(|root| format!("读取 {}", root.path.display()))
                 .collect(),
-            kind: PluginKind::WasmComponent,
+            kind: PluginKind::Native,
         }
     }
 
@@ -99,7 +100,15 @@ impl AzAioPlugin for GitSkillsPlugin {
             generated_files: Vec::new(),
         })
     }
+
+    fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        Ok(NativePluginRuntime::default())
+    }
 }
+
+register_native_plugin!(GitSkillsPlugin);
+
+pub fn ensure_linked() {}
 
 fn skill_backend_apis() -> Vec<BackendApiContribution> {
     vec![backend_api(
@@ -145,33 +154,6 @@ fn backend_api(
         label: label.to_string(),
         description: description.to_string(),
         order,
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-fn wasm_contribution_set() -> ContributionSet {
-    ContributionSet {
-        nav_items: Vec::new(),
-        pages: Vec::new(),
-        toolbar_actions: Vec::new(),
-        catalog_providers: vec![CatalogProviderContribution {
-            id: "skills.local-roots".to_string(),
-            label: "技能".to_string(),
-            order: 20,
-            items: Vec::new(),
-        }],
-        ui_contributions: vec![ui_contribution(
-            "git.skills.ui.catalog",
-            UiContributionSlot::Content,
-            "技能目录贡献",
-            "git.skills.catalog-provider",
-            Some("/plugins"),
-            20,
-        )],
-        backend_apis: skill_backend_apis(),
-        settings_sections: Vec::new(),
-        shell_entries: Vec::new(),
-        generated_files: Vec::new(),
     }
 }
 
@@ -443,47 +425,4 @@ fn folded_front_matter_value(lines: &[&str], start_index: usize) -> Option<Strin
     }
 
     (!parts.is_empty()).then(|| parts.join(" "))
-}
-
-#[cfg(target_arch = "wasm32")]
-mod component {
-    use az_aio_plugin_api::api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
-
-    use super::{GitSkillsPlugin, wasm_contribution_set};
-
-    wit_bindgen::generate!({
-        path: "../../../wit",
-        world: "az-aio-plugin",
-    });
-
-    struct GitSkillsWasm;
-
-    impl Guest for GitSkillsWasm {
-        fn describe() -> Result<String, String> {
-            descriptor_to_json(&GitSkillsPlugin::new(Vec::new()).descriptor())
-                .map_err(|error| error.to_string())
-        }
-
-        fn contributions() -> Result<String, String> {
-            contributions_to_json(&wasm_contribution_set()).map_err(|error| error.to_string())
-        }
-
-        fn on_load() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_enable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_disable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_unload() -> Result<(), String> {
-            Ok(())
-        }
-    }
-
-    export!(GitSkillsWasm);
 }

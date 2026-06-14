@@ -1,8 +1,10 @@
 use az_aio_plugin_api::api::{
-    AzAioPlugin, BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
-    PluginActivation, PluginDescriptor, PluginKind, SettingsDefaultContribution,
-    SettingsSectionContribution, UiContribution, UiContributionSlot,
+    BackendApiContribution, ContributionSet, NativeAzAioPlugin, NativePluginContext,
+    NativePluginRuntime, NavItemContribution, PageContribution, PluginActivation, PluginDescriptor,
+    PluginKind, SettingsDefaultContribution, SettingsSectionContribution, UiContribution,
+    UiContributionSlot,
 };
+use az_aio_plugin_api::register_native_plugin;
 
 const DATABASE_SETTING_KEY: &str = "lowcode.database_url";
 const DATABASE_NAMESPACE: &str = "az-aio.dev";
@@ -10,7 +12,7 @@ const DATABASE_NAMESPACE: &str = "az-aio.dev";
 #[derive(Default)]
 pub struct LowcodePlugin;
 
-impl AzAioPlugin for LowcodePlugin {
+impl NativeAzAioPlugin for LowcodePlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "lowcode".to_string(),
@@ -30,7 +32,7 @@ impl AzAioPlugin for LowcodePlugin {
                 "config-center-read".to_string(),
                 "postgres-read-write".to_string(),
             ],
-            kind: PluginKind::WasmComponent,
+            kind: PluginKind::Native,
         }
     }
 
@@ -99,7 +101,15 @@ impl AzAioPlugin for LowcodePlugin {
             generated_files: Vec::new(),
         })
     }
+
+    fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        Ok(NativePluginRuntime::default())
+    }
 }
+
+register_native_plugin!(LowcodePlugin);
+
+pub fn ensure_linked() {}
 
 fn lowcode_backend_apis() -> Vec<BackendApiContribution> {
     vec![

@@ -1,14 +1,16 @@
-#![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
+#![forbid(unsafe_code)]
 
 use az_aio_plugin_api::api::{
-    AzAioPlugin, ContributionSet, NavItemContribution, PageContribution, PluginActivation,
-    PluginDescriptor, PluginKind, SettingsSectionContribution, UiContribution, UiContributionSlot,
+    ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
+    NavItemContribution, PageContribution, PluginActivation, PluginDescriptor, PluginKind,
+    SettingsSectionContribution, UiContribution, UiContributionSlot,
 };
+use az_aio_plugin_api::register_native_plugin;
 
 #[derive(Default)]
 pub struct CoreNavPlugin;
 
-impl AzAioPlugin for CoreNavPlugin {
+impl NativeAzAioPlugin for CoreNavPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "navigation".to_string(),
@@ -24,7 +26,7 @@ impl AzAioPlugin for CoreNavPlugin {
                 "settings-sections".to_string(),
             ],
             permissions: Vec::new(),
-            kind: PluginKind::WasmComponent,
+            kind: PluginKind::Native,
         }
     }
 
@@ -99,52 +101,15 @@ impl AzAioPlugin for CoreNavPlugin {
             generated_files: Vec::new(),
         })
     }
-}
 
-#[cfg(target_arch = "wasm32")]
-mod component {
-    use az_aio_plugin_api::api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
-
-    use super::CoreNavPlugin;
-
-    wit_bindgen::generate!({
-        path: "../../wit",
-        world: "az-aio-plugin",
-    });
-
-    struct NavigationWasm;
-
-    impl Guest for NavigationWasm {
-        fn describe() -> Result<String, String> {
-            descriptor_to_json(&CoreNavPlugin.descriptor()).map_err(|error| error.to_string())
-        }
-
-        fn contributions() -> Result<String, String> {
-            let contributions = CoreNavPlugin
-                .contributions()
-                .map_err(|error| error.to_string())?;
-            contributions_to_json(&contributions).map_err(|error| error.to_string())
-        }
-
-        fn on_load() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_enable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_disable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_unload() -> Result<(), String> {
-            Ok(())
-        }
+    fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        Ok(NativePluginRuntime::default())
     }
-
-    export!(NavigationWasm);
 }
+
+register_native_plugin!(CoreNavPlugin);
+
+pub fn ensure_linked() {}
 
 fn ui_contribution(
     id: &str,

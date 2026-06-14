@@ -985,6 +985,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-crdt"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "automod",
+ "loro",
+ "serde",
+]
+
+[[package]]
 name = "az-creates"
 version = "2026.5.10"
 dependencies = [
@@ -1316,16 +1326,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
-]
-
-[[package]]
-name = "az-line-crdt"
-version = "2026.5.10"
-dependencies = [
- "anyhow",
- "automod",
- "loro",
- "serde",
 ]
 
 [[package]]

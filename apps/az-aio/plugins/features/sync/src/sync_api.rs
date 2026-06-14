@@ -1,5 +1,3 @@
-#![cfg(not(target_arch = "wasm32"))]
-
 use std::{
     collections::BTreeMap,
     sync::Arc,
@@ -766,7 +764,7 @@ mod tests {
         body::Body,
         http::{Method, Request, StatusCode, header},
     };
-    use az_line_crdt::wire::LineCrdtVersion;
+    use az_crdt::wire::LineCrdtVersion;
     use http_body_util::BodyExt;
     use tempfile::TempDir;
     use tokio::{net::TcpListener, task::JoinHandle, time::timeout};

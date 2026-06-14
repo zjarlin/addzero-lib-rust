@@ -1,14 +1,16 @@
-#![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
+#![forbid(unsafe_code)]
 
 use az_aio_plugin_api::api::{
-    AzAioPlugin, BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
-    PluginActivation, PluginDescriptor, PluginKind, UiContribution, UiContributionSlot,
+    BackendApiContribution, ContributionSet, NativeAzAioPlugin, NativePluginContext,
+    NativePluginRuntime, NavItemContribution, PageContribution, PluginActivation, PluginDescriptor,
+    PluginKind, UiContribution, UiContributionSlot,
 };
+use az_aio_plugin_api::register_native_plugin;
 
 #[derive(Default)]
 pub struct ProjectsPlugin;
 
-impl AzAioPlugin for ProjectsPlugin {
+impl NativeAzAioPlugin for ProjectsPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "projects".to_string(),
@@ -24,7 +26,7 @@ impl AzAioPlugin for ProjectsPlugin {
                 "backend-api".to_string(),
             ],
             permissions: Vec::new(),
-            kind: PluginKind::WasmComponent,
+            kind: PluginKind::Native,
         }
     }
 
@@ -78,7 +80,15 @@ impl AzAioPlugin for ProjectsPlugin {
             generated_files: Vec::new(),
         })
     }
+
+    fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        Ok(NativePluginRuntime::default())
+    }
 }
+
+register_native_plugin!(ProjectsPlugin);
+
+pub fn ensure_linked() {}
 
 fn ui_contribution(
     id: &str,
@@ -114,49 +124,4 @@ fn backend_api(
         description: description.to_string(),
         order,
     }
-}
-
-#[cfg(target_arch = "wasm32")]
-mod component {
-    use az_aio_plugin_api::api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
-
-    use super::ProjectsPlugin;
-
-    wit_bindgen::generate!({
-        path: "../../wit",
-        world: "az-aio-plugin",
-    });
-
-    struct ProjectsWasm;
-
-    impl Guest for ProjectsWasm {
-        fn describe() -> Result<String, String> {
-            descriptor_to_json(&ProjectsPlugin.descriptor()).map_err(|error| error.to_string())
-        }
-
-        fn contributions() -> Result<String, String> {
-            let contributions = ProjectsPlugin
-                .contributions()
-                .map_err(|error| error.to_string())?;
-            contributions_to_json(&contributions).map_err(|error| error.to_string())
-        }
-
-        fn on_load() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_enable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_disable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_unload() -> Result<(), String> {
-            Ok(())
-        }
-    }
-
-    export!(ProjectsWasm);
 }

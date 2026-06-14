@@ -1,15 +1,16 @@
-#![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
+#![forbid(unsafe_code)]
 
 use az_aio_plugin_api::api::{
-    AzAioPlugin, CatalogItemContribution, CatalogItemKind, CatalogProviderContribution,
-    CatalogSource, ContributionSet, PluginActivation, PluginDescriptor, PluginKind,
-    ToolbarActionContribution, UiContribution, UiContributionSlot,
+    CatalogItemContribution, CatalogItemKind, CatalogProviderContribution, CatalogSource,
+    ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime, PluginActivation,
+    PluginDescriptor, PluginKind, ToolbarActionContribution, UiContribution, UiContributionSlot,
 };
+use az_aio_plugin_api::register_native_plugin;
 
 #[derive(Default)]
 pub struct CatalogPlugin;
 
-impl AzAioPlugin for CatalogPlugin {
+impl NativeAzAioPlugin for CatalogPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "catalog".to_string(),
@@ -24,7 +25,7 @@ impl AzAioPlugin for CatalogPlugin {
                 "toolbar-actions".to_string(),
             ],
             permissions: Vec::new(),
-            kind: PluginKind::WasmComponent,
+            kind: PluginKind::Native,
         }
     }
 
@@ -113,52 +114,15 @@ impl AzAioPlugin for CatalogPlugin {
             generated_files: Vec::new(),
         })
     }
-}
 
-#[cfg(target_arch = "wasm32")]
-mod component {
-    use az_aio_plugin_api::api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
-
-    use super::CatalogPlugin;
-
-    wit_bindgen::generate!({
-        path: "../../wit",
-        world: "az-aio-plugin",
-    });
-
-    struct CatalogWasm;
-
-    impl Guest for CatalogWasm {
-        fn describe() -> Result<String, String> {
-            descriptor_to_json(&CatalogPlugin.descriptor()).map_err(|error| error.to_string())
-        }
-
-        fn contributions() -> Result<String, String> {
-            let contributions = CatalogPlugin
-                .contributions()
-                .map_err(|error| error.to_string())?;
-            contributions_to_json(&contributions).map_err(|error| error.to_string())
-        }
-
-        fn on_load() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_enable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_disable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_unload() -> Result<(), String> {
-            Ok(())
-        }
+    fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        Ok(NativePluginRuntime::default())
     }
-
-    export!(CatalogWasm);
 }
+
+register_native_plugin!(CatalogPlugin);
+
+pub fn ensure_linked() {}
 
 fn ui_contribution(
     id: &str,

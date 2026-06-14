@@ -1,5 +1,3 @@
-#![cfg(not(target_arch = "wasm32"))]
-
 use futures_util::{
     SinkExt, StreamExt,
     stream::{SplitSink, SplitStream},

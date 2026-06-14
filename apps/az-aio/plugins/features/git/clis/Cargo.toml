@@ -8,20 +8,15 @@ authors.workspace = true
 description = "AZ AIO git CLI feature plugin and ~/.add_fn generator."
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 anyhow.workspace = true
 automod.workspace = true
 az-aio-plugin-api = { path = "../../../api" }
-wit-bindgen = "0.57.1"
 
 [dev-dependencies]
 tempfile = "3.23.0"
-
-[lints.rust]
-# wit-bindgen exports a component ABI that expands to unsafe C-ABI glue.
-unsafe_code = "allow"
 
 [lints.clippy]
 dbg_macro = "deny"

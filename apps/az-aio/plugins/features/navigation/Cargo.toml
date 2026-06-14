@@ -8,17 +8,12 @@ authors.workspace = true
 description = "AZ AIO navigation runtime plugin."
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 automod.workspace = true
 anyhow.workspace = true
 az-aio-plugin-api = { path = "../../api" }
-wit-bindgen = "0.57.1"
-
-[lints.rust]
-# wit-bindgen exports a component ABI that expands to unsafe C-ABI glue.
-unsafe_code = "allow"
 
 [lints.clippy]
 dbg_macro = "deny"

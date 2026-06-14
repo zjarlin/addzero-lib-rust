@@ -1,14 +1,15 @@
-#![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
+#![forbid(unsafe_code)]
 
 use az_aio_plugin_api::api::{
-    AzAioPlugin, ContributionSet, PluginActivation, PluginDescriptor, PluginKind, UiContribution,
-    UiContributionSlot,
+    ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime, PluginActivation,
+    PluginDescriptor, PluginKind, UiContribution, UiContributionSlot,
 };
+use az_aio_plugin_api::register_native_plugin;
 
 #[derive(Default)]
 pub struct GitNotesPlugin;
 
-impl AzAioPlugin for GitNotesPlugin {
+impl NativeAzAioPlugin for GitNotesPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "git/notes".to_string(),
@@ -20,7 +21,7 @@ impl AzAioPlugin for GitNotesPlugin {
             dependencies: Vec::new(),
             capabilities: vec!["notes-placeholder".to_string()],
             permissions: Vec::new(),
-            kind: PluginKind::WasmComponent,
+            kind: PluginKind::Native,
         }
     }
 
@@ -44,49 +45,12 @@ impl AzAioPlugin for GitNotesPlugin {
             generated_files: Vec::new(),
         })
     }
-}
 
-#[cfg(target_arch = "wasm32")]
-mod component {
-    use az_aio_plugin_api::api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
-
-    use super::GitNotesPlugin;
-
-    wit_bindgen::generate!({
-        path: "../../../wit",
-        world: "az-aio-plugin",
-    });
-
-    struct GitNotesWasm;
-
-    impl Guest for GitNotesWasm {
-        fn describe() -> Result<String, String> {
-            descriptor_to_json(&GitNotesPlugin.descriptor()).map_err(|error| error.to_string())
-        }
-
-        fn contributions() -> Result<String, String> {
-            let contributions = GitNotesPlugin
-                .contributions()
-                .map_err(|error| error.to_string())?;
-            contributions_to_json(&contributions).map_err(|error| error.to_string())
-        }
-
-        fn on_load() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_enable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_disable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_unload() -> Result<(), String> {
-            Ok(())
-        }
+    fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        Ok(NativePluginRuntime::default())
     }
-
-    export!(GitNotesWasm);
 }
+
+register_native_plugin!(GitNotesPlugin);
+
+pub fn ensure_linked() {}

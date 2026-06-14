@@ -1,10 +1,8 @@
-#![cfg(not(target_arch = "wasm32"))]
-
 use std::{collections::BTreeMap, fs, path::Path};
 
 use anyhow::{Context, Result};
-use az_line_crdt::document::LineCrdtDocument;
-use az_line_crdt::wire::{LineCrdtUpdate, LineCrdtVersion};
+use az_crdt::document::LineCrdtDocument;
+use az_crdt::wire::{LineCrdtUpdate, LineCrdtVersion};
 
 use crate::{
     contracts::{SyncStatusResponse, SyncTransportSummary},
@@ -367,7 +365,7 @@ struct SyncDocumentEntry {
 mod tests {
     use std::path::PathBuf;
 
-    use az_line_crdt::wire::LineCrdtVersion;
+    use az_crdt::wire::LineCrdtVersion;
 
     use crate::sync_model::SyncDeviceInfo;
 

@@ -1,13 +1,13 @@
 use std::{env, path::PathBuf};
 
 use az_aio_plugin_api::api::{
-    AzAioPlugin, BackendApiContribution, ContributionSet, GeneratedFileContribution,
-    PluginActivation, PluginDescriptor, PluginKind, UiContribution, UiContributionSlot,
+    BackendApiContribution, ContributionSet, NativeAzAioPlugin, NativePluginContext,
+    NativePluginRuntime, PluginActivation, PluginDescriptor, PluginKind, UiContribution,
+    UiContributionSlot,
 };
+use az_aio_plugin_api::register_native_plugin;
 
-use crate::shell_scan::{
-    ShellScan, managed_generated_file, pending_generated_file, scan_shell_sources,
-};
+use crate::shell_scan::{managed_generated_file, scan_shell_sources};
 
 const PLUGIN_ID: &str = "git/clis";
 const DEFAULT_SOURCE_ROOT: &str = ".config/shell";
@@ -18,8 +18,6 @@ pub struct GitClisPlugin {
     source_root: PathBuf,
     output_path: PathBuf,
     extra_cli_roots: Vec<PathBuf>,
-    scan: Option<ShellScan>,
-    generated_file: Option<GeneratedFileContribution>,
 }
 
 impl GitClisPlugin {
@@ -32,8 +30,6 @@ impl GitClisPlugin {
             source_root: source_root.into(),
             output_path: output_path.into(),
             extra_cli_roots,
-            scan: None,
-            generated_file: None,
         }
     }
 }
@@ -49,7 +45,7 @@ impl Default for GitClisPlugin {
     }
 }
 
-impl AzAioPlugin for GitClisPlugin {
+impl NativeAzAioPlugin for GitClisPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         let mut permissions = vec![
             format!("读取 {}", self.source_root.display()),
@@ -61,26 +57,28 @@ impl AzAioPlugin for GitClisPlugin {
                 .map(|root| format!("读取 {}", root.display())),
         );
 
-        plugin_descriptor(permissions, PluginKind::WasmComponent)
-    }
-
-    fn on_enable(&mut self) -> anyhow::Result<()> {
-        let scan = scan_shell_sources(&self.source_root, &self.extra_cli_roots);
-        let generated_file = managed_generated_file(&scan, &self.source_root, &self.output_path);
-        self.scan = Some(scan);
-        self.generated_file = Some(generated_file);
-        Ok(())
+        PluginDescriptor {
+            id: PLUGIN_ID.to_string(),
+            name: "Git 命令行".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            description: "扫描终端片段和用户命令脚本，供桌面端命令管理器使用。".to_string(),
+            activation: PluginActivation::Eager,
+            priority: 700,
+            dependencies: Vec::new(),
+            capabilities: vec![
+                "shell-scan".to_string(),
+                "cli-page".to_string(),
+                "env-page".to_string(),
+                "add-fn-catalog".to_string(),
+            ],
+            permissions,
+            kind: PluginKind::Native,
+        }
     }
 
     fn contributions(&self) -> anyhow::Result<ContributionSet> {
-        let scan = self
-            .scan
-            .clone()
-            .unwrap_or_else(|| scan_shell_sources(&self.source_root, &self.extra_cli_roots));
-        let generated_file = self
-            .generated_file
-            .clone()
-            .unwrap_or_else(|| pending_generated_file(&scan, &self.source_root, &self.output_path));
+        let scan = scan_shell_sources(&self.source_root, &self.extra_cli_roots);
+        let generated_file = managed_generated_file(&scan, &self.source_root, &self.output_path);
 
         Ok(ContributionSet {
             nav_items: Vec::new(),
@@ -94,27 +92,15 @@ impl AzAioPlugin for GitClisPlugin {
             generated_files: vec![generated_file],
         })
     }
-}
 
-fn plugin_descriptor(permissions: Vec<String>, kind: PluginKind) -> PluginDescriptor {
-    PluginDescriptor {
-        id: PLUGIN_ID.to_string(),
-        name: "Git 命令行".to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        description: "扫描终端片段和用户命令脚本，供桌面端命令管理器使用。".to_string(),
-        activation: PluginActivation::Eager,
-        priority: 700,
-        dependencies: Vec::new(),
-        capabilities: vec![
-            "shell-scan".to_string(),
-            "cli-page".to_string(),
-            "env-page".to_string(),
-            "add-fn-catalog".to_string(),
-        ],
-        permissions,
-        kind,
+    fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        Ok(NativePluginRuntime::default())
     }
 }
+
+register_native_plugin!(GitClisPlugin);
+
+pub fn ensure_linked() {}
 
 fn clis_ui_contributions() -> Vec<UiContribution> {
     vec![ui_contribution(
@@ -136,21 +122,6 @@ fn clis_backend_apis() -> Vec<BackendApiContribution> {
         "返回 shell 片段、函数、别名和脚本贡献。",
         10,
     )]
-}
-
-#[cfg(target_arch = "wasm32")]
-fn wasm_contribution_set() -> ContributionSet {
-    ContributionSet {
-        nav_items: Vec::new(),
-        pages: Vec::new(),
-        ui_contributions: clis_ui_contributions(),
-        backend_apis: clis_backend_apis(),
-        toolbar_actions: Vec::new(),
-        catalog_providers: Vec::new(),
-        settings_sections: Vec::new(),
-        shell_entries: Vec::new(),
-        generated_files: Vec::new(),
-    }
 }
 
 fn ui_contribution(
@@ -193,47 +164,4 @@ fn home_dir() -> PathBuf {
     env::var_os("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
-}
-
-#[cfg(target_arch = "wasm32")]
-mod component {
-    use az_aio_plugin_api::api::{PluginKind, contributions_to_json, descriptor_to_json};
-
-    use super::{plugin_descriptor, wasm_contribution_set};
-
-    wit_bindgen::generate!({
-        path: "../../../wit",
-        world: "az-aio-plugin",
-    });
-
-    struct GitClisWasm;
-
-    impl Guest for GitClisWasm {
-        fn describe() -> Result<String, String> {
-            descriptor_to_json(&plugin_descriptor(Vec::new(), PluginKind::WasmComponent))
-                .map_err(|error| error.to_string())
-        }
-
-        fn contributions() -> Result<String, String> {
-            contributions_to_json(&wasm_contribution_set()).map_err(|error| error.to_string())
-        }
-
-        fn on_load() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_enable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_disable() -> Result<(), String> {
-            Ok(())
-        }
-
-        fn on_unload() -> Result<(), String> {
-            Ok(())
-        }
-    }
-
-    export!(GitClisWasm);
 }
