@@ -1,7 +1,7 @@
 use az_derive_aliases::{apply, plain_default};
 use std::sync::Arc;
 
-use az_desktop_plugin::{
+use az_desktop_plugin::api::{
     DesktopActionOutcome, DesktopBranchRegistration, DesktopContributions,
     DesktopDomainRegistration, DesktopEvent, DesktopExecContext, DesktopHostRegistry,
     DesktopHostServices, DesktopInitContext, DesktopPageContributionSpec, DesktopPageRegistration,
@@ -16,8 +16,8 @@ use uuid::Uuid;
 struct FakeServices;
 
 impl DesktopHostServices for FakeServices {
-    fn load_drive_snapshot(&self) -> Result<az_desktop_plugin::DesktopDriveSnapshot, String> {
-        Ok(az_desktop_plugin::DesktopDriveSnapshot::default())
+    fn load_drive_snapshot(&self) -> Result<az_desktop_plugin::api::DesktopDriveSnapshot, String> {
+        Ok(az_desktop_plugin::api::DesktopDriveSnapshot::default())
     }
 
     fn drive_host_path(&self, _path: &str) -> Result<String, String> {

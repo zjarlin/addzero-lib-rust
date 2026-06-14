@@ -11,5 +11,6 @@ az-derive-aliases.workspace = true
 az-desktop-plugin.workspace = true
 inventory.workspace = true
 
+automod.workspace = true
 [lints]
 workspace = true

@@ -1,4 +1,4 @@
-use az_io::{MoveLink, PathExt, mvln, undo_mvln};
+use az_io::api::{MoveLink, PathExt, mvln, undo_mvln};
 use std::fs;
 use tempfile::TempDir;
 

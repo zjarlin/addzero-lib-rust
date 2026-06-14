@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     GeneratedFileContribution, GeneratedFileStatus, ShellEntryContribution, ShellEntryKind,
 };
 
@@ -599,7 +599,7 @@ fn sanitize_id(value: &str) -> String {
 mod tests {
     use std::fs;
 
-    use az_aio_plugin_api::{GeneratedFileStatus, ShellEntryKind};
+    use az_aio_plugin_api::api::{GeneratedFileStatus, ShellEntryKind};
     use tempfile::TempDir;
 
     use super::{managed_generated_file, scan_shell_sources};

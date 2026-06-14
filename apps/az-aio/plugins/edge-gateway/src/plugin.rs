@@ -1,7 +1,8 @@
 use anyhow::Context;
-use az_aio_plugin_api::{
+use az_aio_plugin_api::register_native_plugin;
+use az_aio_plugin_api::api::{
     ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
-    NativeUiRenderer, PluginDescriptor, UiContributionSlot, register_native_plugin,
+    NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
 
 use crate::{
@@ -58,7 +59,7 @@ fn block_on_state(database_url: Option<String>) -> anyhow::Result<EdgeGatewayApi
 
 #[cfg(test)]
 mod tests {
-    use az_aio_plugin_api::PluginKind;
+    use az_aio_plugin_api::api::PluginKind;
 
     use super::*;
 

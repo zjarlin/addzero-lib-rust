@@ -24,7 +24,7 @@ az-desktop-plugin-registry = { path = "../az-desktop-plugin-registry" }       # 
 **注册插件：**
 
 ```rust
-use az_desktop_plugin::{
+use az_desktop_plugin::api::{
     DesktopInitContext, DesktopEvent, DesktopExecContext,
     DesktopViewContext, DesktopRenderLayer, Plugin, EventPropagation,
 };

@@ -25,7 +25,7 @@ az-remote-session = { path = "../az-remote-session" }       # workspace 内部�
 ## 用法
 
 ```rust
-use az_remote_session::{RemoteRelayService, RelayRuntimeConfig};
+use az_remote_session::api::{RemoteRelayService, RelayRuntimeConfig};
 
 let mut relay = RemoteRelayService::new();
 

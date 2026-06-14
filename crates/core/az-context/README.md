@@ -23,7 +23,7 @@ az-context = { path = "../az-context" }     # workspace 内部引用
 ## 用法
 
 ```rust
-use az_context::ThreadLocalUtil;
+use az_context::api::ThreadLocalUtil;
 
 // 写入值（类型作为键）
 ThreadLocalUtil::set(42_i32);

@@ -8,8 +8,9 @@ authors.workspace = true
 description = "Generic model traits for database entities, pagination, and auditing"
 
 [dependencies]
-chrono.workspace = true
 az-derive-aliases.workspace = true
+automod.workspace = true
+chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

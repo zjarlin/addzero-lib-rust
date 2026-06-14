@@ -1,4 +1,4 @@
-use az_json::{flatten, get_bool, get_f64, get_i64, get_string, get_value, merge, pretty};
+use az_json::api::{flatten, get_bool, get_f64, get_i64, get_string, get_value, merge, pretty};
 use serde_json::json;
 
 #[test]

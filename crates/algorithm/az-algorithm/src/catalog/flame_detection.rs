@@ -3,8 +3,7 @@ use crate::catalog::{
     AlgorithmTargetKind, AlgorithmTaskKind,
 };
 
-inventory::submit! {
-    AlgorithmComponentSpec {
+pub const SPEC: AlgorithmComponentSpec = AlgorithmComponentSpec {
         kind: AlgorithmComponentKind::FlameDetection,
         label: "火焰检测",
         task: AlgorithmTaskKind::Detection,
@@ -16,5 +15,4 @@ inventory::submit! {
             AlgorithmOutputKind::ClassLabel,
         ],
         description: "检测图片或视频帧中的火焰目标。",
-    }
-}
+    };

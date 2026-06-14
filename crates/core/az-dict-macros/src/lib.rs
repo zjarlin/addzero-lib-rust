@@ -20,7 +20,7 @@
 //! - 枚举自动派生 `Debug`、`Clone`、`Copy`、`PartialEq`、`Eq`、`PartialOrd`、`Ord`、`Hash`。
 //! - 提供 `items()` 方法返回所有字典项的静态切片，便于运行时遍历。
 
-use az_dict_spec::{DictionarySpec, RawValueKind};
+use az_dict_spec::api::{DictionarySpec, RawValueKind};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use std::collections::BTreeSet;
@@ -129,7 +129,7 @@ fn expand_dict_enum(
             let meta_lit = LitStr::new(&meta_json, proc_macro2::Span::call_site());
             meta_arms.push(quote! { Self::#variant_ident => Some(#meta_lit) });
             item_entries.push(quote! {
-                ::az_dict_spec::DictEnumItem {
+                ::az_dict_spec::api::DictEnumItem {
                     code: #code,
                     label: #label,
                     description: #description,
@@ -140,7 +140,7 @@ fn expand_dict_enum(
         } else {
             meta_arms.push(quote! { Self::#variant_ident => None });
             item_entries.push(quote! {
-                ::az_dict_spec::DictEnumItem {
+                ::az_dict_spec::api::DictEnumItem {
                     code: #code,
                     label: #label,
                     description: #description,
@@ -257,8 +257,8 @@ fn expand_dict_enum(
                     }
                 }
 
-                pub fn items() -> &'static [::az_dict_spec::DictEnumItem<#raw_type>] {
-                    const ITEMS: &[::az_dict_spec::DictEnumItem<#raw_type>] = &[
+                pub fn items() -> &'static [::az_dict_spec::api::DictEnumItem<#raw_type>] {
+                    const ITEMS: &[::az_dict_spec::api::DictEnumItem<#raw_type>] = &[
                         #(#item_entries,)*
                     ];
                     ITEMS

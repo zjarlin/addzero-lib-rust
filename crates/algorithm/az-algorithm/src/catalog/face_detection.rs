@@ -3,8 +3,7 @@ use crate::catalog::{
     AlgorithmTargetKind, AlgorithmTaskKind,
 };
 
-inventory::submit! {
-    AlgorithmComponentSpec {
+pub const SPEC: AlgorithmComponentSpec = AlgorithmComponentSpec {
         kind: AlgorithmComponentKind::FaceDetection,
         label: "人脸检测",
         task: AlgorithmTaskKind::Detection,
@@ -16,5 +15,4 @@ inventory::submit! {
             AlgorithmOutputKind::ClassLabel,
         ],
         description: "在图片或视频帧中定位人脸区域并输出置信度。",
-    }
-}
+    };

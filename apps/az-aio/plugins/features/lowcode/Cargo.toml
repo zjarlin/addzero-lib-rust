@@ -22,7 +22,6 @@ wit-bindgen = "0.57.1"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["json", "tokio"] }
-az-config-center-client = { path = "../../../../../crates/api/az-config-center-client" }
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["macros", "net", "rt", "sync"] }
 toasty = { version = "0.7.0", features = ["postgresql"] }

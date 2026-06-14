@@ -6,5 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 
+[dependencies]
+automod.workspace = true
+
 [lints]
 workspace = true

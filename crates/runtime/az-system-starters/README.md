@@ -13,7 +13,7 @@
 
 ```rust
 fn main() {
-    az_system_starters::link_all();
+    az_system_starters::api::link_all();
     // 此后 az-admin-plugin-registry 可发现系统级导航节点。
 }
 ```

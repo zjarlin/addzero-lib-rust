@@ -8,6 +8,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+automod.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

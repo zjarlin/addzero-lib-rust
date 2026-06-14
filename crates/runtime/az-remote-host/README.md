@@ -34,7 +34,7 @@ az-remote-host = "0.1"
 ## 用法
 
 ```rust
-use az_remote_host::{current_platform, HostPlatformAdapter, MockHostPlatformAdapter};
+use az_remote_host::api::{current_platform, HostPlatformAdapter, MockHostPlatformAdapter};
 
 fn main() {
     // 检测当前运行平台

@@ -29,11 +29,9 @@ pub enum AlgorithmComponentKind {
 
 impl AlgorithmComponentKind {
     /// 返回该组件的完整规格。
-    ///
-    /// 通过遍历所有已注册的 [`AlgorithmComponentSpec`] 查找匹配项。
     #[must_use]
     pub fn spec(self) -> Option<&'static AlgorithmComponentSpec> {
-        inventory::iter::<AlgorithmComponentSpec>
+        crate::catalog::algorithm_components()
             .into_iter()
             .find(|spec| spec.kind == self)
     }
@@ -124,9 +122,6 @@ pub enum AlgorithmOutputKind {
 }
 
 /// 单个算法组件的静态规格。
-///
-/// 各组件通过 `src/catalog/components/*.rs` 中的 [`inventory::submit!`] 注册，
-/// 运行时通过查询函数聚合。
 #[apply(plain_copy_eq)]
 pub struct AlgorithmComponentSpec {
     /// 组件稳定标识。

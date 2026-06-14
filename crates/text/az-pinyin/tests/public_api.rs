@@ -1,4 +1,4 @@
-use az_pinyin::{
+use az_pinyin::api::{
     char_array_to_string, char_to_pinyin, get_head_by_char, get_head_by_string, hanzi_to_pinyin,
     sanitize, string_array_to_string, string_to_pinyin,
 };

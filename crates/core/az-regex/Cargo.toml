@@ -8,6 +8,7 @@ authors.workspace = true
 description = "Regex utilities with compiled pattern caching and helper functions"
 
 [dependencies]
+automod.workspace = true
 az-derive-aliases.workspace = true
 regex.workspace = true
 serde.workspace = true

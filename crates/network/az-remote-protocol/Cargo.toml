@@ -15,6 +15,7 @@ serde.workspace = true
 serde_json.workspace = true
 strum.workspace = true
 
+automod.workspace = true
 [dev-dependencies]
 chrono.workspace = true
 uuid.workspace = true

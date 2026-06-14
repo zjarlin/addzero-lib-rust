@@ -1,6 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
-use az_aio_plugin_api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
+use az_aio_plugin_api::api::{AzAioPlugin, contributions_to_json, descriptor_to_json};
 
 use crate::LowcodePlugin;
 

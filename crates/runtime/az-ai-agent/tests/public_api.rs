@@ -1,4 +1,4 @@
-use az_ai_agent::{AssetAgentService, rig_provider_markers};
+use az_ai_agent::api::{AssetAgentService, rig_provider_markers};
 use az_assets::types::AssetKind;
 
 #[test]

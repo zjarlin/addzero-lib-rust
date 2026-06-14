@@ -11,10 +11,10 @@
 ## 用法
 
 ```rust
-az_starter_dictionary::ensure_linked();
+az_starter_dictionary::api::ensure_linked();
 ```
 
-通常由 `az_system_starters::link_all()` 统一调用。
+通常由 `az_system_starters::api::link_all()` 统一调用。
 
 ## 依赖的 crates
 

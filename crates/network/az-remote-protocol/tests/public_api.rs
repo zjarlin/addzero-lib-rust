@@ -1,7 +1,7 @@
 use az_remote_model::api::{
     ClipboardPayload, DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability,
 };
-use az_remote_protocol::{ControlFrame, DeviceHello, StreamKind};
+use az_remote_protocol::api::{ControlFrame, DeviceHello, StreamKind};
 use chrono::Utc;
 use uuid::Uuid;
 

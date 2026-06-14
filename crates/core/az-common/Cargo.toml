@@ -8,6 +8,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+automod.workspace = true
 chrono.workspace = true
 az-derive-aliases.workspace = true
 

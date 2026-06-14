@@ -3,8 +3,7 @@ use crate::catalog::{
     AlgorithmTargetKind, AlgorithmTaskKind,
 };
 
-inventory::submit! {
-    AlgorithmComponentSpec {
+pub const SPEC: AlgorithmComponentSpec = AlgorithmComponentSpec {
         kind: AlgorithmComponentKind::WorkerHitCounting,
         label: "工人敲击计数",
         task: AlgorithmTaskKind::Counting,
@@ -28,5 +27,4 @@ inventory::submit! {
         ],
         description:
             "基于人员轨迹、接触点、目标类型和目标响应，按每个人分别统计有效敲击和无效候选。",
-    }
-}
+    };

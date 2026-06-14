@@ -3,8 +3,7 @@ use crate::catalog::{
     AlgorithmTargetKind, AlgorithmTaskKind,
 };
 
-inventory::submit! {
-    AlgorithmComponentSpec {
+pub const SPEC: AlgorithmComponentSpec = AlgorithmComponentSpec {
         kind: AlgorithmComponentKind::QrCodeRecognition,
         label: "二维码识别",
         task: AlgorithmTaskKind::Recognition,
@@ -16,5 +15,4 @@ inventory::submit! {
             AlgorithmOutputKind::Confidence,
         ],
         description: "识别图片中的二维码区域并输出解码载荷。",
-    }
-}
+    };

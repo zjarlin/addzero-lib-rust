@@ -5,7 +5,7 @@ use std::{
     thread,
 };
 
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     AzAioPlugin, BackendApiContribution, CatalogItemContribution, CatalogItemKind, CatalogSource,
     ContributionSet, GeneratedFileContribution, NavItemContribution, PageContribution,
     PluginActivation, PluginBundleArtifactKind, PluginBundleManifest, PluginDependency,
@@ -13,7 +13,7 @@ use az_aio_plugin_api::{
     ToolbarActionContribution, UiContribution,
 };
 #[cfg(not(target_arch = "wasm32"))]
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     NativeAzAioPlugin, NativePluginContext, NativePluginRegistration, NativePluginRuntime,
     NativeRenderFn, NativeUiRenderer,
 };

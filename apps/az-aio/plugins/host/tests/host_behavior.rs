@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     AzAioPlugin, BackendApiContribution, CatalogItemKind, ContributionSet, NativeAzAioPlugin,
     NativePluginContext, NativePluginRuntime, NavItemContribution, PluginDependency, PluginState,
     UiContribution, UiContributionSlot,

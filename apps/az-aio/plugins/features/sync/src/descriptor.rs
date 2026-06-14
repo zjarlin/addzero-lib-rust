@@ -1,4 +1,4 @@
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     AzAioPlugin, BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
     PluginActivation, PluginDescriptor, PluginKind, SettingsDefaultContribution,
     SettingsSectionContribution, UiContribution, UiContributionSlot,
@@ -225,7 +225,7 @@ fn backend_api(
 
 #[cfg(test)]
 mod tests {
-    use az_aio_plugin_api::AzAioPlugin;
+    use az_aio_plugin_api::api::AzAioPlugin;
 
     use super::SyncPlugin;
 

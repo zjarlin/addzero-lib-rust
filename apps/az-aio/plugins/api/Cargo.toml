@@ -8,6 +8,7 @@ authors.workspace = true
 description = "App-local AZ AIO plugin descriptor and lifecycle API."
 
 [dependencies]
+automod.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true

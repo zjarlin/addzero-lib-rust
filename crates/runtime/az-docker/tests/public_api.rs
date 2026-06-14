@@ -1,4 +1,4 @@
-use az_docker::{DockerComposeConverter, DockerRunCommand};
+use az_docker::api::{DockerComposeConverter, DockerRunCommand};
 
 #[test]
 fn parse_docker_run_command_supports_common_flags() {

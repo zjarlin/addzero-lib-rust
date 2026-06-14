@@ -8,6 +8,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+automod.workspace = true
 asset-hub = { path = "../asset-hub" }
 config-center = { path = "../config-center" }
 drive-center = { path = "../drive-center" }

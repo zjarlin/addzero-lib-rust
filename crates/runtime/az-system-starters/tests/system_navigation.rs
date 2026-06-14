@@ -2,7 +2,7 @@ use az_admin_plugin_registry::api::{registered_domains, section_for_path};
 
 #[test]
 fn link_all_exposes_system_starter_navigation() {
-    az_system_starters::link_all();
+    az_system_starters::api::link_all();
 
     let system_domain = registered_domains()
         .into_iter()

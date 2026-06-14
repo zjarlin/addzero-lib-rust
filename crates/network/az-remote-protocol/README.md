@@ -27,7 +27,7 @@ az-remote-protocol = { path = "../az-remote-protocol" }   # workspace 内部引�
 use az_remote_model::api::{
     DeviceDescriptor, DeviceRole, OnlineStatus, RemotePlatform, SessionCapability,
 };
-use az_remote_protocol::{ControlFrame, DeviceHello};
+use az_remote_protocol::api::{ControlFrame, DeviceHello};
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -59,7 +59,7 @@ assert_eq!(frame, restored);
 ### 心跳帧
 
 \`\`\`rust
-use az_remote_protocol::ControlFrame;
+use az_remote_protocol::api::ControlFrame;
 
 let heartbeat = ControlFrame::Heartbeat;
 let bytes = heartbeat.to_json_bytes().unwrap();

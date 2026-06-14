@@ -8,6 +8,7 @@ authors = ["zjarlin"]
 homepage = "https://github.com/zjarlin/addzero-lib-rust"
 repository = "https://github.com/zjarlin/addzero-lib-rust"
 description = "Dioxus desktop shell for AZ AIO."
+workspace = "../plugins"
 
 [dependencies]
 automod.workspace = true
@@ -25,9 +26,6 @@ dioxus = { version = "0.7.9", default-features = false, features = [
     "signals",
 ] }
 tokio = { version = "1.47.1", features = ["net", "rt", "time"] }
-
-[workspace]
-resolver = "2"
 
 [lints.rust]
 unsafe_code = "forbid"

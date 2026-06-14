@@ -11,6 +11,7 @@ description = "AZ AIO settings feature plugin."
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+automod.workspace = true
 anyhow.workspace = true
 az-aio-plugin-api = { path = "../../api" }
 wit-bindgen = "0.57.1"

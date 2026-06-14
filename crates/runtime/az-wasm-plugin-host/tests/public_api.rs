@@ -1,5 +1,5 @@
-use az_wasm_plugin_api::{ExtensionPoint, PluginManifest, PluginRegistry, PluginState};
-use az_wasm_plugin_host::RuntimePluginRegistry;
+use az_wasm_plugin_api::api::{ExtensionPoint, PluginManifest, PluginRegistry, PluginState};
+use az_wasm_plugin_host::api::RuntimePluginRegistry;
 use wasmtime::Engine;
 
 fn manifest(id: &str, entry: &str) -> PluginManifest {

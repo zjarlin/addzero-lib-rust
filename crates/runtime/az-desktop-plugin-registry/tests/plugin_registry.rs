@@ -1,5 +1,5 @@
-use az_desktop_plugin::{DesktopInitContext, DesktopRenderLayer, Plugin};
-use az_desktop_plugin_registry::{declare_desktop_plugin, load_plugins};
+use az_desktop_plugin::api::{DesktopInitContext, DesktopRenderLayer, Plugin};
+use az_desktop_plugin_registry::{api::load_plugins, declare_desktop_plugin};
 
 declare_desktop_plugin! {
     struct AlphaPlugin;
@@ -8,9 +8,9 @@ declare_desktop_plugin! {
 impl
     Plugin<
         DesktopInitContext,
-        az_desktop_plugin::DesktopEvent,
-        az_desktop_plugin::DesktopExecContext,
-        az_desktop_plugin::DesktopViewContext,
+        az_desktop_plugin::api::DesktopEvent,
+        az_desktop_plugin::api::DesktopExecContext,
+        az_desktop_plugin::api::DesktopViewContext,
         DesktopRenderLayer,
     > for AlphaPlugin
 {
@@ -30,9 +30,9 @@ declare_desktop_plugin! {
 impl
     Plugin<
         DesktopInitContext,
-        az_desktop_plugin::DesktopEvent,
-        az_desktop_plugin::DesktopExecContext,
-        az_desktop_plugin::DesktopViewContext,
+        az_desktop_plugin::api::DesktopEvent,
+        az_desktop_plugin::api::DesktopExecContext,
+        az_desktop_plugin::api::DesktopViewContext,
         DesktopRenderLayer,
     > for BetaPlugin
 {

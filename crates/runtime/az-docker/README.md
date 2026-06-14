@@ -23,7 +23,7 @@ az-docker = { path = "../az-docker" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_docker::DockerComposeConverter;
+use az_docker::api::DockerComposeConverter;
 
 let command = "docker run --name myapp -p 8080:80 -e ENV=prod -v /data:/data nginx:latest";
 let yaml = DockerComposeConverter::convert_to_docker_compose(command).unwrap();

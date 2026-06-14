@@ -28,7 +28,7 @@ az-model = { path = "../az-model" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_model::{Identifiable, Timestamped, SoftDeletable, Auditable, Pageable, PageResult};
+use az_model::api::{Identifiable, Timestamped, SoftDeletable, Auditable, Pageable, PageResult};
 use chrono::{DateTime, Utc};
 
 // 实现 trait
@@ -57,7 +57,7 @@ impl SoftDeletable for User {
 }
 
 // 分页
-let page = PageResult::new(vec![user1, user2], 100, 1, 10);
+let page = PageResult::new(vec![1, 2], 100, 1, 10);
 println!("总页数: {}", page.total_pages());
 ```
 

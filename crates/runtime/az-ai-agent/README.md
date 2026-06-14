@@ -24,7 +24,7 @@ az-ai-agent = { path = "../az-ai-agent" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_ai_agent::AssetAgentService;
+use az_ai_agent::api::AssetAgentService;
 use az_assets::types::AssetKind;
 
 let service = AssetAgentService::new();

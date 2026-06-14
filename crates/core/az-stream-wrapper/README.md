@@ -24,29 +24,29 @@ az-stream-wrapper = { path = "../az-stream-wrapper" }  # workspace 内部引用
 ## 用法
 
 ```rust
-use az_stream_wrapper::lambdaquery;
+use az_stream_wrapper::api::lambdaquery;
 
-let items = vec!["apple", "banana", "avocado", "blueberry"];
+let items = || vec!["apple", "banana", "avocado", "blueberry"];
 
 // 模糊匹配包含 "av" 的元素
-let result = lambdaquery(&items)
-    .like(true, |s: &&str| s, "av")
+let result = lambdaquery(items())
+    .like(true, |s: &&str| *s, "av")
     .list();
-assert_eq!(result, vec!["apple", "avocado"]);
+assert_eq!(result, vec!["avocado"]);
 
 // 等值 + 或条件组合
-let result = lambdaquery(&items)
-    .eq(true, |s: &&str| s, "apple")
+let result = lambdaquery(items())
+    .eq(true, |s: &&str| *s, "apple")
     .or()
-    .eq(true, |s: &&str| s, "banana")
+    .eq(true, |s: &&str| *s, "banana")
     .list();
 assert_eq!(result, vec!["apple", "banana"]);
 
 // 使用宏快捷方式
-let result = az_stream_wrapper::stream_query!(&items)
-    .like(true, |s: &&str| s, "berry")
+let result = az_stream_wrapper::stream_query!(items())
+    .like(true, |s: &&str| *s, "berry")
     .one();
-assert_eq!(result, Some(&"blueberry"));
+assert_eq!(result, Some("blueberry"));
 ```
 
 ## 依赖的 crates

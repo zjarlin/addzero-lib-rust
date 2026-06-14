@@ -7,6 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+automod.workspace = true
 az-sandbox.workspace = true
 az-script-engine.workspace = true
 rhai = { version = "1", features = ["sync", "serde"] }

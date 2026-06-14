@@ -1,4 +1,4 @@
-use az_regex::{CachedRegex, extract_all, is_valid_pattern, named_captures_to_map};
+use az_regex::api::{CachedRegex, extract_all, is_valid_pattern, named_captures_to_map};
 use regex::Captures;
 
 #[test]

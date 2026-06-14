@@ -1,4 +1,4 @@
-use az_dict_spec::{DictionarySpec, RawValueKind};
+use az_dict_spec::api::{DictionarySpec, RawValueKind};
 
 #[test]
 fn parses_and_validates_int_dictionary() {

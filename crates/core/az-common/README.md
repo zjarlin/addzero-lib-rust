@@ -23,11 +23,14 @@ az-common = { path = "../az-common" }       # workspace 内部引用
 
 ## 用法
 
-```rust
-use az_common::{to_local_date, weekday_zh_cn, count_workdays, min_max_of_day};
+```rust,no_run
+use az_common::api::{count_workdays, min_max_of_day, to_local_date, weekday_zh_cn};
 use chrono::NaiveDate;
+use std::time::SystemTime;
 
+fn main() -> anyhow::Result<()> {
 // SystemTime → 本地日期
+let system_time = SystemTime::now();
 let local_date = to_local_date(system_time);
 
 // 中文星期
@@ -37,8 +40,11 @@ assert_eq!(weekday_zh_cn(chrono::Weekday::Mon), "周一");
 let workdays = count_workdays(2025, 5);
 
 // 某天的起止时间
-let date = NaiveDate::from_ymd_opt(2025, 5, 10).unwrap();
+let date = NaiveDate::from_ymd_opt(2025, 5, 10)
+    .ok_or_else(|| anyhow::anyhow!("invalid example date"))?;
 let (start, end) = min_max_of_day(date);
+Ok(())
+}
 ```
 
 ## 依赖的 crates

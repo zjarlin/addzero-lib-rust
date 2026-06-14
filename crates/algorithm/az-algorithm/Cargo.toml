@@ -5,23 +5,28 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Algorithm component catalog and contracts for the addzero ecosystem"
+description = "Unified algorithm components, ONNX helpers, catalog, and pipelines for the addzero ecosystem"
 homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+ab_glyph.workspace = true
+anyhow.workspace = true
 automod.workspace = true
 az-derive-aliases.workspace = true
-inventory.workspace = true
+base64.workspace = true
+half.workspace = true
+image.workspace = true
+imageproc.workspace = true
+ndarray.workspace = true
+ort = { workspace = true, features = ["half"] }
+rqrr.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 strum.workspace = true
 
 [dev-dependencies]
-az-algorithm-pipeline.workspace = true
-az-worker-hit-counting.workspace = true
-image.workspace = true
-imageproc.workspace = true
-serde_json.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

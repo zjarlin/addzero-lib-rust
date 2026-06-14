@@ -1,4 +1,4 @@
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     AzAioPlugin, BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
     PluginActivation, PluginDescriptor, PluginKind, SettingsDefaultContribution,
     SettingsSectionContribution, UiContribution, UiContributionSlot,

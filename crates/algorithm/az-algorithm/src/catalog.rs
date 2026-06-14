@@ -1,9 +1,6 @@
 //! 算法组件目录与输入输出契约。
 //!
-//! 各算法组件通过 [`inventory`] 在编译期声明式注册，运行时通过本模块的查询函数发现。
-//!
-//! 新增算法组件时，在 `src/catalog/` 下添加一个新文件并在此处声明 `mod xxx;`，
-//! 用 [`inventory::submit!`] 注册 [`AlgorithmComponentSpec`] 即可，无需维护集中式清单。
+//! 算法组件在本 crate 内以静态规格声明，查询函数直接读取固定组件列表。
 
 mod model;
 pub use model::{
@@ -25,8 +22,14 @@ mod safety_helmet_detection;
 mod vehicle_detection;
 mod worker_hit_counting;
 
-// inventory 注册收集点。
-//
-// 所有通过 `inventory::submit!(AlgorithmComponentSpec { ... })` 注册的组件
-// 会在此处被收集，供查询函数遍历。
-inventory::collect!(AlgorithmComponentSpec);
+const COMPONENTS: &[AlgorithmComponentSpec] = &[
+    face_detection::SPEC,
+    face_recognition::SPEC,
+    person_detection::SPEC,
+    ocr_text_recognition::SPEC,
+    flame_detection::SPEC,
+    safety_helmet_detection::SPEC,
+    vehicle_detection::SPEC,
+    qr_code_recognition::SPEC,
+    worker_hit_counting::SPEC,
+];

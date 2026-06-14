@@ -13,5 +13,6 @@ az-remote-model.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 uuid.workspace = true
 
+automod.workspace = true
 [lints]
 workspace = true

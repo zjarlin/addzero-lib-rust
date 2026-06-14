@@ -2,7 +2,7 @@ use az_remote_model::api::{
     ClipboardPayload, DeviceDescriptor, DeviceRole, FileTransferEnvelope, OnlineStatus,
     RemotePlatform, SessionCapability, VideoCodec, VideoFrameEnvelope,
 };
-use az_remote_session::RemoteRelayService;
+use az_remote_session::api::RemoteRelayService;
 use chrono::Utc;
 use uuid::Uuid;
 

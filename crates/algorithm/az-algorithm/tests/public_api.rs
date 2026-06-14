@@ -4,14 +4,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use az_algorithm_pipeline::logic_algorithm_pipeline::assist::run_image_pipeline_from_path;
-use az_algorithm_pipeline::logic_algorithm_pipeline::model::{
-    ImageAlgorithmKind, ImagePipelineOptions, ImagePipelineRun,
-};
-use az_worker_hit_counting::logic_worker_hit_counting::assist::record_worker_hit_timeline_from_visual_observations;
-use az_worker_hit_counting::logic_worker_hit_counting::model::{
+use az_algorithm::components::worker_hit_counting::assist::record_worker_hit_timeline_from_visual_observations;
+use az_algorithm::components::worker_hit_counting::model::{
     NormalizedBoundingBox, NormalizedPoint, VisualTargetKind, VisualTargetObservation,
     WorkerActionObservation, WorkerHitCountConfig,
+};
+use az_algorithm::pipeline::image::assist::run_image_pipeline_from_path;
+use az_algorithm::pipeline::image::model::{
+    ImageAlgorithmKind, ImagePipelineOptions, ImagePipelineRun,
 };
 use image::imageops::{self, FilterType};
 use image::{Rgb, RgbImage};
@@ -172,27 +172,27 @@ fn all_video_materials(workspace_root: &Path) -> Result<Vec<VideoMaterial>, Box<
     let materials = [
         (
             "face",
-            "crates/algorithm/az-face-detection/tests/fixtures/input/face.jpg",
+            "crates/algorithm/az-algorithm/tests/fixtures/face_detection/input/face.jpg",
         ),
         (
             "person_vehicle",
-            "crates/algorithm/az-person-detection/tests/fixtures/input/person_vehicle.jpg",
+            "crates/algorithm/az-algorithm/tests/fixtures/person_detection/input/person_vehicle.jpg",
         ),
         (
             "ocr_text",
-            "crates/algorithm/az-ocr-text-recognition/tests/fixtures/input/ocr_text.jpg",
+            "crates/algorithm/az-algorithm/tests/fixtures/ocr_text_recognition/input/ocr_text.jpg",
         ),
         (
             "flame",
-            "crates/algorithm/az-flame-detection/tests/fixtures/input/flame.jpg",
+            "crates/algorithm/az-algorithm/tests/fixtures/flame_detection/input/flame.jpg",
         ),
         (
             "safety_helmet",
-            "crates/algorithm/az-safety-helmet-detection/tests/fixtures/input/safety_helmet.jpg",
+            "crates/algorithm/az-algorithm/tests/fixtures/safety_helmet_detection/input/safety_helmet.jpg",
         ),
         (
             "qr_code",
-            "crates/algorithm/az-qr-code-recognition/tests/fixtures/input/qr_code.png",
+            "crates/algorithm/az-algorithm/tests/fixtures/qr_code_recognition/input/qr_code.png",
         ),
     ];
 

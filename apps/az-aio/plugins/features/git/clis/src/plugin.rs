@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     AzAioPlugin, BackendApiContribution, ContributionSet, GeneratedFileContribution,
     PluginActivation, PluginDescriptor, PluginKind, UiContribution, UiContributionSlot,
 };
@@ -197,7 +197,7 @@ fn home_dir() -> PathBuf {
 
 #[cfg(target_arch = "wasm32")]
 mod component {
-    use az_aio_plugin_api::{PluginKind, contributions_to_json, descriptor_to_json};
+    use az_aio_plugin_api::api::{PluginKind, contributions_to_json, descriptor_to_json};
 
     use super::{plugin_descriptor, wasm_contribution_set};
 

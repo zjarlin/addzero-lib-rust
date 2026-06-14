@@ -1,5 +1,5 @@
 use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
-use az_model::{Auditable, Identifiable, PageResult, Pageable, SoftDeletable, Timestamped};
+use az_model::api::{Auditable, Identifiable, PageResult, Pageable, SoftDeletable, Timestamped};
 use chrono::{DateTime, Utc};
 
 #[apply(plain_clone_debug)]

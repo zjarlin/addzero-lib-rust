@@ -14,7 +14,7 @@
 ## 示例
 
 ```rust
-use az_wasm_plugin_api::{ExtensionPoint, PluginManifest};
+use az_wasm_plugin_api::api::{ExtensionPoint, PluginManifest};
 
 let manifest = PluginManifest {
     id: "com.example.demo".to_string(),

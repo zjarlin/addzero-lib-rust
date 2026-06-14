@@ -9,7 +9,8 @@
 ## 示例
 
 ```rust
-use az_wasm_plugin_host::RuntimePluginRegistry;
+use az_wasm_plugin_api::api::PluginRegistry;
+use az_wasm_plugin_host::api::RuntimePluginRegistry;
 
 let registry = RuntimePluginRegistry::new();
 assert!(registry.list().is_empty());

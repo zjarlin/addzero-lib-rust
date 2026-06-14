@@ -2,7 +2,7 @@
 
 use std::{path::Path, path::PathBuf};
 
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     AzAioPlugin, ContributionSet, PluginDescriptor, contributions_from_json, descriptor_from_json,
 };
 use wasmtime::{

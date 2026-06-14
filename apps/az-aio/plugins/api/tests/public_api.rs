@@ -1,4 +1,4 @@
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     BackendApiContribution, ContributionSet, PluginSandboxDebugReport, SettingsDefaultContribution,
     SettingsSectionContribution, UiContribution, UiContributionSlot,
 };

@@ -26,10 +26,11 @@ az-io = { path = "../az-io" }       # workspace 内部引用
 
 ## 用法
 
-```rust
-use az_io::{mvln, MoveLink, PathExt};
+```rust,no_run
+use az_io::api::{MoveLink, PathExt, mvln};
 use std::path::Path;
 
+fn main() -> anyhow::Result<()> {
 // 将文件移动到新位置并符号链接回原位
 let new_path = mvln("data.db", "/mnt/external")?;
 
@@ -37,7 +38,7 @@ let new_path = mvln("data.db", "/mnt/external")?;
 let new_path = MoveLink::new("data.db").to("/mnt/external").move_and_link()?;
 
 // 撤销操作
-az_io::undo_mvln("data.db")?;
+az_io::api::undo_mvln("data.db")?;
 
 // 确保目录存在
 Path::new("./output/logs").ensure_dir()?;
@@ -47,6 +48,8 @@ Path::new("./output/config.json").ensure_file()?;
 
 // 安全删除
 Path::new("./temp").remove_if_exists()?;
+Ok(())
+}
 ```
 
 ## 依赖的 crates

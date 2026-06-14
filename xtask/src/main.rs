@@ -6,7 +6,7 @@ use std::{
     process::{Command, ExitCode},
 };
 
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     ContributionSet, PluginBackendBundle, PluginBundleArtifact, PluginBundleArtifactKind,
     PluginBundleManifest, PluginBundleSandbox, PluginDescriptor, PluginFrontendBundle,
     PluginSandboxDebugReport, PluginState,

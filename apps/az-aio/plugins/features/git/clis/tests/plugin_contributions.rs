@@ -1,6 +1,6 @@
 use std::fs;
 
-use az_aio_plugin_api::{AzAioPlugin, GeneratedFileStatus};
+use az_aio_plugin_api::api::{AzAioPlugin, GeneratedFileStatus};
 use az_aio_plugin_git_clis::plugin::GitClisPlugin;
 use tempfile::TempDir;
 

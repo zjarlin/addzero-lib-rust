@@ -1,4 +1,4 @@
-use az_error::{
+use az_error::api::{
     error_type_for_error, error_type_for_message, status_code_for_error, status_code_for_message,
 };
 

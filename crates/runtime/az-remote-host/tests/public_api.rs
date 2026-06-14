@@ -1,4 +1,4 @@
-use az_remote_host::{HostPlatformAdapter, MockHostPlatformAdapter};
+use az_remote_host::api::{HostPlatformAdapter, MockHostPlatformAdapter};
 
 #[test]
 fn mock_host_adapter_returns_descriptor() {

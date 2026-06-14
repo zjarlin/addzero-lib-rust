@@ -25,7 +25,7 @@ az-json = { path = "../az-json" }       # workspace 内部引用
 
 ```rust
 use serde_json::json;
-use az_json::{get_value, get_string, get_i64, merge, flatten, pretty};
+use az_json::api::{flatten, get_i64, get_string, get_value, merge, pretty};
 
 // 点路径查询
 let data = json!({ "user": { "name": "Alice", "age": 30 } });

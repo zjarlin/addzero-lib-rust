@@ -8,6 +8,7 @@ authors.workspace = true
 description = "Chinese pinyin utilities: hanzi-to-pinyin conversion, initial letter extraction, and identifier sanitization"
 
 [dependencies]
+automod.workspace = true
 pinyin.workspace = true
 
 [lints]

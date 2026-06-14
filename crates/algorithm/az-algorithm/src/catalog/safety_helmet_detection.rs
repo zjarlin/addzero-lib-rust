@@ -3,8 +3,7 @@ use crate::catalog::{
     AlgorithmTargetKind, AlgorithmTaskKind,
 };
 
-inventory::submit! {
-    AlgorithmComponentSpec {
+pub const SPEC: AlgorithmComponentSpec = AlgorithmComponentSpec {
         kind: AlgorithmComponentKind::SafetyHelmetDetection,
         label: "安全帽检测",
         task: AlgorithmTaskKind::Detection,
@@ -16,5 +15,4 @@ inventory::submit! {
             AlgorithmOutputKind::ClassLabel,
         ],
         description: "检测人员头部安全帽佩戴相关目标。",
-    }
-}
+    };

@@ -11,7 +11,7 @@ addzero 生态系统的错误处理辅助入口。内部失败默认使用 `anyh
 
 ```rust
 use anyhow::bail;
-use az_error::status_code_for_message;
+use az_error::api::status_code_for_message;
 
 fn find_user(id: u64) -> anyhow::Result<String> {
     if id == 0 {

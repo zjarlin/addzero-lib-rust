@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use crate::sidebar::{SidebarItemModel, SidebarSectionModel, SidebarSectionView};
-use az_aio_plugin_api::{
+use az_aio_plugin_api::api::{
     NativeRenderContext, NavItemContribution, PageContribution, UiContribution, UiContributionSlot,
 };
 use az_aio_plugin_host::host::{
@@ -10,7 +10,7 @@ use az_aio_plugin_host::host::{
 use dioxus::prelude::*;
 use dioxus::signals::SyncStorage;
 
-const APP_CSS: Asset = asset!("/assets/app.css");
+const APP_CSS: &str = include_str!("../assets/app.css");
 const DEFAULT_ROUTE: &str = "/assets";
 const SETTINGS_ROUTE: &str = "/settings";
 
@@ -32,7 +32,7 @@ pub fn App() -> Element {
 
     if !*snapshot_ready.read() {
         return rsx! {
-            document::Link { rel: "stylesheet", href: APP_CSS }
+            document::Style { "{APP_CSS}" }
             ShellSkeleton {}
         };
     }
@@ -51,7 +51,7 @@ pub fn App() -> Element {
     let api_base_url_value = api_base_url.read().clone();
 
     rsx! {
-        document::Link { rel: "stylesheet", href: APP_CSS }
+        document::Style { "{APP_CSS}" }
         main { class: shell_class,
             TitlebarControls {
                 sidebar_collapsed: *sidebar_collapsed.read(),
