@@ -1,24 +1,23 @@
 #![forbid(unsafe_code)]
 
-use az_aio_plugin_api::api::{NavItemContribution, NativeRenderContext, NativeUiRenderer, PageContribution, UiContributionSlot};
+use az_aio_platform::plugin_api::{NavItemContribution, NativeRenderContext, NativeUiRenderer, PageContribution, UiContributionSlot};
 use dioxus::prelude::*;
-
-const DEFAULT_ROUTE: &str = "/assets";
 
 #[derive(PartialEq, Clone, Props)]
 struct ShellProps {
     renderers: Vec<NativeUiRenderer>,
     nav_items: Vec<NavItemContribution>,
     pages: Vec<PageContribution>,
+    route: String,
+    query: String,
 }
 
 /// Shell 插槽组件：侧栏 + 顶栏 + 内容区 + 设置区 + 项目区 + 沙箱面板。
-///
-/// 通过 `renderers` 按 slot + route 匹配到插件注入的渲染器。
 #[allow(non_snake_case)]
-fn AzAioShell(props: ShellProps) -> Element {
-    let api_base = "http://127.0.0.1:0".to_string();
-    let route = DEFAULT_ROUTE.to_string();
+fn AppLayout(props: ShellProps) -> Element {
+    let api_base = String::new();
+    let route = props.route.clone();
+    let query = props.query.clone();
 
     let content_renderer = pick_renderer(&props.renderers, UiContributionSlot::Content, &route);
     let settings_renderer = pick_renderer(&props.renderers, UiContributionSlot::SettingsContent, &route);
@@ -33,7 +32,7 @@ fn AzAioShell(props: ShellProps) -> Element {
     let page_mark = page.map(|p| p.placeholder_mark.clone()).unwrap_or_default();
 
     let make_ctx = || NativeRenderContext {
-        active_route: route.clone(),
+        active_route: format!("{}{}", route, query),
         api_base_url: api_base.clone(),
     };
 
@@ -43,13 +42,13 @@ fn AzAioShell(props: ShellProps) -> Element {
                 if let Some(render) = sidebar_renderer {
                     {render(make_ctx())}
                 } else {
-                    nav { class: "sidebar-tree sidebar-tree--primary",
+                    nav { class: "sidebar-tree sidebar-tree--primary", style: "position:relative; z-index:1;",
                         for item in &props.nav_items {
                             a {
-                                class: "sidebar-item",
+                                class: "nav-button",
                                 href: "/?route={item.route}",
-                                span { class: "sidebar-item__glyph", "{item.icon}" }
-                                span { class: "sidebar-item__label", "{item.label}" }
+                                span { class: "nav-button__icon", "{item.icon}" }
+                                span { class: "nav-button__label", "{item.label}" }
                             }
                         }
                     }
@@ -106,20 +105,22 @@ fn pick_renderer(
     renderers: &[NativeUiRenderer],
     slot: UiContributionSlot,
     route: &str,
-) -> Option<az_aio_plugin_api::api::NativeRenderFn> {
+) -> Option<az_aio_platform::plugin_api::NativeRenderFn> {
     renderers
         .iter()
         .find(|r| r.slot == slot && r.route.as_deref() == Some(route))
         .map(|r| r.render)
 }
 
-/// 渲染完整 HTML 页面。
-pub fn render_app_html(snapshot: &az_aio_shared::state::HostSnapshot) -> String {
+/// Render full HTML page.
+pub fn render_app_html(snapshot: &az_aio_platform::plugin_host::HostSnapshot, route: &str, query: &str) -> String {
     let body = dioxus_ssr::render_element(rsx! {
-        AzAioShell {
+        AppLayout {
             renderers: snapshot.native_renderers.clone(),
-            nav_items: snapshot.nav_items.clone(),
-            pages: snapshot.pages.clone(),
+            nav_items: if snapshot.nav_items.is_empty() { default_nav_items() } else { snapshot.nav_items.clone() },
+            pages: if snapshot.pages.is_empty() { default_pages() } else { snapshot.pages.clone() },
+            route: route.to_string(),
+            query: query.to_string(),
         }
     });
 
@@ -140,4 +141,36 @@ pub fn render_app_html(snapshot: &az_aio_shared::state::HostSnapshot) -> String 
         ),
         body = body,
     )
+}
+
+fn default_nav_items() -> Vec<NavItemContribution> {
+    vec![
+        nav("assets", "Assets", "◆", "/assets", 10),
+        nav("config", "Config", "⚙", "/config", 20),
+        nav("gateway", "Gateway", "↗", "/gateway", 30),
+        nav("software", "Software", "⬢", "/software", 40),
+        nav("drive", "Drive", "⇄", "/drive", 50),
+        nav("lowcode", "Lowcode", "▣", "/lowcode", 60),
+    ]
+}
+
+fn default_pages() -> Vec<PageContribution> {
+    vec![
+        page("/assets", "Asset Hub", "Knowledge / Assets", "◆", "asset-hub.page", 10),
+        page("/config", "Config Center", "Configuration Management", "⚙", "config-center.page", 20),
+        page("/gateway", "Edge Gateway", "Operations / Network", "↗", "edge-gateway.page", 30),
+        page("/software", "Software Center", "Installer & Catalog", "⬢", "software-center.page", 40),
+        page("/drive", "Drive Center", "Cloud Drive", "⇄", "drive-center.page", 50),
+    ]
+}
+
+fn nav(id: &str, label: &str, icon: &str, route: &str, order: i32) -> NavItemContribution {
+    NavItemContribution { id: id.into(), label: label.into(), icon: icon.into(), route: route.into(), order }
+}
+
+fn page(route: &str, title: &str, subtitle: &str, mark: &str, renderer_id: &str, order: i32) -> PageContribution {
+    PageContribution {
+        route: route.into(), title: title.into(), subtitle: subtitle.into(),
+        renderer_id: renderer_id.into(), placeholder_mark: mark.into(), order,
+    }
 }

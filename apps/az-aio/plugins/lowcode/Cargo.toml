@@ -1,0 +1,22 @@
+[package]
+name = "lowcode"
+version = "2026.5.10"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+authors = ["zjarlin"]
+description = "AZ AIO lowcode plugin: meta-model driven AppScreen generation."
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+chrono = { version = "0.4.42", features = ["clock"] }
+az-aio-platform = { path = "../../platform" }
+dioxus.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+parking_lot = "0.12"
+urlencoding = "2"
+tokio.workspace = true
+toasty.workspace = true
+uuid.workspace = true

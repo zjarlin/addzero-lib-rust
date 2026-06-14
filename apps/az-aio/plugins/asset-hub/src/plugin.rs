@@ -1,6 +1,6 @@
 use anyhow::Context;
-use az_aio_plugin_api::register_native_plugin;
-use az_aio_plugin_api::api::{
+use az_aio_platform::register_native_plugin;
+use az_aio_platform::plugin_api::{
     ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
@@ -59,7 +59,7 @@ fn block_on_state(database_url: Option<String>) -> anyhow::Result<AssetHubApiSta
 
 #[cfg(test)]
 mod tests {
-    use az_aio_plugin_api::api::PluginKind;
+    use az_aio_platform::plugin_api::PluginKind;
 
     use super::*;
 

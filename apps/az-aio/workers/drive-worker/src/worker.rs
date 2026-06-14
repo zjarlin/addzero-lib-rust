@@ -1,3 +1,4 @@
+use axum::{Router, routing::get};
 use az_aio_plugin_api::api::{
     BackendApiContribution, ContributionSet, NativeAzAioPlugin, NativePluginContext,
     NativePluginRuntime, PluginActivation, PluginDescriptor, PluginKind,
@@ -45,7 +46,7 @@ impl NativeAzAioPlugin for DriveWorkerPlugin {
                     "GET",
                     "/ws/drive-sync",
                     "Drive CRDT WebSocket",
-                    "accepts WebSocket connections for line-CRDT text sync backed by the Drive Git Pool store.",
+                    "WebSocket endpoint for line-CRDT text sync backed by Drive Git Pool.",
                     10,
                 ),
                 backend_api(
@@ -53,7 +54,7 @@ impl NativeAzAioPlugin for DriveWorkerPlugin {
                     "GET",
                     "/api/drive-worker/health",
                     "Drive Worker health",
-                    "returns ok when the worker thread is alive and stores are accessible.",
+                    "Returns ok when the worker is alive.",
                     20,
                 ),
             ],
@@ -66,13 +67,22 @@ impl NativeAzAioPlugin for DriveWorkerPlugin {
     }
 
     fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        Ok(NativePluginRuntime::default())
+        let router = Router::new()
+            .route("/api/drive-worker/health", get(health_handler));
+        Ok(NativePluginRuntime {
+            router,
+            ..Default::default()
+        })
     }
 }
 
 register_native_plugin!(DriveWorkerPlugin);
 
 pub fn ensure_linked() {}
+
+async fn health_handler() -> &'static str {
+    "ok"
+}
 
 fn backend_api(
     id: &str,

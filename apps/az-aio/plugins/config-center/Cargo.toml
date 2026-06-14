@@ -10,8 +10,7 @@ authors.workspace = true
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
-az-aio-plugin-api = { path = "../api" }
-az-aio-shared = { path = "../../shared" }
+az-aio-platform = { path = "../../platform" }
 automod.workspace = true
 az-derive-aliases.workspace = true
 dioxus.workspace = true

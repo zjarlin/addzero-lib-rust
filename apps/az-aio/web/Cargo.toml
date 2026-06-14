@@ -9,16 +9,18 @@ description = "AZ AIO web workbench — Axum + SSR."
 workspace = "../plugins"
 
 [dependencies]
-dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
-dioxus-ssr = "0.7.9"
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
-az-aio-plugin-api = { path = "../plugins/api" }
-az-aio-plugin-bundled = { path = "../plugins/bundled" }
-az-aio-plugin-host = { path = "../plugins/host" }
-az-aio-shared = { path = "../shared" }
-serde.workspace = true
-serde_json.workspace = true
+az-aio-platform = { path = "../platform" }
+asset-hub = { path = "../plugins/asset-hub" }
+config-center = { path = "../plugins/config-center" }
+drive-center = { path = "../plugins/drive-center" }
+edge-gateway = { path = "../plugins/edge-gateway" }
+software-center = { path = "../plugins/software-center" }
+lowcode = { path = "../plugins/lowcode" }
+dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
+dioxus-ssr = "0.7.9"
+serde = { version = "1.0.228", features = ["derive"] }
 shaku = "0.6.2"
 tokio.workspace = true
 tower = "0.5.2"

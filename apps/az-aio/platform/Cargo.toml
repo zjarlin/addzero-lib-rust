@@ -1,0 +1,31 @@
+[package]
+name = "az-aio-platform"
+version = "2026.5.10"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+authors = ["zjarlin"]
+description = "AZ AIO platform: plugin contract, host loader, DI container, app state."
+workspace = "../plugins"
+
+[dependencies]
+automod.workspace = true
+anyhow.workspace = true
+axum.workspace = true
+az-config-center-client = "=2026.6.13"
+dirs = "6"
+dioxus.workspace = true
+inventory.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+shaku = "0.6.2"
+toasty.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

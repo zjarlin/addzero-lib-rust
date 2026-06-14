@@ -1,4 +1,4 @@
-use az_aio_plugin_api::api::NativeRenderContext;
+use az_aio_platform::plugin_api::NativeRenderContext;
 use dioxus::prelude::*;
 
 #[allow(non_snake_case)]

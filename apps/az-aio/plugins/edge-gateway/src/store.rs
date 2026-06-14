@@ -1,5 +1,5 @@
 use anyhow::bail;
-use az_aio_shared::db;
+use az_aio_platform::db;
 use shaku::{Component, Interface, module};
 use toasty::stmt::{List, Query};
 use uuid::Uuid;
