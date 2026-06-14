@@ -181,59 +181,11 @@ fn run_plugin_cargo_command(command: &str, plugin: &PluginTarget) -> Result<(), 
 }
 
 fn run_plugin_package(plugin: &PluginTarget) -> Result<(), XtaskError> {
-    let component_path = run_plugin_wasm_build(plugin)?;
-    let mut artifacts = vec![PluginBundleArtifact {
-        kind: PluginBundleArtifactKind::WasmComponent,
-        name: format!("{}.component.wasm", plugin.package),
-        source: plugin.source_path.to_string(),
-        path: Some(component_path.display().to_string()),
-    }];
-    let snapshot = load_wasm_sandbox_snapshot(plugin.name, &component_path)?;
-    let bundle_dir = plugin_bundle_dir(plugin);
-    let frontend_bundle_path = write_frontend_bundle(plugin, &snapshot.contributions, &bundle_dir)?;
-    artifacts.push(PluginBundleArtifact {
-        kind: PluginBundleArtifactKind::FrontendBundle,
-        name: "az-frontend.json".to_string(),
-        source: plugin.source_path.to_string(),
-        path: Some(frontend_bundle_path.display().to_string()),
-    });
-    let backend_bundle_path = write_backend_bundle(plugin, &snapshot.contributions, &bundle_dir)?;
-    artifacts.push(PluginBundleArtifact {
-        kind: PluginBundleArtifactKind::BackendBundle,
-        name: "az-backend.json".to_string(),
-        source: plugin.source_path.to_string(),
-        path: Some(backend_bundle_path.display().to_string()),
-    });
-    let sandbox_debug = if snapshot.sandbox_debug == PluginSandboxDebugReport::default() {
-        PluginSandboxDebugReport::from_contributions(&snapshot.contributions)
-    } else {
-        snapshot.sandbox_debug.clone()
-    };
-    let manifest = PluginBundleManifest {
-        schema_version: PluginBundleManifest::SCHEMA_VERSION,
-        platform: AZ_PLATFORM.to_string(),
-        bundle_id: plugin.name.to_string(),
-        package: plugin.package.to_string(),
-        descriptor: snapshot.descriptor,
-        contributions: snapshot.contributions,
-        artifacts,
-        sandbox_debug,
-        sandbox: PluginBundleSandbox {
-            command: vec![
-                "cargo".to_string(),
-                "xtask".to_string(),
-                AZ_PLATFORM.to_string(),
-                "plugin".to_string(),
-                "sandbox".to_string(),
-                plugin.name.to_string(),
-            ],
-        },
-    };
-    fs::create_dir_all(&bundle_dir).map_err(XtaskError::Io)?;
-    let manifest_path = bundle_dir.join(PLUGIN_MANIFEST_FILE);
-    let manifest_json = serde_json::to_string_pretty(&manifest).map_err(XtaskError::Json)?;
-    fs::write(&manifest_path, manifest_json).map_err(XtaskError::Io)?;
-    println!("packaged {} -> {}", plugin.name, manifest_path.display());
+    println!(
+        "plugin `{}` packaging skipped (WASM runtime removed)",
+        plugin.name
+    );
+    println!("use native registration via `register_native_plugin!` instead");
     Ok(())
 }
 
@@ -329,8 +281,6 @@ fn run_plugin_bundle_sandbox(path: &Path) -> Result<(), XtaskError> {
     println!();
     print_json_block("sandbox_debug", &manifest.sandbox_debug)?;
     println!();
-    run_manifest_wasm_sandbox(&manifest)?;
-    println!();
     print_json_block("sandbox", &manifest.sandbox)?;
     Ok(())
 }
@@ -399,15 +349,6 @@ fn print_artifact_json(
     let json = fs::read_to_string(path).map_err(XtaskError::Io)?;
     let value = serde_json::from_str::<serde_json::Value>(&json).map_err(XtaskError::Json)?;
     print_json_block(label, &value)
-}
-
-fn run_manifest_wasm_sandbox(manifest: &PluginBundleManifest) -> Result<(), XtaskError> {
-    let Some(path) = artifact_path(manifest, PluginBundleArtifactKind::WasmComponent) else {
-        println!("wasm_runtime: null");
-        return Ok(());
-    };
-    let snapshot = load_wasm_sandbox_snapshot(&manifest.bundle_id, Path::new(path))?;
-    print_json_block("wasm_runtime", &snapshot)
 }
 
 fn artifact_path(manifest: &PluginBundleManifest, kind: PluginBundleArtifactKind) -> Option<&str> {

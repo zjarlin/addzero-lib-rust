@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::{LowcodeConfig, LowcodeConfigSource, MISSING_DATABASE_URL_MESSAGE},
+    config::LowcodeConfig,
     model::{LowcodeAppSummary, LowcodePageSummary},
     store::{INVALID_APP_ID_MESSAGE, INVALID_PAGE_ID_MESSAGE, LowcodeAppInput, LowcodePageInput, LowcodeStore},
 };
@@ -44,13 +44,7 @@ pub fn lowcode_api_router(state: LowcodeApiState) -> Router {
 async fn status_handler(State(state): State<LowcodeApiState>) -> Json<LowcodeStatusResponse> {
     Json(LowcodeStatusResponse {
         ok: true,
-        database_config_namespace: "az-aio.dev".to_string(),
-        database_config_key: "lowcode.database_url".to_string(),
-        database_source: match state.config.source {
-            LowcodeConfigSource::ConfigCenter => "config-center",
-            LowcodeConfigSource::Environment => "environment",
-        }
-        .to_string(),
+        database_source: "environment".to_string(),
     })
 }
 
@@ -137,8 +131,6 @@ async fn delete_page_handler(
 #[derive(Debug, Serialize)]
 pub struct LowcodeStatusResponse {
     pub ok: bool,
-    pub database_config_namespace: String,
-    pub database_config_key: String,
     pub database_source: String,
 }
 
@@ -211,7 +203,6 @@ fn lowcode_error_response(error: anyhow::Error) -> Response {
 fn lowcode_error_status(message: &str) -> StatusCode {
     match message {
         INVALID_APP_ID_MESSAGE | INVALID_PAGE_ID_MESSAGE => StatusCode::BAD_REQUEST,
-        MISSING_DATABASE_URL_MESSAGE => StatusCode::SERVICE_UNAVAILABLE,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
@@ -221,23 +212,12 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn status_reports_az_aio_dev_namespace() {
-        let config = LowcodeConfig {
-            database_url: "postgresql://postgres:postgres@127.0.0.1/lowcode".to_string(),
-            source: LowcodeConfigSource::Environment,
-        };
+    async fn status_reports_environment_source() {
         let response = LowcodeStatusResponse {
             ok: true,
-            database_config_namespace: "az-aio.dev".to_string(),
-            database_config_key: "lowcode.database_url".to_string(),
-            database_source: match config.source {
-                LowcodeConfigSource::ConfigCenter => "config-center",
-                LowcodeConfigSource::Environment => "environment",
-            }
-            .to_string(),
+            database_source: "environment".to_string(),
         };
 
-        assert_eq!(response.database_config_namespace, "az-aio.dev");
-        assert_eq!(response.database_config_key, "lowcode.database_url");
+        assert_eq!(response.database_source, "environment");
     }
 }

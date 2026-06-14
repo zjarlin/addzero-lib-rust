@@ -10,6 +10,17 @@ authors.workspace = true
 [dependencies]
 automod.workspace = true
 asset-hub = { path = "../asset-hub" }
+az-aio-plugin-catalog = { path = "../features/catalog" }
+az-aio-plugin-core-nav = { path = "../features/navigation" }
+az-aio-plugin-git-clis = { path = "../features/git/clis" }
+az-aio-plugin-git-envs = { path = "../features/git/envs" }
+az-aio-plugin-git-notes = { path = "../features/git/notes" }
+az-aio-plugin-git-skills = { path = "../features/git/skills" }
+az-aio-plugin-lowcode = { path = "../features/lowcode" }
+az-aio-plugin-projects = { path = "../features/projects" }
+az-aio-plugin-search = { path = "../features/search" }
+az-aio-plugin-settings = { path = "../features/settings" }
+az-aio-plugin-sync = { path = "../features/sync" }
 config-center = { path = "../config-center" }
 drive-center = { path = "../drive-center" }
 edge-gateway = { path = "../edge-gateway" }

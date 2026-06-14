@@ -9,7 +9,7 @@ use az_aio_plugin_api::api::{
     UiContribution, UiContributionSlot,
 };
 use az_aio_plugin_host::host::{
-    NativePluginHost, PluginEnablementStore, PluginHost, descriptor, set_plugin_enabled_at,
+    descriptor, set_plugin_enabled_at, NativePluginHost, PluginEnablementStore, PluginHost,
 };
 use tempfile::TempDir;
 
@@ -202,11 +202,10 @@ fn missing_optional_dependency_does_not_block_plugin_activation() {
         .with_plugin(Box::new(plugin))
         .load_snapshot();
 
-    assert!(
-        snapshot.plugins.iter().any(|plugin| {
-            plugin.descriptor.id == "sync" && plugin.state == PluginState::Active
-        })
-    );
+    assert!(snapshot
+        .plugins
+        .iter()
+        .any(|plugin| { plugin.descriptor.id == "sync" && plugin.state == PluginState::Active }));
 }
 
 #[test]
@@ -222,12 +221,10 @@ fn independent_plugins_activate_in_parallel_within_same_dependency_layer() {
         .with_plugin(Box::new(beta))
         .load_snapshot();
 
-    assert!(
-        snapshot
-            .plugins
-            .iter()
-            .all(|plugin| { plugin.state == PluginState::Active })
-    );
+    assert!(snapshot
+        .plugins
+        .iter()
+        .all(|plugin| { plugin.state == PluginState::Active }));
     assert!(
         started.elapsed() < Duration::from_millis(450),
         "same-layer plugin activation should run concurrently"
@@ -258,11 +255,10 @@ fn dependent_plugin_does_not_activate_when_required_dependency_fails() {
         .find(|plugin| plugin.descriptor.id == "sync")
         .expect("dependent plugin record");
     assert_eq!(sync.state, PluginState::Failed);
-    assert!(
-        sync.error
-            .as_deref()
-            .is_some_and(|error| error.contains("依赖 `settings` 未成功加载"))
-    );
+    assert!(sync
+        .error
+        .as_deref()
+        .is_some_and(|error| error.contains("依赖 `settings` 未成功加载")));
 }
 
 #[test]
@@ -338,27 +334,6 @@ fn ui_and_backend_api_contributions_are_aggregated() {
 }
 
 #[test]
-fn invalid_wasm_components_are_cataloged_as_failed_plugins() {
-    let temp = TempDir::new().expect("create temp dir");
-    let wasm_path = temp.path().join("broken.wasm");
-    fs::write(&wasm_path, b"not a component").expect("write invalid wasm");
-
-    let snapshot = PluginHost::new()
-        .with_wasm_components_from_dir(temp.path())
-        .load_snapshot();
-
-    assert!(snapshot.plugins.iter().any(|plugin| {
-        plugin.descriptor.kind == az_aio_plugin_api::PluginKind::WasmComponent
-            && plugin.state == PluginState::Failed
-    }));
-    assert!(
-        snapshot.catalog_items.iter().any(|item| {
-            item.source == az_aio_plugin_api::CatalogSource::Wasm && !item.installed
-        })
-    );
-}
-
-#[test]
 fn native_host_rejects_duplicate_backend_routes() {
     let snapshot = NativePluginHost::new(NativePluginContext::default())
         .with_plugin(Box::new(TestNativePlugin {
@@ -371,11 +346,10 @@ fn native_host_rejects_duplicate_backend_routes() {
         }))
         .load_snapshot();
 
-    assert!(
-        snapshot.plugins.iter().any(|plugin| {
-            plugin.descriptor.id == "beta" && plugin.state == PluginState::Failed
-        })
-    );
+    assert!(snapshot
+        .plugins
+        .iter()
+        .any(|plugin| { plugin.descriptor.id == "beta" && plugin.state == PluginState::Failed }));
     assert_eq!(snapshot.backend_apis.len(), 1);
 }
 
@@ -383,12 +357,10 @@ fn native_host_rejects_duplicate_backend_routes() {
 fn native_inventory_host_can_load_without_panic() {
     let snapshot = NativePluginHost::from_inventory(NativePluginContext::default()).load_snapshot();
 
-    assert!(
-        snapshot
-            .plugins
-            .iter()
-            .all(|plugin| { plugin.descriptor.kind == az_aio_plugin_api::PluginKind::Native })
-    );
+    assert!(snapshot
+        .plugins
+        .iter()
+        .all(|plugin| { plugin.descriptor.kind == az_aio_plugin_api::PluginKind::Native }));
 }
 
 #[test]
@@ -426,18 +398,14 @@ fn disabled_plugin_is_cataloged_without_contributions() {
     assert!(snapshot.catalog_items.iter().any(|item| {
         item.id == "settings" && item.kind == CatalogItemKind::Plugin && !item.installed
     }));
-    assert!(
-        !snapshot
-            .ui_contributions
-            .iter()
-            .any(|item| item.id == "settings.ui.project-defaults")
-    );
-    assert!(
-        !snapshot
-            .backend_apis
-            .iter()
-            .any(|item| item.id == "settings.api.project-defaults")
-    );
+    assert!(!snapshot
+        .ui_contributions
+        .iter()
+        .any(|item| item.id == "settings.ui.project-defaults"));
+    assert!(!snapshot
+        .backend_apis
+        .iter()
+        .any(|item| item.id == "settings.api.project-defaults"));
 }
 
 #[test]

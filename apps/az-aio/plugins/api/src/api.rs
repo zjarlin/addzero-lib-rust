@@ -16,7 +16,6 @@ pub enum PluginActivation {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginKind {
-    WasmComponent,
     Native,
 }
 
@@ -79,7 +78,6 @@ pub struct PluginBundleArtifact {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginBundleArtifactKind {
-    WasmComponent,
     FrontendBundle,
     BackendBundle,
     BackendBinary,
@@ -396,7 +394,6 @@ pub enum CatalogSource {
     Local,
     System,
     User,
-    Wasm,
 }
 
 impl CatalogSource {
@@ -407,7 +404,6 @@ impl CatalogSource {
             Self::Local => "本地",
             Self::System => "系统",
             Self::User => "用户",
-            Self::Wasm => "Wasm 组件",
         }
     }
 }
@@ -484,30 +480,6 @@ pub struct GeneratedFileContribution {
 pub enum GeneratedFileStatus {
     Generated,
     Failed,
-}
-
-pub trait AzAioPlugin: Send {
-    fn descriptor(&self) -> PluginDescriptor;
-
-    fn contributions(&self) -> anyhow::Result<ContributionSet> {
-        Ok(ContributionSet::default())
-    }
-
-    fn on_load(&mut self) -> anyhow::Result<()> {
-        Ok(())
-    }
-
-    fn on_enable(&mut self) -> anyhow::Result<()> {
-        Ok(())
-    }
-
-    fn on_disable(&mut self) -> anyhow::Result<()> {
-        Ok(())
-    }
-
-    fn on_unload(&mut self) -> anyhow::Result<()> {
-        Ok(())
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

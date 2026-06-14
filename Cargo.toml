@@ -12,6 +12,7 @@ members = [
     "crates/storage/*",
     "crates/text/*",
     "crates/ui/az-dioxus-components",
+    "apps/drive/backend",
     "xtask",
 ]
 exclude = [
@@ -107,6 +108,7 @@ az-ai-chat = { version = "=2026.5.10", path = "crates/api/az-ai-chat" }
 az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
 az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
 az-context = { version = "=2026.5.10", path = "crates/core/az-context" }
+az-crdt = { version = "=2026.5.10", path = "crates/text/az-crdt" }
 az-dioxus-components = { version = "=2026.5.10", path = "crates/ui/az-dioxus-components" }
 az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }
 az-desktop-plugin = { version = "=2026.5.10", path = "crates/runtime/az-desktop-plugin" }

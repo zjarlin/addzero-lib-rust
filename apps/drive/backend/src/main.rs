@@ -165,10 +165,20 @@ async fn main() -> Result<()> {
 
 async fn serve(args: ServeArgs) -> Result<()> {
     let (metadata, objects, _sync) = az_drive_app::build_stores().await?;
-    let state = DriveWebdavState::new(metadata, objects);
+    let webdav_state = DriveWebdavState::new(metadata.clone(), objects.clone());
+    let owner_drive_id = az_drive_app::default_owner_drive_id();
+    let crdt_state = std::sync::Arc::new(az_drive_app::ws::CrdtSyncState::new(
+        metadata, objects, owner_drive_id,
+    ));
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
-        .merge(drive_webdav_router(state));
+        .merge(drive_webdav_router(webdav_state))
+        .route("/ws/sync", get({
+            let crdt_state = crdt_state.clone();
+            |ws: axum::extract::WebSocketUpgrade| async move {
+                ws.on_upgrade(move |socket| az_drive_app::ws::handle_crdt_sync(socket, crdt_state))
+            }
+        }));
     let bind = args
         .bind
         .unwrap_or_else(az_drive_app::default_bind_addr)
@@ -178,6 +188,7 @@ async fn serve(args: ServeArgs) -> Result<()> {
         .await
         .with_context(|| format!("failed to bind {bind}"))?;
     println!("az-drive-app serving WebDAV at http://{bind}/dav/main/home");
+    println!("CRDT WebSocket at ws://{bind}/ws/sync");
     axum::serve(listener, app).await?;
     Ok(())
 }

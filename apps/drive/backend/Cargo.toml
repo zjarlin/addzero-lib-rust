@@ -13,14 +13,20 @@ workspace = true
 anyhow.workspace = true
 automod.workspace = true
 axum.workspace = true
+az-crdt.workspace = true
 az-drive-agent.workspace = true
 az-drive-core.workspace = true
 az-drive-store.workspace = true
 az-drive-webdav.workspace = true
 az-derive-aliases.workspace = true
+base64.workspace = true
+chrono.workspace = true
 clap = { version = "4.5.38", features = ["derive"] }
+futures-util.workspace = true
+log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+sha2.workspace = true
 shlex.workspace = true
 strum.workspace = true
 tokio.workspace = true

@@ -1,6 +1,6 @@
 use std::env;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 pub const DATABASE_URL_ENV: &str = "AZ_AIO_LOWCODE_DATABASE_URL";
 

@@ -441,10 +441,7 @@ fn plugin_catalog_items(records: &[PluginRuntimeRecord]) -> Vec<CatalogItemContr
             }
             .to_string(),
             kind: CatalogItemKind::Plugin,
-            source: match record.descriptor.kind {
-                PluginKind::WasmComponent => CatalogSource::Wasm,
-                PluginKind::Native => CatalogSource::Bundled,
-            },
+            source: CatalogSource::Bundled,
             installed: record.state == PluginState::Active || record.state == PluginState::Loaded,
             tags: Vec::new(),
             permissions: record.descriptor.permissions.clone(),
@@ -471,7 +468,7 @@ pub fn descriptor(
         dependencies,
         capabilities: capabilities.into_iter().map(str::to_string).collect(),
         permissions: Vec::new(),
-        kind: PluginKind::WasmComponent,
+        kind: PluginKind::Native,
     }
 }
 

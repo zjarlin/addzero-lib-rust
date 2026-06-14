@@ -1161,6 +1161,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-drive-app"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "automod",
+ "axum",
+ "az-crdt",
+ "az-derive-aliases",
+ "az-drive-agent",
+ "az-drive-core",
+ "az-drive-store",
+ "az-drive-webdav",
+ "base64",
+ "chrono",
+ "clap",
+ "futures-util",
+ "log",
+ "serde",
+ "serde_json",
+ "sha2",
+ "shlex 1.3.0",
+ "strum 0.28.0",
+ "tempfile",
+ "tokio",
+ "toml_edit 0.22.27",
+ "urlencoding",
+ "uuid",
+]
+
+[[package]]
 name = "az-drive-core"
 version = "2026.5.10"
 dependencies = [
