@@ -441,7 +441,7 @@ fn run_coco_ssd_session(
         anyhow!(
             "invalid tensor shape for `{}`: {}",
             PERSON_DETECTION_COCO_SSD_MOBILENET_V1.code,
-            source.to_string(),
+            source,
         )
     })?;
     let input = Tensor::from_array(input_array)?;
@@ -480,7 +480,7 @@ fn run_yolo11n_session(
         anyhow!(
             "invalid tensor shape for `{}`: {}",
             PERSON_DETECTION_YOLO11N_COCO.code,
-            source.to_string(),
+            source,
         )
     })?;
     let input = Tensor::from_array(input_array)?;

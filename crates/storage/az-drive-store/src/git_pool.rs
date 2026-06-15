@@ -5,6 +5,7 @@ use az_drive_core::api::{EntryKey, RelativePath, RootAlias};
 use chrono::Utc;
 use serde::{Serialize, de::DeserializeOwned};
 use std::collections::BTreeMap;
+use std::cmp::Reverse;
 use std::ffi::OsStr;
 use std::fs;
 use std::io;
@@ -840,7 +841,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
                 conflicts.push(record.conflict);
             }
         }
-        conflicts.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        conflicts.sort_by_key(|conflict| Reverse(conflict.created_at));
         Ok(conflicts)
     }
 
@@ -898,7 +899,7 @@ impl DriveMetadataStore for GitPoolDriveStore {
                 items.push(record.item);
             }
         }
-        items.sort_by(|left, right| left.created_at.cmp(&right.created_at));
+        items.sort_by_key(|item| item.created_at);
         Ok(items)
     }
 

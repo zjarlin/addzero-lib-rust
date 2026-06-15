@@ -252,13 +252,8 @@ fn value_to_f64(v: &Value) -> f64 {
     match v {
         Value::Number(n) => n.as_f64().unwrap_or(0.0),
         Value::String(s) => s.parse().unwrap_or(0.0),
-        Value::Bool(b) => {
-            if *b {
-                1.0
-            } else {
-                0.0
-            }
-        }
+        Value::Bool(true) => 1.0,
+        Value::Bool(false) => 0.0,
         _ => 0.0,
     }
 }
@@ -277,10 +272,9 @@ fn like_match(s: &str, pattern: &str) -> bool {
     // Convert SQL LIKE pattern to regex-like matching
     // % = .* (any sequence)
     // _ = . (single char)
-    let mut chars = pattern.chars().peekable();
     let mut regex_pattern = String::from("^");
 
-    while let Some(c) = chars.next() {
+    for c in pattern.chars() {
         match c {
             '%' => regex_pattern.push_str(".*"),
             '_' => regex_pattern.push('.'),

@@ -302,9 +302,8 @@ fn run_scrfd_session(
     tensor_data: Vec<f32>,
 ) -> anyhow::Result<ScrfdInferenceOutput> {
     let input_array =
-        ArrayD::from_shape_vec(IxDyn(MODEL_INPUT_SHAPE), tensor_data).map_err(|source| {
-            anyhow!("invalid tensor shape for `{}`: {}", MODEL_CODE, source.to_string(),)
-        })?;
+        ArrayD::from_shape_vec(IxDyn(MODEL_INPUT_SHAPE), tensor_data)
+            .map_err(|source| anyhow!("invalid tensor shape for `{}`: {}", MODEL_CODE, source))?;
     let input = Tensor::from_array(input_array)?;
     let output_names = session
         .outputs()

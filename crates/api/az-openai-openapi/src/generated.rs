@@ -1,3 +1,5 @@
 //! Generated OpenAI REST contract modules.
 
-include!(concat!(env!("OUT_DIR"), "/generated_contract.rs"));
+// Generated from the remote OpenAPI contract. Do not edit by hand.
+
+automod::dir!(pub "src/generated");

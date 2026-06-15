@@ -1404,10 +1404,8 @@ dependencies = [
 name = "az-openai-openapi"
 version = "2026.5.10"
 dependencies = [
- "anyhow",
  "async-trait",
  "az-automod",
- "az-openapi-codegen",
  "serde",
  "serde_json",
 ]

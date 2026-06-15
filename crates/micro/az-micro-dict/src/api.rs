@@ -19,39 +19,18 @@ use serde_json::Value;
 
 /// Source-neutral dictionary metadata contributed before enum code generation.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DictionaryContribution {
-    pub code: String,
-    pub name: String,
-    pub description: Option<String>,
-    pub scope: String,
     pub enum_name: String,
-    pub raw_value_kind: RawValueKind,
-    #[serde(default)]
-    pub open_enum: bool,
-    pub unknown_variant: Option<String>,
-    #[serde(default)]
-    pub sort_index: i64,
-    #[serde(default)]
-    pub items: Vec<DictionaryItemContribution>,
+    #[serde(flatten)]
+    pub spec: DictionarySpec,
 }
 
 impl DictionaryContribution {
-    /// Converts contributed metadata into the shared validated dictionary spec.
-    pub fn into_spec(self) -> DictionarySpec {
-        DictionarySpec {
-            code: self.code,
-            name: self.name,
-            description: self.description,
-            scope: self.scope,
-            raw_value_kind: self.raw_value_kind,
-            open_enum: self.open_enum,
-            unknown_variant: self.unknown_variant,
-            sort_index: self.sort_index,
-            items: self
-                .items
-                .into_iter()
-                .map(DictionaryItemContribution::into_spec)
-                .collect(),
+    pub fn new(enum_name: impl Into<String>, spec: DictionarySpec) -> Self {
+        Self {
+            enum_name: enum_name.into(),
+            spec,
         }
     }
 
@@ -64,36 +43,6 @@ impl DictionaryContribution {
             );
         }
         Ok(())
-    }
-}
-
-/// Source-neutral dictionary item metadata.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct DictionaryItemContribution {
-    pub code: String,
-    pub label: String,
-    pub description: Option<String>,
-    pub raw_int_value: Option<i64>,
-    pub raw_text_value: Option<String>,
-    #[serde(default)]
-    pub sort_index: i64,
-    #[serde(default = "default_true")]
-    pub enabled: bool,
-    pub meta: Option<Value>,
-}
-
-impl DictionaryItemContribution {
-    fn into_spec(self) -> DictionaryItemSpec {
-        DictionaryItemSpec {
-            code: self.code,
-            label: self.label,
-            description: self.description,
-            raw_int_value: self.raw_int_value,
-            raw_text_value: self.raw_text_value,
-            sort_index: self.sort_index,
-            enabled: self.enabled,
-            meta: self.meta,
-        }
     }
 }
 
@@ -179,7 +128,7 @@ impl DictionaryContributor for RuoyiDictionaryContributor {
                 .into_iter()
                 .map(|row| {
                     let meta = ruoyi_meta_json(&row);
-                    DictionaryItemContribution {
+                    DictionaryItemSpec {
                         code: row.dict_value.to_case(Case::Snake),
                         label: row.dict_label,
                         description: row.remark,
@@ -192,18 +141,20 @@ impl DictionaryContributor for RuoyiDictionaryContributor {
                 })
                 .collect();
 
-            contributions.push(DictionaryContribution {
-                code: dict_code.clone(),
+            contributions.push(DictionaryContribution::new(
+                dict_code.to_case(Case::Pascal),
+                DictionarySpec {
+                    code: dict_code.clone(),
+                    scope: self.scope.clone(),
                 name: dict_name,
                 description: None,
-                scope: self.scope.clone(),
-                enum_name: dict_code.to_case(Case::Pascal),
                 raw_value_kind: RawValueKind::String,
                 open_enum: false,
                 unknown_variant: None,
                 sort_index: 0,
                 items,
-            });
+                },
+            ));
         }
 
         Ok(contributions)
@@ -253,9 +204,10 @@ impl DictBuildGenerator {
             contributions.extend(contributor.contribute()?);
         }
         contributions.sort_by(|left, right| {
-            left.sort_index
-                .cmp(&right.sort_index)
-                .then_with(|| left.code.cmp(&right.code))
+            left.spec
+                .sort_index
+                .cmp(&right.spec.sort_index)
+                .then_with(|| left.spec.code.cmp(&right.spec.code))
         });
 
         let mut seen_codes = BTreeSet::new();
@@ -265,10 +217,10 @@ impl DictBuildGenerator {
 
         for contribution in contributions {
             contribution.validate_shape()?;
-            if !seen_codes.insert(contribution.code.clone()) {
+            if !seen_codes.insert(contribution.spec.code.clone()) {
                 bail!(
                     "invalid dictionary contribution: duplicate dictionary code {}",
-                    contribution.code
+                    contribution.spec.code
                 );
             }
             if !seen_names.insert(contribution.enum_name.clone()) {
@@ -279,7 +231,7 @@ impl DictBuildGenerator {
             }
 
             let enum_name = contribution.enum_name.clone();
-            let spec = contribution.into_spec();
+            let spec = contribution.spec;
             spec.validate()?;
 
             let spec_file_name = format!("{}.json", sanitize_file_stem(&spec.code)?);
@@ -386,8 +338,4 @@ fn ensure_non_empty(field: &str, value: &str) -> Result<()> {
         bail!("invalid dictionary contribution: {field} cannot be empty");
     }
     Ok(())
-}
-
-fn default_true() -> bool {
-    true
 }

@@ -327,7 +327,7 @@ fn run_yolo_session(
         anyhow!(
             "invalid tensor shape for `{}`: {}",
             FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.code,
-            source.to_string(),
+            source,
         )
     })?;
     let input = Tensor::from_array(input_array)?;

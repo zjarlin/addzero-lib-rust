@@ -223,17 +223,17 @@ impl Creates {
 
     /// 使用默认配置创建网易云音乐搜索客户端。
     pub fn music_search() -> anyhow::Result<MusicSearchApi> {
-        Ok(create_music_search_api()?)
+        create_music_search_api()
     }
 
     /// 使用显式配置创建网易云音乐搜索客户端。
     pub fn music_search_with_config(config: ApiConfig) -> anyhow::Result<MusicSearchApi> {
-        Ok(MusicSearchApi::new(config)?)
+        MusicSearchApi::new(config)
     }
 
     /// 使用默认配置创建 Suno 音乐生成客户端。
     pub fn suno(api_token: impl Into<String>) -> anyhow::Result<SunoApi> {
-        Ok(create_suno_api(api_token)?)
+        create_suno_api(api_token)
     }
 
     /// 使用显式配置创建 Suno 音乐生成客户端。
@@ -241,7 +241,7 @@ impl Creates {
         api_token: impl Into<String>,
         config: ApiConfig,
     ) -> anyhow::Result<SunoApi> {
-        Ok(SunoApi::new(api_token, config)?)
+        SunoApi::new(api_token, config)
     }
 
     /// 使用默认配置创建天眼查普通接口客户端。

@@ -926,10 +926,10 @@ fn extract_xml_tag_values(xml: &str, tag_name: &str) -> Vec<String> {
                 current = Some(local_name(element.name().as_ref()));
             }
             Ok(Event::Text(text)) => {
-                if current.as_deref() == Some(tag_name) {
-                    if let Ok(value) = text.xml_content() {
-                        values.push(value.into_owned());
-                    }
+                if current.as_deref() == Some(tag_name)
+                    && let Ok(value) = text.xml_content()
+                {
+                    values.push(value.into_owned());
                 }
             }
             Ok(Event::End(_)) => {

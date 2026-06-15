@@ -659,7 +659,7 @@ impl DriveAgent {
         options: PullRemoteOptions,
         mode: RemoteMaterializeMode,
     ) -> anyhow::Result<Vec<PullRemoteItem>> {
-        let registry = registry_from_state(&state)?;
+        let registry = registry_from_state(state)?;
         let requested = path
             .map(|path| normalize_absolute_path(&expand_path_expression(path)))
             .transpose()?;
@@ -845,7 +845,7 @@ impl DriveAgent {
     /// Returns [`anyhow::Error`] when store access fails.
     pub async fn conflicts(&self) -> anyhow::Result<Vec<DriveConflict>> {
         self.sync.prepare_sync().await?;
-        Ok(self.metadata.list_conflicts(Some(false)).await?)
+        self.metadata.list_conflicts(Some(false)).await
     }
 
     /// Lists durable sync queue items.
@@ -857,7 +857,7 @@ impl DriveAgent {
         status: Option<DriveSyncTaskStatus>,
     ) -> anyhow::Result<Vec<DriveSyncQueueItem>> {
         self.sync.prepare_sync().await?;
-        Ok(self.metadata.list_sync_queue(status).await?)
+        self.metadata.list_sync_queue(status).await
     }
 
     /// Marks failed queue items pending and runs one sync pass.
@@ -910,7 +910,7 @@ impl DriveAgent {
             }
             ConflictResolution::UseMerged(path) => {
                 let path =
-                    normalize_absolute_path(&expand_path_expression(&path.display().to_string()))?;
+                    normalize_absolute_path(&expand_path_expression(path.display().to_string()))?;
                 let bytes = read_file(&path).await?;
                 write_file(&local_path, &bytes).await?;
             }

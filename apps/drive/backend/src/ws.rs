@@ -248,10 +248,10 @@ impl CrdtSyncState {
                 match self.objects.get_object(&object_key).await {
                     Ok(blob) => LineCrdtDocument::from_snapshot_with_peer_id(blob, peer_id)
                         .with_context(|| format!("restore CRDT snapshot for {remote_path}")),
-                    Err(_) => LineCrdtDocument::with_peer_id(peer_id).map_err(Into::into),
+                    Err(_) => LineCrdtDocument::with_peer_id(peer_id),
                 }
             }
-            _ => LineCrdtDocument::with_peer_id(peer_id).map_err(Into::into),
+            _ => LineCrdtDocument::with_peer_id(peer_id),
         }
     }
 

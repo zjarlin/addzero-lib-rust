@@ -126,7 +126,7 @@ async fn two_clients_sync_document() {
     // B imports update and verifies.
     let doc_b = restore_doc(snapshot_b64);
     doc_b
-        .import_update(&b64decode(msg_update(&b_update)))
+        .import_update(b64decode(msg_update(&b_update)))
         .unwrap();
     assert_eq!(doc_b.text(), "Hello from client A\n");
 
@@ -184,7 +184,7 @@ async fn incremental_reconnect() {
     // Apply the update to a fresh doc at v1.
     let doc_b = restore_doc(snap_b64);
     doc_b
-        .import_update(&b64decode(msg_update(&reopened)))
+        .import_update(b64decode(msg_update(&reopened)))
         .unwrap();
     assert_eq!(doc_b.text(), "line one\n");
 

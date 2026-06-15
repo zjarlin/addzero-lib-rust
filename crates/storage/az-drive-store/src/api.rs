@@ -739,7 +739,7 @@ impl DriveMetadataStore for InMemoryDriveMetadataStore {
             .filter(|item| status.is_none_or(|status| item.status == status))
             .cloned()
             .collect::<Vec<_>>();
-        items.sort_by(|left, right| left.created_at.cmp(&right.created_at));
+        items.sort_by_key(|item| item.created_at);
         Ok(items)
     }
 

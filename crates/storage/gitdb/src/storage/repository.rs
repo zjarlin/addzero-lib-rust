@@ -1,13 +1,13 @@
 //!   Core Git repository wrapper.
 //!
-//!  This is the central component of the storage layer.  It wraps `git2::Repository`
-//!   with thread-safe access and provides high-level operations that the rest of
-//!  the system uses.
+//!  This is the central component of the storage layer. It wraps `git2::Repository`
+//!  with local interior mutability and provides high-level operations that the rest
+//!  of the system uses.
 //!
 //! All other storage modules use this for Git access.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::rc::Rc;
 
 use az_derive_aliases::{apply, plain_clone, plain_clone_debug, plain_clone_debug_display};
 use git2::Repository;
@@ -22,11 +22,11 @@ use crate::storage::types::{BranchName, CommitId, GitSignature, RowKey, TableNam
 
 /// The main Git repository wrapper.
 ///
-/// This provides thread-safe access to all Git operations.
-/// Clone this to share across threads - it uses Arc internally.
+/// This provides local shared access to all Git operations.
+/// Clone this handle inside one thread; `git2::Repository` is not a cross-thread handle.
 #[apply(plain_clone)]
 pub struct GitRepository {
-    inner: Arc<GitRepositoryInner>,
+    inner: Rc<GitRepositoryInner>,
 }
 
 struct GitRepositoryInner {
@@ -39,11 +39,10 @@ impl GitRepository {
     /// Open an existing repository.
     pub fn open(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let path = path.as_ref();
-        let repo =
-            Repository::open(path).map_err(|_| error::not_initialized(&path.to_path_buf()))?;
+        let repo = Repository::open(path).map_err(|_| error::not_initialized(path))?;
 
         Ok(Self {
-            inner: Arc::new(GitRepositoryInner {
+            inner: Rc::new(GitRepositoryInner {
                 repo: RwLock::new(repo),
                 path: path.to_path_buf(),
                 signature: GitSignature::gitdb(),
@@ -57,7 +56,7 @@ impl GitRepository {
         let repo = Repository::init(path)?;
 
         let storage = Self {
-            inner: Arc::new(GitRepositoryInner {
+            inner: Rc::new(GitRepositoryInner {
                 repo: RwLock::new(repo),
                 path: path.to_path_buf(),
                 signature: GitSignature::gitdb(),
@@ -91,7 +90,7 @@ impl GitRepository {
 
     /// Set the signature for commits.
     pub fn with_signature(mut self, signature: GitSignature) -> anyhow::Result<Self> {
-        let Some(inner) = Arc::get_mut(&mut self.inner) else {
+        let Some(inner) = Rc::get_mut(&mut self.inner) else {
             let message = "cannot modify signature after repository has been cloned".to_string();
             let error = error::internal(message);
 
@@ -123,7 +122,7 @@ impl GitRepository {
 
     /// Get the current HEAD commit (tip of main branch).
     pub fn head(&self) -> anyhow::Result<CommitId> {
-        self.with_repo(|repo| RefManager::head_commit(repo))
+        self.with_repo(RefManager::head_commit)
     }
 
     /// Get the commit ID for a branch.

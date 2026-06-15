@@ -50,3 +50,15 @@ fn generated_sources_keep_stable_public_modules() {
     assert_ne!(OpenAiApiSpec::SOURCE_SPEC_VERSION, "");
     assert_ne!(OpenAiApiSpec::SOURCE_COMMIT, "");
 }
+
+#[test]
+fn generated_entry_uses_checked_in_modules() {
+    let generated_entry =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/generated.rs"))
+            .expect("generated entry should be readable");
+
+    // Keep editor diagnostics anchored to stable source files, not hash-specific target output.
+    assert!(generated_entry.contains("automod::dir!(pub \"src/generated\")"));
+    assert!(!generated_entry.contains("OUT_DIR"));
+    assert!(!generated_entry.contains("include!"));
+}

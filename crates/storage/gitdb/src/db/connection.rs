@@ -1,7 +1,7 @@
 //! Connection pooling for database access.
 
 use std::collections::VecDeque;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use anyhow::bail;
 use parking_lot::{Mutex, RwLock};
@@ -14,7 +14,7 @@ use crate::storage::GitRepository;
 pub struct Connection {
     id: usize,
     executor: QueryExecutor,
-    pool: Option<Arc<ConnectionPoolInner>>,
+    pool: Option<Rc<ConnectionPoolInner>>,
 }
 
 impl Connection {
@@ -29,7 +29,7 @@ impl Connection {
 
     /// Execute a SQL query.
     pub fn execute(&mut self, sql: &str) -> anyhow::Result<crate::executor::QueryResult> {
-        Ok(self.executor.execute(sql)?)
+        self.executor.execute(sql)
     }
 }
 
@@ -45,7 +45,7 @@ impl Drop for Connection {
 
 struct ConnectionPoolInner {
     config: DatabaseConfig,
-    repo: Arc<RwLock<GitRepository>>,
+    repo: Rc<RwLock<GitRepository>>,
     available: Mutex<VecDeque<usize>>,
     max_connections: usize,
     created: Mutex<usize>,
@@ -53,7 +53,7 @@ struct ConnectionPoolInner {
 
 /// Connection pool for database access.
 pub struct ConnectionPool {
-    inner: Arc<ConnectionPoolInner>,
+    inner: Rc<ConnectionPoolInner>,
 }
 
 impl ConnectionPool {
@@ -65,9 +65,9 @@ impl ConnectionPool {
             GitRepository::open(&config.path)?
         };
 
-        let inner = Arc::new(ConnectionPoolInner {
+        let inner = Rc::new(ConnectionPoolInner {
             config,
-            repo: Arc::new(RwLock::new(repo)),
+            repo: Rc::new(RwLock::new(repo)),
             available: Mutex::new(VecDeque::new()),
             max_connections,
             created: Mutex::new(0),

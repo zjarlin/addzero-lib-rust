@@ -147,7 +147,7 @@ fn print_result(result: &gitdb::executor::QueryResult) {
             for row in &rs.rows {
                 let values: Vec<String> = columns
                     .iter()
-                    .map(|col| row.get(*col).map(|v| format_value(v)).unwrap_or_default())
+                    .map(|col| row.get(*col).map(format_value).unwrap_or_default())
                     .collect();
                 println!("{}", values.join("\t"));
             }

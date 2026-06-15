@@ -2,7 +2,7 @@
 //!
 //! The planner is the entry point for query optimization.
 
-use std::sync::Arc;
+use std::rc::Rc;
 
 use super::logical::{
     AggregateExpr, AggregateFunction, ColumnRef, LogicalPlan, ProjectColumn, SortDirection,
@@ -23,7 +23,7 @@ pub struct QueryPlanner {
 
 impl QueryPlanner {
     /// Create a new query planner.
-    pub fn new(repo: Arc<RwLock<GitRepository>>) -> Self {
+    pub fn new(repo: Rc<RwLock<GitRepository>>) -> Self {
         Self {
             catalog: Catalog::new(repo),
             optimizer: Optimizer::new(),
@@ -31,7 +31,7 @@ impl QueryPlanner {
     }
 
     /// Create a planner with a custom optimizer.
-    pub fn with_optimizer(repo: Arc<RwLock<GitRepository>>, optimizer: Optimizer) -> Self {
+    pub fn with_optimizer(repo: Rc<RwLock<GitRepository>>, optimizer: Optimizer) -> Self {
         Self {
             catalog: Catalog::new(repo),
             optimizer,
@@ -317,7 +317,7 @@ mod tests {
     fn setup() -> (QueryPlanner, TempDir) {
         let dir = TempDir::new().unwrap();
         let repo = GitRepository::open_or_init(dir.path()).unwrap();
-        let shared_repo = Arc::new(RwLock::new(repo));
+        let shared_repo = Rc::new(RwLock::new(repo));
 
         // Create a test table.
         let catalog = Catalog::new(shared_repo.clone());

@@ -310,8 +310,7 @@ pub async fn run_drive_command(command: DriveCommand) -> Result<()> {
         DriveCommand::Daemon => crate::build_agent()
             .await?
             .run_polling_daemon()
-            .await
-            .map_err(Into::into),
+            .await,
         DriveCommand::Pool(command) => run_drive_pool(command).await,
         DriveCommand::Backend(command) => run_drive_backend(command).await,
         DriveCommand::Queue(command) => run_drive_queue(command).await,

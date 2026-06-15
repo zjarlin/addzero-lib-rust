@@ -118,11 +118,7 @@ async fn main() -> Result<()> {
     match cli.command {
         Command::Serve(args) => serve(args).await,
         Command::Repl => run_repl().await,
-        Command::Daemon => build_agent()
-            .await?
-            .run_polling_daemon()
-            .await
-            .map_err(Into::into),
+        Command::Daemon => build_agent().await?.run_polling_daemon().await,
         Command::Host(args) => {
             let statuses = build_agent()
                 .await?

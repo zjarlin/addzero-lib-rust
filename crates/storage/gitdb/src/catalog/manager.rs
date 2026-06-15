@@ -1,7 +1,7 @@
 //! Catalog manager for schema persistence and retrieval.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use anyhow::{Context, bail};
 use parking_lot::RwLock;
@@ -15,12 +15,12 @@ const SCHEMA_DIR: &str = "_schemas";
 
 /// The catalog manages table schemas, storing them in the repository.
 pub struct Catalog {
-    repo: Arc<RwLock<GitRepository>>,
+    repo: Rc<RwLock<GitRepository>>,
 }
 
 impl Catalog {
     /// Create a new catalog backed by the given repository.
-    pub fn new(repo: Arc<RwLock<GitRepository>>) -> Self {
+    pub fn new(repo: Rc<RwLock<GitRepository>>) -> Self {
         Self { repo }
     }
 
@@ -255,7 +255,7 @@ mod tests {
     fn setup_catalog() -> (Catalog, TempDir) {
         let temp_dir = TempDir::new().unwrap();
         let repo = GitRepository::open_or_init(temp_dir.path()).unwrap();
-        let catalog = Catalog::new(Arc::new(RwLock::new(repo)));
+        let catalog = Catalog::new(Rc::new(RwLock::new(repo)));
         (catalog, temp_dir)
     }
 

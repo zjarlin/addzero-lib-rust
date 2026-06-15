@@ -235,12 +235,12 @@ impl Parser {
         let order_by = query
             .order_by
             .as_ref()
-            .map(|ob| Self::extract_order_by_exprs(ob))
+            .map(Self::extract_order_by_exprs)
             .transpose()?
             .unwrap_or_default();
 
         // LIMIT
-        let limit = query.limit.as_ref().and_then(|l| Self::expr_to_usize(l));
+        let limit = query.limit.as_ref().and_then(Self::expr_to_usize);
 
         // OFFSET
         let offset = query

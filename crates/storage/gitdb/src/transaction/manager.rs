@@ -8,7 +8,7 @@
 //! - Cleanup of abandoned transactions
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use az_derive_aliases::{apply, plain_clone};
 use parking_lot::{Mutex, RwLock};
@@ -20,10 +20,10 @@ use crate::transaction::isolation::IsolationLevel;
 
 /// Transaction manager - coordinates all transaction operations.
 ///
-/// Thread-safe: can be shared across threads via Clone (uses Arc internally).
+/// Local transaction manager; clone the handle inside one thread.
 #[apply(plain_clone)]
 pub struct TransactionManager {
-    inner: Arc<TransactionManagerInner>,
+    inner: Rc<TransactionManagerInner>,
 }
 
 struct TransactionManagerInner {
@@ -39,7 +39,7 @@ impl TransactionManager {
     /// Create a new transaction manager for the given repository.
     pub fn new(repo: GitRepository) -> Self {
         Self {
-            inner: Arc::new(TransactionManagerInner {
+            inner: Rc::new(TransactionManagerInner {
                 repo,
                 active: RwLock::new(HashMap::new()),
                 commit_lock: Mutex::new(()),
@@ -163,7 +163,7 @@ impl TransactionManager {
         let branches = self
             .inner
             .repo
-            .with_repo(|repo| crate::storage::RefManager::list_transaction_branches(repo))?;
+            .with_repo(crate::storage::RefManager::list_transaction_branches)?;
 
         let mut cleaned = 0;
         for branch in branches {
@@ -220,7 +220,6 @@ impl TransactionManager {
     }
 }
 
-// Ensure TransactionManager can be safely shared across threads
 impl std::fmt::Debug for TransactionManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TransactionManager")

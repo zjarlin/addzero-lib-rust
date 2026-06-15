@@ -1,7 +1,7 @@
 //! Database API - high-level interface for GitDB.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::rc::Rc;
 
 use anyhow::bail;
 use az_derive_aliases::{apply, impl_default, plain_clone_debug};
@@ -68,7 +68,7 @@ impl DatabaseConfig {
 /// The main database handle.
 pub struct Database {
     config: DatabaseConfig,
-    repo: Arc<RwLock<GitRepository>>,
+    repo: Rc<RwLock<GitRepository>>,
     executor: QueryExecutor,
     planner: Option<QueryPlanner>,
     catalog: Catalog,
@@ -91,7 +91,7 @@ impl Database {
             bail!("database not found: {}", config.path.display());
         };
 
-        let shared_repo = Arc::new(RwLock::new(repo.clone()));
+        let shared_repo = Rc::new(RwLock::new(repo.clone()));
         let executor = QueryExecutor::new(repo.clone());
         let catalog = Catalog::new(shared_repo.clone());
         let tx_manager = TransactionManager::new(repo);
@@ -151,7 +151,7 @@ impl Database {
 
     /// Parse a SQL statement without executing.
     pub fn parse(&self, sql: &str) -> anyhow::Result<Statement> {
-        Ok(Parser::parse(sql)?)
+        Parser::parse(sql)
     }
 
     /// Explain a query (show the execution plan).
@@ -186,7 +186,7 @@ impl Database {
 
     /// List all tables.
     pub fn tables(&self) -> anyhow::Result<Vec<String>> {
-        Ok(self.catalog.list_tables()?)
+        self.catalog.list_tables()
     }
 
     /// Check if a table exists.
@@ -205,7 +205,7 @@ impl Database {
 
     /// Begin a new transaction.
     pub fn begin(&mut self) -> anyhow::Result<Transaction<TxActive>> {
-        Ok(self.tx_manager.begin()?)
+        self.tx_manager.begin()
     }
 
     /// Execute within a transaction.
@@ -251,7 +251,7 @@ impl Database {
                     timestamp: c.timestamp.timestamp(),
                 })
                 .collect()),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e),
         }
     }
 

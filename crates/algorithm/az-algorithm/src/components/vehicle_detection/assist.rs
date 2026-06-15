@@ -158,7 +158,7 @@ fn run_coco_ssd_session(
         IxDyn(VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.input.shape),
         tensor_data,
     )
-    .map_err(|source| anyhow!("invalid tensor shape for `{}`: {}", VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code, source.to_string(),))?;
+    .map_err(|source| anyhow!("invalid tensor shape for `{}`: {}", VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1.code, source))?;
     let input = Tensor::from_array(input_array)?;
     let output_names = session
         .outputs()

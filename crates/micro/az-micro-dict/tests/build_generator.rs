@@ -1,9 +1,9 @@
 use std::fs;
 
-use az_dict_spec::api::RawValueKind;
+use az_dict_spec::api::{DictionaryItemSpec, DictionarySpec, RawValueKind};
 use az_micro_dict::api::{
-    DictBuildGenerator, DictionaryContribution, DictionaryContributor, DictionaryItemContribution,
-    RuoyiDictRow, RuoyiDictionaryContributor, StaticDictionaryContributor,
+    DictBuildGenerator, DictionaryContribution, DictionaryContributor, RuoyiDictRow,
+    RuoyiDictionaryContributor, StaticDictionaryContributor,
 };
 use tempfile::TempDir;
 
@@ -12,39 +12,41 @@ fn static_contributor_writes_specs_and_enum_source() {
     let temp = TempDir::new().expect("temp dir should be available");
     let generated = DictBuildGenerator::new()
         .add_contributor(StaticDictionaryContributor::new(vec![
-            DictionaryContribution {
-                code: "shell_entry_kind".to_string(),
-                name: "Shell Entry Kind".to_string(),
-                description: Some("Shell entry category".to_string()),
-                scope: "platform".to_string(),
-                enum_name: "ShellEntryKind".to_string(),
-                raw_value_kind: RawValueKind::String,
-                open_enum: false,
-                unknown_variant: None,
-                sort_index: 0,
-                items: vec![
-                    DictionaryItemContribution {
-                        code: "alias".to_string(),
-                        label: "别名".to_string(),
-                        description: None,
-                        raw_int_value: None,
-                        raw_text_value: Some("alias".to_string()),
-                        sort_index: 10,
-                        enabled: true,
-                        meta: None,
-                    },
-                    DictionaryItemContribution {
-                        code: "export".to_string(),
-                        label: "环境变量".to_string(),
-                        description: None,
-                        raw_int_value: None,
-                        raw_text_value: Some("export".to_string()),
-                        sort_index: 20,
-                        enabled: true,
-                        meta: None,
-                    },
-                ],
-            },
+            DictionaryContribution::new(
+                "ShellEntryKind",
+                DictionarySpec {
+                    code: "shell_entry_kind".to_string(),
+                    name: "Shell Entry Kind".to_string(),
+                    description: Some("Shell entry category".to_string()),
+                    scope: "platform".to_string(),
+                    raw_value_kind: RawValueKind::String,
+                    open_enum: false,
+                    unknown_variant: None,
+                    sort_index: 0,
+                    items: vec![
+                        DictionaryItemSpec {
+                            code: "alias".to_string(),
+                            label: "别名".to_string(),
+                            description: None,
+                            raw_int_value: None,
+                            raw_text_value: Some("alias".to_string()),
+                            sort_index: 10,
+                            enabled: true,
+                            meta: None,
+                        },
+                        DictionaryItemSpec {
+                            code: "export".to_string(),
+                            label: "环境变量".to_string(),
+                            description: None,
+                            raw_int_value: None,
+                            raw_text_value: Some("export".to_string()),
+                            sort_index: 20,
+                            enabled: true,
+                            meta: None,
+                        },
+                    ],
+                },
+            ),
         ]))
         .generate_to(temp.path())
         .expect("dictionary files should be generated");
@@ -95,40 +97,45 @@ fn ruoyi_contributor_groups_enabled_rows_as_string_dictionary() {
     .pop()
     .expect("one dictionary should be produced");
 
-    assert_eq!(contribution.code, "sys_user_sex");
+    assert_eq!(contribution.spec.code, "sys_user_sex");
     assert_eq!(contribution.enum_name, "SysUserSex");
-    assert_eq!(contribution.items.len(), 1);
-    assert_eq!(contribution.items[0].code, "0");
-    assert_eq!(contribution.items[0].raw_text_value.as_deref(), Some("0"));
+    assert_eq!(contribution.spec.items.len(), 1);
+    assert_eq!(contribution.spec.items[0].code, "0");
     assert_eq!(
-        contribution.items[0].meta.as_ref().unwrap()["listClass"],
+        contribution.spec.items[0].raw_text_value.as_deref(),
+        Some("0")
+    );
+    assert_eq!(
+        contribution.spec.items[0].meta.as_ref().unwrap()["listClass"],
         "primary"
     );
 }
 
 #[test]
 fn generator_rejects_duplicate_dictionary_codes() {
-    let duplicate = DictionaryContribution {
-        code: "dup".to_string(),
-        name: "Duplicate".to_string(),
-        description: None,
-        scope: "test".to_string(),
-        enum_name: "Dup".to_string(),
-        raw_value_kind: RawValueKind::String,
-        open_enum: false,
-        unknown_variant: None,
-        sort_index: 0,
-        items: vec![DictionaryItemContribution {
-            code: "a".to_string(),
-            label: "A".to_string(),
+    let duplicate = DictionaryContribution::new(
+        "Dup",
+        DictionarySpec {
+            code: "dup".to_string(),
+            name: "Duplicate".to_string(),
             description: None,
-            raw_int_value: None,
-            raw_text_value: Some("a".to_string()),
+            scope: "test".to_string(),
+            raw_value_kind: RawValueKind::String,
+            open_enum: false,
+            unknown_variant: None,
             sort_index: 0,
-            enabled: true,
-            meta: None,
-        }],
-    };
+            items: vec![DictionaryItemSpec {
+                code: "a".to_string(),
+                label: "A".to_string(),
+                description: None,
+                raw_int_value: None,
+                raw_text_value: Some("a".to_string()),
+                sort_index: 0,
+                enabled: true,
+                meta: None,
+            }],
+        },
+    );
 
     let temp = TempDir::new().expect("temp dir should be available");
     let error = DictBuildGenerator::new()

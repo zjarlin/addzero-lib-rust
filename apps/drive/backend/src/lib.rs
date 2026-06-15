@@ -269,7 +269,7 @@ pub fn add_git_pool(
     max_size_bytes: Option<u64>,
 ) -> anyhow::Result<GitPoolRepoConfig> {
     let store = GitPoolDriveStore::open(current_git_pool_config()?)?;
-    Ok(store.init_pool(name, remote_url, max_size_bytes)?)
+    store.init_pool(name, remote_url, max_size_bytes)
 }
 
 /// Mounts another owner Git pool as a read-side fused source.
@@ -293,7 +293,7 @@ pub fn mount_git_pool(
 /// Returns an error when config writes fail.
 pub fn unmount_git_pool(name: &str) -> anyhow::Result<()> {
     let store = GitPoolDriveStore::open(current_git_pool_config()?)?;
-    Ok(store.unmount_pool(name)?)
+    store.unmount_pool(name)
 }
 
 /// Returns Git Pool backend status.
@@ -302,7 +302,7 @@ pub fn unmount_git_pool(name: &str) -> anyhow::Result<()> {
 /// Returns an error when store metadata cannot be read.
 pub fn git_pool_backend_status() -> anyhow::Result<serde_json::Value> {
     let store = GitPoolDriveStore::open(current_git_pool_config()?)?;
-    Ok(store.backend_status()?)
+    store.backend_status()
 }
 
 /// Returns current Drive backend status.

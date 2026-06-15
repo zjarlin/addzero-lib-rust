@@ -146,17 +146,13 @@ impl Transaction<TxActive> {
     /// 列出当前事务可见的所有表。
     pub fn list_tables(&self) -> anyhow::Result<Vec<TableName>> {
         let commit = self.read_commit()?;
-        self.repo
-            .list_tables(commit)
-            .map_err(Into::into)
+        self.repo.list_tables(commit)
     }
 
     /// 检查当前事务视图中表是否存在。
     pub fn table_exists(&self, table: &TableName) -> anyhow::Result<bool> {
         let commit = self.read_commit()?;
-        self.repo
-            .table_exists(table, commit)
-            .map_err(Into::into)
+        self.repo.table_exists(table, commit)
     }
 
     // ==================== Row Operations ====================
@@ -227,25 +223,19 @@ impl Transaction<TxActive> {
     /// 读取单行。
     pub fn read(&self, table: &TableName, key: &RowKey) -> anyhow::Result<Option<Row>> {
         let commit = self.read_commit()?;
-        self.repo
-            .read_row(table, key, commit)
-            .map_err(Into::into)
+        self.repo.read_row(table, key, commit)
     }
 
     /// 扫描表内所有行。
     pub fn scan(&self, table: &TableName) -> anyhow::Result<Vec<Row>> {
         let commit = self.read_commit()?;
-        self.repo
-            .scan_table(table, commit)
-            .map_err(Into::into)
+        self.repo.scan_table(table, commit)
     }
 
     /// 列出表内所有行键。
     pub fn list_keys(&self, table: &TableName) -> anyhow::Result<Vec<RowKey>> {
         let commit = self.read_commit()?;
-        self.repo
-            .list_rows(table, commit)
-            .map_err(Into::into)
+        self.repo.list_rows(table, commit)
     }
 
     // ==================== Transaction Control ====================
@@ -254,7 +244,6 @@ impl Transaction<TxActive> {
     fn update_branch(&self) -> anyhow::Result<()> {
         self.repo
             .update_branch(&self.metadata.branch, self.metadata.current_commit)
-            .map_err(Into::into)
     }
 
     /// 提交事务。

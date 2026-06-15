@@ -1,7 +1,7 @@
 //! Main query executor.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use parking_lot::RwLock;
 use serde_json::Value;
@@ -22,7 +22,7 @@ use crate::transaction::{Transaction, TransactionManager, TxActive};
 
 /// The query executor.
 pub struct QueryExecutor {
-    repo: Arc<RwLock<GitRepository>>,
+    repo: Rc<RwLock<GitRepository>>,
     catalog: Catalog,
     tx_manager: TransactionManager,
     current_tx: Option<Transaction<TxActive>>,
@@ -31,7 +31,7 @@ pub struct QueryExecutor {
 impl QueryExecutor {
     /// Create a new executor.
     pub fn new(repo: GitRepository) -> Self {
-        let shared_repo = Arc::new(RwLock::new(repo.clone()));
+        let shared_repo = Rc::new(RwLock::new(repo.clone()));
         let catalog = Catalog::new(shared_repo.clone());
         let tx_manager = TransactionManager::new(repo);
         Self {
@@ -210,11 +210,7 @@ impl QueryExecutor {
         let mut head = repo.head()?;
         let table_name = TableName::new(&insert.table)?;
 
-        let column_names = insert
-            .columns
-            .as_ref()
-            .map(|c| c.clone())
-            .unwrap_or_else(|| {
+        let column_names = insert.columns.clone().unwrap_or_else(|| {
                 schema
                     .column_names()
                     .into_iter()

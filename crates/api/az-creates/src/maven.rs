@@ -26,7 +26,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self.inner.search_by_group_id(group_id, rows)?)
+        self.inner.search_by_group_id(group_id, rows)
     }
 
     /// 按 `artifactId` 查询构件，适合不知道 group 的模糊检索。
@@ -35,7 +35,7 @@ impl MavenCentralApi {
         artifact_id: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self.inner.search_by_artifact_id(artifact_id, rows)?)
+        self.inner.search_by_artifact_id(artifact_id, rows)
     }
 
     /// 按 `groupId + artifactId` 查询构件的最新搜索结果。
@@ -45,9 +45,8 @@ impl MavenCentralApi {
         artifact_id: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self
-            .inner
-            .search_by_coordinates(group_id, artifact_id, rows)?)
+        self.inner
+            .search_by_coordinates(group_id, artifact_id, rows)
     }
 
     /// 查询指定坐标的全部版本记录。
@@ -57,9 +56,7 @@ impl MavenCentralApi {
         artifact_id: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self
-            .inner
-            .search_all_versions(group_id, artifact_id, rows)?)
+        self.inner.search_all_versions(group_id, artifact_id, rows)
     }
 
     /// 按完整 Maven 坐标查询，支持版本、打包类型和 classifier 过滤。
@@ -72,14 +69,14 @@ impl MavenCentralApi {
         classifier: Option<&str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self.inner.search_by_full_coordinates(
+        self.inner.search_by_full_coordinates(
             group_id,
             artifact_id,
             version,
             packaging,
             classifier,
             rows,
-        )?)
+        )
     }
 
     /// 按类名查询包含该类的构件。
@@ -88,7 +85,7 @@ impl MavenCentralApi {
         class_name: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self.inner.search_by_class_name(class_name, rows)?)
+        self.inner.search_by_class_name(class_name, rows)
     }
 
     /// 按完整限定类名查询包含该类的构件。
@@ -97,9 +94,9 @@ impl MavenCentralApi {
         class_name: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self
+        self
             .inner
-            .search_by_fully_qualified_class_name(class_name, rows)?)
+            .search_by_fully_qualified_class_name(class_name, rows)
     }
 
     /// 按文件 SHA-1 查询构件。
@@ -108,7 +105,7 @@ impl MavenCentralApi {
         sha1: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self.inner.search_by_sha1(sha1, rows)?)
+        self.inner.search_by_sha1(sha1, rows)
     }
 
     /// 按 Maven Central tag 查询构件。
@@ -117,7 +114,7 @@ impl MavenCentralApi {
         tag: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self.inner.search_by_tag(tag, rows)?)
+        self.inner.search_by_tag(tag, rows)
     }
 
     /// 按关键词查询构件。
@@ -126,7 +123,7 @@ impl MavenCentralApi {
         keyword: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Vec<MavenArtifact>> {
-        Ok(self.inner.search_by_keyword(keyword, rows)?)
+        self.inner.search_by_keyword(keyword, rows)
     }
 
     /// 获取指定 `groupId + artifactId` 的最新版本号。
@@ -135,7 +132,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         artifact_id: impl AsRef<str>,
     ) -> anyhow::Result<Option<String>> {
-        Ok(self.inner.get_latest_version(group_id, artifact_id)?)
+        self.inner.get_latest_version(group_id, artifact_id)
     }
 
     /// 获取某个 `groupId` 下搜索结果中的最新版本号。
@@ -144,7 +141,7 @@ impl MavenCentralApi {
         group_id: impl AsRef<str>,
         rows: usize,
     ) -> anyhow::Result<Option<String>> {
-        Ok(self.inner.get_latest_version_by_group_id(group_id, rows)?)
+        self.inner.get_latest_version_by_group_id(group_id, rows)
     }
 
     /// 通过 Maven Central `remotecontent` 端点下载指定构件文件。
@@ -155,9 +152,9 @@ impl MavenCentralApi {
         version: impl AsRef<str>,
         filename: impl AsRef<str>,
     ) -> anyhow::Result<Vec<u8>> {
-        Ok(self
+        self
             .inner
-            .download_file(group_id, artifact_id, version, filename)?)
+            .download_file(group_id, artifact_id, version, filename)
     }
 }
 

@@ -233,11 +233,9 @@ impl BlockingS3StorageClient {
         let scheme = endpoint.scheme();
         let endpoint_host = endpoint.host_str().ok_or_else(|| {
             anyhow!(
-                "invalid storage configuration: {}",
-                format!(
-                "endpoint `{}` does not contain a host",
-                self.config.endpoint
-            ))
+                "invalid storage configuration: endpoint `{}` does not contain a host",
+                self.config.endpoint,
+            )
         })?;
 
         let mut host = endpoint_host.to_owned();
@@ -364,7 +362,7 @@ impl BlockingS3StorageClient {
             .header("Authorization", authorization)
             .body(body)
             .send()
-            .map_err(|error| anyhow!("storage backend error: {}", format!("request failed: {error}")))
+            .map_err(|error| anyhow!("storage backend error: request failed: {error}"))
     }
 
     fn execute_empty_body_request(
@@ -621,9 +619,7 @@ impl S3StorageClient for BlockingS3StorageClient {
         response
             .bytes()
             .map(|bytes| bytes.to_vec())
-            .map_err(|error| {
-                anyhow!("storage backend error: {}", format!("failed to read response body: {error}"))
-            })
+            .map_err(|error| anyhow!("storage backend error: failed to read response body: {error}"))
     }
 
     fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> anyhow::Result<()> {
@@ -908,7 +904,7 @@ fn metadata_headers(metadata: &BTreeMap<String, String>) -> BTreeMap<String, Str
 
 fn build_host_header(url: &Url) -> anyhow::Result<String> {
     let host = url.host_str().ok_or_else(|| {
-        anyhow!("invalid storage configuration: {}", format!("request URL `{url}` does not contain a host"))
+        anyhow!("invalid storage configuration: request URL `{url}` does not contain a host")
     })?;
     let include_port = match (url.scheme(), url.port()) {
         ("http", Some(80)) | ("https", Some(443)) | (_, None) => false,
@@ -1071,17 +1067,15 @@ fn parse_list_objects_response(xml: &str) -> anyhow::Result<ParsedListObjectsRes
             }
             Ok(Event::End(element)) => {
                 let name = local_name(element.name().as_ref());
-                if name == "Contents" {
-                    if let Some(current) = current.take() {
-                        objects.push(ObjectMetadata {
-                            key: current.key,
-                            size: current.size,
-                            etag: current.etag,
-                            last_modified: current.last_modified,
-                            content_type: None,
-                            metadata: BTreeMap::new(),
-                        });
-                    }
+                if name == "Contents" && let Some(current) = current.take() {
+                    objects.push(ObjectMetadata {
+                        key: current.key,
+                        size: current.size,
+                        etag: current.etag,
+                        last_modified: current.last_modified,
+                        content_type: None,
+                        metadata: BTreeMap::new(),
+                    });
                 }
                 if path.last().map(|item| item.as_str()) == Some(name.as_str()) {
                     let _ = path.pop();
@@ -1665,7 +1659,7 @@ impl S3StorageClient for InMemoryS3StorageClient {
         let upload = state
             .uploads
             .get_mut(upload_id)
-            .ok_or_else(|| anyhow!("storage backend error: {}", format!("unknown upload id `{upload_id}`")))?;
+            .ok_or_else(|| anyhow!("storage backend error: unknown upload id `{upload_id}`"))?;
         upload.parts.insert(part_number, data.to_vec());
         Ok(format!("etag-{upload_id}-{part_number}"))
     }
@@ -1681,7 +1675,7 @@ impl S3StorageClient for InMemoryS3StorageClient {
         let upload = state
             .uploads
             .remove(upload_id)
-            .ok_or_else(|| anyhow!("storage backend error: {}", format!("unknown upload id `{upload_id}`")))?;
+            .ok_or_else(|| anyhow!("storage backend error: unknown upload id `{upload_id}`"))?;
 
         let mut ordered = parts.to_vec();
         ordered.sort_by_key(|part| part.part_number);

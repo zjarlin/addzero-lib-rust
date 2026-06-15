@@ -13,11 +13,14 @@ pub fn render_app_html(
     route: &str,
     query: &str,
 ) -> String {
+    let nav_items = snapshot_nav_items(snapshot);
+    let pages = snapshot_pages(snapshot);
+
     let body = dioxus_ssr::render_element(rsx! {
         AppLayout {
             renderers: snapshot.native_renderers.clone(),
-            nav_items: if snapshot.nav_items.is_empty() { default_nav_items() } else { snapshot.nav_items.clone() },
-            pages: if snapshot.pages.is_empty() { default_pages() } else { snapshot.pages.clone() },
+            nav_items,
+            pages,
             route: route.to_string(),
             query: query.to_string(),
         }
@@ -41,6 +44,24 @@ pub fn render_app_html(
         ),
         body = body,
     )
+}
+
+fn snapshot_nav_items(
+    snapshot: &az_aio_platform::plugin::host::HostSnapshot,
+) -> Vec<NavItemContribution> {
+    if snapshot.nav_items.is_empty() {
+        default_nav_items()
+    } else {
+        snapshot.nav_items.clone()
+    }
+}
+
+fn snapshot_pages(snapshot: &az_aio_platform::plugin::host::HostSnapshot) -> Vec<PageContribution> {
+    if snapshot.pages.is_empty() {
+        default_pages()
+    } else {
+        snapshot.pages.clone()
+    }
 }
 
 fn default_nav_items() -> Vec<NavItemContribution> {
