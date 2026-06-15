@@ -13,10 +13,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "automod"
-version = "1.0.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a273e731a7fb8c2268fd2932c9e9a3469f4fd171d85d070d2687190229653bd3"
+name = "az-automod"
+version = "2026.6.15"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -36,7 +34,7 @@ dependencies = [
 name = "inventory-plugin-alipay"
 version = "0.1.0"
 dependencies = [
- "automod",
+ "az-automod",
  "inventory",
  "pay-api",
 ]
@@ -45,7 +43,7 @@ dependencies = [
 name = "inventory-plugin-other"
 version = "0.1.0"
 dependencies = [
- "automod",
+ "az-automod",
  "inventory",
  "pay-api",
 ]
@@ -54,7 +52,7 @@ dependencies = [
 name = "inventory-plugin-wechat"
 version = "0.1.0"
 dependencies = [
- "automod",
+ "az-automod",
  "inventory",
  "pay-api",
 ]

@@ -15,10 +15,9 @@ axum.workspace = true
 az-config-center-client = "=2026.6.13"
 dirs = "6"
 dioxus.workspace = true
-inventory.workspace = true
+rudi.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-shaku = "0.6.2"
 toasty.workspace = true
 tokio.workspace = true
 uuid.workspace = true

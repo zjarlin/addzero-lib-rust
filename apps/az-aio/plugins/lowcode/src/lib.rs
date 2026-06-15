@@ -1,8 +1,5 @@
 #![forbid(unsafe_code)]
 
-pub mod model;
-pub mod page;
-pub mod plugin;
-pub mod record;
-pub mod routes;
-pub mod store;
+automod::dir!(pub "src");
+
+rudi::enable! {}

@@ -6,20 +6,22 @@ use std::{
 };
 
 use crate::plugin_api::{
-    BackendApiContribution, ContributionSet, GeneratedFileContribution, NavItemContribution,
-    NativeAzAioPlugin, NativePluginContext, NativePluginRegistration, NativeUiRenderer,
-    PageContribution, PluginActivation, PluginDescriptor, PluginKind, PluginState,
-    SettingsSectionContribution, ShellEntryContribution, ToolbarActionContribution, UiContribution,
-    CatalogItemContribution, CatalogItemKind, CatalogSource, NativeRenderFn,
+    BackendApiContribution, CatalogItemContribution, CatalogItemKind, CatalogSource,
+    ContributionSet, DynNativeAzAioPlugin, GeneratedFileContribution, NativePluginContext,
+    NativeRenderFn, NativeUiRenderer, NavItemContribution, PageContribution, PluginActivation,
+    PluginDescriptor, PluginKind, PluginState, SettingsSectionContribution, ShellEntryContribution,
+    ToolbarActionContribution, UiContribution,
 };
 use serde::{Deserialize, Serialize};
 
 const PLUGIN_STATE_FILE: &str = "plugin-state.json";
 
-pub fn load_az_aio_native_snapshot(context: NativePluginContext) -> HostSnapshot {
+pub fn load_az_aio_native_snapshot(
+    context: NativePluginContext,
+    di: &mut rudi::Context,
+) -> HostSnapshot {
     let enablement = load_plugin_enablement();
-    NativePluginHost::from_inventory(context)
-        .load_snapshot_with_enablement(&enablement)
+    NativePluginHost::from_context(context, di).load_snapshot_with_enablement(&enablement)
 }
 
 pub fn native_renderer(snapshot: &HostSnapshot, renderer_id: &str) -> Option<NativeRenderFn> {
@@ -65,7 +67,7 @@ pub async fn start_native_loopback_server(snapshot: HostSnapshot) -> anyhow::Res
 }
 
 pub struct NativePluginHost {
-    plugins: Vec<Box<dyn NativeAzAioPlugin>>,
+    plugins: Vec<DynNativeAzAioPlugin>,
     context: NativePluginContext,
 }
 
@@ -77,16 +79,13 @@ impl NativePluginHost {
         }
     }
 
-    pub fn from_inventory(context: NativePluginContext) -> Self {
-        let mut plugins = inventory::iter::<NativePluginRegistration>
-            .into_iter()
-            .map(|registration| (registration.constructor)())
-            .collect::<Vec<_>>();
+    pub fn from_context(context: NativePluginContext, di: &mut rudi::Context) -> Self {
+        let mut plugins = di.resolve_by_type::<DynNativeAzAioPlugin>();
         plugins.sort_by(|left, right| left.descriptor().id.cmp(&right.descriptor().id));
         Self { plugins, context }
     }
 
-    pub fn with_plugin(mut self, plugin: Box<dyn NativeAzAioPlugin>) -> Self {
+    pub fn with_plugin(mut self, plugin: DynNativeAzAioPlugin) -> Self {
         self.plugins.push(plugin);
         self
     }
@@ -214,7 +213,11 @@ pub fn set_plugin_enabled_at(
 
 pub fn plugin_enablement_store_path() -> PathBuf {
     dirs::config_dir()
-        .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join(".config"))
+        .unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".config")
+        })
         .join("addzero")
         .join("az-aio")
         .join(PLUGIN_STATE_FILE)

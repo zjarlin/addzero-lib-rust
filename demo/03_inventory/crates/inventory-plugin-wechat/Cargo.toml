@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-automod = "1.0.17"
+automod.workspace = true
 inventory = "0.3.24"
 pay-api = { path = "../pay-api" }

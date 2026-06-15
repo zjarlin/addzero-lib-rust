@@ -3,5 +3,7 @@
 
 automod::dir!(pub "src");
 
-pub use catalog_match::installer_matches_catalog;
+pub use backend::catalog_match::installer_matches_catalog;
 pub use plugin::SoftwareCenterPlugin;
+
+rudi::enable! {}

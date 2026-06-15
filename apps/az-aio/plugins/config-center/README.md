@@ -8,7 +8,7 @@ Native AZ AIO plugin for machine configuration workflows.
 - Route: `/config`
 - Axum APIs: `/api/config-center/status`, `/api/config-center/dotfiles`, `/api/config-center/pairing`, `/api/config-center/entries`, `/api/config-center/entry`
 - Toasty table prefix: `biz_config_center_`
-- shaku module: `store::ConfigCenterModule`
+- Rudi context: `store::build_config_center_context`
 
 ## Domain
 

@@ -1,15 +1,20 @@
+use std::sync::Arc;
+
 use az_aio_platform::plugin_api::{
-    BackendApiContribution, ContributionSet, NativeAzAioPlugin, NativePluginContext,
-    NativePluginRuntime, NativeUiRenderer, NavItemContribution, PageContribution,
-    PluginActivation, PluginDescriptor, PluginKind, UiContribution, UiContributionSlot,
+    BackendApiContribution, ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin,
+    NativePluginContext, NativePluginRuntime, NativeUiRenderer, NavItemContribution,
+    PageContribution, PluginActivation, PluginDescriptor, PluginKind, UiContribution,
+    UiContributionSlot,
 };
-use az_aio_platform::register_native_plugin;
+use rudi::Singleton;
 
 use crate::{
-    page::LowcodePage,
-    routes::{LowcodeApiState, lowcode_router},
-    record::RecordStore,
-    store::LowcodeStore,
+    backend::{
+        record::RecordStore,
+        routes::{LowcodeApiState, lowcode_router},
+        store::LowcodeStore,
+    },
+    ui::page::LowcodePage,
 };
 
 const PLUGIN_ID: &str = "lowcode";
@@ -81,6 +86,11 @@ impl NativeAzAioPlugin for LowcodePlugin {
         let api_store = LowcodeStore::degraded(context.database_url);
         api_store.seed_demo();
 
+        // Wire RecordStore to DB if available
+        if let Some(ref db) = api_store.db {
+            RecordStore::init_db(db.clone());
+        }
+
         let renderers = vec![NativeUiRenderer {
             renderer_id: RENDERER_ID.into(),
             slot: UiContributionSlot::Content,
@@ -88,9 +98,7 @@ impl NativeAzAioPlugin for LowcodePlugin {
             render: LowcodePage,
         }];
 
-        let router = lowcode_router(LowcodeApiState {
-            store: api_store,
-        });
+        let router = lowcode_router(LowcodeApiState { store: api_store });
 
         Ok(NativePluginRuntime {
             renderers,
@@ -100,4 +108,7 @@ impl NativeAzAioPlugin for LowcodePlugin {
     }
 }
 
-register_native_plugin!(LowcodePlugin);
+#[Singleton(name = "lowcode")]
+pub fn lowcode_plugin() -> DynNativeAzAioPlugin {
+    Arc::new(LowcodePlugin)
+}

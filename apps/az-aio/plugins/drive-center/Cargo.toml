@@ -14,8 +14,8 @@ az-aio-platform = { path = "../../platform" }
 automod.workspace = true
 az-derive-aliases.workspace = true
 dioxus.workspace = true
+rudi.workspace = true
 serde.workspace = true
-shaku.workspace = true
 tokio.workspace = true
 toasty.workspace = true
 uuid.workspace = true

@@ -1,128 +1,18 @@
 #![forbid(unsafe_code)]
 
-use az_aio_platform::plugin_api::{NavItemContribution, NativeRenderContext, NativeUiRenderer, PageContribution, UiContributionSlot};
+use az_aio_platform::plugin_api::{NavItemContribution, PageContribution};
 use dioxus::prelude::*;
 
-#[derive(PartialEq, Clone, Props)]
-struct ShellProps {
-    renderers: Vec<NativeUiRenderer>,
-    nav_items: Vec<NavItemContribution>,
-    pages: Vec<PageContribution>,
-    route: String,
-    query: String,
-}
+mod components;
 
-/// Shell 插槽组件：侧栏 + 顶栏 + 内容区 + 设置区 + 项目区 + 沙箱面板。
-#[allow(non_snake_case)]
-fn AppLayout(props: ShellProps) -> Element {
-    let api_base = String::new();
-    let route = props.route.clone();
-    let query = props.query.clone();
-
-    let content_renderer = pick_renderer(&props.renderers, UiContributionSlot::Content, &route);
-    let settings_renderer = pick_renderer(&props.renderers, UiContributionSlot::SettingsContent, &route);
-    let sidebar_renderer = pick_renderer(&props.renderers, UiContributionSlot::AppSidebar, &route);
-    let topbar_renderer = pick_renderer(&props.renderers, UiContributionSlot::AppTopbar, &route);
-    let project_sidebar = pick_renderer(&props.renderers, UiContributionSlot::ProjectSidebar, &route);
-    let project_content = pick_renderer(&props.renderers, UiContributionSlot::ProjectContent, &route);
-    let sandbox = pick_renderer(&props.renderers, UiContributionSlot::SandboxPanel, &route);
-
-    let page = props.pages.iter().find(|p| p.route == route);
-    let page_title = page.map(|p| p.title.clone()).unwrap_or_default();
-    let page_mark = page.map(|p| p.placeholder_mark.clone()).unwrap_or_default();
-    let is_lowcode = route.starts_with("/lowcode");
-
-    let make_ctx = || NativeRenderContext {
-        active_route: format!("{}{}", route, query),
-        api_base_url: api_base.clone(),
-    };
-
-    rsx! {
-        main { class: "az-aio-shell",
-            aside { class: "sidebar",
-                if let Some(render) = sidebar_renderer {
-                    {render(make_ctx())}
-                } else {
-                    nav { class: "sidebar-tree sidebar-tree--primary", style: "position:relative; z-index:1;",
-                        for item in &props.nav_items {
-                            a {
-                                class: "nav-button",
-                                href: "/?route={item.route}",
-                                span { class: "nav-button__icon", "{item.icon}" }
-                                span { class: "nav-button__label", "{item.label}" }
-                            }
-                        }
-                    }
-                }
-            }
-            section { class: "workspace",
-                header { class: "header-bar",
-                    div { class: "header-bar__actions",
-                        if let Some(render) = topbar_renderer {
-                            {render(make_ctx())}
-                        } else {
-                            button { class: "model-button", r#type: "button",
-                                span { class: "model-button__mark", "AZ" }
-                                span { "AZ AIO" }
-                            }
-                        }
-                        span { " " }
-                        a {
-                            class: "toolbar-button",
-                            style: "margin-left: auto; font-size: 13px; padding: 4px 10px; cursor: pointer;",
-                            href: "#",
-                            id: "theme-toggle",
-                            "🌓"
-                        }
-                    }
-                }
-                div { class: if is_lowcode { "workspace__body workspace__body--lowcode" } else { "workspace__body" },
-                    if let Some(render) = content_renderer {
-                        {render(make_ctx())}
-                    } else {
-                        div { class: "empty-panel",
-                            div { class: "empty-panel__mark", "{page_mark}" }
-                            h1 { "{page_title}" }
-                        }
-                    }
-
-                    if project_sidebar.is_some() || project_content.is_some() {
-                        div { class: "project-layout",
-                            if let Some(render) = project_sidebar {
-                                {render(make_ctx())}
-                            }
-                            if let Some(render) = project_content {
-                                {render(make_ctx())}
-                            }
-                        }
-                    }
-
-                    if let Some(render) = settings_renderer {
-                        {render(make_ctx())}
-                    }
-
-                    if let Some(render) = sandbox {
-                        {render(make_ctx())}
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn pick_renderer(
-    renderers: &[NativeUiRenderer],
-    slot: UiContributionSlot,
-    route: &str,
-) -> Option<az_aio_platform::plugin_api::NativeRenderFn> {
-    renderers
-        .iter()
-        .find(|r| r.slot == slot && r.route.as_deref() == Some(route))
-        .map(|r| r.render)
-}
+use components::AppLayout;
 
 /// Render full HTML page.
-pub fn render_app_html(snapshot: &az_aio_platform::plugin_host::HostSnapshot, route: &str, query: &str) -> String {
+pub fn render_app_html(
+    snapshot: &az_aio_platform::plugin_host::HostSnapshot,
+    route: &str,
+    query: &str,
+) -> String {
     let body = dioxus_ssr::render_element(rsx! {
         AppLayout {
             renderers: snapshot.native_renderers.clone(),
@@ -136,7 +26,7 @@ pub fn render_app_html(snapshot: &az_aio_platform::plugin_host::HostSnapshot, ro
     format!(
         concat!(
             "<!DOCTYPE html>\n",
-            "<html lang=\"zh-CN\">\n",
+            "<html lang=\"zh-CN\" data-theme=\"light\">\n",
             "<head>\n",
             "    <meta charset=\"utf-8\">\n",
             "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n",
@@ -145,7 +35,7 @@ pub fn render_app_html(snapshot: &az_aio_platform::plugin_host::HostSnapshot, ro
             "</head>\n",
             "<body>\n",
             "    {body}\n",
-            "    <script>document.getElementById('theme-toggle').onclick=function(){{var e=document.documentElement;var t=e.getAttribute('data-theme')==='light'?'dark':'light';e.setAttribute('data-theme',t);localStorage.setItem('az-theme',t);return false;}};</script>\n",
+            "    <script>(function(){{var r=document.documentElement;var saved=localStorage.getItem('az-theme');if(saved)r.setAttribute('data-theme',saved);var b=document.getElementById('theme-toggle');if(b)b.onclick=function(){{var t=r.getAttribute('data-theme')==='light'?'dark':'light';r.setAttribute('data-theme',t);localStorage.setItem('az-theme',t);return false;}};var shell=document.querySelector('.az-aio-shell');var sidebar=document.getElementById('sidebar-toggle');function setCollapsed(v){{if(!shell)return;shell.classList.toggle('az-aio-shell--collapsed',v);if(sidebar)sidebar.setAttribute('aria-expanded',String(!v));}}setCollapsed(localStorage.getItem('az-sidebar-collapsed')==='true');if(sidebar)sidebar.onclick=function(){{var next=!shell.classList.contains('az-aio-shell--collapsed');setCollapsed(next);localStorage.setItem('az-sidebar-collapsed',String(next));return false;}};}})();</script>\n",
             "</body>\n",
             "</html>",
         ),
@@ -166,21 +56,74 @@ fn default_nav_items() -> Vec<NavItemContribution> {
 
 fn default_pages() -> Vec<PageContribution> {
     vec![
-        page("/assets", "资产中心", "知识库 · 资产管理", "◆", "asset-hub.page", 10),
-        page("/config", "配置中心", "配置管理", "⚙", "config-center.page", 20),
-        page("/gateway", "边缘网关", "运维 · 网络", "↗", "edge-gateway.page", 30),
-        page("/software", "软件中心", "安装器 · 目录", "⬢", "software-center.page", 40),
+        page(
+            "/assets",
+            "资产中心",
+            "知识库 · 资产管理",
+            "◆",
+            "asset-hub.page",
+            10,
+        ),
+        page(
+            "/config",
+            "配置中心",
+            "配置管理",
+            "⚙",
+            "config-center.page",
+            20,
+        ),
+        page(
+            "/gateway",
+            "边缘网关",
+            "运维 · 网络",
+            "↗",
+            "edge-gateway.page",
+            30,
+        ),
+        page(
+            "/software",
+            "软件中心",
+            "安装器 · 目录",
+            "⬢",
+            "software-center.page",
+            40,
+        ),
         page("/drive", "网盘中心", "云存储", "⇄", "drive-center.page", 50),
+        page(
+            "/lowcode",
+            "低代码工作台",
+            "元数据建模 & AppScreen 低代码管理",
+            "▣",
+            "lowcode.page",
+            60,
+        ),
     ]
 }
 
 fn nav(id: &str, label: &str, icon: &str, route: &str, order: i32) -> NavItemContribution {
-    NavItemContribution { id: id.into(), label: label.into(), icon: icon.into(), route: route.into(), order }
+    NavItemContribution {
+        id: id.into(),
+        label: label.into(),
+        icon: icon.into(),
+        route: route.into(),
+        order,
+    }
 }
 
-fn page(route: &str, title: &str, subtitle: &str, mark: &str, renderer_id: &str, order: i32) -> PageContribution {
+fn page(
+    route: &str,
+    title: &str,
+    subtitle: &str,
+    mark: &str,
+    renderer_id: &str,
+    order: i32,
+) -> PageContribution {
     PageContribution {
-        route: route.into(), title: title.into(), subtitle: subtitle.into(),
-        renderer_id: renderer_id.into(), placeholder_mark: mark.into(), order,
+        route: route.into(),
+        title: title.into(),
+        subtitle: subtitle.into(),
+        renderer_id: renderer_id.into(),
+        placeholder_mark: mark.into(),
+        order,
     }
 }

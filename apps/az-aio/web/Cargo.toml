@@ -12,6 +12,7 @@ workspace = "../plugins"
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
 az-aio-platform = { path = "../platform" }
+automod.workspace = true
 asset-hub = { path = "../plugins/asset-hub" }
 config-center = { path = "../plugins/config-center" }
 drive-center = { path = "../plugins/drive-center" }
@@ -21,8 +22,8 @@ software-center = { path = "../plugins/software-center" }
 lowcode = { path = "../plugins/lowcode" }
 dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
 dioxus-ssr = "0.7.9"
+rudi.workspace = true
 serde = { version = "1.0.228", features = ["derive"] }
-shaku = "0.6.2"
 tokio.workspace = true
 tower = "0.5.2"
 tower-http = { version = "0.6.2", features = ["fs"] }

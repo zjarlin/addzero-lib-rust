@@ -13,10 +13,12 @@ anyhow.workspace = true
 axum.workspace = true
 chrono = { version = "0.4.42", features = ["clock"] }
 az-aio-platform = { path = "../../platform" }
+automod.workspace = true
 dioxus.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 parking_lot = "0.12"
+rudi.workspace = true
 urlencoding = "2"
 tokio.workspace = true
 toasty.workspace = true

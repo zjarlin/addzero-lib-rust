@@ -32,19 +32,14 @@ impl SharedDb {
     /// 使用给定的 PostgreSQL 连接串建立连接并执行 schema 迁移。
     ///
     /// 适合不需要自定义模型注册的简单场景。
-    pub async fn connect_raw(
-        database_url: &str,
-        table_prefix: &str,
-    ) -> anyhow::Result<Self> {
+    pub async fn connect_raw(database_url: &str, table_prefix: &str) -> anyhow::Result<Self> {
         let database_url = verify_database_url(database_url)?;
         let db = toasty::Db::builder()
             .table_name_prefix(table_prefix)
             .connect(database_url)
             .await
             .with_context(|| format!("连接数据库失败: {database_url}"))?;
-        db.push_schema()
-            .await
-            .context("数据库 schema 迁移失败")?;
+        db.push_schema().await.context("数据库 schema 迁移失败")?;
         Ok(Self::new(db))
     }
 

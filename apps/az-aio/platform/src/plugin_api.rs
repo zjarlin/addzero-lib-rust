@@ -3,7 +3,7 @@
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-pub use inventory;
+pub type DynNativeAzAioPlugin = std::sync::Arc<dyn NativeAzAioPlugin>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -346,12 +346,20 @@ pub struct NativeRenderContext {
     pub api_base_url: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct NativeUiRenderer {
     pub renderer_id: String,
     pub slot: UiContributionSlot,
     pub route: Option<String>,
     pub render: NativeRenderFn,
+}
+
+impl PartialEq for NativeUiRenderer {
+    fn eq(&self, other: &Self) -> bool {
+        self.renderer_id == other.renderer_id
+            && self.slot == other.slot
+            && self.route == other.route
+    }
 }
 
 #[derive(Clone)]
@@ -377,31 +385,6 @@ pub trait NativeAzAioPlugin: Send + Sync {
     fn contributions(&self) -> anyhow::Result<ContributionSet>;
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime>;
-}
-
-#[derive(Clone, Copy)]
-pub struct NativePluginRegistration {
-    pub constructor: fn() -> Box<dyn NativeAzAioPlugin>,
-}
-
-inventory::collect!(NativePluginRegistration);
-
-pub fn default_native_plugin_constructor<P>() -> Box<dyn NativeAzAioPlugin>
-where
-    P: NativeAzAioPlugin + Default + 'static,
-{
-    Box::new(P::default())
-}
-
-#[macro_export]
-macro_rules! register_native_plugin {
-    ($plugin_ty:ty $(,)?) => {
-        $crate::plugin_api::inventory::submit! {
-            $crate::plugin_api::NativePluginRegistration {
-                constructor: $crate::plugin_api::default_native_plugin_constructor::<$plugin_ty>,
-            }
-        }
-    };
 }
 
 pub fn descriptor_to_json(descriptor: &PluginDescriptor) -> anyhow::Result<String> {

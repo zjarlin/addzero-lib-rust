@@ -6,10 +6,10 @@
 //!
 //! 读取顺序：项目命名空间优先，缺失时回退到共享命名空间，最终回退到环境变量。
 
-use shaku::{Component, Interface};
+use rudi::Singleton;
 
 /// 应用配置接口。
-pub trait AppConfig: Interface {
+pub trait AppConfig {
     /// 返回服务端口。
     fn port(&self) -> u16;
     /// 返回数据库连接 URL。
@@ -38,8 +38,8 @@ impl ConfigCenterEnv {
 }
 
 /// 基于 config-center 的配置实现。
-#[derive(Component)]
-#[shaku(interface = AppConfig)]
+#[derive(Clone)]
+#[Singleton]
 pub struct ConfigCenterConfig;
 
 impl AppConfig for ConfigCenterConfig {
@@ -82,7 +82,10 @@ fn login_center(env: &ConfigCenterEnv) -> Option<az_config_center_client::Config
     client.checkout_namespace("az-aio.dev").ok()
 }
 
-fn read_text_as_u16(client: &az_config_center_client::ConfigCenterClient, key: &str) -> Option<u16> {
+fn read_text_as_u16(
+    client: &az_config_center_client::ConfigCenterClient,
+    key: &str,
+) -> Option<u16> {
     match client.get_text(key) {
         Ok(Some(v)) => v.trim().parse().ok(),
         _ => None,
@@ -113,6 +116,12 @@ fn compose_pg_url(client: &az_config_center_client::ConfigCenterClient) -> Optio
         .ok()
         .flatten()
         .unwrap_or_else(|| "postgres".to_string());
-    let password = shared.get_text("postgres.password").ok().flatten().unwrap_or_default();
-    Some(format!("postgresql://{user}:{password}@{host}:{port}/{database}"))
+    let password = shared
+        .get_text("postgres.password")
+        .ok()
+        .flatten()
+        .unwrap_or_default();
+    Some(format!(
+        "postgresql://{user}:{password}@{host}:{port}/{database}"
+    ))
 }

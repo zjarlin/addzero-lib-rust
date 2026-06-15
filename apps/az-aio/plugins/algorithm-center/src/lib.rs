@@ -3,3 +3,5 @@
 automod::dir!(pub "src");
 
 pub use plugin::AlgorithmCenterPlugin;
+
+rudi::enable! {}

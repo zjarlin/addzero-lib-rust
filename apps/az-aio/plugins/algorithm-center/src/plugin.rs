@@ -1,13 +1,15 @@
-use az_aio_platform::register_native_plugin;
+use std::sync::Arc;
+
 use az_aio_platform::plugin_api::{
-    ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
+    ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
+use rudi::Singleton;
 
 use crate::{
+    backend::routes::algorithm_center_router,
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    page::AlgorithmCenterPage,
-    routes::algorithm_center_router,
+    ui::page::AlgorithmCenterPage,
 };
 
 #[derive(Default)]
@@ -36,9 +38,10 @@ impl NativeAzAioPlugin for AlgorithmCenterPlugin {
     }
 }
 
-register_native_plugin!(AlgorithmCenterPlugin);
-
-pub fn ensure_linked() {}
+#[Singleton(name = "algorithm-center")]
+pub fn algorithm_center_plugin() -> DynNativeAzAioPlugin {
+    Arc::new(AlgorithmCenterPlugin)
+}
 
 #[cfg(test)]
 mod tests {

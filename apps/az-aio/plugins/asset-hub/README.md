@@ -8,7 +8,7 @@ Native AZ AIO plugin for asset workflows.
 - Route: `/assets`
 - Axum APIs: `/api/asset-hub/status`, `/api/asset-hub/skills`, `/api/asset-hub/assets`, `/api/asset-hub/asset`
 - Toasty table prefix: `biz_asset_hub_`
-- shaku module: `store::AssetHubModule`
+- Rudi context: `store::build_asset_hub_context`
 
 ## Domain
 

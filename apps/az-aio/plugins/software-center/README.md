@@ -8,7 +8,7 @@ Native AZ AIO plugin for installer scanning and software package workflows.
 - Route: `/software`
 - Axum APIs: `/api/software-center/status`, `/api/software-center/installers`, `/api/software-center/organize`, `/api/software-center/packages`, `/api/software-center/package`
 - Toasty table prefix: `biz_software_center_`
-- shaku module: `store::SoftwareCenterModule`
+- Rudi context: `store::build_software_center_context`
 
 ## Domain
 

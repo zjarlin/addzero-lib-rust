@@ -6,16 +6,10 @@
 
 use std::sync::Arc;
 
+use axum::{Router, extract::WebSocketUpgrade, routing::get};
 use az_crdt::document::LineCrdtDocument;
-use az_drive_store::api::{
-    InMemoryDriveMetadataStore, InMemoryDriveObjectStore,
-};
 use az_drive_app::ws::{CrdtSyncState, handle_crdt_sync};
-use axum::{
-    Router,
-    extract::WebSocketUpgrade,
-    routing::get,
-};
+use az_drive_store::api::{InMemoryDriveMetadataStore, InMemoryDriveObjectStore};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use tokio::net::TcpListener;
@@ -25,9 +19,12 @@ use tokio_tungstenite::tungstenite::Message;
 use base64::Engine as _;
 
 async fn test_server(state: Arc<CrdtSyncState>) -> u16 {
-    let app = Router::new().route("/ws/sync", get(|ws: WebSocketUpgrade| async move {
-        ws.on_upgrade(move |socket| handle_crdt_sync(socket, state))
-    }));
+    let app = Router::new().route(
+        "/ws/sync",
+        get(|ws: WebSocketUpgrade| async move {
+            ws.on_upgrade(move |socket| handle_crdt_sync(socket, state))
+        }),
+    );
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     tokio::spawn(async move {
@@ -36,7 +33,9 @@ async fn test_server(state: Arc<CrdtSyncState>) -> u16 {
     port
 }
 
-async fn connect(port: u16) -> (
+async fn connect(
+    port: u16,
+) -> (
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
     u64,
 ) {
@@ -91,7 +90,9 @@ async fn two_clients_sync_document() {
     let metadata = Arc::new(InMemoryDriveMetadataStore::new());
     let objects = Arc::new(InMemoryDriveObjectStore::new());
     let state = Arc::new(CrdtSyncState::new(
-        metadata.clone(), objects.clone(), "test".to_owned(),
+        metadata.clone(),
+        objects.clone(),
+        "test".to_owned(),
     ));
     let port = test_server(state.clone()).await;
 
@@ -112,7 +113,10 @@ async fn two_clients_sync_document() {
     let doc_a = restore_doc(snapshot_b64);
     doc_a.insert_text(0, "Hello from client A\n").unwrap();
     let update_a_b64 = export_update(&doc_a);
-    client_a.send(update_msg("notes/readme.md", &update_a_b64)).await.unwrap();
+    client_a
+        .send(update_msg("notes/readme.md", &update_a_b64))
+        .await
+        .unwrap();
 
     // B receives the broadcast update.
     let b_update: Value = read_json(&mut client_b).await;
@@ -121,7 +125,9 @@ async fn two_clients_sync_document() {
 
     // B imports update and verifies.
     let doc_b = restore_doc(snapshot_b64);
-    doc_b.import_update(&b64decode(msg_update(&b_update))).unwrap();
+    doc_b
+        .import_update(&b64decode(msg_update(&b_update)))
+        .unwrap();
     assert_eq!(doc_b.text(), "Hello from client A\n");
 
     // Cleanup.
@@ -136,7 +142,9 @@ async fn incremental_reconnect() {
     let metadata = Arc::new(InMemoryDriveMetadataStore::new());
     let objects = Arc::new(InMemoryDriveObjectStore::new());
     let state = Arc::new(CrdtSyncState::new(
-        metadata.clone(), objects.clone(), "test".to_owned(),
+        metadata.clone(),
+        objects.clone(),
+        "test".to_owned(),
     ));
     let port = test_server(state.clone()).await;
 
@@ -160,16 +168,24 @@ async fn incremental_reconnect() {
     // Client B connects fresh, opens with base_version=v1 → should get
     // incremental update instead of full snapshot.
     let (mut client_b, _pb) = connect(port).await;
-    client_b.send(open_with_version_msg("doc.txt", &v1)).await.unwrap();
+    client_b
+        .send(open_with_version_msg("doc.txt", &v1))
+        .await
+        .unwrap();
     let reopened: Value = read_json(&mut client_b).await;
     assert_eq!(reopened["type"], "opened");
     // Should have update, not snapshot (since server has v1 cached).
-    assert!(reopened["snapshot"].is_null(), "expected incremental update, not full snapshot");
+    assert!(
+        reopened["snapshot"].is_null(),
+        "expected incremental update, not full snapshot"
+    );
     assert!(reopened["update"].is_string(), "expected update field");
 
     // Apply the update to a fresh doc at v1.
     let doc_b = restore_doc(snap_b64);
-    doc_b.import_update(&b64decode(msg_update(&reopened))).unwrap();
+    doc_b
+        .import_update(&b64decode(msg_update(&reopened)))
+        .unwrap();
     assert_eq!(doc_b.text(), "line one\n");
 
     client_b.send(close_msg("doc.txt")).await.unwrap();
@@ -217,7 +233,9 @@ async fn binary_upload_single_chunk() {
     let metadata = Arc::new(InMemoryDriveMetadataStore::new());
     let objects = Arc::new(InMemoryDriveObjectStore::new());
     let state = Arc::new(CrdtSyncState::new(
-        metadata.clone(), objects.clone(), "test".to_owned(),
+        metadata.clone(),
+        objects.clone(),
+        "test".to_owned(),
     ));
     let port = test_server(state.clone()).await;
 
@@ -249,7 +267,9 @@ async fn binary_roundtrip() {
     let metadata = Arc::new(InMemoryDriveMetadataStore::new());
     let objects = Arc::new(InMemoryDriveObjectStore::new());
     let state = Arc::new(CrdtSyncState::new(
-        metadata.clone(), objects.clone(), "test".to_owned(),
+        metadata.clone(),
+        objects.clone(),
+        "test".to_owned(),
     ));
     let port = test_server(state.clone()).await;
 
@@ -293,7 +313,9 @@ async fn list_entries() {
     let metadata = Arc::new(InMemoryDriveMetadataStore::new());
     let objects = Arc::new(InMemoryDriveObjectStore::new());
     let state = Arc::new(CrdtSyncState::new(
-        metadata.clone(), objects.clone(), "test".to_owned(),
+        metadata.clone(),
+        objects.clone(),
+        "test".to_owned(),
     ));
     let port = test_server(state.clone()).await;
 
@@ -301,11 +323,17 @@ async fn list_entries() {
 
     // Upload two files first so we have something to list.
     let d1 = base64::engine::general_purpose::STANDARD.encode(b"aaa");
-    client.send(put_binary_msg("notes/a.txt", 0, &d1, true)).await.unwrap();
+    client
+        .send(put_binary_msg("notes/a.txt", 0, &d1, true))
+        .await
+        .unwrap();
     let _: Value = read_json(&mut client).await;
 
     let d2 = base64::engine::general_purpose::STANDARD.encode(b"bbb");
-    client.send(put_binary_msg("notes/b.txt", 0, &d2, true)).await.unwrap();
+    client
+        .send(put_binary_msg("notes/b.txt", 0, &d2, true))
+        .await
+        .unwrap();
     let _: Value = read_json(&mut client).await;
 
     // List all entries.

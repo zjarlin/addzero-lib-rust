@@ -23,7 +23,7 @@ name = "addzdero-cli"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "clap",
  "encoding_rs",
@@ -641,17 +641,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
-name = "automod"
-version = "1.0.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a273e731a7fb8c2268fd2932c9e9a3469f4fd171d85d070d2687190229653bd3"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
 name = "av-scenechange"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -776,7 +765,7 @@ dependencies = [
 name = "az-admin-plugin-registry"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "inventory",
  "strum 0.28.0",
@@ -786,7 +775,7 @@ dependencies = [
 name = "az-agent-runtime-contract"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "chrono",
  "serde",
@@ -800,8 +789,8 @@ name = "az-ai-agent"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
  "az-assets",
+ "az-automod",
  "az-derive-aliases",
  "rig-core",
  "serde",
@@ -815,7 +804,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
@@ -830,7 +819,7 @@ version = "2026.5.10"
 dependencies = [
  "ab_glyph",
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "base64",
  "half",
@@ -851,7 +840,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "reqwest 0.12.28",
  "serde",
@@ -864,7 +853,7 @@ dependencies = [
 name = "az-area"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
 ]
 
@@ -872,7 +861,7 @@ dependencies = [
 name = "az-array"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "serde",
  "serde_json",
 ]
@@ -882,7 +871,7 @@ name = "az-assets"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-persistence",
  "base64",
@@ -900,11 +889,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-automod"
+version = "2026.6.15"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+ "tempfile",
+]
+
+[[package]]
 name = "az-cli-market-contract"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "base64",
  "serde",
@@ -918,7 +917,7 @@ name = "az-codex-auth-support"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "base64",
  "chrono",
@@ -939,7 +938,7 @@ name = "az-crdt"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "loro",
  "serde",
 ]
@@ -949,7 +948,7 @@ name = "az-creates"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-email",
  "az-maven",
@@ -969,7 +968,7 @@ name = "az-curl"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "base64",
  "reqwest 0.12.28",
@@ -981,7 +980,7 @@ name = "az-database-model"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
@@ -993,7 +992,7 @@ name = "az-ddl-generator"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "serde",
@@ -1006,7 +1005,7 @@ name = "az-derive-aliases"
 version = "2026.6.13"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "clap",
  "derive_more 2.1.1",
  "macro_rules_attribute",
@@ -1019,8 +1018,8 @@ dependencies = [
 name = "az-desktop-plugin"
 version = "2026.5.10"
 dependencies = [
- "automod",
  "az-assets",
+ "az-automod",
  "az-derive-aliases",
  "az-drive-agent",
  "az-drive-store",
@@ -1035,7 +1034,7 @@ dependencies = [
 name = "az-desktop-plugin-registry"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-desktop-plugin",
  "inventory",
@@ -1060,7 +1059,7 @@ name = "az-dict-spec"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
@@ -1072,7 +1071,7 @@ name = "az-dioxus-components"
 version = "2026.5.10"
 dependencies = [
  "adui-dioxus",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "dioxus",
  "dioxus-ssr",
@@ -1084,7 +1083,7 @@ name = "az-drive-agent"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-drive-core",
  "az-drive-store",
@@ -1105,8 +1104,8 @@ name = "az-drive-app"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
  "axum",
+ "az-automod",
  "az-crdt",
  "az-derive-aliases",
  "az-drive-agent",
@@ -1136,7 +1135,7 @@ name = "az-drive-core"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "chrono",
  "derive_more 2.1.1",
@@ -1151,7 +1150,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-drive-core",
  "az-rustfs",
@@ -1171,8 +1170,8 @@ name = "az-drive-webdav"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
  "axum",
+ "az-automod",
  "az-derive-aliases",
  "az-drive-core",
  "az-drive-store",
@@ -1187,7 +1186,7 @@ name = "az-email"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "lettre",
@@ -1203,7 +1202,7 @@ name = "az-error"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
 ]
 
 [[package]]
@@ -1211,7 +1210,7 @@ name = "az-excel"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "quick-xml 0.38.4",
@@ -1223,7 +1222,7 @@ name = "az-git"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "dirs 6.0.0",
  "serde",
  "serde_json",
@@ -1235,7 +1234,7 @@ name = "az-gitdb"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "git2 0.20.4",
@@ -1249,7 +1248,7 @@ name = "az-gmail-code"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-oauth2",
  "base64",
@@ -1265,7 +1264,7 @@ name = "az-io"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "tempfile",
 ]
 
@@ -1273,7 +1272,7 @@ dependencies = [
 name = "az-json"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "serde",
  "serde_json",
 ]
@@ -1283,7 +1282,7 @@ name = "az-knowledge"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-persistence",
  "chrono",
@@ -1303,7 +1302,7 @@ dependencies = [
 name = "az-log"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "log",
 ]
 
@@ -1312,7 +1311,7 @@ name = "az-math"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
 ]
 
@@ -1321,7 +1320,7 @@ name = "az-maven"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-music",
  "reqwest 0.12.28",
@@ -1334,7 +1333,7 @@ dependencies = [
 name = "az-model"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "chrono",
  "serde",
@@ -1346,7 +1345,7 @@ name = "az-mqtt"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "rumqttc",
@@ -1359,7 +1358,7 @@ name = "az-music"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "reqwest 0.12.28",
@@ -1373,7 +1372,7 @@ name = "az-oauth2"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "base64",
  "reqwest 0.12.28",
@@ -1390,7 +1389,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
- "automod",
+ "az-automod",
  "az-openapi-codegen",
  "serde",
  "serde_json",
@@ -1400,7 +1399,7 @@ dependencies = [
 name = "az-openapi-codegen"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "convert_case 0.8.0",
  "prettyplease",
  "proc-macro2",
@@ -1417,7 +1416,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "sea-orm",
  "sea-orm-migration",
@@ -1428,7 +1427,7 @@ dependencies = [
 name = "az-pinyin"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "pinyin",
 ]
 
@@ -1437,7 +1436,7 @@ name = "az-proxy"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "base64",
  "dirs 6.0.0",
@@ -1457,7 +1456,7 @@ name = "az-reflection"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
@@ -1467,7 +1466,7 @@ dependencies = [
 name = "az-regex"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "regex",
  "serde",
@@ -1478,7 +1477,7 @@ dependencies = [
 name = "az-remote-model"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "chrono",
  "derive_more 2.1.1",
@@ -1493,7 +1492,7 @@ name = "az-remote-protocol"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-remote-model",
  "chrono",
@@ -1509,7 +1508,7 @@ name = "az-rustfs"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "base64",
  "chrono",
@@ -1528,7 +1527,7 @@ dependencies = [
 name = "az-sandbox"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "serde",
 ]
@@ -1537,7 +1536,7 @@ dependencies = [
 name = "az-script-engine"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-sandbox",
  "serde",
@@ -1549,7 +1548,7 @@ dependencies = [
 name = "az-script-engine-rhai"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-sandbox",
  "az-script-engine",
  "rhai",
@@ -1561,7 +1560,7 @@ name = "az-serial"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
@@ -1574,7 +1573,7 @@ name = "az-skills"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "chrono",
  "log",
@@ -1593,7 +1592,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "reqwest 0.12.28",
@@ -1609,7 +1608,7 @@ name = "az-software-catalog"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "az-persistence",
  "chrono",
@@ -1628,7 +1627,7 @@ name = "az-sql"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "serde",
@@ -1640,7 +1639,7 @@ name = "az-ssh"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "ssh2",
@@ -1651,47 +1650,47 @@ dependencies = [
 name = "az-starter-audit"
 version = "2026.5.10"
 dependencies = [
- "automod",
  "az-admin-plugin-registry",
+ "az-automod",
 ]
 
 [[package]]
 name = "az-starter-dictionary"
 version = "2026.5.10"
 dependencies = [
- "automod",
  "az-admin-plugin-registry",
+ "az-automod",
 ]
 
 [[package]]
 name = "az-starter-identity"
 version = "2026.5.10"
 dependencies = [
- "automod",
  "az-admin-plugin-registry",
+ "az-automod",
 ]
 
 [[package]]
 name = "az-starter-menu"
 version = "2026.5.10"
 dependencies = [
- "automod",
  "az-admin-plugin-registry",
+ "az-automod",
 ]
 
 [[package]]
 name = "az-starter-organization"
 version = "2026.5.10"
 dependencies = [
- "automod",
  "az-admin-plugin-registry",
+ "az-automod",
 ]
 
 [[package]]
 name = "az-str"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "deunicode",
@@ -1704,7 +1703,7 @@ dependencies = [
 name = "az-stream-wrapper"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
 ]
 
@@ -1712,8 +1711,8 @@ dependencies = [
 name = "az-system-starters"
 version = "2026.5.10"
 dependencies = [
- "automod",
  "az-admin-plugin-registry",
+ "az-automod",
  "az-starter-audit",
  "az-starter-dictionary",
  "az-starter-identity",
@@ -1726,7 +1725,7 @@ name = "az-temp-mail"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "regex",
  "reqwest 0.12.28",
@@ -1741,7 +1740,7 @@ dependencies = [
 name = "az-time"
 version = "2026.5.10"
 dependencies = [
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "chrono",
 ]
@@ -1751,7 +1750,7 @@ name = "az-toml"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "serde",
  "tempfile",
@@ -1763,7 +1762,7 @@ name = "az-tree"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
@@ -1774,7 +1773,7 @@ name = "az-wasm-plugin-api"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "serde",
  "serde_json",
@@ -1787,7 +1786,7 @@ name = "az-yml"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "derive_more 2.1.1",
  "serde",
@@ -4609,7 +4608,7 @@ name = "gitdb"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "chrono",
  "derive_more 2.1.1",
@@ -8570,7 +8569,7 @@ name = "rimmer"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
- "automod",
+ "az-automod",
  "rimmer-macros",
  "serde",
  "serde_json",
@@ -10584,7 +10583,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "async-trait",
- "automod",
+ "az-automod",
  "az-derive-aliases",
  "chrono",
  "gitdb",

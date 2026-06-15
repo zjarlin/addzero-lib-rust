@@ -1,0 +1,26 @@
+[package]
+name = "az-automod"
+description = "Directory-aware module collection macro for addzero Rust crates"
+version = "2026.6.15"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords = ["module", "automod", "proc-macro"]
+categories = ["development-tools::build-utils"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

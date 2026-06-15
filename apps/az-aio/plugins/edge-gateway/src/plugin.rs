@@ -1,15 +1,19 @@
+use std::sync::Arc;
+
 use anyhow::Context;
-use az_aio_platform::register_native_plugin;
 use az_aio_platform::plugin_api::{
-    ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
+    ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
+use rudi::Singleton;
 
 use crate::{
+    backend::{
+        routes::{EdgeGatewayApiState, edge_gateway_router},
+        store::build_edge_gateway_context,
+    },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    page::EdgeGatewayPage,
-    routes::{EdgeGatewayApiState, edge_gateway_router},
-    store::build_edge_gateway_module,
+    ui::page::EdgeGatewayPage,
 };
 
 #[derive(Default)]
@@ -25,7 +29,7 @@ impl NativeAzAioPlugin for EdgeGatewayPlugin {
     }
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let _module = build_edge_gateway_module();
+        let _context = build_edge_gateway_context();
         let state = block_on_state(context.database_url.clone())?;
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
@@ -40,9 +44,10 @@ impl NativeAzAioPlugin for EdgeGatewayPlugin {
     }
 }
 
-register_native_plugin!(EdgeGatewayPlugin);
-
-pub fn ensure_linked() {}
+#[Singleton(name = "edge-gateway")]
+pub fn edge_gateway_plugin() -> DynNativeAzAioPlugin {
+    Arc::new(EdgeGatewayPlugin)
+}
 
 fn block_on_state(database_url: Option<String>) -> anyhow::Result<EdgeGatewayApiState> {
     if database_url.as_ref().is_none_or(|value| value.trim().is_empty()) {

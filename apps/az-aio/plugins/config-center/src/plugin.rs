@@ -1,15 +1,19 @@
+use std::sync::Arc;
+
 use anyhow::Context;
-use az_aio_platform::register_native_plugin;
 use az_aio_platform::plugin_api::{
-    ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
+    ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
+use rudi::Singleton;
 
 use crate::{
+    backend::{
+        routes::{ConfigCenterApiState, config_center_router},
+        store::build_config_center_context,
+    },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    page::ConfigCenterPage,
-    routes::{ConfigCenterApiState, config_center_router},
-    store::build_config_center_module,
+    ui::page::ConfigCenterPage,
 };
 
 #[derive(Default)]
@@ -25,7 +29,7 @@ impl NativeAzAioPlugin for ConfigCenterPlugin {
     }
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let _module = build_config_center_module();
+        let _context = build_config_center_context();
         let state = block_on_state(context.database_url.clone())?;
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
@@ -40,9 +44,10 @@ impl NativeAzAioPlugin for ConfigCenterPlugin {
     }
 }
 
-register_native_plugin!(ConfigCenterPlugin);
-
-pub fn ensure_linked() {}
+#[Singleton(name = "config-center")]
+pub fn config_center_plugin() -> DynNativeAzAioPlugin {
+    Arc::new(ConfigCenterPlugin)
+}
 
 fn block_on_state(database_url: Option<String>) -> anyhow::Result<ConfigCenterApiState> {
     if database_url.as_ref().is_none_or(|value| value.trim().is_empty()) {

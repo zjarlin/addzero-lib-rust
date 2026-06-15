@@ -8,7 +8,7 @@ Native AZ AIO plugin for gateway flow execution.
 - Route: `/gateway`
 - Axum APIs: `/api/edge-gateway/status`, `/api/edge-gateway/example`, `/api/edge-gateway/run`, `/api/edge-gateway/flows`, `/api/edge-gateway/flow`
 - Toasty table prefix: `biz_edge_gateway_`
-- shaku module: `store::EdgeGatewayModule`
+- Rudi context: `store::build_edge_gateway_context`
 
 ## Domain
 

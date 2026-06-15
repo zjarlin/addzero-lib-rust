@@ -1,15 +1,19 @@
+use std::sync::Arc;
+
 use anyhow::Context;
-use az_aio_platform::register_native_plugin;
 use az_aio_platform::plugin_api::{
-    ContributionSet, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
+    ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
+use rudi::Singleton;
 
 use crate::{
+    backend::{
+        routes::{AssetHubApiState, asset_hub_router},
+        store::build_asset_hub_context,
+    },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    page::AssetHubPage,
-    routes::{AssetHubApiState, asset_hub_router},
-    store::build_asset_hub_module,
+    ui::page::AssetHubPage,
 };
 
 #[derive(Default)]
@@ -25,7 +29,7 @@ impl NativeAzAioPlugin for AssetHubPlugin {
     }
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let _module = build_asset_hub_module();
+        let _context = build_asset_hub_context();
         let state = block_on_state(context.database_url.clone())?;
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
@@ -40,9 +44,10 @@ impl NativeAzAioPlugin for AssetHubPlugin {
     }
 }
 
-register_native_plugin!(AssetHubPlugin);
-
-pub fn ensure_linked() {}
+#[Singleton(name = "asset-hub")]
+pub fn asset_hub_plugin() -> DynNativeAzAioPlugin {
+    Arc::new(AssetHubPlugin)
+}
 
 fn block_on_state(database_url: Option<String>) -> anyhow::Result<AssetHubApiState> {
     if database_url.as_ref().is_none_or(|value| value.trim().is_empty()) {

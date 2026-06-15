@@ -4,3 +4,5 @@
 automod::dir!(pub "src");
 
 pub use plugin::AssetHubPlugin;
+
+rudi::enable! {}

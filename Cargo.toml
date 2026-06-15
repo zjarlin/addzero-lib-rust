@@ -35,7 +35,7 @@ repository = "https://github.com/zjarlin/addzero-lib-rust"
 
 [workspace.dependencies]
 ab_glyph = "0.2.32"
-automod = "1.0.16"
+automod = { package = "az-automod", version = "=2026.6.15", path = "crates/core/az-automod" }
 base64 = "0.22.1"
 convert_case = "0.8.0"
 chrono = { version = "0.4.42", features = ["clock"] }
