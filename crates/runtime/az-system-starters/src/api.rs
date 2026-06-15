@@ -18,10 +18,8 @@
 //! 宿主应用在 `main` 函数中调用 [`link_all`] 即可完成所有系统插件的注册：
 //!
 //! ```rust
-//! fn main() {
-//!     az_system_starters::api::link_all();
-//!     // 此后 admin 注册中心可发现所有系统级导航节点
-//! }
+//! az_system_starters::api::link_all();
+//! // 此后 admin 注册中心可发现所有系统级导航节点
 //! ```
 
 const SYSTEM_DOMAIN_ID: &str = "system";

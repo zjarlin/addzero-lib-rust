@@ -1241,6 +1241,5 @@ fn remove_doc_comment_markers(input: &str) -> String {
         .replace("/**", " ")
         .replace("/*", " ")
         .replace("*/", " ")
-        .replace('*', " ")
-        .replace('/', " ")
+        .replace(['*', '/'], " ")
 }

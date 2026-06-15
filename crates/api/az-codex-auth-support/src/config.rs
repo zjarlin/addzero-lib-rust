@@ -115,28 +115,6 @@ pub struct CpaUploadConfig {
     pub request_timeout: Duration,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{CpaUploadConfig, DuckMailConfig};
-
-    #[test]
-    fn duckmail_config_debug_skips_token() {
-        let output = format!("{:?}", DuckMailConfig::default().auth_token("dk_test"));
-        assert!(!output.contains("dk_test"));
-        assert!(output.contains("base_url"));
-    }
-
-    #[test]
-    fn cpa_upload_config_debug_skips_token() {
-        let output = format!(
-            "{:?}",
-            CpaUploadConfig::builder("https://example.invalid").bearer_token("abc123")
-        );
-        assert!(!output.contains("abc123"));
-        assert!(output.contains("upload_url"));
-    }
-}
-
 impl CpaUploadConfig {
     /// 为 CLIProxyAPI 兼容管理端点创建上传配置。
     pub fn builder(upload_url: impl Into<String>) -> Self {
@@ -191,5 +169,27 @@ impl CpaUploadConfig {
     pub fn build(self) -> anyhow::Result<Self> {
         self.validate()?;
         Ok(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CpaUploadConfig, DuckMailConfig};
+
+    #[test]
+    fn duckmail_config_debug_skips_token() {
+        let output = format!("{:?}", DuckMailConfig::default().auth_token("dk_test"));
+        assert!(!output.contains("dk_test"));
+        assert!(output.contains("base_url"));
+    }
+
+    #[test]
+    fn cpa_upload_config_debug_skips_token() {
+        let output = format!(
+            "{:?}",
+            CpaUploadConfig::builder("https://example.invalid").bearer_token("abc123")
+        );
+        assert!(!output.contains("abc123"));
+        assert!(output.contains("upload_url"));
     }
 }

@@ -8,7 +8,6 @@ use az_desktop_plugin::api::{
 };
 
 #[doc(hidden)]
-
 /// 分布式 desktop 插件注册项。
 #[apply(plain_copy)]
 pub struct DesktopPluginRegistration {

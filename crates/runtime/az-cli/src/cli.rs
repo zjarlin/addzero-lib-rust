@@ -379,7 +379,7 @@ mod tests {
         let config = NovelFetchConfig {
             toc_url: args.toc_url,
             output: args.output,
-            preset: args.preset.into(),
+            preset: args.preset,
             book_title_selector: args.book_title_selector,
             chapter_list_selector: args.chapter_list_selector,
             chapter_link_selector: args.chapter_link_selector,

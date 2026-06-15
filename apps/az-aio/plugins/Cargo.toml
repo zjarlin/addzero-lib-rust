@@ -23,7 +23,7 @@ authors = ["zjarlin"]
 az-algorithm = { version = "=2026.5.10", path = "../../../crates/algorithm/az-algorithm" }
 anyhow = "1.0.99"
 automod = { package = "az-automod", version = "=2026.6.15", path = "../../../crates/core/az-automod" }
-axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
+axum = { version = "0.8.6", features = ["http1", "json", "tokio", "multipart"] }
 dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
 rudi = "0.8.3"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -36,3 +36,4 @@ handlebars = "6.4.1"
 md5 = "0.8.0"
 reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "cookies", "json", "multipart", "rustls-tls"] }
 serde_json_path = "0.7.2"
+urlencoding = "2"

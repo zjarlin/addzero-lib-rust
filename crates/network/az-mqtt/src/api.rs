@@ -617,10 +617,10 @@ impl Drop for MqttClient {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
         let _ = self.client.disconnect();
-        if let Ok(mut worker) = self.worker.lock() {
-            if let Some(handle) = worker.take() {
-                let _ = handle.join();
-            }
+        if let Ok(mut worker) = self.worker.lock()
+            && let Some(handle) = worker.take()
+        {
+            let _ = handle.join();
         }
     }
 }

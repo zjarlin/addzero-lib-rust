@@ -108,10 +108,10 @@ impl Extractor {
     }
 
     fn extract_title(&self, document: &Html) -> Result<Option<String>> {
-        if let Some(selector) = &self.title_selector {
-            if let Some(title) = first_non_empty_text(document, selector) {
-                return Ok(Some(title));
-            }
+        if let Some(selector) = &self.title_selector
+            && let Some(title) = first_non_empty_text(document, selector)
+        {
+            return Ok(Some(title));
         }
 
         let h1_selector = parse_selector("h1", "fallback h1 selector")?;
@@ -190,10 +190,11 @@ pub fn run_download(config: DownloadConfig) -> Result<()> {
         let html = decode_html(response)?;
         let mut page = extractor.extract_page(index, &current_url, &html)?;
 
-        if let Some(next_url) = page.next_url.as_ref() {
-            if !config.allow_offsite && !same_origin(&config.start_url, next_url) {
-                page.next_url = None;
-            }
+        if let Some(next_url) = page.next_url.as_ref()
+            && !config.allow_offsite
+            && !same_origin(&config.start_url, next_url)
+        {
+            page.next_url = None;
         }
 
         current_url = match page.next_url.clone() {
@@ -262,10 +263,10 @@ fn extract_blocks(document: &Html, selector: &Selector) -> Result<Vec<String>> {
             continue;
         }
 
-        if let Some(block) = normalized_text(&element) {
-            if seen.insert(block.clone()) {
-                blocks.push(block);
-            }
+        if let Some(block) = normalized_text(&element)
+            && seen.insert(block.clone())
+        {
+            blocks.push(block);
         }
     }
 
@@ -275,10 +276,10 @@ fn extract_blocks(document: &Html, selector: &Selector) -> Result<Vec<String>> {
 fn infer_next_url(document: &Html, base_url: &Url) -> Result<Option<Url>> {
     let link_selector = parse_selector("a[href]", "anchor selector")?;
     for element in document.select(&link_selector) {
-        if looks_like_next_link(&element) {
-            if let Some(url) = href_from_element(base_url, &element) {
-                return Ok(Some(url));
-            }
+        if looks_like_next_link(&element)
+            && let Some(url) = href_from_element(base_url, &element)
+        {
+            return Ok(Some(url));
         }
     }
     Ok(None)

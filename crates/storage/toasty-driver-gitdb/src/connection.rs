@@ -281,9 +281,7 @@ impl Connection for GitDbConnection {
         self.ensure_migrations_table()?;
 
         for statement in migration.statements() {
-            if let Err(err) = self.execute_sql(statement.to_string()) {
-                return Err(err);
-            }
+            self.execute_sql(statement.to_string())?;
         }
 
         let applied_at = chrono::Utc::now().to_rfc3339();

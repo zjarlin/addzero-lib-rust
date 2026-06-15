@@ -195,10 +195,10 @@ pub fn try_build_tree<T: Eq + Hash + Clone + std::fmt::Debug>(
 
     // 校验：所有 parent_id（当为 Some 时）必须存在于 id 集合中。
     for (id, parent_id) in &items {
-        if let Some(pid) = parent_id {
-            if !all_ids.contains(pid) {
-                bail!("node {id:?} references a missing parent");
-            }
+        if let Some(pid) = parent_id
+            && !all_ids.contains(pid)
+        {
+            bail!("node {id:?} references a missing parent");
         }
     }
 

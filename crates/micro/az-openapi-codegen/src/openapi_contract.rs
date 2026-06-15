@@ -16,6 +16,8 @@ const BASE_URL: &str = "https://api.openai.com/v1/";
 const SPEC_URL_ENV: &str = "AZ_OPENAI_OPENAPI_SPEC_URL";
 const HTTP_METHODS: [&str; 5] = ["get", "post", "put", "delete", "patch"];
 
+type ObjectProperties = Vec<(BTreeSet<String>, Map<String, Value>)>;
+
 #[derive(Clone, Debug)]
 pub struct OpenApiContractConfig {
     pub spec_url: String,
@@ -391,10 +393,7 @@ impl OpenApiContractGenerator {
         Ok(merged.into_values().collect())
     }
 
-    fn iter_object_properties(
-        &mut self,
-        schema: &Value,
-    ) -> Result<Vec<(BTreeSet<String>, Map<String, Value>)>, String> {
+    fn iter_object_properties(&mut self, schema: &Value) -> Result<ObjectProperties, String> {
         if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
             let ref_schema = self.resolve_ref(reference)?;
             return self.iter_object_properties(&ref_schema);
@@ -889,7 +888,7 @@ impl OpenApiContractGenerator {
                 } else {
                     properties
                         .iter()
-                        .map(|prop| render_property(prop))
+                        .map(render_property)
                         .collect::<Vec<_>>()
                 };
                 quote! {
@@ -929,7 +928,7 @@ impl OpenApiContractGenerator {
         let methods = interface
             .operations
             .iter()
-            .map(|operation| render_operation(operation))
+            .map(render_operation)
             .collect::<Vec<_>>();
         quote! {
             #(#docs)*
@@ -1224,18 +1223,25 @@ fn variant_name(schema: &Value, index: usize) -> String {
     if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
         return pascal_case(reference.rsplit('/').next().unwrap_or("Variant"));
     }
-    if let Some(title) = schema.get("title").and_then(Value::as_str).filter(|value| !value.is_empty()) {
+    if let Some(title) = schema
+        .get("title")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+    {
         return pascal_case(title);
     }
-    if let Some(const_value) = schema.get("const").and_then(Value::as_str).filter(|value| !value.is_empty()) {
+    if let Some(const_value) = schema
+        .get("const")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+    {
         return pascal_case(const_value);
     }
-    if let Some(enum_values) = schema.get("enum").and_then(Value::as_array) {
-        if enum_values.len() == 1 {
-            if let Some(value) = enum_values[0].as_str() {
-                return pascal_case(value);
-            }
-        }
+    if let Some(enum_values) = schema.get("enum").and_then(Value::as_array)
+        && enum_values.len() == 1
+        && let Some(value) = enum_values[0].as_str()
+    {
+        return pascal_case(value);
     }
     match schema.get("type").and_then(Value::as_str) {
         Some("string") => "String".to_string(),

@@ -378,14 +378,14 @@ fn normalized_title(raw_title: &str, slug: &str) -> String {
 }
 
 fn infer_vendor(metadata: &SoftwareMetadataDto, title: &str) -> String {
-    if let Ok(url) = Url::parse(&metadata.homepage_url) {
-        if let Some(host) = url.host_str() {
-            let host = host.strip_prefix("www.").unwrap_or(host);
-            let host_root = host.split('.').next().unwrap_or(host);
-            let vendor = title_case_slug(host_root);
-            if !vendor.is_empty() && !same_insensitive(&vendor, title) {
-                return vendor;
-            }
+    if let Ok(url) = Url::parse(&metadata.homepage_url)
+        && let Some(host) = url.host_str()
+    {
+        let host = host.strip_prefix("www.").unwrap_or(host);
+        let host_root = host.split('.').next().unwrap_or(host);
+        let vendor = title_case_slug(host_root);
+        if !vendor.is_empty() && !same_insensitive(&vendor, title) {
+            return vendor;
         }
     }
 

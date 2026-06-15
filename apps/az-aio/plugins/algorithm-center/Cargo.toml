@@ -14,10 +14,12 @@ axum.workspace = true
 az-aio-platform = { path = "../../platform" }
 az-algorithm.workspace = true
 dioxus.workspace = true
+md5.workspace = true
 rudi.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+urlencoding.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

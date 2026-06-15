@@ -48,10 +48,10 @@ impl DatabaseConfigReader {
         doc: &YamlDoc,
         prefer_data_source_name: Option<&str>,
     ) -> Result<Option<DatabaseConfig>> {
-        if let Some(name) = prefer_data_source_name {
-            if let Some(config) = Self::read_named_data_source(doc, name)? {
-                return Ok(Some(config));
-            }
+        if let Some(name) = prefer_data_source_name
+            && let Some(config) = Self::read_named_data_source(doc, name)?
+        {
+            return Ok(Some(config));
         }
 
         for url_path in SINGLE_DATASOURCE_PATHS {

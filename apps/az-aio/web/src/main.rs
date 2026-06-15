@@ -3,23 +3,13 @@
 mod app;
 
 use anyhow::Result;
-use axum::{Router, extract::Query, routing::get};
+use axum::{Router, extract::RawQuery, routing::get};
 use az_aio_platform::{core::config::AppConfig, plugin::host};
 use rudi::Context;
-use serde::Deserialize;
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tower_http::services::ServeDir;
-
-#[derive(Deserialize, Default)]
-struct RouteQuery {
-    #[serde(default)]
-    route: Option<String>,
-    #[serde(flatten)]
-    extra: HashMap<String, String>,
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -62,19 +52,9 @@ async fn root_page(
     axum::extract::State(snapshot): axum::extract::State<
         Arc<az_aio_platform::plugin::host::HostSnapshot>,
     >,
-    Query(params): Query<RouteQuery>,
+    RawQuery(raw_query): RawQuery,
 ) -> axum::response::Html<String> {
-    let route = params.route.unwrap_or_else(|| "/".to_string());
-
-    let mut query_parts: Vec<String> = Vec::new();
-    for (k, v) in &params.extra {
-        query_parts.push(format!("{k}={v}"));
-    }
-    let query = if query_parts.is_empty() {
-        String::new()
-    } else {
-        format!("?{}", query_parts.join("&"))
-    };
+    let (route, query) = split_route_query(raw_query.as_deref());
 
     let html = app::render_app_html(&snapshot, &route, &query);
     axum::response::Html(html)
@@ -92,6 +72,37 @@ fn enable_plugin_providers() {
     edge_gateway::enable();
     lowcode::enable();
     software_center::enable();
+}
+
+fn split_route_query(raw_query: Option<&str>) -> (String, String) {
+    let mut route = "/".to_string();
+    let mut query_parts = Vec::new();
+
+    for pair in raw_query.unwrap_or_default().split('&') {
+        if pair.is_empty() {
+            continue;
+        }
+        let key = pair.split_once('=').map(|(key, _)| key).unwrap_or(pair);
+        if key == "route" {
+            let raw_value = pair
+                .split_once('=')
+                .map(|(_, value)| value)
+                .unwrap_or_default();
+            route = urlencoding::decode(raw_value)
+                .unwrap_or_else(|_| raw_value.into())
+                .into_owned();
+        } else {
+            query_parts.push(pair.to_string());
+        }
+    }
+
+    let query = if query_parts.is_empty() {
+        String::new()
+    } else {
+        format!("?{}", query_parts.join("&"))
+    };
+
+    (route, query)
 }
 
 #[cfg(test)]
@@ -123,6 +134,19 @@ mod tests {
                 "lowcode",
                 "software-center",
             ]
+        );
+    }
+
+    #[test]
+    fn split_route_query_preserves_repeated_plugin_params() {
+        let (route, query) = split_route_query(Some(
+            "route=%2Falgorithms&algorithm=flame_detection&algorithm=face_detection&active=flame_detection",
+        ));
+
+        assert_eq!(route, "/algorithms");
+        assert_eq!(
+            query,
+            "?algorithm=flame_detection&algorithm=face_detection&active=flame_detection"
         );
     }
 }

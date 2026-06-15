@@ -202,16 +202,15 @@ fn extract_keywords_from_description(description: &str) -> (Vec<String>, String)
     if let (Some(start_idx), Some(end_idx)) = (
         description.find(KEYWORDS_START),
         description.find(KEYWORDS_END),
-    ) {
-        if start_idx < end_idx {
-            let inner_start = start_idx + KEYWORDS_START.len();
-            let inner = &description[inner_start..end_idx];
-            let keywords = parse_keyword_phrase(inner);
-            let mut clean = String::with_capacity(description.len());
-            clean.push_str(&description[..start_idx]);
-            clean.push_str(&description[end_idx + KEYWORDS_END.len()..]);
-            return (keywords, clean.trim().to_string());
-        }
+    ) && start_idx < end_idx
+    {
+        let inner_start = start_idx + KEYWORDS_START.len();
+        let inner = &description[inner_start..end_idx];
+        let keywords = parse_keyword_phrase(inner);
+        let mut clean = String::with_capacity(description.len());
+        clean.push_str(&description[..start_idx]);
+        clean.push_str(&description[end_idx + KEYWORDS_END.len()..]);
+        return (keywords, clean.trim().to_string());
     }
 
     if let Some(raw_list) = fallback_keyword_phrase(description) {
@@ -290,13 +289,12 @@ fn strip_managed_block(description: &str) -> String {
     if let (Some(start_idx), Some(end_idx)) = (
         description.find(KEYWORDS_START),
         description.find(KEYWORDS_END),
-    ) {
-        if start_idx < end_idx {
-            let mut clean = String::with_capacity(description.len());
-            clean.push_str(&description[..start_idx]);
-            clean.push_str(&description[end_idx + KEYWORDS_END.len()..]);
-            return clean;
-        }
+    ) && start_idx < end_idx
+    {
+        let mut clean = String::with_capacity(description.len());
+        clean.push_str(&description[..start_idx]);
+        clean.push_str(&description[end_idx + KEYWORDS_END.len()..]);
+        return clean;
     }
     description.to_string()
 }

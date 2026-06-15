@@ -276,7 +276,7 @@ fn get_message_detail(
     message_id: &str,
 ) -> Result<MessageDetail, Box<dyn Error>> {
     let resp = client
-        .get(&format!("https://api.mail.tm/messages/{message_id}"))
+        .get(format!("https://api.mail.tm/messages/{message_id}"))
         .bearer_auth(jwt)
         .send()?;
     let raw = resp.text()?;

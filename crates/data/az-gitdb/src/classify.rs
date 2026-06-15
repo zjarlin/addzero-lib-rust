@@ -16,6 +16,25 @@ pub enum GitDbQueryKind {
     TransactionControl,
 }
 
+/// Classify SQL by parsing it with upstream GitDB's parser.
+pub fn classify_gitdb_query(sql: &str) -> Result<GitDbQueryKind> {
+    let statement = Parser::parse(sql).context("failed to classify GitDB SQL")?;
+
+    Ok(match statement {
+        Statement::Select(_) | Statement::ShowTables | Statement::Describe(_) => {
+            GitDbQueryKind::Read
+        }
+        Statement::CreateTable(_)
+        | Statement::DropTable(_)
+        | Statement::Insert(_)
+        | Statement::Update(_)
+        | Statement::Delete(_) => GitDbQueryKind::Write,
+        Statement::Begin | Statement::Commit | Statement::Rollback => {
+            GitDbQueryKind::TransactionControl
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::GitDbQueryKind;
@@ -37,23 +56,4 @@ mod tests {
             "transaction-control"
         );
     }
-}
-
-/// Classify SQL by parsing it with upstream GitDB's parser.
-pub fn classify_gitdb_query(sql: &str) -> Result<GitDbQueryKind> {
-    let statement = Parser::parse(sql).context("failed to classify GitDB SQL")?;
-
-    Ok(match statement {
-        Statement::Select(_) | Statement::ShowTables | Statement::Describe(_) => {
-            GitDbQueryKind::Read
-        }
-        Statement::CreateTable(_)
-        | Statement::DropTable(_)
-        | Statement::Insert(_)
-        | Statement::Update(_)
-        | Statement::Delete(_) => GitDbQueryKind::Write,
-        Statement::Begin | Statement::Commit | Statement::Rollback => {
-            GitDbQueryKind::TransactionControl
-        }
-    })
 }

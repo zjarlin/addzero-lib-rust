@@ -64,6 +64,26 @@ pub fn contributions() -> ContributionSet {
                 description: "Returns the full algorithm component catalog as descriptors.".to_string(),
                 order: 20,
             },
+            BackendApiContribution {
+                id: "algorithm-center.api.process".to_string(),
+                method: "POST".to_string(),
+                path: "/api/algorithm-center/process".to_string(),
+                label: "Process Video".to_string(),
+                description:
+                    "Accepts video_url plus algorithm codes and returns a processed video URL."
+                        .to_string(),
+                order: 30,
+            },
+            BackendApiContribution {
+                id: "algorithm-center.api.upload".to_string(),
+                method: "POST".to_string(),
+                path: "/api/algorithm-center/upload".to_string(),
+                label: "Upload Video".to_string(),
+                description:
+                    "Accepts multipart video upload and returns a video URL for processing."
+                        .to_string(),
+                order: 40,
+            },
         ],
         toolbar_actions: Vec::new(),
         catalog_providers: Vec::new(),

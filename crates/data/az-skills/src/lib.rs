@@ -76,10 +76,10 @@ impl SkillService {
             by_name.insert(s.name.clone(), s);
         }
         for mut s in pg_skills {
-            if let Some(prev) = by_name.get(&s.name) {
-                if prev.content_hash == s.content_hash {
-                    s.source = SkillSource::Both;
-                }
+            if let Some(prev) = by_name.get(&s.name)
+                && prev.content_hash == s.content_hash
+            {
+                s.source = SkillSource::Both;
             }
             by_name.insert(s.name.clone(), s);
         }
@@ -87,10 +87,10 @@ impl SkillService {
     }
 
     pub async fn get(&self, name: &str) -> Result<Option<Skill>> {
-        if let Some(pg) = &self.pg {
-            if let Some(skill) = pg.get(name).await? {
-                return Ok(Some(skill));
-            }
+        if let Some(pg) = &self.pg
+            && let Some(skill) = pg.get(name).await?
+        {
+            return Ok(Some(skill));
         }
         self.fs.get(name).await
     }
@@ -120,10 +120,10 @@ impl SkillService {
 
     pub async fn delete(&self, name: &str) -> Result<()> {
         self.fs.delete(name).await?;
-        if let Some(pg) = &self.pg {
-            if let Err(err) = pg.delete(name).await {
-                log::warn!("PG delete failed for {name}: {err:?}");
-            }
+        if let Some(pg) = &self.pg
+            && let Err(err) = pg.delete(name).await
+        {
+            log::warn!("PG delete failed for {name}: {err:?}");
         }
         Ok(())
     }

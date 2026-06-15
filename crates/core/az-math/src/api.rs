@@ -350,20 +350,20 @@ fn solve_problem(problem: &LinearProgrammingProblem) -> Result<LinearProgramming
                     .map(|candidate_index| candidate_constraints[*candidate_index].clone()),
             );
 
-            if let Some(point) = solve_active_set(variable_count, &active_constraints) {
-                if is_feasible(problem, &point) {
-                    let value = evaluate_objective(&problem.objective, &point);
-                    let solution = LinearProgrammingSolution {
-                        point,
-                        value,
-                        active_constraint_indexes: active_constraints
-                            .iter()
-                            .map(|(index, _)| *index)
-                            .collect(),
-                    };
-                    if is_better(problem.goal, best.as_ref(), &solution) {
-                        best = Some(solution);
-                    }
+            if let Some(point) = solve_active_set(variable_count, &active_constraints)
+                && is_feasible(problem, &point)
+            {
+                let value = evaluate_objective(&problem.objective, &point);
+                let solution = LinearProgrammingSolution {
+                    point,
+                    value,
+                    active_constraint_indexes: active_constraints
+                        .iter()
+                        .map(|(index, _)| *index)
+                        .collect(),
+                };
+                if is_better(problem.goal, best.as_ref(), &solution) {
+                    best = Some(solution);
                 }
             }
         },

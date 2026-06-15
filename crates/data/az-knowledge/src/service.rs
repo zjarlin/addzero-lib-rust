@@ -227,7 +227,7 @@ fn derive_title(title: &str, body: &str) -> String {
     if let Some(heading) = body
         .lines()
         .map(str::trim)
-        .find(|line| line.starts_with('#') && line.trim_start_matches('#').trim().len() > 0)
+        .find(|line| line.starts_with('#') && !line.trim_start_matches('#').trim().is_empty())
     {
         return heading.trim_start_matches('#').trim().to_string();
     }

@@ -163,6 +163,10 @@ impl DesktopInitContext {
     }
 
     /// 注册由当前插件拥有的页面。
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "desktop route registration is an explicit host API"
+    )]
     pub fn register_page(
         &mut self,
         id: impl Into<String>,
@@ -186,6 +190,10 @@ impl DesktopInitContext {
     }
 
     /// 注册页面并显式指定当前插件对该路由的角色。
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "desktop route registration is an explicit host API"
+    )]
     pub fn register_page_with_role(
         &mut self,
         role: DesktopPageRole,
