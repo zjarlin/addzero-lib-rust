@@ -110,6 +110,7 @@ az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-mar
 az-context = { version = "=2026.5.10", path = "crates/core/az-context" }
 az-crdt = { version = "=2026.5.10", path = "crates/text/az-crdt" }
 az-dioxus-components = { version = "=2026.5.10", path = "crates/ui/az-dioxus-components" }
+az-dict-macros = { version = "=2026.5.10", path = "crates/core/az-dict-macros" }
 az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }
 az-desktop-plugin = { version = "=2026.5.10", path = "crates/runtime/az-desktop-plugin" }
 az-desktop-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/az-desktop-plugin-registry" }
@@ -122,6 +123,7 @@ az-gmail-code = { version = "=2026.5.10", path = "crates/network/az-gmail-code" 
 az-kiro-auth-support = { version = "=2026.5.10", path = "crates/api/az-kiro-auth-support" }
 az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
 az-maven = { version = "=2026.5.10", path = "crates/api/az-maven" }
+az-micro-dict = { version = "=2026.5.10", path = "crates/micro/az-micro-dict" }
 az-music = { version = "=2026.5.10", path = "crates/network/az-music" }
 az-oauth2 = { version = "=2026.5.10", path = "crates/api/az-oauth2" }
 az-openai-openapi = { version = "=2026.5.10", path = "crates/api/az-openai-openapi" }

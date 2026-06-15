@@ -1,5 +1,5 @@
 use anyhow::bail;
-use az_aio_platform::db;
+use az_aio_platform::core::db;
 use rudi::{Context, DynProvider, Module, modules, providers, singleton};
 use std::sync::Arc;
 use toasty::stmt::{List, Query};

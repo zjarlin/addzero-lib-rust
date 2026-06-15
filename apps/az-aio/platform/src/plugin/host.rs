@@ -5,7 +5,7 @@ use std::{
     thread,
 };
 
-use crate::plugin_api::{
+use crate::plugin::api::{
     BackendApiContribution, CatalogItemContribution, CatalogItemKind, CatalogSource,
     ContributionSet, DynNativeAzAioPlugin, GeneratedFileContribution, NativePluginContext,
     NativeRenderFn, NativeUiRenderer, NavItemContribution, PageContribution, PluginActivation,
@@ -447,7 +447,7 @@ pub fn descriptor(
     name: &str,
     description: &str,
     priority: i32,
-    dependencies: Vec<crate::plugin_api::PluginDependency>,
+    dependencies: Vec<crate::plugin::api::PluginDependency>,
     capabilities: Vec<&str>,
 ) -> PluginDescriptor {
     PluginDescriptor {

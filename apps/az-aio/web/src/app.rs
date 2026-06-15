@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use az_aio_platform::plugin_api::{NavItemContribution, PageContribution};
+use az_aio_platform::plugin::api::{NavItemContribution, PageContribution};
 use dioxus::prelude::*;
 
 mod components;
@@ -9,7 +9,7 @@ use components::AppLayout;
 
 /// Render full HTML page.
 pub fn render_app_html(
-    snapshot: &az_aio_platform::plugin_host::HostSnapshot,
+    snapshot: &az_aio_platform::plugin::host::HostSnapshot,
     route: &str,
     query: &str,
 ) -> String {

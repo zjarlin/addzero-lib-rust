@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use az_aio_platform::plugin_api::{
+use az_aio_platform::plugin::api::{
     ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
@@ -45,7 +45,7 @@ pub fn algorithm_center_plugin() -> DynNativeAzAioPlugin {
 
 #[cfg(test)]
 mod tests {
-    use az_aio_platform::plugin_api::PluginKind;
+    use az_aio_platform::plugin::api::PluginKind;
 
     use super::*;
 

@@ -1,4 +1,4 @@
-use az_aio_platform::plugin_api::{
+use az_aio_platform::plugin::api::{
     NativeRenderContext, NativeRenderFn, NativeUiRenderer, PageContribution, UiContributionSlot,
 };
 use dioxus::prelude::*;

@@ -1,6 +1,6 @@
 use std::sync::{Arc, OnceLock};
 
-use az_aio_platform::db::SharedDb;
+use az_aio_platform::core::db::SharedDb;
 use parking_lot::Mutex;
 
 use crate::backend::model::{AppScreen, LowcodeRecord, MetaField, MetaModel};
@@ -40,7 +40,7 @@ impl LowcodeStore {
     }
 
     pub async fn new(database_url: &str) -> anyhow::Result<Self> {
-        let database_url = az_aio_platform::db::verify_database_url(database_url)?;
+        let database_url = az_aio_platform::core::db::verify_database_url(database_url)?;
         use crate::backend::model::TABLE_NAME_PREFIX;
         let toasty = toasty::Db::builder()
             .models(toasty::models!(

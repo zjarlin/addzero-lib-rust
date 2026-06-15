@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use az_aio_platform::plugin_api::{NativeRenderContext, NavItemContribution};
+use az_aio_platform::plugin::api::{NativeRenderContext, NavItemContribution};
 use dioxus::prelude::*;
 
 use super::model::RenderSlot;

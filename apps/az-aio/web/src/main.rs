@@ -4,7 +4,7 @@ mod app;
 
 use anyhow::Result;
 use axum::{Router, extract::Query, routing::get};
-use az_aio_platform::{config::AppConfig, plugin_host};
+use az_aio_platform::{core::config::AppConfig, plugin::host};
 use rudi::Context;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -26,16 +26,16 @@ async fn main() -> Result<()> {
     enable_plugin_providers();
 
     let mut di = Context::auto_register();
-    let config = di.resolve::<az_aio_platform::config::ConfigCenterConfig>();
+    let config = di.resolve::<az_aio_platform::core::config::ConfigCenterConfig>();
 
-    let native_context = az_aio_platform::plugin_api::NativePluginContext {
+    let native_context = az_aio_platform::plugin::api::NativePluginContext {
         api_base_url: String::new(),
         config_dir: std::path::PathBuf::from("."),
         data_dir: std::path::PathBuf::from("."),
         database_url: config.database_url(),
     };
 
-    let snapshot = plugin_host::load_az_aio_native_snapshot(native_context, &mut di);
+    let snapshot = host::load_az_aio_native_snapshot(native_context, &mut di);
 
     let native_router = snapshot.native_router.clone();
     let state = Arc::new(snapshot);
@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
 
 async fn root_page(
     axum::extract::State(snapshot): axum::extract::State<
-        Arc<az_aio_platform::plugin_host::HostSnapshot>,
+        Arc<az_aio_platform::plugin::host::HostSnapshot>,
     >,
     Query(params): Query<RouteQuery>,
 ) -> axum::response::Html<String> {
@@ -96,7 +96,7 @@ fn enable_plugin_providers() {
 
 #[cfg(test)]
 mod tests {
-    use az_aio_platform::plugin_api::DynNativeAzAioPlugin;
+    use az_aio_platform::plugin::api::DynNativeAzAioPlugin;
 
     use super::*;
 

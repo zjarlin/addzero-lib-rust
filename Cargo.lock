@@ -1330,6 +1330,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-micro-dict"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "az-automod",
+ "az-dict-spec",
+ "convert_case 0.8.0",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 2.0.117",
+ "tempfile",
+]
+
+[[package]]
 name = "az-model"
 version = "2026.5.10"
 dependencies = [

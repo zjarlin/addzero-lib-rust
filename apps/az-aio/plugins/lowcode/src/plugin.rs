@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use az_aio_platform::plugin_api::{
+use az_aio_platform::plugin::api::{
     BackendApiContribution, ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin,
     NativePluginContext, NativePluginRuntime, NativeUiRenderer, NavItemContribution,
     PageContribution, PluginActivation, PluginDescriptor, PluginKind, UiContribution,

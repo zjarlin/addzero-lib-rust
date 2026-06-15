@@ -1,6 +1,6 @@
 //! Shared application state.
 
-use crate::plugin_host::HostSnapshot;
+use crate::plugin::host::HostSnapshot;
 
 /// Holds the plugin snapshot, consumed by route handlers.
 #[derive(Clone)]

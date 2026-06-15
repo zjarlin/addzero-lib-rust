@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use az_aio_platform::db::SharedDb;
+use az_aio_platform::core::db::SharedDb;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use az_aio_platform::plugin_api::{
+use az_aio_platform::plugin::api::{
     NativeRenderContext, NativeUiRenderer, NavItemContribution, PageContribution,
 };
 use dioxus::prelude::*;

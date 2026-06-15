@@ -1,6 +1,6 @@
 automod::dir!(pub "src/ui/page");
 
-use az_aio_platform::plugin_api::NativeRenderContext;
+use az_aio_platform::plugin::api::NativeRenderContext;
 use chrono::Utc;
 use dioxus::prelude::*;
 use uuid::Uuid;
