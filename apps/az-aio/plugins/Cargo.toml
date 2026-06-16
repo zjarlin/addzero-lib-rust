@@ -25,7 +25,9 @@ az-str = { version = "=2026.5.10", path = "../../../crates/text/az-str" }
 anyhow = "1.0.99"
 automod = { package = "az-automod", version = "=2026.6.15", path = "../../../crates/core/az-automod" }
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "multipart"] }
+az-admin-plugin-registry = { version = "=2026.5.10", path = "../../../crates/runtime/az-admin-plugin-registry" }
 az-dioxus-components = { version = "=2026.5.10", path = "../../../crates/ui/az-dioxus-components" }
+az-system-starters = { version = "=2026.5.10", path = "../../../crates/runtime/az-system-starters" }
 dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
 rudi = "0.8.3"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -38,4 +40,5 @@ handlebars = "6.4.1"
 md5 = "0.8.0"
 reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "cookies", "json", "multipart", "rustls-tls"] }
 serde_json_path = "0.7.2"
+tower-http = { version = "0.6.2", features = ["fs"] }
 urlencoding = "2"

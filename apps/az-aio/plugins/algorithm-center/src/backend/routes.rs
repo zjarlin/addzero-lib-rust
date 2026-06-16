@@ -1,11 +1,19 @@
 use axum::{
     Json, Router,
-    extract::Multipart,
+    extract::{DefaultBodyLimit, Multipart},
     http::StatusCode,
     routing::{get, post},
 };
-use az_str::sanitize::sanitize_path_segment;
+use az_aio_platform::core::upload::{
+    DEFAULT_UPLOAD_LIMIT_BYTES, MultipartUploadOptions, save_single_multipart_upload,
+    upload_file_service,
+};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+const UPLOAD_URL_PREFIX: &str = "/api/algorithm-center/uploads";
+const UPLOAD_FIELD_NAME: &str = "video";
+const FALLBACK_UPLOAD_FILE_NAME: &str = "input-video.mp4";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StatusResponse {
@@ -57,11 +65,16 @@ pub struct ApiErrorResponse {
 }
 
 pub fn algorithm_center_router() -> Router {
+    let upload_dir = upload_storage_dir();
     Router::new()
         .route("/api/algorithm-center/status", get(status_handler))
         .route("/api/algorithm-center/components", get(components_handler))
         .route("/api/algorithm-center/process", post(process_handler))
-        .route("/api/algorithm-center/upload", post(upload_handler))
+        .route(
+            "/api/algorithm-center/upload",
+            post(upload_handler).layer(DefaultBodyLimit::max(DEFAULT_UPLOAD_LIMIT_BYTES)),
+        )
+        .merge(upload_file_service(UPLOAD_URL_PREFIX, upload_dir))
 }
 
 async fn status_handler() -> Json<StatusResponse> {
@@ -86,38 +99,39 @@ async fn process_handler(
 }
 
 async fn upload_handler(
-    mut multipart: Multipart,
+    multipart: Multipart,
 ) -> Result<Json<UploadVideoResponse>, (StatusCode, Json<ApiErrorResponse>)> {
-    let mut file_name = None;
-
-    while let Some(field) = multipart.next_field().await.map_err(|err| {
-        api_error(
-            StatusCode::BAD_REQUEST,
-            format!("读取 multipart 表单失败: {err}"),
-        )
-    })? {
-        if field.name() == Some("video") {
-            file_name = field.file_name().map(ToOwned::to_owned);
-            let _ = field.bytes().await.map_err(|err| {
-                api_error(StatusCode::BAD_REQUEST, format!("读取视频字段失败: {err}"))
-            })?;
-            break;
-        }
-    }
-
-    let uploaded_video_url = file_name
-        .as_deref()
-        .map(|name| format!("/api/algorithm-center/uploads/{}", sanitize_path_segment(name)))
-        .unwrap_or_else(|| "/api/algorithm-center/uploads/sample-video.mp4".to_string());
+    let upload = save_single_multipart_upload(
+        multipart,
+        MultipartUploadOptions {
+            field_name: UPLOAD_FIELD_NAME.to_string(),
+            storage_dir: upload_storage_dir(),
+            public_url_prefix: UPLOAD_URL_PREFIX.to_string(),
+            fallback_file_name: FALLBACK_UPLOAD_FILE_NAME.to_string(),
+        },
+    )
+    .await
+    .map_err(|err| api_error(StatusCode::BAD_REQUEST, format!("上传视频失败: {err:#}")))?;
 
     Ok(Json(UploadVideoResponse {
         ok: true,
         mode: "contract_preview".to_string(),
-        file_name,
-        uploaded_video_url,
+        file_name: upload.original_file_name,
+        uploaded_video_url: upload.public_url,
         process_endpoint: "/api/algorithm-center/process".to_string(),
-        message: "上传接口已固定契约；当前版本只返回可传给 process 的视频 URL 占位。".to_string(),
+        message: format!("上传成功，已接收 {} 字节，可将 URL 传给 process。", upload.byte_len),
     }))
+}
+
+fn upload_storage_dir() -> PathBuf {
+    std::env::var_os("AZ_AIO_UPLOAD_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            std::env::temp_dir()
+                .join("az-aio")
+                .join("algorithm-center")
+                .join("uploads")
+        })
 }
 
 fn process_video(
@@ -204,7 +218,7 @@ fn api_error(
 mod tests {
     use super::*;
     use axum::body::Body;
-    use axum::http::Request;
+    use axum::http::{Request, header};
     use tower::ServiceExt;
 
     #[tokio::test]
@@ -295,5 +309,73 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn upload_accepts_multipart_video_and_returns_url() {
+        let app = algorithm_center_router();
+        let boundary = "az-aio-test-boundary";
+        let body = multipart_video_body(boundary, "demo clip.mp4", b"video-bytes");
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/algorithm-center/upload")
+                    .header(
+                        header::CONTENT_TYPE,
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+        let body = axum::body::to_bytes(response.into_body(), 65536)
+            .await
+            .unwrap();
+        let upload: UploadVideoResponse = serde_json::from_slice(&body).unwrap();
+        assert!(upload.ok);
+        assert_eq!(upload.file_name.as_deref(), Some("demo clip.mp4"));
+        assert!(upload.uploaded_video_url.contains("/api/algorithm-center/uploads/"));
+        assert!(upload.uploaded_video_url.ends_with("-demo-clip.mp4"));
+    }
+
+    #[tokio::test]
+    async fn upload_accepts_video_larger_than_default_body_limit() {
+        let app = algorithm_center_router();
+        let boundary = "az-aio-large-video-boundary";
+        let video = vec![b'x'; 3 * 1024 * 1024];
+        let body = multipart_video_body(boundary, "large.mp4", &video);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/algorithm-center/upload")
+                    .header(
+                        header::CONTENT_TYPE,
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+    }
+
+    fn multipart_video_body(boundary: &str, file_name: &str, content: &[u8]) -> Vec<u8> {
+        let mut body = Vec::new();
+        body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
+        body.extend_from_slice(
+            format!(
+                "Content-Disposition: form-data; name=\"video\"; filename=\"{file_name}\"\r\n"
+            )
+            .as_bytes(),
+        );
+        body.extend_from_slice(b"Content-Type: video/mp4\r\n\r\n");
+        body.extend_from_slice(content);
+        body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+        body
     }
 }

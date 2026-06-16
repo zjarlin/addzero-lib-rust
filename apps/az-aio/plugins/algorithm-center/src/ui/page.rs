@@ -8,6 +8,30 @@ use az_dioxus_components::neobrutal::{
 use dioxus::prelude::*;
 
 type Descriptor = az_algorithm::catalog::AlgorithmComponentDescriptor;
+const UPLOAD_FORM_SCRIPT: &str = r#"
+event.preventDefault();
+const form = event.currentTarget;
+const result = document.getElementById('algorithm-upload-result');
+const input = document.getElementById('algorithm-video-url');
+const file = form.querySelector('input[type=file]');
+if (!file || !file.files || file.files.length === 0) {
+    if (result) result.textContent = '请先选择视频文件';
+    return;
+}
+if (result) result.textContent = '上传中...';
+fetch(form.action, { method: 'POST', body: new FormData(form) })
+    .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.ok) {
+            throw new Error(payload.error || '上传失败');
+        }
+        if (input) input.value = payload.uploaded_video_url || '';
+        if (result) result.textContent = payload.uploaded_video_url || '上传完成';
+    })
+    .catch((error) => {
+        if (result) result.textContent = error.message || '上传失败';
+    });
+"#;
 
 #[allow(non_snake_case)]
 pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
@@ -122,6 +146,7 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                                 hint: "示例: https://example.com/input.mp4".to_string(),
                                 input {
                                     class: "nb-input",
+                                    id: "algorithm-video-url",
                                     name: "video_url",
                                     value: "{video_url}",
                                     placeholder: "https://example.com/input.mp4",
@@ -133,6 +158,7 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                         }
                         form {
                             class: "algorithm-upload-form",
+                            "onsubmit": UPLOAD_FORM_SCRIPT,
                             method: "post",
                             action: "/api/algorithm-center/upload",
                             enctype: "multipart/form-data",
@@ -142,6 +168,7 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                                 input { class: "nb-input", r#type: "file", name: "video", accept: "video/*" }
                             }
                             NbButton { button_type: "submit", "上传并获取 URL" }
+                            div { id: "algorithm-upload-result", class: "algorithm-result__label" }
                         }
                         if has_run && !video_url.is_empty() {
                             div { class: "algorithm-result",

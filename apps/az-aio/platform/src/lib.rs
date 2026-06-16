@@ -1,4 +1,3 @@
 #![forbid(unsafe_code)]
 
-pub mod core;
-pub mod plugin;
+automod::dir!(pub "src");

@@ -33,7 +33,6 @@ impl AzDataTableAlign {
         }
     }
 }
-
 /// [`AzDataTable`] 的列定义。
 #[apply(plain_eq)]
 pub struct AzDataTableColumn {

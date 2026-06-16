@@ -5,12 +5,15 @@ use std::{
     thread,
 };
 
-use crate::plugin::api::{
-    BackendApiContribution, CatalogItemContribution, CatalogItemKind, CatalogSource,
-    ContributionSet, DynNativeAzAioPlugin, GeneratedFileContribution, NativePluginContext,
-    NativeRenderFn, NativeUiRenderer, NavItemContribution, PageContribution, PluginActivation,
-    PluginDescriptor, PluginKind, PluginState, SettingsSectionContribution, ShellEntryContribution,
-    ToolbarActionContribution, UiContribution,
+use crate::{
+    plugin::api::{
+        BackendApiContribution, CatalogItemContribution, CatalogItemKind, CatalogSource,
+        ContributionSet, DynNativeAzAioPlugin, GeneratedFileContribution, NativePluginContext,
+        NativeRenderFn, NativeUiRenderer, NavItemContribution, PageContribution, PluginActivation,
+        PluginDescriptor, PluginKind, PluginState, SettingsSectionContribution,
+        ShellEntryContribution, ToolbarActionContribution, UiContribution,
+    },
+    system::{navigation::AdminSectionSnapshot, provider::AdminProvider},
 };
 use serde::{Deserialize, Serialize};
 
@@ -96,6 +99,10 @@ impl NativePluginHost {
 
     pub fn load_snapshot_with_enablement(self, enablement: &PluginEnablementStore) -> HostSnapshot {
         let mut snapshot = HostSnapshot::default();
+        let admin_provider = AdminProvider;
+        snapshot.admin_sections = admin_provider.system_sections();
+        merge_snapshot_contributions(&mut snapshot, admin_provider.contributions());
+
         let mut seen_ids = HashSet::new();
         let mut seen_routes = HashSet::new();
 
@@ -250,6 +257,7 @@ pub struct HostSnapshot {
     pub plugins: Vec<PluginRuntimeRecord>,
     pub native_renderers: Vec<NativeUiRenderer>,
     pub native_router: axum::Router,
+    pub admin_sections: Vec<AdminSectionSnapshot>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

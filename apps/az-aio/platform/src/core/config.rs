@@ -79,7 +79,8 @@ impl AppConfig for ConfigCenterConfig {
 fn login_center(env: &ConfigCenterEnv) -> Option<az_config_center_client::ConfigCenterClient> {
     let client = az_config_center_client::ConfigCenterClient::new(&env.base_url).ok()?;
     let client = client.login(&env.username, &env.password).ok()?;
-    client.checkout_namespace("az-aio.dev").ok()
+    let result = client.checkout_namespace("az-aio.dev");
+    result.ok()
 }
 
 fn read_text_as_u16(

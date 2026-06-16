@@ -1,2 +1,1 @@
-pub(crate) mod knowledge_document;
-pub(crate) mod knowledge_source;
+automod::dir!(pub(crate) "src/entity");

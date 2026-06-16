@@ -12,7 +12,10 @@ workspace = "../plugins"
 automod.workspace = true
 anyhow.workspace = true
 axum.workspace = true
+az-admin-plugin-registry.workspace = true
 az-config-center-client = "=2026.6.13"
+az-str.workspace = true
+az-system-starters.workspace = true
 dirs = "6"
 dioxus.workspace = true
 rudi.workspace = true
@@ -20,6 +23,7 @@ serde.workspace = true
 serde_json.workspace = true
 toasty.workspace = true
 tokio.workspace = true
+tower-http.workspace = true
 uuid.workspace = true
 
 [lints.rust]

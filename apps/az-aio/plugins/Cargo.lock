@@ -334,13 +334,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-admin-plugin-registry"
+version = "2026.5.10"
+dependencies = [
+ "az-automod",
+ "az-derive-aliases 2026.6.13",
+ "inventory",
+ "strum",
+]
+
+[[package]]
 name = "az-aio-platform"
 version = "2026.5.10"
 dependencies = [
  "anyhow",
  "axum",
+ "az-admin-plugin-registry",
  "az-automod",
  "az-config-center-client",
+ "az-str",
+ "az-system-starters",
  "dioxus",
  "dirs",
  "rudi",
@@ -348,6 +361,7 @@ dependencies = [
  "serde_json",
  "toasty",
  "tokio",
+ "tower-http",
  "uuid",
 ]
 
@@ -470,6 +484,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-starter-audit"
+version = "2026.5.10"
+dependencies = [
+ "az-admin-plugin-registry",
+ "az-automod",
+]
+
+[[package]]
+name = "az-starter-dictionary"
+version = "2026.5.10"
+dependencies = [
+ "az-admin-plugin-registry",
+ "az-automod",
+]
+
+[[package]]
+name = "az-starter-identity"
+version = "2026.5.10"
+dependencies = [
+ "az-admin-plugin-registry",
+ "az-automod",
+]
+
+[[package]]
+name = "az-starter-menu"
+version = "2026.5.10"
+dependencies = [
+ "az-admin-plugin-registry",
+ "az-automod",
+]
+
+[[package]]
+name = "az-starter-organization"
+version = "2026.5.10"
+dependencies = [
+ "az-admin-plugin-registry",
+ "az-automod",
+]
+
+[[package]]
 name = "az-str"
 version = "2026.5.10"
 dependencies = [
@@ -479,6 +533,19 @@ dependencies = [
  "deunicode",
  "regex",
  "strum",
+]
+
+[[package]]
+name = "az-system-starters"
+version = "2026.5.10"
+dependencies = [
+ "az-admin-plugin-registry",
+ "az-automod",
+ "az-starter-audit",
+ "az-starter-dictionary",
+ "az-starter-identity",
+ "az-starter-menu",
+ "az-starter-organization",
 ]
 
 [[package]]
