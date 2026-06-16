@@ -30,3 +30,4 @@ crates/storage/gitdb/data/gitdb
 *.sync-conflict-*
 *sync-conflict*
 .vscode/
+.dioxus-buddy
