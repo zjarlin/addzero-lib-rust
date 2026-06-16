@@ -1,8 +1,13 @@
+use az_dioxus_components::{
+    az_button::{AzButton, AzButtonLink, AzButtonTone},
+    az_form::{AzFormRow, AzInput, AzSelect, AzSelectOption},
+    az_workbench::{AzPageHeader, AzWorkbenchPage},
+};
 use dioxus::prelude::*;
 
 use crate::backend::model::{FormConfig, FormField, MetaFieldView};
-use crate::ui::page::helpers::{render_enum_select, render_rel_select};
 use crate::backend::record::RecordStore;
+use crate::ui::page::helpers::{render_enum_select, render_rel_select, LowcodeActionForm};
 
 pub fn render_form(
     title: &str,
@@ -35,47 +40,37 @@ pub fn render_form(
             let is_rel = meta.map(|m| m.field_type.as_str() == "Relation").unwrap_or(false);
             let is_enum = meta.map(|m| m.field_type.as_str() == "Enum").unwrap_or(false);
 
-            let label_el = rsx! {
-                label {
-                    "{field.label}"
-                    if field.required {
-                        span { style: "color: var(--warning); margin-left: 4px;", "*" }
-                    }
-                }
-            };
-
             let input_el = if is_enum {
                 if let Some(mf) = meta {
                     render_enum_select(mf)
                 } else {
-                    rsx! { input { class: "settings-input", name: "rec_{field.field_name}", placeholder: "{field.placeholder}" } }
+                    rsx! { AzInput { name: format!("rec_{}", field.field_name), placeholder: field.placeholder.clone() } }
                 }
             } else if is_rel {
                 if let Some(mf) = meta {
                     render_rel_select(mf, &rec_store)
                 } else {
-                    rsx! { input { class: "settings-input", name: "rec_{field.field_name}", placeholder: "关联ID" } }
+                    rsx! { AzInput { name: format!("rec_{}", field.field_name), placeholder: "关联ID" } }
                 }
             } else if field.options.is_empty() {
                 rsx! {
-                    input {
-                        class: "settings-input",
-                        name: "rec_{field.field_name}",
-                        r#type: ft_html_simple(&field.field_type),
-                        placeholder: "{field.placeholder}",
+                    AzInput {
+                        name: format!("rec_{}", field.field_name),
+                        input_type: ft_html_simple(&field.field_type),
+                        placeholder: field.placeholder.clone(),
                     }
                 }
             } else {
                 rsx! {
-                    select { class: "settings-input", name: "rec_{field.field_name}",
-                        for opt in &field.options { option { value: "{opt}", "{opt}" } }
+                    AzSelect {
+                        name: format!("rec_{}", field.field_name),
+                        options: field.options.iter().map(|option| AzSelectOption::new(option.clone(), option.clone())).collect::<Vec<_>>(),
                     }
                 }
             };
 
             rsx! {
-                div { class: "settings-form-row",
-                    {label_el}
+                AzFormRow { label: field.label.clone(), required: field.required,
                     {input_el}
                 }
             }
@@ -83,22 +78,17 @@ pub fn render_form(
         .collect();
 
     rsx! {
-        section { class: "lowcode-page",
-            header { class: "lowcode-page__header", style: "padding: 10px 16px 8px;",
-                h1 { style: "font-size: 17px; font-weight: 640; margin: 0;", "{title}" }
-                p { "表单" }
-                a { href: "/?route={lowcode_route}&mode=screens", class: "toolbar-button", "← 返回" }
+        AzWorkbenchPage {
+            AzPageHeader { title: title.to_string(), subtitle: "表单",
+                AzButtonLink { href: format!("/?route={lowcode_route}&mode=screens"), "← 返回" }
             }
-            form {
-                method: "get",
-                action: "/",
+            LowcodeActionForm {
+                action_name: "new-record",
+                hidden_fields: vec![("rec_model".to_string(), model_id.to_string())],
                 div { style: "padding: 16px 20px; max-width: 640px;",
-                    input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                    input { r#type: "hidden", name: "action", value: "new-record" }
-                    input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
                     {field_els.into_iter().map(|el| el)}
                     div { style: "margin-top: 18px;",
-                        button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "{config.submit_label}" }
+                        AzButton { tone: AzButtonTone::Primary, button_type: "submit", "{config.submit_label}" }
                     }
                 }
             }

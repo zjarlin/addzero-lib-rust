@@ -74,6 +74,7 @@ pub fn ft_html(ft: &str) -> &str {
 }
 
 use crate::backend::record::RecordWithId;
+use az_dioxus_components::az_form::{AzActionForm, AzHiddenInput, AzInput, AzSelect, AzSelectOption};
 use dioxus::prelude::*;
 
 /// Extract a query parameter value from a route string (e.g. "?key=val&...").
@@ -90,6 +91,30 @@ pub fn parse_query(route: &str, key: &str) -> Option<String> {
     None
 }
 
+/// Render a lowcode SSR action form with stable route/action hidden fields.
+#[allow(non_snake_case)]
+#[component]
+pub fn LowcodeActionForm(
+    children: Element,
+    #[props(into)] action_name: String,
+    #[props(default = "/lowcode".to_string(), into)] route: String,
+    #[props(default)] hidden_fields: Vec<(String, String)>,
+    #[props(default, into)] id: String,
+    #[props(default, into)] class: String,
+    #[props(default, into)] style: String,
+) -> Element {
+    rsx! {
+        AzActionForm { id: id, class: class, style: style,
+            AzHiddenInput { name: "route", value: route }
+            AzHiddenInput { name: "action", value: action_name }
+            for (name, value) in hidden_fields {
+                AzHiddenInput { name: name, value: value }
+            }
+            {children}
+        }
+    }
+}
+
 /// Render an Enum-type field as a dropdown for create forms.
 pub fn render_enum_select(field: &MetaFieldView) -> Element {
     let opts: Vec<&str> = field
@@ -100,9 +125,9 @@ pub fn render_enum_select(field: &MetaFieldView) -> Element {
         .filter(|s| !s.is_empty())
         .collect();
     rsx! {
-        select { class: "settings-input", name: "rec_{field.name}",
-            option { value: "", "— 选择 —" }
-            for opt in &opts { option { value: "{opt}", "{opt}" } }
+        AzSelect {
+            name: format!("rec_{}", field.name),
+            options: select_options(opts, None),
         }
     }
 }
@@ -117,9 +142,9 @@ pub fn render_enum_select_edit(field: &MetaFieldView, current: String) -> Elemen
         .filter(|s| !s.is_empty())
         .collect();
     rsx! {
-        select { class: "settings-input", name: "rec_{field.name}",
-            option { value: "", "— 选择 —" }
-            for opt in &opts { option { value: "{opt}", selected: *opt == current, "{opt}" } }
+        AzSelect {
+            name: format!("rec_{}", field.name),
+            options: select_options(opts, Some(current)),
         }
     }
 }
@@ -129,13 +154,13 @@ pub fn render_rel_select(field: &MetaFieldView, rec_store: &RecordStore) -> Elem
     if let Some(ref rel_id) = field.relation_model_id {
         let opts = rec_store.list(rel_id);
         rsx! {
-            select { class: "settings-input", name: "rec_{field.name}",
-                option { value: "", "— 选择 —" }
-                for o in &opts { option { value: "{o.id}", "{opt_display_label(o)}" } }
+            AzSelect {
+                name: format!("rec_{}", field.name),
+                options: relation_options(&opts, None),
             }
         }
     } else {
-        rsx! { input { class: "settings-input", name: "rec_{field.name}", placeholder: "关联ID" } }
+        rsx! { AzInput { name: format!("rec_{}", field.name), placeholder: "关联ID" } }
     }
 }
 
@@ -148,13 +173,13 @@ pub fn render_rel_select_edit(
     if let Some(ref rel_id) = field.relation_model_id {
         let opts = rec_store.list(rel_id);
         rsx! {
-            select { class: "settings-input", name: "rec_{field.name}",
-                option { value: "", "— 选择 —" }
-                for o in &opts { option { value: "{o.id}", selected: o.id == current, "{opt_display_label(o)}" } }
+            AzSelect {
+                name: format!("rec_{}", field.name),
+                options: relation_options(&opts, Some(current)),
             }
         }
     } else {
-        rsx! { input { class: "settings-input", name: "rec_{field.name}", value: "{current}" } }
+        rsx! { AzInput { name: format!("rec_{}", field.name), value: current } }
     }
 }
 
@@ -165,4 +190,22 @@ pub fn opt_display_label(opt: &RecordWithId) -> String {
         .or(opt.fields.get("label"))
         .cloned()
         .unwrap_or_else(|| opt.id.clone())
+}
+
+fn select_options(options: Vec<&str>, current: Option<String>) -> Vec<AzSelectOption> {
+    std::iter::once(AzSelectOption::new("", "— 选择 —"))
+        .chain(options.into_iter().map(|option| {
+            AzSelectOption::new(option, option)
+                .selected(current.as_deref().is_some_and(|value| value == option))
+        }))
+        .collect()
+}
+
+fn relation_options(options: &[RecordWithId], current: Option<String>) -> Vec<AzSelectOption> {
+    std::iter::once(AzSelectOption::new("", "— 选择 —"))
+        .chain(options.iter().map(|option| {
+            AzSelectOption::new(option.id.clone(), opt_display_label(option))
+                .selected(current.as_deref() == Some(option.id.as_str()))
+        }))
+        .collect()
 }

@@ -1,13 +1,20 @@
 use std::collections::HashMap;
 
+use az_dioxus_components::{
+    az_accordion::AzAccordion,
+    az_button::{AzButton, AzButtonLink, AzButtonTone},
+    az_form::{AzFormRow, AzInput},
+    az_table::{AzTable, AzTableBody, AzTableCell, AzTableHead, AzTableHeaderCell, AzTableRow},
+    az_workbench::{AzPageHeader, AzTableViewport, AzWorkbenchPage},
+};
 use dioxus::prelude::*;
 
 use crate::backend::model::MetaFieldView;
+use crate::backend::record::{RecordStore, RecordWithId};
 use crate::ui::page::helpers::{
     render_enum_select, render_enum_select_edit, render_rel_select, render_rel_select_edit,
-    resolve_cell,
+    resolve_cell, LowcodeActionForm,
 };
-use crate::backend::record::{RecordStore, RecordWithId};
 
 pub fn render_tree_table(title: &str, model_id: &str, fields: &[MetaFieldView]) -> Element {
     let rec_store = RecordStore::global();
@@ -45,92 +52,87 @@ pub fn render_tree_table(title: &str, model_id: &str, fields: &[MetaFieldView]) 
     let col_len = col_names.len() + 1;
 
     rsx! {
-        section { class: "lowcode-page",
-            header { class: "lowcode-page__header", style: "padding: 10px 16px 8px;",
-                h1 { style: "font-size: 17px; font-weight: 640; margin: 0;", "{title}" }
-                p { "{records.len()} 条记录" }
-                a { href: "/?route={lowcode_route}&mode=screens", class: "toolbar-button", "← 返回" }
+        AzWorkbenchPage {
+            AzPageHeader {
+                title: title.to_string(),
+                subtitle: format!("{} 条记录", records.len()),
+                AzButtonLink { href: format!("/?route={lowcode_route}&mode=screens"), "← 返回" }
 
-                details { class: "lowcode-accordion",
-                    summary { class: "lowcode-accordion__summary", "＋ 新建记录" }
-                    div { class: "lowcode-accordion__body",
-                        form { method: "get", action: "/",
-                            input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                            input { r#type: "hidden", name: "action", value: "new-record" }
-                            input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
+                AzAccordion { title: "＋ 新建记录",
+                        LowcodeActionForm {
+                            action_name: "new-record",
+                            hidden_fields: vec![("rec_model".to_string(), model_id.to_string())],
                             for f in fields.iter() {
-                                div { class: "settings-form-row",
-                                    label { "{f.label}" }
+                                AzFormRow { label: f.label.clone(),
                                     if f.field_type == "Enum" {
                                         {render_enum_select(f)}
                                     } else if f.field_type == "Relation" {
                                         {render_rel_select(f, &rec_store)}
                                     } else {
-                                        input { class: "settings-input", name: "rec_{f.name}", placeholder: "输入{f.label}" }
+                                        AzInput { name: format!("rec_{}", f.name), placeholder: format!("输入{}", f.label) }
                                     }
                                 }
                             }
-                            button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "创建" }
+                            AzButton { tone: AzButtonTone::Primary, button_type: "submit", "创建" }
                         }
-                    }
                 }
             }
-            div { class: "lowcode-table-scroll",
-                table { class: "az-table az-table--bordered az-table--dense",
-                    thead {
-                        tr {
-                            th { class: "az-table__header-cell", style: "width: 40px;", "" }
+            AzTableViewport {
+                AzTable { bordered: true, dense: true,
+                    AzTableHead {
+                        AzTableRow {
+                            AzTableHeaderCell { style: "width: 40px;", "" }
                             for f in fields.iter().filter(|f| f.field_type != "Relation") {
-                                th { class: "az-table__header-cell", "{f.label}" }
+                                AzTableHeaderCell { "{f.label}" }
                             }
-                            th { class: "az-table__header-cell", style: "width: 110px; text-align: center;", "操作" }
+                            AzTableHeaderCell { style: "width: 110px; text-align: center;", "操作" }
                         }
                     }
-                    tbody { class: "az-table__body",
+                    AzTableBody {
                         if records.is_empty() {
-                            tr {
-                                td { class: "az-table__cell az-table__cell--empty", colspan: "{col_len}", "暂无记录" }
+                            AzTableRow {
+                                AzTableCell { class: "az-table__cell--empty", colspan: col_len, "暂无记录" }
                             }
                         } else if has_tree {
                             {tree_rows(&roots, &children, label_field, fields, model_id, &rec_store, lowcode_route, 0)}
                         } else {
                             for rec in &records {
-                                tr {
-                                    td { class: "az-table__cell", "📄" }
+                                AzTableRow {
+                                    AzTableCell { "📄" }
                                     for cn in &col_names {
-                                        td { class: "az-table__cell",
+                                        AzTableCell {
                                             "{resolve_cell(fields, cn, rec.fields.get(*cn).cloned().unwrap_or_default())}"
                                         }
                                     }
-                                    td { class: "az-table__cell", style: "text-align: center; white-space: nowrap;",
-                                        details { class: "lowcode-accordion", style: "margin: 0; display: inline-block;",
-                                            summary { class: "lowcode-accordion__summary", style: "font-size: 11px; padding: 2px 6px;", "编辑" }
-                                            div { class: "lowcode-accordion__body",
-                                                form { method: "get", action: "/",
-                                                    input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                                                    input { r#type: "hidden", name: "action", value: "edit-record" }
-                                                    input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
-                                                    input { r#type: "hidden", name: "rec_id", value: "{rec.id}" }
+                                    AzTableCell { style: "text-align: center; white-space: nowrap;",
+                                        AzAccordion { title: "编辑", class: "az-accordion--inline", summary_class: "az-accordion__summary--compact",
+                                                LowcodeActionForm {
+                                                    action_name: "edit-record",
+                                                    hidden_fields: vec![
+                                                        ("rec_model".to_string(), model_id.to_string()),
+                                                        ("rec_id".to_string(), rec.id.clone()),
+                                                    ],
                                                     for fv in fields.iter() {
-                                                        div { class: "settings-form-row",
-                                                            label { "{fv.label}" }
+                                                        AzFormRow { label: fv.label.clone(),
                                                             if fv.field_type == "Enum" {
                                                                 {render_enum_select_edit(fv, rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default())}
                                                             } else if fv.field_type == "Relation" {
                                                                 {render_rel_select_edit(fv, &rec_store, rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default())}
                                                             } else {
-                                                                input { class: "settings-input", name: "rec_{fv.name}", value: "{rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default()}" }
+                                                                AzInput {
+                                                                    name: format!("rec_{}", fv.name),
+                                                                    value: rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default(),
+                                                                }
                                                             }
                                                         }
                                                     }
-                                                    button { class: "toolbar-button toolbar-button--primary", r#type: "submit", style: "font-size: 11px;", "保存" }
+                                                    AzButton { tone: AzButtonTone::Primary, button_type: "submit", "保存" }
                                                 }
-                                            }
                                         }
-                                        a {
-                                            href: "/?route={lowcode_route}&action=delete-record&rec_model={model_id}&rec_id={rec.id}",
-                                            class: "toolbar-button toolbar-button--danger",
-                                            style: "font-size: 11px; padding: 2px 7px; margin-left: 4px;",
+                                        AzButtonLink {
+                                            href: format!("/?route={lowcode_route}&action=delete-record&rec_model={model_id}&rec_id={}", rec.id),
+                                            tone: AzButtonTone::Danger,
+                                            class: "az-button--table-gap",
                                             "删除"
                                         }
                                     }
@@ -171,45 +173,45 @@ fn tree_rows(
         let icon = if has_children { "📁" } else { "📄" };
 
         rsx! {
-            tr {
-                td { class: "az-table__cell", style: "padding-left: {pad_left}px;",
+            AzTableRow {
+                AzTableCell { style: "padding-left: {pad_left}px;",
                     span { "{connector} {icon}" }
                     strong { " {label}" }
                 }
                 for cn in &col_names {
-                    td { class: "az-table__cell",
+                    AzTableCell {
                         "{resolve_cell(fields, cn, node.fields.get(*cn).cloned().unwrap_or_default())}"
                     }
                 }
-                td { class: "az-table__cell", style: "text-align: center; white-space: nowrap;",
-                    details { class: "lowcode-accordion", style: "margin: 0; display: inline-block;",
-                        summary { class: "lowcode-accordion__summary", style: "font-size: 11px; padding: 2px 6px;", "编辑" }
-                        div { class: "lowcode-accordion__body",
-                            form { method: "get", action: "/",
-                                input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                                input { r#type: "hidden", name: "action", value: "edit-record" }
-                                input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
-                                input { r#type: "hidden", name: "rec_id", value: "{node.id}" }
+                AzTableCell { style: "text-align: center; white-space: nowrap;",
+                    AzAccordion { title: "编辑", class: "az-accordion--inline", summary_class: "az-accordion__summary--compact",
+                            LowcodeActionForm {
+                                action_name: "edit-record",
+                                hidden_fields: vec![
+                                    ("rec_model".to_string(), model_id.to_string()),
+                                    ("rec_id".to_string(), node.id.clone()),
+                                ],
                                 for fv in fields.iter() {
-                                    div { class: "settings-form-row",
-                                        label { "{fv.label}" }
+                                    AzFormRow { label: fv.label.clone(),
                                         if fv.field_type == "Enum" {
                                             {render_enum_select_edit(fv, node.fields.get(fv.name.as_str()).cloned().unwrap_or_default())}
                                         } else if fv.field_type == "Relation" {
                                             {render_rel_select_edit(fv, rec_store, node.fields.get(fv.name.as_str()).cloned().unwrap_or_default())}
                                         } else {
-                                            input { class: "settings-input", name: "rec_{fv.name}", value: "{node.fields.get(fv.name.as_str()).cloned().unwrap_or_default()}" }
+                                            AzInput {
+                                                name: format!("rec_{}", fv.name),
+                                                value: node.fields.get(fv.name.as_str()).cloned().unwrap_or_default(),
+                                            }
                                         }
                                     }
                                 }
-                                button { class: "toolbar-button toolbar-button--primary", r#type: "submit", style: "font-size: 11px;", "保存" }
+                                AzButton { tone: AzButtonTone::Primary, button_type: "submit", "保存" }
                             }
-                        }
                     }
-                    a {
-                        href: "/?route={lowcode_route}&action=delete-record&rec_model={model_id}&rec_id={node.id}",
-                        class: "toolbar-button toolbar-button--danger",
-                        style: "font-size: 11px; padding: 2px 7px; margin-left: 4px;",
+                    AzButtonLink {
+                        href: format!("/?route={lowcode_route}&action=delete-record&rec_model={model_id}&rec_id={}", node.id),
+                        tone: AzButtonTone::Danger,
+                        class: "az-button--table-gap",
                         "删除"
                     }
                 }

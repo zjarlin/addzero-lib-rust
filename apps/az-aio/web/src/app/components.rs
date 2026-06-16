@@ -28,8 +28,9 @@ pub(crate) fn AppLayout(props: ShellProps) -> Element {
     let route = props.route.clone();
     let slots = SlotRenderers::pick(&props.renderers, &route);
     let page = PageChrome::from_pages(&props.pages, &route);
+    let active_route = format!("{}{}", props.route, props.query);
     let render_context = NativeRenderContext {
-        active_route: format!("{}{}", props.route, props.query),
+        active_route: active_route.clone(),
         api_base_url: String::new(),
     };
 
@@ -38,7 +39,7 @@ pub(crate) fn AppLayout(props: ShellProps) -> Element {
             TitlebarControls {}
             ShellSidebar {
                 nav_items: props.nav_items.clone(),
-                route: route.clone(),
+                route: active_route,
                 sidebar_renderer: slots.sidebar.clone(),
                 render_context: render_context.clone(),
             }

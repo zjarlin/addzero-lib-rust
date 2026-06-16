@@ -138,7 +138,8 @@ fn run_one_algorithm(
                 run.files.source_input,
                 run.files.model_input_preview,
                 run.files.raw_outputs_json,
-                run.files.raw_output_review,
+                run.files.detected_safety_helmets_json,
+                run.files.detected_safety_helmets_image,
             ]
         }
         ImageAlgorithmKind::VehicleDetection => {

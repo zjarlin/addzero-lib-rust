@@ -224,7 +224,7 @@ impl LowcodeStore {
             label: "项目列表".into(),
             layout: "Table".into(),
             model_id: proj_id.clone(),
-            config_json: r#"{"columns":[{"field_name":"name","label":"名称","sortable":true},{"field_name":"status","label":"状态"},{"field_name":"start_date","label":"开始日期","sortable":true},{"field_name":"budget","label":"预算"}],"searchable_fields":["name"],"page_size":20}"#.into(),
+            config_json: r#"{"columns":[{"field_name":"name","label":"名称","sortable":true},{"field_name":"status","label":"状态"},{"field_name":"start_date","label":"开始日期","sortable":true},{"field_name":"budget","label":"预算"}],"searchable_fields":["name"],"page_size":20,"frozen_header":true,"frozen_columns":1}"#.into(),
             created_at: now.clone(),
             updated_at: now.clone(),
         });

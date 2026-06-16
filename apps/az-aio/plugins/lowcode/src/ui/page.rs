@@ -6,20 +6,15 @@ use dioxus::prelude::*;
 use uuid::Uuid;
 
 use crate::backend::model::{
-    AppScreen, FormConfig, FormField, MasterDetailConfig, MetaField, MetaModel, TableColumn,
-    TableConfig,
+    AppScreen, MetaField, MetaModel,
 };
 use crate::backend::record::RecordStore;
 use crate::backend::store::LowcodeStore;
 
 use helpers::get_store;
 use model_editor::render_model_editor;
-use renderers::accordion::render_accordion;
-use renderers::form::render_form;
-use renderers::master_detail::render_master_detail;
-use renderers::table::render_table_screen;
-use renderers::tree_table::render_tree_table;
 use screen_list::render_screen_list_page;
+use strategy::{auto_config_json_for_layout, render_screen_with_strategy};
 
 #[allow(non_snake_case)]
 pub fn LowcodePage(context: NativeRenderContext) -> Element {
@@ -251,7 +246,7 @@ fn handle_action(store: &LowcodeStore, action: &Option<String>, route: &str) {
                     (layout.as_deref(), model_id.as_deref())
                 {
                     let fields = store.list_fields_sync(new_model_id);
-                    let config_json = auto_config_json(new_layout, &fields);
+                    let config_json = auto_config_json_for_layout(new_layout, &fields);
                     // Update screen fields via mem access
                     let mut screens = store.mem.screens.lock();
                     if let Some(s) = screens.iter_mut().find(|s| s.id == sid) {
@@ -269,7 +264,7 @@ fn handle_action(store: &LowcodeStore, action: &Option<String>, route: &str) {
             let model_id = parse_query_param(route, "scr_model_id").unwrap_or_default();
             if !name.is_empty() && !model_id.is_empty() {
                 let fields = store.list_fields_sync(&model_id);
-                let config_json = auto_config_json(&layout, &fields);
+                let config_json = auto_config_json_for_layout(&layout, &fields);
                 let now = Utc::now().to_rfc3339();
                 let screen = AppScreen {
                     id: Uuid::new_v4().to_string(),
@@ -298,39 +293,7 @@ fn render_dynamic_screen(screen_id: &str, route: &str) -> Element {
         Some(screen) => {
             let fields = store.list_fields_sync(&screen.model_id);
             let query = route.split('?').nth(1).unwrap_or("");
-            match screen.layout.as_str() {
-                "Table" => render_table_screen(
-                    &screen.label,
-                    &screen.model_id,
-                    &fields,
-                    &screen.config_json,
-                    query,
-                ),
-                "MasterDetail" => render_master_detail(
-                    &screen.label,
-                    &screen.model_id,
-                    &fields,
-                    &screen.config_json,
-                    query,
-                ),
-                "Accordion" => render_accordion(&screen.label, &screen.model_id, &fields),
-                "Form" => render_form(
-                    &screen.label,
-                    &screen.model_id,
-                    &fields,
-                    &screen.config_json,
-                ),
-                "TreeTable" => render_tree_table(&screen.label, &screen.model_id, &fields),
-                _ => rsx! {
-                    section { class: "lowcode-page",
-                        header { class: "lowcode-page__header",
-                            h1 { "{screen.label}" }
-                            p { "未支持的布局: {screen.layout}" }
-                        }
-                        a { href: "{back_href}", class: "toolbar-button", "← 返回" }
-                    }
-                },
-            }
+            render_screen_with_strategy(&screen, &fields, query)
         }
         None => rsx! {
             section { class: "lowcode-page",
@@ -338,71 +301,5 @@ fn render_dynamic_screen(screen_id: &str, route: &str) -> Element {
                 a { href: "{back_href}", class: "toolbar-button", "← 返回" }
             }
         },
-    }
-}
-
-/// Auto-generate config_json from model fields for the given layout.
-pub(crate) fn auto_config_json(
-    layout: &str,
-    fields: &[crate::backend::model::MetaFieldView],
-) -> String {
-    let non_rel: Vec<&crate::backend::model::MetaFieldView> = fields
-        .iter()
-        .filter(|f| f.field_type != "Relation")
-        .collect();
-
-    match layout {
-        "Table" => serde_json::to_string(&TableConfig {
-            columns: non_rel
-                .iter()
-                .map(|f| TableColumn {
-                    field_name: f.name.clone(),
-                    label: f.label.clone(),
-                    sortable: false,
-                    width: None,
-                })
-                .collect(),
-            searchable_fields: vec![],
-            page_size: 20,
-        })
-        .unwrap_or_default(),
-        "MasterDetail" => {
-            let tree_field = fields
-                .iter()
-                .find(|f| f.relation_type.as_deref() == Some("SelfRecursive"))
-                .map(|f| f.id.clone())
-                .unwrap_or_default();
-            serde_json::to_string(&MasterDetailConfig {
-                tree_field_id: tree_field,
-                detail_columns: non_rel
-                    .iter()
-                    .map(|f| TableColumn {
-                        field_name: f.name.clone(),
-                        label: f.label.clone(),
-                        sortable: false,
-                        width: None,
-                    })
-                    .collect(),
-                detail_searchable: vec![],
-            })
-            .unwrap_or_default()
-        }
-        "Form" => serde_json::to_string(&FormConfig {
-            fields: non_rel
-                .iter()
-                .map(|f| FormField {
-                    field_name: f.name.clone(),
-                    label: f.label.clone(),
-                    field_type: f.field_type.clone(),
-                    required: f.is_required,
-                    placeholder: format!("输入{}", f.label),
-                    options: vec![],
-                })
-                .collect(),
-            submit_label: "保存".into(),
-        })
-        .unwrap_or_default(),
-        "Accordion" | "TreeTable" => "{}".into(),
-        _ => "{}".into(),
     }
 }

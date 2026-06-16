@@ -8,7 +8,9 @@ use az_algorithm::components::face_recognition::model::{
     ALGORITHM_CODE as FACE_RECOGNITION_CODE, FACE_RECOGNITION_ARCFACE_RESNET100_INT8,
 };
 use az_algorithm::components::flame_detection::model::{
-    ALGORITHM_CODE as FLAME_DETECTION_CODE, FLAME_DETECTION_FIRE_SMOKE_YOLOV8N,
+    ALGORITHM_CODE as FLAME_DETECTION_CODE, DEFAULT_NMS_THRESHOLD as FLAME_DEFAULT_NMS_THRESHOLD,
+    DEFAULT_SCORE_THRESHOLD as FLAME_DEFAULT_SCORE_THRESHOLD, FLAME_DETECTION_FIRE_SMOKE_YOLOV8N,
+    FlameDetectionOptions,
 };
 use az_algorithm::components::ocr_text_recognition::model::{
     DETECTION_ALGORITHM_CODE as OCR_TEXT_DETECTION_CODE, OCR_PADDLE_V3_DETECTION,
@@ -20,14 +22,19 @@ use az_algorithm::components::person_detection::model::{
 };
 use az_algorithm::components::qr_code_recognition::model::ALGORITHM_CODE as QR_CODE_RECOGNITION_CODE;
 use az_algorithm::components::safety_helmet_detection::model::{
-    ALGORITHM_CODE as SAFETY_HELMET_DETECTION_CODE, SAFETY_HELMET_DETECTION_PPE_YOLO11S,
+    ALGORITHM_CODE as SAFETY_HELMET_DETECTION_CODE,
+    DEFAULT_NMS_THRESHOLD as SAFETY_HELMET_DEFAULT_NMS_THRESHOLD,
+    DEFAULT_SCORE_THRESHOLD as SAFETY_HELMET_DEFAULT_SCORE_THRESHOLD,
+    SAFETY_HELMET_DETECTION_PPE_YOLO11S, SafetyHelmetDetectionOptions,
 };
 use az_algorithm::components::vehicle_detection::model::{
     ALGORITHM_CODE as VEHICLE_DETECTION_CODE, VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1,
 };
 use az_algorithm::video_pipeline::assist::onnx_raw_image_video_algorithm::OnnxRawImageVideoAlgorithm;
+use az_algorithm::video_pipeline::assist::flame_video_algorithm::FlameVideoAlgorithm;
 use az_algorithm::video_pipeline::assist::qr_code_video_algorithm::QrCodeVideoAlgorithm;
 use az_algorithm::video_pipeline::assist::run_video_frame_pipeline;
+use az_algorithm::video_pipeline::assist::safety_helmet_video_algorithm::SafetyHelmetVideoAlgorithm;
 use az_algorithm::video_pipeline::model::{
     VideoAlgorithmBinding, VideoAlgorithmEvent, VideoAlgorithmFrameResult, VideoAlgorithmSchedule,
     VideoBoundingBox, VideoDetection, VideoFrame, VideoFrameAlgorithm, VideoPipelineOptions,
@@ -750,22 +757,21 @@ fn video_pipeline_should_stack_real_person_and_face_detection_on_same_frames() -
     );
     Ok(())
 }
-// 视频管道应该运行真正的安全帽原始跑步者，没有假盒子
+// 视频管道应该运行真正的安全帽检测运行器
 #[test]
 #[expect(
     clippy::dbg_macro,
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
-fn video_pipeline_should_run_real_safety_helmet_raw_runner_without_fake_boxes() -> anyhow::Result<()>
+fn video_pipeline_should_run_real_safety_helmet_detection_runner() -> anyhow::Result<()>
 {
-    // 这个测试验证安全帽模型可以进入实时视频管线：
-    // - OnnxRawImageVideoAlgorithm 只加载一次 ONNX Session。
-    // - 当前 crate 尚未实现 YOLO 安全帽框后处理，所以 detections 必须保持为空。
-    // - raw_json 中会记录真实 raw_outputs.json，供后续补后处理时使用。
-    let output_dir = output_dir("video_pipeline_real_safety_helmet_raw");
+    // 这个测试验证安全帽模型可以进入实时视频管线并执行 YOLO 后处理：
+    // - SafetyHelmetVideoAlgorithm 只加载一次 ONNX Session。
+    // - 每帧写出 detected_safety_helmets.json 和标注图。
+    let output_dir = output_dir("video_pipeline_real_safety_helmet_detection");
     if output_dir.exists() {
         std::fs::remove_dir_all(&output_dir)
-            .expect("清理旧真实安全帽 raw pipeline 输出目录必须成功");
+            .expect("清理旧真实安全帽 pipeline 输出目录必须成功");
     }
     let source_fps = 30.0;
     let frames = frames_from_safety_helmet_fixture(3, source_fps);
@@ -773,10 +779,13 @@ fn video_pipeline_should_run_real_safety_helmet_raw_runner_without_fake_boxes() 
     dbg!(&safety_helmet_model_path());
     dbg!(&output_dir);
 
-    let mut helmet_algorithm = OnnxRawImageVideoAlgorithm::new(
-        SAFETY_HELMET_DETECTION_CODE,
-        SAFETY_HELMET_DETECTION_PPE_YOLO11S,
-        safety_helmet_model_path(),
+    let mut helmet_algorithm = SafetyHelmetVideoAlgorithm::new(
+        SafetyHelmetDetectionOptions {
+            model_path: safety_helmet_model_path(),
+            output_dir: output_dir.join("unused_default_output"),
+            score_threshold: SAFETY_HELMET_DEFAULT_SCORE_THRESHOLD,
+            nms_threshold: SAFETY_HELMET_DEFAULT_NMS_THRESHOLD,
+        },
         output_dir.join("safety_helmet_raw_frames"),
     )?;
     let mut bindings = [VideoAlgorithmBinding {
@@ -797,18 +806,18 @@ fn video_pipeline_should_run_real_safety_helmet_raw_runner_without_fake_boxes() 
     dbg!(&run.files.summary_json);
     assert_existing_file(&run.files.frame_results_jsonl);
     assert_existing_file(&run.files.summary_json);
-    // 关键断言：安全帽当前只输出 raw ONNX，不允许测试里伪造安全帽检测框。
-    assert!(
-        run.frame_results
-            .iter()
-            .all(|result| result.detections.is_empty()),
-        "安全帽 raw runner 当前不能伪造检测框"
-    );
+    // 关键断言：安全帽 runner 必须真实执行 ONNX 后处理并写出结构化文件。
     assert!(
         run.frame_results
             .iter()
             .all(|result| result.raw_json["raw_output_count"].as_u64().unwrap_or(0) > 0),
-        "安全帽 raw runner 必须真实执行 ONNX 并写出输出"
+        "安全帽 runner 必须真实执行 ONNX 并写出输出"
+    );
+    assert!(
+        run.frame_results
+            .iter()
+            .all(|result| result.raw_json["detected_safety_helmets_json"].is_string()),
+        "安全帽 runner 必须写出结构化检测 JSON"
     );
     Ok(())
 }
@@ -824,7 +833,8 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
     // - 合成一张包含多种真实素材的测试帧，模拟视频解码层输出的同一帧。
     // - 人员、人脸使用已实现后处理的真实 runner，会输出检测框。
     // - 二维码使用纯 Rust 解码，会输出 payload 和角点框。
-    // - 安全帽、车辆、火焰、人脸识别、OCR 文字检测目前接入 raw ONNX 适配器，只断言真实推理输出。
+    // - 安全帽、火焰使用已实现后处理的真实 runner。
+    // - 车辆、人脸识别、OCR 文字检测目前接入 raw ONNX 适配器，只断言真实推理输出。
     let output_dir = output_dir("video_pipeline_all_frame_image_algorithms");
     if output_dir.exists() {
         std::fs::remove_dir_all(&output_dir).expect("清理旧全算法视频 pipeline 输出目录必须成功");
@@ -850,11 +860,14 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
     let mut person_algorithm = RealPersonDetectionVideoAlgorithm::new(output_dir.clone())?;
     let mut face_algorithm = RealFaceDetectionVideoAlgorithm::new(output_dir.clone())?;
     let mut qr_code_algorithm = QrCodeVideoAlgorithm::new(output_dir.join("qr_code_frames"));
-    let mut safety_helmet_algorithm = OnnxRawImageVideoAlgorithm::new(
-        SAFETY_HELMET_DETECTION_CODE,
-        SAFETY_HELMET_DETECTION_PPE_YOLO11S,
-        safety_helmet_model_path(),
-        output_dir.join("safety_helmet_raw_frames"),
+    let mut safety_helmet_algorithm = SafetyHelmetVideoAlgorithm::new(
+        SafetyHelmetDetectionOptions {
+            model_path: safety_helmet_model_path(),
+            output_dir: output_dir.join("unused_safety_helmet_output"),
+            score_threshold: SAFETY_HELMET_DEFAULT_SCORE_THRESHOLD,
+            nms_threshold: SAFETY_HELMET_DEFAULT_NMS_THRESHOLD,
+        },
+        output_dir.join("safety_helmet_frames"),
     )?;
     let mut vehicle_algorithm = OnnxRawImageVideoAlgorithm::new(
         VEHICLE_DETECTION_CODE,
@@ -862,11 +875,14 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
         vehicle_model_path(),
         output_dir.join("vehicle_raw_frames"),
     )?;
-    let mut flame_algorithm = OnnxRawImageVideoAlgorithm::new(
-        FLAME_DETECTION_CODE,
-        FLAME_DETECTION_FIRE_SMOKE_YOLOV8N,
-        flame_model_path(),
-        output_dir.join("flame_raw_frames"),
+    let mut flame_algorithm = FlameVideoAlgorithm::new(
+        FlameDetectionOptions {
+            model_path: flame_model_path(),
+            output_dir: output_dir.join("unused_flame_output"),
+            score_threshold: FLAME_DEFAULT_SCORE_THRESHOLD,
+            nms_threshold: FLAME_DEFAULT_NMS_THRESHOLD,
+        },
+        output_dir.join("flame_frames"),
     )?;
     let mut face_recognition_algorithm = OnnxRawImageVideoAlgorithm::new(
         FACE_RECOGNITION_CODE,
@@ -966,10 +982,17 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
             }),
         "二维码算法必须返回真实 payload 和角点框"
     );
+    for structured_code in [SAFETY_HELMET_DETECTION_CODE, FLAME_DETECTION_CODE] {
+        assert!(
+            run.frame_results
+                .iter()
+                .find(|result| result.algorithm_code == structured_code)
+                .is_some_and(|result| result.raw_json["raw_output_count"].as_u64().unwrap_or(0) > 0),
+            "{structured_code} 必须真实执行 ONNX 并写出结构化后处理输出"
+        );
+    }
     for raw_code in [
-        SAFETY_HELMET_DETECTION_CODE,
         VEHICLE_DETECTION_CODE,
-        FLAME_DETECTION_CODE,
         FACE_RECOGNITION_CODE,
         OCR_TEXT_DETECTION_CODE,
     ] {

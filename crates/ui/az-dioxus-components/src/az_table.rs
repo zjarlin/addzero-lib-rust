@@ -13,6 +13,7 @@ pub fn AzTable(
     #[props(default)] dense: bool,
     #[props(default)] striped: bool,
     #[props(default)] bordered: bool,
+    #[props(default = true)] frozen_header: bool,
 ) -> Element {
     let table_class = compose_class(
         "az-table",
@@ -21,6 +22,7 @@ pub fn AzTable(
             ("az-table--dense", dense),
             ("az-table--striped", striped),
             ("az-table--bordered", bordered),
+            ("az-table--frozen-header", frozen_header),
         ],
     );
 
@@ -81,6 +83,7 @@ pub fn AzTableFooter(children: Element, #[props(default, into)] class: String) -
 pub fn AzTableRow(
     children: Element,
     #[props(default, into)] class: String,
+    #[props(default, into)] style: String,
     #[props(default)] selected: bool,
 ) -> Element {
     let row_class = compose_class(
@@ -89,8 +92,14 @@ pub fn AzTableRow(
         &[("az-table__row--selected", selected)],
     );
 
-    rsx! {
-        tr { class: row_class, {children} }
+    if style.is_empty() {
+        rsx! {
+            tr { class: row_class, {children} }
+        }
+    } else {
+        rsx! {
+            tr { class: row_class, style: style, {children} }
+        }
     }
 }
 
@@ -100,6 +109,7 @@ pub fn AzTableRow(
 pub fn AzTableHeaderCell(
     children: Element,
     #[props(default, into)] class: String,
+    #[props(default, into)] style: String,
     #[props(default = "col".to_string(), into)] scope: String,
     #[props(default)] numeric: bool,
 ) -> Element {
@@ -110,7 +120,7 @@ pub fn AzTableHeaderCell(
     );
 
     rsx! {
-        th { class: cell_class, scope: scope, {children} }
+        th { class: cell_class, style: style, scope: scope, {children} }
     }
 }
 
@@ -120,6 +130,7 @@ pub fn AzTableHeaderCell(
 pub fn AzTableCell(
     children: Element,
     #[props(default, into)] class: String,
+    #[props(default, into)] style: String,
     #[props(default)] numeric: bool,
     #[props(default = 1)] colspan: usize,
 ) -> Element {
@@ -131,11 +142,11 @@ pub fn AzTableCell(
 
     if colspan > 1 {
         rsx! {
-            td { class: cell_class, colspan: "{colspan}", {children} }
+            td { class: cell_class, style: style, colspan: "{colspan}", {children} }
         }
     } else {
         rsx! {
-            td { class: cell_class, {children} }
+            td { class: cell_class, style: style, {children} }
         }
     }
 }

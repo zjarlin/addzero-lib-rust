@@ -1,11 +1,18 @@
+use az_dioxus_components::{
+    az_accordion::AzAccordion,
+    az_button::{AzButton, AzButtonLink, AzButtonTone},
+    az_form::{AzActionForm, AzFormRow, AzHiddenInput, AzInput},
+    az_table::{AzTable, AzTableBody, AzTableCell, AzTableHead, AzTableHeaderCell, AzTableRow},
+    az_workbench::{AzPageHeader, AzTableViewport, AzWorkbenchPage},
+};
 use dioxus::prelude::*;
 
 use crate::backend::model::{MetaFieldView, TableColumn, TableConfig};
+use crate::backend::record::{RecordStore, RecordWithId};
 use crate::ui::page::helpers::{
     parse_query, render_enum_select, render_enum_select_edit, render_rel_select,
-    render_rel_select_edit, resolve_cell,
+    render_rel_select_edit, resolve_cell, LowcodeActionForm,
 };
-use crate::backend::record::{RecordStore, RecordWithId};
 
 pub fn render_table_screen(
     title: &str,
@@ -27,6 +34,8 @@ pub fn render_table_screen(
             .collect(),
         searchable_fields: vec![],
         page_size: 20,
+        frozen_header: true,
+        frozen_columns: 1,
     });
 
     let rec_store = RecordStore::global();
@@ -133,127 +142,141 @@ pub fn render_table_screen(
     };
 
     rsx! {
-        section { class: "lowcode-page",
-            header { class: "lowcode-page__header",
-                h1 { "{title}" }
-                p { "{total} 条记录 · 第 {page}/{total_pages.max(1)} 页" }
-                a { href: "/?route={lowcode_route}&mode=screens", class: "toolbar-button", "← 返回" }
+        AzWorkbenchPage {
+            AzPageHeader {
+                title: title.to_string(),
+                subtitle: format!("{total} 条记录 · 第 {page}/{} 页", total_pages.max(1)),
+                AzButtonLink { href: format!("/?route={lowcode_route}&mode=screens"), "← 返回" }
 
                 // New record form
-                details { class: "lowcode-accordion",
-                    summary { class: "lowcode-accordion__summary", "＋ 新建记录" }
-                    div { class: "lowcode-accordion__body",
-                        form { method: "get", action: "/",
-                            input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                            input { r#type: "hidden", name: "action", value: "new-record" }
-                            input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
-                            input { r#type: "hidden", name: "screen", value: "{screen_id}" }
+                AzAccordion { title: "＋ 新建记录",
+                        LowcodeActionForm {
+                            action_name: "new-record",
+                            hidden_fields: vec![
+                                ("rec_model".to_string(), model_id.to_string()),
+                                ("screen".to_string(), screen_id.clone()),
+                            ],
                             for f in fields.iter() {
-                                div { class: "settings-form-row",
-                                    label { "{f.label}" }
+                                AzFormRow { label: f.label.clone(),
                                     if f.field_type == "Enum" {
                                         {render_enum_select(f)}
                                     } else if f.field_type == "Relation" {
                                         {render_rel_select(f, &rec_store)}
                                     } else {
-                                        input { class: "settings-input", name: "rec_{f.name}", placeholder: "输入{f.label}" }
+                                        AzInput { name: format!("rec_{}", f.name), placeholder: format!("输入{}", f.label) }
                                     }
                                 }
                             }
-                            button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "创建" }
+                            AzButton { tone: AzButtonTone::Primary, button_type: "submit", "创建" }
                         }
-                    }
                 }
 
                 // Search
-                form { method: "get", action: "/",
+                AzActionForm {
                     div { style: "display:flex; gap:8px; align-items:center; padding:8px 0;",
-                        input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                        input { r#type: "hidden", name: "screen", value: "{screen_id}" }
-                        input { class: "settings-input", name: "search", placeholder: "搜索...", value: "{search}", style: "max-width:280px;" }
-                        button { class: "toolbar-button", r#type: "submit", "搜索" }
+                        AzHiddenInput { name: "route", value: lowcode_route }
+                        AzHiddenInput { name: "screen", value: screen_id.clone() }
+                        AzInput { name: "search", placeholder: "搜索...", value: search.clone(), style: "max-width:280px;" }
+                        AzButton { button_type: "submit", "搜索" }
                         if !search.is_empty() {
-                            a { href: "{action_base}", class: "toolbar-button", style: "font-size:11px;", "清除" }
+                            AzButtonLink { href: action_base.clone(), "清除" }
                         }
                     }
                 }
             }
 
             // Batch delete form
-            form { method: "get", action: "/", id: "batch-form",
-                input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                input { r#type: "hidden", name: "action", value: "batch-delete-record" }
-                input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
-                input { r#type: "hidden", name: "screen", value: "{screen_id}" }
-                input { r#type: "hidden", name: "ids", id: "batch-ids" }
+            LowcodeActionForm {
+                id: "batch-form",
+                action_name: "batch-delete-record",
+                hidden_fields: vec![
+                    ("rec_model".to_string(), model_id.to_string()),
+                    ("screen".to_string(), screen_id.clone()),
+                ],
+                AzHiddenInput { name: "ids", id: "batch-ids" }
 
-                div { class: "lowcode-table-scroll",
-                    table { class: "az-table az-table--bordered az-table--dense",
-                        thead {
-                            tr {
-                                th { class: "az-table__header-cell", style: "width:32px; text-align:center;",
+                AzTableViewport {
+                    AzTable {
+                        class: table_class(&config),
+                        frozen_header: false,
+                        AzTableHead {
+                            AzTableRow {
+                                AzTableHeaderCell { class: frozen_header_class_extra(&config, 0), style: frozen_style(&config, 0, "32px", "width:32px; text-align:center;"),
                                     input { r#type: "checkbox", id: "select-all", "onchange": "document.querySelectorAll('.row-checkbox').forEach(cb=>cb.checked=this.checked);" }
                                 }
-                                for col in &config.columns {
-                                    th { class: "az-table__header-cell",
+                                for (index, col) in config.columns.iter().enumerate() {
+                                    {
+                                        let column_index = index + 1;
+                                        let width = col.width.as_deref().unwrap_or("160px");
+                                        rsx! {
+                                    AzTableHeaderCell { class: frozen_header_class_extra(&config, column_index), style: frozen_style(&config, column_index, width, ""),
                                         a {
                                             href: "{make_sort_link(&col.field_name)}",
                                             style: "color:inherit; text-decoration:none;",
                                             "{col.label}{sort_indicator(&col.field_name)}"
                                         }
                                     }
+                                        }
+                                    }
                                 }
-                                th { class: "az-table__header-cell", style: "width:110px; text-align:center;", "操作" }
+                                AzTableHeaderCell { style: "width:110px; text-align:center;", "操作" }
                             }
                         }
-                        tbody { class: "az-table__body",
+                        AzTableBody {
                             if paged.is_empty() {
-                                tr {
-                                    td { class: "az-table__cell az-table__cell--empty", colspan: "{col_len + 1}",
+                                AzTableRow {
+                                    AzTableCell { class: "az-table__cell--empty", colspan: col_len + 1,
                                         if search.is_empty() { "暂无记录" } else { "无匹配记录" }
                                     }
                                 }
                             } else {
                                 for rec in &paged {
-                                    tr {
-                                        td { class: "az-table__cell", style: "text-align:center;",
+                                    AzTableRow {
+                                        AzTableCell { class: frozen_cell_class_extra(&config, 0), style: frozen_style(&config, 0, "32px", "text-align:center;"),
                                             input { class: "row-checkbox", r#type: "checkbox", value: "{rec.id}", "onchange": "updateBatchIds()" }
                                         }
-                                        for cn in &col_names {
-                                            td { class: "az-table__cell",
+                                        for (index, cn) in col_names.iter().enumerate() {
+                                            {
+                                                let column_index = index + 1;
+                                                let width = config.columns.get(index).and_then(|column| column.width.as_deref()).unwrap_or("160px");
+                                                rsx! {
+                                            AzTableCell { class: frozen_cell_class_extra(&config, column_index), style: frozen_style(&config, column_index, width, ""),
                                                 "{resolve_cell(fields, *cn, rec.fields.get(*cn).cloned().unwrap_or_default())}"
                                             }
+                                                }
+                                            }
                                         }
-                                        td { class: "az-table__cell", style: "text-align:center; white-space:nowrap;",
-                                            details { class: "lowcode-accordion", style: "margin:0; display:inline-block;",
-                                                summary { class: "lowcode-accordion__summary", style: "font-size:11px; padding:2px 6px;", "编辑" }
-                                                div { class: "lowcode-accordion__body",
-                                                    form { method: "get", action: "/",
-                                                        input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                                                        input { r#type: "hidden", name: "action", value: "edit-record" }
-                                                        input { r#type: "hidden", name: "rec_model", value: "{model_id}" }
-                                                        input { r#type: "hidden", name: "rec_id", value: "{rec.id}" }
-                                                        input { r#type: "hidden", name: "screen", value: "{screen_id}" }
+                                        AzTableCell { style: "text-align:center; white-space:nowrap;",
+                                            AzAccordion { title: "编辑", class: "az-accordion--inline", summary_class: "az-accordion__summary--compact",
+                                                    LowcodeActionForm {
+                                                        action_name: "edit-record",
+                                                        hidden_fields: vec![
+                                                            ("rec_model".to_string(), model_id.to_string()),
+                                                            ("rec_id".to_string(), rec.id.clone()),
+                                                            ("screen".to_string(), screen_id.clone()),
+                                                        ],
                                                         for fv in fields.iter() {
-                                                            div { class: "settings-form-row",
-                                                                label { "{fv.label}" }
+                                                            AzFormRow { label: fv.label.clone(),
                                                                 if fv.field_type == "Enum" {
                                                                     {render_enum_select_edit(fv, rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default())}
                                                                 } else if fv.field_type == "Relation" {
                                                                     {render_rel_select_edit(fv, &rec_store, rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default())}
                                                                 } else {
-                                                                    input { class: "settings-input", name: "rec_{fv.name}", value: "{rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default()}", style: "font-size:12px;" }
+                                                                    AzInput {
+                                                                        name: format!("rec_{}", fv.name),
+                                                                        value: rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default(),
+                                                                        class: "az-input--compact",
+                                                                    }
                                                                 }
                                                             }
                                                         }
-                                                        button { class: "toolbar-button toolbar-button--primary", r#type: "submit", style: "font-size:11px;", "保存" }
+                                                        AzButton { tone: AzButtonTone::Primary, button_type: "submit", "保存" }
                                                     }
-                                                }
                                             }
-                                            a {
-                                                href: "{action_base}&action=delete-record&rec_model={model_id}&rec_id={rec.id}",
-                                                class: "toolbar-button toolbar-button--danger",
-                                                style: "font-size:11px; padding:2px 7px; margin-left:4px;",
+                                            AzButtonLink {
+                                                href: format!("{action_base}&action=delete-record&rec_model={model_id}&rec_id={}", rec.id),
+                                                tone: AzButtonTone::Danger,
+                                                class: "az-button--table-gap",
                                                 "删除"
                                             }
                                         }
@@ -267,7 +290,7 @@ pub fn render_table_screen(
                 // Batch delete button + pagination
                 div { style: "display:flex; align-items:center; justify-content:space-between; padding:8px 0;",
                     button {
-                        class: "toolbar-button toolbar-button--danger",
+                        class: "az-button toolbar-button toolbar-button--danger",
                         r#type: "button",
                         style: "font-size:11px;",
                         "onclick": batch_onclick ,
@@ -288,6 +311,53 @@ function updateBatchIds() {
     }
 }
 
+fn table_class(config: &TableConfig) -> &'static str {
+    if config.frozen_header {
+        "az-table--bordered az-table--dense az-table--frozen-header"
+    } else {
+        "az-table--bordered az-table--dense"
+    }
+}
+
+fn frozen_header_class_extra(config: &TableConfig, index: usize) -> &'static str {
+    if column_is_frozen(config, index) {
+        "az-table__cell--frozen"
+    } else {
+        ""
+    }
+}
+
+fn frozen_cell_class_extra(config: &TableConfig, index: usize) -> &'static str {
+    if column_is_frozen(config, index) {
+        "az-table__cell--frozen"
+    } else {
+        ""
+    }
+}
+
+fn frozen_style(config: &TableConfig, index: usize, width: &str, base: &str) -> String {
+    if !column_is_frozen(config, index) {
+        return base.to_string();
+    }
+    let left = if index == 0 {
+        "0px".to_string()
+    } else {
+        format!("calc(32px + {} * 160px)", index - 1)
+    };
+    if base.is_empty() {
+        format!("left:{left}; min-width:{width};")
+    } else {
+        format!("{base} left:{left}; min-width:{width};")
+    }
+}
+
+fn column_is_frozen(config: &TableConfig, index: usize) -> bool {
+    if config.frozen_columns == 0 {
+        return false;
+    }
+    index == 0 || index <= config.frozen_columns
+}
+
 fn render_pagination(page: usize, total: usize, make_link: &dyn Fn(usize) -> String) -> Element {
     if total <= 1 {
         return rsx! {};
@@ -302,22 +372,42 @@ fn render_pagination(page: usize, total: usize, make_link: &dyn Fn(usize) -> Str
     rsx! {
         div { style: "display:flex; gap:4px; align-items:center;",
             if page > 1 {
-                a { href: "{make_link(page - 1)}", class: "toolbar-button", style: "font-size:11px;", "‹ 上一页" }
+                AzButtonLink { href: make_link(page - 1), class: "az-button--compact", "‹ 上一页" }
             } else {
-                span { class: "toolbar-button", style: "font-size:11px; opacity:0.4;", "‹ 上一页" }
+                AzButton { disabled: true, class: "az-button--compact az-button--disabled", "‹ 上一页" }
             }
             for p in &pages {
                 if *p == page {
-                    span { class: "toolbar-button toolbar-button--primary", style: "font-size:11px; min-width:24px; text-align:center;", "{p}" }
+                    AzButton { tone: AzButtonTone::Primary, disabled: true, class: "az-button--compact az-button--page", "{p}" }
                 } else {
-                    a { href: "{make_link(*p)}", class: "toolbar-button", style: "font-size:11px; min-width:24px; text-align:center;", "{p}" }
+                    AzButtonLink { href: make_link(*p), class: "az-button--compact az-button--page", "{p}" }
                 }
             }
             if page < total {
-                a { href: "{make_link(page + 1)}", class: "toolbar-button", style: "font-size:11px;", "下一页 ›" }
+                AzButtonLink { href: make_link(page + 1), class: "az-button--compact", "下一页 ›" }
             } else {
-                span { class: "toolbar-button", style: "font-size:11px; opacity:0.4;", "下一页 ›" }
+                AzButton { disabled: true, class: "az-button--compact az-button--disabled", "下一页 ›" }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frozen_columns_apply_to_first_configured_columns() {
+        let config = TableConfig {
+            columns: Vec::new(),
+            searchable_fields: Vec::new(),
+            page_size: 20,
+            frozen_header: true,
+            frozen_columns: 2,
+        };
+
+        assert_eq!(frozen_header_class_extra(&config, 1), "az-table__cell--frozen");
+        assert_eq!(frozen_cell_class_extra(&config, 2), "az-table__cell--frozen");
+        assert_eq!(frozen_cell_class_extra(&config, 3), "");
     }
 }

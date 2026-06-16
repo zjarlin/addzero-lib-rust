@@ -133,6 +133,7 @@ pub fn contributions() -> ContributionSet {
         }],
         shell_entries: Vec::new(),
         generated_files: Vec::new(),
+        ..ContributionSet::default()
     }
 }
 

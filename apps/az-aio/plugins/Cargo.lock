@@ -2499,6 +2499,7 @@ dependencies = [
  "axum",
  "az-aio-platform",
  "az-automod",
+ "az-dioxus-components",
  "chrono",
  "dioxus",
  "parking_lot",

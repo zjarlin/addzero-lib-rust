@@ -4,3 +4,4 @@
 //! organization, dictionary, menu, audit, tenant, messaging, OAuth2, and social
 //! integration are treated as one system domain with explicit feature cuts.
 
+automod::dir!(pub "src/system");

@@ -21,7 +21,7 @@ fn az_table_renders_variant_classes_on_the_table_root() {
 
     assert_eq!(
         markup,
-        "<div class=\"az-table__scroller\"><table class=\"az-table az-table--dense az-table--striped az-table--bordered operations-grid\"><tbody class=\"az-table__body\"><tr class=\"az-table__row\"><td class=\"az-table__cell\">edge-01</td></tr></tbody></table></div>"
+        "<div class=\"az-table__scroller\"><table class=\"az-table az-table--dense az-table--striped az-table--bordered az-table--frozen-header operations-grid\"><tbody class=\"az-table__body\"><tr class=\"az-table__row\"><td class=\"az-table__cell\" style=\"\">edge-01</td></tr></tbody></table></div>"
     );
 }
 
@@ -31,7 +31,7 @@ fn az_table_supports_semantic_composition_for_caption_head_and_numeric_cells() {
         AzTable {
             AzTableCaption { "Runtime nodes" }
             AzTableHead {
-                AzTableRow { selected: true,
+                AzTableRow { selected: true, style: "background:red;",
                     AzTableHeaderCell { "Name" }
                     AzTableHeaderCell { numeric: true, "Latency" }
                 }
@@ -47,7 +47,7 @@ fn az_table_supports_semantic_composition_for_caption_head_and_numeric_cells() {
 
     assert_eq!(
         markup,
-        "<div class=\"az-table__scroller\"><table class=\"az-table\"><caption class=\"az-table__caption\">Runtime nodes</caption><thead class=\"az-table__head\"><tr class=\"az-table__row az-table__row--selected\"><th class=\"az-table__header-cell\" scope=\"col\">Name</th><th class=\"az-table__header-cell az-table__cell--numeric\" scope=\"col\">Latency</th></tr></thead><tbody class=\"az-table__body\"><tr class=\"az-table__row\"><td class=\"az-table__cell\">edge-01</td><td class=\"az-table__cell az-table__cell--numeric\">42ms</td></tr></tbody></table></div>"
+        "<div class=\"az-table__scroller\"><table class=\"az-table az-table--frozen-header\"><caption class=\"az-table__caption\">Runtime nodes</caption><thead class=\"az-table__head\"><tr class=\"az-table__row az-table__row--selected\" style=\"background:red;\"><th class=\"az-table__header-cell\" style=\"\" scope=\"col\">Name</th><th class=\"az-table__header-cell az-table__cell--numeric\" style=\"\" scope=\"col\">Latency</th></tr></thead><tbody class=\"az-table__body\"><tr class=\"az-table__row\"><td class=\"az-table__cell\" style=\"\">edge-01</td><td class=\"az-table__cell az-table__cell--numeric\" style=\"\">42ms</td></tr></tbody></table></div>"
     );
 }
 
@@ -65,6 +65,6 @@ fn az_table_cell_can_span_multiple_columns() {
 
     assert_eq!(
         markup,
-        "<div class=\"az-table__scroller\"><table class=\"az-table\"><tbody class=\"az-table__body\"><tr class=\"az-table__row\"><td class=\"az-table__cell\" colspan=\"2\">Nothing here</td></tr></tbody></table></div>"
+        "<div class=\"az-table__scroller\"><table class=\"az-table az-table--frozen-header\"><tbody class=\"az-table__body\"><tr class=\"az-table__row\"><td class=\"az-table__cell\" style=\"\" colspan=\"2\">Nothing here</td></tr></tbody></table></div>"
     );
 }

@@ -98,6 +98,7 @@ pub fn contributions() -> ContributionSet {
         settings_sections: Vec::new(),
         shell_entries: Vec::new(),
         generated_files: Vec::new(),
+        ..ContributionSet::default()
     }
 }
 

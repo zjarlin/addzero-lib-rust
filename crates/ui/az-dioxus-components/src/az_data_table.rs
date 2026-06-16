@@ -44,6 +44,10 @@ pub struct AzDataTableColumn {
     pub class: Option<String>,
     /// 表头对齐方式。
     pub align: AzDataTableAlign,
+    /// 开启后该列会固定在水平滚动区域左侧。
+    pub frozen: bool,
+    /// 固定列的左侧偏移，支持 `px` 或 `rem` 等 CSS 长度。
+    pub sticky_left: Option<String>,
 }
 
 /// [`AzDataTable`] 行内的单元格数据。
@@ -102,6 +106,9 @@ pub struct AzDataTableProps {
     /// 添加 `az-table--dense` 修饰 class。
     #[props(default = false)]
     pub dense: bool,
+    /// 表头是否固定在滚动容器顶部。
+    #[props(default = true)]
+    pub frozen_header: bool,
 }
 
 /// 根据结构化列和行数据渲染完整表格。
@@ -114,6 +121,7 @@ pub fn AzDataTable(props: AzDataTableProps) -> Element {
             dense: props.dense,
             striped: props.striped,
             bordered: props.bordered,
+            frozen_header: props.frozen_header,
             if let Some(caption) = props.caption.as_deref() {
                 AzTableCaption { "{caption}" }
             }
@@ -126,6 +134,7 @@ pub fn AzDataTable(props: AzDataTableProps) -> Element {
                             rsx! {
                                 AzTableHeaderCell {
                                     class: class,
+                                    style: sticky_style(column),
                                     "{header}"
                                 }
                             }
@@ -149,15 +158,20 @@ pub fn AzDataTable(props: AzDataTableProps) -> Element {
                         rsx! {
                             PrimitiveAzTableRow { class: row_class,
                                 {normalized.into_iter().enumerate().map(|(index, cell)| {
-                                    let fallback_align =
-                                        props.columns.get(index).map(|column| column.align);
+                                    let column = props.columns.get(index);
+                                    let fallback_align = column.map(|column| column.align);
                                     let class = build_cell_class(
                                         cell.class.as_deref(),
                                         cell.align.or(fallback_align),
+                                        column.map(|column| column.frozen).unwrap_or_default(),
                                     );
                                     let value = cell.value;
                                     rsx! {
-                                        PrimitiveAzTableCell { class: class, "{value}" }
+                                        PrimitiveAzTableCell {
+                                            class: class,
+                                            style: sticky_style_for_index(&props.columns, index),
+                                            "{value}"
+                                        }
                                     }
                                 })}
                             }
@@ -191,15 +205,47 @@ fn normalize_cells(row: &AzDataTableRow, column_count: usize) -> Vec<AzDataTable
 fn build_header_class(column: &AzDataTableColumn) -> String {
     join_classes([
         column.align.class_name(),
+        frozen_column_class(column.frozen),
         column.class.as_deref().unwrap_or_default(),
     ])
 }
 
-fn build_cell_class(user_class: Option<&str>, align: Option<AzDataTableAlign>) -> String {
+fn build_cell_class(
+    user_class: Option<&str>,
+    align: Option<AzDataTableAlign>,
+    frozen: bool,
+) -> String {
     join_classes([
         align.unwrap_or_default().class_name(),
+        frozen_column_class(frozen),
         user_class.unwrap_or_default(),
     ])
+}
+
+fn frozen_column_class(frozen: bool) -> &'static str {
+    if frozen {
+        "az-table__cell--frozen"
+    } else {
+        ""
+    }
+}
+
+fn sticky_style(column: &AzDataTableColumn) -> String {
+    if column.frozen {
+        format!(
+            "left:{};",
+            column.sticky_left.as_deref().unwrap_or("0px")
+        )
+    } else {
+        String::new()
+    }
+}
+
+fn sticky_style_for_index(columns: &[AzDataTableColumn], index: usize) -> String {
+    columns
+        .get(index)
+        .map(sticky_style)
+        .unwrap_or_default()
 }
 
 fn join_classes<const N: usize>(parts: [&str; N]) -> String {
@@ -239,12 +285,16 @@ mod tests {
                 header: "Name".into(),
                 class: None,
                 align: AzDataTableAlign::Start,
+                frozen: false,
+                sticky_left: None,
             },
             AzDataTableColumn {
                 key: "role".into(),
                 header: "Role".into(),
                 class: None,
                 align: AzDataTableAlign::Center,
+                frozen: false,
+                sticky_left: None,
             },
         ];
         let rows = vec![AzDataTableRow {

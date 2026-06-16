@@ -14,11 +14,12 @@ use crate::{
         routes::{LowcodeApiState, lowcode_router},
         store::LowcodeStore,
     },
-    ui::page::LowcodePage,
+    ui::{page::LowcodePage, sidebar::LowcodeSidebar},
 };
 
 const PLUGIN_ID: &str = "lowcode";
 const RENDERER_ID: &str = "lowcode.page";
+const SIDEBAR_RENDERER_ID: &str = "lowcode.sidebar";
 const ROUTE: &str = "/lowcode";
 
 #[derive(Default)]
@@ -64,6 +65,13 @@ impl NativeAzAioPlugin for LowcodePlugin {
                 renderer_id: RENDERER_ID.into(),
                 route: Some(ROUTE.into()),
                 order: 50,
+            }, UiContribution {
+                id: "lowcode.ui.sidebar".into(),
+                slot: UiContributionSlot::AppSidebar,
+                label: "Lowcode 侧边栏".into(),
+                renderer_id: SIDEBAR_RENDERER_ID.into(),
+                route: Some(ROUTE.into()),
+                order: 50,
             }],
             backend_apis: vec![BackendApiContribution {
                 id: "lowcode.api.meta".into(),
@@ -73,7 +81,12 @@ impl NativeAzAioPlugin for LowcodePlugin {
                 description: "返回所有 MetaModel 及其字段统计".into(),
                 order: 10,
             }],
-            ..Default::default()
+            toolbar_actions: Vec::new(),
+            catalog_providers: Vec::new(),
+            settings_sections: Vec::new(),
+            shell_entries: Vec::new(),
+            generated_files: Vec::new(),
+            ..ContributionSet::default()
         })
     }
 
@@ -91,12 +104,20 @@ impl NativeAzAioPlugin for LowcodePlugin {
             RecordStore::init_db(db.clone());
         }
 
-        let renderers = vec![NativeUiRenderer {
-            renderer_id: RENDERER_ID.into(),
-            slot: UiContributionSlot::Content,
-            route: Some(ROUTE.into()),
-            render: LowcodePage,
-        }];
+        let renderers = vec![
+            NativeUiRenderer {
+                renderer_id: RENDERER_ID.into(),
+                slot: UiContributionSlot::Content,
+                route: Some(ROUTE.into()),
+                render: LowcodePage,
+            },
+            NativeUiRenderer {
+                renderer_id: SIDEBAR_RENDERER_ID.into(),
+                slot: UiContributionSlot::AppSidebar,
+                route: Some(ROUTE.into()),
+                render: LowcodeSidebar,
+            },
+        ];
 
         let router = lowcode_router(LowcodeApiState { store: api_store });
 
@@ -111,4 +132,49 @@ impl NativeAzAioPlugin for LowcodePlugin {
 #[Singleton(name = "lowcode")]
 pub fn lowcode_plugin() -> DynNativeAzAioPlugin {
     Arc::new(LowcodePlugin)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{contract::layout_descriptors, metadata::metadata_provider, ui::page::strategy::layout_strategies};
+
+    #[test]
+    fn contributions_include_content_and_sidebar_slots() {
+        let contributions = LowcodePlugin.contributions().unwrap();
+
+        assert!(
+            contributions
+                .ui_contributions
+                .iter()
+                .any(|ui| ui.id == "lowcode.ui.content" && ui.slot == UiContributionSlot::Content)
+        );
+        assert!(
+            contributions
+                .ui_contributions
+                .iter()
+                .any(|ui| ui.id == "lowcode.ui.sidebar" && ui.slot == UiContributionSlot::AppSidebar)
+        );
+    }
+
+    #[test]
+    fn metadata_provider_exposes_configurable_lowcode_menus_and_models() {
+        let metadata = metadata_provider();
+        let menus = metadata.menus().unwrap();
+        let models = metadata.models().unwrap();
+
+        assert!(menus.iter().any(|menu| menu.id == "lowcode.screens"));
+        assert!(models.iter().any(|model| model.name == "Project"));
+    }
+
+    #[test]
+    fn lowcode_layout_descriptors_include_builtin_strategies() {
+        let layouts = layout_descriptors(&layout_strategies());
+
+        assert!(
+            layouts
+                .iter()
+                .any(|layout| layout.code == "MasterDetail")
+        );
+    }
 }

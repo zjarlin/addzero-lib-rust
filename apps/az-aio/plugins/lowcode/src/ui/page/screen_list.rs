@@ -1,8 +1,17 @@
+use az_dioxus_components::{
+    az_accordion::AzAccordion,
+    az_badge::{AzBadge, AzBadgeTone},
+    az_button::{AzButton, AzButtonLink, AzButtonTone},
+    az_form::{AzFormRow, AzInput, AzSelect, AzSelectOption},
+    az_table::{AzTable, AzTableBody, AzTableCell, AzTableHead, AzTableHeaderCell, AzTableRow},
+    az_workbench::{AzPageHeader, AzTableViewport, AzWorkbenchPage},
+};
 use dioxus::prelude::*;
 
-use crate::backend::model::AppScreenSummary;
-use crate::ui::page::helpers::{get_store, layout_label};
+use crate::backend::model::{AppScreenSummary, MetaModelSummary};
 use crate::backend::record::RecordStore;
+use crate::ui::page::helpers::{get_store, LowcodeActionForm};
+use crate::ui::page::strategy::available_layouts;
 
 struct ScreenWithCount {
     s: AppScreenSummary,
@@ -15,6 +24,7 @@ pub fn render_screen_list_page() -> Element {
     let models = store.list_models_sync();
     let lowcode_route = "/lowcode";
     let rec_store = RecordStore::global();
+    let layouts = available_layouts();
 
     // Pre-compute counts to avoid "let" inside rsx! (SSR limitation)
     let screens_with_counts: Vec<ScreenWithCount> = screens
@@ -26,130 +36,87 @@ pub fn render_screen_list_page() -> Element {
         .collect();
 
     rsx! {
-        section { class: "lowcode-page",
-            header { class: "lowcode-page__header",
-                h1 { "页面列表" }
-                p { "低代码生成的页面 · 选择以预览" }
-                a {
-                    href: "/?route={lowcode_route}",
-                    class: "toolbar-button",
-                    style: "margin-top: 8px;",
+        AzWorkbenchPage {
+            AzPageHeader {
+                title: "页面列表",
+                subtitle: "低代码生成的页面 · 选择以预览",
+                AzButtonLink {
+                    href: format!("/?route={lowcode_route}"),
                     "← 返回建模"
                 }
             }
-            details { class: "lowcode-accordion",
-                summary { class: "lowcode-accordion__summary", "＋ 新建页面" }
-                div { class: "lowcode-accordion__body",
-                    form {
-                        method: "get",
-                        action: "/",
-                        input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                        input { r#type: "hidden", name: "action", value: "new-screen" }
-                        div { class: "settings-form-row",
-                            label { "名称 (英文)" }
-                            input { class: "settings-input", name: "scr_name", placeholder: "my-table", required: "required" }
+            AzAccordion { title: "＋ 新建页面",
+                    LowcodeActionForm { action_name: "new-screen",
+                        AzFormRow { label: "名称 (英文)", required: true,
+                            AzInput { name: "scr_name", placeholder: "my-table", required: true }
                         }
-                        div { class: "settings-form-row",
-                            label { "标签" }
-                            input { class: "settings-input", name: "scr_label", placeholder: "我的表格", required: "required" }
+                        AzFormRow { label: "标签", required: true,
+                            AzInput { name: "scr_label", placeholder: "我的表格", required: true }
                         }
-                        div { class: "settings-form-row",
-                            label { "布局" }
-                            select { class: "settings-input", name: "scr_layout",
-                                option { value: "Table", "增删改查表格" }
-                                option { value: "MasterDetail", "左树右表" }
-                                option { value: "Accordion", "手风琴" }
-                                option { value: "Form", "表单" }
-                                option { value: "TreeTable", "树形表格" }
-                            }
+                        AzFormRow { label: "布局",
+                            AzSelect { name: "scr_layout", options: layout_options(&layouts, None) }
                         }
-                        div { class: "settings-form-row",
-                            label { "绑定模型" }
-                            select { class: "settings-input", name: "scr_model_id",
-                                for m in &models {
-                                    option { value: "{m.id}", "{m.label} ({m.name})" }
-                                }
-                            }
+                        AzFormRow { label: "绑定模型",
+                            AzSelect { name: "scr_model_id", options: model_options(&models, None) }
                         }
-                        button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "创建" }
+                        AzButton { tone: AzButtonTone::Primary, button_type: "submit", "创建" }
                     }
-                }
             }
-            div { class: "lowcode-table-scroll",
-                table { class: "az-table az-table--bordered az-table--dense",
-                    thead {
-                        tr {
-                            th { class: "az-table__header-cell", "名称" }
-                            th { class: "az-table__header-cell", "标签" }
-                            th { class: "az-table__header-cell", "布局" }
-                            th { class: "az-table__header-cell", "绑定模型" }
-                            th { class: "az-table__header-cell", "记录数" }
-                            th { class: "az-table__header-cell", "操作" }
+            AzTableViewport {
+                AzTable { bordered: true, dense: true,
+                    AzTableHead {
+                        AzTableRow {
+                            AzTableHeaderCell { "名称" }
+                            AzTableHeaderCell { "标签" }
+                            AzTableHeaderCell { "布局" }
+                            AzTableHeaderCell { "绑定模型" }
+                            AzTableHeaderCell { "记录数" }
+                            AzTableHeaderCell { "操作" }
                         }
                     }
-                    tbody { class: "az-table__body",
+                    AzTableBody {
                         if screens_with_counts.is_empty() {
-                            tr {
-                                td { class: "az-table__cell az-table__cell--empty", colspan: "6",
+                            AzTableRow {
+                                AzTableCell { class: "az-table__cell--empty", colspan: 6,
                                     "暂无页面"
                                 }
                             }
                         } else {
                             for sc in &screens_with_counts {
-                                tr {
-                                    td { class: "az-table__cell", code { "{sc.s.name}" } }
-                                    td { class: "az-table__cell", "{sc.s.label}" }
-                                    td { class: "az-table__cell",
-                                        span { class: "az-badge", "{layout_label(&sc.s.layout)}" }
+                                AzTableRow {
+                                    AzTableCell { code { "{sc.s.name}" } }
+                                    AzTableCell { "{sc.s.label}" }
+                                    AzTableCell {
+                                        AzBadge { "{layout_label_from_descriptors(&layouts, &sc.s.layout)}" }
                                     }
-                                    td { class: "az-table__cell", "{sc.s.model_name}" }
-                                    td { class: "az-table__cell",
-                                        span { class: "az-badge az-badge--accent", "{sc.count}" }
+                                    AzTableCell { "{sc.s.model_name}" }
+                                    AzTableCell {
+                                        AzBadge { tone: AzBadgeTone::Accent, "{sc.count}" }
                                     }
-                                    td { class: "az-table__cell",
-                                        a {
-                                            href: "/?route={lowcode_route}&screen={sc.s.id}",
-                                            class: "toolbar-button",
+                                    AzTableCell {
+                                        AzButtonLink {
+                                            href: format!("/?route={lowcode_route}&screen={}", sc.s.id),
                                             "预览"
                                         }
-                                        details { class: "lowcode-accordion",
-                                            summary { class: "lowcode-accordion__summary", style: "font-size: 10px; padding: 2px 6px;", "编辑" }
-                                            div { class: "lowcode-accordion__body",
-                                                form {
-                                                    method: "get",
-                                                    action: "/",
-                                                    input { r#type: "hidden", name: "route", value: "{lowcode_route}" }
-                                                    input { r#type: "hidden", name: "action", value: "edit-screen" }
-                                                    input { r#type: "hidden", name: "scr_id", value: "{sc.s.id}" }
-                                                    div { class: "settings-form-row",
-                                                        label { "标签" }
-                                                        input { class: "settings-input", name: "scr_label", value: "{sc.s.label}", style: "font-size: 12px;" }
+                                        AzAccordion { title: "编辑", summary_class: "compact-summary",
+                                                LowcodeActionForm {
+                                                    action_name: "edit-screen",
+                                                    hidden_fields: vec![("scr_id".to_string(), sc.s.id.clone())],
+                                                    AzFormRow { label: "标签",
+                                                        AzInput { name: "scr_label", value: sc.s.label.clone(), class: "az-input--compact" }
                                                     }
-                                                    div { class: "settings-form-row",
-                                                        label { "布局" }
-                                                        select { class: "settings-input", name: "scr_layout",
-                                                            option { value: "Table", selected: sc.s.layout == "Table", "增删改查表格" }
-                                                            option { value: "MasterDetail", selected: sc.s.layout == "MasterDetail", "左树右表" }
-                                                            option { value: "Accordion", selected: sc.s.layout == "Accordion", "手风琴" }
-                                                            option { value: "Form", selected: sc.s.layout == "Form", "表单" }
-                                                            option { value: "TreeTable", selected: sc.s.layout == "TreeTable", "树形表格" }
-                                                        }
+                                                    AzFormRow { label: "布局",
+                                                        AzSelect { name: "scr_layout", options: layout_options(&layouts, Some(sc.s.layout.clone())) }
                                                     }
-                                                    div { class: "settings-form-row",
-                                                        label { "绑定模型" }
-                                                        select { class: "settings-input", name: "scr_model_id",
-                                                            for m in &models {
-                                                                option { value: "{m.id}", selected: sc.s.model_id == m.id, "{m.label} ({m.name})" }
-                                                            }
-                                                        }
+                                                    AzFormRow { label: "绑定模型",
+                                                        AzSelect { name: "scr_model_id", options: model_options(&models, Some(sc.s.model_id.clone())) }
                                                     }
-                                                    button { class: "toolbar-button toolbar-button--primary", r#type: "submit", style: "font-size: 11px;", "保存" }
+                                                    AzButton { tone: AzButtonTone::Primary, button_type: "submit", "保存" }
                                                 }
-                                            }
                                         }
-                                        a {
-                                            href: "/?route={lowcode_route}&mode=screens&action=delete-screen&scr_id={sc.s.id}",
-                                            class: "toolbar-button toolbar-button--danger",
+                                        AzButtonLink {
+                                            href: format!("/?route={lowcode_route}&mode=screens&action=delete-screen&scr_id={}", sc.s.id),
+                                            tone: AzButtonTone::Danger,
                                             "删除"
                                         }
                                     }
@@ -161,4 +128,38 @@ pub fn render_screen_list_page() -> Element {
             }
         }
     }
+}
+
+fn layout_label_from_descriptors(
+    layouts: &[crate::contract::LowcodeLayoutDescriptor],
+    code: &str,
+) -> String {
+    layouts
+        .iter()
+        .find(|layout| layout.code == code)
+        .map(|layout| layout.label.clone())
+        .unwrap_or_else(|| code.to_string())
+}
+
+fn layout_options(
+    layouts: &[crate::contract::LowcodeLayoutDescriptor],
+    current: Option<String>,
+) -> Vec<AzSelectOption> {
+    layouts
+        .iter()
+        .map(|layout| {
+            AzSelectOption::new(layout.code.clone(), layout.label.clone())
+                .selected(current.as_deref() == Some(layout.code.as_str()))
+        })
+        .collect()
+}
+
+fn model_options(models: &[MetaModelSummary], current: Option<String>) -> Vec<AzSelectOption> {
+    models
+        .iter()
+        .map(|model| {
+            AzSelectOption::new(model.id.clone(), format!("{} ({})", model.label, model.name))
+                .selected(current.as_deref() == Some(model.id.as_str()))
+        })
+        .collect()
 }

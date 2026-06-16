@@ -299,7 +299,7 @@ async fn create_screen(
         layout: input.layout.clone(),
         model_id: input.model_id.clone(),
         config_json: if input.config_json.is_empty() || input.config_json == "{}" {
-            crate::ui::page::auto_config_json(
+            crate::ui::page::strategy::auto_config_json_for_layout(
                 &input.layout.clone(),
                 &s.store.list_fields_sync(&input.model_id.clone()),
             )

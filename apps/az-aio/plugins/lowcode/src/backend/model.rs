@@ -191,6 +191,10 @@ pub struct TableConfig {
     pub searchable_fields: Vec<String>,
     #[serde(default)]
     pub page_size: usize,
+    #[serde(default = "default_true")]
+    pub frozen_header: bool,
+    #[serde(default = "default_frozen_columns")]
+    pub frozen_columns: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -201,6 +205,14 @@ pub struct TableColumn {
     pub sortable: bool,
     #[serde(default)]
     pub width: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_frozen_columns() -> usize {
+    1
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
