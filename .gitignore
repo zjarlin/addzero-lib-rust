@@ -16,7 +16,6 @@ node_modules
 .idea/
 *.iml
 .DS_Store
-.agents/skills/rust-best-practices/.DS_Store
 .playwright-mcp
 target
 .next
@@ -31,3 +30,14 @@ crates/storage/gitdb/data/gitdb
 *sync-conflict*
 .vscode/
 .dioxus-buddy
+
+# Local agent/editor configuration and generated artifacts.
+/.Codex/
+/.agents/
+/.claude/
+/.codex-artifacts/
+/.kiro/
+/.run/
+/.zed/
+/CLAUDE.md
+/az-aio-algorithms-grid.png

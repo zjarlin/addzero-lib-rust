@@ -1,4 +1,0 @@
-interface:
-  display_name: "Rust Automod Convention"
-  short_description: "Enforce automod-based Rust module layout"
-  default_prompt: "Use $rust-convention-automod when adding or reorganizing Rust crate modules."
