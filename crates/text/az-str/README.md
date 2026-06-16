@@ -7,8 +7,9 @@
 - **大小写转换**：支持 `CamelCase`、`PascalCase`、`snake_case`、`kebab-case`、`CONSTANT_CASE` 等多种命名风格互转
 - **KMP 字符串匹配**：基于 KMP 算法的模式搜索、查找所有匹配位置、替换
 - **格式化模板**：类 C 风格的 `%s` / `%d` / `%f` / `%x` / `%.2f` 模板字符串替换
-- **HTML/文本处理**：提取 `<p>` 标签内容、清理空白字符、提取 Markdown 代码块
+- **HTML/文本处理**：提取 `<p>` 标签内容、清理空白字符、截断文本、轻量 HTML 实体解码、提取 Markdown 代码块
 - **路径工具**：从路径创建父目录、从右侧去除路径段
+- **路径/Slug 清洗**：安全路径片段、文件 stem、ASCII slug、斜杠路径展示
 - **空值安全**：所有公开函数默认接受 `Option<&str>`，无需手动判空
 - **中文检测**：判断字符串是否包含中文字符、提取纯中文内容
 - **键值对解析**：从文本中提取 `key: value` 或 `key：value` 格式的键值对
@@ -92,7 +93,11 @@ assert_eq!(clean_blank(Some("  hello   world  ")), "hello world");
 ### HTML / Markdown 文本提取
 
 ```rust
-use az_str::api::{extract_text_between_p_tags, extract_markdown_block_content, make_surround_with_html_p};
+use az_str::api::{
+    MarkdownListMarkerMode, clean_markdown_plain_text, collapse_whitespace,
+    extract_markdown_block_content, extract_text_between_p_tags, make_surround_with_html_p,
+    truncate_chars_with_ellipsis, unescape_basic_html_entities,
+};
 
 let html = "<p>first</p><p>second</p>";
 assert_eq!(extract_text_between_p_tags(Some(html)), vec!["first", "second"]);
@@ -101,6 +106,13 @@ let md = "```json\n{\"key\": \"value\"}\n```";
 assert_eq!(extract_markdown_block_content(Some(md)), "{\"key\": \"value\"}");
 
 assert_eq!(make_surround_with_html_p(Some("content")), "<p>content</p>");
+assert_eq!(collapse_whitespace("  a\t\n b  "), "a b");
+assert_eq!(truncate_chars_with_ellipsis("你好世界", 2), "你好…");
+assert_eq!(unescape_basic_html_entities("A &amp; B"), "A & B");
+assert_eq!(
+    clean_markdown_plain_text("- item\n```rust\nfn main() {}\n```", MarkdownListMarkerMode::Strip),
+    "item"
+);
 ```
 
 ### 中文检测与过滤
@@ -127,12 +139,15 @@ assert_eq!(pairs.get("age").map(String::as_str), Some("30"));
 
 ```rust
 use az_str::api::{parent_path_and_mkdir, get_path_from_right, with_pkg};
+use az_str::sanitize::{sanitize_path_segment, to_slug};
 
 // 在指定路径下创建子目录
 let _ = parent_path_and_mkdir("/tmp/az-str-test", "subdir");
 
 assert_eq!(get_path_from_right("com.example.MyClass", 1), "com.example");
 assert_eq!(with_pkg("src/main", "com.example"), "src/main/com/example");
+assert_eq!(sanitize_path_segment(" a/b:C.mp4 "), "a-b-C.mp4");
+assert_eq!(to_slug("Café Tool.md"), "cafe-tool-md");
 ```
 
 ## 依赖的 crates

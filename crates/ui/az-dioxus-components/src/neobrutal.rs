@@ -1,32 +1,26 @@
 //! Neobrutalism-inspired SSR primitives for Dioxus pages.
 //!
-//! These components intentionally mirror only the reusable visual language:
-//! bold borders, hard shadows, high contrast fills, compact layout blocks.
-//! They do not depend on the original React/shadcn implementation.
+//! These components provide only reusable visual structure: bold borders,
+//! hard shadows, high contrast fills, compact layout blocks, and stable class
+//! names for server-rendered applications.
 
 use dioxus::prelude::*;
 
-fn class_name(base: &str, extra: &str, modifiers: &[(&str, bool)]) -> String {
-    let extra = extra.trim();
-    let mut classes = Vec::with_capacity(1 + modifiers.len() + usize::from(!extra.is_empty()));
-    classes.push(base.to_string());
-    classes.extend(
-        modifiers
-            .iter()
-            .filter(|(_, enabled)| *enabled)
-            .map(|(name, _)| (*name).to_string()),
-    );
-    if !extra.is_empty() {
-        classes.push(extra.to_string());
-    }
-    classes.join(" ")
-}
+use crate::util::class_name::compose_class;
+
+automod::dir!(pub "src/neobrutal");
+
+pub use shell::{
+    NbContentSlot, NbFloatingPanelSlot, NbHeaderBar, NbIconButton, NbModelButton, NbNavLink,
+    NbPluginGroup, NbProjectLayout, NbRightSlot, NbShell, NbSidebar, NbSidebarToggle,
+    NbTitlebarControls, NbTitlebarNav, NbWorkspace, NbWorkspaceBody,
+};
 
 /// Full-page surface with a graph-paper background.
 #[allow(non_snake_case)]
 #[component]
 pub fn NbPage(children: Element, #[props(default, into)] class: String) -> Element {
-    let root_class = class_name("nb-page", &class, &[]);
+    let root_class = compose_class("nb-page", &class, &[]);
 
     rsx! {
         section { class: root_class, {children} }
@@ -41,7 +35,7 @@ pub fn NbHero(
     #[props(default, into)] class: String,
     #[props(default)] compact: bool,
 ) -> Element {
-    let hero_class = class_name("nb-hero", &class, &[("nb-hero--compact", compact)]);
+    let hero_class = compose_class("nb-hero", &class, &[("nb-hero--compact", compact)]);
 
     rsx! {
         header { class: hero_class, {children} }
@@ -57,7 +51,7 @@ pub fn NbCard(
     #[props(default)] accent: bool,
     #[props(default)] selected: bool,
 ) -> Element {
-    let card_class = class_name(
+    let card_class = compose_class(
         "nb-card",
         &class,
         &[("nb-card--accent", accent), ("nb-card--selected", selected)],
@@ -77,7 +71,7 @@ pub fn NbLinkButton(
     #[props(default, into)] class: String,
     #[props(default)] primary: bool,
 ) -> Element {
-    let button_class = class_name("nb-button", &class, &[("nb-button--primary", primary)]);
+    let button_class = compose_class("nb-button", &class, &[("nb-button--primary", primary)]);
 
     rsx! {
         a { class: button_class, href: href, {children} }
@@ -93,7 +87,7 @@ pub fn NbButton(
     #[props(default)] primary: bool,
     #[props(default = String::from("button"), into)] button_type: String,
 ) -> Element {
-    let button_class = class_name("nb-button", &class, &[("nb-button--primary", primary)]);
+    let button_class = compose_class("nb-button", &class, &[("nb-button--primary", primary)]);
 
     rsx! {
         button { class: button_class, r#type: "{button_type}", {children} }
@@ -108,7 +102,7 @@ pub fn NbBlockTitle(
     #[props(default, into)] subtitle: String,
     #[props(default, into)] class: String,
 ) -> Element {
-    let title_class = class_name("nb-block-title", &class, &[]);
+    let title_class = compose_class("nb-block-title", &class, &[]);
 
     rsx! {
         div { class: title_class,
@@ -124,7 +118,7 @@ pub fn NbBlockTitle(
 #[allow(non_snake_case)]
 #[component]
 pub fn NbEyebrow(children: Element, #[props(default, into)] class: String) -> Element {
-    let eyebrow_class = class_name("nb-eyebrow", &class, &[]);
+    let eyebrow_class = compose_class("nb-eyebrow", &class, &[]);
 
     rsx! {
         p { class: eyebrow_class, {children} }
@@ -139,7 +133,7 @@ pub fn NbBadge(
     #[props(default, into)] class: String,
     #[props(default)] accent: bool,
 ) -> Element {
-    let badge_class = class_name("nb-badge", &class, &[("nb-badge--accent", accent)]);
+    let badge_class = compose_class("nb-badge", &class, &[("nb-badge--accent", accent)]);
 
     rsx! {
         span { class: badge_class, {children} }
@@ -150,7 +144,7 @@ pub fn NbBadge(
 #[allow(non_snake_case)]
 #[component]
 pub fn NbGrid(children: Element, #[props(default, into)] class: String) -> Element {
-    let grid_class = class_name("nb-grid", &class, &[]);
+    let grid_class = compose_class("nb-grid", &class, &[]);
 
     rsx! {
         div { class: grid_class, {children} }
@@ -161,7 +155,7 @@ pub fn NbGrid(children: Element, #[props(default, into)] class: String) -> Eleme
 #[allow(non_snake_case)]
 #[component]
 pub fn NbSplit(children: Element, #[props(default, into)] class: String) -> Element {
-    let split_class = class_name("nb-split", &class, &[]);
+    let split_class = compose_class("nb-split", &class, &[]);
 
     rsx! {
         div { class: split_class, {children} }
@@ -177,7 +171,7 @@ pub fn NbField(
     #[props(default, into)] hint: String,
     #[props(default, into)] class: String,
 ) -> Element {
-    let field_class = class_name("nb-field", &class, &[]);
+    let field_class = compose_class("nb-field", &class, &[]);
 
     rsx! {
         label { class: field_class,
@@ -194,7 +188,7 @@ pub fn NbField(
 #[allow(non_snake_case)]
 #[component]
 pub fn NbCodeBlock(code: String, #[props(default, into)] class: String) -> Element {
-    let code_class = class_name("nb-code", &class, &[]);
+    let code_class = compose_class("nb-code", &class, &[]);
 
     rsx! {
         pre { class: code_class,

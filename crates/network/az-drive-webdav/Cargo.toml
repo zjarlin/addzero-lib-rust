@@ -16,6 +16,7 @@ axum.workspace = true
 az-derive-aliases.workspace = true
 az-drive-core.workspace = true
 az-drive-store.workspace = true
+az-str.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 uuid.workspace = true

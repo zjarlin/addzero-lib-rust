@@ -4,6 +4,7 @@ use axum::{
     http::StatusCode,
     routing::{get, post},
 };
+use az_str::sanitize::sanitize_path_segment;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -184,18 +185,6 @@ fn selected_algorithms(
     };
 
     Ok(selected)
-}
-
-fn sanitize_path_segment(input: &str) -> String {
-    let value = input
-        .chars()
-        .map(|ch| match ch {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-' | '_' => ch,
-            _ => '-',
-        })
-        .collect::<String>();
-
-    value.trim_matches('-').to_string()
 }
 
 fn api_error(

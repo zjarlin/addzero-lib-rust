@@ -13,6 +13,7 @@ axum.workspace = true
 az-aio-platform = { path = "../../platform" }
 automod.workspace = true
 az-derive-aliases.workspace = true
+az-str.workspace = true
 dioxus.workspace = true
 rudi.workspace = true
 serde.workspace = true

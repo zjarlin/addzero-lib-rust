@@ -4,6 +4,10 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use anyhow::{Context, anyhow, bail};
+use az_str::{
+    api::unescape_basic_html_entities,
+    sanitize::{title_case_slug, to_slug},
+};
 use regex::Regex;
 use reqwest::{Client, Url};
 
@@ -103,8 +107,8 @@ pub(crate) async fn fetch_metadata(
         extract_icon_url(&body, &final_url)?.unwrap_or_else(|| default_favicon_url(&final_url));
 
     Ok(SoftwareMetadataDto {
-        title: html_unescape(&title),
-        summary: html_unescape(&summary),
+        title: unescape_basic_html_entities(&title),
+        summary: unescape_basic_html_entities(&summary),
         homepage_url: final_url.to_string(),
         icon_url,
     })
@@ -349,7 +353,7 @@ fn infer_slug(metadata: &SoftwareMetadataDto) -> anyhow::Result<String> {
     }
 
     for candidate in candidates {
-        let slug = slugify(&candidate);
+        let slug = to_slug(&candidate);
         if !slug.is_empty() {
             return Ok(slug);
         }
@@ -395,7 +399,7 @@ fn infer_vendor(metadata: &SoftwareMetadataDto, title: &str) -> String {
 fn infer_tags(slug: &str, title: &str, vendor: &str) -> Vec<String> {
     let mut tags = Vec::new();
     for keyword in [slug, title, vendor] {
-        let normalized = slugify(keyword);
+        let normalized = to_slug(keyword);
         match normalized.as_str() {
             "cursor" | "vscode" | "visualstudiocode" | "zed" | "windsurf" => {
                 push_tag(&mut tags, "ide");
@@ -509,40 +513,6 @@ fn push_tag(tags: &mut Vec<String>, value: &str) {
     }
 }
 
-fn slugify(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() {
-                ch.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>()
-        .split('-')
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
-}
-
-fn title_case_slug(value: &str) -> String {
-    value
-        .split(['-', '_', '.'])
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            let mut chars = part.chars();
-            let Some(first) = chars.next() else {
-                return String::new();
-            };
-            let mut word = first.to_uppercase().collect::<String>();
-            word.push_str(chars.as_str());
-            word
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
 fn same_insensitive(left: &str, right: &str) -> bool {
     left.eq_ignore_ascii_case(right)
 }
@@ -572,22 +542,15 @@ fn default_favicon_url(url: &Url) -> String {
     favicon.to_string()
 }
 
-fn html_unescape(value: &str) -> String {
-    value
-        .replace("&amp;", "&")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&nbsp;", " ")
-}
-
 #[cfg(test)]
 mod tests {
-    use super::html_unescape;
+    use az_str::api::unescape_basic_html_entities;
 
     #[test]
     fn html_unescape_should_decode_common_entities() {
-        assert_eq!(html_unescape("A &amp; B &quot;C&quot;"), "A & B \"C\"");
+        assert_eq!(
+            unescape_basic_html_entities("A &amp; B &quot;C&quot;"),
+            "A & B \"C\""
+        );
     }
 }

@@ -1,5 +1,9 @@
 use az_derive_aliases::{apply, plain_clone};
 use az_persistence::context::PersistenceContext;
+use az_str::{
+    api::{MarkdownListMarkerMode, clean_markdown_plain_text, truncate_chars},
+    sanitize::to_slug,
+};
 use chrono::Utc;
 use sha2::{Digest, Sha256};
 
@@ -176,10 +180,10 @@ fn build_manual_document(
     let slug = format!(
         "{}-{}-{}",
         input.source_slug,
-        slugify(&input.relative_path),
+        to_slug(&input.relative_path),
         &content_hash[..8]
     );
-    let cleaned = clean_text(&content);
+    let cleaned = clean_markdown_plain_text(&content, MarkdownListMarkerMode::Keep);
     KnowledgeDocument {
         source_slug: input.source_slug.clone(),
         source_name: input.source_name.clone(),
@@ -290,46 +294,4 @@ fn compute_hash(content: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
     format!("{:x}", hasher.finalize())
-}
-
-fn slugify(value: &str) -> String {
-    let normalized = deunicode::deunicode(value);
-    let mut slug = String::new();
-    let mut last_dash = false;
-
-    for ch in normalized.chars() {
-        let lowered = ch.to_ascii_lowercase();
-        if lowered.is_ascii_alphanumeric() {
-            slug.push(lowered);
-            last_dash = false;
-        } else if !last_dash {
-            slug.push('-');
-            last_dash = true;
-        }
-    }
-
-    slug.trim_matches('-').to_string()
-}
-
-fn clean_text(content: &str) -> String {
-    let mut in_code_block = false;
-    let mut lines = Vec::new();
-
-    for raw in content.lines() {
-        let line = raw.trim();
-        if line.starts_with("```") {
-            in_code_block = !in_code_block;
-            continue;
-        }
-        if in_code_block || line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        lines.push(line);
-    }
-
-    lines.join(" ")
-}
-
-fn truncate_chars(text: &str, limit: usize) -> String {
-    text.chars().take(limit).collect()
 }

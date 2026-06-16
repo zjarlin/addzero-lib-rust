@@ -8,6 +8,7 @@ use anyhow::{Context, Result, bail};
 use az_derive_aliases::{
     apply, plain_eq, serde_eq, serde_eq_default, serde_eq_hash, serde_eq_hash_ord_display,
 };
+use az_str::sanitize::sanitize_ascii_label;
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -534,16 +535,7 @@ fn lexical_normalize(path: &Path) -> PathBuf {
 }
 
 fn sanitize_conflict_part(value: &str) -> String {
-    let sanitized = value
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
-                ch
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>();
+    let sanitized = sanitize_ascii_label(value, "-_", '-');
     if sanitized.is_empty() {
         "device".to_owned()
     } else {

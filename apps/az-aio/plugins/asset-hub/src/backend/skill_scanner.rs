@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::{Context, anyhow};
 use az_derive_aliases::{apply, serialize_camel_eq};
+use az_str::sanitize::to_slug;
 
 const BUILT_IN_TAGS: &[&str] = &[
     "gradle",
@@ -73,7 +74,7 @@ fn scan_skill_dir(path: &Path) -> anyhow::Result<Option<ScannedSkillAsset>> {
     tags.dedup();
 
     Ok(Some(ScannedSkillAsset {
-        id: format!("skill-{}", slugify(&name)),
+        id: format!("skill-{}", to_slug(&name)),
         name,
         asset_type: "skill".to_string(),
         source: skill_path.to_string_lossy().into_owned(),
@@ -110,23 +111,6 @@ fn detected_tags(content: &str) -> Vec<String> {
         .filter(|tag| lower.contains(**tag))
         .map(|tag| (*tag).to_string())
         .collect()
-}
-
-fn slugify(value: &str) -> String {
-    let slug = value
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() {
-                ch.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>();
-    slug.split('-')
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
 }
 
 fn skill_root() -> anyhow::Result<PathBuf> {

@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use az_derive_aliases::{apply, serialize_debug};
+use az_str::api::escape_xml;
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
@@ -298,12 +299,4 @@ fn home_dir() -> Option<PathBuf> {
 fn zsh_single_quote(path: &Path) -> String {
     let value = path.to_string_lossy();
     format!("'{}'", value.replace('\'', "'\\''"))
-}
-
-fn escape_xml(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
 }

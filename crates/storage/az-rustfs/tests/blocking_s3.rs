@@ -4,6 +4,7 @@ use az_rustfs::{
     progress::{PartInfo, PartStatus},
     types::S3ClientConfig,
 };
+use az_str::api::escape_xml;
 use quick_xml::Reader;
 use quick_xml::events::Event;
 use std::collections::{BTreeMap, HashMap};
@@ -1064,13 +1065,4 @@ fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     haystack
         .windows(needle.len())
         .position(|window| window == needle)
-}
-
-fn escape_xml(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
 }

@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use az_dict_spec::api::{DictionaryItemSpec, DictionarySpec, RawValueKind};
+use az_str::sanitize::sanitize_file_stem as sanitize_ascii_file_stem;
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
@@ -310,14 +311,7 @@ fn ruoyi_meta_json(row: &RuoyiDictRow) -> Option<Value> {
 
 fn sanitize_file_stem(value: &str) -> Result<String> {
     ensure_non_empty("dictionary code", value)?;
-    let mut stem = String::new();
-    for ch in value.chars() {
-        if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
-            stem.push(ch);
-        } else {
-            stem.push('_');
-        }
-    }
+    let stem = sanitize_ascii_file_stem(value);
     if stem == "." || stem == ".." {
         bail!("invalid dictionary contribution: dictionary code {value} is not a valid file stem");
     }

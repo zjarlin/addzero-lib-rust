@@ -13,6 +13,7 @@ use az_drive_store::api::{
     DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES, DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator,
     GitDbObjectStore, GitDbObjectStoreConfig, GitPoolConfig, GitPoolDriveStore, GitPoolRepoConfig,
 };
+use az_str::sanitize::sanitize_file_stem;
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
@@ -72,17 +73,7 @@ pub fn default_space_id() -> String {
 /// Stable per-user Drive owner id used by API-key authorization.
 #[must_use]
 pub fn owner_drive_id_for_username(username: &str) -> String {
-    let safe = username
-        .trim()
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_') {
-                ch
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>();
+    let safe = sanitize_file_stem(username.trim());
     if safe.is_empty() {
         "main".to_owned()
     } else {

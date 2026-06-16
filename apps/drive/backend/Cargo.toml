@@ -19,6 +19,7 @@ az-drive-core.workspace = true
 az-drive-store.workspace = true
 az-drive-webdav.workspace = true
 az-derive-aliases.workspace = true
+az-str.workspace = true
 base64.workspace = true
 chrono.workspace = true
 clap = { version = "4.5.38", features = ["derive"] }

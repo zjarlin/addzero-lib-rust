@@ -1,7 +1,10 @@
 use std::{fs, path::Path};
 
+use az_str::{
+    api::{MarkdownListMarkerMode, clean_markdown_plain_text, truncate_chars_with_ellipsis},
+    sanitize::to_slug_or,
+};
 use chrono::Utc;
-use deunicode::deunicode;
 use sha2::{Digest, Sha256};
 
 use crate::types::{KnowledgeDocument, KnowledgeScan, KnowledgeSourceSpec};
@@ -121,14 +124,14 @@ fn build_document(source: &KnowledgeSourceSpec, path: &Path) -> Option<Knowledge
         .to_string();
     let title = extract_title(&content, path);
     let headings = extract_headings(&content);
-    let cleaned = clean_text(&content);
-    let preview = truncate_chars(&cleaned, 110);
-    let excerpt = truncate_chars(&cleaned, 900);
+    let cleaned = clean_markdown_plain_text(&content, MarkdownListMarkerMode::Strip);
+    let preview = truncate_chars_with_ellipsis(&cleaned, 110);
+    let excerpt = truncate_chars_with_ellipsis(&cleaned, 900);
     let content_hash = compute_hash(&content);
     let slug = format!(
         "{}-{}-{}",
         source.slug,
-        slugify(&relative_path),
+        to_slug_or(&relative_path, "doc"),
         &content_hash[..8]
     );
 
@@ -232,73 +235,14 @@ fn extract_headings(content: &str) -> Vec<String> {
         .collect()
 }
 
-fn clean_text(content: &str) -> String {
-    let mut in_code_block = false;
-    let mut lines = Vec::new();
-
-    for raw in content.lines() {
-        let line = raw.trim();
-        if line.starts_with("```") {
-            in_code_block = !in_code_block;
-            continue;
-        }
-        if in_code_block || line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        lines.push(
-            line.strip_prefix("- ")
-                .or_else(|| line.strip_prefix("* "))
-                .unwrap_or(line),
-        );
-    }
-
-    lines.join(" ")
-}
-
 fn cleanup_stem(stem: &str) -> String {
     stem.replace(['-', '_'], " ")
-}
-
-fn truncate_chars(text: &str, limit: usize) -> String {
-    let mut result = String::new();
-    for (count, ch) in text.chars().enumerate() {
-        if count == limit {
-            result.push('…');
-            break;
-        }
-        result.push(ch);
-    }
-    result
 }
 
 fn compute_hash(content: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
     format!("{:x}", hasher.finalize())
-}
-
-fn slugify(value: &str) -> String {
-    let normalized = deunicode(value);
-    let mut slug = String::new();
-    let mut last_dash = false;
-
-    for ch in normalized.chars() {
-        let lowered = ch.to_ascii_lowercase();
-        if lowered.is_ascii_alphanumeric() {
-            slug.push(lowered);
-            last_dash = false;
-        } else if !last_dash {
-            slug.push('-');
-            last_dash = true;
-        }
-    }
-
-    let trimmed = slug.trim_matches('-');
-    if trimmed.is_empty() {
-        "doc".to_string()
-    } else {
-        trimmed.to_string()
-    }
 }
 
 #[cfg(test)]
@@ -310,7 +254,10 @@ mod tests {
     #[test]
     fn markdown_cleanup_keeps_plain_text() {
         let content = "# 标题\n\n## 小节\n- 第一行\n* 第二行\n```rust\nfn main() {}\n```";
-        assert_eq!(clean_text(content), "第一行 第二行");
+        assert_eq!(
+            clean_markdown_plain_text(content, MarkdownListMarkerMode::Strip),
+            "第一行 第二行"
+        );
         assert_eq!(extract_headings(content), vec!["小节".to_string()]);
     }
 

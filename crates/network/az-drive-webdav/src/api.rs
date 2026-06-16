@@ -15,6 +15,7 @@ use az_drive_core::api::{EntryKey, RelativePath, RootAlias, content_hash, object
 use az_drive_store::api::{
     DriveEntry, DriveEntryKind, DriveLock, DriveMetadataStore, DriveObjectStore, DriveVersion,
 };
+use az_str::api::escape_xml;
 use chrono::{Duration, Utc};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -378,14 +379,6 @@ fn lockdiscovery_xml(owner: &str, token: &str) -> String {
         escape_xml(owner),
         escape_xml(token)
     )
-}
-
-fn escape_xml(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
 }
 
 fn xml_response(status: StatusCode, body: String) -> Response {

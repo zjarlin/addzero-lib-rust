@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{apply, plain_clone};
+use az_str::sanitize::{to_slash_path, to_slug};
 
 use crate::{
     backend::{
@@ -43,7 +44,7 @@ pub fn scan_dotfiles_status() -> anyhow::Result<DotfilesMonitorStatus> {
 
     for repo_path in &repo_files {
         let relative = repo_path.strip_prefix(&context.source_home)?.to_path_buf();
-        let relative_key = slash_path(&relative);
+        let relative_key = to_slash_path(&relative);
         let repo_content = read_small_text(repo_path)?;
         let repo_modified = modified_secs(repo_path).unwrap_or_default();
         let base = baseline.get(&relative_key);
@@ -342,7 +343,7 @@ fn classify_repo_conflict(
     let target_ranges = changed_ranges(&entry.content, &state.content);
     let overlap = first_overlap(&repo_ranges, &target_ranges)?;
     Some(build_conflict(
-        format!("dotfiles-{}-{}", slug(relative), slug(&state.target.id)),
+        format!("dotfiles-{}-{}", to_slug(relative), to_slug(&state.target.id)),
         relative,
         repo_path,
         &state.target_path,
@@ -393,9 +394,9 @@ fn classify_device_conflicts(
             conflicts.push(build_conflict(
                 format!(
                     "dotfiles-{}-{}-{}",
-                    slug(relative),
-                    slug(&left.target.id),
-                    slug(&right.target.id)
+                    to_slug(relative),
+                    to_slug(&left.target.id),
+                    to_slug(&right.target.id)
                 ),
                 relative,
                 repo_path,
@@ -749,30 +750,6 @@ fn modified_secs(path: &Path) -> anyhow::Result<u64> {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs())
-}
-
-fn slash_path(path: &Path) -> String {
-    path.components()
-        .map(|part| part.as_os_str().to_string_lossy())
-        .collect::<Vec<_>>()
-        .join("/")
-}
-
-fn slug(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() {
-                ch.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>()
-        .split('-')
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
 }
 
 fn now_text() -> String {

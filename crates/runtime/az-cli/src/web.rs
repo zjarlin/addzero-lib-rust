@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use az_str::api::collapse_whitespace;
 use encoding_rs::{Encoding, UTF_8};
 use regex::Regex;
 use reqwest::Url;
@@ -60,16 +61,12 @@ pub fn first_non_empty_text(document: &Html, selector: &Selector) -> Option<Stri
 pub fn normalized_text(element: &ElementRef<'_>) -> Option<String> {
     let text = element
         .text()
-        .map(normalize_inline_whitespace)
+        .map(collapse_whitespace)
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join(" ");
     let text = text.trim().to_owned();
     if text.is_empty() { None } else { Some(text) }
-}
-
-pub fn normalize_inline_whitespace(value: &str) -> String {
-    value.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 pub fn href_from_element(base_url: &Url, element: &ElementRef<'_>) -> Option<Url> {

@@ -17,4 +17,11 @@ pub mod prelude {
         AzTable, AzTableBody, AzTableCaption, AzTableCell, AzTableFooter, AzTableHead,
         AzTableHeaderCell, AzTableRow,
     };
+    pub use crate::neobrutal::{
+        NbBadge, NbBlockTitle, NbButton, NbCard, NbCodeBlock, NbContentSlot, NbEyebrow, NbField,
+        NbFloatingPanelSlot, NbGrid, NbHeaderBar, NbHero, NbIconButton, NbLinkButton,
+        NbModelButton, NbNavLink, NbPage, NbPluginGroup, NbProjectLayout, NbRightSlot, NbShell,
+        NbSidebar, NbSidebarToggle, NbSplit, NbTitlebarControls, NbTitlebarNav, NbWorkspace,
+        NbWorkspaceBody,
+    };
 }

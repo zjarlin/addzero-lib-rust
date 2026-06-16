@@ -11,6 +11,7 @@ description = "Auditable DuckMail and Codex auth-file helpers"
 automod.workspace = true
 anyhow.workspace = true
 az-derive-aliases.workspace = true
+az-str.workspace = true
 base64.workspace = true
 chrono.workspace = true
 derive_more.workspace = true

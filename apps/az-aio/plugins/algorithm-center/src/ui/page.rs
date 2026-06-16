@@ -1,11 +1,9 @@
 use std::collections::BTreeSet;
 
-use az_aio_platform::{
-    plugin::api::NativeRenderContext,
-    ui::neobrutal::{
-        NbBadge, NbBlockTitle, NbButton, NbCard, NbCodeBlock, NbEyebrow, NbField, NbGrid, NbHero,
-        NbLinkButton, NbPage, NbSplit,
-    },
+use az_aio_platform::plugin::api::NativeRenderContext;
+use az_dioxus_components::neobrutal::{
+    NbBadge, NbBlockTitle, NbButton, NbCard, NbCodeBlock, NbEyebrow, NbField, NbGrid, NbHero,
+    NbLinkButton, NbPage, NbSplit,
 };
 use dioxus::prelude::*;
 

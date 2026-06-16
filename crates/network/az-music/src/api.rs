@@ -38,6 +38,7 @@ use az_derive_aliases::{
     apply, deserialize_debug, plain_clone_debug, plain_clone_redacted, plain_code_default_enum,
     plain_default_copy_eq, plain_eq, serde_eq, serde_eq_default, serde_partial_eq_default,
 };
+use az_str::api::trim_non_blank;
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use reqwest::header::{ACCEPT, HeaderMap, HeaderName, HeaderValue};
@@ -1234,17 +1235,6 @@ fn build_header_map(headers: &BTreeMap<String, String>) -> Result<HeaderMap> {
         header_map.insert(header_name, header_value);
     }
     Ok(header_map)
-}
-
-fn trim_non_blank(value: Option<&str>) -> Option<&str> {
-    value.and_then(|item| {
-        let trimmed = item.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed)
-        }
-    })
 }
 
 fn ensure_code_200(code: i32, message: Option<&str>, action: &str) -> Result<()> {

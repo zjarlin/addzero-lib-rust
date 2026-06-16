@@ -8,6 +8,7 @@ use std::sync::OnceLock;
 
 use ab_glyph::{FontArc, PxScale};
 use anyhow::{anyhow, bail};
+use az_str::sanitize::sanitize_file_stem_or;
 use image::imageops::FilterType;
 use image::{DynamicImage, Rgb, RgbImage};
 use imageproc::drawing::{
@@ -422,15 +423,7 @@ fn sanitized_file_stem(path: &Path) -> String {
         .and_then(|value| value.to_str())
         .filter(|value| !value.is_empty())
         .unwrap_or("input_video");
-    stem.chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_') {
-                ch
-            } else {
-                '_'
-            }
-        })
-        .collect()
+    sanitize_file_stem_or(stem, "input_video")
 }
 
 /// 从真实视频抽帧，使用 YOLO pose 生成动作观测，再按人员输出敲击时间线。

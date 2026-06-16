@@ -1,15 +1,22 @@
 use az_str::api::{
-    FormatArg, KmpMatcher, ParentPathExt, VariableType, add_prefix_if_not, add_suffix_if_not,
-    clean_blank, clean_doc_comment, contains_any_ignore_case, contains_chinese, contains_kmp,
-    default_table_english_name, escape_special_characters, extract_code_block_content,
+    FormatArg, KmpMatcher, MarkdownListMarkerMode, ParentPathExt, VariableType, add_prefix_if_not,
+    add_suffix_if_not, clean_blank, clean_doc_comment, clean_markdown_plain_text,
+    collapse_whitespace, contains_any_ignore_case, contains_chinese, contains_kmp,
+    default_table_english_name, escape_special_characters, escape_xml, extract_code_block_content,
     extract_key_value_pairs, extract_markdown_block_content, extract_text_between_p_tags,
     first_not_blank, format_currency, format_template, get_path_from_right, get_rest_url,
     is_number, kmp_format, lower_first, parent_path_and_mkdir, remove_any, remove_duplicate_symbol,
     remove_not_chinese, replace_kmp, to_camel_case, to_constant_name, to_kebab_case, to_kebab_name,
     to_pascal_case, to_simple_name, to_snake_case, to_underline_case, to_underline_lower_case,
-    to_valid_variable_name,
+    to_valid_variable_name, trim_non_blank, truncate_chars, truncate_chars_with_ellipsis,
+    unescape_basic_html_entities,
+};
+use az_str::sanitize::{
+    ascii_alphanumeric, sanitize_ascii_label, sanitize_file_stem, sanitize_file_stem_or,
+    sanitize_path_segment, title_case_slug, to_slash_path, to_slug, to_slug_or,
 };
 use std::f64::consts::PI;
+use std::path::Path;
 use tempfile::TempDir;
 
 #[test]
@@ -166,6 +173,15 @@ fn markdown_and_code_block_extractors_work() {
         extract_code_block_content("``sql\nselect * from users\n``"),
         "select * from users"
     );
+    let preview = "# 标题\n- 第一行\n* 第二行\n```rust\nfn main() {}\n```";
+    assert_eq!(
+        clean_markdown_plain_text(preview, MarkdownListMarkerMode::Keep),
+        "- 第一行 * 第二行"
+    );
+    assert_eq!(
+        clean_markdown_plain_text(preview, MarkdownListMarkerMode::Strip),
+        "第一行 第二行"
+    );
 }
 
 #[test]
@@ -175,6 +191,12 @@ fn doc_comment_and_blank_helpers_work() {
     assert_eq!(first_not_blank(&[None, Some(""), Some("  ok  ")]), "  ok  ");
     assert!(contains_chinese(Some("hello世界")));
     assert!(contains_any_ignore_case("HelloWorld", ["world", "test"]));
+    assert_eq!(trim_non_blank(Some("  ok  ")), Some("ok"));
+    assert_eq!(trim_non_blank(Some("   ")), None);
+    assert_eq!(collapse_whitespace("  a\t\n b  "), "a b");
+    assert_eq!(truncate_chars("你好世界", 2), "你好");
+    assert_eq!(truncate_chars_with_ellipsis("你好世界", 2), "你好…");
+    assert_eq!(truncate_chars_with_ellipsis("你好", 2), "你好");
 }
 
 #[test]
@@ -199,5 +221,30 @@ fn text_and_misc_helpers_work() {
     assert_eq!(lower_first("UserName"), "userName");
     assert_eq!(to_simple_name("site.addzero.UserName"), "UserName");
     assert_eq!(escape_special_characters("<a&b>"), "&lt;a&amp;b&gt;");
+    assert_eq!(
+        escape_xml("<tag name=\"a'b&c\">"),
+        "&lt;tag name=&quot;a&apos;b&amp;c&quot;&gt;"
+    );
+    assert_eq!(
+        unescape_basic_html_entities("A &amp; B &quot;C&quot; &nbsp; &#39;"),
+        "A & B \"C\"   '"
+    );
     assert!(is_number("-12.5"));
+}
+
+#[test]
+fn sanitize_helpers_cover_path_stem_slug_and_display_path() {
+    assert_eq!(sanitize_path_segment(" a/b:C.mp4 "), "a-b-C.mp4");
+    assert_eq!(
+        sanitize_ascii_label("user+name@example.com", "@._-+", '_'),
+        "user+name@example.com"
+    );
+    assert_eq!(sanitize_file_stem("a/b:C.mp4"), "a_b_C_mp4");
+    assert_eq!(sanitize_file_stem_or("", "input_video"), "input_video");
+    assert_eq!(ascii_alphanumeric("az mail+01"), "azmail01");
+    assert_eq!(to_slug("Café Tool.md"), "cafe-tool-md");
+    assert_eq!(to_slug_or("!!!", "doc"), "doc");
+    assert_eq!(title_case_slug("docker-desktop.app"), "Docker Desktop App");
+    assert_eq!(to_slash_path(Path::new("alpha/beta")), "alpha/beta");
+    assert_eq!(to_slash_path(Path::new("/tmp/alpha")), "/tmp/alpha");
 }

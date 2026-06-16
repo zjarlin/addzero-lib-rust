@@ -1,6 +1,10 @@
 #![allow(non_snake_case)]
 
 use az_aio_platform::plugin::api::NativeRenderContext;
+use az_dioxus_components::neobrutal::{
+    NbContentSlot, NbFloatingPanelSlot, NbHeaderBar, NbIconButton, NbModelButton, NbProjectLayout,
+    NbRightSlot, NbWorkspace, NbWorkspaceBody,
+};
 use dioxus::prelude::*;
 
 use super::{
@@ -16,19 +20,13 @@ pub(super) struct WorkspaceProps {
 }
 
 pub(super) fn Workspace(props: WorkspaceProps) -> Element {
-    let body_class = if props.page.lowcode {
-        "workspace__body workspace__body--lowcode"
-    } else {
-        "workspace__body"
-    };
-
     rsx! {
-        section { class: "workspace workbench-slot workbench-slot--main",
+        NbWorkspace {
             HeaderBar {
                 topbar_renderer: props.slots.topbar.clone(),
                 render_context: props.render_context.clone(),
             }
-            div { class: body_class,
+            NbWorkspaceBody { lowcode: props.page.lowcode,
                 ContentSlot {
                     renderer: props.slots.content.clone(),
                     page: props.page,
@@ -51,36 +49,13 @@ struct HeaderBarProps {
 
 fn HeaderBar(props: HeaderBarProps) -> Element {
     rsx! {
-        header { class: "header-bar",
-            div { class: "header-bar__actions",
-                if let Some(render) = props.topbar_renderer {
-                    {render.render(props.render_context)}
-                } else {
-                    ModelButton {}
-                }
-                ThemeToggle {}
+        NbHeaderBar {
+            if let Some(render) = props.topbar_renderer {
+                {render.render(props.render_context)}
+            } else {
+                NbModelButton {}
             }
-        }
-    }
-}
-
-fn ModelButton() -> Element {
-    rsx! {
-        button { class: "model-button", r#type: "button",
-            span { class: "model-button__mark", "AZ" }
-            span { "AZ AIO" }
-            span { class: "model-button__chevron", "⌄" }
-        }
-    }
-}
-
-fn ThemeToggle() -> Element {
-    rsx! {
-        a {
-            class: "icon-button",
-            href: "#",
-            id: "theme-toggle",
-            "◐"
+            NbIconButton { id: "theme-toggle", href: "#", aria_label: "切换主题", "◐" }
         }
     }
 }
@@ -93,14 +68,10 @@ struct ContentSlotProps {
 }
 
 fn ContentSlot(props: ContentSlotProps) -> Element {
-    let slot_class = if props.renderer.is_some() {
-        "content-center-slot content-center-slot--plugin"
-    } else {
-        "content-center-slot content-center-slot--welcome"
-    };
+    let has_plugin_renderer = props.renderer.is_some();
 
     rsx! {
-        section { class: slot_class,
+        NbContentSlot { plugin: has_plugin_renderer,
             if let Some(render) = props.renderer {
                 {render.render(props.render_context)}
             } else {
@@ -130,13 +101,13 @@ fn WorkspaceAddonSlots(props: WorkspaceAddonSlotsProps) -> Element {
         }
 
         if let Some(render) = props.slots.settings {
-            aside { class: "right-slot",
+            NbRightSlot {
                 {render.render(props.render_context.clone())}
             }
         }
 
         if let Some(render) = props.slots.sandbox {
-            div { class: "floating-panel-slot",
+            NbFloatingPanelSlot {
                 {render.render(props.render_context)}
             }
         }
@@ -152,7 +123,7 @@ struct ProjectLayoutProps {
 
 fn ProjectLayout(props: ProjectLayoutProps) -> Element {
     rsx! {
-        div { class: "project-layout",
+        NbProjectLayout {
             if let Some(render) = props.project_sidebar {
                 {render.render(props.render_context.clone())}
             }

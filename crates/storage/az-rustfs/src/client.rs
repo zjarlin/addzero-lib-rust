@@ -5,6 +5,7 @@ use az_derive_aliases::{
     apply, impl_default, plain_clone, plain_clone_debug, plain_default_clone_debug,
     plain_default_debug,
 };
+use az_str::api::escape_xml;
 use base64::Engine as _;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
@@ -1397,15 +1398,6 @@ fn quoted_etag(value: &str) -> String {
     } else {
         format!("\"{trimmed}\"")
     }
-}
-
-fn escape_xml(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
 }
 
 /// 内存对象存储实现，主要用于测试和本地冒烟验证。

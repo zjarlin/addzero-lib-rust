@@ -12,6 +12,7 @@ workspace = "../plugins"
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
 az-aio-platform = { path = "../platform" }
+az-dioxus-components.workspace = true
 automod.workspace = true
 asset-hub = { path = "../plugins/asset-hub" }
 config-center = { path = "../plugins/config-center" }

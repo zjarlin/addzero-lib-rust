@@ -11,6 +11,7 @@ description = "Dictionary contribution SPI and build-time enum source generator"
 anyhow.workspace = true
 automod.workspace = true
 az-dict-spec.workspace = true
+az-str.workspace = true
 convert_case.workspace = true
 proc-macro2.workspace = true
 prettyplease.workspace = true

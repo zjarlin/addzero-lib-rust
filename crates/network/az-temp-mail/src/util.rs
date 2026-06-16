@@ -2,16 +2,8 @@ use sha2::{Digest, Sha256};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub(crate) fn trim_non_blank(value: Option<&str>) -> Option<&str> {
-    value.and_then(|item| {
-        let trimmed = item.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed)
-        }
-    })
-}
+pub(crate) use az_str::api::trim_non_blank;
+use az_str::sanitize::ascii_alphanumeric;
 
 pub(crate) fn required_non_blank(value: &str, name: &str) -> anyhow::Result<String> {
     let trimmed = value.trim();
@@ -28,10 +20,7 @@ pub(crate) fn sha256_hex(value: &str) -> String {
 }
 
 pub(crate) fn sanitize_local_part(prefix: &str) -> String {
-    let sanitized = prefix
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .collect::<String>();
+    let sanitized = ascii_alphanumeric(prefix);
 
     if sanitized.is_empty() {
         "az".to_owned()

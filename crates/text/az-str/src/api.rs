@@ -65,6 +65,15 @@ pub enum FormatArg {
     Boolean(bool),
 }
 
+/// Markdown 列表项标记处理方式。
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MarkdownListMarkerMode {
+    /// 保留 `- ` 和 `* ` 等列表标记。
+    Keep,
+    /// 去掉 `- ` 和 `* ` 等列表标记。
+    Strip,
+}
+
 impl FormatArg {
     fn as_text(&self) -> String {
         self.to_string()
@@ -267,6 +276,68 @@ pub fn add_prefix_if_not(input: Option<&str>, prefix: &str, ignore_case: bool) -
 /// 判断输入是否不是空白文本。
 pub fn is_not_blank(input: Option<&str>) -> bool {
     !is_blank(input)
+}
+
+/// 返回 trim 后的非空文本切片。
+///
+/// `None`、空串和纯空白文本都会返回 `None`；返回值借用原始输入。
+pub fn trim_non_blank(input: Option<&str>) -> Option<&str> {
+    input.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    })
+}
+
+/// 按 Unicode 字符数量截断文本。
+pub fn truncate_chars(text: &str, limit: usize) -> String {
+    text.chars().take(limit).collect()
+}
+
+/// 按 Unicode 字符数量截断文本，发生截断时追加 `…`。
+pub fn truncate_chars_with_ellipsis(text: &str, limit: usize) -> String {
+    let mut output = String::new();
+    for (count, character) in text.chars().enumerate() {
+        if count == limit {
+            output.push('…');
+            break;
+        }
+        output.push(character);
+    }
+    output
+}
+
+/// 提取 Markdown 中适合作为预览文本的纯文本行。
+///
+/// 该函数会跳过围栏代码块、空行和标题行，并将剩余行用单个空格连接。
+pub fn clean_markdown_plain_text(input: &str, list_marker_mode: MarkdownListMarkerMode) -> String {
+    let mut in_code_block = false;
+    let mut lines = Vec::new();
+
+    for raw in input.lines() {
+        let line = raw.trim();
+        if line.starts_with("```") {
+            in_code_block = !in_code_block;
+            continue;
+        }
+        if in_code_block || line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        let line = match list_marker_mode {
+            MarkdownListMarkerMode::Keep => line,
+            MarkdownListMarkerMode::Strip => line
+                .strip_prefix("- ")
+                .or_else(|| line.strip_prefix("* "))
+                .unwrap_or(line),
+        };
+        lines.push(line);
+    }
+
+    lines.join(" ")
 }
 
 /// 从点分路径右侧移除 `n` 段。
@@ -917,6 +988,36 @@ pub fn escape_special_characters(input: &str) -> String {
         .replace("*/", "*\\/")
 }
 
+/// 转义 XML 文本节点和属性值中的五个预定义实体。
+pub fn escape_xml(input: &str) -> String {
+    let mut output = String::with_capacity(input.len());
+    for character in input.chars() {
+        match character {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            '"' => output.push_str("&quot;"),
+            '\'' => output.push_str("&apos;"),
+            _ => output.push(character),
+        }
+    }
+    output
+}
+
+/// 解码常见 HTML 实体。
+///
+/// 该函数覆盖轻量元数据抓取场景中常见的 `&amp;`、`&quot;`、
+/// `&#39;`、`&lt;`、`&gt;` 和 `&nbsp;`，不是完整 HTML5 实体解码器。
+pub fn unescape_basic_html_entities(input: &str) -> String {
+    input
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&nbsp;", " ")
+}
+
 /// 按标识符词边界转成小写短横线形式。
 pub fn to_kebab_case(input: &str) -> String {
     join_identifier_words(input, "-", CaseStyle::Lower)
@@ -1163,7 +1264,8 @@ fn key_value_regex() -> Option<&'static Regex> {
         .as_ref()
 }
 
-fn collapse_whitespace(input: &str) -> String {
+/// 将连续空白折叠为单个 ASCII 空格，并去除首尾空白。
+pub fn collapse_whitespace(input: &str) -> String {
     input.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 

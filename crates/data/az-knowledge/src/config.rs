@@ -4,7 +4,7 @@ use std::{
 };
 
 use az_persistence::context as persistence;
-use deunicode::deunicode;
+use az_str::sanitize::to_slug;
 
 use crate::types::KnowledgeSourceSpec;
 
@@ -80,7 +80,7 @@ fn extra_source_specs_from_env() -> Vec<KnowledgeSourceSpec> {
                 .file_name()
                 .map(|item| item.to_string_lossy().to_string())
                 .unwrap_or_else(|| value.to_string());
-            let slug = slugify(&name);
+            let slug = to_slug(&name);
             Some(KnowledgeSourceSpec::new(slug, name, path))
         })
         .collect()
@@ -88,25 +88,6 @@ fn extra_source_specs_from_env() -> Vec<KnowledgeSourceSpec> {
 
 fn home_dir() -> Option<PathBuf> {
     dirs::home_dir()
-}
-
-fn slugify(value: &str) -> String {
-    let normalized = deunicode(value);
-    let mut slug = String::new();
-    let mut last_dash = false;
-
-    for ch in normalized.chars() {
-        let lowered = ch.to_ascii_lowercase();
-        if lowered.is_ascii_alphanumeric() {
-            slug.push(lowered);
-            last_dash = false;
-        } else if !last_dash {
-            slug.push('-');
-            last_dash = true;
-        }
-    }
-
-    slug.trim_matches('-').to_string()
 }
 
 #[allow(dead_code)]

@@ -3,6 +3,9 @@
 use az_aio_platform::plugin::api::{
     NativeRenderContext, NativeUiRenderer, NavItemContribution, PageContribution,
 };
+use az_dioxus_components::neobrutal::{
+    NbShell, NbSidebarToggle, NbTitlebarControls, NbTitlebarNav,
+};
 use dioxus::prelude::*;
 
 automod::dir!("src/app/components");
@@ -31,7 +34,7 @@ pub(crate) fn AppLayout(props: ShellProps) -> Element {
     };
 
     rsx! {
-        main { class: "az-aio-shell",
+        NbShell {
             TitlebarControls {}
             ShellSidebar {
                 nav_items: props.nav_items.clone(),
@@ -50,17 +53,10 @@ pub(crate) fn AppLayout(props: ShellProps) -> Element {
 
 fn TitlebarControls() -> Element {
     rsx! {
-        div { class: "titlebar-controls",
-            button {
-                class: "sidebar-toggle",
-                id: "sidebar-toggle",
-                r#type: "button",
-                "aria-label": "折叠侧边栏",
-                "aria-expanded": "true",
-                span { class: "sidebar-toggle__glyph" }
-            }
-            span { class: "titlebar-nav", "aria-hidden": "true", "‹" }
-            span { class: "titlebar-nav titlebar-nav--disabled", "aria-hidden": "true", "›" }
+        NbTitlebarControls {
+            NbSidebarToggle { expanded: true }
+            NbTitlebarNav { label: "‹" }
+            NbTitlebarNav { label: "›", disabled: true }
         }
     }
 }

@@ -21,9 +21,11 @@ authors = ["zjarlin"]
 
 [workspace.dependencies]
 az-algorithm = { version = "=2026.5.10", path = "../../../crates/algorithm/az-algorithm" }
+az-str = { version = "=2026.5.10", path = "../../../crates/text/az-str" }
 anyhow = "1.0.99"
 automod = { package = "az-automod", version = "=2026.6.15", path = "../../../crates/core/az-automod" }
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "multipart"] }
+az-dioxus-components = { version = "=2026.5.10", path = "../../../crates/ui/az-dioxus-components" }
 dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
 rudi = "0.8.3"
 serde = { version = "1.0.228", features = ["derive"] }

@@ -6,13 +6,14 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use az_derive_aliases::{apply, plain_clone_debug, plain_debug, serialize_debug};
+use az_str::api::collapse_whitespace;
 use reqwest::Url;
 use scraper::{ElementRef, Html, Selector};
 
 use crate::web::robots::RobotsPolicy;
 use crate::web::{
     build_client, decode_html, ensure_parent_dir, first_non_empty_text, href_from_element,
-    manifest_path, normalize_inline_whitespace, normalized_text, parse_selector, same_origin,
+    manifest_path, normalized_text, parse_selector, same_origin,
 };
 
 #[apply(plain_clone_debug)]
@@ -307,7 +308,7 @@ fn looks_like_next_link(element: &ElementRef<'_>) -> bool {
 
     let text = element
         .text()
-        .map(normalize_inline_whitespace)
+        .map(collapse_whitespace)
         .collect::<Vec<_>>()
         .join(" ")
         .to_ascii_lowercase();

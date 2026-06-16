@@ -1,16 +1,7 @@
 use reqwest::Url;
 use sha2::{Digest, Sha256};
 
-pub(crate) fn trim_non_blank(value: Option<&str>) -> Option<&str> {
-    value.and_then(|item| {
-        let trimmed = item.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed)
-        }
-    })
-}
+pub(crate) use az_str::api::trim_non_blank;
 
 pub(crate) fn encode_url_component(value: &str) -> String {
     const UNRESERVED: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~";

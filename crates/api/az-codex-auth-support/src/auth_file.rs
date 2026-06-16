@@ -1,5 +1,6 @@
 use anyhow::{Context, anyhow, bail};
 use az_derive_aliases::{apply, plain_eq, serde_eq, serde_eq_default};
+use az_str::sanitize::sanitize_ascii_label;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE;
 use chrono::{DateTime, FixedOffset, Offset, SecondsFormat, Utc};
@@ -141,14 +142,7 @@ pub fn decode_jwt_payload(token: &str) -> anyhow::Result<Value> {
 
 /// 创建文件系统安全的认证文件名，同时保留可读邮箱标签。
 pub fn safe_auth_filename(email: impl AsRef<str>) -> String {
-    let mut stem = email
-        .as_ref()
-        .chars()
-        .map(|ch| match ch {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '@' | '.' | '_' | '-' | '+' => ch,
-            _ => '_',
-        })
-        .collect::<String>();
+    let mut stem = sanitize_ascii_label(email.as_ref(), "@._-+", '_');
 
     if stem.trim_matches('_').is_empty() {
         stem = "codex-auth".to_owned();

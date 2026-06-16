@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use az_aio_platform::plugin::api::{NativeRenderContext, NavItemContribution};
+use az_dioxus_components::neobrutal::{NbNavLink, NbPluginGroup, NbSidebar};
 use dioxus::prelude::*;
 
 use super::model::RenderSlot;
@@ -15,7 +16,7 @@ pub(super) struct ShellSidebarProps {
 
 pub(super) fn ShellSidebar(props: ShellSidebarProps) -> Element {
     rsx! {
-        aside { class: "sidebar workbench-slot workbench-slot--side",
+        NbSidebar {
             PrimaryActions {}
             PluginGroup {
                 nav_items: props.nav_items,
@@ -32,14 +33,8 @@ pub(super) fn ShellSidebar(props: ShellSidebarProps) -> Element {
 fn PrimaryActions() -> Element {
     rsx! {
         section { class: "sidebar__section sidebar__section--actions",
-            a { class: "nav-button", href: "/",
-                span { class: "nav-button__icon", "✎" }
-                span { class: "nav-button__label", "新对话" }
-            }
-            a { class: "nav-button", href: "/?route=/assets",
-                span { class: "nav-button__icon", "⌕" }
-                span { class: "nav-button__label", "搜索" }
-            }
+            NbNavLink { href: "/", icon: "✎", label: "新对话" }
+            NbNavLink { href: "/?route=/assets", icon: "⌕", label: "搜索" }
         }
     }
 }
@@ -55,27 +50,17 @@ struct PluginGroupProps {
 fn PluginGroup(props: PluginGroupProps) -> Element {
     rsx! {
         section { class: "sidebar__section sidebar__section--actions",
-            details { class: "plugin-group", open: true,
-                summary { class: "nav-button plugin-group__summary",
-                    span { class: "nav-button__icon", "◎" }
-                    span { class: "nav-button__label", "插件" }
-                    span { class: "plugin-group__chevron", "⌄" }
-                }
-                div { class: "plugin-group__panel",
-                    if let Some(render) = props.sidebar_renderer {
-                        {render.render(props.render_context.clone())}
-                    } else {
-                        PluginNavList {
-                            nav_items: props.nav_items,
-                            route: props.route,
-                        }
+            NbPluginGroup {
+                if let Some(render) = props.sidebar_renderer {
+                    {render.render(props.render_context.clone())}
+                } else {
+                    PluginNavList {
+                        nav_items: props.nav_items,
+                        route: props.route,
                     }
                 }
             }
-            a { class: "nav-button", href: "/?route=/gateway",
-                span { class: "nav-button__icon", "◷" }
-                span { class: "nav-button__label", "自动化" }
-            }
+            NbNavLink { href: "/?route=/gateway", icon: "◷", label: "自动化" }
         }
     }
 }
@@ -90,12 +75,13 @@ fn PluginNavList(props: PluginNavListProps) -> Element {
     rsx! {
         nav { class: "sidebar-tree sidebar-tree--primary",
             for item in &props.nav_items {
-                a {
-                    class: if item.route == props.route { "nav-button nav-button--active nav-button--plugin" } else { "nav-button nav-button--plugin" },
+                NbNavLink {
                     href: "/?route={item.route}",
-                    span { class: "nav-button__icon", "{item.icon}" }
-                    span { class: "nav-button__label", "{item.label}" }
-                    span { class: "nav-button__detail", "{item.order}" }
+                    icon: item.icon.clone(),
+                    label: item.label.clone(),
+                    detail: item.order.to_string(),
+                    active: item.route == props.route,
+                    plugin: true,
                 }
             }
         }

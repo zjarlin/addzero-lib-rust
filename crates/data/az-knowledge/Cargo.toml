@@ -10,9 +10,9 @@ authors.workspace = true
 automod.workspace = true
 az-derive-aliases.workspace = true
 az-persistence.workspace = true
+az-str.workspace = true
 anyhow.workspace = true
 chrono = { workspace = true, features = ["serde"] }
-deunicode.workspace = true
 dirs.workspace = true
 sea-orm.workspace = true
 serde = { workspace = true, features = ["derive"] }
