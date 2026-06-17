@@ -73,7 +73,9 @@ fn az_form_components_render_inputs_and_options() {
     assert!(markup.contains("selected"));
     assert!(markup.contains(">整数</option>"));
     assert!(markup.contains("class=\"az-checkbox-row\""));
-    assert!(markup.contains(r#"<form method="get" action="/" id="demo-form" class="" style="">"#));
+    assert!(markup.contains(r#"<form method="get" action="/" id="demo-form">"#));
+    assert!(!markup.contains(r#"class="""#));
+    assert!(!markup.contains(r#"style="""#));
     assert!(markup.contains(r#"<input type="hidden" name="route" value="/lowcode"/>"#));
 }
 

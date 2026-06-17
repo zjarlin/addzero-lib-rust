@@ -24,21 +24,20 @@ use az_algorithm::components::qr_code_recognition::model::ALGORITHM_CODE as QR_C
 use az_algorithm::components::safety_helmet_detection::model::{
     ALGORITHM_CODE as SAFETY_HELMET_DETECTION_CODE,
     DEFAULT_NMS_THRESHOLD as SAFETY_HELMET_DEFAULT_NMS_THRESHOLD,
-    DEFAULT_SCORE_THRESHOLD as SAFETY_HELMET_DEFAULT_SCORE_THRESHOLD,
-    SAFETY_HELMET_DETECTION_PPE_YOLO11S, SafetyHelmetDetectionOptions,
+    DEFAULT_SCORE_THRESHOLD as SAFETY_HELMET_DEFAULT_SCORE_THRESHOLD, SafetyHelmetDetectionOptions,
 };
 use az_algorithm::components::vehicle_detection::model::{
     ALGORITHM_CODE as VEHICLE_DETECTION_CODE, VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1,
 };
-use az_algorithm::video_pipeline::assist::onnx_raw_image_video_algorithm::OnnxRawImageVideoAlgorithm;
 use az_algorithm::video_pipeline::assist::flame_video_algorithm::FlameVideoAlgorithm;
+use az_algorithm::video_pipeline::assist::onnx_raw_image_video_algorithm::OnnxRawImageVideoAlgorithm;
 use az_algorithm::video_pipeline::assist::qr_code_video_algorithm::QrCodeVideoAlgorithm;
-use az_algorithm::video_pipeline::assist::run_video_frame_pipeline;
 use az_algorithm::video_pipeline::assist::safety_helmet_video_algorithm::SafetyHelmetVideoAlgorithm;
 use az_algorithm::video_pipeline::model::{
     VideoAlgorithmBinding, VideoAlgorithmEvent, VideoAlgorithmFrameResult, VideoAlgorithmSchedule,
     VideoBoundingBox, VideoDetection, VideoFrame, VideoFrameAlgorithm, VideoPipelineOptions,
 };
+use az_algorithm::video_pipeline::pipeline::run_video_frame_pipeline;
 use image::{Rgb, RgbImage};
 use serde_json::json;
 
@@ -763,15 +762,13 @@ fn video_pipeline_should_stack_real_person_and_face_detection_on_same_frames() -
     clippy::dbg_macro,
     reason = "用户要求测试直接打印真实输入、模型、输出绝对路径"
 )]
-fn video_pipeline_should_run_real_safety_helmet_detection_runner() -> anyhow::Result<()>
-{
+fn video_pipeline_should_run_real_safety_helmet_detection_runner() -> anyhow::Result<()> {
     // 这个测试验证安全帽模型可以进入实时视频管线并执行 YOLO 后处理：
     // - SafetyHelmetVideoAlgorithm 只加载一次 ONNX Session。
     // - 每帧写出 detected_safety_helmets.json 和标注图。
     let output_dir = output_dir("video_pipeline_real_safety_helmet_detection");
     if output_dir.exists() {
-        std::fs::remove_dir_all(&output_dir)
-            .expect("清理旧真实安全帽 pipeline 输出目录必须成功");
+        std::fs::remove_dir_all(&output_dir).expect("清理旧真实安全帽 pipeline 输出目录必须成功");
     }
     let source_fps = 30.0;
     let frames = frames_from_safety_helmet_fixture(3, source_fps);
@@ -987,7 +984,9 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
             run.frame_results
                 .iter()
                 .find(|result| result.algorithm_code == structured_code)
-                .is_some_and(|result| result.raw_json["raw_output_count"].as_u64().unwrap_or(0) > 0),
+                .is_some_and(
+                    |result| result.raw_json["raw_output_count"].as_u64().unwrap_or(0) > 0
+                ),
             "{structured_code} 必须真实执行 ONNX 并写出结构化后处理输出"
         );
     }

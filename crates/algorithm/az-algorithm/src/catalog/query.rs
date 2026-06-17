@@ -1,9 +1,26 @@
 //! 算法组件查询接口。
 
-use super::{
-    AlgorithmComponentDescriptor, AlgorithmComponentKind, AlgorithmComponentSpec,
-    AlgorithmTargetKind, AlgorithmTaskKind, COMPONENTS,
+use crate::catalog::{
+    face_detection, face_recognition, flame_detection,
+    model::{
+        AlgorithmComponentDescriptor, AlgorithmComponentKind, AlgorithmComponentSpec,
+        AlgorithmTargetKind, AlgorithmTaskKind,
+    },
+    ocr_text_recognition, person_detection, qr_code_recognition, safety_helmet_detection,
+    vehicle_detection, worker_hit_counting,
 };
+
+const COMPONENTS: &[AlgorithmComponentSpec] = &[
+    face_detection::SPEC,
+    face_recognition::SPEC,
+    person_detection::SPEC,
+    ocr_text_recognition::SPEC,
+    flame_detection::SPEC,
+    safety_helmet_detection::SPEC,
+    vehicle_detection::SPEC,
+    qr_code_recognition::SPEC,
+    worker_hit_counting::SPEC,
+];
 
 /// 返回全部算法组件规格。
 #[must_use]

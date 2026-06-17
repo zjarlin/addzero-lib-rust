@@ -30,7 +30,8 @@
 ## 用法
 
 ```rust
-use az_algorithm::catalog::{AlgorithmTaskKind, algorithm_components_by_task};
+use az_algorithm::catalog::model::AlgorithmTaskKind;
+use az_algorithm::catalog::query::algorithm_components_by_task;
 
 let mut recognition_components: Vec<_> =
     algorithm_components_by_task(AlgorithmTaskKind::Recognition).collect();

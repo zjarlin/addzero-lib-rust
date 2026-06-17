@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-automod::dir!("src");
+mod app;
 
 use anyhow::Result;
 use axum::{Router, extract::RawQuery, routing::get};

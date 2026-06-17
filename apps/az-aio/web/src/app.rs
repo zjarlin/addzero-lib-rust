@@ -3,7 +3,7 @@
 use az_aio_platform::plugin::api::{NavItemContribution, PageContribution};
 use dioxus::prelude::*;
 
-automod::dir!("src/app");
+mod components;
 
 use components::AppLayout;
 

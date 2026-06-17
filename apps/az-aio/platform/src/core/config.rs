@@ -45,12 +45,11 @@ pub struct ConfigCenterConfig;
 impl AppConfig for ConfigCenterConfig {
     fn port(&self) -> u16 {
         let env = ConfigCenterEnv::from_env();
-        if env.is_configured() {
-            if let Some(client) = login_center(&env) {
-                if let Some(port) = read_text_as_u16(&client, "web.port") {
-                    return port;
-                }
-            }
+        if env.is_configured()
+            && let Some(client) = login_center(&env)
+            && let Some(port) = read_text_as_u16(&client, "web.port")
+        {
+            return port;
         }
         std::env::var("AZ_AIO_WEB_PORT")
             .ok()
@@ -60,16 +59,16 @@ impl AppConfig for ConfigCenterConfig {
 
     fn database_url(&self) -> Option<String> {
         let env = ConfigCenterEnv::from_env();
-        if env.is_configured() {
-            if let Some(client) = login_center(&env) {
-                // 项目命名空间 database.url 优先（完整 JDBC/URL）
-                if let Ok(Some(val)) = client.get_text("database.url") {
-                    return Some(val);
-                }
-                // 回退：项目 database + 共享中间件 host/port/user/password → 拼接 PG URL
-                if let Some(url) = compose_pg_url(&client) {
-                    return Some(url);
-                }
+        if env.is_configured()
+            && let Some(client) = login_center(&env)
+        {
+            // 项目命名空间 database.url 优先（完整 JDBC/URL）
+            if let Ok(Some(val)) = client.get_text("database.url") {
+                return Some(val);
+            }
+            // 回退：项目 database + 共享中间件 host/port/user/password → 拼接 PG URL
+            if let Some(url) = compose_pg_url(&client) {
+                return Some(url);
             }
         }
         std::env::var("AZ_AIO_DATABASE_URL").ok()

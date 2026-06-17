@@ -4,6 +4,10 @@ use dioxus::prelude::*;
 
 use crate::util::class_name::compose_class;
 
+fn non_empty_attr(value: String) -> Option<String> {
+    if value.is_empty() { None } else { Some(value) }
+}
+
 /// Renders a responsive form grid for dense workbench forms.
 #[allow(non_snake_case)]
 #[component]
@@ -34,24 +38,18 @@ pub fn AzActionForm(
     #[props(default, into)] class: String,
     #[props(default, into)] style: String,
 ) -> Element {
-    if id.is_empty() && class.is_empty() && style.is_empty() {
-        rsx! {
-            form {
-                method: method,
-                action: action,
-                {children}
-            }
-        }
-    } else {
-        rsx! {
-            form {
-                method: method,
-                action: action,
-                id: id,
-                class: class,
-                style: style,
-                {children}
-            }
+    let id = non_empty_attr(id);
+    let class = non_empty_attr(class);
+    let style = non_empty_attr(style);
+
+    rsx! {
+        form {
+            method: method,
+            action: action,
+            id: id,
+            class: class,
+            style: style,
+            {children}
         }
     }
 }
@@ -65,13 +63,16 @@ pub fn AzHiddenInput(
     #[props(default, into)] id: String,
     #[props(default, into)] class: String,
 ) -> Element {
-    if id.is_empty() && class.is_empty() {
-        rsx! {
-            input { r#type: "hidden", name: name, value: value }
-        }
-    } else {
-        rsx! {
-            input { r#type: "hidden", name: name, value: value, id: id, class: class }
+    let id = non_empty_attr(id);
+    let class = non_empty_attr(class);
+
+    rsx! {
+        input {
+            r#type: "hidden",
+            name: name,
+            value: value,
+            id: id,
+            class: class,
         }
     }
 }
@@ -118,6 +119,7 @@ pub fn AzInput(
     #[props(default)] required: bool,
 ) -> Element {
     let class = compose_class("az-input settings-input", &class, &[]);
+    let style = non_empty_attr(style);
 
     rsx! {
         input {
@@ -171,6 +173,7 @@ pub fn AzSelect(
     #[props(default)] required: bool,
 ) -> Element {
     let class = compose_class("az-select settings-input", &class, &[]);
+    let style = non_empty_attr(style);
 
     rsx! {
         select { class: class, style: style, name: name, required: required,

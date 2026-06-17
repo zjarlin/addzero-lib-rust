@@ -1,6 +1,4 @@
-//! 视频源解码入口。
-
-automod::dir!(pub "src/video_pipeline/source");
+//! 视频源解码配置模型。
 
 use std::path::PathBuf;
 
@@ -39,7 +37,7 @@ pub struct FfmpegFrameDecodeOptions {
     pub sample_fps: Option<f32>,
     /// 最多解码多少帧。生产长流应设置上限或由外层流式调度。
     pub max_frames: Option<usize>,
-    /// 输入宽度。为 `None` 时使用 ffprobe 或调用方预先约定的尺寸不可用，当前实现会报错。
+    /// 输入宽度。当前实现不做 ffprobe 自动探测，调用方需要明确提供。
     pub width: u32,
     /// 输入高度。
     pub height: u32,

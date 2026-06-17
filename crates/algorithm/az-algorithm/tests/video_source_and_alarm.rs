@@ -1,18 +1,100 @@
 use std::path::PathBuf;
+use std::process::Command;
 
-use az_algorithm::video_pipeline::alarm::{
-    AlarmOutputTarget, AlarmRule, plan_alarm_actions,
-};
-use az_algorithm::video_pipeline::model::{
-    VideoAlgorithmEvent, VideoAlgorithmFrameResult,
-};
+use az_algorithm::video_pipeline::alarm::{AlarmOutputTarget, AlarmRule, plan_alarm_actions};
+use az_algorithm::video_pipeline::model::{VideoAlgorithmEvent, VideoAlgorithmFrameResult};
 use az_algorithm::video_pipeline::source::ffmpeg::decode_video_frames_with_ffmpeg;
-use az_algorithm::video_pipeline::source::{FfmpegFrameDecodeOptions, FfmpegVideoSource};
+use az_algorithm::video_pipeline::source::model::{FfmpegFrameDecodeOptions, FfmpegVideoSource};
 use serde_json::json;
 
 fn workspace_root() -> PathBuf {
     std::fs::canonicalize(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
         .expect("workspace 根目录必须存在")
+}
+
+fn fixture_image_path() -> PathBuf {
+    std::fs::canonicalize(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/safety_helmet_detection/input/safety_helmet.jpg"),
+    )
+    .expect("安全帽测试图片必须存在")
+}
+
+fn output_dir(name: &str) -> PathBuf {
+    workspace_root()
+        .join("target/az-algorithm-results")
+        .join(name)
+}
+
+fn ffmpeg_path() -> Option<PathBuf> {
+    [
+        "/opt/homebrew/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "ffmpeg",
+    ]
+    .into_iter()
+    .map(PathBuf::from)
+    .find(|path| {
+        if path.components().count() > 1 {
+            path.is_file()
+        } else {
+            Command::new(path)
+                .arg("-version")
+                .output()
+                .is_ok_and(|output| output.status.success())
+        }
+    })
+}
+
+#[test]
+fn ffmpeg_decoder_should_decode_short_video_to_rgb_frame() -> anyhow::Result<()> {
+    let Some(ffmpeg) = ffmpeg_path() else {
+        eprintln!("跳过 ffmpeg 成功路径测试：当前环境未找到 ffmpeg");
+        return Ok(());
+    };
+    let output_dir = output_dir("video_source_decode");
+    if output_dir.exists() {
+        std::fs::remove_dir_all(&output_dir)?;
+    }
+    std::fs::create_dir_all(&output_dir)?;
+    let video_path = output_dir.join("one_frame.mp4");
+    let output = Command::new(&ffmpeg)
+        .args([
+            "-y",
+            "-loop",
+            "1",
+            "-i",
+            &fixture_image_path().display().to_string(),
+            "-vf",
+            "scale=320:240",
+            "-frames:v",
+            "1",
+            "-pix_fmt",
+            "yuv420p",
+            &video_path.display().to_string(),
+        ])
+        .output()?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "ffmpeg 生成测试视频失败：{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let frames = decode_video_frames_with_ffmpeg(&FfmpegFrameDecodeOptions {
+        ffmpeg_path: ffmpeg,
+        source: FfmpegVideoSource::File(video_path),
+        source_fps: 25.0,
+        sample_fps: None,
+        max_frames: Some(1),
+        width: 320,
+        height: 240,
+    })?;
+
+    assert_eq!(frames.len(), 1);
+    assert_eq!((frames[0].width, frames[0].height), (320, 240));
+    assert_eq!(frames[0].rgb.len(), 320 * 240 * 3);
+    Ok(())
 }
 
 #[test]

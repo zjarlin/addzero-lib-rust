@@ -80,7 +80,7 @@ pub fn algorithm_center_router() -> Router {
 async fn status_handler() -> Json<StatusResponse> {
     Json(StatusResponse {
         ok: true,
-        component_count: az_algorithm::catalog::algorithm_component_descriptors().len(),
+        component_count: az_algorithm::catalog::query::algorithm_component_descriptors().len(),
         process_endpoint: "/api/algorithm-center/process".to_string(),
         upload_endpoint: "/api/algorithm-center/upload".to_string(),
         mode: "contract_preview".to_string(),
@@ -88,8 +88,8 @@ async fn status_handler() -> Json<StatusResponse> {
 }
 
 async fn components_handler(
-) -> Json<Vec<az_algorithm::catalog::AlgorithmComponentDescriptor>> {
-    Json(az_algorithm::catalog::algorithm_component_descriptors())
+) -> Json<Vec<az_algorithm::catalog::model::AlgorithmComponentDescriptor>> {
+    Json(az_algorithm::catalog::query::algorithm_component_descriptors())
 }
 
 async fn process_handler(
@@ -164,7 +164,7 @@ fn process_video(
 fn selected_algorithms(
     requested: &[String],
 ) -> Result<Vec<AlgorithmSelection>, (StatusCode, Json<ApiErrorResponse>)> {
-    let descriptors = az_algorithm::catalog::algorithm_component_descriptors();
+    let descriptors = az_algorithm::catalog::query::algorithm_component_descriptors();
     let codes = requested
         .iter()
         .map(|code| code.trim())
@@ -255,7 +255,7 @@ mod tests {
             .unwrap();
         assert!(response.status().is_success());
         let body = axum::body::to_bytes(response.into_body(), 65536).await.unwrap();
-        let descriptors: Vec<az_algorithm::catalog::AlgorithmComponentDescriptor> =
+        let descriptors: Vec<az_algorithm::catalog::model::AlgorithmComponentDescriptor> =
             serde_json::from_slice(&body).unwrap();
         assert_eq!(descriptors.len(), 9);
         let codes: Vec<&str> = descriptors.iter().map(|d| d.code.as_str()).collect();

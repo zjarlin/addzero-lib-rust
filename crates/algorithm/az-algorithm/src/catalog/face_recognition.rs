@@ -1,4 +1,4 @@
-use crate::catalog::{
+use crate::catalog::model::{
     AlgorithmComponentKind, AlgorithmComponentSpec, AlgorithmInputKind, AlgorithmOutputKind,
     AlgorithmTargetKind, AlgorithmTaskKind,
 };

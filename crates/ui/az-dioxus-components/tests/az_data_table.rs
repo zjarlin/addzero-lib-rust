@@ -69,9 +69,10 @@ fn az_data_table_should_render_caption_headers_and_rows() {
         r#"<th class="az-table__header-cell az-table__cell--start az-table__cell--frozen" style="left:0px;" scope="col">Name</th>"#
     ));
     assert!(html.contains(
-        r#"<th class="az-table__header-cell az-table__cell--center col-role" style="" scope="col">Role</th>"#
+        r#"<th class="az-table__header-cell az-table__cell--center col-role" scope="col">Role</th>"#
     ));
-    assert!(html.contains(r#"<tr class="az-table__row row-user"><td class="az-table__cell az-table__cell--start az-table__cell--frozen" style="left:0px;">Ada</td><td class="az-table__cell az-table__cell--end cell-role" style="">Admin</td></tr>"#));
+    assert!(html.contains(r#"<tr class="az-table__row row-user"><td class="az-table__cell az-table__cell--start az-table__cell--frozen" style="left:0px;">Ada</td><td class="az-table__cell az-table__cell--end cell-role">Admin</td></tr>"#));
+    assert!(!html.contains(r#"style="""#));
 }
 
 #[test]
@@ -83,7 +84,8 @@ fn az_data_table_should_pad_short_rows_to_match_column_count() {
         }
     });
 
-    assert!(html.contains(r#"<tr class="az-table__row"><td class="az-table__cell az-table__cell--start az-table__cell--frozen" style="left:0px;">Grace</td><td class="az-table__cell az-table__cell--center" style=""></td></tr>"#));
+    assert!(html.contains(r#"<tr class="az-table__row"><td class="az-table__cell az-table__cell--start az-table__cell--frozen" style="left:0px;">Grace</td><td class="az-table__cell az-table__cell--center"></td></tr>"#));
+    assert!(!html.contains(r#"style="""#));
 }
 
 #[test]
@@ -97,5 +99,6 @@ fn az_data_table_should_render_empty_state_when_rows_missing() {
     });
 
     assert!(html.contains(r#"class="az-table az-table--dense az-table--frozen-header""#));
-    assert!(html.contains(r#"<tr class="az-table__row az-table__row--empty"><td class="az-table__cell az-table__cell--empty" style="" colspan="2">Nothing here</td></tr>"#));
+    assert!(html.contains(r#"<tr class="az-table__row az-table__row--empty"><td class="az-table__cell az-table__cell--empty" colspan="2">Nothing here</td></tr>"#));
+    assert!(!html.contains(r#"style="""#));
 }

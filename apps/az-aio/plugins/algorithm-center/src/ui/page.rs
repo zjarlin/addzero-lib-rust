@@ -7,7 +7,7 @@ use az_dioxus_components::neobrutal::{
 };
 use dioxus::prelude::*;
 
-type Descriptor = az_algorithm::catalog::AlgorithmComponentDescriptor;
+type Descriptor = az_algorithm::catalog::model::AlgorithmComponentDescriptor;
 const UPLOAD_FORM_SCRIPT: &str = r#"
 event.preventDefault();
 const form = event.currentTarget;
@@ -35,7 +35,7 @@ fetch(form.action, { method: 'POST', body: new FormData(form) })
 
 #[allow(non_snake_case)]
 pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
-    let descriptors = az_algorithm::catalog::algorithm_component_descriptors();
+    let descriptors = az_algorithm::catalog::query::algorithm_component_descriptors();
     let selected_codes = selected_algorithm_codes(&context.active_route, &descriptors);
     let active_code = parse_query_param(&context.active_route, "active")
         .filter(|code| selected_codes.contains(code))
@@ -362,33 +362,41 @@ fn algorithm_icon(label: &str) -> &'static str {
     }
 }
 
-fn input_label(input: &az_algorithm::catalog::AlgorithmInputKind) -> String {
+fn input_label(input: &az_algorithm::catalog::model::AlgorithmInputKind) -> String {
     match input {
-        az_algorithm::catalog::AlgorithmInputKind::Image => "图片或视频帧".to_string(),
-        az_algorithm::catalog::AlgorithmInputKind::ReferenceSet => "参考底库".to_string(),
-        az_algorithm::catalog::AlgorithmInputKind::RegionOfInterest => "感兴趣区域".to_string(),
-        az_algorithm::catalog::AlgorithmInputKind::VideoFrames => "视频帧序列".to_string(),
-        az_algorithm::catalog::AlgorithmInputKind::PersonTracks => "人员轨迹".to_string(),
-        az_algorithm::catalog::AlgorithmInputKind::ActionScores => "动作置信度".to_string(),
-        az_algorithm::catalog::AlgorithmInputKind::TargetObservations => "目标观测".to_string(),
-        az_algorithm::catalog::AlgorithmInputKind::ContactPoints => "接触点".to_string(),
+        az_algorithm::catalog::model::AlgorithmInputKind::Image => "图片或视频帧".to_string(),
+        az_algorithm::catalog::model::AlgorithmInputKind::ReferenceSet => "参考底库".to_string(),
+        az_algorithm::catalog::model::AlgorithmInputKind::RegionOfInterest => {
+            "感兴趣区域".to_string()
+        }
+        az_algorithm::catalog::model::AlgorithmInputKind::VideoFrames => "视频帧序列".to_string(),
+        az_algorithm::catalog::model::AlgorithmInputKind::PersonTracks => "人员轨迹".to_string(),
+        az_algorithm::catalog::model::AlgorithmInputKind::ActionScores => "动作置信度".to_string(),
+        az_algorithm::catalog::model::AlgorithmInputKind::TargetObservations => {
+            "目标观测".to_string()
+        }
+        az_algorithm::catalog::model::AlgorithmInputKind::ContactPoints => "接触点".to_string(),
     }
 }
 
-fn output_label(output: &az_algorithm::catalog::AlgorithmOutputKind) -> String {
+fn output_label(output: &az_algorithm::catalog::model::AlgorithmOutputKind) -> String {
     match output {
-        az_algorithm::catalog::AlgorithmOutputKind::BoundingBox => "目标框".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::Confidence => "置信度".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::ClassLabel => "分类标签".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::Identity => "身份".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::Text => "文本内容".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::QrPayload => "二维码载荷".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::EventCount => "事件计数".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::EventTimestamp => "事件时间戳".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::PersonTrackId => "人员轨迹 ID".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::ActionState => "动作状态".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::TargetId => "目标 ID".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::ContactPoint => "接触点".to_string(),
-        az_algorithm::catalog::AlgorithmOutputKind::InvalidReason => "无效原因".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::BoundingBox => "目标框".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::Confidence => "置信度".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::ClassLabel => "分类标签".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::Identity => "身份".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::Text => "文本内容".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::QrPayload => "二维码载荷".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::EventCount => "事件计数".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::EventTimestamp => {
+            "事件时间戳".to_string()
+        }
+        az_algorithm::catalog::model::AlgorithmOutputKind::PersonTrackId => {
+            "人员轨迹 ID".to_string()
+        }
+        az_algorithm::catalog::model::AlgorithmOutputKind::ActionState => "动作状态".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::TargetId => "目标 ID".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::ContactPoint => "接触点".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::InvalidReason => "无效原因".to_string(),
     }
 }

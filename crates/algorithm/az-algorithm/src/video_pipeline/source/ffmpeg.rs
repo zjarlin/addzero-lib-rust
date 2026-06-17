@@ -7,7 +7,7 @@ use anyhow::bail;
 use image::RgbImage;
 
 use crate::video_pipeline::model::VideoFrame;
-use crate::video_pipeline::source::{FfmpegFrameDecodeOptions, FfmpegVideoSource};
+use crate::video_pipeline::source::model::{FfmpegFrameDecodeOptions, FfmpegVideoSource};
 
 /// 使用 `ffmpeg` 将视频源解码为 RGB 帧。
 ///
@@ -113,15 +113,15 @@ fn validate_options(options: &FfmpegFrameDecodeOptions) -> anyhow::Result<()> {
     if options.max_frames == Some(0) {
         bail!("ffmpeg frame decode max_frames must be greater than zero when set");
     }
-    if let FfmpegVideoSource::Url(url) | FfmpegVideoSource::CameraDevice(url) = &options.source {
-        if url.trim().is_empty() {
-            bail!("ffmpeg video source cannot be blank");
-        }
+    if let FfmpegVideoSource::Url(url) | FfmpegVideoSource::CameraDevice(url) = &options.source
+        && url.trim().is_empty()
+    {
+        bail!("ffmpeg video source cannot be blank");
     }
-    if let FfmpegVideoSource::File(path) = &options.source {
-        if !path.is_file() {
-            bail!("ffmpeg video file `{}` is missing", path.display());
-        }
+    if let FfmpegVideoSource::File(path) = &options.source
+        && !path.is_file()
+    {
+        bail!("ffmpeg video file `{}` is missing", path.display());
     }
     Ok(())
 }

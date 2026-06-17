@@ -4,9 +4,8 @@ use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
 
-automod::dir!(pub "src/video_pipeline/assist");
-
 use anyhow::anyhow;
+
 use crate::video_pipeline::model::{
     VideoAlgorithmBinding, VideoAlgorithmFrameResult, VideoAlgorithmRunSummary,
     VideoAlgorithmSchedule, VideoFrame, VideoPipelineOptions, VideoPipelineOutputFiles,
@@ -35,9 +34,8 @@ pub fn run_video_frame_pipeline(
         frame_results_jsonl: output_dir.join("pipeline_frame_results.jsonl"),
         summary_json: output_dir.join("pipeline_summary.json"),
     };
-    let jsonl_file = File::create(&files.frame_results_jsonl).map_err(|source| {
-        path_error(files.frame_results_jsonl.clone(), source)
-    })?;
+    let jsonl_file = File::create(&files.frame_results_jsonl)
+        .map_err(|source| path_error(files.frame_results_jsonl.clone(), source))?;
     let mut jsonl_writer = BufWriter::new(jsonl_file);
 
     let mut frame_results = Vec::new();

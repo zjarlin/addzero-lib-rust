@@ -151,17 +151,17 @@ impl NativePluginHost {
                 }
             };
 
-            if let Some(startup) = runtime.startup {
-                if let Err(error) = startup(self.context.clone()) {
-                    snapshot.plugins.push(failed_record(
-                        descriptor.clone(),
-                        format!(
-                            "plugin `{}` failed during startup: {}",
-                            descriptor.id, error
-                        ),
-                    ));
-                    continue;
-                }
+            if let Some(startup) = runtime.startup
+                && let Err(error) = startup(self.context.clone())
+            {
+                snapshot.plugins.push(failed_record(
+                    descriptor.clone(),
+                    format!(
+                        "plugin `{}` failed during startup: {}",
+                        descriptor.id, error
+                    ),
+                ));
+                continue;
             }
 
             if let Some((method, path)) =
@@ -200,7 +200,7 @@ pub fn load_plugin_enablement() -> PluginEnablementStore {
 }
 
 pub fn set_plugin_enabled(plugin_id: &str, enabled: bool) -> io::Result<()> {
-    set_plugin_enabled_at(&plugin_enablement_store_path(), plugin_id, enabled)
+    set_plugin_enabled_at(plugin_enablement_store_path(), plugin_id, enabled)
 }
 
 pub fn set_plugin_enabled_at(

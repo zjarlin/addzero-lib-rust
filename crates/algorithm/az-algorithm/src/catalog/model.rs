@@ -31,7 +31,7 @@ impl AlgorithmComponentKind {
     /// 返回该组件的完整规格。
     #[must_use]
     pub fn spec(self) -> Option<&'static AlgorithmComponentSpec> {
-        crate::catalog::algorithm_components()
+        crate::catalog::query::algorithm_components()
             .into_iter()
             .find(|spec| spec.kind == self)
     }

@@ -4,6 +4,10 @@ use dioxus::prelude::*;
 
 use crate::util::class_name::compose_class;
 
+fn non_empty_attr(value: String) -> Option<String> {
+    if value.is_empty() { None } else { Some(value) }
+}
+
 /// 渲染带有 `az-table` 变体 class 的语义化表格根节点。
 #[allow(non_snake_case)]
 #[component]
@@ -118,6 +122,7 @@ pub fn AzTableHeaderCell(
         &class,
         &[("az-table__cell--numeric", numeric)],
     );
+    let style = non_empty_attr(style);
 
     rsx! {
         th { class: cell_class, style: style, scope: scope, {children} }
@@ -139,6 +144,7 @@ pub fn AzTableCell(
         &class,
         &[("az-table__cell--numeric", numeric)],
     );
+    let style = non_empty_attr(style);
 
     if colspan > 1 {
         rsx! {

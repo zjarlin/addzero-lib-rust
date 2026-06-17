@@ -1,4 +1,8 @@
-automod::dir!(pub "src/ui/page");
+pub mod helpers;
+pub mod model_editor;
+pub mod renderers;
+pub mod screen_list;
+pub mod strategy;
 
 use az_aio_platform::plugin::api::NativeRenderContext;
 use chrono::Utc;

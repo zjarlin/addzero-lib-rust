@@ -8,7 +8,10 @@ use az_dioxus_components::neobrutal::{
 };
 use dioxus::prelude::*;
 
-automod::dir!("src/app/components");
+mod model;
+mod sidebar;
+mod welcome;
+mod workspace;
 
 use model::{PageChrome, SlotRenderers};
 use sidebar::ShellSidebar;

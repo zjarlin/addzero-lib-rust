@@ -8,7 +8,7 @@ use dioxus::prelude::*;
 
 use crate::util::class_name::compose_class;
 
-automod::dir!(pub "src/neobrutal");
+pub mod shell;
 
 pub use shell::{
     NbContentSlot, NbFloatingPanelSlot, NbHeaderBar, NbIconButton, NbModelButton, NbNavLink,

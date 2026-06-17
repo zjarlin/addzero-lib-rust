@@ -5,7 +5,9 @@ use parking_lot::Mutex;
 
 use crate::backend::model::{AppScreen, LowcodeRecord, MetaField, MetaModel};
 
-automod::dir!(pub "src/backend/store");
+pub mod meta;
+pub mod screen;
+pub mod seed;
 
 static GLOBAL_STORE: OnceLock<LowcodeStore> = OnceLock::new();
 
