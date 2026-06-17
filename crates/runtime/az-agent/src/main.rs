@@ -1,4 +1,4 @@
-use az_agent::complete::chat_completions;
+use az_agent::complete::responses_with_demo_tool;
 use std::path::Path;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -12,8 +12,21 @@ async fn main() -> anyhow::Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
     let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5.5".to_string());
-    let result = chat_completions(&model, Some("You are a helpful assistant."), "hi").await?;
-    println!("1111111111111{result}");
+    let prompt = std::env::var("AZ_AGENT_PROMPT").unwrap_or_else(|_| "现在几点?".to_string());
+    let result = responses_with_demo_tool(
+        &model,
+        Some("You are a helpful assistant. When answering current time questions, use the available time tool before answering."),
+        &prompt,
+    )
+    .await?;
+    println!("requested_model: {}", result.requested_model);
+    println!("response_model: {}", result.response_model);
+    println!("response_id: {}", result.response_id);
+    println!("status: {}", result.status);
+    if let Some(warning) = result.warning {
+        println!("warning: {warning}");
+    }
+    println!("{}", result.output_text);
     Ok(())
 }
 

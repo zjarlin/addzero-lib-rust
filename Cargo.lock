@@ -821,6 +821,7 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "async-openai",
+ "chrono",
  "dotenvy",
  "serde",
  "serde_json",
