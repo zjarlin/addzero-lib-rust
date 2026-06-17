@@ -821,8 +821,10 @@ version = "2026.5.10"
 dependencies = [
  "anyhow",
  "async-openai",
+ "async-trait",
  "chrono",
  "dotenvy",
+ "rudi",
  "serde",
  "serde_json",
  "tokio",
@@ -8754,6 +8756,21 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
+
+[[package]]
+name = "rudi"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba13600a8354cf67d7f7dfd06252e8af253ae5ec036bb669c4615a8d05580d54"
+dependencies = [
+ "rudi-core",
+]
+
+[[package]]
+name = "rudi-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f86701107ec8c5aefd855e7740e42c3cc3f2e8676b84a2807cdec67b964f2a5"
 
 [[package]]
 name = "rumqttc"

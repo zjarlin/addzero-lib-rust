@@ -1,4 +1,11 @@
-use az_agent::complete::responses_with_demo_tool;
+use az_agent::{
+    chat_responses::ChatResponsesAgentRunner,
+    config::OpenAiRuntimeConfig,
+    di::create_agent_context,
+    responses::{ResponsesRunRequest, ResponsesRunner},
+    structured::time_answer_schema,
+    tool::current_time,
+};
 use std::path::Path;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -13,12 +20,26 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
     let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5.5".to_string());
     let prompt = std::env::var("AZ_AGENT_PROMPT").unwrap_or_else(|_| "现在几点?".to_string());
-    let result = responses_with_demo_tool(
-        &model,
-        Some("You are a helpful assistant. When answering current time questions, use the available time tool before answering."),
-        &prompt,
-    )
-    .await?;
+    let config = OpenAiRuntimeConfig::from_env()?;
+    let mut cx = create_agent_context(config);
+    let request = ResponsesRunRequest {
+        model,
+        instructions: Some(
+            "You are a helpful assistant. When answering current time questions, use the available time tool before answering."
+                .to_string(),
+        ),
+        prompt,
+        images: Vec::new(),
+        structured_output: Some(time_answer_schema()),
+        tool_choice: Some(current_time::TOOL_NAME.to_string()),
+    };
+    let result = if std::env::var("AZ_AGENT_TOOL_MODE").as_deref() == Ok("chat") {
+        let runner = cx.resolve::<ChatResponsesAgentRunner<az_agent::chat::OpenAiChatBackend>>();
+        runner.run(request).await?
+    } else {
+        let runner = cx.resolve::<ResponsesRunner>();
+        runner.run(request).await?
+    };
     println!("requested_model: {}", result.requested_model);
     println!("response_model: {}", result.response_model);
     println!("response_id: {}", result.response_id);
