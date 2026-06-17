@@ -19,10 +19,11 @@ fn fixture_path(file_name: &str) -> PathBuf {
     .expect("测试输入图片必须存在")
 }
 
-fn output_dir() -> PathBuf {
+fn output_dir(output_name: &str) -> PathBuf {
     workspace_root()
         .join("target/az-algorithm-results")
         .join("vehicle_detection")
+        .join(output_name)
 }
 
 fn assert_existing_file(path: &Path) {
@@ -74,14 +75,23 @@ fn assert_real_outputs_exist(
 
 #[test]
 fn vehicle_detection_should_run_test_image_and_write_marked_outputs() -> anyhow::Result<()> {
-    // 输入：crates/algorithm/az-algorithm/tests/fixtures/vehicle_detection/input/test.png
-    // 输出：target/az-algorithm-results/vehicle_detection/model_input_preview.png
-    // 输出：target/az-algorithm-results/vehicle_detection/detected_vehicles.png
-    let result =
-        run_vehicle_detection_from_path_with_output(fixture_path("test.png"), output_dir())?;
+    let cases = [
+        ("cars_traffic.jpg", "cars_traffic"),
+        ("bus_street.jpg", "bus_street"),
+    ];
 
-    // 关键断言：验证真实模型输出、车辆框和标注图落盘。
-    assert!(!result.raw_outputs.is_empty());
-    assert_real_outputs_exist(&result)?;
+    for (file_name, output_name) in cases {
+        // 输入：crates/algorithm/az-algorithm/tests/fixtures/vehicle_detection/input/{file_name}
+        // 输出：target/az-algorithm-results/vehicle_detection/{output_name}/model_input_preview.png
+        // 输出：target/az-algorithm-results/vehicle_detection/{output_name}/detected_vehicles.png
+        let result = run_vehicle_detection_from_path_with_output(
+            fixture_path(file_name),
+            output_dir(output_name),
+        )?;
+
+        // 关键断言：验证真实模型输出、车辆框和标注图落盘。
+        assert!(!result.raw_outputs.is_empty());
+        assert_real_outputs_exist(&result)?;
+    }
     Ok(())
 }
