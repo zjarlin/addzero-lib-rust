@@ -2,10 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::onnx::image::assist::{
+use az_onnx::onnx::image::assist::{
     LocalOnnxSession, write_inference_artifacts_from_image,
 };
-use crate::onnx::image::model::OnnxImageModelSpec;
+use az_onnx::onnx::image::model::OnnxImageModelSpec;
 use image::DynamicImage;
 use serde_json::json;
 

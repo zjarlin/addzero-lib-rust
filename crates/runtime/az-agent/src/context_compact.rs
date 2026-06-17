@@ -1,18 +1,18 @@
-/// A single item in an agent conversation before compaction.
+/// 压缩前 agent 对话中的单条消息。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompactMessage {
-    /// Stable role label such as `user`, `assistant`, `tool`, or `system`.
+    /// 稳定角色标签，例如 `user`、`assistant`、`tool` 或 `system`。
     pub role: String,
-    /// Plain text payload to compact.
+    /// 需要压缩的纯文本内容。
     pub content: String,
 }
 
-/// Controls deterministic local context compaction.
+/// 控制确定性本地上下文压缩。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompactPolicy {
-    /// Maximum characters kept in the compacted context.
+    /// 压缩后上下文最多保留的字符数。
     pub max_chars: usize,
-    /// Number of newest messages preserved verbatim.
+    /// 原样保留的最新消息数量。
     pub preserve_recent: usize,
 }
 
@@ -25,19 +25,19 @@ impl Default for CompactPolicy {
     }
 }
 
-/// Compacts old context into a deterministic summary plus recent verbatim turns.
+/// 将旧上下文压缩成确定性摘要，并保留最近对话原文。
 #[derive(Debug, Clone)]
 pub struct ContextCompactor {
     policy: CompactPolicy,
 }
 
 impl ContextCompactor {
-    /// Creates a compactor with the given policy.
+    /// 使用指定策略创建压缩器。
     pub fn new(policy: CompactPolicy) -> Self {
         Self { policy }
     }
 
-    /// Produces a compacted context without depending on a model call.
+    /// 在不依赖模型调用的情况下生成压缩后上下文。
     pub fn compact(&self, messages: &[CompactMessage]) -> Vec<CompactMessage> {
         if messages.len() <= self.policy.preserve_recent {
             return messages.to_vec();

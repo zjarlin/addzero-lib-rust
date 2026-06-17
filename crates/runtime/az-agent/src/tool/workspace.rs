@@ -3,10 +3,10 @@ use serde_json::json;
 
 use crate::tool::{AgentTool, argument_bool, json_output, parse_tool_arguments};
 
-/// Function name for the workspace metadata tool.
+/// 工作区元数据工具的函数名。
 pub const TOOL_NAME: &str = "az_current_workspace";
 
-/// Tool plugin returning local workspace metadata.
+/// 返回本地工作区元数据的工具插件。
 #[derive(Debug, Clone, Default)]
 pub struct WorkspaceTool;
 

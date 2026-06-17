@@ -93,7 +93,7 @@ fn run_one_algorithm(
             ]
         }
         ImageAlgorithmKind::OcrTextRecognition => {
-            let run = crate::components::ocr_text_recognition::assist::run_ocr_text_recognition_from_path_with_output(
+            let run = az_ocr::paddle::assist::run_ocr_text_recognition_from_path_with_output(
                 input_path,
                 output_dir.join("detection"),
                 output_dir.join("recognition"),

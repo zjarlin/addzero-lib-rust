@@ -7,10 +7,10 @@ use anyhow::{Context, bail};
 use image::imageops::FilterType;
 use image::{DynamicImage, RgbImage};
 
-use crate::onnx::image::assist::LocalOnnxSession;
-use crate::onnx::image::model::{OnnxOutputSummary, PreparedImageTensor};
+use az_onnx::onnx::image::assist::LocalOnnxSession;
+use az_onnx::onnx::image::model::{OnnxOutputSummary, PreparedImageTensor};
 
-use crate::components::ocr_text_recognition::model::{
+use crate::paddle::model::{
     DEFAULT_DETECTION_RESULT_DIR, DEFAULT_MODEL_RESOURCE_DIR, DEFAULT_RECOGNITION_RESULT_DIR,
     OCR_PADDLE_CHINESE_DICT_FILE, OCR_PADDLE_CHINESE_RECOGNITION, OCR_PADDLE_V3_DETECTION,
     OcrTextBoundingBox, OcrTextLine, OcrTextRecognitionOutputFiles, OcrTextToken,

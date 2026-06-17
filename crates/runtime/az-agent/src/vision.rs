@@ -1,13 +1,13 @@
 use serde_json::{Value, json};
 
-/// Image detail level for vision-capable model inputs.
+/// 视觉模型输入的图片细节级别。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VisionDetail {
-    /// Let the provider choose.
+    /// 由 provider 自行选择。
     Auto,
-    /// Lower token/cost detail.
+    /// 较低 token 或成本的细节级别。
     Low,
-    /// Higher fidelity detail.
+    /// 较高保真度的细节级别。
     High,
 }
 
@@ -21,17 +21,17 @@ impl VisionDetail {
     }
 }
 
-/// Image reference accepted by Responses and chat-compatible vision APIs.
+/// Responses 和兼容 chat 的视觉 API 可接受的图片引用。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VisionInput {
-    /// URL, data URL, or file ID depending on provider support.
+    /// URL、data URL 或 file ID，取决于 provider 支持范围。
     pub source: VisionSource,
-    /// Requested detail level.
+    /// 请求的细节级别。
     pub detail: VisionDetail,
 }
 
 impl VisionInput {
-    /// Creates an image input from a URL or data URL.
+    /// 根据 URL 或 data URL 创建图片输入。
     pub fn image_url(url: impl Into<String>) -> Self {
         Self {
             source: VisionSource::ImageUrl(url.into()),
@@ -39,7 +39,7 @@ impl VisionInput {
         }
     }
 
-    /// Creates an image input from an uploaded file ID.
+    /// 根据已上传文件 ID 创建图片输入。
     pub fn file_id(file_id: impl Into<String>) -> Self {
         Self {
             source: VisionSource::FileId(file_id.into()),
@@ -47,13 +47,13 @@ impl VisionInput {
         }
     }
 
-    /// Overrides image detail.
+    /// 覆盖图片细节级别。
     pub fn with_detail(mut self, detail: VisionDetail) -> Self {
         self.detail = detail;
         self
     }
 
-    /// Converts to a Responses `input_image` content item.
+    /// 转换为 Responses 的 `input_image` 内容项。
     pub fn to_responses_content(&self) -> Value {
         match &self.source {
             VisionSource::ImageUrl(url) => json!({
@@ -69,7 +69,7 @@ impl VisionInput {
         }
     }
 
-    /// Converts to a Chat Completions `image_url` content item.
+    /// 转换为 Chat Completions 的 `image_url` 内容项。
     pub fn to_chat_content(&self) -> Value {
         match &self.source {
             VisionSource::ImageUrl(url) => json!({
@@ -90,12 +90,12 @@ impl VisionInput {
     }
 }
 
-/// Backing source for a vision input.
+/// 视觉输入的底层来源。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VisionSource {
-    /// Fully qualified URL or base64 data URL.
+    /// 完整 URL 或 base64 data URL。
     ImageUrl(String),
-    /// Uploaded provider file ID.
+    /// 已上传到 provider 的 file ID。
     FileId(String),
 }
 

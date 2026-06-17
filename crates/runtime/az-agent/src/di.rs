@@ -7,10 +7,11 @@ use crate::{
     chat_responses::ChatResponsesAgentRunner,
     config::OpenAiRuntimeConfig,
     responses::ResponsesRunner,
+    spi::AgentResponsesSpiRef,
     tool::{AgentTool, ToolRegistry, current_time::CurrentTimeTool, workspace::WorkspaceTool},
 };
 
-/// Rudi module that wires az-agent runtime services.
+/// 负责装配 az-agent 运行时服务的 Rudi 模块。
 pub struct AgentModule;
 
 impl Module for AgentModule {
@@ -32,11 +33,19 @@ impl Module for AgentModule {
                 let tools = cx.resolve::<ToolRegistry>();
                 ChatResponsesAgentRunner::new(OpenAiChatBackend::new(config.client()), tools)
             }),
+            singleton(|cx| {
+                if std::env::var("AZ_AGENT_TOOL_MODE").as_deref() == Ok("chat") {
+                    Arc::new(cx.resolve::<ChatResponsesAgentRunner<OpenAiChatBackend>>())
+                        as AgentResponsesSpiRef
+                } else {
+                    Arc::new(cx.resolve::<ResponsesRunner>()) as AgentResponsesSpiRef
+                }
+            }),
         ]
     }
 }
 
-/// Creates a rudi context for az-agent with runtime configuration inserted as a singleton.
+/// 创建 az-agent 的 Rudi 上下文，并把运行时配置作为 singleton 注入。
 pub fn create_agent_context(config: OpenAiRuntimeConfig) -> Context {
     Context::options()
         .singleton(config)

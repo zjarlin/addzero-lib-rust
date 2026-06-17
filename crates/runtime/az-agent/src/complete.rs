@@ -6,14 +6,15 @@ use async_openai::types::chat::{
 use crate::{
     config::OpenAiRuntimeConfig,
     di::create_agent_context,
-    responses::{ResponsesResult, ResponsesRunRequest, ResponsesRunner},
+    responses::{ResponsesResult, ResponsesRunRequest},
+    spi::resolve_agent_responses_spi,
     structured::time_answer_schema,
 };
 
-/// Sends a single chat completion request with an optional system prompt.
+/// 发送单次 chat completion 请求，可选系统提示词。
 ///
-/// This remains as a small compatibility facade. New agent flows should prefer
-/// [`ResponsesRunner`] so tools and structured output share the same path.
+/// 这里保留为小型兼容门面。新的 agent 流程应优先走
+/// [`crate::spi::AgentResponsesSpi`]，让工具调用和结构化输出共用同一路径。
 pub async fn chat_completions(
     model: &str,
     system: Option<&str>,
@@ -56,7 +57,7 @@ pub async fn chat_completions(
     Ok(content)
 }
 
-/// Runs the Responses API demo with the current-time tool and structured output schema.
+/// 使用当前时间工具和结构化输出 schema 运行 Responses API 示例。
 pub async fn responses_with_demo_tool(
     model: &str,
     instructions: Option<&str>,
@@ -64,9 +65,9 @@ pub async fn responses_with_demo_tool(
 ) -> anyhow::Result<ResponsesResult> {
     let config = OpenAiRuntimeConfig::from_env()?;
     let mut cx = create_agent_context(config);
-    let runner = cx.resolve::<ResponsesRunner>();
+    let runner = resolve_agent_responses_spi(&mut cx)?;
     runner
-        .run(ResponsesRunRequest {
+        .run_responses(ResponsesRunRequest {
             model: model.to_string(),
             instructions: instructions.map(ToString::to_string),
             prompt: prompt.to_string(),

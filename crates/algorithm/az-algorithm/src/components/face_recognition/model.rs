@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::components::face_detection::model::FaceDetectionBox;
-use crate::onnx::image::model::{
+use az_onnx::onnx::image::model::{
     OnnxImageModelSpec, OnnxImageOutputFiles, OnnxImageOutputKind, OnnxOutputSummary,
     TensorElementKind, TensorInputSpec,
 };

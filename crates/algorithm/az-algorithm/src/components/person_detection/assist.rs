@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::onnx::image::assist::prepare_image_tensor_for_spec;
+use az_onnx::onnx::image::assist::prepare_image_tensor_for_spec;
 use base64::Engine;
 use half::f16;
 use image::imageops::FilterType;

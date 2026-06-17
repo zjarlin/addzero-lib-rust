@@ -19,10 +19,10 @@ use crate::components::face_recognition::model::{
     DEFAULT_SAME_IDENTITY_THRESHOLD, FACE_RECOGNITION_SFACE_2021DEC, FaceEmbeddingRun,
     FaceRecognitionOutputFiles, FaceRecognitionRun,
 };
-use crate::onnx::image::assist::{
+use az_onnx::onnx::image::assist::{
     LocalOnnxSession, write_inference_artifacts_from_image,
 };
-use crate::onnx::image::model::{
+use az_onnx::onnx::image::model::{
     OnnxImageRun, OnnxInferenceSummary, OnnxOutputSummary, PreparedImageTensor,
 };
 

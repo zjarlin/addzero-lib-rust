@@ -1,17 +1,17 @@
-//! Public API probes for the agent runtime crate.
+//! agent 运行时 crate 的公开 API 探针。
 
-/// Compile-time markers for agent runtime dependencies.
+/// agent 运行时依赖的编译期标记。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DependencyMarkers {
-    /// Marker for the OpenAI client dependency.
+    /// OpenAI client 依赖标记。
     pub async_openai_client: &'static str,
-    /// Marker for the Tokio runtime dependency.
+    /// Tokio runtime 依赖标记。
     pub tokio_runtime: &'static str,
-    /// Marker for the tracing subscriber dependency.
+    /// tracing subscriber 依赖标记。
     pub tracing_subscriber: &'static str,
 }
 
-/// Returns type-name markers proving the agent runtime dependencies are wired.
+/// 返回类型名标记，用于证明 agent 运行时依赖已经接入。
 pub fn dependency_markers() -> DependencyMarkers {
     DependencyMarkers {
         async_openai_client: std::any::type_name::<

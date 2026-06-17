@@ -1,21 +1,21 @@
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
-/// JSON schema metadata for Responses API structured outputs.
+/// Responses API 结构化输出的 JSON Schema 元数据。
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructuredOutputSpec {
-    /// Schema name sent to the model.
+    /// 发送给模型的 schema 名称。
     pub name: String,
-    /// Human-readable schema description.
+    /// 便于阅读的 schema 描述。
     pub description: Option<String>,
-    /// JSON Schema object.
+    /// JSON Schema 对象。
     pub schema: Value,
-    /// Whether the model must strictly follow the schema.
+    /// 模型是否必须严格遵守 schema。
     pub strict: bool,
 }
 
 impl StructuredOutputSpec {
-    /// Creates a strict structured output schema.
+    /// 创建严格结构化输出 schema。
     pub fn strict(name: impl Into<String>, description: impl Into<String>, schema: Value) -> Self {
         Self {
             name: name.into(),
@@ -25,7 +25,7 @@ impl StructuredOutputSpec {
         }
     }
 
-    /// Converts this spec to the Responses API `text.format` JSON payload.
+    /// 转换为 Responses API 的 `text.format` JSON payload。
     pub fn to_response_text_json(&self) -> Value {
         json!({
             "format": {
@@ -39,7 +39,7 @@ impl StructuredOutputSpec {
     }
 }
 
-/// Parses a model JSON text output into a typed value.
+/// 将模型返回的 JSON 文本输出解析为强类型值。
 pub fn parse_structured_output<T>(text: &str) -> anyhow::Result<T>
 where
     T: DeserializeOwned,
@@ -47,7 +47,7 @@ where
     Ok(serde_json::from_str(text)?)
 }
 
-/// Standard demo schema proving structured output wiring.
+/// 用于验证结构化输出接线的标准示例 schema。
 pub fn time_answer_schema() -> StructuredOutputSpec {
     StructuredOutputSpec::strict(
         "az_time_answer",

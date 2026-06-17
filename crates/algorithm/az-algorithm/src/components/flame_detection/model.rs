@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::onnx::image::model::{
+use az_onnx::onnx::image::model::{
     OnnxImageModelSpec, OnnxImageOutputKind, TensorElementKind, TensorInputSpec,
 };
 

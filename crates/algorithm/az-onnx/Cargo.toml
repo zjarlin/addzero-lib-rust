@@ -1,35 +1,23 @@
 [package]
-name = "az-algorithm"
+name = "az-onnx"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Unified algorithm components, ONNX helpers, catalog, and pipelines for the addzero ecosystem"
+description = "Shared local ONNX image inference helpers for the addzero ecosystem"
 homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-ab_glyph.workspace = true
 anyhow.workspace = true
 automod.workspace = true
-az-derive-aliases.workspace = true
-az-onnx.workspace = true
-az-ocr.workspace = true
-az-str.workspace = true
-base64.workspace = true
-half.workspace = true
 image.workspace = true
 imageproc.workspace = true
 ndarray.workspace = true
 ort = { workspace = true, features = ["half"] }
-rqrr.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-strum.workspace = true
-
-[dev-dependencies]
-tempfile.workspace = true
 
 [lints]
 workspace = true

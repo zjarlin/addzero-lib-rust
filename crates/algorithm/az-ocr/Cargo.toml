@@ -1,0 +1,25 @@
+[package]
+name = "az-ocr"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "OCR backends and structured OCR outputs for the addzero ecosystem"
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+automod.workspace = true
+az-onnx.workspace = true
+image.workspace = true
+rusty-tesseract.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

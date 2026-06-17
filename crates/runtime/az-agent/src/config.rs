@@ -3,17 +3,17 @@ use std::env;
 use anyhow::{Context, bail};
 use async_openai::{Client, config::OpenAIConfig};
 
-/// Runtime configuration for OpenAI-compatible APIs.
+/// 兼容 OpenAI API 的运行时配置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpenAiRuntimeConfig {
-    /// API key read from `OPENAI_API_KEY` or compatible aliases.
+    /// 从 `OPENAI_API_KEY` 或兼容别名读取的 API key。
     pub api_key: String,
-    /// Normalized API base ending with `/v1`.
+    /// 规范化后的 API base，结尾为 `/v1`。
     pub api_base: String,
 }
 
 impl OpenAiRuntimeConfig {
-    /// Loads OpenAI-compatible runtime configuration from environment variables.
+    /// 从环境变量加载兼容 OpenAI 的运行时配置。
     pub fn from_env() -> anyhow::Result<Self> {
         let api_key = first_env(["OPENAI_API_KEY", "API_KEY"])
             .context("missing OPENAI_API_KEY or API_KEY for az-agent")?;
@@ -28,7 +28,7 @@ impl OpenAiRuntimeConfig {
         Ok(Self { api_key, api_base })
     }
 
-    /// Builds an `async-openai` client from this runtime configuration.
+    /// 根据当前运行时配置构建 `async-openai` client。
     pub fn client(&self) -> Client<OpenAIConfig> {
         Client::with_config(
             OpenAIConfig::new()
@@ -38,7 +38,7 @@ impl OpenAiRuntimeConfig {
     }
 }
 
-/// Normalizes an OpenAI-compatible API base URL to the `/v1` API root.
+/// 将兼容 OpenAI 的 API base URL 规范化到 `/v1` API 根路径。
 pub fn normalize_openai_api_base(api_base: &str) -> anyhow::Result<String> {
     let trimmed = api_base.trim().trim_end_matches('/');
     if trimmed.is_empty() {

@@ -10,12 +10,13 @@ use serde_json::{Value, json};
 use crate::{
     chat::{ChatBackend, ChatMessage, ChatRequest},
     responses::{ResponsesResult, ResponsesRunRequest},
+    spi::AgentResponsesSpi,
     tool::{FunctionToolCall, ToolRegistry, format_function_output},
 };
 
 const DEFAULT_MAX_TOOL_ROUNDS: usize = 4;
 
-/// Wraps a chat-only model API as a Responses-style agent with local tools.
+/// 将纯聊天模型 API 包装成带本地工具的 Responses 风格 agent。
 #[derive(Clone)]
 pub struct ChatResponsesAgentRunner<B>
 where
@@ -31,7 +32,7 @@ impl<B> ChatResponsesAgentRunner<B>
 where
     B: ChatBackend,
 {
-    /// Creates a chat-only adapter that exposes Responses-style tool behavior.
+    /// 创建暴露 Responses 风格工具行为的纯聊天适配器。
     pub fn new(backend: B, tools: ToolRegistry) -> Self {
         Self {
             backend,
@@ -41,7 +42,7 @@ where
         }
     }
 
-    /// Runs a Responses-style request on top of a plain chat backend.
+    /// 在纯聊天后端之上运行 Responses 风格请求。
     pub async fn run(&self, request: ResponsesRunRequest) -> anyhow::Result<ResponsesResult> {
         let mut messages = vec![ChatMessage::system(self.protocol_prompt(&request))];
         if let Some(instructions) = request
@@ -181,6 +182,16 @@ Available tools:
             round + 1,
             self.id_sequence.fetch_add(1, Ordering::Relaxed)
         )
+    }
+}
+
+#[async_trait::async_trait]
+impl<B> AgentResponsesSpi for ChatResponsesAgentRunner<B>
+where
+    B: ChatBackend,
+{
+    async fn run_responses(&self, request: ResponsesRunRequest) -> anyhow::Result<ResponsesResult> {
+        self.run(request).await
     }
 }
 

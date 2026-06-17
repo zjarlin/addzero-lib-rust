@@ -12,6 +12,7 @@ use ort::session::Session;
 use ort::value::{Tensor, TensorElementType, ValueType};
 
 use anyhow::{anyhow, bail};
+
 use crate::onnx::image::model::{
     OnnxImageModelSpec, OnnxImageOutputFiles, OnnxImageRun, OnnxInferenceSummary,
     OnnxImageOutputKind, OnnxModelMetadata, OnnxOutputSummary, OnnxTensorIoInfo,

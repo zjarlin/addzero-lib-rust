@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use az_algorithm::components::ocr_text_recognition::assist::run_ocr_text_recognition_from_path_with_output;
+use az_ocr::paddle::assist::run_ocr_text_recognition_from_path_with_output;
 
 fn workspace_root() -> PathBuf {
     std::fs::canonicalize(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
@@ -28,7 +28,7 @@ fn assert_existing_file(path: &Path) {
 
 #[test]
 fn ocr_text_recognition_should_return_text_from_input_image() -> anyhow::Result<()> {
-    // 输入图片：crates/algorithm/az-algorithm/tests/fixtures/ocr_text_recognition/input/ocr_text.jpg
+    // 输入图片：crates/algorithm/az-ocr/tests/fixtures/ocr_text_recognition/input/ocr_text.jpg
     //
     // 输出：
     // target/az-algorithm-results/ocr_text_recognition/recognized_text.txt
@@ -38,6 +38,7 @@ fn ocr_text_recognition_should_return_text_from_input_image() -> anyhow::Result<
         output_dir("ocr_text_detection"),
         output_dir("ocr_text_recognition"),
     )?;
+    println!("{}", result.recognized_text);
 
     // 关键断言：OCR 不能只停留在 raw tensor，必须产出可消费的文本结果。
     assert!(!result.recognized_text.trim().is_empty());

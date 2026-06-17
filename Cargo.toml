@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
     "crates/algorithm/az-algorithm",
+    "crates/algorithm/az-onnx",
+    "crates/algorithm/az-ocr",
     "crates/api/*",
     "crates/config/*",
     "crates/core/*",
@@ -69,6 +71,7 @@ reqwest = { version = "0.12.24", default-features = false, features = ["blocking
 ring = "0.17.14"
 rudi = { version = "0.8.3", default-features = false }
 rqrr = { version = "0.10.1", default-features = false, features = ["img"] }
+rusty-tesseract = "1.1.10"
 rumqttc = "0.25.1"
 rust-i18n = "3.1.5"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -133,6 +136,8 @@ az-micro-dict = { version = "=2026.5.10", path = "crates/micro/az-micro-dict" }
 az-music = { version = "=2026.5.10", path = "crates/network/az-music" }
 az-oauth2 = { version = "=2026.5.10", path = "crates/api/az-oauth2" }
 az-openai-openapi = { version = "=2026.5.10", path = "crates/api/az-openai-openapi" }
+az-onnx = { version = "=2026.5.10", path = "crates/algorithm/az-onnx" }
+az-ocr = { version = "=2026.5.10", path = "crates/algorithm/az-ocr" }
 az-persistence = { version = "=2026.5.10", path = "crates/data/az-persistence" }
 az-remote-model = { version = "=2026.5.10", path = "crates/core/az-remote-model" }
 az-remote-protocol = { version = "=2026.5.10", path = "crates/network/az-remote-protocol" }

@@ -9,9 +9,6 @@ use az_algorithm::components::flame_detection::model::{
     DEFAULT_SCORE_THRESHOLD as FLAME_DEFAULT_SCORE_THRESHOLD, FLAME_DETECTION_FIRE_SMOKE_YOLOV8N,
     FlameDetectionOptions,
 };
-use az_algorithm::components::ocr_text_recognition::model::{
-    DETECTION_ALGORITHM_CODE as OCR_TEXT_DETECTION_CODE, OCR_PADDLE_V3_DETECTION,
-};
 use az_algorithm::components::person_detection::assist::PersonDetectionRunner;
 use az_algorithm::components::person_detection::model::{
     ALGORITHM_CODE as PERSON_DETECTION_CODE, DEFAULT_SCORE_THRESHOLD, PersonDetectionModelKind,
@@ -137,24 +134,6 @@ fn flame_model_path() -> PathBuf {
             .join(FLAME_DETECTION_FIRE_SMOKE_YOLOV8N.local_file),
     )
     .expect("火焰检测模型必须存在")
-}
-
-fn ocr_text_fixture_path() -> PathBuf {
-    std::fs::canonicalize(
-        workspace_root()
-            .join("crates/algorithm/az-algorithm/tests/fixtures/ocr_text_recognition/input")
-            .join("ocr_text.jpg"),
-    )
-    .expect("OCR 测试图片必须存在")
-}
-
-fn ocr_text_detection_model_path() -> PathBuf {
-    std::fs::canonicalize(
-        workspace_root()
-            .join("crates/algorithm/az-algorithm/resources/ocr_text_recognition/models")
-            .join("ocr_paddle_v3_det.onnx"),
-    )
-    .expect("OCR 文字检测模型必须存在")
 }
 
 fn qr_code_fixture_path() -> PathBuf {
@@ -286,15 +265,6 @@ fn frames_from_composite_algorithm_fixture(frame_count: u64, source_fps: f32) ->
         360,
         520,
     );
-    paste_resized(
-        &mut canvas,
-        image::open(ocr_text_fixture_path()).expect("OCR 测试图片必须能解码"),
-        760,
-        520,
-        640,
-        360,
-    );
-
     (0..frame_count)
         .map(|frame_index| VideoFrame {
             frame_index,
@@ -819,7 +789,7 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
     // - 人员、人脸使用已实现后处理的真实 runner，会输出检测框。
     // - 二维码使用纯 Rust 解码，会输出 payload 和角点框。
     // - 安全帽、火焰使用已实现后处理的真实 runner。
-    // - 车辆、OCR 文字检测目前接入 raw ONNX 适配器，只断言真实推理输出。
+    // - 车辆目前接入 raw ONNX 适配器，只断言真实推理输出。
     let output_dir = output_dir("video_pipeline_all_frame_image_algorithms");
     if output_dir.exists() {
         std::fs::remove_dir_all(&output_dir).expect("清理旧全算法视频 pipeline 输出目录必须成功");
@@ -831,14 +801,12 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
     dbg!(&safety_helmet_fixture_path());
     dbg!(&vehicle_fixture_path());
     dbg!(&flame_fixture_path());
-    dbg!(&ocr_text_fixture_path());
     dbg!(&qr_code_fixture_path());
     dbg!(&face_model_path());
     dbg!(&person_model_path());
     dbg!(&safety_helmet_model_path());
     dbg!(&vehicle_model_path());
     dbg!(&flame_model_path());
-    dbg!(&ocr_text_detection_model_path());
     dbg!(&output_dir);
 
     let mut person_algorithm = RealPersonDetectionVideoAlgorithm::new(output_dir.clone())?;
@@ -868,13 +836,6 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
         },
         output_dir.join("flame_frames"),
     )?;
-    let mut ocr_detection_algorithm = OnnxRawImageVideoAlgorithm::new(
-        OCR_TEXT_DETECTION_CODE,
-        OCR_PADDLE_V3_DETECTION,
-        ocr_text_detection_model_path(),
-        output_dir.join("ocr_text_detection_raw_frames"),
-    )?;
-
     let mut bindings = [
         VideoAlgorithmBinding {
             algorithm: &mut person_algorithm,
@@ -900,10 +861,6 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
             algorithm: &mut flame_algorithm,
             schedule: VideoAlgorithmSchedule::EveryFrame,
         },
-        VideoAlgorithmBinding {
-            algorithm: &mut ocr_detection_algorithm,
-            schedule: VideoAlgorithmSchedule::EveryFrame,
-        },
     ];
 
     let run = run_video_frame_pipeline(
@@ -919,7 +876,7 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
     dbg!(&run.files.summary_json);
     assert_existing_file(&run.files.frame_results_jsonl);
     assert_existing_file(&run.files.summary_json);
-    // 关键断言：一帧输入流上，7 个算法各执行一次，证明可以在实时视频帧上叠加。
+    // 关键断言：一帧输入流上，6 个算法各执行一次，证明可以在实时视频帧上叠加。
     assert_eq!(
         run.frame_results
             .iter()
@@ -932,7 +889,6 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
             SAFETY_HELMET_DETECTION_CODE,
             VEHICLE_DETECTION_CODE,
             FLAME_DETECTION_CODE,
-            OCR_TEXT_DETECTION_CODE,
         ]
     );
     assert!(
@@ -966,17 +922,15 @@ fn video_pipeline_should_stack_all_frame_image_algorithms_on_one_frame_stream() 
             "{structured_code} 必须真实执行 ONNX 并写出结构化后处理输出"
         );
     }
-    for raw_code in [VEHICLE_DETECTION_CODE, OCR_TEXT_DETECTION_CODE] {
-        assert!(
-            run.frame_results
-                .iter()
-                .find(|result| result.algorithm_code == raw_code)
-                .is_some_and(|result| {
-                    result.detections.is_empty()
-                        && result.raw_json["raw_output_count"].as_u64().unwrap_or(0) > 0
-                }),
-            "{raw_code} 当前必须只输出真实 raw ONNX 摘要，不伪造检测框"
-        );
-    }
+    assert!(
+        run.frame_results
+            .iter()
+            .find(|result| result.algorithm_code == VEHICLE_DETECTION_CODE)
+            .is_some_and(|result| {
+                result.detections.is_empty()
+                    && result.raw_json["raw_output_count"].as_u64().unwrap_or(0) > 0
+            }),
+        "{VEHICLE_DETECTION_CODE} 当前必须只输出真实 raw ONNX 摘要，不伪造检测框"
+    );
     Ok(())
 }

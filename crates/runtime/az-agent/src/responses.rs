@@ -3,46 +3,47 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
+    spi::AgentResponsesSpi,
     structured::StructuredOutputSpec,
     tool::{FunctionToolCall, ToolRegistry, format_function_output},
     vision::VisionInput,
 };
 
-/// Request for a Responses API run.
+/// Responses API 运行请求。
 #[derive(Debug, Clone)]
 pub struct ResponsesRunRequest {
-    /// Requested model ID.
+    /// 请求的模型 ID。
     pub model: String,
-    /// Optional developer/system instructions.
+    /// 可选的开发者或系统指令。
     pub instructions: Option<String>,
-    /// User input.
+    /// 用户输入。
     pub prompt: String,
-    /// Optional image inputs for vision-capable providers.
+    /// 面向视觉模型 provider 的可选图片输入。
     pub images: Vec<VisionInput>,
-    /// Optional structured output schema.
+    /// 可选结构化输出 schema。
     pub structured_output: Option<StructuredOutputSpec>,
-    /// Optional concrete function tool choice.
+    /// 可选的指定函数工具选择。
     pub tool_choice: Option<String>,
 }
 
-/// Responses API result with request and response model metadata.
+/// Responses API 结果，包含请求模型和响应模型等元数据。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResponsesResult {
-    /// Model ID requested by the caller.
+    /// 调用方请求的模型 ID。
     pub requested_model: String,
-    /// Model ID returned by the API after aliases or provider routing.
+    /// API 在别名或 provider 路由后返回的模型 ID。
     pub response_model: String,
-    /// Response object ID returned by the API.
+    /// API 返回的响应对象 ID。
     pub response_id: String,
-    /// Response status as returned by the API.
+    /// API 返回的响应状态。
     pub status: String,
-    /// Aggregated text output from `output_text` content items.
+    /// 从 `output_text` 内容项聚合出的文本输出。
     pub output_text: String,
-    /// Warning when the provider did not honor the requested Responses tool call.
+    /// provider 未遵守 Responses 工具调用请求时的警告。
     pub warning: Option<String>,
 }
 
-/// Runner for Responses API calls, including function tool loops.
+/// Responses API runner，包含函数工具调用循环。
 #[derive(Clone)]
 pub struct ResponsesRunner {
     client: Client<OpenAIConfig>,
@@ -50,12 +51,12 @@ pub struct ResponsesRunner {
 }
 
 impl ResponsesRunner {
-    /// Creates a runner from an API client and tool registry.
+    /// 基于 API client 和工具注册表创建 runner。
     pub fn new(client: Client<OpenAIConfig>, tools: ToolRegistry) -> Self {
         Self { client, tools }
     }
 
-    /// Sends a Responses API request, executes returned function calls, and submits tool outputs.
+    /// 发送 Responses API 请求，执行返回的函数调用，并提交工具输出。
     pub async fn run(&self, request: ResponsesRunRequest) -> anyhow::Result<ResponsesResult> {
         let request_body = self.create_request_body(&request, request_input(&request));
 
@@ -161,6 +162,13 @@ impl ResponsesRunner {
             output_text: format_function_output(fallback)?,
             warning: Some(warning),
         })
+    }
+}
+
+#[async_trait::async_trait]
+impl AgentResponsesSpi for ResponsesRunner {
+    async fn run_responses(&self, request: ResponsesRunRequest) -> anyhow::Result<ResponsesResult> {
+        self.run(request).await
     }
 }
 

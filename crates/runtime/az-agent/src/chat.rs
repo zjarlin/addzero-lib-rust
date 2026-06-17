@@ -12,30 +12,30 @@ use serde_json::{Value, json};
 
 use crate::vision::VisionInput;
 
-/// Role for a backend-agnostic chat message.
+/// 与具体后端无关的聊天消息角色。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChatRole {
-    /// System/developer instruction message.
+    /// 系统或开发者指令消息。
     System,
-    /// User input message.
+    /// 用户输入消息。
     User,
-    /// Assistant output message.
+    /// 助手输出消息。
     Assistant,
 }
 
-/// Minimal message shape required by chat-only backends.
+/// 纯聊天后端需要的最小消息结构。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatMessage {
-    /// Message role.
+    /// 消息角色。
     pub role: ChatRole,
-    /// Plain text content.
+    /// 纯文本内容。
     pub content: String,
-    /// Optional image inputs on user messages.
+    /// 用户消息上的可选图片输入。
     pub images: Vec<VisionInput>,
 }
 
 impl ChatMessage {
-    /// Creates a system message.
+    /// 创建系统消息。
     pub fn system(content: impl Into<String>) -> Self {
         Self {
             role: ChatRole::System,
@@ -44,7 +44,7 @@ impl ChatMessage {
         }
     }
 
-    /// Creates a user message.
+    /// 创建用户消息。
     pub fn user(content: impl Into<String>) -> Self {
         Self {
             role: ChatRole::User,
@@ -53,7 +53,7 @@ impl ChatMessage {
         }
     }
 
-    /// Creates an assistant message.
+    /// 创建助手消息。
     pub fn assistant(content: impl Into<String>) -> Self {
         Self {
             role: ChatRole::Assistant,
@@ -62,48 +62,48 @@ impl ChatMessage {
         }
     }
 
-    /// Attaches image inputs to a user message.
+    /// 为用户消息附加图片输入。
     pub fn with_images(mut self, images: Vec<VisionInput>) -> Self {
         self.images = images;
         self
     }
 }
 
-/// Request for a plain chat backend.
+/// 纯聊天后端请求。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatRequest {
-    /// Requested model ID.
+    /// 请求的模型 ID。
     pub model: String,
-    /// Ordered chat messages.
+    /// 按顺序排列的聊天消息。
     pub messages: Vec<ChatMessage>,
 }
 
-/// Response from a plain chat backend.
+/// 纯聊天后端响应。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatResponse {
-    /// Response object ID, or a backend-generated adapter ID.
+    /// 响应对象 ID，或后端生成的适配器 ID。
     pub id: String,
-    /// Model ID returned by the backend.
+    /// 后端返回的模型 ID。
     pub model: String,
-    /// Assistant text.
+    /// 助手文本。
     pub content: String,
 }
 
-/// Adapter point for any text-only conversational model API.
+/// 任意纯文本对话模型 API 的适配点。
 #[async_trait::async_trait]
 pub trait ChatBackend: Clone + Send + Sync + 'static {
-    /// Sends a plain chat request and returns assistant text.
+    /// 发送纯聊天请求并返回助手文本。
     async fn chat(&self, request: ChatRequest) -> anyhow::Result<ChatResponse>;
 }
 
-/// OpenAI-compatible chat completion backend.
+/// 兼容 OpenAI chat completions 的后端。
 #[derive(Clone)]
 pub struct OpenAiChatBackend {
     client: Client<OpenAIConfig>,
 }
 
 impl OpenAiChatBackend {
-    /// Creates an OpenAI-compatible chat backend.
+    /// 创建兼容 OpenAI 的聊天后端。
     pub fn new(client: Client<OpenAIConfig>) -> Self {
         Self { client }
     }

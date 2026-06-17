@@ -17,6 +17,15 @@ fn fixture_path(file_name: &str) -> PathBuf {
     .expect("测试输入图片必须存在")
 }
 
+fn ocr_fixture_path(file_name: &str) -> PathBuf {
+    std::fs::canonicalize(
+        workspace_root()
+            .join("crates/algorithm/az-ocr/tests/fixtures/ocr_text_recognition/input")
+            .join(file_name),
+    )
+    .expect("OCR 测试输入图片必须存在")
+}
+
 fn output_dir(name: &str) -> PathBuf {
     workspace_root()
         .join("target/az-algorithm-results")
@@ -61,5 +70,35 @@ fn image_pipeline_should_stack_face_detection_and_safety_helmet_detection() -> a
             assert_existing_file(file);
         }
     }
+    Ok(())
+}
+
+#[test]
+fn image_pipeline_should_route_ocr_to_az_ocr_crate() -> anyhow::Result<()> {
+    let run = run_image_pipeline_from_path(
+        ocr_fixture_path("ocr_text.jpg"),
+        &ImagePipelineOptions {
+            algorithms: vec![ImageAlgorithmKind::OcrTextRecognition],
+            output_dir: output_dir("pipeline_ocr_text_recognition"),
+        },
+    )?;
+
+    // 关键断言：OCR pipeline 分支必须通过 az-ocr 产出可消费文本文件。
+    assert_eq!(run.algorithm_runs.len(), 1);
+    let algorithm_run = &run.algorithm_runs[0];
+    assert_eq!(
+        algorithm_run.algorithm,
+        ImageAlgorithmKind::OcrTextRecognition
+    );
+    assert_existing_file(&run.summary_file);
+    for file in &algorithm_run.files {
+        assert_existing_file(file);
+    }
+    assert!(
+        algorithm_run.files.iter().any(|file| file
+            .file_name()
+            .is_some_and(|name| name == "recognized_text.txt")),
+        "OCR pipeline 必须写出 recognized_text.txt"
+    );
     Ok(())
 }

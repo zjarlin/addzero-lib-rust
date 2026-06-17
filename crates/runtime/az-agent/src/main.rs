@@ -1,10 +1,6 @@
 use az_agent::{
-    chat_responses::ChatResponsesAgentRunner,
-    config::OpenAiRuntimeConfig,
-    di::create_agent_context,
-    responses::{ResponsesRunRequest, ResponsesRunner},
-    structured::time_answer_schema,
-    tool::current_time,
+    config::OpenAiRuntimeConfig, di::create_agent_context, responses::ResponsesRunRequest,
+    spi::resolve_agent_responses_spi, structured::time_answer_schema, tool::current_time,
 };
 use std::path::Path;
 use tracing::Level;
@@ -33,13 +29,8 @@ async fn main() -> anyhow::Result<()> {
         structured_output: Some(time_answer_schema()),
         tool_choice: Some(current_time::TOOL_NAME.to_string()),
     };
-    let result = if std::env::var("AZ_AGENT_TOOL_MODE").as_deref() == Ok("chat") {
-        let runner = cx.resolve::<ChatResponsesAgentRunner<az_agent::chat::OpenAiChatBackend>>();
-        runner.run(request).await?
-    } else {
-        let runner = cx.resolve::<ResponsesRunner>();
-        runner.run(request).await?
-    };
+    let runner = resolve_agent_responses_spi(&mut cx)?;
+    let result = runner.run_responses(request).await?;
     println!("requested_model: {}", result.requested_model);
     println!("response_model: {}", result.response_model);
     println!("response_id: {}", result.response_id);

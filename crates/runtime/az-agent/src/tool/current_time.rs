@@ -4,10 +4,10 @@ use serde_json::json;
 
 use crate::tool::{AgentTool, argument_string, json_output, parse_tool_arguments};
 
-/// Function name for the current-time tool.
+/// 当前时间工具的函数名。
 pub const TOOL_NAME: &str = "az_current_time";
 
-/// Tool plugin returning local machine time.
+/// 返回本机当前时间的工具插件。
 #[derive(Debug, Clone, Default)]
 pub struct CurrentTimeTool;
 

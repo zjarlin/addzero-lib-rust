@@ -882,6 +882,8 @@ dependencies = [
  "anyhow",
  "az-automod",
  "az-derive-aliases",
+ "az-ocr",
+ "az-onnx",
  "az-str",
  "base64",
  "half",
@@ -1468,6 +1470,34 @@ dependencies = [
  "serde_json",
  "sha2",
  "urlencoding",
+]
+
+[[package]]
+name = "az-ocr"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "az-automod",
+ "az-onnx",
+ "image",
+ "rusty-tesseract",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "az-onnx"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "az-automod",
+ "image",
+ "imageproc",
+ "ndarray",
+ "ort",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -8991,6 +9021,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
+name = "rusty-tesseract"
+version = "1.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "781e2d6ed8bb85607de972e6c174902953da1f682b1d43004f0e66bf419b798f"
+dependencies = [
+ "image",
+ "subprocess",
+ "substring",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "rustybuzz"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10240,6 +10283,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "subprocess"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c56e8662b206b9892d7a5a3f2ecdbcb455d3d6b259111373b7e08b8055158a8"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "subsecond"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10265,6 +10318,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9798bfed58797aed51c672aa99810aac30a50d3120ecfdcf28c13784e9a8f1c"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "substring"
+version = "1.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42ee6433ecef213b2e72f587ef64a2f5943e7cd16fbd82dbe8bc07486c534c86"
+dependencies = [
+ "autocfg",
 ]
 
 [[package]]
