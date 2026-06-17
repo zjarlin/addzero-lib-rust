@@ -2,11 +2,13 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
+use ab_glyph::{FontArc, PxScale};
 use anyhow::{Context, anyhow, bail};
 use image::imageops::FilterType;
 use image::{DynamicImage, Rgb, RgbImage};
-use imageproc::drawing::{draw_filled_rect_mut, draw_hollow_rect_mut};
+use imageproc::drawing::{draw_filled_rect_mut, draw_hollow_rect_mut, draw_text_mut, text_size};
 use imageproc::rect::Rect;
 use ndarray::{ArrayD, IxDyn};
 use ort::session::Session;
@@ -457,10 +459,10 @@ fn draw_safety_helmet_box(image: &mut RgbImage, detection: &SafetyHelmetDetectio
     draw_boxed_text_label(
         image,
         x,
-        y - 34,
+        y - 40,
         &[&format!(
             "{} {:.2}",
-            detection.detection_class.label(),
+            detection_class_chinese_label(detection.detection_class),
             detection.confidence
         )],
         color,
@@ -468,6 +470,90 @@ fn draw_safety_helmet_box(image: &mut RgbImage, detection: &SafetyHelmetDetectio
 }
 
 fn draw_boxed_text_label(image: &mut RgbImage, x: i32, y: i32, lines: &[&str], color: Rgb<u8>) {
+    if let Some(font) = chinese_annotation_font() {
+        draw_chinese_boxed_text_label(image, x, y, lines, color, font);
+    } else {
+        draw_pixel_boxed_text_label(image, x, y, lines, color);
+    }
+}
+
+fn draw_chinese_boxed_text_label(
+    image: &mut RgbImage,
+    x: i32,
+    y: i32,
+    lines: &[&str],
+    color: Rgb<u8>,
+    font: &FontArc,
+) {
+    const PADDING: i32 = 6;
+    const LINE_GAP: i32 = 4;
+
+    let scale = PxScale::from(24.0);
+    let measured_lines = lines
+        .iter()
+        .map(|line| {
+            let (width, height) = text_size(scale, font, line);
+            (*line, width as i32, height as i32)
+        })
+        .collect::<Vec<_>>();
+    let label_width = measured_lines
+        .iter()
+        .map(|(_, width, _)| *width)
+        .max()
+        .unwrap_or(0)
+        + PADDING * 2;
+    let label_height = measured_lines
+        .iter()
+        .map(|(_, _, height)| *height)
+        .sum::<i32>()
+        + LINE_GAP * (measured_lines.len().saturating_sub(1) as i32)
+        + PADDING * 2;
+    if label_width <= PADDING * 2 || label_height <= PADDING * 2 {
+        return;
+    }
+
+    let x = x.min(image.width() as i32 - label_width).max(0);
+    let y = y.min(image.height() as i32 - label_height).max(0);
+    draw_filled_rect_mut(
+        image,
+        Rect::at(x, y).of_size(label_width as u32, label_height as u32),
+        Rgb([0, 0, 0]),
+    );
+    draw_hollow_rect_mut(
+        image,
+        Rect::at(x, y).of_size(label_width as u32, label_height as u32),
+        color,
+    );
+
+    let mut cursor_y = y + PADDING;
+    for (line, _, height) in measured_lines {
+        draw_text_mut(image, color, x + PADDING, cursor_y, scale, font, line);
+        cursor_y += height + LINE_GAP;
+    }
+}
+
+fn chinese_annotation_font() -> Option<&'static FontArc> {
+    static FONT: OnceLock<Option<FontArc>> = OnceLock::new();
+    FONT.get_or_init(load_chinese_annotation_font).as_ref()
+}
+
+fn load_chinese_annotation_font() -> Option<FontArc> {
+    [
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/System/Library/Fonts/Supplemental/Songti.ttc",
+    ]
+    .into_iter()
+    .find_map(|path| {
+        fs::read(path)
+            .ok()
+            .and_then(|data| FontArc::try_from_vec(data).ok())
+    })
+}
+
+fn draw_pixel_boxed_text_label(image: &mut RgbImage, x: i32, y: i32, lines: &[&str], color: Rgb<u8>) {
     const GLYPH_WIDTH: i32 = 3;
     const GLYPH_HEIGHT: i32 = 5;
     const SCALE: i32 = 3;
@@ -593,6 +679,16 @@ fn glyph_rows(ch: char) -> Option<[&'static str; 5]> {
         '_' => Some(["000", "000", "000", "000", "111"]),
         ' ' => Some(["000", "000", "000", "000", "000"]),
         _ => None,
+    }
+}
+
+fn detection_class_chinese_label(detection_class: SafetyHelmetDetectionClass) -> &'static str {
+    match detection_class {
+        SafetyHelmetDetectionClass::Hardhat => "已戴安全帽",
+        SafetyHelmetDetectionClass::NoHardhat => "未戴安全帽",
+        SafetyHelmetDetectionClass::Vest => "已穿反光背心",
+        SafetyHelmetDetectionClass::NoVest => "未穿反光背心",
+        SafetyHelmetDetectionClass::Person => "人员",
     }
 }
 

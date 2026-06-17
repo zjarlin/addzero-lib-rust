@@ -66,10 +66,7 @@ pub fn sanitize_file_stem_or(input: &str, fallback: &str) -> String {
 
 /// Keeps only ASCII letters and digits.
 pub fn ascii_alphanumeric(input: &str) -> String {
-    input
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .collect()
+    input.chars().filter(char::is_ascii_alphanumeric).collect()
 }
 
 /// Converts arbitrary text into a stable lowercase ASCII slug.

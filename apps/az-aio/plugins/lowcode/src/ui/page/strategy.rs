@@ -6,7 +6,7 @@ use crate::contract::{
     LowcodeLayoutOption, LowcodeLayoutStrategy, LowcodeModelDescriptor, LowcodeRelationDescriptor,
     LowcodeRenderContext, LowcodeScreenDescriptor, layout_descriptors,
 };
-use az_dioxus_components::az_workbench::{AzPageHeader, AzWorkbenchPage};
+use az_dioxus_components::workbench::{PageHeader, WorkbenchPage};
 use dioxus::prelude::*;
 use rudi::Singleton;
 
@@ -51,8 +51,8 @@ pub fn render_screen_with_strategy(
     else {
         let layout = screen.layout.clone();
         return rsx! {
-            AzWorkbenchPage {
-                AzPageHeader {
+            WorkbenchPage {
+                PageHeader {
                     title: screen.label.clone(),
                     subtitle: format!("未支持的布局: {layout}"),
                 }
@@ -63,8 +63,8 @@ pub fn render_screen_with_strategy(
     strategy.render(context).unwrap_or_else(|error| {
         let message = error.to_string();
         rsx! {
-            AzWorkbenchPage {
-                AzPageHeader {
+            WorkbenchPage {
+                PageHeader {
                     title: screen.label.clone(),
                     subtitle: message,
                 }

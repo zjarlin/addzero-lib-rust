@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::onnx::image::model::{
-    OnnxImageModelSpec, TensorElementKind, TensorInputSpec,
+    OnnxImageModelSpec, OnnxImageOutputKind, TensorElementKind, TensorInputSpec,
 };
 
 /// 人员检测稳定算法 code。
@@ -40,6 +40,7 @@ pub const PERSON_DETECTION_COCO_SSD_MOBILENET_V1: OnnxImageModelSpec = OnnxImage
         shape: SSD_MOBILENET_INPUT,
         element: TensorElementKind::Uint8,
     },
+    output_kind: OnnxImageOutputKind::RawTensor,
     notes: "COCO class filtering should select person detections.",
 };
 
@@ -56,6 +57,7 @@ pub const PERSON_DETECTION_YOLO11N_COCO: OnnxImageModelSpec = OnnxImageModelSpec
         shape: YOLO11_INPUT,
         element: TensorElementKind::Float32,
     },
+    output_kind: OnnxImageOutputKind::RawTensor,
     notes: "The ONNX graph uses fp16 tensors with YOLO output shape [1, 84, 8400].",
 };
 

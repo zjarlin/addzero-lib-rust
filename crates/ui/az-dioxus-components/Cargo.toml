@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Composable Dioxus UI primitives with az-* naming."
+description = "Composable Dioxus UI primitives with unprefixed component APIs."
 
 [dependencies]
 automod.workspace = true

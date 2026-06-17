@@ -1,7 +1,9 @@
 //! OCR 文字识别模型规格。
 
+use std::path::PathBuf;
+
 use crate::onnx::image::model::{
-    OnnxImageModelSpec, TensorElementKind, TensorInputSpec,
+    OnnxImageModelSpec, OnnxImageOutputKind, TensorElementKind, TensorInputSpec,
 };
 
 /// OCR 文字检测稳定算法 code。
@@ -20,6 +22,9 @@ pub const DEFAULT_RECOGNITION_RESULT_DIR: &str =
 /// 默认模型资源目录，基于本 crate 根目录解析。
 pub const DEFAULT_MODEL_RESOURCE_DIR: &str = "resources/ocr_text_recognition/models";
 
+/// PaddleOCR 中文识别字典文件。
+pub const OCR_PADDLE_CHINESE_DICT_FILE: &str = "ocr_paddle_chinese_dict.txt";
+
 const PADDLE_DET_INPUT: &[usize] = &[1, 3, 640, 640];
 const PADDLE_REC_INPUT: &[usize] = &[1, 3, 48, 320];
 
@@ -36,6 +41,7 @@ pub const OCR_PADDLE_V3_DETECTION: OnnxImageModelSpec = OnnxImageModelSpec {
         shape: PADDLE_DET_INPUT,
         element: TensorElementKind::Float32,
     },
+    output_kind: OnnxImageOutputKind::RawTensor,
     notes: "Detects text regions before recognition.",
 };
 
@@ -52,5 +58,56 @@ pub const OCR_PADDLE_CHINESE_RECOGNITION: OnnxImageModelSpec = OnnxImageModelSpe
         shape: PADDLE_REC_INPUT,
         element: TensorElementKind::Float32,
     },
+    output_kind: OnnxImageOutputKind::RawTensor,
     notes: "Requires ocr_paddle_chinese_dict.txt for CTC label decoding.",
 };
+
+/// 单个 OCR CTC 时间步的解码 token。
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct OcrTextToken {
+    /// CTC 时间步下标。
+    pub time_step: usize,
+    /// 模型输出类别下标。
+    pub class_index: usize,
+    /// 字典 token。
+    pub token: String,
+    /// 该 token 的原始模型分数。
+    pub score: f32,
+}
+
+/// OCR 文本行在原图上的像素范围。
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct OcrTextBoundingBox {
+    /// 左上角 x 坐标。
+    pub x_min: u32,
+    /// 左上角 y 坐标。
+    pub y_min: u32,
+    /// 右下角 x 坐标。
+    pub x_max: u32,
+    /// 右下角 y 坐标。
+    pub y_max: u32,
+    /// 检测热力图平均分。
+    pub score: f32,
+}
+
+/// 单行 OCR 识别结果。
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct OcrTextLine {
+    /// 行序号，按从上到下排序。
+    pub index: usize,
+    /// 行文本。
+    pub text: String,
+    /// 原图像素范围。
+    pub bounding_box: OcrTextBoundingBox,
+    /// CTC token 明细。
+    pub tokens: Vec<OcrTextToken>,
+}
+
+/// OCR 文本后处理输出文件。
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct OcrTextRecognitionOutputFiles {
+    /// 识别出的纯文本文件。
+    pub recognized_text: PathBuf,
+    /// 识别文本、token 与来源文件的 JSON 文件。
+    pub recognized_text_json: PathBuf,
+}

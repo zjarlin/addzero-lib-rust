@@ -1,7 +1,7 @@
 use az_dioxus_components::{
-    az_button::{AzButton, AzButtonLink, AzButtonTone},
-    az_form::{AzFormRow, AzInput, AzSelect, AzSelectOption},
-    az_workbench::{AzPageHeader, AzWorkbenchPage},
+    toolbar_button::{ToolbarButton, ToolbarButtonLink, ToolbarButtonTone},
+    form::{FormRow, Input, Select, SelectOption},
+    workbench::{PageHeader, WorkbenchPage},
 };
 use dioxus::prelude::*;
 
@@ -44,17 +44,17 @@ pub fn render_form(
                 if let Some(mf) = meta {
                     render_enum_select(mf)
                 } else {
-                    rsx! { AzInput { name: format!("rec_{}", field.field_name), placeholder: field.placeholder.clone() } }
+                    rsx! { Input { name: format!("rec_{}", field.field_name), placeholder: field.placeholder.clone() } }
                 }
             } else if is_rel {
                 if let Some(mf) = meta {
                     render_rel_select(mf, &rec_store)
                 } else {
-                    rsx! { AzInput { name: format!("rec_{}", field.field_name), placeholder: "关联ID" } }
+                    rsx! { Input { name: format!("rec_{}", field.field_name), placeholder: "关联ID" } }
                 }
             } else if field.options.is_empty() {
                 rsx! {
-                    AzInput {
+                    Input {
                         name: format!("rec_{}", field.field_name),
                         input_type: ft_html_simple(&field.field_type),
                         placeholder: field.placeholder.clone(),
@@ -62,15 +62,15 @@ pub fn render_form(
                 }
             } else {
                 rsx! {
-                    AzSelect {
+                    Select {
                         name: format!("rec_{}", field.field_name),
-                        options: field.options.iter().map(|option| AzSelectOption::new(option.clone(), option.clone())).collect::<Vec<_>>(),
+                        options: field.options.iter().map(|option| SelectOption::new(option.clone(), option.clone())).collect::<Vec<_>>(),
                     }
                 }
             };
 
             rsx! {
-                AzFormRow { label: field.label.clone(), required: field.required,
+                FormRow { label: field.label.clone(), required: field.required,
                     {input_el}
                 }
             }
@@ -78,9 +78,9 @@ pub fn render_form(
         .collect();
 
     rsx! {
-        AzWorkbenchPage {
-            AzPageHeader { title: title.to_string(), subtitle: "表单",
-                AzButtonLink { href: format!("/?route={lowcode_route}&mode=screens"), "← 返回" }
+        WorkbenchPage {
+            PageHeader { title: title.to_string(), subtitle: "表单",
+                ToolbarButtonLink { href: format!("/?route={lowcode_route}&mode=screens"), "← 返回" }
             }
             LowcodeActionForm {
                 action_name: "new-record",
@@ -88,7 +88,7 @@ pub fn render_form(
                 div { style: "padding: 16px 20px; max-width: 640px;",
                     {field_els.into_iter().map(|el| el)}
                     div { style: "margin-top: 18px;",
-                        AzButton { tone: AzButtonTone::Primary, button_type: "submit", "{config.submit_label}" }
+                        ToolbarButton { tone: ToolbarButtonTone::Primary, button_type: "submit", "{config.submit_label}" }
                     }
                 }
             }

@@ -75,16 +75,9 @@ fn run_one_algorithm(
             ]
         }
         ImageAlgorithmKind::FaceRecognition => {
-            let run = crate::components::face_recognition::assist::run_face_recognition_from_path_with_output(
-                input_path,
-                &output_dir,
-            )?;
-            vec![
-                run.files.source_input,
-                run.files.model_input_preview,
-                run.files.raw_outputs_json,
-                run.files.raw_output_review,
-            ]
+            anyhow::bail!(
+                "face_recognition requires a probe image and a reference image; use compare_face_images_with_output instead of the single-image pipeline"
+            );
         }
         ImageAlgorithmKind::PersonDetection => {
             let run = crate::components::person_detection::assist::run_person_detection_from_path_with_output(
@@ -105,16 +98,7 @@ fn run_one_algorithm(
                 output_dir.join("detection"),
                 output_dir.join("recognition"),
             )?;
-            vec![
-                run.detection.files.source_input,
-                run.detection.files.model_input_preview,
-                run.detection.files.raw_outputs_json,
-                run.detection.files.raw_output_review,
-                run.recognition.files.source_input,
-                run.recognition.files.model_input_preview,
-                run.recognition.files.raw_outputs_json,
-                run.recognition.files.raw_output_review,
-            ]
+            vec![run.files.recognized_text, run.files.recognized_text_json]
         }
         ImageAlgorithmKind::FlameDetection => {
             let run = crate::components::flame_detection::assist::run_flame_detection_from_path_with_output(

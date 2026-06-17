@@ -10,9 +10,8 @@ pub const SPEC: AlgorithmComponentSpec = AlgorithmComponentSpec {
         target: AlgorithmTargetKind::Face,
         inputs: &[AlgorithmInputKind::Image, AlgorithmInputKind::ReferenceSet],
         outputs: &[
-            AlgorithmOutputKind::BoundingBox,
-            AlgorithmOutputKind::Confidence,
             AlgorithmOutputKind::Identity,
+            AlgorithmOutputKind::SimilarityScore,
         ],
-        description: "将检测到的人脸与人脸底库匹配并输出身份结果。",
+        description: "将待识别人脸与参考人脸或人脸底库匹配并输出相似度与身份结果。",
     };

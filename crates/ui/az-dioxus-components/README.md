@@ -1,23 +1,23 @@
 # az-dioxus-components
 
-基于 Dioxus 的可组合 UI 基础组件库，统一使用 `Az*` 组件名与 `az-*` CSS 类名前缀。
+基于 Dioxus 的可组合 UI 基础组件库。组件名和组件产出的 CSS class 使用职责名，不使用 `Az*`、`Nb*`、`az-*` 或 `nb-*` 前缀。
 
 当前首批组件：
 
-- `AzCard`
-- `AzGrammarSearchInput`
-- `AzTable`
-- `AzTableCaption`
-- `AzTableHead`
-- `AzTableBody`
-- `AzTableFooter`
-- `AzTableRow`
-- `AzTableHeaderCell`
-- `AzTableCell`
-- `AzDataTable`
-- `AzDataTableColumn`
-- `AzDataTableRow`
-- `AzDataTableCell`
+- `SurfaceCard`
+- `GrammarSearchInput`
+- `Table`
+- `TableCaption`
+- `TableHead`
+- `TableBody`
+- `TableFooter`
+- `TableRow`
+- `TableHeaderCell`
+- `TableCell`
+- `DataTable`
+- `DataTableColumn`
+- `DataTableRow`
+- `DataTableCell`
 
 ## 使用
 
@@ -26,30 +26,30 @@ use az_dioxus_components::prelude::*;
 use dioxus::prelude::*;
 
 let _ = rsx! {
-    AzCard {
-        AzGrammarSearchInput {
+    SurfaceCard {
+        GrammarSearchInput {
             value: "keyword:addhost; tag:rust,java; def:fun,export,alias".to_string(),
             placeholder: "keyword:addhost; tag:rust,java; def:fun,export,alias",
             fields: vec![
-                AzGrammarSearchField::new("keyword", "关键词"),
-                AzGrammarSearchField::new("tag", "标签"),
-                AzGrammarSearchField::new("def", "定义"),
+                GrammarSearchField::new("keyword", "关键词"),
+                GrammarSearchField::new("tag", "标签"),
+                GrammarSearchField::new("def", "定义"),
             ],
             oninput: move |_| {},
         }
-        AzTable {
+        Table {
             striped: true,
-            AzTableCaption { "Runtime nodes" }
-            AzTableHead {
-                AzTableRow {
-                    AzTableHeaderCell { "Name" }
-                    AzTableHeaderCell { "Status" }
+            TableCaption { "Runtime nodes" }
+            TableHead {
+                TableRow {
+                    TableHeaderCell { "Name" }
+                    TableHeaderCell { "Status" }
                 }
             }
-            AzTableBody {
-                AzTableRow {
-                    AzTableCell { "edge-01" }
-                    AzTableCell { "healthy" }
+            TableBody {
+                TableRow {
+                    TableCell { "edge-01" }
+                    TableCell { "healthy" }
                 }
             }
         }
@@ -68,20 +68,20 @@ cargo test -p az-dioxus-components
 只跑表格组件测试：
 
 ```bash
-cargo test -p az-dioxus-components --test az_table
-cargo test -p az-dioxus-components --test az_data_table
+cargo test -p az-dioxus-components --test table
+cargo test -p az-dioxus-components --test data_table
 ```
 
 只跑卡片组件测试：
 
 ```bash
-cargo test -p az-dioxus-components --test az_card
+cargo test -p az-dioxus-components --test surface_card
 ```
 
 只跑语法式搜索组件测试：
 
 ```bash
-cargo test -p az-dioxus-components --test az_grammar_search
+cargo test -p az-dioxus-components --test grammar_search
 ```
 
 ## 预览 GUI

@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::onnx::image::model::{
-    OnnxImageModelSpec, TensorElementKind, TensorInputSpec,
+    OnnxImageModelSpec, OnnxImageOutputKind, TensorElementKind, TensorInputSpec,
 };
 
 /// 火焰检测稳定算法 code。
@@ -36,6 +36,7 @@ pub const FLAME_DETECTION_FIRE_SMOKE_YOLOV8N: OnnxImageModelSpec = OnnxImageMode
         shape: FIRE_SMOKE_YOLO_INPUT,
         element: TensorElementKind::Float32,
     },
+    output_kind: OnnxImageOutputKind::RawTensor,
     notes: "YOLOv8 object detector for fire and smoke. Model card notes MIT weights; Ultralytics YOLOv8 base model may require AGPL compliance for hosted service use.",
 };
 

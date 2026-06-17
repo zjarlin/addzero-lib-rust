@@ -1,9 +1,9 @@
 use az_dioxus_components::{
-    az_accordion::AzAccordion,
-    az_badge::{AzBadge, AzBadgeTone},
-    az_button::{AzButton, AzButtonLink, AzButtonTone},
-    az_form::{AzFormRow, AzInput},
-    az_workbench::{AzPageHeader, AzWorkbenchPage},
+    accordion::Accordion,
+    status_badge::{StatusBadge, StatusBadgeTone},
+    toolbar_button::{ToolbarButton, ToolbarButtonLink, ToolbarButtonTone},
+    form::{FormRow, Input},
+    workbench::{PageHeader, WorkbenchPage},
 };
 use dioxus::prelude::*;
 
@@ -20,42 +20,42 @@ pub fn render_accordion(title: &str, model_id: &str, fields: &[MetaFieldView]) -
     let lowcode_route = "/lowcode";
 
     rsx! {
-        AzWorkbenchPage {
-            AzPageHeader {
+        WorkbenchPage {
+            PageHeader {
                 title: title.to_string(),
                 subtitle: format!("{} 条记录", records.len()),
-                AzButtonLink { href: format!("/?route={lowcode_route}&mode=screens"), "← 返回" }
-                AzAccordion { title: "＋ 新建记录",
+                ToolbarButtonLink { href: format!("/?route={lowcode_route}&mode=screens"), "← 返回" }
+                Accordion { title: "＋ 新建记录",
                         LowcodeActionForm {
                             action_name: "new-record",
                             hidden_fields: vec![("rec_model".to_string(), model_id.to_string())],
                             for f in fields.iter() {
-                                AzFormRow { label: f.label.clone(),
+                                FormRow { label: f.label.clone(),
                                     if f.field_type == "Enum" {
                                         {render_enum_select(f)}
                                     } else if f.field_type == "Relation" {
                                         {render_rel_select(f, &rec_store)}
                                     } else {
-                                        AzInput { name: format!("rec_{}", f.name), placeholder: format!("输入{}", f.label) }
+                                        Input { name: format!("rec_{}", f.name), placeholder: format!("输入{}", f.label) }
                                     }
                                 }
                             }
-                            AzButton { tone: AzButtonTone::Primary, button_type: "submit", "创建" }
+                            ToolbarButton { tone: ToolbarButtonTone::Primary, button_type: "submit", "创建" }
                         }
                 }
             }
             div { style: "padding: 16px 20px;",
                 if records.is_empty() {
-                    p { class: "az-platform-muted", "暂无记录" }
+                    p { class: "platform-muted", "暂无记录" }
                 } else {
                     for rec in &records {
                         details { class: "lowcode-accordion",
                             summary { class: "lowcode-accordion__summary",
                                 div { style: "display: flex; align-items: center; justify-content: space-between;",
                                     span { "{label_from_record(rec, fields)}" }
-                                    AzButtonLink {
+                                    ToolbarButtonLink {
                                         href: format!("/?route={lowcode_route}&action=delete-record&rec_model={model_id}&rec_id={}", rec.id),
-                                        tone: AzButtonTone::Danger,
+                                        tone: ToolbarButtonTone::Danger,
                                         "删除"
                                     }
                                 }
@@ -66,7 +66,7 @@ pub fn render_accordion(title: &str, model_id: &str, fields: &[MetaFieldView]) -
                                         label {
                                             "{f.label}"
                                             if f.field_type == "Relation" {
-                                                AzBadge { tone: AzBadgeTone::Accent, class: "az-badge--inline", "关联" }
+                                                StatusBadge { tone: StatusBadgeTone::Accent, class: "status-badge--inline", "关联" }
                                             }
                                         }
                                         div { class: "lowcode-field-value",
@@ -78,7 +78,7 @@ pub fn render_accordion(title: &str, model_id: &str, fields: &[MetaFieldView]) -
                                         }
                                     }
                                 }
-                                AzAccordion { title: "编辑", summary_class: "az-accordion__summary--compact",
+                                Accordion { title: "编辑", summary_class: "accordion__summary--compact",
                                         LowcodeActionForm {
                                             action_name: "edit-record",
                                             hidden_fields: vec![
@@ -86,20 +86,20 @@ pub fn render_accordion(title: &str, model_id: &str, fields: &[MetaFieldView]) -
                                                 ("rec_id".to_string(), rec.id.clone()),
                                             ],
                                             for fv in fields.iter() {
-                                                AzFormRow { label: fv.label.clone(),
+                                                FormRow { label: fv.label.clone(),
                                                     if fv.field_type == "Enum" {
                                                         {render_enum_select_edit(fv, rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default())}
                                                     } else if fv.field_type == "Relation" {
                                                         {render_rel_select_edit(fv, &rec_store, rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default())}
                                                     } else {
-                                                        AzInput {
+                                                        Input {
                                                             name: format!("rec_{}", fv.name),
                                                             value: rec.fields.get(fv.name.as_str()).cloned().unwrap_or_default(),
                                                         }
                                                     }
                                                 }
                                             }
-                                            AzButton { tone: AzButtonTone::Primary, button_type: "submit", "保存" }
+                                            ToolbarButton { tone: ToolbarButtonTone::Primary, button_type: "submit", "保存" }
                                         }
                                 }
                             }

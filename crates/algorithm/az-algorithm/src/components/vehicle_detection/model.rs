@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::onnx::image::model::{
-    OnnxImageModelSpec, TensorElementKind, TensorInputSpec,
+    OnnxImageModelSpec, OnnxImageOutputKind, TensorElementKind, TensorInputSpec,
 };
 
 /// 车辆检测稳定算法 code。
@@ -44,6 +44,7 @@ pub const VEHICLE_DETECTION_COCO_SSD_MOBILENET_V1: OnnxImageModelSpec = OnnxImag
         shape: SSD_MOBILENET_INPUT,
         element: TensorElementKind::Uint8,
     },
+    output_kind: OnnxImageOutputKind::RawTensor,
     notes: "COCO class filtering should select car, bus, truck, motorcycle, and bicycle detections.",
 };
 

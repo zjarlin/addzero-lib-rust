@@ -6,21 +6,21 @@
 
 use dioxus::prelude::*;
 
-use crate::util::class_name::compose_class;
+use crate::class_name::compose_class;
 
 pub mod shell;
 
 pub use shell::{
-    NbContentSlot, NbFloatingPanelSlot, NbHeaderBar, NbIconButton, NbModelButton, NbNavLink,
-    NbPluginGroup, NbProjectLayout, NbRightSlot, NbShell, NbSidebar, NbSidebarToggle,
-    NbTitlebarControls, NbTitlebarNav, NbWorkspace, NbWorkspaceBody,
+    ContentSlot, FloatingPanelSlot, HeaderBar, IconButton, ModelButton, NavLink, PluginGroup,
+    ProjectLayout, RightSlot, Shell, Sidebar, SidebarToggle, TitlebarControls, TitlebarNav,
+    Workspace, WorkspaceBody,
 };
 
 /// Full-page surface with a graph-paper background.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbPage(children: Element, #[props(default, into)] class: String) -> Element {
-    let root_class = compose_class("nb-page", &class, &[]);
+pub fn Page(children: Element, #[props(default, into)] class: String) -> Element {
+    let root_class = compose_class("page", &class, &[]);
 
     rsx! {
         section { class: root_class, {children} }
@@ -30,12 +30,12 @@ pub fn NbPage(children: Element, #[props(default, into)] class: String) -> Eleme
 /// Top hero block for workbench pages.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbHero(
+pub fn Hero(
     children: Element,
     #[props(default, into)] class: String,
     #[props(default)] compact: bool,
 ) -> Element {
-    let hero_class = compose_class("nb-hero", &class, &[("nb-hero--compact", compact)]);
+    let hero_class = compose_class("hero", &class, &[("hero--compact", compact)]);
 
     rsx! {
         header { class: hero_class, {children} }
@@ -45,16 +45,16 @@ pub fn NbHero(
 /// Panel/card primitive with hard border and shadow.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbCard(
+pub fn Card(
     children: Element,
     #[props(default, into)] class: String,
     #[props(default)] accent: bool,
     #[props(default)] selected: bool,
 ) -> Element {
     let card_class = compose_class(
-        "nb-card",
+        "card",
         &class,
-        &[("nb-card--accent", accent), ("nb-card--selected", selected)],
+        &[("card--accent", accent), ("card--selected", selected)],
     );
 
     rsx! {
@@ -65,13 +65,13 @@ pub fn NbCard(
 /// Link styled as a neobrutal button.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbLinkButton(
+pub fn LinkButton(
     href: String,
     children: Element,
     #[props(default, into)] class: String,
     #[props(default)] primary: bool,
 ) -> Element {
-    let button_class = compose_class("nb-button", &class, &[("nb-button--primary", primary)]);
+    let button_class = compose_class("button", &class, &[("button--primary", primary)]);
 
     rsx! {
         a { class: button_class, href: href, {children} }
@@ -81,13 +81,13 @@ pub fn NbLinkButton(
 /// Submit or command button.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbButton(
+pub fn Button(
     children: Element,
     #[props(default, into)] class: String,
     #[props(default)] primary: bool,
     #[props(default = String::from("button"), into)] button_type: String,
 ) -> Element {
-    let button_class = compose_class("nb-button", &class, &[("nb-button--primary", primary)]);
+    let button_class = compose_class("button", &class, &[("button--primary", primary)]);
 
     rsx! {
         button { class: button_class, r#type: "{button_type}", {children} }
@@ -97,12 +97,12 @@ pub fn NbButton(
 /// Section title line used inside cards.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbBlockTitle(
+pub fn BlockTitle(
     title: String,
     #[props(default, into)] subtitle: String,
     #[props(default, into)] class: String,
 ) -> Element {
-    let title_class = compose_class("nb-block-title", &class, &[]);
+    let title_class = compose_class("block-title", &class, &[]);
 
     rsx! {
         div { class: title_class,
@@ -117,8 +117,8 @@ pub fn NbBlockTitle(
 /// Compact all-caps label.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbEyebrow(children: Element, #[props(default, into)] class: String) -> Element {
-    let eyebrow_class = compose_class("nb-eyebrow", &class, &[]);
+pub fn Eyebrow(children: Element, #[props(default, into)] class: String) -> Element {
+    let eyebrow_class = compose_class("eyebrow", &class, &[]);
 
     rsx! {
         p { class: eyebrow_class, {children} }
@@ -128,12 +128,12 @@ pub fn NbEyebrow(children: Element, #[props(default, into)] class: String) -> El
 /// Pill badge with optional accent fill.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbBadge(
+pub fn Badge(
     children: Element,
     #[props(default, into)] class: String,
     #[props(default)] accent: bool,
 ) -> Element {
-    let badge_class = compose_class("nb-badge", &class, &[("nb-badge--accent", accent)]);
+    let badge_class = compose_class("badge", &class, &[("badge--accent", accent)]);
 
     rsx! {
         span { class: badge_class, {children} }
@@ -143,8 +143,8 @@ pub fn NbBadge(
 /// Responsive card grid.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbGrid(children: Element, #[props(default, into)] class: String) -> Element {
-    let grid_class = compose_class("nb-grid", &class, &[]);
+pub fn Grid(children: Element, #[props(default, into)] class: String) -> Element {
+    let grid_class = compose_class("grid", &class, &[]);
 
     rsx! {
         div { class: grid_class, {children} }
@@ -154,8 +154,8 @@ pub fn NbGrid(children: Element, #[props(default, into)] class: String) -> Eleme
 /// Two-column workbench layout that collapses on narrow screens.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbSplit(children: Element, #[props(default, into)] class: String) -> Element {
-    let split_class = compose_class("nb-split", &class, &[]);
+pub fn Split(children: Element, #[props(default, into)] class: String) -> Element {
+    let split_class = compose_class("split", &class, &[]);
 
     rsx! {
         div { class: split_class, {children} }
@@ -165,20 +165,20 @@ pub fn NbSplit(children: Element, #[props(default, into)] class: String) -> Elem
 /// Form field wrapper.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbField(
+pub fn Field(
     label: String,
     children: Element,
     #[props(default, into)] hint: String,
     #[props(default, into)] class: String,
 ) -> Element {
-    let field_class = compose_class("nb-field", &class, &[]);
+    let field_class = compose_class("field", &class, &[]);
 
     rsx! {
         label { class: field_class,
-            span { class: "nb-field__label", "{label}" }
+            span { class: "field__label", "{label}" }
             {children}
             if !hint.is_empty() {
-                span { class: "nb-field__hint", "{hint}" }
+                span { class: "field__hint", "{hint}" }
             }
         }
     }
@@ -187,8 +187,8 @@ pub fn NbField(
 /// Preformatted code block.
 #[allow(non_snake_case)]
 #[component]
-pub fn NbCodeBlock(code: String, #[props(default, into)] class: String) -> Element {
-    let code_class = compose_class("nb-code", &class, &[]);
+pub fn CodeBlock(code: String, #[props(default, into)] class: String) -> Element {
+    let code_class = compose_class("code-block", &class, &[]);
 
     rsx! {
         pre { class: code_class,

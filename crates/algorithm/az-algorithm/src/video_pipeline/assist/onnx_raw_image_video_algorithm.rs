@@ -81,6 +81,7 @@ impl VideoFrameAlgorithm for OnnxRawImageVideoAlgorithm {
             .map_err(|source| anyhow!(source.to_string()))?;
         let files = write_inference_artifacts_from_image(
             self.algorithm_code,
+            &self.model_spec,
             &image,
             &prepared,
             &summary,

@@ -2,8 +2,8 @@ use std::collections::BTreeSet;
 
 use az_aio_platform::plugin::api::NativeRenderContext;
 use az_dioxus_components::neobrutal::{
-    NbBadge, NbBlockTitle, NbButton, NbCard, NbCodeBlock, NbEyebrow, NbField, NbGrid, NbHero,
-    NbLinkButton, NbPage, NbSplit,
+    Badge, BlockTitle, Button, Card, CodeBlock, Eyebrow, Field, Grid, Hero,
+    LinkButton, Page, Split,
 };
 use dioxus::prelude::*;
 
@@ -59,23 +59,23 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
     let curl_example = process_curl_example(&request_json);
 
     rsx! {
-        NbPage { class: "algorithm-center-page",
-            NbHero { class: "algorithm-center-hero",
+        Page { class: "algorithm-center-page",
+            Hero { class: "algorithm-center-hero",
                 div { class: "algorithm-center-hero__copy",
-                    NbEyebrow { "Vision / Algorithm Intake" }
+                    Eyebrow { "Vision / Algorithm Intake" }
                     h1 { "算法接入中心" }
                     p {
                         "{descriptors.len()} 个视觉算法组件，支持多选叠加。先用视频 URL 或上传入口打通 REST 契约，后续把执行器替换成真实视频加工管线。"
                     }
                 }
                 div { class: "algorithm-center-hero__meta",
-                    NbBadge { accent: true, "SSR 组件库" }
-                    NbBadge { "POST /api/algorithm-center/process" }
-                    NbBadge { "多算法叠加" }
+                    Badge { accent: true, "SSR 组件库" }
+                    Badge { "POST /api/algorithm-center/process" }
+                    Badge { "多算法叠加" }
                 }
             }
 
-            NbGrid { class: "algorithm-center-mosaic",
+            Grid { class: "algorithm-center-mosaic",
                 for descriptor in &descriptors {
                     AlgorithmTile {
                         descriptor: descriptor.clone(),
@@ -86,16 +86,16 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                 }
             }
 
-            NbSplit { class: "algorithm-workbench",
-                NbCard { class: "algorithm-detail-panel", selected: true,
-                    NbBlockTitle {
+            Split { class: "algorithm-workbench",
+                Card { class: "algorithm-detail-panel", selected: true,
+                    BlockTitle {
                         title: active_descriptor.label.clone(),
                         subtitle: active_descriptor.description.clone(),
                     }
                     div { class: "algorithm-detail-panel__tags",
-                        NbBadge { accent: true, "{active_descriptor.code}" }
-                        NbBadge { "输入 {active_descriptor.inputs.len()}" }
-                        NbBadge { "输出 {active_descriptor.outputs.len()}" }
+                        Badge { accent: true, "{active_descriptor.code}" }
+                        Badge { "输入 {active_descriptor.inputs.len()}" }
+                        Badge { "输出 {active_descriptor.outputs.len()}" }
                     }
                     div { class: "algorithm-contract-grid",
                         ContractList {
@@ -108,7 +108,7 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                         }
                     }
                     div { class: "algorithm-selected-stack",
-                        NbBlockTitle {
+                        BlockTitle {
                             title: "当前叠加链路".to_string(),
                             subtitle: if selected_summary.is_empty() {
                                 "默认选中第一个算法".to_string()
@@ -119,7 +119,7 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                         div { class: "algorithm-selected-stack__chips",
                             for code in &selected_codes {
                                 if let Some(descriptor) = descriptors.iter().find(|descriptor| descriptor.code == *code) {
-                                    NbBadge { "{descriptor.label}" }
+                                    Badge { "{descriptor.label}" }
                                 }
                             }
                         }
@@ -127,8 +127,8 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                 }
 
                 div { class: "algorithm-action-column",
-                    NbCard { class: "algorithm-form-panel", accent: true,
-                        NbBlockTitle {
+                    Card { class: "algorithm-form-panel", accent: true,
+                        BlockTitle {
                             title: "视频处理".to_string(),
                             subtitle: "入参视频 URL，返回加工后 URL。多选算法按当前叠加链路提交。".to_string(),
                         }
@@ -141,11 +141,11 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                             for code in &selected_codes {
                                 input { r#type: "hidden", name: "algorithm", value: "{code}" }
                             }
-                            NbField {
+                            Field {
                                 label: "视频 URL".to_string(),
                                 hint: "示例: https://example.com/input.mp4".to_string(),
                                 input {
-                                    class: "nb-input",
+                                    class: "input",
                                     id: "algorithm-video-url",
                                     name: "video_url",
                                     value: "{video_url}",
@@ -153,7 +153,7 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                                     required: "required",
                                 }
                             }
-                            NbButton { primary: true, button_type: "submit", "提交处理" }
+                            Button { primary: true, button_type: "submit", "提交处理" }
                             input { r#type: "hidden", name: "run", value: "1" }
                         }
                         form {
@@ -162,12 +162,12 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                             method: "post",
                             action: "/api/algorithm-center/upload",
                             enctype: "multipart/form-data",
-                            NbField {
+                            Field {
                                 label: "上传视频".to_string(),
                                 hint: "当前接口固定上传契约，后续接对象存储落点。".to_string(),
-                                input { class: "nb-input", r#type: "file", name: "video", accept: "video/*" }
+                                input { class: "input", r#type: "file", name: "video", accept: "video/*" }
                             }
-                            NbButton { button_type: "submit", "上传并获取 URL" }
+                            Button { button_type: "submit", "上传并获取 URL" }
                             div { id: "algorithm-upload-result", class: "algorithm-result__label" }
                         }
                         if has_run && !video_url.is_empty() {
@@ -178,14 +178,14 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                         }
                     }
 
-                    NbCard { class: "algorithm-doc-panel",
-                        NbBlockTitle {
+                    Card { class: "algorithm-doc-panel",
+                        BlockTitle {
                             title: "REST 调用文档".to_string(),
                             subtitle: "页面表单与接口使用同一份字段。".to_string(),
                         }
-                        NbCodeBlock { code: request_json.clone() }
-                        NbCodeBlock { code: curl_example }
-                        NbLinkButton {
+                        CodeBlock { code: request_json.clone() }
+                        CodeBlock { code: curl_example }
+                        LinkButton {
                             href: "/api/algorithm-center/components".to_string(),
                             "查看组件目录 JSON"
                         }
@@ -209,7 +209,7 @@ fn AlgorithmTile(
     let focus_href = selected_algorithm_href(&base_route, &selected_codes, &descriptor.code);
 
     rsx! {
-        NbCard { class: "algorithm-tile", selected: selected,
+        Card { class: "algorithm-tile", selected: selected,
             div { class: "algorithm-tile__icon", aria_hidden: "true",
                 "{algorithm_icon(&descriptor.label)}"
             }
@@ -219,12 +219,12 @@ fn AlgorithmTile(
                 p { "{descriptor.description}" }
             }
             div { class: "algorithm-tile__meta",
-                NbBadge { "{descriptor.inputs.len()} 输入" }
-                NbBadge { "{descriptor.outputs.len()} 输出" }
+                Badge { "{descriptor.inputs.len()} 输入" }
+                Badge { "{descriptor.outputs.len()} 输出" }
             }
             div { class: "algorithm-tile__actions",
-                NbLinkButton { href: focus_href, primary: descriptor.code == active_code, "详情" }
-                NbLinkButton { href: href, primary: !selected,
+                LinkButton { href: focus_href, primary: descriptor.code == active_code, "详情" }
+                LinkButton { href: href, primary: !selected,
                     if selected { "移除叠加" } else { "加入叠加" }
                 }
             }

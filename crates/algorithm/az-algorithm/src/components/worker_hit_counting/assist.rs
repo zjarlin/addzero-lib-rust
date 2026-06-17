@@ -329,6 +329,53 @@ pub fn annotate_worker_hits_video(video_path: impl AsRef<Path>) -> anyhow::Resul
     Ok(run.files.annotated_video)
 }
 
+/// 一行完成工人敲击视频标注，并把结果写入调用方指定的输出视频路径。
+///
+/// 调用方只需要提供输入视频 URL/路径和输出视频 URL/路径；模型、ROI、抽帧和编码配置
+/// 继续使用默认值。中间产物会写入输出视频同级的隐藏工作目录。
+///
+/// # Errors
+/// 输入视频文件不存在、输出父目录无法创建、ffmpeg 不可用、ONNX 推理失败、图片处理失败
+/// 或输出文件写入失败时返回错误。
+///
+/// # Examples
+///
+/// ```no_run
+/// # use az_algorithm::components::worker_hit_counting::assist::annotate_worker_hits_video_to_path;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let output = annotate_worker_hits_video_to_path(
+///     "/Users/zjarlin/Desktop/input.mp4",
+///     "/Users/zjarlin/Desktop/output.mp4",
+/// )?;
+/// println!("{}", output.display());
+/// # Ok(())
+/// # }
+/// ```
+pub fn annotate_worker_hits_video_to_path(
+    input_video_url: impl AsRef<Path>,
+    output_video_url: impl AsRef<Path>,
+) -> anyhow::Result<PathBuf> {
+    let input_video_path = input_video_url.as_ref();
+    let output_video_path = output_video_url.as_ref();
+    let output_parent = output_video_path
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(output_parent)
+        .map_err(|source| path_error(output_parent.to_path_buf(), source))?;
+
+    let mut options = default_worker_hit_video_analysis_options(input_video_path)?;
+    options.output_dir = output_parent.join(format!(
+        ".{}-worker-hit-counting",
+        sanitized_file_stem(output_video_path)
+    ));
+
+    let run = analyze_worker_hits_in_video_from_path(input_video_path, &options)?;
+    fs::copy(&run.files.annotated_video, output_video_path)
+        .map_err(|source| path_error(output_video_path.to_path_buf(), source))?;
+    Ok(output_video_path.to_path_buf())
+}
+
 /// 一行完成工人敲击视频分析并返回应用层可直接读取的结构体。
 ///
 /// 该接口和 [`annotate_worker_hits_video`] 使用相同默认配置，会同时生成标注视频和
@@ -400,6 +447,7 @@ pub fn default_worker_hit_video_analysis_options(
 fn default_pose_model_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")
+        .join("worker_hit_counting")
         .join("models")
         .join(DEFAULT_POSE_MODEL_FILE_NAME)
 }

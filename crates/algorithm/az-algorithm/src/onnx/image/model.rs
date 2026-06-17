@@ -13,6 +13,17 @@ pub enum TensorElementKind {
     Uint8,
 }
 
+/// ONNX 图片模型输出的业务语义。
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub enum OnnxImageOutputKind {
+    /// 未后处理的普通张量输出。
+    RawTensor,
+    /// 整图分类分数输出。
+    ImageClassification,
+    /// 特征向量输出，例如人脸 embedding。
+    Embedding,
+}
+
 /// ONNX 图片推理使用的张量形状。
 #[derive(Clone, Copy, Debug, serde::Serialize, PartialEq, Eq)]
 pub struct TensorInputSpec {
@@ -41,6 +52,8 @@ pub struct OnnxImageModelSpec {
     pub revision: &'static str,
     /// 本地图片推理使用的输入张量形状。
     pub input: TensorInputSpec,
+    /// 输出张量的业务语义，用于避免把 raw tensor 误画成检测或分类结果。
+    pub output_kind: OnnxImageOutputKind,
     /// 模型范围、复用方式或限制说明。
     pub notes: &'static str,
 }
@@ -101,6 +114,9 @@ pub struct OnnxOutputSummary {
     pub element_count: usize,
     /// 前几个可转换为 f32 的标量值。
     pub sample_f32: Vec<f32>,
+    /// 完整 f32 输出，仅供运行时后处理使用，不写入 JSON 摘要。
+    #[serde(skip)]
+    pub full_f32: Option<Vec<f32>>,
 }
 
 /// smoke 或真实图片推理返回的摘要。
@@ -134,6 +150,26 @@ pub struct PreparedImageTensor {
 }
 
 impl PreparedImageTensor {
+    /// 从已完成预处理的 f32 图像张量构造输入。
+    #[must_use]
+    pub fn from_f32_tensor(
+        shape: Vec<usize>,
+        width: u32,
+        height: u32,
+        preview: image::RgbImage,
+        f32_data: Vec<f32>,
+    ) -> Self {
+        Self {
+            shape,
+            element: TensorElementKind::Float32,
+            width,
+            height,
+            preview,
+            f32_data: Some(f32_data),
+            u8_data: None,
+        }
+    }
+
     /// 返回准备好的 f32 输入张量数据。
     #[must_use]
     pub fn f32_tensor_data(&self) -> Option<&[f32]> {

@@ -1,13 +1,13 @@
 use az_dioxus_components::{
-    az_accordion::AzAccordion,
-    az_badge::{AzBadge, AzBadgeTone},
-    az_button::{AzButton, AzButtonLink, AzButtonTone},
-    az_form::{AzActionForm, AzCheckboxRow, AzFormRow, AzHiddenInput, AzInput, AzSelect, AzSelectOption},
-    az_table::{AzTable, AzTableBody, AzTableCell, AzTableHead, AzTableHeaderCell, AzTableRow},
-    az_workbench::{
-        AzPageHeader, AzSplitWorkbench, AzTableViewport, AzWorkbenchDetail,
-        AzWorkbenchDetailHeader, AzWorkbenchPage, AzWorkbenchTree, AzWorkbenchTreeHeader,
-        AzWorkbenchTreeList,
+    accordion::Accordion,
+    status_badge::{StatusBadge, StatusBadgeTone},
+    toolbar_button::{ToolbarButton, ToolbarButtonLink, ToolbarButtonTone},
+    form::{ActionForm, CheckboxRow, FormRow, HiddenInput, Input, Select, SelectOption},
+    table::{Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow},
+    workbench::{
+        PageHeader, SplitWorkbench, TableViewport, WorkbenchDetail,
+        WorkbenchDetailHeader, WorkbenchPage, WorkbenchTree, WorkbenchTreeHeader,
+        WorkbenchTreeList,
     },
 };
 use dioxus::prelude::*;
@@ -40,52 +40,52 @@ pub fn render_model_editor(selected_model_id: Option<String>, query: &str) -> El
     };
 
     rsx! {
-        AzWorkbenchPage {
-            AzPageHeader {
+        WorkbenchPage {
+            PageHeader {
                 title: "低代码工作台",
                 subtitle: "元数据建模 · 低代码页面管理",
             }
-            AzSplitWorkbench {
-                AzWorkbenchTree {
-                    AzWorkbenchTreeHeader { title: "数据模型",
-                        AzButtonLink {
+            SplitWorkbench {
+                WorkbenchTree {
+                    WorkbenchTreeHeader { title: "数据模型",
+                        ToolbarButtonLink {
                             href: format!("/?route={lowcode_route}&mode=screens"),
-                            class: "az-button--compact",
+                            class: "toolbar-button--compact",
                             "页面列表 →"
                         }
                     }
-                    AzActionForm {
+                    ActionForm {
                         div { style: "padding: 6px 8px 0;",
-                            AzHiddenInput { name: "route", value: lowcode_route }
-                            AzInput {
+                            HiddenInput { name: "route", value: lowcode_route }
+                            Input {
                                 name: "search",
                                 placeholder: "搜索模型...",
                                 value: search.clone(),
-                                class: "az-input--compact",
+                                class: "form-input--compact",
                             }
                         }
                     }
-                    AzAccordion {
+                    Accordion {
                         title: "＋ 新建模型",
-                        class: "az-accordion--tree-form",
-                        summary_class: "az-accordion__summary--compact",
-                        body_class: "az-accordion__body--compact",
+                        class: "accordion--tree-form",
+                        summary_class: "accordion__summary--compact",
+                        body_class: "accordion__body--compact",
                         LowcodeActionForm { action_name: "new-model",
-                            AzFormRow { label: "名称 · 英文标识", required: true,
-                                AzInput { name: "name", placeholder: "Product", required: true, class: "az-input--compact" }
+                            FormRow { label: "名称 · 英文标识", required: true,
+                                Input { name: "name", placeholder: "Product", required: true, class: "form-input--compact" }
                             }
-                            AzFormRow { label: "标签 · 中文显示", required: true,
-                                AzInput { name: "label", placeholder: "产品", required: true, class: "az-input--compact" }
+                            FormRow { label: "标签 · 中文显示", required: true,
+                                Input { name: "label", placeholder: "产品", required: true, class: "form-input--compact" }
                             }
-                            AzFormRow { label: "描述",
-                                AzInput { name: "desc", placeholder: "用途说明", class: "az-input--compact" }
+                            FormRow { label: "描述",
+                                Input { name: "desc", placeholder: "用途说明", class: "form-input--compact" }
                             }
-                            AzButton { tone: AzButtonTone::Primary, button_type: "submit", class: "az-button--compact", "创建模型" }
+                            ToolbarButton { tone: ToolbarButtonTone::Primary, button_type: "submit", class: "toolbar-button--compact", "创建模型" }
                         }
                     }
-                    AzWorkbenchTreeList { class: "az-workbench-tree__list--tight",
+                    WorkbenchTreeList { class: "workbench-tree__list--tight",
                         if models.is_empty() {
-                            p { class: "az-platform-muted", style: "padding: 8px; font-size: 11px;", "暂无模型" }
+                            p { class: "platform-muted", style: "padding: 8px; font-size: 11px;", "暂无模型" }
                         } else {
                             for model in &models {
                                 a {
@@ -99,42 +99,42 @@ pub fn render_model_editor(selected_model_id: Option<String>, query: &str) -> El
                         }
                     }
                 }
-                AzWorkbenchDetail {
+                WorkbenchDetail {
                     if let Some(model) = selected_model {
-                        AzWorkbenchDetailHeader {
+                        WorkbenchDetailHeader {
                             title: format!("{} · 字段", model.label),
                             subtitle: format!("{} — {}", model.name, model.description),
-                            div { class: "az-toolbar",
-                                AzAccordion { title: "＋ 添加字段",
+                            div { class: "toolbar",
+                                Accordion { title: "＋ 添加字段",
                                     LowcodeActionForm {
                                         action_name: "new-field",
                                         hidden_fields: vec![("model".to_string(), model.id.clone())],
-                                        AzFormRow { label: "字段名 · 英文", required: true,
-                                            AzInput { name: "field_name", placeholder: "price", required: true }
+                                        FormRow { label: "字段名 · 英文", required: true,
+                                            Input { name: "field_name", placeholder: "price", required: true }
                                         }
-                                        AzFormRow { label: "标签 · 中文", required: true,
-                                            AzInput { name: "field_label", placeholder: "价格", required: true }
+                                        FormRow { label: "标签 · 中文", required: true,
+                                            Input { name: "field_label", placeholder: "价格", required: true }
                                         }
-                                        AzFormRow { label: "类型",
-                                            AzSelect { name: "field_type", options: field_type_options(None) }
+                                        FormRow { label: "类型",
+                                            Select { name: "field_type", options: field_type_options(None) }
                                         }
-                                        AzFormRow { label: "关联类型",
-                                            AzSelect { name: "rel_type", options: relation_type_options(None) }
+                                        FormRow { label: "关联类型",
+                                            Select { name: "rel_type", options: relation_type_options(None) }
                                         }
-                                        AzFormRow { label: "关联模型",
-                                            AzSelect { name: "rel_model_id", options: model_options(&all_models, None) }
+                                        FormRow { label: "关联模型",
+                                            Select { name: "rel_model_id", options: model_options(&all_models, None) }
                                         }
-                                        AzFormRow { label: "默认值",
-                                            AzInput { name: "def_val", placeholder: "可选", class: "az-input--compact" }
+                                        FormRow { label: "默认值",
+                                            Input { name: "def_val", placeholder: "可选", class: "form-input--compact" }
                                         }
-                                        div { class: "az-checkbox-group",
-                                            AzCheckboxRow { name: "is_req", label: "必填" }
-                                            AzCheckboxRow { name: "is_uniq", label: "唯一" }
+                                        div { class: "checkbox-group",
+                                            CheckboxRow { name: "is_req", label: "必填" }
+                                            CheckboxRow { name: "is_uniq", label: "唯一" }
                                         }
-                                        AzButton { tone: AzButtonTone::Primary, button_type: "submit", "添加字段" }
+                                        ToolbarButton { tone: ToolbarButtonTone::Primary, button_type: "submit", "添加字段" }
                                     }
                                 }
-                                AzButtonLink {
+                                ToolbarButtonLink {
                                     href: format!("/?route={lowcode_route}&mode=screens"),
                                     "页面管理 →"
                                 }
@@ -147,7 +147,7 @@ pub fn render_model_editor(selected_model_id: Option<String>, query: &str) -> El
                             model_id: model.id.clone(),
                         }
                     } else {
-                        AzWorkbenchDetailHeader {
+                        WorkbenchDetailHeader {
                             title: "字段定义",
                             subtitle: "选择左侧模型查看和管理字段",
                         }
@@ -170,28 +170,28 @@ struct FieldTableProps {
 #[allow(non_snake_case)]
 fn FieldTable(props: FieldTableProps) -> Element {
     rsx! {
-        AzTableViewport {
-            AzTable { bordered: true, dense: true,
+        TableViewport {
+            Table { bordered: true, dense: true,
                 FieldTableHead {}
-                AzTableBody {
+                TableBody {
                     if props.field_views.is_empty() {
-                        AzTableRow {
-                            AzTableCell { class: "az-table__cell--empty", colspan: 8,
+                        TableRow {
+                            TableCell { class: "table-view__cell--empty", colspan: 8,
                                 "暂无字段 — 点击「添加字段」创建"
                             }
                         }
                     } else {
                         for (index, field) in props.field_views.iter().enumerate() {
-                            AzTableRow {
-                                AzTableCell { "{index + 1}" }
-                                AzTableCell { code { "{field.name}" } }
-                                AzTableCell { "{field.label}" }
-                                AzTableCell {
-                                    AzBadge { "{ft_label(&field.field_type)}" }
+                            TableRow {
+                                TableCell { "{index + 1}" }
+                                TableCell { code { "{field.name}" } }
+                                TableCell { "{field.label}" }
+                                TableCell {
+                                    StatusBadge { "{ft_label(&field.field_type)}" }
                                 }
-                                AzTableCell {
+                                TableCell {
                                     if field.field_type == "Relation" {
-                                        AzBadge { tone: AzBadgeTone::Accent, "{rel_label(field.relation_type.as_deref())}" }
+                                        StatusBadge { tone: StatusBadgeTone::Accent, "{rel_label(field.relation_type.as_deref())}" }
                                         if let Some(ref relation_model_name) = field.relation_model_name {
                                             span { " → {relation_model_name}" }
                                         }
@@ -199,33 +199,33 @@ fn FieldTable(props: FieldTableProps) -> Element {
                                         "—"
                                     }
                                 }
-                                AzTableCell {
+                                TableCell {
                                     if field.is_required {
-                                        AzBadge { tone: AzBadgeTone::Warn, "必填" }
+                                        StatusBadge { tone: StatusBadgeTone::Warn, "必填" }
                                     }
                                 }
-                                AzTableCell {
+                                TableCell {
                                     if field.is_unique {
-                                        AzBadge { "唯一" }
+                                        StatusBadge { "唯一" }
                                     }
                                 }
-                                AzTableCell {
-                                    div { class: "az-row-actions",
+                                TableCell {
+                                    div { class: "row-actions",
                                         FieldEditor {
                                             all_models: props.all_models.clone(),
                                             field: field.clone(),
                                             lowcode_route: props.lowcode_route.clone(),
                                             model_id: props.model_id.clone(),
                                         }
-                                        AzButtonLink {
+                                        ToolbarButtonLink {
                                             href: format!(
                                                 "/?route={}&model={}&action=delete-field&field_id={}",
                                                 props.lowcode_route,
                                                 props.model_id,
                                                 field.id,
                                             ),
-                                            tone: AzButtonTone::Danger,
-                                            class: "az-button--compact",
+                                            tone: ToolbarButtonTone::Danger,
+                                            class: "toolbar-button--compact",
                                             "删除"
                                         }
                                     }
@@ -242,16 +242,16 @@ fn FieldTable(props: FieldTableProps) -> Element {
 #[allow(non_snake_case)]
 fn FieldTableHead() -> Element {
     rsx! {
-        AzTableHead {
-            AzTableRow {
-                AzTableHeaderCell { "#" }
-                AzTableHeaderCell { "字段名" }
-                AzTableHeaderCell { "标签" }
-                AzTableHeaderCell { "类型" }
-                AzTableHeaderCell { "关联" }
-                AzTableHeaderCell { "必填" }
-                AzTableHeaderCell { "唯一" }
-                AzTableHeaderCell { "操作" }
+        TableHead {
+            TableRow {
+                TableHeaderCell { "#" }
+                TableHeaderCell { "字段名" }
+                TableHeaderCell { "标签" }
+                TableHeaderCell { "类型" }
+                TableHeaderCell { "关联" }
+                TableHeaderCell { "必填" }
+                TableHeaderCell { "唯一" }
+                TableHeaderCell { "操作" }
             }
         }
     }
@@ -270,10 +270,10 @@ fn FieldEditor(props: FieldEditorProps) -> Element {
     let default_value = props.field.default_value.clone().unwrap_or_default();
 
     rsx! {
-        AzAccordion {
+        Accordion {
             title: "编辑",
-            class: "az-accordion--inline",
-            summary_class: "az-accordion__summary--compact",
+            class: "accordion--inline",
+            summary_class: "accordion__summary--compact",
             LowcodeActionForm {
                 action_name: "edit-field",
                 route: props.lowcode_route.clone(),
@@ -281,35 +281,35 @@ fn FieldEditor(props: FieldEditorProps) -> Element {
                     ("field_id".to_string(), props.field.id.clone()),
                     ("model".to_string(), props.model_id.clone()),
                 ],
-                AzFormRow { label: "标签",
-                    AzInput { name: "field_label", value: props.field.label.clone(), class: "az-input--compact" }
+                FormRow { label: "标签",
+                    Input { name: "field_label", value: props.field.label.clone(), class: "form-input--compact" }
                 }
-                AzFormRow { label: "类型",
-                    AzSelect {
+                FormRow { label: "类型",
+                    Select {
                         name: "field_type",
                         options: field_type_options(Some(props.field.field_type.clone())),
                     }
                 }
-                AzFormRow { label: "关联类型",
-                    AzSelect {
+                FormRow { label: "关联类型",
+                    Select {
                         name: "rel_type",
                         options: relation_type_options(props.field.relation_type.clone()),
                     }
                 }
-                AzFormRow { label: "关联模型",
-                    AzSelect {
+                FormRow { label: "关联模型",
+                    Select {
                         name: "rel_model_id",
                         options: model_options(&props.all_models, props.field.relation_model_id.clone()),
                     }
                 }
-                AzFormRow { label: "默认值",
-                    AzInput { name: "def_val", value: default_value, placeholder: "可选", class: "az-input--compact" }
+                FormRow { label: "默认值",
+                    Input { name: "def_val", value: default_value, placeholder: "可选", class: "form-input--compact" }
                 }
-                div { class: "az-checkbox-group",
-                    AzCheckboxRow { name: "is_req", label: "必填", checked: props.field.is_required }
-                    AzCheckboxRow { name: "is_uniq", label: "唯一", checked: props.field.is_unique }
+                div { class: "checkbox-group",
+                    CheckboxRow { name: "is_req", label: "必填", checked: props.field.is_required }
+                    CheckboxRow { name: "is_uniq", label: "唯一", checked: props.field.is_unique }
                 }
-                AzButton { tone: AzButtonTone::Primary, button_type: "submit", class: "az-button--compact", "保存" }
+                ToolbarButton { tone: ToolbarButtonTone::Primary, button_type: "submit", class: "toolbar-button--compact", "保存" }
             }
         }
     }
@@ -318,12 +318,12 @@ fn FieldEditor(props: FieldEditorProps) -> Element {
 #[allow(non_snake_case)]
 fn EmptyFieldTable() -> Element {
     rsx! {
-        AzTableViewport {
-            AzTable { bordered: true, dense: true,
+        TableViewport {
+            Table { bordered: true, dense: true,
                 FieldTableHead {}
-                AzTableBody {
-                    AzTableRow {
-                        AzTableCell { class: "az-table__cell--empty", colspan: 8,
+                TableBody {
+                    TableRow {
+                        TableCell { class: "table-view__cell--empty", colspan: 8,
                             "← 选择左侧模型以查看字段 · 支持字符串、整数、关联、自递归树等类型"
                         }
                     }
@@ -333,7 +333,7 @@ fn EmptyFieldTable() -> Element {
     }
 }
 
-fn field_type_options(current: Option<String>) -> Vec<AzSelectOption> {
+fn field_type_options(current: Option<String>) -> Vec<SelectOption> {
     [
         ("String", "字符串"),
         ("Integer", "整数"),
@@ -345,12 +345,12 @@ fn field_type_options(current: Option<String>) -> Vec<AzSelectOption> {
     ]
     .into_iter()
     .map(|(value, label)| {
-        AzSelectOption::new(value, label).selected(current.as_deref() == Some(value))
+        SelectOption::new(value, label).selected(current.as_deref() == Some(value))
     })
     .collect()
 }
 
-fn relation_type_options(current: Option<String>) -> Vec<AzSelectOption> {
+fn relation_type_options(current: Option<String>) -> Vec<SelectOption> {
     [
         ("", "—"),
         ("OneToOne", "一对一"),
@@ -360,15 +360,15 @@ fn relation_type_options(current: Option<String>) -> Vec<AzSelectOption> {
     ]
     .into_iter()
     .map(|(value, label)| {
-        AzSelectOption::new(value, label).selected(current.as_deref() == Some(value))
+        SelectOption::new(value, label).selected(current.as_deref() == Some(value))
     })
     .collect()
 }
 
-fn model_options(models: &[MetaModelSummary], current: Option<String>) -> Vec<AzSelectOption> {
-    std::iter::once(AzSelectOption::new("", "—"))
+fn model_options(models: &[MetaModelSummary], current: Option<String>) -> Vec<SelectOption> {
+    std::iter::once(SelectOption::new("", "—"))
         .chain(models.iter().map(|model| {
-            AzSelectOption::new(model.id.clone(), format!("{} ({})", model.label, model.name))
+            SelectOption::new(model.id.clone(), format!("{} ({})", model.label, model.name))
                 .selected(current.as_deref() == Some(model.id.as_str()))
         }))
         .collect()

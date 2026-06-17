@@ -49,10 +49,10 @@ assert_eq!(recognition_components[0].label, "OCR文字识别");
 cargo test -p az-algorithm
 ```
 
-真实模型测试在各算法 crate 内运行，例如：
+真实模型测试在 `az-algorithm` 内运行，例如：
 
 ```shell
-cargo test -p az-face-detection --test face_detection -- --nocapture
-cargo test -p az-safety-helmet-detection --test safety_helmet_detection -- --nocapture
-cargo test -p az-algorithm-pipeline --test image_pipeline -- --nocapture
+cargo test -p az-algorithm --test 人脸检测 -- --nocapture
+cargo test -p az-algorithm --test 安全帽检测 -- --nocapture
+cargo test -p az-algorithm --test 图片流水线 -- --nocapture
 ```

@@ -101,6 +101,8 @@ pub enum AlgorithmOutputKind {
     ClassLabel,
     /// 识别出的身份。
     Identity,
+    /// 两个目标或目标与底库记录之间的相似度。
+    SimilarityScore,
     /// 文本内容。
     Text,
     /// 二维码载荷。

@@ -1,85 +1,83 @@
-use az_dioxus_components::az_card::AzCard;
-use az_dioxus_components::az_grammar_search::{AzGrammarSearchField, parse_grammar_search_query};
-use az_dioxus_components::az_table::{
-    AzTable, AzTableBody, AzTableCaption, AzTableCell, AzTableFooter, AzTableHead,
-    AzTableHeaderCell, AzTableRow,
-};
+use az_dioxus_components::grammar_search::{GrammarSearchField, parse_grammar_search_query};
 use az_dioxus_components::neobrutal::{
-    NbBadge, NbCard, NbContentSlot, NbHeaderBar, NbHero, NbIconButton, NbModelButton, NbNavLink,
-    NbPage, NbPluginGroup, NbShell, NbSidebar, NbSidebarToggle, NbTitlebarControls, NbTitlebarNav,
-    NbWorkspace, NbWorkspaceBody,
+    Badge, Card, ContentSlot, HeaderBar, Hero, IconButton, ModelButton, NavLink, Page, PluginGroup,
+    Shell, Sidebar, SidebarToggle, TitlebarControls, TitlebarNav, Workspace, WorkspaceBody,
+};
+use az_dioxus_components::surface_card::SurfaceCard;
+use az_dioxus_components::table::{
+    Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeaderCell, TableRow,
 };
 use dioxus::prelude::*;
 
 #[test]
 fn public_components_compile_in_a_single_composition() {
     // 验证公开模块足以组合出完整表格界面，而不需要依赖私有路径。
-    let field = AzGrammarSearchField::new("tag", "标签");
+    let field = GrammarSearchField::new("tag", "标签");
     let parsed_query = parse_grammar_search_query("keyword:edge; tag:runtime");
     assert_eq!(field.key, "tag");
     assert_eq!(parsed_query.values_for("tag"), vec!["runtime"]);
 
     let markup = dioxus_ssr::render_element(rsx! {
-        AzCard {
-            AzTable {
-                AzTableCaption { "Nodes" }
-                AzTableHead {
-                    AzTableRow {
-                        AzTableHeaderCell { "Name" }
-                        AzTableHeaderCell { "Status" }
+        SurfaceCard {
+            Table {
+                TableCaption { "Nodes" }
+                TableHead {
+                    TableRow {
+                        TableHeaderCell { "Name" }
+                        TableHeaderCell { "Status" }
                     }
                 }
-                AzTableBody {
-                    AzTableRow {
-                        AzTableCell { "edge-01" }
-                        AzTableCell { "healthy" }
+                TableBody {
+                    TableRow {
+                        TableCell { "edge-01" }
+                        TableCell { "healthy" }
                     }
                 }
-                AzTableFooter {
-                    AzTableRow {
-                        AzTableCell { "1 total" }
-                        AzTableCell { "ok" }
+                TableFooter {
+                    TableRow {
+                        TableCell { "1 total" }
+                        TableCell { "ok" }
                     }
                 }
             }
         }
     });
 
-    assert!(markup.contains("az-card"));
+    assert!(markup.contains("surface-card"));
 }
 
 #[test]
 fn neobrutal_components_render_stable_ssr_classes() {
     let markup = dioxus_ssr::render_element(rsx! {
-        NbPage {
-            NbHero { compact: true,
+        Page {
+            Hero { compact: true,
                 "Hero"
             }
-            NbCard { accent: true, selected: true,
-                NbBadge { accent: true, "Ready" }
+            Card { accent: true, selected: true,
+                Badge { accent: true, "Ready" }
             }
         }
     });
 
-    assert!(markup.contains("nb-page"));
-    assert!(markup.contains("nb-hero--compact"));
-    assert!(markup.contains("nb-card--accent"));
-    assert!(markup.contains("nb-card--selected"));
-    assert!(markup.contains("nb-badge--accent"));
+    assert!(markup.contains("page"));
+    assert!(markup.contains("hero--compact"));
+    assert!(markup.contains("card--accent"));
+    assert!(markup.contains("card--selected"));
+    assert!(markup.contains("badge--accent"));
 }
 
 #[test]
 fn neobrutal_shell_components_render_stable_ssr_classes() {
     let markup = dioxus_ssr::render_element(rsx! {
-        NbShell { collapsed: true,
-            NbTitlebarControls {
-                NbSidebarToggle { expanded: false }
-                NbTitlebarNav { label: "‹" }
-                NbTitlebarNav { label: "›", disabled: true }
+        Shell { collapsed: true,
+            TitlebarControls {
+                SidebarToggle { expanded: false }
+                TitlebarNav { label: "‹" }
+                TitlebarNav { label: "›", disabled: true }
             }
-            NbSidebar {
-                NbPluginGroup {
-                    NbNavLink {
+            Sidebar {
+                PluginGroup {
+                    NavLink {
                         href: "/?route=/algorithms",
                         icon: "◆",
                         label: "算法",
@@ -89,30 +87,30 @@ fn neobrutal_shell_components_render_stable_ssr_classes() {
                     }
                 }
             }
-            NbWorkspace {
-                NbHeaderBar {
-                    NbModelButton {}
-                    NbIconButton { id: "theme-toggle", href: "#", aria_label: "切换主题", "◐" }
+            Workspace {
+                HeaderBar {
+                    ModelButton {}
+                    IconButton { id: "theme-toggle", href: "#", aria_label: "切换主题", "◐" }
                 }
-                NbWorkspaceBody { lowcode: true,
-                    NbContentSlot { plugin: true, "Plugin body" }
+                WorkspaceBody { lowcode: true,
+                    ContentSlot { plugin: true, "Plugin body" }
                 }
             }
         }
     });
 
-    assert!(markup.contains("nb-shell"));
-    assert!(markup.contains("az-aio-shell--collapsed"));
-    assert!(markup.contains("nb-titlebar-controls"));
-    assert!(markup.contains("nb-sidebar-toggle"));
-    assert!(markup.contains("nb-titlebar-nav--disabled"));
-    assert!(markup.contains("nb-sidebar"));
-    assert!(markup.contains("nb-plugin-group"));
-    assert!(markup.contains("nb-nav-button--active"));
-    assert!(markup.contains("nb-workspace"));
-    assert!(markup.contains("nb-header-bar"));
-    assert!(markup.contains("nb-model-button"));
-    assert!(markup.contains("nb-icon-button"));
-    assert!(markup.contains("nb-workspace-body--lowcode"));
-    assert!(markup.contains("nb-content-slot--plugin"));
+    assert!(markup.contains("shell"));
+    assert!(markup.contains("shell--collapsed"));
+    assert!(markup.contains("titlebar-controls"));
+    assert!(markup.contains("sidebar-toggle"));
+    assert!(markup.contains("titlebar-nav--disabled"));
+    assert!(markup.contains("sidebar"));
+    assert!(markup.contains("plugin-group"));
+    assert!(markup.contains("nav-button--active"));
+    assert!(markup.contains("workspace"));
+    assert!(markup.contains("header-bar"));
+    assert!(markup.contains("model-button"));
+    assert!(markup.contains("icon-button"));
+    assert!(markup.contains("workspace__body--lowcode"));
+    assert!(markup.contains("content-center-slot--plugin"));
 }

@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::onnx::image::model::{
-    OnnxImageModelSpec, TensorElementKind, TensorInputSpec,
+    OnnxImageModelSpec, OnnxImageOutputKind, TensorElementKind, TensorInputSpec,
 };
 
 /// 安全帽检测稳定算法 code。
@@ -36,6 +36,7 @@ pub const SAFETY_HELMET_DETECTION_PPE_YOLO11S: OnnxImageModelSpec = OnnxImageMod
         shape: PPE_YOLO11S_INPUT,
         element: TensorElementKind::Float32,
     },
+    output_kind: OnnxImageOutputKind::RawTensor,
     notes: "PPE detector used as the default local safety helmet backend.",
 };
 

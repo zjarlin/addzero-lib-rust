@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use az_aio_platform::plugin::api::{NativeRenderContext, NavItemContribution};
-use az_dioxus_components::neobrutal::{NbNavLink, NbPluginGroup, NbSidebar};
+use az_dioxus_components::neobrutal::{NavLink, PluginGroup as PluginGroupDisclosure, Sidebar};
 use dioxus::prelude::*;
 
 use super::model::RenderSlot;
@@ -16,9 +16,9 @@ pub(super) struct ShellSidebarProps {
 
 pub(super) fn ShellSidebar(props: ShellSidebarProps) -> Element {
     rsx! {
-        NbSidebar {
+        Sidebar {
             PrimaryActions {}
-            PluginGroup {
+            PluginNavGroup {
                 nav_items: props.nav_items,
                 route: props.route,
                 sidebar_renderer: props.sidebar_renderer,
@@ -33,8 +33,8 @@ pub(super) fn ShellSidebar(props: ShellSidebarProps) -> Element {
 fn PrimaryActions() -> Element {
     rsx! {
         section { class: "sidebar__section sidebar__section--actions",
-            NbNavLink { href: "/", icon: "✎", label: "新对话" }
-            NbNavLink { href: "/?route=/assets", icon: "⌕", label: "搜索" }
+            NavLink { href: "/", icon: "✎", label: "新对话" }
+            NavLink { href: "/?route=/assets", icon: "⌕", label: "搜索" }
         }
     }
 }
@@ -47,10 +47,10 @@ struct PluginGroupProps {
     render_context: NativeRenderContext,
 }
 
-fn PluginGroup(props: PluginGroupProps) -> Element {
+fn PluginNavGroup(props: PluginGroupProps) -> Element {
     rsx! {
         section { class: "sidebar__section sidebar__section--actions",
-            NbPluginGroup {
+            PluginGroupDisclosure {
                 if let Some(render) = props.sidebar_renderer {
                     {render.render(props.render_context.clone())}
                 } else {
@@ -60,7 +60,7 @@ fn PluginGroup(props: PluginGroupProps) -> Element {
                     }
                 }
             }
-            NbNavLink { href: "/?route=/gateway", icon: "◷", label: "自动化" }
+            NavLink { href: "/?route=/gateway", icon: "◷", label: "自动化" }
         }
     }
 }
@@ -75,7 +75,7 @@ fn PluginNavList(props: PluginNavListProps) -> Element {
     rsx! {
         nav { class: "sidebar-tree sidebar-tree--primary",
             for item in &props.nav_items {
-                NbNavLink {
+                NavLink {
                     href: "/?route={item.route}",
                     icon: item.icon.clone(),
                     label: item.label.clone(),

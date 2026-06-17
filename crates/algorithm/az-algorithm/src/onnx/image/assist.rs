@@ -14,8 +14,8 @@ use ort::value::{Tensor, TensorElementType, ValueType};
 use anyhow::{anyhow, bail};
 use crate::onnx::image::model::{
     OnnxImageModelSpec, OnnxImageOutputFiles, OnnxImageRun, OnnxInferenceSummary,
-    OnnxModelMetadata, OnnxOutputSummary, OnnxTensorIoInfo, PreparedImageTensor, TensorElementKind,
-    TensorInputSpec,
+    OnnxImageOutputKind, OnnxModelMetadata, OnnxOutputSummary, OnnxTensorIoInfo,
+    PreparedImageTensor, TensorElementKind, TensorInputSpec,
 };
 
 const MAX_OUTPUT_SAMPLE_VALUES: usize = 8;
@@ -207,6 +207,7 @@ pub fn run_real_image_model(
     let (prepared, summary) = session.run_image_file(spec, &image_path)?;
     let files = write_inference_artifacts(
         algorithm_code,
+        spec,
         &image_path,
         &prepared,
         &summary,
@@ -297,6 +298,7 @@ fn prepare_dynamic_image_tensor(
 /// 当文件写入失败时返回错误。
 pub fn write_inference_artifacts_from_image(
     algorithm_code: &str,
+    spec: &OnnxImageModelSpec,
     source_image: &DynamicImage,
     prepared: &PreparedImageTensor,
     summary: &OnnxInferenceSummary,
@@ -321,6 +323,7 @@ pub fn write_inference_artifacts_from_image(
         summary,
         &files.raw_output_review,
         algorithm_code,
+        spec.output_kind,
     )?;
     assert_real_outputs_exist(algorithm_code, summary);
 
@@ -333,6 +336,7 @@ pub fn write_inference_artifacts_from_image(
 )]
 fn write_inference_artifacts(
     algorithm_code: &str,
+    spec: &OnnxImageModelSpec,
     source_image: &Path,
     prepared: &PreparedImageTensor,
     summary: &OnnxInferenceSummary,
@@ -361,6 +365,7 @@ fn write_inference_artifacts(
         summary,
         &files.raw_output_review,
         algorithm_code,
+        spec.output_kind,
     )?;
 
     assert_real_outputs_exist(algorithm_code, summary);
@@ -387,6 +392,7 @@ fn write_raw_output_review_image(
     summary: &OnnxInferenceSummary,
     output_path: &Path,
     algorithm_code: &str,
+    output_kind: OnnxImageOutputKind,
 ) -> anyhow::Result<()> {
     let mut canvas = RgbImage::from_pixel(REVIEW_WIDTH, REVIEW_HEIGHT, Rgb([248, 250, 252]));
     draw_text_label(
@@ -413,18 +419,11 @@ fn write_raw_output_review_image(
         Rect::at(24, 112).of_size(REVIEW_PREVIEW_SIZE, REVIEW_PREVIEW_SIZE),
         Rgb([15, 23, 42]),
     );
-    draw_image_level_annotation(&mut canvas, 24, 112, REVIEW_PREVIEW_SIZE, summary);
-    draw_text_label(
-        &mut canvas,
-        24,
-        350,
-        &["IMAGE LEVEL ANNOTATION", "BOX MEANS WHOLE IMAGE"],
-        Rgb([71, 85, 105]),
-    );
+    draw_preview_annotation(&mut canvas, 24, 112, REVIEW_PREVIEW_SIZE, summary, output_kind);
 
     let mut y = 112_i32;
     for output in &summary.outputs {
-        draw_output_summary(&mut canvas, 288, y, output);
+        draw_output_summary(&mut canvas, 288, y, output, output_kind);
         y += 128;
         if y > REVIEW_HEIGHT as i32 - 96 {
             break;
@@ -435,13 +434,38 @@ fn write_raw_output_review_image(
     Ok(())
 }
 
-fn draw_image_level_annotation(
+fn draw_preview_annotation(
     canvas: &mut RgbImage,
     x: i32,
     y: i32,
     size: u32,
     summary: &OnnxInferenceSummary,
+    output_kind: OnnxImageOutputKind,
 ) {
+    match output_kind {
+        OnnxImageOutputKind::Embedding => {
+            draw_text_label(
+                canvas,
+                x,
+                y + size as i32 + 16,
+                &["MODEL INPUT PREVIEW", "OUTPUT IS EMBEDDING"],
+                Rgb([71, 85, 105]),
+            );
+            return;
+        }
+        OnnxImageOutputKind::RawTensor => {
+            draw_text_label(
+                canvas,
+                x,
+                y + size as i32 + 16,
+                &["MODEL INPUT PREVIEW", "RAW TENSOR ONLY"],
+                Rgb([71, 85, 105]),
+            );
+            return;
+        }
+        OnnxImageOutputKind::ImageClassification => {}
+    }
+
     let Some((class_index, confidence)) = top_review_sample(summary) else {
         return;
     };
@@ -467,6 +491,13 @@ fn draw_image_level_annotation(
         ],
         color,
     );
+    draw_text_label(
+        canvas,
+        x,
+        y + size as i32 + 16,
+        &["IMAGE LEVEL CLASSIFICATION", "BOX MEANS WHOLE IMAGE"],
+        Rgb([71, 85, 105]),
+    );
 }
 
 fn top_review_sample(summary: &OnnxInferenceSummary) -> Option<(usize, f32)> {
@@ -474,7 +505,10 @@ fn top_review_sample(summary: &OnnxInferenceSummary) -> Option<(usize, f32)> {
         .outputs
         .iter()
         .find(|output| !output.sample_f32.is_empty())?;
-    let normalized = normalized_review_values(&output.sample_f32);
+    let normalized = normalized_review_values(
+        &output.sample_f32,
+        OnnxImageOutputKind::ImageClassification,
+    );
     normalized
         .iter()
         .copied()
@@ -482,13 +516,25 @@ fn top_review_sample(summary: &OnnxInferenceSummary) -> Option<(usize, f32)> {
         .max_by(|(_, left), (_, right)| left.total_cmp(right))
 }
 
-fn draw_output_summary(canvas: &mut RgbImage, x: i32, y: i32, output: &OnnxOutputSummary) {
+fn draw_output_summary(
+    canvas: &mut RgbImage,
+    x: i32,
+    y: i32,
+    output: &OnnxOutputSummary,
+    output_kind: OnnxImageOutputKind,
+) {
+    let output_kind_label = match output_kind {
+        OnnxImageOutputKind::RawTensor => "RAW TENSOR",
+        OnnxImageOutputKind::ImageClassification => "CLASSIFICATION",
+        OnnxImageOutputKind::Embedding => "EMBEDDING VECTOR",
+    };
     draw_text_label(
         canvas,
         x,
         y,
         &[
             &format!("OUTPUT {}", output.name),
+            output_kind_label,
             &format!(
                 "TYPE {} SHAPE {} ELEMENTS {}",
                 output.tensor_type,
@@ -499,7 +545,7 @@ fn draw_output_summary(canvas: &mut RgbImage, x: i32, y: i32, output: &OnnxOutpu
         Rgb([15, 23, 42]),
     );
 
-    let values = normalized_review_values(&output.sample_f32);
+    let values = normalized_review_values(&output.sample_f32, output_kind);
     if values.is_empty() {
         draw_text_label(
             canvas,
@@ -512,7 +558,7 @@ fn draw_output_summary(canvas: &mut RgbImage, x: i32, y: i32, output: &OnnxOutpu
     }
 
     let bar_x = x;
-    let bar_y = y + 66;
+    let bar_y = y + 86;
     let max_bar_width = 560_u32;
     let bar_height = 14_u32;
     for (index, value) in values.iter().enumerate() {
@@ -540,11 +586,13 @@ fn draw_output_summary(canvas: &mut RgbImage, x: i32, y: i32, output: &OnnxOutpu
     }
 }
 
-fn normalized_review_values(values: &[f32]) -> Vec<f32> {
+fn normalized_review_values(values: &[f32], output_kind: OnnxImageOutputKind) -> Vec<f32> {
     if values.is_empty() {
         return Vec::new();
     }
-    if values.iter().all(|value| value.is_finite()) {
+    if output_kind == OnnxImageOutputKind::ImageClassification
+        && values.iter().all(|value| value.is_finite())
+    {
         let max = values
             .iter()
             .copied()
@@ -846,7 +894,7 @@ fn summarize_output(
     };
 
     match ty {
-        TensorElementType::Float32 => summarize_primitive_output::<f32>(output_name, ty, value),
+        TensorElementType::Float32 => summarize_f32_output(output_name, ty, value),
         TensorElementType::Float64 => summarize_primitive_output::<f64>(output_name, ty, value),
         TensorElementType::Int64 => summarize_primitive_output::<i64>(output_name, ty, value),
         TensorElementType::Int32 => summarize_primitive_output::<i32>(output_name, ty, value),
@@ -861,6 +909,22 @@ fn summarize_output(
             "unsupported ONNX output tensor type `{other}` from output `{output_name}`"
         ),
     }
+}
+
+fn summarize_f32_output(
+    output_name: String,
+    tensor_type: &TensorElementType,
+    value: &ort::value::DynValue,
+) -> anyhow::Result<OnnxOutputSummary> {
+    let (shape, data) = value.try_extract_tensor::<f32>()?;
+    Ok(OnnxOutputSummary {
+        name: output_name,
+        tensor_type: tensor_type.to_string(),
+        shape: shape.iter().copied().collect(),
+        element_count: data.len(),
+        sample_f32: data.iter().take(MAX_OUTPUT_SAMPLE_VALUES).copied().collect(),
+        full_f32: Some(data.to_vec()),
+    })
 }
 
 fn summarize_primitive_output<T>(
@@ -882,6 +946,7 @@ where
             .take(MAX_OUTPUT_SAMPLE_VALUES)
             .map(|value| value.into_sample_f32())
             .collect(),
+        full_f32: None,
     })
 }
 
@@ -901,6 +966,7 @@ fn summarize_bool_output(
             .take(MAX_OUTPUT_SAMPLE_VALUES)
             .map(|value| if *value { 1.0 } else { 0.0 })
             .collect(),
+        full_f32: None,
     })
 }
 

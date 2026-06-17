@@ -3,9 +3,7 @@
 use az_aio_platform::plugin::api::{
     NativeRenderContext, NativeUiRenderer, NavItemContribution, PageContribution,
 };
-use az_dioxus_components::neobrutal::{
-    NbShell, NbSidebarToggle, NbTitlebarControls, NbTitlebarNav,
-};
+use az_dioxus_components::neobrutal::{Shell, SidebarToggle, TitlebarControls, TitlebarNav};
 use dioxus::prelude::*;
 
 mod model;
@@ -15,7 +13,7 @@ mod workspace;
 
 use model::{PageChrome, SlotRenderers};
 use sidebar::ShellSidebar;
-use workspace::Workspace;
+use workspace::WorkspaceChrome;
 
 #[derive(PartialEq, Clone, Props)]
 pub(crate) struct ShellProps {
@@ -38,15 +36,15 @@ pub(crate) fn AppLayout(props: ShellProps) -> Element {
     };
 
     rsx! {
-        NbShell {
-            TitlebarControls {}
+        Shell {
+            ShellTitlebarControls {}
             ShellSidebar {
                 nav_items: props.nav_items.clone(),
                 route: active_route,
                 sidebar_renderer: slots.sidebar.clone(),
                 render_context: render_context.clone(),
             }
-            Workspace {
+            WorkspaceChrome {
                 slots,
                 page,
                 render_context,
@@ -55,12 +53,12 @@ pub(crate) fn AppLayout(props: ShellProps) -> Element {
     }
 }
 
-fn TitlebarControls() -> Element {
+fn ShellTitlebarControls() -> Element {
     rsx! {
-        NbTitlebarControls {
-            NbSidebarToggle { expanded: true }
-            NbTitlebarNav { label: "‹" }
-            NbTitlebarNav { label: "›", disabled: true }
+        TitlebarControls {
+            SidebarToggle { expanded: true }
+            TitlebarNav { label: "‹" }
+            TitlebarNav { label: "›", disabled: true }
         }
     }
 }

@@ -2,8 +2,9 @@
 
 use az_aio_platform::plugin::api::NativeRenderContext;
 use az_dioxus_components::neobrutal::{
-    NbContentSlot, NbFloatingPanelSlot, NbHeaderBar, NbIconButton, NbModelButton, NbProjectLayout,
-    NbRightSlot, NbWorkspace, NbWorkspaceBody,
+    ContentSlot as ContentSlotSurface, FloatingPanelSlot, HeaderBar as HeaderBarSurface,
+    IconButton, ModelButton, ProjectLayout as ProjectLayoutSurface, RightSlot,
+    Workspace as WorkspaceSurface, WorkspaceBody,
 };
 use dioxus::prelude::*;
 
@@ -19,15 +20,15 @@ pub(super) struct WorkspaceProps {
     pub(super) render_context: NativeRenderContext,
 }
 
-pub(super) fn Workspace(props: WorkspaceProps) -> Element {
+pub(super) fn WorkspaceChrome(props: WorkspaceProps) -> Element {
     rsx! {
-        NbWorkspace {
-            HeaderBar {
+        WorkspaceSurface {
+            WorkspaceHeader {
                 topbar_renderer: props.slots.topbar.clone(),
                 render_context: props.render_context.clone(),
             }
-            NbWorkspaceBody { lowcode: props.page.lowcode,
-                ContentSlot {
+            WorkspaceBody { lowcode: props.page.lowcode,
+                WorkspaceContentSlot {
                     renderer: props.slots.content.clone(),
                     page: props.page,
                     render_context: props.render_context.clone(),
@@ -47,15 +48,15 @@ struct HeaderBarProps {
     render_context: NativeRenderContext,
 }
 
-fn HeaderBar(props: HeaderBarProps) -> Element {
+fn WorkspaceHeader(props: HeaderBarProps) -> Element {
     rsx! {
-        NbHeaderBar {
+        HeaderBarSurface {
             if let Some(render) = props.topbar_renderer {
                 {render.render(props.render_context)}
             } else {
-                NbModelButton {}
+                ModelButton {}
             }
-            NbIconButton { id: "theme-toggle", href: "#", aria_label: "切换主题", "◐" }
+            IconButton { id: "theme-toggle", href: "#", aria_label: "切换主题", "◐" }
         }
     }
 }
@@ -67,11 +68,11 @@ struct ContentSlotProps {
     render_context: NativeRenderContext,
 }
 
-fn ContentSlot(props: ContentSlotProps) -> Element {
+fn WorkspaceContentSlot(props: ContentSlotProps) -> Element {
     let has_plugin_renderer = props.renderer.is_some();
 
     rsx! {
-        NbContentSlot { plugin: has_plugin_renderer,
+        ContentSlotSurface { plugin: has_plugin_renderer,
             if let Some(render) = props.renderer {
                 {render.render(props.render_context)}
             } else {
@@ -93,7 +94,7 @@ fn WorkspaceAddonSlots(props: WorkspaceAddonSlotsProps) -> Element {
 
     rsx! {
         if has_project_layout {
-            ProjectLayout {
+            ProjectSlotsLayout {
                 project_sidebar: props.slots.project_sidebar,
                 project_content: props.slots.project_content,
                 render_context: props.render_context.clone(),
@@ -101,13 +102,13 @@ fn WorkspaceAddonSlots(props: WorkspaceAddonSlotsProps) -> Element {
         }
 
         if let Some(render) = props.slots.settings {
-            NbRightSlot {
+            RightSlot {
                 {render.render(props.render_context.clone())}
             }
         }
 
         if let Some(render) = props.slots.sandbox {
-            NbFloatingPanelSlot {
+            FloatingPanelSlot {
                 {render.render(props.render_context)}
             }
         }
@@ -121,9 +122,9 @@ struct ProjectLayoutProps {
     render_context: NativeRenderContext,
 }
 
-fn ProjectLayout(props: ProjectLayoutProps) -> Element {
+fn ProjectSlotsLayout(props: ProjectLayoutProps) -> Element {
     rsx! {
-        NbProjectLayout {
+        ProjectLayoutSurface {
             if let Some(render) = props.project_sidebar {
                 {render.render(props.render_context.clone())}
             }

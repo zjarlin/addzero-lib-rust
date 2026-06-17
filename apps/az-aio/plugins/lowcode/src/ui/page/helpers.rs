@@ -74,7 +74,7 @@ pub fn ft_html(ft: &str) -> &str {
 }
 
 use crate::backend::record::RecordWithId;
-use az_dioxus_components::az_form::{AzActionForm, AzHiddenInput, AzInput, AzSelect, AzSelectOption};
+use az_dioxus_components::form::{ActionForm, HiddenInput, Input, Select, SelectOption};
 use dioxus::prelude::*;
 
 /// Extract a query parameter value from a route string (e.g. "?key=val&...").
@@ -104,11 +104,11 @@ pub fn LowcodeActionForm(
     #[props(default, into)] style: String,
 ) -> Element {
     rsx! {
-        AzActionForm { id: id, class: class, style: style,
-            AzHiddenInput { name: "route", value: route }
-            AzHiddenInput { name: "action", value: action_name }
+        ActionForm { id: id, class: class, style: style,
+            HiddenInput { name: "route", value: route }
+            HiddenInput { name: "action", value: action_name }
             for (name, value) in hidden_fields {
-                AzHiddenInput { name: name, value: value }
+                HiddenInput { name: name, value: value }
             }
             {children}
         }
@@ -125,7 +125,7 @@ pub fn render_enum_select(field: &MetaFieldView) -> Element {
         .filter(|s| !s.is_empty())
         .collect();
     rsx! {
-        AzSelect {
+        Select {
             name: format!("rec_{}", field.name),
             options: select_options(opts, None),
         }
@@ -142,7 +142,7 @@ pub fn render_enum_select_edit(field: &MetaFieldView, current: String) -> Elemen
         .filter(|s| !s.is_empty())
         .collect();
     rsx! {
-        AzSelect {
+        Select {
             name: format!("rec_{}", field.name),
             options: select_options(opts, Some(current)),
         }
@@ -154,13 +154,13 @@ pub fn render_rel_select(field: &MetaFieldView, rec_store: &RecordStore) -> Elem
     if let Some(ref rel_id) = field.relation_model_id {
         let opts = rec_store.list(rel_id);
         rsx! {
-            AzSelect {
+            Select {
                 name: format!("rec_{}", field.name),
                 options: relation_options(&opts, None),
             }
         }
     } else {
-        rsx! { AzInput { name: format!("rec_{}", field.name), placeholder: "关联ID" } }
+        rsx! { Input { name: format!("rec_{}", field.name), placeholder: "关联ID" } }
     }
 }
 
@@ -173,13 +173,13 @@ pub fn render_rel_select_edit(
     if let Some(ref rel_id) = field.relation_model_id {
         let opts = rec_store.list(rel_id);
         rsx! {
-            AzSelect {
+            Select {
                 name: format!("rec_{}", field.name),
                 options: relation_options(&opts, Some(current)),
             }
         }
     } else {
-        rsx! { AzInput { name: format!("rec_{}", field.name), value: current } }
+        rsx! { Input { name: format!("rec_{}", field.name), value: current } }
     }
 }
 
@@ -192,19 +192,19 @@ pub fn opt_display_label(opt: &RecordWithId) -> String {
         .unwrap_or_else(|| opt.id.clone())
 }
 
-fn select_options(options: Vec<&str>, current: Option<String>) -> Vec<AzSelectOption> {
-    std::iter::once(AzSelectOption::new("", "— 选择 —"))
+fn select_options(options: Vec<&str>, current: Option<String>) -> Vec<SelectOption> {
+    std::iter::once(SelectOption::new("", "— 选择 —"))
         .chain(options.into_iter().map(|option| {
-            AzSelectOption::new(option, option)
+            SelectOption::new(option, option)
                 .selected(current.as_deref().is_some_and(|value| value == option))
         }))
         .collect()
 }
 
-fn relation_options(options: &[RecordWithId], current: Option<String>) -> Vec<AzSelectOption> {
-    std::iter::once(AzSelectOption::new("", "— 选择 —"))
+fn relation_options(options: &[RecordWithId], current: Option<String>) -> Vec<SelectOption> {
+    std::iter::once(SelectOption::new("", "— 选择 —"))
         .chain(options.iter().map(|option| {
-            AzSelectOption::new(option.id.clone(), opt_display_label(option))
+            SelectOption::new(option.id.clone(), opt_display_label(option))
                 .selected(current.as_deref() == Some(option.id.as_str()))
         }))
         .collect()

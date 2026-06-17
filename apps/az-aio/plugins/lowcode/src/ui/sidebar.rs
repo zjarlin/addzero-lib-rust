@@ -3,7 +3,7 @@
 //! Lowcode-owned sidebar renderer.
 
 use az_aio_platform::plugin::api::NativeRenderContext;
-use az_dioxus_components::neobrutal::NbNavLink;
+use az_dioxus_components::neobrutal::NavLink;
 use dioxus::prelude::*;
 
 use crate::{contract::LowcodeMenuContribution, metadata::configurable_lowcode_menus};
@@ -21,15 +21,15 @@ pub fn LowcodeSidebar(context: NativeRenderContext) -> Element {
     rsx! {
         nav { class: "sidebar-tree sidebar-tree--primary lowcode-sidebar",
             for root in roots {
-                details { class: "plugin-group nb-plugin-group", open: true,
-                    summary { class: "nav-button nav-button--plugin nb-nav-button nb-nav-button--plugin plugin-group__summary nb-plugin-group__summary",
-                        span { class: "nav-button__icon nb-nav-button__icon", "{root.icon}" }
-                        span { class: "nav-button__label nb-nav-button__label", "{root.label}" }
-                        span { class: "nav-button__detail nb-nav-button__detail", "{root.order}" }
+                details { class: "plugin-group plugin-group", open: true,
+                    summary { class: "nav-button nav-button--plugin nav-button nav-button--plugin plugin-group__summary plugin-group__summary",
+                        span { class: "nav-button__icon nav-button__icon", "{root.icon}" }
+                        span { class: "nav-button__label nav-button__label", "{root.label}" }
+                        span { class: "nav-button__detail nav-button__detail", "{root.order}" }
                     }
                     nav { class: "sidebar-tree sidebar-tree--nested",
                         for child in menu_children(&menus, &root.id) {
-                            NbNavLink {
+                            NavLink {
                                 href: menu_href(&child.route),
                                 icon: child.icon.clone(),
                                 label: child.label.clone(),
