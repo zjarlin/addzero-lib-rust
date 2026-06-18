@@ -1,6 +1,5 @@
 use az_derive_aliases::{apply, serde_code_enum, serde_eq};
 
-/// The kind of relationship between tables.
 #[apply(serde_code_enum)]
 pub enum RelationKind {
     /// One-to-one (1:1).
@@ -13,7 +12,6 @@ pub enum RelationKind {
     ManyToMany,
 }
 
-/// Represents a foreign key relationship between two tables.
 #[apply(serde_eq)]
 pub struct Relation {
     /// Name of this relation (e.g., "fk_user_order").
