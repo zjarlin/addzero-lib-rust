@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 
 use ab_glyph::{FontArc, PxScale};
 use anyhow::{anyhow, bail};
-use az_str::sanitize::sanitize_file_stem_or;
+use az_str::sanitize::sanitize_path_file_stem_or;
 use image::imageops::FilterType;
 use image::{DynamicImage, Rgb, RgbImage};
 use imageproc::drawing::{
@@ -367,7 +367,7 @@ pub fn annotate_worker_hits_video_to_path(
     let mut options = default_worker_hit_video_analysis_options(input_video_path)?;
     options.output_dir = output_parent.join(format!(
         ".{}-worker-hit-counting",
-        sanitized_file_stem(output_video_path)
+        sanitize_path_file_stem_or(output_video_path, "input_video")
     ));
 
     let run = analyze_worker_hits_in_video_from_path(input_video_path, &options)?;
@@ -421,7 +421,7 @@ pub fn default_worker_hit_video_analysis_options(
         .join("target")
         .join("az-algorithm-results")
         .join("worker-hit-counting")
-        .join(sanitized_file_stem(&input_video_path));
+        .join(sanitize_path_file_stem_or(&input_video_path, "input_video"));
 
     Ok(WorkerHitVideoAnalysisOptions {
         pose_model_path: default_pose_model_path(),
@@ -463,15 +463,6 @@ fn default_ffmpeg_path() -> PathBuf {
         .map(PathBuf::from)
         .find(|path| path.is_file())
         .unwrap_or_else(|| PathBuf::from("ffmpeg"))
-}
-
-fn sanitized_file_stem(path: &Path) -> String {
-    let stem = path
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .filter(|value| !value.is_empty())
-        .unwrap_or("input_video");
-    sanitize_file_stem_or(stem, "input_video")
 }
 
 /// 从真实视频抽帧，使用 YOLO pose 生成动作观测，再按人员输出敲击时间线。

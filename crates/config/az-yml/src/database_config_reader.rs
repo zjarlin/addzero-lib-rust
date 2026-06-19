@@ -3,7 +3,6 @@
 use std::path::Path;
 
 use anyhow::Result;
-use az_derive_aliases::{apply, plain_default_copy_eq, plain_eq_redacted};
 
 use crate::path::YamlDoc;
 use crate::spring_yaml::SpringYaml;
@@ -11,7 +10,7 @@ use crate::spring_yaml::SpringYaml;
 /// 从 Spring YAML 中提取出的数据库连接配置。
 ///
 /// `Debug` 输出会自动隐藏 `jdbc_password`，避免日志中泄漏明文密码。
-#[apply(plain_eq_redacted)]
+#[derive(Clone, derive_more::Debug, Eq, PartialEq)]
 pub struct DatabaseConfig {
     /// JDBC 或 R2DBC 连接 URL。
     pub jdbc_url: String,
@@ -25,7 +24,7 @@ pub struct DatabaseConfig {
 /// Spring YAML 数据库连接配置读取器。
 ///
 /// 支持常见单数据源路径、`master` / `primary` 等命名数据源，以及调用方指定的优先数据源名。
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct DatabaseConfigReader;
 
 impl DatabaseConfigReader {

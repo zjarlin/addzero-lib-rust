@@ -1,7 +1,8 @@
-use az_derive_aliases::{apply, serde_code_display_enum};
 
 /// Supported SQL database dialects for DDL generation.
-#[apply(serde_code_display_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum Dialect {
     /// MySQL / MariaDB.
     #[display("MySQL")]
@@ -18,6 +19,25 @@ pub enum Dialect {
     #[serde(rename = "sqlite")]
     #[strum(serialize = "sqlite")]
     SQLite,
+}
+
+impl Dialect {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 #[cfg(test)]

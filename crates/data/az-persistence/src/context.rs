@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, plain_clone};
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbErr};
 use sea_orm_migration::prelude::MigratorTrait;
 
@@ -19,7 +18,7 @@ static WORKSPACE_MIGRATIONS_DONE: AtomicBool = AtomicBool::new(false);
 static WORKSPACE_MIGRATION_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Shared database context for workspace services.
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct PersistenceContext {
     database_url: String,
     db: DatabaseConnection,

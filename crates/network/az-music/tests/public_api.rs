@@ -1,5 +1,4 @@
 use anyhow::Result;
-use az_derive_aliases::{apply, plain_clone_debug};
 use az_music::api::{ApiConfig, Music, MusicSearchApi, MusicSearchType, SunoApi, SunoMusicRequest};
 use reqwest::header::ACCEPT;
 use std::collections::BTreeMap;
@@ -220,7 +219,7 @@ fn suno_api_debug_omits_api_token() {
     assert!(!debug.contains("suno-token"));
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct CapturedRequest {
     method: String,
     path: String,
@@ -228,7 +227,7 @@ struct CapturedRequest {
     body: String,
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct TestResponse {
     status: u16,
     content_type: &'static str,

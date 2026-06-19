@@ -5,7 +5,6 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, plain_clone_debug, plain_debug, serialize_debug};
 use reqwest::Url;
 use scraper::{ElementRef, Html, Selector};
 
@@ -19,7 +18,7 @@ use super::cleanup::clean_body;
 use super::preset::{NovelPreset, ResolvedSelectors, resolve_selectors};
 use super::toc::{ParsedToc, TocParser};
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct NovelFetchConfig {
     pub toc_url: Url,
     pub output: PathBuf,
@@ -36,7 +35,7 @@ pub struct NovelFetchConfig {
     pub ignore_robots: bool,
 }
 
-#[apply(serialize_debug)]
+#[derive(Debug, serde::Serialize)]
 struct NovelManifest {
     toc_url: String,
     book_title: String,
@@ -45,7 +44,7 @@ struct NovelManifest {
     chapters: Vec<ChapterManifest>,
 }
 
-#[apply(serialize_debug)]
+#[derive(Debug, serde::Serialize)]
 struct ChapterManifest {
     index: usize,
     title: String,
@@ -53,7 +52,7 @@ struct ChapterManifest {
     char_count: usize,
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct DownloadedChapter {
     index: usize,
     title: String,
@@ -61,7 +60,7 @@ struct DownloadedChapter {
     body: String,
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct ChapterExtractor {
     chapter_title_selectors: Vec<Selector>,
     content_selectors: Vec<Selector>,

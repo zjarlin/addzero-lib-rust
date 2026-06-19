@@ -1,11 +1,10 @@
 use anyhow::Result;
-use az_derive_aliases::{apply, plain_clone_debug, plain_default_clone_debug};
 
 use crate::identifier::{quote_identifier, require_table_name};
 use crate::query::{JoinType, Query, SortOrder};
 
 /// A SELECT query builder.
-#[apply(plain_default_clone_debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SelectQuery {
     distinct: bool,
     columns: Vec<String>,
@@ -19,7 +18,7 @@ pub struct SelectQuery {
     offset: Option<usize>,
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct JoinClause {
     join_type: JoinType,
     table: String,

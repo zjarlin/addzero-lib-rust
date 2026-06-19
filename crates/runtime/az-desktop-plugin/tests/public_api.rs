@@ -1,4 +1,3 @@
-use az_derive_aliases::{apply, plain_default};
 use std::sync::Arc;
 
 use az_desktop_plugin::api::{
@@ -12,7 +11,7 @@ use az_desktop_plugin::api::{
 use az_drive_agent::agent::ListTrackedOptions;
 use uuid::Uuid;
 
-#[apply(plain_default)]
+#[derive(Default)]
 struct FakeServices;
 
 impl DesktopHostServices for FakeServices {

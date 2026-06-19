@@ -1,12 +1,11 @@
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 
-use az_derive_aliases::{apply, impl_default, plain_eq, plain_eq_redacted};
 
 /// S3 兼容对象存储客户端配置。
 ///
 /// `Debug` 输出会隐藏访问密钥和密钥内容，避免日志泄漏凭证。
-#[apply(plain_eq_redacted)]
+#[derive(Clone, derive_more::Debug, Eq, PartialEq)]
 pub struct S3ClientConfig {
     /// S3 兼容服务地址，例如 `http://localhost:9000`。
     pub endpoint: String,
@@ -52,7 +51,7 @@ impl S3ClientConfig {
 }
 
 /// 对象元数据摘要。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectMetadata {
     /// 对象 key。
     pub key: String,
@@ -69,7 +68,7 @@ pub struct ObjectMetadata {
 }
 
 /// 预签名访问地址。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PresignedUrl {
     /// 可直接访问的预签名 URL。
     pub url: String,
@@ -80,7 +79,7 @@ pub struct PresignedUrl {
 /// RustFS 本地默认配置。
 ///
 /// 该类型用于更高层入口，最终会转换为 [`S3ClientConfig`]。调试输出同样会隐藏凭证。
-#[apply(plain_eq_redacted)]
+#[derive(Clone, derive_more::Debug, Eq, PartialEq)]
 pub struct RustfsConfig {
     /// RustFS/S3 兼容服务地址。
     pub endpoint: String,
@@ -106,7 +105,11 @@ impl RustfsConfig {
     }
 }
 
-impl_default!(RustfsConfig => RustfsConfig::default_local());
+impl Default for RustfsConfig {
+    fn default() -> Self {
+        RustfsConfig::default_local()
+    }
+}
 
 impl From<RustfsConfig> for S3ClientConfig {
     fn from(value: RustfsConfig) -> Self {

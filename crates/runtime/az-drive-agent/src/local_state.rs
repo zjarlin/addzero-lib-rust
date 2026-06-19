@@ -1,13 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, plain_clone_debug, serde_eq};
 use chrono::{DateTime, Utc};
 use fs2::FileExt;
 use uuid::Uuid;
 
 /// Local root persisted in the device-private state file.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LocalRootState {
     /// Logical root alias.
     pub alias: String,
@@ -16,7 +15,7 @@ pub struct LocalRootState {
 }
 
 /// Local hosted path mapping persisted on each device.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HostedPathState {
     /// Device-local absolute path.
     pub local_path: PathBuf,
@@ -39,7 +38,7 @@ pub struct HostedPathState {
 }
 
 /// Local directory root whose descendants are hosted for synchronization.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HostedRootState {
     /// Device-local absolute directory path.
     pub local_path: PathBuf,
@@ -54,7 +53,7 @@ pub struct HostedRootState {
 }
 
 /// Device-local conflict projection.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LocalConflictState {
     /// Server conflict id.
     pub id: Uuid,
@@ -65,7 +64,7 @@ pub struct LocalConflictState {
 }
 
 /// Device-private state. This file is not server truth.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LocalState {
     /// State schema version.
     pub state_version: u32,
@@ -101,7 +100,7 @@ impl LocalState {
 }
 
 /// File-backed local state store.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct LocalStateStore {
     path: PathBuf,
 }

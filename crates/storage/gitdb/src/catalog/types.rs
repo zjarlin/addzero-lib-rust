@@ -2,15 +2,14 @@
 
 use std::fmt;
 
-use az_derive_aliases::{
-    apply, serde_code_display_props_enum, serde_code_partial_eq, serde_partial_eq,
-};
 use serde_json::Value;
 
 /// GitDB 支持的 SQL 风格列类型。
 ///
 /// `code()` 和 serde wire value 保持小写 snake_case，`Display`/`sql_name()` 保持 SQL 大写名称。
-#[apply(serde_code_display_props_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray, strum::EnumProperty)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum DataType {
     /// 文本/字符串数据，对应 SQL 的 `TEXT`。
     #[display("TEXT")]
@@ -40,6 +39,25 @@ pub enum DataType {
     #[display("UUID")]
     #[strum(props(sql = "UUID"))]
     Uuid,
+}
+
+impl DataType {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 impl DataType {
@@ -79,7 +97,8 @@ impl DataType {
 }
 
 /// 列约束。
-#[apply(serde_code_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[derive(derive_more::Display)]
 pub enum Constraint {
     /// 列值不能为空。
@@ -117,7 +136,7 @@ impl Constraint {
 }
 
 /// 完整列定义，包含列名、类型、约束和可选说明。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ColumnDef {
     /// 列名。
     pub name: String,

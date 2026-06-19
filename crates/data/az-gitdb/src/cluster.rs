@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
-use az_derive_aliases::{apply, plain_debug, plain_eq};
 use git2::Repository;
 use gitdb::db::{Connection, ConnectionPool, DatabaseConfig};
 use gitdb::executor::QueryResult;
@@ -236,7 +235,7 @@ impl Drop for GitDbConnection {
 }
 
 /// Query result plus the node that served it.
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct GitDbRoutedResult {
     /// Node id selected by the router.
     pub node_id: String,
@@ -245,14 +244,14 @@ pub struct GitDbRoutedResult {
 }
 
 /// Cluster-level pool statistics.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GitDbStats {
     /// Per-node statistics.
     pub nodes: Vec<GitDbNodeStats>,
 }
 
 /// Pool statistics for one node.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GitDbNodeStats {
     /// Node id.
     pub id: String,

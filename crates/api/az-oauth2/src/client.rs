@@ -3,7 +3,7 @@ use crate::loopback::LoopbackAuthorizationSession;
 use crate::model::{OAuth2DeviceAuthorization, OAuth2DeviceTokenPoll, OAuth2TokenResponse};
 use crate::pkce::{PkcePair, generate_pkce_pair, generate_state};
 use anyhow::{Context, anyhow, bail};
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
+use az_str::api::ensure_leading_slash;
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
 use serde::de::DeserializeOwned;
@@ -16,7 +16,7 @@ const REFRESH_TOKEN_GRANT_TYPE: &str = "refresh_token";
 const DEVICE_CODE_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:device_code";
 
 /// Blocking OAuth2 client for authorization-code, refresh-token, and device flows.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct OAuth2Client {
     config: OAuth2Config,
     authorization_url: Url,
@@ -117,7 +117,7 @@ impl OAuth2Client {
         let local_addr = listener
             .local_addr()
             .context("failed to read OAuth2 loopback listener address")?;
-        let path = normalize_loopback_path(&options.loopback_path);
+        let path = ensure_leading_slash(&options.loopback_path);
         let redirect_uri = format!("http://127.0.0.1:{}{path}", local_addr.port());
         options.redirect_uri = Some(redirect_uri.clone());
 
@@ -314,7 +314,7 @@ impl OAuth2Client {
 }
 
 /// Built authorization URL and the material needed for token exchange.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthorizationRequest {
     /// URL the user should open in the system browser.
     pub authorization_url: String,
@@ -344,23 +344,13 @@ fn trimmed(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|value| !value.is_empty())
 }
 
-fn normalize_loopback_path(path: &str) -> String {
-    let path = path.trim();
-    if path.starts_with('/') {
-        path.to_owned()
-    } else {
-        format!("/{path}")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::OAuth2Client;
     use crate::config::{AuthorizationCodeOptions, OAuth2Config};
     use crate::model::{OAuth2DeviceTokenPoll, OAuth2TokenResponse};
     use crate::pkce::PkcePair;
-    use az_derive_aliases::{apply, plain_clone_debug};
-    use std::io::{Read, Write};
+        use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread::{self, JoinHandle};
     use std::time::Duration;
@@ -528,14 +518,14 @@ mod tests {
         }
     }
 
-    #[apply(plain_clone_debug)]
-    struct CapturedRequest {
+    #[derive(Clone, Debug)]
+struct CapturedRequest {
         path: String,
         body: String,
     }
 
-    #[apply(plain_clone_debug)]
-    struct TestResponse {
+    #[derive(Clone, Debug)]
+struct TestResponse {
         status: u16,
         content_type: &'static str,
         body: String,

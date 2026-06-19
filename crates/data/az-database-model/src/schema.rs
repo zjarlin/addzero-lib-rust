@@ -1,4 +1,3 @@
-use az_derive_aliases::{apply, serde_eq};
 
 use anyhow::{Result, bail};
 
@@ -7,7 +6,7 @@ use crate::relation::Relation;
 use crate::table::Table;
 
 /// Represents a complete database schema.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Schema {
     /// Schema or database name.
     pub name: String,

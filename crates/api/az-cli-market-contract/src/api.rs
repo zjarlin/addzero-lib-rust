@@ -30,13 +30,14 @@
 //! 需要同时更新服务端、CLI 客户端、导入导出测试和已有持久化数据。
 
 use anyhow::Context;
-use az_derive_aliases::{apply, serde_code_default_enum, serde_eq_default};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 /// CLI 市场条目的生命周期状态。
 ///
 /// 默认值 `Draft` 表示条目尚未进入公开目录；公开 API 中传输的是稳定 code 字符串。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CliMarketStatus {
     #[default]
     Draft,
@@ -45,10 +46,36 @@ pub enum CliMarketStatus {
     Archived,
 }
 
+impl CliMarketStatus {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// 市场条目的来源类型。
 ///
 /// 该字段用于区分人工录入、文件导入和外部同步来源，不代表条目的可信等级。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CliMarketSourceType {
     #[default]
     Manual,
@@ -57,11 +84,37 @@ pub enum CliMarketSourceType {
     SyncExternal,
 }
 
+impl CliMarketSourceType {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// CLI 市场条目的功能形态。
 ///
 /// `Cli` 表示直接可执行工具，`Wrapper` / `Installer` / `Bundle`
 /// 用于描述包装脚本、安装器或组合分发包。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CliEntryKind {
     #[default]
     Cli,
@@ -70,10 +123,36 @@ pub enum CliEntryKind {
     Bundle,
 }
 
+impl CliEntryKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// 条目文本内容的语言区域。
 ///
 /// 这里的 wire value 使用 BCP 47 风格大小写（例如 `zh-CN`），不要改成 snake_case。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CliLocale {
     #[default]
     #[serde(rename = "zh-CN")]
@@ -84,10 +163,36 @@ pub enum CliLocale {
     EnUs,
 }
 
+impl CliLocale {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// 安装方法适用的平台。
 ///
 /// `CrossPlatform` 表示安装命令可跨平台复用，序列化值固定为 `cross_platform`。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CliPlatform {
     Macos,
     Windows,
@@ -96,10 +201,36 @@ pub enum CliPlatform {
     CrossPlatform,
 }
 
+impl CliPlatform {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// 安装命令所属的工具链或包管理器。
 ///
 /// `Custom` 作为兜底值，用于导入暂时无法归类的安装脚本。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CliInstallerKind {
     Brew,
     Bun,
@@ -113,26 +244,102 @@ pub enum CliInstallerKind {
     Custom,
 }
 
+impl CliInstallerKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// CLI 市场导入文件格式。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CliImportFormat {
     #[default]
     Json,
     Xlsx,
 }
 
+impl CliImportFormat {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// CLI 市场导入兼容模式。
 ///
 /// `RegistryCompat` 用于兼容旧注册表 JSON 行格式，正式内部模型仍以 native DTO 为准。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum CliImportMode {
     #[default]
     Native,
     RegistryCompat,
 }
 
+impl CliImportMode {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// 某个语言区域下的展示文案和安装说明。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliLocaleText {
     pub locale: CliLocale,
     pub display_name: String,
@@ -147,7 +354,7 @@ pub struct CliLocaleText {
 /// 单个可执行安装方法。
 ///
 /// `command_template` 是最终执行命令模板，服务端生成安装任务前应完成平台和安全边界校验。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliInstallMethod {
     pub id: Option<String>,
     pub platform: CliPlatform,
@@ -159,7 +366,7 @@ pub struct CliInstallMethod {
 }
 
 /// 条目关联的外部文档引用。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliDocRef {
     pub id: Option<String>,
     pub locale: CliLocale,
@@ -174,7 +381,7 @@ pub struct CliDocRef {
 ///
 /// 这是服务端列表、详情和导出共用的正式 DTO；`raw` 只保留导入源补充信息，
 /// 不应成为业务查询的主要字段。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketEntry {
     pub id: String,
     pub slug: String,
@@ -200,7 +407,7 @@ pub struct CliMarketEntry {
 /// 创建或更新 CLI 市场条目时使用的 DTO。
 ///
 /// `id` 为 `None` 时由服务端创建新条目；有值时表示更新现有条目。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketEntryUpsert {
     pub id: Option<String>,
     pub slug: String,
@@ -221,7 +428,7 @@ pub struct CliMarketEntryUpsert {
     pub raw: serde_json::Value,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketSummary {
     pub total_entries: usize,
     pub published_entries: usize,
@@ -229,14 +436,14 @@ pub struct CliMarketSummary {
     pub categories: usize,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketCatalog {
     pub schema_version: String,
     pub summary: CliMarketSummary,
     pub entries: Vec<CliMarketEntry>,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketImportRequest {
     pub format: CliImportFormat,
     pub mode: CliImportMode,
@@ -256,7 +463,7 @@ impl CliMarketImportRequest {
     }
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketImportRowReport {
     pub row_index: usize,
     pub slug: String,
@@ -265,7 +472,7 @@ pub struct CliMarketImportRowReport {
     pub market_id: Option<String>,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketImportReport {
     pub job_id: String,
     pub format: CliImportFormat,
@@ -276,7 +483,7 @@ pub struct CliMarketImportReport {
     pub rows: Vec<CliMarketImportRowReport>,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketImportJob {
     pub id: String,
     pub file_name: String,
@@ -290,31 +497,31 @@ pub struct CliMarketImportJob {
     pub created_at: Option<String>,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketImportJobDetail {
     pub job: CliMarketImportJob,
     pub rows: Vec<CliMarketImportRowReport>,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketExportRequest {
     pub only_published: bool,
     pub locale: Option<CliLocale>,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketExportArtifact {
     pub file_name: String,
     pub content_type: String,
     pub bytes_base64: String,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketInstallRequest {
     pub method_id: Option<String>,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketInstallResult {
     pub entry_id: String,
     pub slug: String,
@@ -330,7 +537,7 @@ pub struct CliMarketInstallResult {
     pub finished_at: String,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliMarketInstallHistoryItem {
     pub id: String,
     pub entry_id: String,
@@ -346,7 +553,7 @@ pub struct CliMarketInstallHistoryItem {
     pub created_at: String,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CliRegistryCompatEntry {
     pub name: String,
     pub display_name: String,
@@ -358,7 +565,7 @@ pub struct CliRegistryCompatEntry {
     pub category: String,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CliSimpleMetadata {
     pub name: String,

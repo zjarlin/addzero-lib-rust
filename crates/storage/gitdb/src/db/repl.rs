@@ -4,10 +4,9 @@ use std::io::{self, BufRead, Write};
 
 use super::api::Database;
 use crate::executor::QueryResult;
-use az_derive_aliases::{apply, impl_default, plain_clone_debug};
 
 /// REPL configuration.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct ReplConfig {
     /// Prompt string.
     pub prompt: String,
@@ -19,12 +18,16 @@ pub struct ReplConfig {
     pub max_rows: usize,
 }
 
-impl_default!(ReplConfig => ReplConfig {
+impl Default for ReplConfig {
+    fn default() -> Self {
+        ReplConfig {
     prompt: "gitdb> ".into(),
     timing: true,
     colors: true,
     max_rows: 100,
-});
+}
+    }
+}
 
 /// The interactive REPL.
 pub struct Repl {

@@ -7,9 +7,6 @@ use crate::provider::TempMailProvider;
 use crate::util::trim_non_blank;
 use crate::config::ApiConfig;
 use anyhow::{Context, anyhow, bail};
-use az_derive_aliases::{
-    apply, deserialize_debug, impl_default, plain_code_enum, plain_debug, plain_eq, serialize_eq,
-};
 use regex::Regex;
 use reqwest::blocking::Response;
 use reqwest::header::{COOKIE, SET_COOKIE};
@@ -24,7 +21,8 @@ static HTTP_LINK_RE: LazyLock<Option<Regex>> =
     LazyLock::new(|| Regex::new(r#"https?://[^\s<>"{}|\\^`\[\]]+"#).ok());
 
 /// Emailnator `/generate-email` 端点接受的邮箱生成模式。
-#[apply(plain_code_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum EmailnatorEmailMode {
     /// Gmail 加号地址变体。
     #[strum(serialize = "plusGmail")]
@@ -34,19 +32,42 @@ pub enum EmailnatorEmailMode {
     DotGmail,
 }
 
+impl EmailnatorEmailMode {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 生成 Emailnator 地址的请求选项。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmailnatorEmailRequest {
     /// 转发给 Emailnator 的地址生成模式列表。
     pub modes: Vec<EmailnatorEmailMode>,
 }
 
-impl_default!(EmailnatorEmailRequest => EmailnatorEmailRequest {
+impl Default for EmailnatorEmailRequest {
+    fn default() -> Self {
+        EmailnatorEmailRequest {
     modes: vec![
         EmailnatorEmailMode::PlusGmail,
         EmailnatorEmailMode::DotGmail,
     ],
-});
+}
+    }
+}
 
 impl EmailnatorEmailRequest {
     /// 根据显式生成模式创建请求。
@@ -72,7 +93,7 @@ impl EmailnatorEmailRequest {
 }
 
 /// Emailnator 托管临时邮箱 API 的阻塞客户端。
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct EmailnatorTempMailApi {
     http: HttpApiClient,
     xsrf: Mutex<Option<XsrfToken>>,
@@ -226,18 +247,18 @@ pub fn extract_first_http_link(content: impl AsRef<str>, keyword: Option<&str>) 
         .find(|link| keyword.is_none_or(|keyword| link.contains(keyword)))
 }
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct XsrfToken {
     raw_cookie_value: String,
     decoded: String,
 }
 
-#[apply(serialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 struct EmailnatorGenerateEmailBody {
     email: Vec<String>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct EmailnatorGenerateEmailResponse {
     email: EmailnatorEmailValue,
 }
@@ -255,20 +276,20 @@ impl EmailnatorGenerateEmailResponse {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 #[serde(untagged)]
 enum EmailnatorEmailValue {
     Single(String),
     Many(Vec<String>),
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct EmailnatorMessageListResponse {
     #[serde(default, rename = "messageData")]
     message_data: Vec<EmailnatorMessageSummaryRaw>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct EmailnatorMessageSummaryRaw {
     #[serde(default, rename = "messageID")]
     message_id: Value,

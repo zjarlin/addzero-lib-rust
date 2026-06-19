@@ -1,5 +1,4 @@
 use anyhow::bail;
-use az_derive_aliases::{apply, impl_default, plain_eq_redacted};
 use std::time::Duration;
 
 const DEFAULT_DUCKMAIL_BASE_URL: &str = "https://api.duckmail.sbs";
@@ -11,7 +10,7 @@ const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 ///
 /// `auth_token` 接受 DuckMail bearer token 或 `dk_` API key。
 /// 两者都会按 DuckMail 文档行为通过 `Authorization: Bearer ...` 发送。
-#[apply(plain_eq_redacted)]
+#[derive(Clone, derive_more::Debug, Eq, PartialEq)]
 pub struct DuckMailConfig {
     /// DuckMail API 基础 URL。
     pub base_url: String,
@@ -26,13 +25,17 @@ pub struct DuckMailConfig {
     pub request_timeout: Duration,
 }
 
-impl_default!(DuckMailConfig => DuckMailConfig {
+impl Default for DuckMailConfig {
+    fn default() -> Self {
+        DuckMailConfig {
     base_url: DEFAULT_DUCKMAIL_BASE_URL.to_owned(),
     auth_token: None,
     user_agent: Some(DEFAULT_USER_AGENT.to_owned()),
     connect_timeout: Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS),
     request_timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS),
-});
+}
+    }
+}
 
 impl DuckMailConfig {
     /// 使用指定 API 基础 URL 创建 DuckMail 配置。
@@ -100,7 +103,7 @@ impl DuckMailConfig {
 }
 
 /// 将生成的认证 JSON 文件上传到 CLIProxyAPI 管理端点的配置。
-#[apply(plain_eq_redacted)]
+#[derive(Clone, derive_more::Debug, Eq, PartialEq)]
 pub struct CpaUploadConfig {
     /// CLIProxyAPI 兼容上传端点 URL。
     pub upload_url: String,

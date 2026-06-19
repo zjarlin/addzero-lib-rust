@@ -45,7 +45,6 @@
 //! # }
 //! ```
 use anyhow::{Context, Result, anyhow, bail};
-use az_derive_aliases::{apply, impl_from_match, plain_code_enum, plain_eq, plain_eq_redacted};
 use rumqttc::{
     Client, Connection, Event, LastWill, MqttOptions, Packet, QoS, RecvTimeoutError,
     SubscribeFilter, Transport,
@@ -64,7 +63,8 @@ use std::time::{Duration, Instant};
 /// MQTT 服务质量等级。
 ///
 /// `code()` / `from_code()` 使用 snake_case 机器码，并与 `rumqttc::QoS` 保持双向转换。
-#[apply(plain_code_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum MqttQoS {
     /// QoS 0，最多一次投递。
     AtMostOnce,
@@ -74,22 +74,49 @@ pub enum MqttQoS {
     ExactlyOnce,
 }
 
-impl_from_match!(MqttQoS => QoS {
-    MqttQoS::AtMostOnce => Self::AtMostOnce,
-    MqttQoS::AtLeastOnce => Self::AtLeastOnce,
-    MqttQoS::ExactlyOnce => Self::ExactlyOnce,
-});
+impl MqttQoS {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
 
-impl_from_match!(QoS => MqttQoS {
-    QoS::AtMostOnce => Self::AtMostOnce,
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+impl From<MqttQoS> for QoS {
+    fn from(value: MqttQoS) -> Self {
+        match value {
+            MqttQoS::AtMostOnce => Self::AtMostOnce,
+    MqttQoS::AtLeastOnce => Self::AtLeastOnce,
+    MqttQoS::ExactlyOnce => Self::ExactlyOnce
+        }
+    }
+}
+
+impl From<QoS> for MqttQoS {
+    fn from(value: QoS) -> Self {
+        match value {
+            QoS::AtMostOnce => Self::AtMostOnce,
     QoS::AtLeastOnce => Self::AtLeastOnce,
-    QoS::ExactlyOnce => Self::ExactlyOnce,
-});
+    QoS::ExactlyOnce => Self::ExactlyOnce
+        }
+    }
+}
 
 /// 待发布的 MQTT 消息。
 ///
 /// 该类型同时用于 Last Will 配置；topic 不允许为空，payload 可以是任意字节。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MqttMessage {
     /// 发布主题。
     pub topic: String,
@@ -157,7 +184,7 @@ impl MqttMessage {
 pub type MqttMessageBuilder = MqttMessage;
 
 /// 从 broker 收到的 MQTT 发布消息。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MqttReceivedMessage {
     /// 消息主题。
     pub topic: String,
@@ -185,7 +212,7 @@ impl MqttReceivedMessage {
 /// MQTT 订阅请求。
 ///
 /// `topic_filter` 可以包含 MQTT 通配符，具体合法性和权限仍由 broker 判断。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MqttSubscription {
     /// 订阅主题过滤器。
     pub topic_filter: String,
@@ -214,7 +241,7 @@ impl MqttSubscription {
 /// MQTT 客户端连接配置。
 ///
 /// 密码和客户端私钥路径在 `Debug` 输出中会被脱敏；配置 TLS 文件路径时会自动启用 TLS。
-#[apply(plain_eq_redacted)]
+#[derive(Clone, derive_more::Debug, Eq, PartialEq)]
 pub struct MqttConfig {
     /// broker 主机名或 IP。
     pub host: String,
@@ -717,8 +744,10 @@ fn read_file_bytes(path: impl AsRef<Path>) -> Result<Vec<u8>> {
     fs::read(path).with_context(|| format!("failed to read `{}`", path.display()))
 }
 
-impl_from_match!(rumqttc::Publish => MqttReceivedMessage {
-    value => MqttReceivedMessage {
+impl From<rumqttc::Publish> for MqttReceivedMessage {
+    fn from(value: rumqttc::Publish) -> Self {
+        match value {
+            value => MqttReceivedMessage {
         topic: value.topic,
         payload: value.payload.to_vec(),
         qos: value.qos.into(),
@@ -726,4 +755,6 @@ impl_from_match!(rumqttc::Publish => MqttReceivedMessage {
         duplicate: value.dup,
         packet_id: (value.pkid != 0).then_some(value.pkid),
     }
-});
+        }
+    }
+}

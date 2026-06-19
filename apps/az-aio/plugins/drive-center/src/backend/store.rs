@@ -1,9 +1,9 @@
 use anyhow::bail;
 use az_aio_platform::core::db;
+use az_str::api::normalized_id_or_else;
 use rudi::{Context, DynProvider, Module, modules, providers, singleton};
 use std::sync::Arc;
 use toasty::stmt::{List, Query};
-use uuid::Uuid;
 
 use crate::backend::model::{DriveTask, DriveTaskSummary, TABLE_NAME_PREFIX};
 
@@ -37,7 +37,7 @@ impl DriveCenterStore {
         let now = db::timestamp_secs();
         let mut db = self.db.lock().await;
         let task = DriveTask::create()
-            .id(normalized_id(input.id))
+            .id(normalized_id_or_else(input.id, db::new_uuid_id))
             .drive_path(input.path)
             .action(input.action)
             .status(input.status.unwrap_or_else(|| "queued".to_string()))
@@ -94,13 +94,6 @@ pub fn validate_drive_task_input(input: &DriveTaskInput) -> anyhow::Result<()> {
         bail!("drive action must not be blank");
     }
     Ok(())
-}
-
-fn normalized_id(value: Option<String>) -> String {
-    value
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| Uuid::new_v4().to_string())
 }
 
 #[cfg(test)]

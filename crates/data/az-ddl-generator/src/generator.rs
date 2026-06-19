@@ -2,6 +2,7 @@ use crate::column::{Column, ColumnType};
 use crate::dialect::Dialect;
 use crate::table::Table;
 use anyhow::{Result, bail};
+use az_str::api::escape_sql_string_literal;
 
 /// Quote a SQL identifier to prevent injection.
 ///
@@ -14,13 +15,6 @@ pub fn quote_identifier(identifier: &str, dialect: Dialect) -> String {
     };
     let escaped = identifier.replace(close, &format!("{}{}", close, close));
     format!("{}{}{}", open, escaped, close)
-}
-
-/// Escape a string literal for use inside single-quoted SQL strings.
-///
-/// Replaces `'` with `''` (two single quotes).
-fn escape_sql_string_literal(value: &str) -> String {
-    value.replace('\'', "''")
 }
 
 /// DDL statement generator.

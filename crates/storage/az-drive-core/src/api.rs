@@ -5,10 +5,7 @@
 //! 而各设备在本地存储各自的绝对路径映射。
 
 use anyhow::{Context, Result, bail};
-use az_derive_aliases::{
-    apply, plain_eq, serde_eq, serde_eq_default, serde_eq_hash, serde_eq_hash_ord_display,
-};
-use az_str::sanitize::sanitize_ascii_label;
+use az_str::sanitize::sanitize_ascii_label_or;
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -17,7 +14,7 @@ use std::path::{Component, Path, PathBuf};
 use uuid::Uuid;
 
 /// Cross-device logical root name, for example `home` or `workspace`.
-#[apply(serde_eq_hash_ord_display)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize, derive_more::Display)]
 pub struct RootAlias(String);
 
 impl RootAlias {
@@ -59,7 +56,7 @@ impl TryFrom<&str> for RootAlias {
 }
 
 /// Normalized POSIX-style path below a logical root.
-#[apply(serde_eq_hash_ord_display)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize, derive_more::Display)]
 pub struct RelativePath(String);
 
 impl RelativePath {
@@ -139,7 +136,7 @@ impl TryFrom<&str> for RelativePath {
 }
 
 /// Stable remote identity for a file or directory.
-#[apply(serde_eq_hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct EntryKey {
     /// Owner Drive namespace.
     pub space_id: String,
@@ -179,7 +176,7 @@ impl EntryKey {
 }
 
 /// A device-local logical root mapping.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LogicalRoot {
     /// Cross-device logical alias.
     pub alias: RootAlias,
@@ -188,7 +185,7 @@ pub struct LogicalRoot {
 }
 
 /// Result of mapping a device-local path to remote identity.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HostPathMapping {
     /// Device-local normalized absolute path.
     pub local_abs_path: PathBuf,
@@ -199,7 +196,7 @@ pub struct HostPathMapping {
 }
 
 /// Registry that maps logical root aliases to device-local paths.
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RootRegistry {
     roots: BTreeMap<RootAlias, PathBuf>,
 }
@@ -348,7 +345,7 @@ pub fn normalize_absolute_path(path: &Path) -> Result<PathBuf> {
 }
 
 /// Version metadata used by sync decisions.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EntryVersion {
     /// Metadata entry id.
     pub entry_id: Uuid,
@@ -363,7 +360,7 @@ pub struct EntryVersion {
 }
 
 /// Active lock snapshot for conflict decisions.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LockSnapshot {
     /// Lock owner device id.
     pub owner_device_id: String,
@@ -380,7 +377,7 @@ impl LockSnapshot {
 }
 
 /// Decision for a local file change against the latest remote version.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ChangeDecision {
     /// Local content already matches remote content.
     NoopSameContent,
@@ -535,10 +532,5 @@ fn lexical_normalize(path: &Path) -> PathBuf {
 }
 
 fn sanitize_conflict_part(value: &str) -> String {
-    let sanitized = sanitize_ascii_label(value, "-_", '-');
-    if sanitized.is_empty() {
-        "device".to_owned()
-    } else {
-        sanitized
-    }
+    sanitize_ascii_label_or(value, "-_", '-', "device")
 }

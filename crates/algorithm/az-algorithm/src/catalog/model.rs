@@ -1,11 +1,12 @@
 //! 算法组件数据模型。
 
-use az_derive_aliases::{apply, plain_copy_eq, serde_code_enum, serde_eq};
 
 /// 算法组件的稳定标识。
 ///
 /// `code()` 返回 snake_case 字符串，可用于配置、API 传输和持久化。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AlgorithmComponentKind {
     /// 人脸检测。
     FaceDetection,
@@ -28,6 +29,25 @@ pub enum AlgorithmComponentKind {
 }
 
 impl AlgorithmComponentKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+impl AlgorithmComponentKind {
     /// 返回该组件的完整规格。
     #[must_use]
     pub fn spec(self) -> Option<&'static AlgorithmComponentSpec> {
@@ -38,7 +58,9 @@ impl AlgorithmComponentKind {
 }
 
 /// 算法任务类型。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AlgorithmTaskKind {
     /// 在图像中定位目标。
     Detection,
@@ -48,8 +70,29 @@ pub enum AlgorithmTaskKind {
     Counting,
 }
 
+impl AlgorithmTaskKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 算法关注的目标对象。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AlgorithmTargetKind {
     /// 人脸。
     Face,
@@ -69,8 +112,29 @@ pub enum AlgorithmTargetKind {
     WorkerHit,
 }
 
+impl AlgorithmTargetKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 算法输入契约项。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AlgorithmInputKind {
     /// 单张图片或单帧视频帧。
     Image,
@@ -90,8 +154,29 @@ pub enum AlgorithmInputKind {
     ContactPoints,
 }
 
+impl AlgorithmInputKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 算法输出契约项。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AlgorithmOutputKind {
     /// 目标边界框。
     BoundingBox,
@@ -123,8 +208,27 @@ pub enum AlgorithmOutputKind {
     InvalidReason,
 }
 
+impl AlgorithmOutputKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 单个算法组件的静态规格。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AlgorithmComponentSpec {
     /// 组件稳定标识。
     pub kind: AlgorithmComponentKind,
@@ -146,7 +250,7 @@ pub struct AlgorithmComponentSpec {
 ///
 /// 该类型适合直接返回给 API、CLI 或前端；静态规格可通过
 /// [`AlgorithmComponentSpec::to_descriptor`] 转换为该 DTO。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AlgorithmComponentDescriptor {
     /// 组件稳定标识。
     pub kind: AlgorithmComponentKind,

@@ -3,10 +3,9 @@
 //! 支持常见工业协议中的固定长度帧、分隔符帧和长度前缀帧。调用方持续推入字节，
 //! 解码器在缓冲区中累积数据，并在帧完整时返回 [`FrameEvent`]。
 
-use az_derive_aliases::{apply, plain_eq, serde_eq};
 
 /// 字节流中的帧边界格式。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FrameFormat {
     /// 固定长度帧，每一帧都恰好为指定字节数。
     FixedLength(usize),
@@ -22,7 +21,7 @@ pub enum FrameFormat {
 }
 
 /// 帧解码器产生的事件。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FrameEvent {
     /// 已成功解出一帧完整数据。
     Frame(Vec<u8>),

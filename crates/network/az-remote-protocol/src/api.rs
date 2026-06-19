@@ -57,7 +57,6 @@
 #![forbid(unsafe_code)]
 
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, serde_code_enum, serde_eq, serde_eq_redacted};
 use az_remote_model::api::{
     ClipboardPayload, DeviceDescriptor, FileTransferEnvelope, RemoteInputEvent, SessionGrant,
     SessionRequest, VideoFrameEnvelope,
@@ -66,7 +65,9 @@ use az_remote_model::api::{
 /// 多路复用通道类型。
 ///
 /// 该枚举的 code 字符串用于中继层标识数据通道，不用于区分 [`ControlFrame`] 的具体变体。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum StreamKind {
     Control,
     Video,
@@ -75,10 +76,29 @@ pub enum StreamKind {
     File,
 }
 
+impl StreamKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 设备握手帧。
 ///
 /// `relay_token` 是一次性中继凭证，`Debug` 输出必须保持脱敏。
-#[apply(serde_eq_redacted)]
+#[derive(Clone, derive_more::Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DeviceHello {
     pub device: DeviceDescriptor,
     #[debug(skip)]
@@ -86,19 +106,19 @@ pub struct DeviceHello {
 }
 
 /// 请求建立远程会话的控制帧负载。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SessionOffer {
     pub request: SessionRequest,
 }
 
 /// 接受远程会话后的授权结果负载。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SessionAccept {
     pub grant: SessionGrant,
 }
 
 /// 人工或策略授权远程控制请求的结果。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PermissionGrant {
     pub accepted: bool,
     pub reason: Option<String>,
@@ -107,14 +127,14 @@ pub struct PermissionGrant {
 /// 文件传输块。
 ///
 /// 元数据放在 `envelope`，真实字节放在 `bytes`，方便后续替换为二进制通道。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct FileChunk {
     pub envelope: FileTransferEnvelope,
     pub bytes: Vec<u8>,
 }
 
 /// 视频帧传输块。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct VideoChunk {
     pub envelope: VideoFrameEnvelope,
     pub bytes: Vec<u8>,
@@ -123,7 +143,7 @@ pub struct VideoChunk {
 /// 远程桌面控制协议的 JSON 控制帧。
 ///
 /// 该 enum 是当前 wire contract 的中心；新增变体需要考虑旧客户端的反序列化兼容性。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ControlFrame {
     Hello(DeviceHello),
     DeviceSnapshot(Vec<DeviceDescriptor>),

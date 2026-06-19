@@ -3,10 +3,10 @@
 //! GitDB supports two isolation levels:
 //! - ReadCommitted: Reads see the latest committed state of main
 //! - RepeatableRead: Reads see the state at transaction start (snapshot isolation)
-use az_derive_aliases::{apply, plain_code_display_enum};
 
 /// Transaction isolation level.
-#[apply(plain_code_display_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Default, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum IsolationLevel {
     /// Read Committed isolation.
     ///
@@ -51,6 +51,30 @@ pub enum IsolationLevel {
         serialize = "snapshot"
     )]
     RepeatableRead,
+}
+
+impl IsolationLevel {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
 }
 
 impl IsolationLevel {

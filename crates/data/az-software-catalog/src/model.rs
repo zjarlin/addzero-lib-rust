@@ -3,14 +3,15 @@ use std::collections::BTreeSet;
 
 #[cfg(not(target_arch = "wasm32"))]
 use anyhow::{Context, bail};
-use az_derive_aliases::{apply, serde_code_default_ord_display_enum, serde_eq, serde_eq_default};
 #[cfg(any(not(target_arch = "wasm32"), test))]
 use uuid::Uuid;
 
 /// 软件可试用或可安装的平台。
 ///
 /// `code()` 和 serde wire value 使用稳定小写值，`Display` 用于界面展示。
-#[apply(serde_code_default_ord_display_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, PartialOrd, Ord, Default, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum SoftwarePlatform {
     /// macOS 平台。
     #[default]
@@ -24,10 +25,36 @@ pub enum SoftwarePlatform {
     Linux,
 }
 
+impl SoftwarePlatform {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// 软件安装方式类型。
 ///
 /// 这里的 code 是前后端和持久化共享的安装器类别，不等同于具体命令文本。
-#[apply(serde_code_default_ord_display_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, PartialOrd, Ord, Default, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum InstallerKind {
     /// Homebrew 安装。
     #[display("Homebrew")]
@@ -58,8 +85,32 @@ pub enum InstallerKind {
     Custom,
 }
 
+impl InstallerKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// 单个软件安装方法。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SoftwareInstallMethodDto {
     /// 安装方法 ID，缺失时保存流程会生成 UUID。
     pub id: String,
@@ -80,7 +131,7 @@ pub struct SoftwareInstallMethodDto {
 }
 
 /// 软件目录中的单个软件条目。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SoftwareEntryDto {
     /// 软件条目 ID。
     pub id: String,
@@ -105,7 +156,7 @@ pub struct SoftwareEntryDto {
 }
 
 /// 软件目录查询响应。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SoftwareCatalogDto {
     /// 当前服务进程识别出的宿主平台。
     pub host_platform: SoftwarePlatform,
@@ -114,7 +165,7 @@ pub struct SoftwareCatalogDto {
 }
 
 /// 创建或更新软件条目的输入。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SoftwareEntryInput {
     /// 已存在条目的 ID；为空时保存流程会创建新条目。
     pub id: Option<String>,
@@ -139,14 +190,14 @@ pub struct SoftwareEntryInput {
 }
 
 /// 从软件主页抓取元数据的输入。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SoftwareMetadataFetchInput {
     /// 软件官方主页 URL。
     pub homepage_url: String,
 }
 
 /// 从软件主页推断出的基础元数据。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SoftwareMetadataDto {
     /// 推断出的软件名称。
     pub title: String,
@@ -159,7 +210,7 @@ pub struct SoftwareMetadataDto {
 }
 
 /// 构建软件草稿时的输入。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SoftwareDraftInput {
     /// 软件官方主页 URL。
     pub homepage_url: String,

@@ -1,4 +1,3 @@
-use az_derive_aliases::{apply, impl_default, plain_clone_debug, plain_eq};
 use std::time::Duration;
 
 const DEFAULT_GMAIL_API_BASE_URL: &str = "https://gmail.googleapis.com/gmail/v1/";
@@ -9,7 +8,7 @@ const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 const DEFAULT_MAX_RESULTS: u32 = 10;
 
 /// 已授权 Gmail API 请求的客户端配置。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GmailCodeConfig {
     /// 调用方所控制邮箱的 Gmail API OAuth 访问令牌。
     pub access_token: String,
@@ -55,7 +54,7 @@ impl GmailCodeConfig {
 }
 
 /// [`GmailCodeConfig`] 的链式构建器。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct GmailCodeConfigBuilder {
     config: GmailCodeConfig,
 }
@@ -104,7 +103,7 @@ impl GmailCodeConfigBuilder {
 }
 
 /// 用于查找 Gmail 验证码邮件的搜索参数。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GmailCodeQuery {
     /// 附加到结构化过滤条件之后的原始 Gmail 搜索表达式。
     pub query: Option<String>,
@@ -193,7 +192,9 @@ impl GmailCodeQuery {
     }
 }
 
-impl_default!(GmailCodeQuery => GmailCodeQuery {
+impl Default for GmailCodeQuery {
+    fn default() -> Self {
+        GmailCodeQuery {
     query: None,
     from: None,
     subject: None,
@@ -201,7 +202,9 @@ impl_default!(GmailCodeQuery => GmailCodeQuery {
     unread: false,
     max_results: DEFAULT_MAX_RESULTS,
     label_ids: vec!["INBOX".to_owned()],
-});
+}
+    }
+}
 
 const fn clamp_max_results(value: u32) -> u32 {
     if value == 0 {

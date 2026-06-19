@@ -1,11 +1,10 @@
 use anyhow::{Result, bail};
-use az_derive_aliases::{apply, plain_default_clone_debug};
 
 use crate::identifier::{quote_identifier, require_table_name};
 use crate::query::Query;
 
 /// An INSERT query builder.
-#[apply(plain_default_clone_debug)]
+#[derive(Clone, Debug, Default)]
 pub struct InsertQuery {
     table: Option<String>,
     columns: Vec<String>,

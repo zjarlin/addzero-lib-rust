@@ -2,13 +2,12 @@ use crate::config::GmailCodeQuery;
 use crate::config::GmailCodeConfig;
 use crate::model::{ExtractedGmailCode, GmailListMessagesResponse, GmailMessage};
 use crate::parser::{collect_message_body_candidates, extract_verification_code};
-use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 
 /// 从已授权邮箱读取验证码的阻塞式 Gmail API 客户端。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct GmailCodeClient {
     base_url: Url,
     user_id: String,
@@ -161,8 +160,7 @@ fn extract_code_from_message(message: &GmailMessage) -> anyhow::Result<Option<Ex
 mod tests {
     use super::GmailCodeClient;
     use crate::config::{GmailCodeConfig, GmailCodeQuery};
-    use az_derive_aliases::{apply, plain_clone_debug};
-    use base64::Engine;
+        use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use std::io::{Read, Write};
     use std::net::TcpListener;
@@ -260,8 +258,8 @@ mod tests {
         URL_SAFE_NO_PAD.encode(value.as_bytes())
     }
 
-    #[apply(plain_clone_debug)]
-    struct MockResponse {
+    #[derive(Clone, Debug)]
+struct MockResponse {
         status: u16,
         content_type: &'static str,
         body: String,

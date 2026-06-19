@@ -3,14 +3,13 @@ use crate::selector::select_fastest_node;
 use crate::speedtest::batch_speed_test;
 use crate::types::{DEFAULT_SPEEDTEST_TIMEOUT, ProxyNode};
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, serde_eq, serde_partial_eq};
 use serde_yaml::{Mapping, Number, Value};
 
 /// [`select_fastest`] 使用的默认 Clash mixed HTTP/SOCKS 监听端口。
 pub const DEFAULT_MIXED_PORT: u16 = 7890;
 
 /// 为选中节点生成的最小 Clash 配置文档。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ClashConfig {
     /// HTTP/SOCKS 混合监听端口。
     #[serde(rename = "mixed-port")]
@@ -61,7 +60,7 @@ impl ClashConfig {
 }
 
 /// Clash 代理组配置项。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ProxyGroup {
     /// 代理组名称。
     pub name: String,

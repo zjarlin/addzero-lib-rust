@@ -1,11 +1,10 @@
 use crate::parser::parse_subscription;
 use crate::types::ProxyNode;
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, plain_eq};
 use reqwest::header::CONTENT_TYPE;
 
 /// 通过 HTTP 获取到的原始订阅响应。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FetchedSubscription {
     /// 响应正文文本。
     pub body: String,

@@ -58,7 +58,6 @@ lettre = "0.11.19"
 md5 = "0.8.0"
 log = "0.4.28"
 loro = "1.12.0"
-macro_rules_attribute = "0.2.2"
 mime_guess = "2.0.5"
 ndarray = "0.17.1"
 ort = "2.0.0-rc.12"
@@ -97,7 +96,6 @@ zip = "4.6.1"
 anyhow = "1.0.102"
 async-openai = { version = "0.41.0", features = ["full"] }
 async-trait = "0.1.89"
-az-derive-aliases = { version = "=2026.6.13", path = "crates/core/az-derive-aliases" }
 dotenvy = "0.15.7"
 urlencoding = "2.1"
 uuid = { version = "1.23.1", features = ["v4", "serde", "js"] }

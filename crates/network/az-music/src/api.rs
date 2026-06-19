@@ -34,10 +34,6 @@
 //! - 全部为同步阻塞调用（基于 `reqwest::blocking`），使用 `#![forbid(unsafe_code)]` 保证无 unsafe 代码
 
 use anyhow::{Context, Result, bail};
-use az_derive_aliases::{
-    apply, deserialize_debug, plain_clone_debug, plain_clone_redacted, plain_code_default_enum,
-    plain_default_copy_eq, plain_eq, serde_eq, serde_eq_default, serde_partial_eq_default,
-};
 use az_str::api::trim_non_blank;
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
@@ -51,7 +47,7 @@ use std::time::{Duration, Instant};
 /// 第三方音乐 HTTP API 的通用客户端配置。
 ///
 /// 配置只描述 HTTP 层行为；网易云 Referer、Suno token 等服务特定约束由工厂函数或对应客户端处理。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ApiConfig {
     /// API 基础 URL。
     pub base_url: String,
@@ -97,7 +93,7 @@ impl ApiConfig {
 }
 
 /// `ApiConfig` 的链式构建器。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct ApiConfigBuilder {
     base_url: String,
     connect_timeout: Duration,
@@ -156,7 +152,7 @@ impl ApiConfigBuilder {
 /// 音乐客户端工厂门面。
 ///
 /// 该类型不持有状态，只提供默认配置下的网易云音乐和 Suno 客户端创建入口。
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Music;
 
 impl Music {
@@ -209,7 +205,8 @@ pub fn create_suno_api(api_token: impl Into<String>) -> Result<SunoApi> {
 /// 网易云音乐搜索类型。
 ///
 /// `code()` / `from_code()` 使用 snake_case 机器码；`value()` 返回网易云 `type` 查询参数。
-#[apply(plain_code_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Default, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum MusicSearchType {
     /// 歌曲搜索，网易云 type=1。
     #[default]
@@ -233,6 +230,30 @@ pub enum MusicSearchType {
 }
 
 impl MusicSearchType {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
+impl MusicSearchType {
     /// 返回网易云搜索接口的 `type` 参数值。
     pub const fn value(self) -> u16 {
         match self {
@@ -250,7 +271,7 @@ impl MusicSearchType {
 }
 
 /// 网易云音乐搜索请求。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MusicSearchRequest {
     /// 搜索关键词。
     pub keywords: String,
@@ -293,7 +314,7 @@ impl MusicSearchRequest {
 }
 
 /// 网易云音乐搜索和歌曲信息客户端。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct MusicSearchApi {
     http: HttpApiClient,
 }
@@ -519,7 +540,7 @@ impl MusicSearchApi {
 }
 
 /// 网易云音乐搜索接口原始响应。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MusicSearchResponse {
     /// 网易云业务响应码，通常 200 表示成功。
     #[serde(default)]
@@ -533,7 +554,7 @@ pub struct MusicSearchResponse {
 }
 
 /// 网易云音乐搜索结果集合。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MusicSearchResult {
     /// 歌曲结果。
     #[serde(default)]
@@ -564,7 +585,7 @@ pub struct MusicSearchResult {
 /// 网易云歌曲模型。
 ///
 /// 字段兼容搜索接口和歌曲详情接口，支持 `ar` / `al` / `dt` 等网易云短字段别名。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MusicSong {
     /// 歌曲 id。
     #[serde(default)]
@@ -593,7 +614,7 @@ pub struct MusicSong {
 }
 
 /// 网易云歌手模型。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MusicArtist {
     /// 歌手 id。
     #[serde(default)]
@@ -616,7 +637,7 @@ pub struct MusicArtist {
 }
 
 /// 网易云专辑模型。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MusicAlbum {
     /// 专辑 id。
     #[serde(default)]
@@ -639,7 +660,7 @@ pub struct MusicAlbum {
 }
 
 /// 网易云歌单模型。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MusicPlaylist {
     /// 歌单 id。
     #[serde(default)]
@@ -665,7 +686,7 @@ pub struct MusicPlaylist {
 }
 
 /// 网易云用户/歌单创建者模型。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MusicCreator {
     /// 用户 id。
     #[serde(rename = "userId", default)]
@@ -679,7 +700,7 @@ pub struct MusicCreator {
 }
 
 /// 网易云播放权限模型。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MusicPrivilege {
     /// 权限所属歌曲 id。
     #[serde(default)]
@@ -702,7 +723,7 @@ pub struct MusicPrivilege {
 }
 
 /// 网易云歌词响应。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LyricResponse {
     /// 业务响应码。
     #[serde(default)]
@@ -719,7 +740,7 @@ pub struct LyricResponse {
 }
 
 /// 单段歌词内容。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LyricContent {
     /// 歌词版本。
     #[serde(default)]
@@ -730,7 +751,7 @@ pub struct LyricContent {
 }
 
 /// 网易云歌曲详情响应。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SongDetailResponse {
     /// 业务响应码。
     #[serde(default)]
@@ -744,7 +765,7 @@ pub struct SongDetailResponse {
 }
 
 /// 歌曲和歌词的组合结果。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SongWithLyric {
     /// 歌曲信息。
     pub song: MusicSong,
@@ -755,7 +776,7 @@ pub struct SongWithLyric {
 /// Suno AI 音乐生成客户端。
 ///
 /// `api_token` 仅用于 bearer auth，并在 `Debug` 输出中脱敏。
-#[apply(plain_clone_redacted)]
+#[derive(Clone, derive_more::Debug)]
 pub struct SunoApi {
     #[debug(skip)]
     api_token: String,
@@ -960,7 +981,7 @@ impl SunoApi {
 /// Suno 音乐生成请求。
 ///
 /// 字段名保持 Suno/VectorEngine HTTP wire contract，不在本地重命名为业务别名。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SunoMusicRequest {
     /// 模型版本，默认 `chirp-v5`。
     #[serde(default = "default_suno_mv")]
@@ -1018,14 +1039,14 @@ pub struct SunoMusicRequest {
 }
 
 /// Suno 歌词生成请求。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GenerateLyricsRequest {
     /// 歌词提示词。
     pub prompt: String,
 }
 
 /// Suno 批量任务查询请求。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BatchFetchRequest {
     /// 任务 id 列表。
     #[serde(default)]
@@ -1033,7 +1054,7 @@ pub struct BatchFetchRequest {
 }
 
 /// Suno 歌曲拼接请求。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ConcatSongsRequest {
     /// 要拼接的 clip id。
     #[serde(rename = "clip_id")]
@@ -1043,7 +1064,7 @@ pub struct ConcatSongsRequest {
 /// Suno 任务状态。
 ///
 /// 状态字符串直接保留上游值；等待逻辑把 `complete` / `streaming` 视为完成，把 `error` 视为失败。
-#[apply(serde_partial_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SunoTask {
     /// 任务 id。
     #[serde(default)]
@@ -1095,7 +1116,7 @@ pub struct SunoTask {
     pub instrumental: Option<bool>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct ApiEnvelope<T> {
     #[serde(default)]
     code: Value,
@@ -1147,7 +1168,7 @@ impl<T> ApiEnvelope<T> {
     }
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct HttpApiClient {
     base_url: Url,
     client: Client,

@@ -1,8 +1,7 @@
 #![cfg(target_os = "macos")]
 
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, serialize_debug};
-use az_str::api::escape_xml;
+use az_str::api::{escape_xml, quote_posix_shell_single};
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
@@ -14,7 +13,7 @@ const UNHOST_WORKFLOW_NAME: &str = "AIO Drive 取消托管.workflow";
 const HOST_MENU_LABEL: &str = "AIO Drive 托管";
 const UNHOST_MENU_LABEL: &str = "AIO Drive 取消托管";
 
-#[apply(serialize_debug)]
+#[derive(Debug, serde::Serialize)]
 pub struct MacosActionsInstallResult {
     workflows: Vec<PathBuf>,
     scripts: Vec<PathBuf>,
@@ -46,12 +45,18 @@ pub fn install() -> Result<MacosActionsInstallResult> {
     write_workflow(
         &host_workflow,
         HOST_MENU_LABEL,
-        &format!("exec {} \"$@\"", zsh_single_quote(&host_script)),
+        &format!(
+            "exec {} \"$@\"",
+            quote_posix_shell_single(host_script.to_string_lossy())
+        ),
     )?;
     write_workflow(
         &unhost_workflow,
         UNHOST_MENU_LABEL,
-        &format!("exec {} \"$@\"", zsh_single_quote(&unhost_script)),
+        &format!(
+            "exec {} \"$@\"",
+            quote_posix_shell_single(unhost_script.to_string_lossy())
+        ),
     )?;
 
     let enabled_host = enable_context_menu(HOST_MENU_LABEL);
@@ -70,7 +75,7 @@ pub fn install() -> Result<MacosActionsInstallResult> {
 
 fn write_script(path: &Path, binary: &Path, command: &str, label: &str) -> Result<()> {
     let log = "${HOME}/Library/Logs/az-drive-finder-actions.log";
-    let binary = zsh_single_quote(binary);
+    let binary = quote_posix_shell_single(binary.to_string_lossy());
     let content = format!(
         r#"#!/bin/zsh
 set -u
@@ -294,9 +299,4 @@ fn defaults_string_key(value: &str) -> String {
 
 fn home_dir() -> Option<PathBuf> {
     env::var_os("HOME").map(PathBuf::from)
-}
-
-fn zsh_single_quote(path: &Path) -> String {
-    let value = path.to_string_lossy();
-    format!("'{}'", value.replace('\'', "'\\''"))
 }

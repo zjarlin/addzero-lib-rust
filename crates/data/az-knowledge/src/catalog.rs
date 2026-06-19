@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, fmt::Write as _};
 
 use crate::{KnowledgeSourceSpec, types::KnowledgeDocument};
-use az_derive_aliases::{apply, plain_eq};
 
 macro_rules! push_catalog_line {
     ($output:expr, $($arg:tt)*) => {
@@ -99,7 +98,7 @@ fn quote(value: &str) -> String {
     format!("{value:?}")
 }
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct RenderedSourceSummary {
     slug: String,
     label: String,

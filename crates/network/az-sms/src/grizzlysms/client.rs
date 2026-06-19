@@ -8,7 +8,6 @@ use crate::model::{
 };
 use crate::provider::SmsProvider;
 use anyhow::{Context, anyhow, bail};
-use az_derive_aliases::{apply, deserialize_debug, plain_clone_debug, plain_eq};
 use reqwest::Url;
 use reqwest::header::ACCEPT;
 use serde::{Deserialize, Deserializer};
@@ -18,7 +17,7 @@ const DEFAULT_BASE_URL: &str = "https://api.grizzlysms.com/stubs/handler_api.php
 const PROVIDER_NAME: &str = "GrizzlySMS";
 
 /// Grizzly SMS 兼容 sms-activate 的 API 客户端配置。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GrizzlySmsConfig {
     /// Grizzly SMS API key，会作为 `api_key` 查询参数发送。
     pub api_key: String,
@@ -55,7 +54,7 @@ impl GrizzlySmsConfig {
 }
 
 /// [`GrizzlySmsConfig`] 的链式构建器。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GrizzlySmsConfigBuilder {
     api_key: String,
     base_url: String,
@@ -110,7 +109,7 @@ impl GrizzlySmsConfigBuilder {
 }
 
 /// Grizzly SMS API 客户端。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct GrizzlySmsClient {
     client: reqwest::Client,
     base_url: Url,
@@ -468,7 +467,7 @@ fn parse_status_response(body: &str) -> anyhow::Result<GrizzlyStatusSnapshot> {
     Err(error)
 }
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct GrizzlyStatusSnapshot {
     status: SmsOrderStatus,
     code: Option<String>,
@@ -487,7 +486,7 @@ impl GrizzlyStatusSnapshot {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct GrizzlyNumberV2Response {
     #[serde(rename = "activationId", deserialize_with = "deserialize_u64ish")]
     activation_id: u64,
@@ -526,7 +525,7 @@ impl GrizzlyNumberV2Response {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct GrizzlyActiveActivation {
     #[serde(rename = "activationId", deserialize_with = "deserialize_u64ish")]
     activation_id: u64,
@@ -599,13 +598,13 @@ impl GrizzlyActiveActivation {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct GrizzlyStatusV2Response {
     #[serde(default)]
     sms: Option<GrizzlyStatusSms>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct GrizzlyStatusSms {
     #[serde(rename = "dateTime", default)]
     date_time: Option<String>,
@@ -636,7 +635,7 @@ impl GrizzlyStatusSms {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 #[serde(untagged)]
 enum StringOrNumber {
     String(String),

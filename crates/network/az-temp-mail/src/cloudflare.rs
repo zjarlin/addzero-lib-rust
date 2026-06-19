@@ -2,10 +2,9 @@ use crate::util::{required_non_blank, trim_non_blank};
 use crate::client::CloudflareTempMailApi;
 use crate::config::ApiConfig;
 use crate::model::{CreateMailboxRequest, NewAddressRequest};
-use az_derive_aliases::{apply, plain_eq};
 
 /// 调用方提供的 Cloudflare 临时邮箱 worker 上下文，用于初始化客户端和默认邮箱创建请求。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CloudflareTempMailContext {
     /// 已部署 worker 的基础 URL，例如 `https://mail.example.com`。
     pub base_url: String,

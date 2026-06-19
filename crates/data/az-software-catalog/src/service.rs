@@ -1,7 +1,6 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use anyhow::Context;
-use az_derive_aliases::{apply, plain_clone};
 use az_persistence::context::PersistenceContext;
 
 use crate::{
@@ -16,7 +15,7 @@ use crate::{
 /// 软件目录应用服务。
 ///
 /// 服务负责连接 PG 持久化、首次启动种子数据、目录查询、条目保存和主页元数据抓取。
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct SoftwareCatalogService {
     repository: SoftwareCatalogRepository,
 }

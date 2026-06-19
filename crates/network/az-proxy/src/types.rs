@@ -1,4 +1,3 @@
-use az_derive_aliases::{apply, serde_code_props_enum, serde_eq, serde_partial_eq};
 use serde_yaml::Value;
 use std::time::Duration;
 
@@ -9,7 +8,9 @@ pub const DEFAULT_SPEEDTEST_CONCURRENCY: usize = 10;
 pub const DEFAULT_SPEEDTEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// 当前支持的代理节点类型。
-#[apply(serde_code_props_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray, strum::EnumProperty)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum ProxyType {
     /// Shadowsocks 代理节点。
     #[strum(serialize = "ss", serialize = "shadowsocks", props(clash = "ss"))]
@@ -32,6 +33,25 @@ pub enum ProxyType {
     /// WireGuard 代理节点。
     #[strum(props(clash = "wireguard"))]
     Wireguard,
+}
+
+impl ProxyType {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 impl ProxyType {
@@ -60,7 +80,7 @@ impl ProxyType {
 }
 
 /// 从 Clash YAML 或代理 URI 归一化后的代理节点。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ProxyNode {
     /// 来自 YAML 或 URI fragment 的可读节点名称。
     pub name: String,
@@ -98,7 +118,7 @@ impl ProxyNode {
 }
 
 /// 单个 TCP 连接延迟测试结果。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SpeedTestResult {
     /// 被测节点在原始节点列表中的下标。
     pub node_index: usize,

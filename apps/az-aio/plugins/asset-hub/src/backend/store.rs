@@ -1,9 +1,9 @@
 use anyhow::bail;
 use az_aio_platform::core::db;
+use az_str::api::normalized_id_or_else;
 use rudi::{Context, DynProvider, Module, modules, providers, singleton};
 use std::sync::Arc;
 use toasty::stmt::{List, Query};
-use uuid::Uuid;
 
 use crate::backend::model::{AssetRecord, AssetSummary, TABLE_NAME_PREFIX};
 
@@ -34,7 +34,7 @@ impl AssetHubStore {
 
     pub async fn upsert_asset(&self, input: AssetInput) -> anyhow::Result<AssetSummary> {
         validate_asset_input(&input)?;
-        let id = normalized_id(input.id);
+        let id = normalized_id_or_else(input.id, db::new_uuid_id);
         let now = db::timestamp_secs();
         let mut db = self.db.lock().await;
         let existing = Query::<List<AssetRecord>>::filter(AssetRecord::fields().id().eq(&id))
@@ -120,13 +120,6 @@ pub fn validate_asset_input(input: &AssetInput) -> anyhow::Result<()> {
         bail!("asset status must not be blank");
     }
     Ok(())
-}
-
-fn normalized_id(value: Option<String>) -> String {
-    value
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| Uuid::new_v4().to_string())
 }
 
 #[cfg(test)]

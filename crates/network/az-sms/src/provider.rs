@@ -3,14 +3,13 @@ use crate::grizzlysms::client::{GrizzlySmsClient, GrizzlySmsConfig};
 use crate::model::{
     SmsActivationRequest, SmsHostingRequest, SmsInbox, SmsOrder, WaitForSmsOptions,
 };
-use az_derive_aliases::{
-    apply, from_plain_eq, impl_enum_kind, plain_default_copy_eq, serde_code_enum,
-};
 use anyhow::bail;
 use std::time::Instant;
 
 /// 内置 SMS provider 标识。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum SmsProviderKind {
     /// DogeSMS Control API。
     #[serde(rename = "dogsms")]
@@ -20,8 +19,27 @@ pub enum SmsProviderKind {
     GrizzlySms,
 }
 
+impl SmsProviderKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 单个内置 SMS provider 的配置。
-#[apply(from_plain_eq)]
+#[derive(Clone, Debug, derive_more::From, PartialEq, Eq)]
 pub enum SmsProviderConfig {
     /// DogeSMS Control API 配置。
     DogSms(DogSmsConfig),
@@ -29,10 +47,15 @@ pub enum SmsProviderConfig {
     GrizzlySms(GrizzlySmsConfig),
 }
 
-impl_enum_kind!(SmsProviderConfig => SmsProviderKind, kind {
-    Self::DogSms(_) => SmsProviderKind::DogSms,
-    Self::GrizzlySms(_) => SmsProviderKind::GrizzlySms,
-});
+impl SmsProviderConfig {
+    #[must_use]
+    pub const fn kind(&self) -> SmsProviderKind {
+        match self {
+            Self::DogSms(_) => SmsProviderKind::DogSms,
+    Self::GrizzlySms(_) => SmsProviderKind::GrizzlySms
+        }
+    }
+}
 
 /// 应用边界使用的 boxed provider 对象。
 pub type BoxSmsProvider = Box<dyn SmsProvider + Send + Sync>;
@@ -44,7 +67,7 @@ pub trait SmsProviderFactory: Send + Sync {
 }
 
 /// 本 crate 内置 provider 的默认工厂。
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct BuiltinSmsProviderFactory;
 
 impl SmsProviderFactory for BuiltinSmsProviderFactory {

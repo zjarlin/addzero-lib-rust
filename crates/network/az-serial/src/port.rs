@@ -1,7 +1,6 @@
 //! 串口句柄与端口信息类型。
 
 use anyhow::{Result, bail};
-use az_derive_aliases::{apply, plain_debug, serde_eq};
 
 use crate::config::SerialConfig;
 
@@ -9,7 +8,7 @@ use crate::config::SerialConfig;
 ///
 /// 这是平台无关抽象：Unix 系统通常对应 `/dev/tty*`，Windows 系统通常对应
 /// `COM*` 端口。当前类型只暴露统一的打开、读写和关闭契约。
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct SerialPort {
     port_name: String,
     config: SerialConfig,
@@ -91,7 +90,7 @@ impl SerialPort {
 }
 
 /// 系统可用串口的描述信息。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PortInfo {
     /// 系统串口名称，例如 `COM3` 或 `/dev/ttyUSB0`。
     pub port_name: String,

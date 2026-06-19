@@ -9,8 +9,8 @@ description = "Provider-neutral OAuth2 PKCE, loopback, token, refresh, and devic
 
 [dependencies]
 automod.workspace = true
-az-derive-aliases.workspace = true
 anyhow.workspace = true
+az-str.workspace = true
 base64.workspace = true
 reqwest.workspace = true
 ring.workspace = true

@@ -1,9 +1,8 @@
 use crate::http::HttpApiClient;
 use crate::util::non_blank;
 use crate::config::ApiConfig;
-use az_derive_aliases::{apply, deserialize_debug, impl_from_match, plain_clone_debug, serde_eq};
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MavenArtifact {
     pub id: String,
     pub group_id: String,
@@ -20,7 +19,7 @@ impl MavenArtifact {
     }
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct MavenCentralApi {
     http: HttpApiClient,
 }
@@ -221,18 +220,18 @@ pub fn create_maven_central_api() -> anyhow::Result<MavenCentralApi> {
     MavenCentralApi::new(config)
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct MavenSearchResponseEnvelope {
     response: MavenSearchResponse,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct MavenSearchResponse {
     #[serde(default)]
     docs: Vec<MavenSearchDocument>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct MavenSearchDocument {
     #[serde(default)]
     id: String,
@@ -250,8 +249,10 @@ struct MavenSearchDocument {
     timestamp: Option<i64>,
 }
 
-impl_from_match!(MavenSearchDocument => MavenArtifact {
-    value => MavenArtifact {
+impl From<MavenSearchDocument> for MavenArtifact {
+    fn from(value: MavenSearchDocument) -> Self {
+        match value {
+            value => MavenArtifact {
         id: value.id,
         group_id: value.group_id,
         artifact_id: value.artifact_id,
@@ -260,4 +261,6 @@ impl_from_match!(MavenSearchDocument => MavenArtifact {
         packaging: value.packaging,
         timestamp: value.timestamp,
     }
-});
+        }
+    }
+}

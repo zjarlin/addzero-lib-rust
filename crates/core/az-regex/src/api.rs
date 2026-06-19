@@ -5,13 +5,12 @@
 
 use std::collections::HashMap;
 
-use az_derive_aliases::{apply, plain_clone_debug};
 use regex::Captures;
 use regex::Regex;
 
 /// A pre-compiled regular expression that stores both the original pattern
 /// string and the compiled [`Regex`], avoiding re-compilation on every use.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct CachedRegex {
     /// The original pattern string.
     pattern: String,

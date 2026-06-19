@@ -1,5 +1,4 @@
 use crate::model::{GmailMessage, GmailMessagePart};
-use az_derive_aliases::{apply, impl_default, plain_copy_eq, plain_eq};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE;
 use regex::Regex;
@@ -19,7 +18,7 @@ static DEFAULT_CODE_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
 });
 
 /// 控制数字验证码提取范围的选项。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ExtractCodeOptions {
     /// 移除分隔符后的最小数字位数。
     pub min_digits: usize,
@@ -44,13 +43,17 @@ impl ExtractCodeOptions {
     }
 }
 
-impl_default!(ExtractCodeOptions => ExtractCodeOptions {
+impl Default for ExtractCodeOptions {
+    fn default() -> Self {
+        ExtractCodeOptions {
     min_digits: 4,
     max_digits: 8,
-});
+}
+    }
+}
 
 /// 已解码、待检查验证码的邮件正文候选。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MessageBodyCandidate {
     /// Gmail 正文 part 的 MIME 类型。
     pub mime_type: String,

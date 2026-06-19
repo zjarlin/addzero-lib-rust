@@ -10,7 +10,6 @@ description = "Authorized Gmail API client for reading verification codes from o
 [dependencies]
 anyhow.workspace = true
 automod.workspace = true
-az-derive-aliases.workspace = true
 az-oauth2.workspace = true
 base64.workspace = true
 regex.workspace = true

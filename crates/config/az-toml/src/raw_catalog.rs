@@ -2,11 +2,10 @@
 
 use std::collections::BTreeMap;
 
-use az_derive_aliases::{apply, deserialize_eq};
 
 use crate::model::{BundleEntry, LibraryEntry, PluginEntry, VersionCatalog, VersionEntry};
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 pub(crate) struct RawCatalog {
     #[serde(default)]
     versions: BTreeMap<String, String>,
@@ -70,7 +69,7 @@ impl RawCatalog {
     }
 }
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 struct RawLibrary {
     group: String,
     name: String,
@@ -78,14 +77,14 @@ struct RawLibrary {
     version: Option<RawVersionSelector>,
 }
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 struct RawPlugin {
     id: String,
     #[serde(default)]
     version: Option<RawVersionSelector>,
 }
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(untagged)]
 enum RawVersionSelector {
     Direct(String),

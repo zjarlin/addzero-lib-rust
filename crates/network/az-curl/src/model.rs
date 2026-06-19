@@ -1,11 +1,10 @@
 use crate::url_params::{extract_path_params, extract_query_params};
 use crate::util::{looks_like_json, normalize_header_name};
-use az_derive_aliases::{apply, plain_eq};
 use reqwest::{Method, Url};
 use std::collections::BTreeMap;
 
 /// Parsed HTTP request extracted from a curl command.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParsedCurl {
     pub method: Method,
     pub url: String,

@@ -10,7 +10,6 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use az_derive_aliases::{apply, plain_clone};
 use parking_lot::{Mutex, RwLock};
 use ulid::Ulid;
 
@@ -21,7 +20,7 @@ use crate::transaction::isolation::IsolationLevel;
 /// Transaction manager - coordinates all transaction operations.
 ///
 /// Local transaction manager; clone the handle inside one thread.
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct TransactionManager {
     inner: Rc<TransactionManagerInner>,
 }

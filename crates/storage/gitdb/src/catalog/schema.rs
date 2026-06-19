@@ -1,7 +1,6 @@
 //! Table schema definitions and validation.
 
 use anyhow::bail;
-use az_derive_aliases::{apply, serde_partial_eq};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
@@ -11,7 +10,7 @@ use super::types::{ColumnDef, Constraint, DataType};
 pub type SchemaVersion = u32;
 
 /// Table schema definition.
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TableSchema {
     /// Table name.
     pub name: String,

@@ -1,6 +1,3 @@
-use az_derive_aliases::{
-    apply, from_display, impl_from_match, plain_code_display_no_default_enum, plain_eq,
-};
 use deunicode::deunicode;
 use regex::Regex;
 use std::collections::HashMap;
@@ -11,7 +8,8 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 /// 标识符输出风格，用于把任意文本规整成代码生成可用的变量名。
-#[apply(plain_code_display_no_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum VariableType {
     /// 常量风格，例如 `MAX_VALUE`。
     Constant,
@@ -23,6 +21,25 @@ pub enum VariableType {
     SnakeCase,
     /// 短横线风格，例如 `max-value`。
     KebabCase,
+}
+
+impl VariableType {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 /// 为路径类型补充“基于父目录创建子目录”的便捷能力。
@@ -37,7 +54,7 @@ pub trait ParentPathExt {
 ///
 /// `%s`、`%d`、`%f`、`%x` 等模板占位符会按目标格式读取这里的值；
 /// 类型不匹配时采用宽松转换，无法解析的字符串按 `0` 处理。
-#[apply(from_display)]
+#[derive(Clone, Debug, derive_more::From, PartialEq, derive_more::Display)]
 pub enum FormatArg {
     /// 空值，占位格式化时显示为 `null` 或数值 `0`。
     #[from(skip)]
@@ -113,13 +130,21 @@ impl FormatArg {
     }
 }
 
-impl_from_match!(isize => FormatArg {
-    value => FormatArg::Integer(value as i64)
-});
+impl From<isize> for FormatArg {
+    fn from(value: isize) -> Self {
+        match value {
+            value => FormatArg::Integer(value as i64)
+        }
+    }
+}
 
-impl_from_match!(usize => FormatArg {
-    value => FormatArg::Unsigned(value as u64)
-});
+impl From<usize> for FormatArg {
+    fn from(value: usize) -> Self {
+        match value {
+            value => FormatArg::Unsigned(value as u64)
+        }
+    }
+}
 
 /// 清理输入两端和中间空白，并移除不可见控制字符。
 ///
@@ -292,6 +317,30 @@ pub fn trim_non_blank(input: Option<&str>) -> Option<&str> {
     })
 }
 
+/// 返回 trim 后的非空自有字符串。
+///
+/// `None`、空串和纯空白文本都会返回 `None`；命中值会丢弃首尾空白。
+pub fn trim_non_blank_owned(input: Option<String>) -> Option<String> {
+    input.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_owned())
+        }
+    })
+}
+
+/// 归一化可选 ID 文本；为空时使用调用方提供的兜底值。
+///
+/// 该函数只处理字符串清洗，不绑定 UUID 或数据库策略，避免把 ID 生成职责塞进文本 crate。
+pub fn normalized_id_or_else<F>(input: Option<String>, fallback: F) -> String
+where
+    F: FnOnce() -> String,
+{
+    trim_non_blank_owned(input).unwrap_or_else(fallback)
+}
+
 /// 按 Unicode 字符数量截断文本。
 pub fn truncate_chars(text: &str, limit: usize) -> String {
     text.chars().take(limit).collect()
@@ -454,6 +503,49 @@ pub fn with_file_suffix(base: &str, suffix: Option<&str>) -> String {
     format!("{base}{}", suffix.unwrap_or(".kt"))
 }
 
+/// 确保路径文本以 `/` 开头。
+///
+/// 输入会先去除首尾空白；空输入返回 `/`。
+pub fn ensure_leading_slash(input: &str) -> String {
+    let trimmed = input.trim();
+    if trimmed.starts_with('/') {
+        trimmed.to_owned()
+    } else {
+        format!("/{trimmed}")
+    }
+}
+
+/// 归一化 URL path 文本。
+///
+/// 会移除 query 和 fragment，去除首尾空白，并保证结果以 `/` 开头；空路径返回 `/`。
+pub fn normalize_url_path(input: &str) -> String {
+    let without_hash = input.split('#').next().unwrap_or(input);
+    let without_query = without_hash.split('?').next().unwrap_or(without_hash);
+    let trimmed = without_query.trim();
+    if trimmed.is_empty() || trimmed == "/" {
+        "/".to_owned()
+    } else {
+        format!("/{}", trimmed.trim_matches('/'))
+    }
+}
+
+/// 把 URL path 拆成非空路径段。
+///
+/// 输入会先按 [`normalize_url_path`] 规整，根路径返回空列表。
+pub fn split_url_path_segments(input: &str) -> Vec<String> {
+    let normalized = normalize_url_path(input);
+    if normalized == "/" {
+        return Vec::new();
+    }
+
+    normalized
+        .trim_start_matches('/')
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
 /// 从输入中移除给定集合里的所有字符串片段。
 pub fn remove_any<I, S>(input: Option<&str>, strings_to_remove: I) -> String
 where
@@ -535,7 +627,7 @@ pub fn format_currency_f32(value: f32, decimals: usize) -> String {
 /// 基于 KMP 算法的可复用字符串匹配器。
 ///
 /// 匹配位置以 UTF-8 字节偏移返回，适合继续用于字符串切片。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct KmpMatcher {
     pattern: String,
     lps: Vec<usize>,
@@ -1001,6 +1093,38 @@ pub fn escape_xml(input: &str) -> String {
             _ => output.push(character),
         }
     }
+    output
+}
+
+/// 转义 SQL 单引号字符串字面量内部内容。
+///
+/// 只做 SQL 标准单引号加倍转义，不负责补外层单引号，也不替代表达式参数绑定。
+pub fn escape_sql_string_literal(input: &str) -> String {
+    input.replace('\'', "''")
+}
+
+/// 把文本包装成单引号 SQL 字符串字面量。
+///
+/// 该函数用于确实只能拼接 SQL 文本的底层边界；业务查询优先使用参数绑定。
+pub fn quote_sql_string_literal(input: &str) -> String {
+    format!("'{}'", escape_sql_string_literal(input))
+}
+
+/// 使用 POSIX shell 兼容的单引号形式包裹文本。
+///
+/// 单引号内部无法直接转义单引号，因此会拆成 `'\''` 片段。
+pub fn quote_posix_shell_single(input: impl AsRef<str>) -> String {
+    let input = input.as_ref();
+    let mut output = String::with_capacity(input.len() + 2);
+    output.push('\'');
+    for character in input.chars() {
+        if character == '\'' {
+            output.push_str("'\\''");
+        } else {
+            output.push(character);
+        }
+    }
+    output.push('\'');
     output
 }
 

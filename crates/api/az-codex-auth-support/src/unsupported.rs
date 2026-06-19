@@ -1,7 +1,7 @@
-use az_derive_aliases::{apply, plain_code_display_no_default_enum};
 
 /// 这个 Rust 迁移版本刻意排除的自动化能力。
-#[apply(plain_code_display_no_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum BlockedCapability {
     /// 批量创建 OpenAI 或 ChatGPT 账号。
     #[display("automated_openai_registration")]
@@ -15,6 +15,25 @@ pub enum BlockedCapability {
     /// 面向第三方账号批量生成 OAuth token。
     #[display("bulk_token_generation")]
     BulkTokenGeneration,
+}
+
+impl BlockedCapability {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 /// 对不支持的自动化能力返回显式错误。

@@ -5,9 +5,6 @@
 //! 无需手动的 Git 式人工干预。
 
 use anyhow::Context;
-use az_derive_aliases::{
-    apply, plain_clone, plain_copy_eq, plain_default_copy_eq, plain_eq, serde_code_enum, serde_eq,
-};
 use az_drive_core::api::{
     ChangeDecision, EntryKey, HostPathMapping, RelativePath, RootAlias, RootRegistry, conflict_file_name,
     content_hash, decide_local_change, expand_path_expression, normalize_absolute_path,
@@ -32,7 +29,7 @@ use crate::local_state::{
 };
 
 /// Agent configuration that is stable across CLI and future AIO embedding.
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct DriveAgentConfig {
     /// Primary owner Drive namespace.
     pub space_id: String,
@@ -133,7 +130,7 @@ impl DriveAgentConfig {
 }
 
 /// Summary for CLI status output.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HostedStatus {
     /// Owner Drive id.
     pub owner_drive_id: String,
@@ -150,7 +147,9 @@ pub struct HostedStatus {
 }
 
 /// Status category for `drive ls` output.
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum TrackedItemStatus {
     /// Local item is tracked and currently exists.
     Tracked,
@@ -166,8 +165,29 @@ pub enum TrackedItemStatus {
     Root,
 }
 
+impl TrackedItemStatus {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// Provenance for a tracked listing row.
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum TrackedItemSource {
     /// Device-local state or scan.
     Local,
@@ -183,8 +203,27 @@ pub enum TrackedItemSource {
     Suspended,
 }
 
+impl TrackedItemSource {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// Options for listing tracked drive paths.
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ListTrackedOptions {
     /// Include remote metadata entries.
     pub include_remote: bool,
@@ -197,7 +236,7 @@ pub struct ListTrackedOptions {
 }
 
 /// Unified row returned by `drive ls`.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TrackedItem {
     /// Listing status.
     pub status: TrackedItemStatus,
@@ -226,7 +265,9 @@ pub struct TrackedItem {
 }
 
 /// Result status for materializing remote entries onto the current device.
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PullRemoteStatus {
     /// Remote bytes were written locally and the file is now hosted.
     Pulled,
@@ -244,8 +285,27 @@ pub enum PullRemoteStatus {
     DryRun,
 }
 
+impl PullRemoteStatus {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// Options for pulling remote entries onto the current device.
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PullRemoteOptions {
     /// Overwrite a conflicting local file with the remote version.
     pub overwrite: bool,
@@ -254,7 +314,7 @@ pub struct PullRemoteOptions {
 }
 
 /// Result row returned by remote materialization.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PullRemoteItem {
     /// Pull result status.
     pub status: PullRemoteStatus,
@@ -277,7 +337,7 @@ pub struct PullRemoteItem {
 }
 
 /// Conflict resolution action.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConflictResolution {
     /// Keep the current remote version and only clear the suspension.
     KeepRemote,
@@ -287,7 +347,7 @@ pub enum ConflictResolution {
     UseMerged(PathBuf),
 }
 
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RemoteMaterializeMode {
     All,
     UntrackedOnly,
@@ -303,7 +363,7 @@ struct ConflictRestoreRequest<'a> {
 }
 
 /// Headless realtime drive agent.
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct DriveAgent {
     metadata: Arc<dyn DriveMetadataStore>,
     objects: Arc<dyn DriveObjectStore>,

@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use anyhow::bail;
-use az_derive_aliases::{apply, impl_default, plain_clone_debug};
 use parking_lot::RwLock;
 
 use crate::catalog::Catalog;
@@ -15,7 +14,7 @@ use crate::storage::{GitRepository, is_not_found};
 use crate::transaction::{Transaction, TransactionManager, TxActive};
 
 /// Database configuration options.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct DatabaseConfig {
     /// Path to the database directory.
     pub path: PathBuf,
@@ -29,13 +28,17 @@ pub struct DatabaseConfig {
     pub auto_commit: bool,
 }
 
-impl_default!(DatabaseConfig => DatabaseConfig {
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        DatabaseConfig {
     path: PathBuf::from(".gitdb"),
     create_if_missing: true,
     enable_planner: true,
     verbose: false,
     auto_commit: true,
-});
+}
+    }
+}
 
 impl DatabaseConfig {
     /// Create a new configuration with the given path.
@@ -264,7 +267,7 @@ impl Database {
 }
 
 /// Database statistics.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct DatabaseStats {
     /// Number of tables.
     pub tables: usize,
@@ -277,7 +280,7 @@ pub struct DatabaseStats {
 }
 
 /// Information about a commit in history.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct CommitInfo {
     /// Commit ID (SHA).
     pub id: String,

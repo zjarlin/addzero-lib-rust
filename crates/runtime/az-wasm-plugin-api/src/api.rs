@@ -17,7 +17,6 @@
 //!
 use std::collections::BTreeMap;
 
-use az_derive_aliases::{apply, serde_eq, serde_kebab_code_enum, serde_kebab_eq};
 use uuid::Uuid;
 
 // ─── Plugin Metadata ────────────────────────────────────────────────
@@ -25,7 +24,7 @@ use uuid::Uuid;
 /// 每个 `.azplugin` 包内携带的插件清单。
 ///
 /// 清单是插件进入宿主前的静态契约，宿主会据此完成版本、入口点、扩展点和权限检查。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PluginManifest {
     /// 全局唯一插件标识，例如 `com.addzero.rhai-engine`。
     pub id: String,
@@ -50,7 +49,8 @@ pub struct PluginManifest {
 }
 
 /// 插件可挂载到平台的扩展点。
-#[apply(serde_kebab_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ExtensionPoint {
     /// 注册新的脚本引擎，例如 Rhai 或 Python。
     ScriptEngine,
@@ -71,7 +71,9 @@ pub enum ExtensionPoint {
 // ─── Plugin Lifecycle ───────────────────────────────────────────────
 
 /// 插件在宿主运行时中的生命周期状态。
-#[apply(serde_kebab_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 pub enum PluginState {
     /// 插件已安装但尚未激活。
     Installed,
@@ -83,8 +85,27 @@ pub enum PluginState {
     Error,
 }
 
+impl PluginState {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 宿主加载插件后返回的运行时句柄。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PluginHandle {
     /// 本次加载生成的运行时实例 id。
     pub id: Uuid,

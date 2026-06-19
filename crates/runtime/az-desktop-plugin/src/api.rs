@@ -7,9 +7,6 @@ use az_assets::types::{
     AiModelProvider, AiModelProviderUpsert, AiProviderKind, Asset, AssetGraph, AssetKind,
     AssetUpsert,
 };
-use az_derive_aliases::{
-    apply, impl_from_match, plain_clone, plain_code_enum, plain_copy_eq, plain_default_eq, plain_eq,
-};
 use az_drive_agent::agent::{HostedStatus, ListTrackedOptions, PullRemoteItem, TrackedItem};
 use az_drive_agent::local_state::LocalRootState;
 use az_drive_store::api::{DriveConflict, DriveSyncQueueItem, DriveSyncTaskStatus};
@@ -60,7 +57,8 @@ pub type DesktopPlugin = dyn Plugin<
     >;
 
 /// 插件事件处理后的传播策略。
-#[apply(plain_code_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum EventPropagation {
     /// 允许后续插件继续处理事件。
     Continue,
@@ -68,8 +66,28 @@ pub enum EventPropagation {
     Stop,
 }
 
+impl EventPropagation {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 桌面插件渲染层。
-#[apply(plain_code_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum DesktopRenderLayer {
     /// 主内容区域。
     Main,
@@ -79,8 +97,28 @@ pub enum DesktopRenderLayer {
     Overlay,
 }
 
+impl DesktopRenderLayer {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 插件对页面路由的所有权角色。
-#[apply(plain_code_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum DesktopPageRole {
     /// 路由的主拥有者。
     Owner,
@@ -88,8 +126,27 @@ pub enum DesktopPageRole {
     Contributor,
 }
 
+impl DesktopPageRole {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 插件在 setup 阶段声明的全部 shell 贡献。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DesktopContributions {
     /// 顶层业务域。
     pub domains: Vec<DesktopDomainRegistration>,
@@ -108,7 +165,7 @@ pub struct DesktopContributions {
 /// 插件初始化上下文。
 ///
 /// 宿主在调用每个插件 setup 前设置当前插件名，后续注册项会自动带上来源插件。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DesktopInitContext {
     current_plugin: Option<String>,
     contributions: DesktopContributions,
@@ -355,7 +412,7 @@ impl DesktopInitContext {
 }
 
 /// 顶层业务域注册项。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DesktopDomainRegistration {
     /// 贡献该业务域的插件名。
     pub plugin_name: String,
@@ -370,7 +427,7 @@ pub struct DesktopDomainRegistration {
 }
 
 /// 侧轴导航分支注册项。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DesktopBranchRegistration {
     /// 贡献该分支的插件名。
     pub plugin_name: String,
@@ -387,7 +444,7 @@ pub struct DesktopBranchRegistration {
 }
 
 /// 页面路由注册项。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DesktopPageRegistration {
     /// 贡献该页面的插件名。
     pub plugin_name: String,
@@ -413,7 +470,7 @@ pub struct DesktopPageRegistration {
 ///
 /// 适用于一个插件贡献一个页面、一个侧轴分支和一个摘要卡片的常见形态；更复杂的插件
 /// 仍可继续调用底层 `register_*` 方法逐项注册。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DesktopPageContributionSpec {
     /// 顶层业务域稳定 ID。
     pub domain_id: &'static str,
@@ -452,7 +509,7 @@ pub struct DesktopPageContributionSpec {
 }
 
 /// 工具栏动作注册项。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DesktopToolbarActionRegistration {
     /// 贡献该动作的插件名。
     pub plugin_name: String,
@@ -474,7 +531,7 @@ pub struct DesktopToolbarActionRegistration {
 ///
 /// 该类型只描述 action 自身，不携带 route 和 plugin_name；route 由批量注册方法提供，
 /// plugin_name 仍由 [`DesktopInitContext`] 根据当前 setup 插件自动注入。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DesktopToolbarActionSpec {
     /// 动作稳定 ID。
     pub action_id: &'static str,
@@ -531,7 +588,7 @@ impl DesktopToolbarActionSpec {
 }
 
 /// 摘要卡片注册项。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DesktopSummaryCardRegistration {
     /// 贡献该卡片的插件名。
     pub plugin_name: String,
@@ -548,7 +605,7 @@ pub struct DesktopSummaryCardRegistration {
 }
 
 /// 命令面板动作注册项。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DesktopCommandRegistration {
     /// 贡献该命令的插件名。
     pub plugin_name: String,
@@ -562,7 +619,7 @@ pub struct DesktopCommandRegistration {
 ///
 /// 该注册表由插件 setup 贡献构建，desktop shell 可据此渲染 domain 与 context tree，
 /// 不需要在壳子层硬编码应用路由。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DesktopHostRegistry {
     domains: Vec<DesktopDomainRegistration>,
     branches: Vec<DesktopBranchRegistration>,
@@ -571,15 +628,19 @@ pub struct DesktopHostRegistry {
     summary_cards: Vec<DesktopSummaryCardRegistration>,
 }
 
-impl_from_match!(DesktopContributions => DesktopHostRegistry {
-    value => DesktopHostRegistry {
+impl From<DesktopContributions> for DesktopHostRegistry {
+    fn from(value: DesktopContributions) -> Self {
+        match value {
+            value => DesktopHostRegistry {
         domains: dedupe_and_sort_domains(value.domains),
         branches: dedupe_and_sort_branches(value.branches),
         pages: dedupe_and_sort_pages(value.pages),
         toolbar_actions: sort_toolbar_actions(value.toolbar_actions),
         summary_cards: sort_summary_cards(value.summary_cards),
     }
-});
+        }
+    }
+}
 
 impl DesktopHostRegistry {
     /// 返回按展示顺序排序后的业务域。
@@ -775,7 +836,7 @@ fn sort_summary_cards(
 }
 
 /// 宿主 shell 在事件执行或视图渲染时暴露的当前状态快照。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DesktopShellSnapshot {
     /// 当前路由。
     pub current_route: String,
@@ -790,7 +851,7 @@ pub struct DesktopShellSnapshot {
 }
 
 /// 桌面宿主分发给插件的事件协议。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DesktopEvent {
     /// 宿主启动事件。
     Startup,
@@ -868,7 +929,7 @@ impl DesktopEvent {
 ///
 /// 页面插件仍然自己匹配 action ID；该类型只统一“是否消费事件”和“是否通知用户”的返回约定，
 /// 避免用空字符串或裸布尔值表达动作结果。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DesktopActionOutcome {
     /// 当前插件没有处理这个动作，事件可以继续传播。
     Ignored,
@@ -893,7 +954,7 @@ impl DesktopActionOutcome {
 }
 
 /// 插件事件处理后返还给宿主的副作用反馈。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DesktopExecFeedback {
     /// 需要展示给用户的提示信息。
     pub notice: Option<String>,
@@ -906,7 +967,7 @@ pub struct DesktopExecFeedback {
 }
 
 /// 插件处理事件时可使用的执行上下文。
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct DesktopExecContext {
     /// 宿主提供的领域服务集合。
     pub services: Arc<dyn DesktopHostServices>,
@@ -974,14 +1035,14 @@ impl DesktopExecContext {
 }
 
 /// 插件渲染视图时可读取的上下文。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DesktopViewContext {
     /// 当前 shell 状态快照。
     pub shell: DesktopShellSnapshot,
 }
 
 /// 网盘插件页面一次性读取的同步状态快照。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DesktopDriveSnapshot {
     /// 本地根目录状态。
     pub roots: Vec<LocalRootState>,
@@ -996,7 +1057,7 @@ pub struct DesktopDriveSnapshot {
 }
 
 /// AI 服务商连通性测试结果。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DesktopProviderTestResult {
     /// 被测试的 provider 名称。
     pub provider: String,

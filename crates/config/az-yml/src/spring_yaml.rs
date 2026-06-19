@@ -5,7 +5,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, plain_eq};
 
 use crate::load::load_yaml_value;
 use crate::path::YamlDoc;
@@ -13,7 +12,7 @@ use crate::path::YamlDoc;
 /// Spring Boot 风格 YAML 配置目录读取器。
 ///
 /// 读取边界限定在一个根目录下，资源名会解析为 `*.yml` / `*.yaml`，并支持 `application-{profile}` 激活文件。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SpringYaml {
     root: PathBuf,
 }

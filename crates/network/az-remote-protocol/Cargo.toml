@@ -8,7 +8,6 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-az-derive-aliases.workspace = true
 az-remote-model.workspace = true
 derive_more.workspace = true
 serde.workspace = true

@@ -1,4 +1,3 @@
-use az_derive_aliases::{apply, plain_clone_debug, plain_default_debug};
 use az_rustfs::{
     client::{BlockingS3StorageClient, S3StorageClient},
     progress::{PartInfo, PartStatus},
@@ -215,7 +214,7 @@ fn presigned_url_uses_virtual_host_when_path_style_disabled() -> Result<(), Box<
     Ok(())
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct CapturedRequest {
     method: String,
     path: String,
@@ -229,7 +228,7 @@ impl CapturedRequest {
     }
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct StoredObject {
     bytes: Vec<u8>,
     content_type: Option<String>,
@@ -237,7 +236,7 @@ struct StoredObject {
     etag: String,
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct PendingUpload {
     bucket: String,
     key: String,
@@ -247,7 +246,7 @@ struct PendingUpload {
     etags: BTreeMap<u32, String>,
 }
 
-#[apply(plain_default_debug)]
+#[derive(Debug, Default)]
 struct ServerState {
     buckets: BTreeMap<String, BTreeMap<String, StoredObject>>,
     uploads: BTreeMap<String, PendingUpload>,
@@ -255,7 +254,7 @@ struct ServerState {
     next_id: u64,
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct TestResponse {
     status: u16,
     headers: Vec<(String, String)>,

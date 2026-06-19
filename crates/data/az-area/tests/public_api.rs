@@ -1,9 +1,8 @@
 use az_area::api::{AreaOps, compare_versions};
 use az_area::impl_area_node;
-use az_derive_aliases::{apply, plain_eq};
 use std::cmp::Ordering;
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct DemoArea {
     name: &'static str,
     version: &'static str,

@@ -4,7 +4,6 @@
 //! cargo run -p az-temp-mail --example create_and_show
 //! ```
 
-use az_derive_aliases::{apply, deserialize_debug, plain_debug};
 use reqwest::blocking::Client;
 use std::error::Error;
 use std::thread;
@@ -190,13 +189,13 @@ fn random_str(len: usize) -> String {
         .collect()
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct DomainsResponse {
     #[serde(rename = "hydra:member")]
     hydra_member: Vec<DomainItem>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct DomainItem {
     domain: String,
     #[serde(rename = "isActive")]
@@ -205,24 +204,24 @@ struct DomainItem {
     is_private: bool,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct AccountResponse {
     id: String,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct TokenResponse {
     token: String,
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct MessageSummary {
     id: String,
     from_address: String,
     subject: String,
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct MessageDetail {
     id: String,
     from: String,
@@ -239,12 +238,12 @@ fn check_inbox(client: &Client, jwt: &str) -> Result<Vec<MessageSummary>, Box<dy
         .send()?;
     let raw = resp.text()?;
 
-    #[apply(deserialize_debug)]
+    #[derive(Debug, serde::Deserialize)]
     struct HydraMessages {
         #[serde(rename = "hydra:member", default)]
         member: Vec<RawMessage>,
     }
-    #[apply(deserialize_debug)]
+    #[derive(Debug, serde::Deserialize)]
     struct RawMessage {
         #[serde(default)]
         id: String,
@@ -252,7 +251,7 @@ fn check_inbox(client: &Client, jwt: &str) -> Result<Vec<MessageSummary>, Box<dy
         #[serde(default)]
         subject: String,
     }
-    #[apply(deserialize_debug)]
+    #[derive(Debug, serde::Deserialize)]
     struct RawSender {
         #[serde(default)]
         address: String,
@@ -281,7 +280,7 @@ fn get_message_detail(
         .send()?;
     let raw = resp.text()?;
 
-    #[apply(deserialize_debug)]
+    #[derive(Debug, serde::Deserialize)]
     struct RawDetail {
         #[serde(default)]
         id: String,
@@ -295,7 +294,7 @@ fn get_message_detail(
         #[serde(rename = "createdAt", default)]
         created_at: String,
     }
-    #[apply(deserialize_debug)]
+    #[derive(Debug, serde::Deserialize)]
     struct RawSender2 {
         #[serde(default)]
         address: String,

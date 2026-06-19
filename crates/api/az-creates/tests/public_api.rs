@@ -6,7 +6,6 @@ use az_creates::api::{
     TempMailApi, TempMailApiConfig, TempMailNewAddressRequest, TempMailPageRequest,
     TempMailProviderConfig, TempMailProviderFactory, TempMailProviderKind, extract_first_http_link,
 };
-use az_derive_aliases::{apply, plain_clone_debug};
 use std::error::Error;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -192,14 +191,14 @@ fn creates_facade_builds_email_sender() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct CapturedRequest {
     method: String,
     path: String,
     body: String,
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct TestResponse {
     status: u16,
     content_type: &'static str,

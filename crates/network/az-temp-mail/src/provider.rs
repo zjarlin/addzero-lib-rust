@@ -6,10 +6,9 @@ use crate::model::{
     CreateMailboxRequest, ListResponse, PageRequest, TempMailMailbox, TempMailMessageDetail,
     TempMailMessageSummary, TempMailProviderKind,
 };
-use az_derive_aliases::{apply, impl_enum_kind, plain_default_copy_eq, plain_eq};
 
 /// 单个内置临时邮箱 provider 的配置。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TempMailProviderConfig {
     /// 兼容 `dreamhunter2333/cloudflare_temp_email` 的 Cloudflare Worker 部署。
     Cloudflare(ApiConfig),
@@ -19,11 +18,16 @@ pub enum TempMailProviderConfig {
     Emailnator(ApiConfig),
 }
 
-impl_enum_kind!(TempMailProviderConfig => TempMailProviderKind, kind {
-    Self::Cloudflare(_) => TempMailProviderKind::Cloudflare,
+impl TempMailProviderConfig {
+    #[must_use]
+    pub const fn kind(&self) -> TempMailProviderKind {
+        match self {
+            Self::Cloudflare(_) => TempMailProviderKind::Cloudflare,
     Self::MailTm(_) => TempMailProviderKind::MailTm,
-    Self::Emailnator(_) => TempMailProviderKind::Emailnator,
-});
+    Self::Emailnator(_) => TempMailProviderKind::Emailnator
+        }
+    }
+}
 
 /// 临时邮箱 provider 的通用收信契约。
 ///
@@ -62,7 +66,7 @@ pub trait TempMailProviderFactory: Send + Sync {
 }
 
 /// 本 crate 内置 provider 的默认工厂。
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct BuiltinTempMailProviderFactory;
 
 impl TempMailProviderFactory for BuiltinTempMailProviderFactory {

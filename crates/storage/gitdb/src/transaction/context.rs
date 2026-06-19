@@ -7,7 +7,6 @@
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
-use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 use serde_json::Value;
 
 use crate::storage::{
@@ -16,19 +15,19 @@ use crate::storage::{
 use crate::transaction::isolation::IsolationLevel;
 
 /// 活跃事务的状态标记。
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct TxActive;
 
 /// 已提交事务的状态标记。
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct TxCommitted;
 
 /// 已回滚事务的状态标记。
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct TxAborted;
 
 /// 事务管理器保存的事务元数据。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct TransactionMetadata {
     /// 全局唯一的事务 ID。
     pub tx_id: String,

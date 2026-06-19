@@ -1,9 +1,8 @@
-use az_derive_aliases::{apply, plain_eq, serde_eq};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
 /// 从 Gmail 邮件中提取出的验证码。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExtractedGmailCode {
     /// 数字验证码。
     pub code: String,
@@ -19,7 +18,7 @@ pub struct ExtractedGmailCode {
     pub source_mime_type: String,
 }
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct GmailListMessagesResponse {
     #[serde(default)]
     pub(crate) messages: Vec<GmailMessageSummary>,
@@ -29,7 +28,7 @@ pub(crate) struct GmailListMessagesResponse {
     pub(crate) result_size_estimate: Option<u32>,
 }
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct GmailMessageSummary {
     pub(crate) id: String,
     #[serde(default, rename = "threadId")]
@@ -37,7 +36,7 @@ pub(crate) struct GmailMessageSummary {
 }
 
 /// 验证码提取所需的 Gmail 邮件结构。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GmailMessage {
     /// Gmail 邮件 ID。
     pub id: String,
@@ -64,7 +63,7 @@ impl GmailMessage {
 }
 
 /// Gmail MIME 邮件树中的单个 part。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GmailMessagePart {
     /// Gmail part ID。
     #[serde(default, rename = "partId")]
@@ -95,7 +94,7 @@ impl GmailMessagePart {
 }
 
 /// Gmail MIME header。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GmailMessageHeader {
     /// Header 名称。
     pub name: String,
@@ -104,7 +103,7 @@ pub struct GmailMessageHeader {
 }
 
 /// Gmail 邮件正文元数据和内联载荷。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GmailMessagePartBody {
     /// Gmail API 返回的 base64url 编码正文；附件正文可能为空。
     #[serde(default)]

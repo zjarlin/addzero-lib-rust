@@ -1,5 +1,4 @@
 use anyhow::Result;
-use az_derive_aliases::{apply, clap_args, clap_subcommand, clap_value_enum, impl_from_match};
 use az_drive_agent::agent::{
     ConflictResolution, HostedStatus, ListTrackedOptions, PullRemoteItem, PullRemoteOptions,
     PullRemoteStatus, TrackedItem, TrackedItemSource, TrackedItemStatus,
@@ -12,7 +11,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 /// Drive commands embedded by both `az-drive-app` and `aio drive`.
-#[apply(clap_subcommand)]
+#[derive(Debug, clap::Subcommand)]
 pub enum DriveCommand {
     /// Host a local file or directory.
     Host(DriveHostArgs),
@@ -46,7 +45,7 @@ pub enum DriveCommand {
 }
 
 /// Arguments for `drive host`.
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DriveHostArgs {
     /// Local file or directory path.
     pub path: String,
@@ -59,21 +58,21 @@ pub struct DriveHostArgs {
 }
 
 /// Arguments for a command that takes one local path.
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DrivePathArgs {
     /// Local path.
     pub path: String,
 }
 
 /// Arguments for `drive status`.
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DriveStatusArgs {
     /// Optional local path filter.
     pub path: Option<String>,
 }
 
 /// Arguments for `drive ls`.
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DriveLsArgs {
     /// Optional local path filter.
     pub path: Option<String>,
@@ -95,7 +94,7 @@ pub struct DriveLsArgs {
 }
 
 /// Arguments for the compatibility remote materialization command.
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DrivePullArgs {
     /// Optional local path filter, for example ~/.agents/skills.
     pub path: Option<String>,
@@ -111,7 +110,7 @@ pub struct DrivePullArgs {
 }
 
 /// Root alias subcommands.
-#[apply(clap_subcommand)]
+#[derive(Debug, clap::Subcommand)]
 pub enum DriveRootCommand {
     /// List local logical roots.
     List,
@@ -120,7 +119,7 @@ pub enum DriveRootCommand {
 }
 
 /// Git Pool subcommands.
-#[apply(clap_subcommand)]
+#[derive(Debug, clap::Subcommand)]
 pub enum DrivePoolCommand {
     /// Initialize the local Git Pool backend.
     Init(DrivePoolInitArgs),
@@ -135,7 +134,7 @@ pub enum DrivePoolCommand {
 }
 
 /// Drive backend subcommands.
-#[apply(clap_subcommand)]
+#[derive(Debug, clap::Subcommand)]
 pub enum DriveBackendCommand {
     /// Show current backend status.
     Status,
@@ -146,7 +145,7 @@ pub enum DriveBackendCommand {
 }
 
 /// Sync queue subcommands.
-#[apply(clap_subcommand)]
+#[derive(Debug, clap::Subcommand)]
 pub enum DriveQueueCommand {
     /// List durable sync queue items.
     List(DriveQueueListArgs),
@@ -155,7 +154,7 @@ pub enum DriveQueueCommand {
 }
 
 /// Conflict subcommands.
-#[apply(clap_subcommand)]
+#[derive(Debug, clap::Subcommand)]
 pub enum DriveConflictCommand {
     /// List unresolved conflicts.
     List(DriveConflictListArgs),
@@ -163,7 +162,7 @@ pub enum DriveConflictCommand {
     Resolve(DriveConflictResolveArgs),
 }
 
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DriveQueueListArgs {
     /// Optional status filter.
     #[arg(long, value_enum)]
@@ -173,7 +172,7 @@ pub struct DriveQueueListArgs {
     pub format: DriveListFormat,
 }
 
-#[apply(clap_value_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, clap::ValueEnum)]
 pub enum DriveQueueStatusArg {
     /// Pending queue items.
     Pending,
@@ -185,14 +184,14 @@ pub enum DriveQueueStatusArg {
     Failed,
 }
 
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DriveConflictListArgs {
     /// Output format.
     #[arg(long, value_enum, default_value_t = DriveListFormat::Table)]
     pub format: DriveListFormat,
 }
 
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DriveConflictResolveArgs {
     /// Conflict id.
     pub id: Uuid,
@@ -207,7 +206,7 @@ pub struct DriveConflictResolveArgs {
     pub merged: Option<PathBuf>,
 }
 
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DrivePoolInitArgs {
     /// Optional control repository remote URL.
     #[arg(long)]
@@ -232,7 +231,7 @@ pub struct DrivePoolInitArgs {
     pub gitdb_object_max_shard_size: Option<String>,
 }
 
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DrivePoolAddArgs {
     /// Pool name.
     pub name: String,
@@ -243,7 +242,7 @@ pub struct DrivePoolAddArgs {
     pub max_size: Option<String>,
 }
 
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DrivePoolMountArgs {
     /// Local mount name.
     pub name: String,
@@ -257,27 +256,27 @@ pub struct DrivePoolMountArgs {
     pub readonly: bool,
 }
 
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DrivePoolUnmountArgs {
     /// Local mount name.
     pub name: String,
 }
 
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DrivePoolListArgs {
     /// Output format.
     #[arg(long, value_enum, default_value_t = DriveListFormat::Table)]
     pub format: DriveListFormat,
 }
 
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DriveBackendUseArgs {
     /// Backend name. Only `git-pool` is supported.
     pub backend: String,
 }
 
 /// Arguments for `drive root add`.
-#[apply(clap_args)]
+#[derive(Debug, clap::Args)]
 pub struct DriveRootAddArgs {
     /// Root alias such as home, workspace, or library.
     pub alias: String,
@@ -287,7 +286,7 @@ pub struct DriveRootAddArgs {
 }
 
 /// Output format for `drive ls`.
-#[apply(clap_value_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, clap::ValueEnum)]
 pub enum DriveListFormat {
     /// Human-readable table.
     Table,
@@ -752,12 +751,16 @@ fn parse_size_bytes(raw: &str) -> Result<u64> {
     Ok(number.saturating_mul(multiplier))
 }
 
-impl_from_match!(DriveQueueStatusArg => DriveSyncTaskStatus {
-    DriveQueueStatusArg::Pending => Self::Pending,
+impl From<DriveQueueStatusArg> for DriveSyncTaskStatus {
+    fn from(value: DriveQueueStatusArg) -> Self {
+        match value {
+            DriveQueueStatusArg::Pending => Self::Pending,
     DriveQueueStatusArg::Running => Self::Running,
     DriveQueueStatusArg::Done => Self::Done,
-    DriveQueueStatusArg::Failed => Self::Failed,
-});
+    DriveQueueStatusArg::Failed => Self::Failed
+        }
+    }
+}
 
 fn status_text(status: TrackedItemStatus) -> &'static str {
     match status {

@@ -9,7 +9,6 @@ authors.workspace = true
 [dependencies]
 automod.workspace = true
 anyhow.workspace = true
-az-derive-aliases.workspace = true
 az-str.workspace = true
 az-music.workspace = true
 reqwest.workspace = true

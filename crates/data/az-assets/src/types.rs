@@ -1,6 +1,3 @@
-use az_derive_aliases::{
-    apply, serde_code_default_enum, serde_eq, serde_partial_eq, serde_partial_eq_default,
-};
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -8,7 +5,9 @@ use uuid::Uuid;
 /// 资产节点的业务类型。
 ///
 /// 该枚举通过稳定 code 参与 API 传输和数据库存储，未知 code 默认回落到 [`AssetKind::Note`]。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AssetKind {
     Capture,
     #[default]
@@ -18,8 +17,32 @@ pub enum AssetKind {
     Package,
 }
 
+impl AssetKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// 资产图谱中的节点快照。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Asset {
     /// 资产主键。
     pub id: Uuid,
@@ -44,7 +67,7 @@ pub struct Asset {
 }
 
 /// 资产节点之间的有向关系边。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AssetEdge {
     /// 边主键。
     pub id: Uuid,
@@ -65,7 +88,7 @@ pub struct AssetEdge {
 }
 
 /// 创建或更新资产节点的输入 DTO。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AssetUpsert {
     /// 有值时更新现有资产；为空时创建新资产。
     pub id: Option<Uuid>,
@@ -103,7 +126,7 @@ impl AssetUpsert {
 }
 
 /// 创建或更新资产关系边的输入 DTO。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AssetEdgeUpsert {
     /// 源资产 id。
     pub source_asset_id: Uuid,
@@ -118,7 +141,7 @@ pub struct AssetEdgeUpsert {
 }
 
 /// 资产节点和关系边组成的完整图谱快照。
-#[apply(serde_partial_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AssetGraph {
     /// 图谱节点。
     pub assets: Vec<Asset>,
@@ -129,7 +152,9 @@ pub struct AssetGraph {
 /// AI 模型 provider 类型。
 ///
 /// code 值用于 API、数据库和 agent 默认模型映射，新增 provider 时需要同步 agent 层。
-#[apply(serde_code_default_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AiProviderKind {
     #[default]
     #[serde(rename = "openai")]
@@ -139,10 +164,34 @@ pub enum AiProviderKind {
     Gemini,
 }
 
+impl AiProviderKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// 已保存的 AI 模型 provider 配置。
 ///
 /// 该类型不暴露明文 API key，只通过 `api_key_configured` 表示密钥是否已配置。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AiModelProvider {
     /// provider 类型。
     pub provider: AiProviderKind,
@@ -161,7 +210,7 @@ pub struct AiModelProvider {
 }
 
 /// 创建或更新 AI 模型 provider 的输入 DTO。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AiModelProviderUpsert {
     /// provider 类型。
     pub provider: AiProviderKind,
@@ -178,7 +227,7 @@ pub struct AiModelProviderUpsert {
 /// 解密后的 provider 运行凭据。
 ///
 /// 该类型只应在服务端调用 provider 前短暂存在，不应返回给前端或持久化为明文。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AssetProviderSecret {
     /// provider 类型。
     pub provider: AiProviderKind,
@@ -191,7 +240,7 @@ pub struct AssetProviderSecret {
 }
 
 /// 可由前端触发的 AI prompt 按钮配置。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AiPromptButton {
     /// prompt 按钮 id。
     pub id: Uuid,
@@ -212,7 +261,7 @@ pub struct AiPromptButton {
 }
 
 /// 创建或更新 prompt 按钮的输入 DTO。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AiPromptButtonUpsert {
     /// 有值时更新现有按钮；为空时创建新按钮。
     pub id: Option<Uuid>,
@@ -231,7 +280,7 @@ pub struct AiPromptButtonUpsert {
 }
 
 /// AI 或规则推断出的候选关系边。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SuggestedEdge {
     /// 候选目标资产标题。
     pub target_title: String,
@@ -242,7 +291,7 @@ pub struct SuggestedEdge {
 }
 
 /// prompt 或本地规则运行后的结构化输出。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PromptRunOutput {
     /// 推断标题。
     pub title: String,

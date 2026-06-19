@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, bail};
-use az_derive_aliases::{apply, plain_clone};
 use az_str::sanitize::{to_slash_path, to_slug};
 
 use crate::{
@@ -188,7 +187,7 @@ struct ScanContext {
     targets: Vec<TargetRoot>,
 }
 
-#[apply(plain_clone)]
+#[derive(Clone)]
 struct TargetRoot {
     id: String,
     name: String,

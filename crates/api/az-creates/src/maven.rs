@@ -1,5 +1,4 @@
 use crate::config::ApiConfig;
-use az_derive_aliases::{apply, plain_clone_debug};
 
 /// Maven Central 构件搜索结果模型，直接复用 `az-maven` 的 wire DTO。
 pub use az_maven::maven::MavenArtifact;
@@ -7,7 +6,7 @@ pub use az_maven::maven::MavenArtifact;
 /// Maven Central 客户端门面。
 ///
 /// 该类型保留 `az-creates` 统一配置入口，不重新定义 Maven 查询协议。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct MavenCentralApi {
     inner: az_maven::maven::MavenCentralApi,
 }

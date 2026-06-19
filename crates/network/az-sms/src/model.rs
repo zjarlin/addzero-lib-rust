@@ -1,13 +1,10 @@
 use anyhow::bail;
-use az_derive_aliases::{
-    apply, impl_default, plain_copy_eq, serde_eq, serde_partial_eq, serde_upper_eq,
-};
 use serde::Deserialize;
 use serde::de::{self, Deserializer};
 use std::time::Duration;
 
 /// 一次性短信验证号码购买请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SmsActivationRequest {
     /// provider 国家代码，或 provider 专属的 `any`。
     pub country: String,
@@ -91,7 +88,7 @@ impl SmsActivationRequest {
 }
 
 /// 长时托管/租用短信号码购买请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SmsHostingRequest {
     /// provider 国家代码，或 provider 专属的 `any`。
     pub country: String,
@@ -127,7 +124,8 @@ impl SmsHostingRequest {
 }
 
 /// provider 订单状态。
-#[apply(serde_upper_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum SmsOrderStatus {
     /// provider 正在准备号码。
     Pending,
@@ -157,7 +155,7 @@ impl SmsOrderStatus {
 }
 
 /// provider 返回的单条短信。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SmsMessage {
     /// provider 提供时的短信 ID。
     #[serde(default, alias = "ID", skip_serializing_if = "Option::is_none")]
@@ -180,7 +178,7 @@ pub struct SmsMessage {
 }
 
 /// SMS provider 订单数据。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SmsOrder {
     /// provider 订单 ID。
     pub id: u64,
@@ -216,7 +214,7 @@ pub struct SmsOrder {
 }
 
 /// 暴露租用号码 inbox 的 provider 所返回的 SMS inbox。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SmsInbox {
     /// provider 返回的短信列表。
     #[serde(rename = "Data", default)]
@@ -227,7 +225,7 @@ pub struct SmsInbox {
 }
 
 /// 最小 provider 账号 profile。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SmsProfile {
     /// provider 账号 ID。
     pub id: u64,
@@ -245,7 +243,7 @@ pub struct SmsProfile {
 }
 
 /// [`crate::provider::SmsProvider::wait_for_sms`] 使用的轮询选项。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct WaitForSmsOptions {
     /// 最大轮询时长。
     pub timeout: Duration,
@@ -253,10 +251,14 @@ pub struct WaitForSmsOptions {
     pub interval: Duration,
 }
 
-impl_default!(WaitForSmsOptions => WaitForSmsOptions {
+impl Default for WaitForSmsOptions {
+    fn default() -> Self {
+        WaitForSmsOptions {
     timeout: Duration::from_secs(300),
     interval: Duration::from_secs(5),
-});
+}
+    }
+}
 
 impl WaitForSmsOptions {
     /// 创建轮询选项，并校验两个时长均非零。

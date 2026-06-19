@@ -1,6 +1,5 @@
 //! OpenAI 兼容聊天客户端实现。
 
-use az_derive_aliases::{apply, deserialize_debug, serialize_debug};
 use anyhow::{Context, Result, bail};
 use reqwest::Client;
 
@@ -46,7 +45,7 @@ impl OpenAiClient {
     }
 }
 
-#[apply(serialize_debug)]
+#[derive(Debug, serde::Serialize)]
 struct OpenAiRequest<'a> {
     model: &'a str,
     messages: Vec<OpenAiMessage<'a>>,
@@ -60,31 +59,31 @@ struct OpenAiRequest<'a> {
     stop: Option<&'a Vec<String>>,
 }
 
-#[apply(serialize_debug)]
+#[derive(Debug, serde::Serialize)]
 struct OpenAiMessage<'a> {
     role: &'a str,
     content: &'a str,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct OpenAiResponse {
     model: Option<String>,
     choices: Option<Vec<OpenAiChoice>>,
     usage: Option<OpenAiUsage>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct OpenAiChoice {
     message: Option<OpenAiChoiceMessage>,
     finish_reason: Option<String>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct OpenAiChoiceMessage {
     content: Option<String>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct OpenAiUsage {
     prompt_tokens: u32,
     completion_tokens: u32,

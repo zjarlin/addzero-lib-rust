@@ -24,7 +24,6 @@
 
 use std::cmp::Ordering;
 
-use az_derive_aliases::{apply, plain_default_copy_eq, plain_eq};
 
 pub trait AreaNode: Sized {
     fn children(&self) -> &[Self];
@@ -46,7 +45,7 @@ macro_rules! impl_area_node {
     };
 }
 
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct AreaOps;
 
 impl AreaOps {
@@ -130,7 +129,7 @@ impl<'a, T: AreaNode> Iterator for AreaIter<'a, T> {
     }
 }
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum VersionToken {
     Numeric(u64),
     Text(String),

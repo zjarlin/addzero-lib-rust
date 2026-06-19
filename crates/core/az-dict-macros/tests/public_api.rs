@@ -1,7 +1,6 @@
-use az_derive_aliases::{apply, plain_copy_eq_hash_ord_display};
 use az_dict_macros::dict_enum;
 
-#[apply(plain_copy_eq_hash_ord_display)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, derive_more::Display)]
 #[display("{_0}")]
 struct OrderedCode(u8);
 

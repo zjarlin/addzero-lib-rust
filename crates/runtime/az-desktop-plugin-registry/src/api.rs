@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
-use az_derive_aliases::{apply, plain_copy};
 use az_desktop_plugin::api::{
     DesktopEvent, DesktopExecContext, DesktopInitContext, DesktopPlugin, DesktopRenderLayer,
     DesktopViewContext, Plugin,
@@ -9,7 +8,7 @@ use az_desktop_plugin::api::{
 
 #[doc(hidden)]
 /// 分布式 desktop 插件注册项。
-#[apply(plain_copy)]
+#[derive(Clone, Copy)]
 pub struct DesktopPluginRegistration {
     /// 构造 boxed desktop plugin 的函数指针。
     pub constructor: fn() -> Box<DesktopPlugin>,
@@ -63,10 +62,9 @@ macro_rules! declare_desktop_plugin {
         $(#[$meta:meta])*
         $vis:vis struct $name:ident;
     ) => {
-        $crate::__az_desktop_plugin_registry_derive_aliases::plain_default! {
-            $(#[$meta])*
-            $vis struct $name;
-        }
+        #[derive(Default)]
+        $(#[$meta])*
+        $vis struct $name;
 
         $crate::register_desktop_plugin!($name);
     };
@@ -76,11 +74,10 @@ macro_rules! declare_desktop_plugin {
             $($body:tt)*
         }
     ) => {
-        $crate::__az_desktop_plugin_registry_derive_aliases::plain_default! {
-            $(#[$meta])*
-            $vis struct $name {
-                $($body)*
-            }
+        #[derive(Default)]
+        $(#[$meta])*
+        $vis struct $name {
+            $($body)*
         }
 
         $crate::register_desktop_plugin!($name);

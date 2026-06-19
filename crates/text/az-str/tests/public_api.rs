@@ -2,18 +2,22 @@ use az_str::api::{
     FormatArg, KmpMatcher, MarkdownListMarkerMode, ParentPathExt, VariableType, add_prefix_if_not,
     add_suffix_if_not, clean_blank, clean_doc_comment, clean_markdown_plain_text,
     collapse_whitespace, contains_any_ignore_case, contains_chinese, contains_kmp,
-    default_table_english_name, escape_special_characters, escape_xml, extract_code_block_content,
-    extract_key_value_pairs, extract_markdown_block_content, extract_text_between_p_tags,
-    first_not_blank, format_currency, format_template, get_path_from_right, get_rest_url,
-    is_number, kmp_format, lower_first, parent_path_and_mkdir, remove_any, remove_duplicate_symbol,
-    remove_not_chinese, replace_kmp, to_camel_case, to_constant_name, to_kebab_case, to_kebab_name,
+    default_table_english_name, ensure_leading_slash, escape_special_characters,
+    escape_sql_string_literal, escape_xml, extract_code_block_content, extract_key_value_pairs,
+    extract_markdown_block_content, extract_text_between_p_tags, first_not_blank, format_currency,
+    format_template, get_path_from_right, get_rest_url, is_number, kmp_format, lower_first,
+    normalize_url_path, normalized_id_or_else, parent_path_and_mkdir, quote_posix_shell_single,
+    quote_sql_string_literal, remove_any, remove_duplicate_symbol, remove_not_chinese, replace_kmp,
+    split_url_path_segments, to_camel_case, to_constant_name, to_kebab_case, to_kebab_name,
     to_pascal_case, to_simple_name, to_snake_case, to_underline_case, to_underline_lower_case,
-    to_valid_variable_name, trim_non_blank, truncate_chars, truncate_chars_with_ellipsis,
-    unescape_basic_html_entities,
+    to_valid_variable_name, trim_non_blank, trim_non_blank_owned, truncate_chars,
+    truncate_chars_with_ellipsis, unescape_basic_html_entities,
 };
 use az_str::sanitize::{
-    ascii_alphanumeric, sanitize_ascii_label, sanitize_file_stem, sanitize_file_stem_or,
-    sanitize_path_segment, title_case_slug, to_slash_path, to_slug, to_slug_or,
+    ascii_alphanumeric, ascii_alphanumeric_or, sanitize_ascii_label, sanitize_ascii_label_or,
+    sanitize_file_name_with_extension, sanitize_file_stem, sanitize_file_stem_or,
+    sanitize_path_file_stem_or, sanitize_path_segment, title_case_slug, to_slash_path, to_slug,
+    to_slug_or,
 };
 use std::f64::consts::PI;
 use std::path::Path;
@@ -193,6 +197,18 @@ fn doc_comment_and_blank_helpers_work() {
     assert!(contains_any_ignore_case("HelloWorld", ["world", "test"]));
     assert_eq!(trim_non_blank(Some("  ok  ")), Some("ok"));
     assert_eq!(trim_non_blank(Some("   ")), None);
+    assert_eq!(
+        trim_non_blank_owned(Some("  ok  ".to_owned())),
+        Some("ok".to_owned())
+    );
+    assert_eq!(
+        normalized_id_or_else(Some("  item-1  ".to_owned()), || "fallback".to_owned()),
+        "item-1"
+    );
+    assert_eq!(
+        normalized_id_or_else(Some("   ".to_owned()), || "fallback".to_owned()),
+        "fallback"
+    );
     assert_eq!(collapse_whitespace("  a\t\n b  "), "a b");
     assert_eq!(truncate_chars("你好世界", 2), "你好");
     assert_eq!(truncate_chars_with_ellipsis("你好世界", 2), "你好…");
@@ -229,6 +245,15 @@ fn text_and_misc_helpers_work() {
         unescape_basic_html_entities("A &amp; B &quot;C&quot; &nbsp; &#39;"),
         "A & B \"C\"   '"
     );
+    assert_eq!(escape_sql_string_literal("Bob's"), "Bob''s");
+    assert_eq!(quote_sql_string_literal("Bob's"), "'Bob''s'");
+    assert_eq!(quote_posix_shell_single("a'b"), "'a'\\''b'");
+    assert_eq!(ensure_leading_slash(" callback "), "/callback");
+    assert_eq!(normalize_url_path(" /api/users?id=1#top "), "/api/users");
+    assert_eq!(
+        split_url_path_segments("/api/users//42?debug=true"),
+        vec!["api".to_owned(), "users".to_owned(), "42".to_owned()]
+    );
     assert!(is_number("-12.5"));
 }
 
@@ -239,9 +264,20 @@ fn sanitize_helpers_cover_path_stem_slug_and_display_path() {
         sanitize_ascii_label("user+name@example.com", "@._-+", '_'),
         "user+name@example.com"
     );
+    assert_eq!(sanitize_ascii_label_or("!!!", "-_", '-', "device"), "---");
+    assert_eq!(sanitize_ascii_label_or("", "-_", '-', "device"), "device");
     assert_eq!(sanitize_file_stem("a/b:C.mp4"), "a_b_C_mp4");
     assert_eq!(sanitize_file_stem_or("", "input_video"), "input_video");
     assert_eq!(ascii_alphanumeric("az mail+01"), "azmail01");
+    assert_eq!(ascii_alphanumeric_or("!!!", "az"), "az");
+    assert_eq!(
+        sanitize_path_file_stem_or(Path::new("a/b:C.mp4"), "input_video"),
+        "b_C"
+    );
+    assert_eq!(
+        sanitize_file_name_with_extension("../user@example.com", "@._-+", '_', "json", "auth"),
+        ".._user@example.com.json"
+    );
     assert_eq!(to_slug("Café Tool.md"), "cafe-tool-md");
     assert_eq!(to_slug_or("!!!", "doc"), "doc");
     assert_eq!(title_case_slug("docker-desktop.app"), "Docker Desktop App");

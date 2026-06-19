@@ -6,7 +6,6 @@
 
 use std::collections::BTreeMap;
 
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq, serde_partial_eq};
 use serde_json::Value;
 
 use crate::storage::error;
@@ -25,7 +24,7 @@ pub(crate) use crate::storage::types::{BlobId, RowKey};
 ///   "email": "abc@example.com"
 /// }
 /// ```
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Row {
     /// 主键，必须与去掉 `.json` 后缀的文件名一致。
     pub key: RowKey,
@@ -104,7 +103,7 @@ impl Row {
 /// JSON 序列化使用的内部结构。
 ///
 /// 元数据字段统一使用 `_` 前缀，避免与用户列名冲突。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 struct RowJson {
     #[serde(rename = "_pk")]
     pk: String,
@@ -177,7 +176,7 @@ pub fn read_blob(repo: &git2::Repository, blob_id: BlobId) -> anyhow::Result<Vec
 }
 
 /// 不读取完整内容时可获得的 blob 元数据。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct BlobMetadata {
     pub id: BlobId,
     pub size: usize,

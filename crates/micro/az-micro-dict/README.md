@@ -30,5 +30,4 @@ include!(concat!(env!("OUT_DIR"), "/az_micro_dict/enums.rs"));
 ```
 
 The generated source references `az_dict_macros`, `az_dict_spec`, and
-`az_derive_aliases`, so runtime crates that include it should depend on those
-crates.
+`derive_more`, so runtime crates that include it should depend on those crates.

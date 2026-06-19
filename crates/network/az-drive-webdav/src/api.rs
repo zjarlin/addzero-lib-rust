@@ -10,7 +10,6 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::any;
-use az_derive_aliases::{apply, plain_clone};
 use az_drive_core::api::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
 use az_drive_store::api::{
     DriveEntry, DriveEntryKind, DriveLock, DriveMetadataStore, DriveObjectStore, DriveVersion,
@@ -27,7 +26,7 @@ const OWNER_HEADER: &str = "x-aio-owner";
 const LOCK_TOKEN_HEADER: &str = "lock-token";
 
 /// Shared state for WebDAV routes.
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct DriveWebdavState {
     metadata: Arc<dyn DriveMetadataStore>,
     objects: Arc<dyn DriveObjectStore>,

@@ -8,7 +8,6 @@ use reqwest::Client;
 use crate::model::{DetectedLanguage, TranslateOptions, TranslateResult};
 use crate::TranslateClient;
 use anyhow::{Result, bail};
-use az_derive_aliases::{apply, deserialize_debug};
 
 const BASE_URL: &str = "https://api.mymemory.translated.net/get";
 
@@ -42,7 +41,7 @@ impl MyMemoryClient {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 #[allow(dead_code)]
 struct MyMemoryResponse {
     #[serde(rename = "responseData")]
@@ -53,7 +52,7 @@ struct MyMemoryResponse {
     response_details: Option<String>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 #[allow(dead_code)]
 struct MyMemoryResponseData {
     #[serde(rename = "translatedText")]
@@ -62,7 +61,7 @@ struct MyMemoryResponseData {
     match_score: Option<f64>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 #[allow(dead_code)]
 struct MyMemoryMatchesResponse {
     #[serde(rename = "responseData")]
@@ -73,7 +72,7 @@ struct MyMemoryMatchesResponse {
     response_status: u16,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 #[allow(dead_code)]
 struct MyMemoryMatch {
     translation: String,

@@ -215,9 +215,7 @@ fn expand_dict_enum(
         #[doc(hidden)]
         #[allow(non_snake_case)]
         mod #module_name {
-            use ::az_derive_aliases::{apply, plain_copy_eq_hash_ord_display};
-
-            #[apply(plain_copy_eq_hash_ord_display)]
+            #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, derive_more::Display)]
             pub enum #enum_name {
                 #(#unit_variants,)*
             }

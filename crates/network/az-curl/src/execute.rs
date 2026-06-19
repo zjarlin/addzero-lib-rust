@@ -1,13 +1,12 @@
 use crate::model::ParsedCurl;
 use crate::parse::parse_curl;
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use reqwest::blocking::multipart::Form;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
 /// HTTP response returned by [`execute_curl`].
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CurlResponse {
     /// Numeric HTTP status code.
     pub status: u16,
@@ -41,7 +40,7 @@ impl CurlResponse {
 }
 
 /// Blocking executor for parsed or raw curl commands.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct CurlExecutor {
     client: reqwest::blocking::Client,
 }

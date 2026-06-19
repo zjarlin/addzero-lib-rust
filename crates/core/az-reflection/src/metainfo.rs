@@ -1,12 +1,11 @@
-use az_derive_aliases::{apply, plain_eq};
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FieldInfoSimple {
     pub field_name: &'static str,
     pub description: Option<&'static str>,
 }
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FieldInfo {
     pub field_name: &'static str,
     pub description: Option<&'static str>,

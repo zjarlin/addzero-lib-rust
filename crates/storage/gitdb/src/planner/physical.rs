@@ -7,12 +7,11 @@ use std::sync::Arc;
 
 use super::logical::SortSpec;
 use crate::sql::Expr;
-use az_derive_aliases::{apply, plain_clone_debug, plain_code_display_no_default_enum};
 
 /// 物理执行算子。
 ///
 /// 这些枚举值对应查询实际执行时使用的算法或访问方式。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub enum PhysicalOperator {
     /// 顺序表扫描。
     SeqScan {
@@ -90,21 +89,22 @@ pub enum PhysicalOperator {
 }
 
 /// 索引扫描使用的键范围。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct KeyRange {
     pub start: Option<KeyBound>,
     pub end: Option<KeyBound>,
 }
 
 /// 键范围边界。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct KeyBound {
     pub value: String,
     pub inclusive: bool,
 }
 
 /// 带实现语义的物理连接类型。
-#[apply(plain_code_display_no_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum JoinPhysicalType {
     Inner,
     LeftOuter,
@@ -113,8 +113,27 @@ pub enum JoinPhysicalType {
     Cross,
 }
 
+impl JoinPhysicalType {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 物理聚合表达式。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct PhysicalAggregate {
     pub function: AggregatePhysical,
     pub input_column: Option<String>,
@@ -123,7 +142,8 @@ pub struct PhysicalAggregate {
 }
 
 /// 物理聚合函数。
-#[apply(plain_code_display_no_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum AggregatePhysical {
     Count,
     Sum,
@@ -132,8 +152,27 @@ pub enum AggregatePhysical {
     Max,
 }
 
+impl AggregatePhysical {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 物理计划节点。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct PhysicalPlanNode {
     pub operator: PhysicalOperator,
     pub children: Vec<Arc<PhysicalPlanNode>>,
@@ -184,7 +223,7 @@ impl PhysicalPlanNode {
 }
 
 /// 完整的物理查询计划。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct PhysicalPlan {
     pub root: Arc<PhysicalPlanNode>,
 }

@@ -24,10 +24,9 @@ use az_assets::types::{
     AiModelProvider, AiPromptButton, AiProviderKind, AssetKind, AssetProviderSecret,
     PromptRunOutput, SuggestedEdge,
 };
-use az_derive_aliases::{apply, plain_default_clone, serde_eq};
 
 /// 采集内容并生成资产候选输出的请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CaptureAssetRequest {
     /// 待处理的原始内容。
     pub raw_content: String,
@@ -40,7 +39,7 @@ pub struct CaptureAssetRequest {
 }
 
 /// 运行单个 prompt 按钮的请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PromptButtonRun {
     /// prompt 按钮配置。
     pub prompt: AiPromptButton,
@@ -52,7 +51,7 @@ pub struct PromptButtonRun {
 ///
 /// 当前实现使用本地规则生成标题、标签和候选边；远程 LLM 接入点保留在
 /// [`Self::run_with_provider_secret`]。
-#[apply(plain_default_clone)]
+#[derive(Clone, Default)]
 pub struct AssetAgentService;
 
 impl AssetAgentService {

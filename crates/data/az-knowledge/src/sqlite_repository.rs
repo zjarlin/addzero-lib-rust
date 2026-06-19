@@ -1,7 +1,6 @@
 use std::{fs, path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::Context;
-use az_derive_aliases::{apply, plain_clone};
 use chrono::{DateTime, Utc};
 use sqlx::{
     QueryBuilder, Row, Sqlite, SqlitePool,
@@ -51,7 +50,7 @@ const SQLITE_SCHEMA: &[&str] = &[
     "CREATE INDEX IF NOT EXISTS knowledge_documents_hash_idx ON knowledge_documents (content_hash)",
 ];
 
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub(crate) struct SqliteKnowledgeRepository {
     pool: SqlitePool,
 }

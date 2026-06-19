@@ -1,29 +1,28 @@
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, plain_debug, plain_default_debug};
 use regex::Regex;
 use reqwest::StatusCode;
 use reqwest::Url;
 use reqwest::blocking::Client;
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct RobotsPolicy {
     rules: Vec<Rule>,
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct Rule {
     allow: bool,
     raw_pattern: String,
     matcher: Regex,
 }
 
-#[apply(plain_default_debug)]
+#[derive(Debug, Default)]
 struct Group {
     user_agents: Vec<String>,
     rules: Vec<RawRule>,
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct RawRule {
     allow: bool,
     raw_pattern: String,

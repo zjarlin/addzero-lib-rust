@@ -1,9 +1,9 @@
 use std::{env, fs, path::PathBuf};
 
 use anyhow::{Context, anyhow};
-use az_derive_aliases::{apply, serialize_camel_eq};
 
-#[apply(serialize_camel_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigCenterPaths {
     pub data_dir: String,
     pub config_dir: String,

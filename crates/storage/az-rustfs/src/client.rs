@@ -1,10 +1,6 @@
 use crate::progress::{InMemoryUploadProgressStorage, PartInfo};
 use crate::types::{ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig};
 use anyhow::{anyhow, bail, Context};
-use az_derive_aliases::{
-    apply, impl_default, plain_clone, plain_clone_debug, plain_default_clone_debug,
-    plain_default_debug,
-};
 use az_str::api::escape_xml;
 use base64::Engine as _;
 use chrono::Utc;
@@ -136,7 +132,7 @@ pub trait S3StorageClientFactory: Send + Sync {
 }
 
 /// 默认客户端工厂，通过调用方注入的配置源创建阻塞式 S3 客户端。
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct DefaultS3StorageClientFactory {
     default_config: Arc<dyn Fn() -> S3ClientConfig + Send + Sync>,
 }
@@ -150,11 +146,13 @@ impl DefaultS3StorageClientFactory {
     }
 }
 
-impl_default!(
-    DefaultS3StorageClientFactory => DefaultS3StorageClientFactory::new(|| {
+impl Default for DefaultS3StorageClientFactory {
+    fn default() -> Self {
+        DefaultS3StorageClientFactory::new(|| {
         S3ClientConfig::from(RustfsConfig::default())
     })
-);
+    }
+}
 
 impl S3StorageClientFactory for DefaultS3StorageClientFactory {
     fn create_client(&self, config: S3ClientConfig) -> Arc<dyn S3StorageClient> {
@@ -169,13 +167,13 @@ impl S3StorageClientFactory for DefaultS3StorageClientFactory {
 /// 基于 `reqwest::blocking` 的 S3 兼容客户端实现。
 ///
 /// 该实现负责 AWS SigV4 签名、XML 响应解析和分片上传协议。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct BlockingS3StorageClient {
     config: S3ClientConfig,
     http: Client,
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct RequestTarget {
     url: Url,
     canonical_uri: String,
@@ -183,7 +181,7 @@ struct RequestTarget {
     host_header: String,
 }
 
-#[apply(plain_default_debug)]
+#[derive(Debug, Default)]
 struct PendingObjectSummary {
     key: String,
     size: u64,
@@ -1401,19 +1399,19 @@ fn quoted_etag(value: &str) -> String {
 }
 
 /// 内存对象存储实现，主要用于测试和本地冒烟验证。
-#[apply(plain_default_clone_debug)]
+#[derive(Clone, Debug, Default)]
 pub struct InMemoryS3StorageClient {
     state: Arc<Mutex<MemoryState>>,
 }
 
-#[apply(plain_default_debug)]
+#[derive(Debug, Default)]
 struct MemoryState {
     buckets: HashMap<String, HashMap<String, MemoryObject>>,
     uploads: HashMap<String, MemoryUpload>,
     next_id: u64,
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct MemoryObject {
     bytes: Vec<u8>,
     content_type: Option<String>,
@@ -1422,7 +1420,7 @@ struct MemoryObject {
     last_modified: String,
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct MemoryUpload {
     bucket_name: String,
     _object_key: String,

@@ -3,14 +3,11 @@ use crate::otp::extract_verification_code;
 use crate::random::{random_local_part, random_password};
 use crate::config::DuckMailConfig;
 use anyhow::{anyhow, bail};
-use az_derive_aliases::{
-    apply, deserialize_debug, plain_clone_debug, plain_eq, serde_eq, serde_eq_default,
-};
 use serde_json::{Value, json};
 use std::time::{Duration, Instant};
 
 /// Blocking DuckMail API client.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct DuckMailApi {
     config: DuckMailConfig,
     http: HttpClient,
@@ -172,7 +169,7 @@ impl DuckMailApi {
 }
 
 /// DuckMail domain metadata.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DuckMailDomain {
     pub id: String,
     pub domain: String,
@@ -189,7 +186,7 @@ pub struct DuckMailDomain {
 }
 
 /// DuckMail account creation response.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DuckMailAccount {
     pub id: String,
     pub address: String,
@@ -202,14 +199,14 @@ pub struct DuckMailAccount {
 }
 
 /// DuckMail token response.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DuckMailToken {
     pub id: String,
     pub token: String,
 }
 
 /// A created DuckMail mailbox with the account password and inbox bearer token.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DuckMailMailbox {
     pub address: String,
     pub password: String,
@@ -218,7 +215,7 @@ pub struct DuckMailMailbox {
 }
 
 /// Email address object returned by DuckMail.
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct MailAddress {
     #[serde(default)]
     pub name: String,
@@ -227,7 +224,7 @@ pub struct MailAddress {
 }
 
 /// DuckMail inbox message summary.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DuckMailMessageSummary {
     pub id: String,
     #[serde(default)]
@@ -257,7 +254,7 @@ pub struct DuckMailMessageSummary {
 }
 
 /// DuckMail attachment metadata.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DuckMailAttachment {
     pub id: String,
     #[serde(default)]
@@ -277,7 +274,7 @@ pub struct DuckMailAttachment {
 }
 
 /// Full DuckMail message detail.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DuckMailMessageDetail {
     pub id: String,
     pub msgid: Option<String>,
@@ -328,7 +325,7 @@ impl DuckMailMessageDetail {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 #[serde(bound(deserialize = "T: ::serde::Deserialize<'de>"))]
 struct HydraCollection<T> {
     #[serde(
@@ -345,7 +342,7 @@ fn empty_items<T>() -> Vec<T> {
     Vec::new()
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct DuckMailMessageDetailRaw {
     id: String,
     #[serde(default)]

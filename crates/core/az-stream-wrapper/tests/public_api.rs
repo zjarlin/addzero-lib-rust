@@ -1,8 +1,7 @@
-use az_derive_aliases::{apply, plain_eq};
 use az_stream_wrapper::api::lambdaquery;
 use az_stream_wrapper::stream_query;
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct User {
     name: String,
     city: String,

@@ -1,9 +1,9 @@
 use anyhow::bail;
 use az_aio_platform::core::db;
+use az_str::api::normalized_id_or_else;
 use rudi::{Context, DynProvider, Module, modules, providers, singleton};
 use std::sync::Arc;
 use toasty::stmt::{List, Query};
-use uuid::Uuid;
 
 use crate::backend::model::{ConfigEntry, ConfigEntrySummary, TABLE_NAME_PREFIX};
 
@@ -44,7 +44,7 @@ impl ConfigCenterStore {
         input: ConfigEntryInput,
     ) -> anyhow::Result<ConfigEntrySummary> {
         validate_config_entry_input(&input)?;
-        let id = normalized_id(input.id);
+        let id = normalized_id_or_else(input.id, db::new_uuid_id);
         let now = db::timestamp_secs();
         let mut db = self.db.lock().await;
         let existing = Query::<List<ConfigEntry>>::filter(ConfigEntry::fields().id().eq(&id))
@@ -136,13 +136,6 @@ fn normalize_namespace(value: &str) -> String {
     } else {
         value.to_string()
     }
-}
-
-fn normalized_id(value: Option<String>) -> String {
-    value
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| Uuid::new_v4().to_string())
 }
 
 #[cfg(test)]

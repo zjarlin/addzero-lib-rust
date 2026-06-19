@@ -1,7 +1,6 @@
 //! YAML 点号路径解析与查询。
 
 use anyhow::{Context, Result, bail};
-use az_derive_aliases::{apply, plain_eq, plain_partial_eq};
 use serde_yaml::Value;
 
 use crate::env_subst::env_subst;
@@ -9,7 +8,7 @@ use crate::env_subst::env_subst;
 /// YAML 路径中的一个访问片段。
 ///
 /// `a.b[0]` 会被拆成两个键片段和一个下标片段，供 [`YamlDoc`] 在 `serde_yaml::Value` 树上逐层查找。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum YamlPathSegment {
     /// 映射键访问，支持普通点号键和方括号中的带引号键。
     Key(String),
@@ -21,7 +20,7 @@ pub enum YamlPathSegment {
 ///
 /// 路径语法面向配置读取，不尝试覆盖完整 JSONPath；支持 `spring.datasource.url`、
 /// `items[0].name` 和 `spring.datasource["jdbc-url"]` 这类常见 Spring 配置路径。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct YamlPath {
     segments: Vec<YamlPathSegment>,
 }
@@ -91,7 +90,7 @@ impl std::str::FromStr for YamlPath {
 /// YAML 文档值包装器。
 ///
 /// 该类型不改变原始 `serde_yaml::Value` 的结构，只在路径查询和字符串读取时提供更贴近配置文件的便捷语义。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct YamlDoc {
     value: Value,
 }

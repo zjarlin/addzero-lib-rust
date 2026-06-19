@@ -4,9 +4,8 @@ use std::num::NonZeroUsize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use az_derive_aliases::{apply, plain_debug};
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct CacheEntry<V> {
     value: V,
     created_at: Instant,
@@ -22,7 +21,7 @@ struct CacheEntry<V> {
 ///
 /// Internally uses a [`Mutex`] and recovers from poisoned locks gracefully,
 /// recovering poisoned locks instead of panicking.
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct ExpiringCache<K, V> {
     expire_after: Duration,
     max_size: NonZeroUsize,

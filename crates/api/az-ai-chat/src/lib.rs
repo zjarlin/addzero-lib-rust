@@ -22,12 +22,26 @@
 //! ```
 
 use anyhow::Result;
-use az_derive_aliases::{apply, serde_code_enum, serde_eq, serde_partial_eq_default};
 
 automod::dir!(pub "src");
 
 /// 单条消息参与者的角色。
-#[apply(serde_code_enum)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    strum::IntoStaticStr,
+    strum::VariantArray,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum Role {
     /// 系统提示词，用于给模型提供指令。
     System,
@@ -37,8 +51,27 @@ pub enum Role {
     Assistant,
 }
 
+impl Role {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 单条聊天消息。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Message {
     /// 消息发送者角色。
     pub role: Role,
@@ -73,7 +106,7 @@ impl Message {
 }
 
 /// 聊天补全的可选参数。
-#[apply(serde_partial_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChatOptions {
     /// 采样温度，通常为 `0.0..=2.0`；值越高随机性越强。
     pub temperature: Option<f64>,
@@ -105,7 +138,7 @@ impl ChatOptions {
 }
 
 /// 聊天补全响应。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ChatResponse {
     /// 模型返回的文本。
     pub content: String,
@@ -118,7 +151,7 @@ pub struct ChatResponse {
 }
 
 /// token 用量统计。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Usage {
     /// prompt token 数。
     pub prompt_tokens: u32,

@@ -1,8 +1,7 @@
-use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 use az_model::api::{Auditable, Identifiable, PageResult, Pageable, SoftDeletable, Timestamped};
 use chrono::{DateTime, Utc};
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct User {
     id: u64,
     created_at: Option<DateTime<Utc>>,
@@ -46,7 +45,7 @@ impl Auditable for User {
     }
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct Query {
     page: usize,
     page_size: usize,

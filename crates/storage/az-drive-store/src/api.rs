@@ -5,10 +5,6 @@
 
 use anyhow::{anyhow, bail};
 use async_trait::async_trait;
-use az_derive_aliases::{
-    apply, plain_default, plain_default_clone, plain_default_copy_eq, serde_code_enum, serde_eq,
-    serde_eq_copy,
-};
 use az_drive_core::api::{EntryKey, RelativePath, RootAlias};
 use chrono::{DateTime, Utc};
 use std::collections::{BTreeMap, HashMap};
@@ -25,7 +21,7 @@ pub use crate::gitdb_object_store::{
 };
 
 /// File-system entry kind tracked by drive metadata.
-#[apply(serde_eq_copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum DriveEntryKind {
     /// Regular file.
     File,
@@ -34,7 +30,7 @@ pub enum DriveEntryKind {
 }
 
 /// Metadata record for a remote drive entry.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DriveEntry {
     /// Stable metadata id.
     pub id: Uuid,
@@ -53,7 +49,7 @@ pub struct DriveEntry {
 }
 
 /// Version record for content-addressed bytes.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DriveVersion {
     /// Version row id.
     pub id: Uuid,
@@ -74,7 +70,7 @@ pub struct DriveVersion {
 }
 
 /// Active lock record.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DriveLock {
     /// Entry id.
     pub entry_id: Uuid,
@@ -89,7 +85,7 @@ pub struct DriveLock {
 }
 
 /// Conflict record persisted for status and diagnostics.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DriveConflict {
     /// Conflict id.
     pub id: Uuid,
@@ -112,7 +108,9 @@ pub struct DriveConflict {
 }
 
 /// Durable sync task kind used for queue diagnostics and retry.
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum DriveSyncTaskKind {
     /// Upload local bytes as a new remote version.
     Upload,
@@ -124,8 +122,29 @@ pub enum DriveSyncTaskKind {
     Conflict,
 }
 
+impl DriveSyncTaskKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// Durable sync task status.
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum DriveSyncTaskStatus {
     /// Task has been discovered but not completed.
     Pending,
@@ -137,8 +156,27 @@ pub enum DriveSyncTaskStatus {
     Failed,
 }
 
+impl DriveSyncTaskStatus {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// Queue item persisted for sync diagnostics and retry intent.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DriveSyncQueueItem {
     /// Queue item id.
     pub id: Uuid,
@@ -167,7 +205,7 @@ pub struct DriveSyncQueueItem {
 }
 
 /// Remote path suspended from automatic sync until its conflict is resolved.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DriveSuspendedPath {
     /// Suspension id.
     pub id: Uuid,
@@ -190,7 +228,7 @@ pub struct DriveSuspendedPath {
 }
 
 /// Shared metadata rule that excludes a remote path from automatic hosting.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DriveIgnoredPath {
     /// Stable ignore rule id.
     pub id: Uuid,
@@ -375,7 +413,7 @@ pub trait DriveSyncCoordinator: Send + Sync {
 }
 
 /// No-op coordinator used by database/object-store backends.
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct NoopDriveSyncCoordinator;
 
 #[async_trait]
@@ -390,12 +428,12 @@ impl DriveSyncCoordinator for NoopDriveSyncCoordinator {
 }
 
 /// Recoverable in-memory implementation for tests and local-only smoke runs.
-#[apply(plain_default_clone)]
+#[derive(Clone, Default)]
 pub struct InMemoryDriveMetadataStore {
     state: Arc<Mutex<InMemoryState>>,
 }
 
-#[apply(plain_default)]
+#[derive(Default)]
 struct InMemoryState {
     entries_by_key: BTreeMap<String, DriveEntry>,
     entries_by_id: HashMap<Uuid, String>,
@@ -824,7 +862,7 @@ impl DriveMetadataStore for InMemoryDriveMetadataStore {
 }
 
 /// In-memory object byte store.
-#[apply(plain_default_clone)]
+#[derive(Clone, Default)]
 pub struct InMemoryDriveObjectStore {
     objects: Arc<Mutex<HashMap<String, Vec<u8>>>>,
 }

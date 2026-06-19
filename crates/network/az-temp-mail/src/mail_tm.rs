@@ -7,11 +7,10 @@ use crate::model::{
 use crate::provider::TempMailProvider;
 use crate::util::{random_alpha_numeric, sanitize_local_part, trim_non_blank};
 use anyhow::anyhow;
-use az_derive_aliases::{apply, deserialize_debug, deserialize_eq, plain_clone_debug};
 use serde_json::{Value, json};
 
 /// 托管 `mail.tm` 临时邮箱 API 的阻塞客户端。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct MailTmTempMailApi {
     http: HttpApiClient,
 }
@@ -196,7 +195,7 @@ pub fn create_mail_tm_api() -> anyhow::Result<MailTmTempMailApi> {
     MailTmTempMailApi::new(config)
 }
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct MailTmDomain {
     pub id: String,
     pub domain: String,
@@ -206,25 +205,25 @@ pub struct MailTmDomain {
     pub is_private: bool,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct HydraCollection<T> {
     #[serde(rename = "hydra:member", default = "Vec::new")]
     items: Vec<T>,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct MailTmAccountResponse {
     #[serde(default)]
     id: String,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct MailTmTokenResponse {
     #[serde(default)]
     token: String,
 }
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 struct MailTmSenderRaw {
     #[serde(default)]
     address: String,
@@ -232,7 +231,7 @@ struct MailTmSenderRaw {
     name: String,
 }
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 struct MailTmRecipientRaw {
     #[serde(default)]
     address: String,
@@ -240,7 +239,7 @@ struct MailTmRecipientRaw {
     name: String,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct MailTmMessageSummaryRaw {
     #[serde(default)]
     id: String,
@@ -253,7 +252,7 @@ struct MailTmMessageSummaryRaw {
     created_at: String,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct MailTmMessageDetailRaw {
     #[serde(default)]
     id: String,

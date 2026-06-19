@@ -13,7 +13,7 @@ description = "GitDB driver for Toasty ORM"
 anyhow.workspace = true
 async-trait.workspace = true
 automod.workspace = true
-az-derive-aliases.workspace = true
+az-str.workspace = true
 chrono.workspace = true
 gitdb = { path = "../gitdb" }
 serde_json.workspace = true

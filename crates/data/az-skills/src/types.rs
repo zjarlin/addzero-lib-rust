@@ -1,14 +1,34 @@
-use az_derive_aliases::{apply, serde_code_enum, serde_eq, serde_eq_default};
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 /// 某条技能记录当前被观测到的存放位置。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum SkillSource {
     Postgres,
     FileSystem,
     Both,
+}
+
+impl SkillSource {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 impl SkillSource {
@@ -23,7 +43,7 @@ impl SkillSource {
 }
 
 /// 领域层中的技能记录，不绑定任一具体后端。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Skill {
     pub id: Uuid,
     pub name: String,
@@ -36,7 +56,7 @@ pub struct Skill {
 }
 
 /// 创建或更新技能时使用的输入载荷。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SkillUpsert {
     pub name: String,
     pub keywords: Vec<String>,
@@ -63,7 +83,7 @@ impl SkillUpsert {
 }
 
 /// 一次 `sync_all` 执行后的同步结果。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SyncReport {
     /// 仅存在于 PG 的技能，已被复制到文件系统。
     pub added_to_fs: Vec<String>,

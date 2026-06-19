@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
-use az_derive_aliases::{apply, serde_eq, serde_eq_default};
 use chrono::{DateTime, Utc};
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KnowledgeSourceSpec {
     pub slug: String,
     pub name: String,
@@ -24,7 +23,7 @@ impl KnowledgeSourceSpec {
     }
 }
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KnowledgeDocument {
     pub source_slug: String,
     pub source_name: String,
@@ -45,7 +44,7 @@ pub struct KnowledgeDocument {
     pub updated_at: DateTime<Utc>,
 }
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ManualKnowledgeDocumentInput {
     pub source_slug: String,
     pub source_name: String,
@@ -58,13 +57,13 @@ pub struct ManualKnowledgeDocumentInput {
     pub tags: Vec<String>,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KnowledgeScan {
     pub documents: Vec<KnowledgeDocument>,
     pub skipped_paths: Vec<String>,
 }
 
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KnowledgeSyncReport {
     pub synced_sources: Vec<String>,
     pub upserted_documents: usize,

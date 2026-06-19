@@ -13,7 +13,6 @@ workspace = true
 [dependencies]
 anyhow.workspace = true
 automod.workspace = true
-az-derive-aliases.workspace = true
 derive_more.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true

@@ -1,12 +1,11 @@
 use crate::model::ParsedCurl;
 use crate::parse_support::parse_method;
 use crate::util::normalize_header_name;
-use az_derive_aliases::{apply, plain_clone_debug};
 use base64::Engine;
 use reqwest::Method;
 use std::collections::BTreeMap;
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct CurlBuilder {
     pub(crate) method: Option<Method>,
     pub(crate) url: String,

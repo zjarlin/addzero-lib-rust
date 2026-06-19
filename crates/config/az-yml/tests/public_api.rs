@@ -1,4 +1,3 @@
-use az_derive_aliases::{apply, deserialize_eq};
 use az_yml::database_config_reader::{DatabaseConfig, DatabaseConfigReader};
 use az_yml::env_subst::env_subst;
 use az_yml::load::load_yaml;
@@ -9,17 +8,17 @@ use serde_yaml::Value;
 use std::fs;
 use tempfile::TempDir;
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 struct AppConfig {
     spring: SpringSection,
 }
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 struct SpringSection {
     application: ApplicationSection,
 }
 
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 struct ApplicationSection {
     name: String,
 }

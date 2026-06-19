@@ -8,7 +8,6 @@ authors.workspace = true
 
 [dependencies]
 automod.workspace = true
-az-derive-aliases.workspace = true
 anyhow.workspace = true
 derive_more.workspace = true
 serde = { workspace = true, features = ["derive"] }

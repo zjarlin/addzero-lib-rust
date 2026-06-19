@@ -18,7 +18,6 @@
 //! [`RemotePlatform`] 支持 macOS、Windows、Linux (X11/Wayland)、Browser；
 //! [`DeviceRole`] 区分 Host（被控端）与 Viewer（控制端）。
 
-use az_derive_aliases::{apply, serde_code_display_enum, serde_code_enum, serde_eq, serde_eq_copy};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -26,7 +25,9 @@ pub type DeviceId = Uuid;
 pub type SessionId = Uuid;
 pub type TransferId = Uuid;
 
-#[apply(serde_code_display_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum RemotePlatform {
     #[display("macOS")]
     MacOs,
@@ -40,13 +41,55 @@ pub enum RemotePlatform {
     Browser,
 }
 
-#[apply(serde_code_enum)]
+impl RemotePlatform {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum DeviceRole {
     Viewer,
     Host,
 }
 
-#[apply(serde_code_enum)]
+impl DeviceRole {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum OnlineStatus {
     Online,
     Idle,
@@ -54,7 +97,26 @@ pub enum OnlineStatus {
     Offline,
 }
 
-#[apply(serde_eq_copy)]
+impl OnlineStatus {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SessionCapability {
     pub screen: bool,
     pub input_control: bool,
@@ -84,7 +146,7 @@ impl SessionCapability {
     }
 }
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DeviceDescriptor {
     pub device_id: DeviceId,
     pub device_name: String,
@@ -96,7 +158,7 @@ pub struct DeviceDescriptor {
     pub notes: Option<String>,
 }
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SessionRequest {
     pub session_id: SessionId,
     pub viewer_id: DeviceId,
@@ -105,7 +167,7 @@ pub struct SessionRequest {
     pub requested_at: DateTime<Utc>,
 }
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SessionGrant {
     pub session_id: SessionId,
     pub host_id: DeviceId,
@@ -114,20 +176,62 @@ pub struct SessionGrant {
     pub granted_at: DateTime<Utc>,
 }
 
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PointerButton {
     Left,
     Middle,
     Right,
 }
 
-#[apply(serde_code_enum)]
+impl PointerButton {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum KeyState {
     Down,
     Up,
 }
 
-#[apply(serde_eq)]
+impl KeyState {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RemoteInputEvent {
     PointerMove {
         x: u16,
@@ -150,13 +254,13 @@ pub enum RemoteInputEvent {
     },
 }
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ClipboardPayload {
     pub content: String,
     pub updated_at: DateTime<Utc>,
 }
 
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct FileTransferEnvelope {
     pub transfer_id: TransferId,
     pub session_id: SessionId,
@@ -166,13 +270,34 @@ pub struct FileTransferEnvelope {
     pub chunk_count: u32,
 }
 
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum VideoCodec {
     JpegFrames,
     PngFrames,
 }
 
-#[apply(serde_eq)]
+impl VideoCodec {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct VideoFrameEnvelope {
     pub session_id: SessionId,
     pub codec: VideoCodec,
@@ -182,7 +307,9 @@ pub struct VideoFrameEnvelope {
     pub captured_at: DateTime<Utc>,
 }
 
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum SessionState {
     Requested,
     Active,
@@ -190,7 +317,26 @@ pub enum SessionState {
     Closed,
 }
 
-#[apply(serde_eq)]
+impl SessionState {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SessionSummary {
     pub session_id: SessionId,
     pub viewer_id: DeviceId,

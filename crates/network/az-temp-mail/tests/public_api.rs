@@ -1,4 +1,3 @@
-use az_derive_aliases::{apply, plain_clone_debug};
 use az_temp_mail::{
     client::{CloudflareTempMailApi, TempMailApi, create_temp_mail_api},
     cloudflare::CloudflareTempMailContext,
@@ -292,7 +291,7 @@ fn emailnator_provider_uses_xsrf_cookie_and_message_paths() -> Result<(), Box<dy
     Ok(())
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct CapturedRequest {
     method: String,
     path: String,
@@ -300,7 +299,7 @@ struct CapturedRequest {
     body: String,
 }
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 struct TestResponse {
     status: u16,
     content_type: &'static str,

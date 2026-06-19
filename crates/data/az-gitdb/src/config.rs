@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
-use az_derive_aliases::{apply, plain_clone_debug, plain_code_default_enum, plain_code_enum};
 
 /// The role a GitDB repository node can serve inside a cluster.
-#[apply(plain_code_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum GitDbNodeRole {
     /// Accept both read and write SQL statements.
     ReadWrite,
@@ -12,6 +12,25 @@ pub enum GitDbNodeRole {
     ReadOnly,
     /// Accept write SQL statements only.
     WriteOnly,
+}
+
+impl GitDbNodeRole {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 impl GitDbNodeRole {
@@ -25,7 +44,8 @@ impl GitDbNodeRole {
 }
 
 /// Load-balancing strategy used when more than one node can serve a request.
-#[apply(plain_code_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Default, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum GitDbLoadBalanceStrategy {
     /// Rotate eligible nodes in a stable sequence.
     #[default]
@@ -36,8 +56,32 @@ pub enum GitDbLoadBalanceStrategy {
     LeastInFlight,
 }
 
+impl GitDbLoadBalanceStrategy {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
+}
+
 /// Configuration for one Git-backed database node.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct GitDbNodeConfig {
     /// Stable node identifier returned with routed results and errors.
     pub id: String,
@@ -162,7 +206,7 @@ impl GitDbNodeConfig {
 }
 
 /// Configuration for a multi-repository GitDB cluster.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct GitDbClusterConfig {
     /// GitDB repository nodes.
     pub nodes: Vec<GitDbNodeConfig>,

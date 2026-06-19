@@ -12,7 +12,7 @@ anyhow.workspace = true
 axum.workspace = true
 az-aio-platform = { path = "../../platform" }
 automod.workspace = true
-az-derive-aliases.workspace = true
+az-str.workspace = true
 dioxus.workspace = true
 handlebars.workspace = true
 reqwest.workspace = true
@@ -22,7 +22,6 @@ serde_json_path.workspace = true
 rudi.workspace = true
 tokio.workspace = true
 toasty.workspace = true
-uuid.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

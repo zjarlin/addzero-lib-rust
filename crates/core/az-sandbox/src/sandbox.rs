@@ -1,9 +1,8 @@
 //! 脚本运行时和插件运行时共享的沙箱策略类型。
 
-use az_derive_aliases::{apply, serde_eq_default};
 
 /// 沙箱执行上下文的权限策略。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SandboxPolicy {
     /// 允许访问的文件系统路径；为空表示全部拒绝。
     pub fs_allow: Vec<String>,

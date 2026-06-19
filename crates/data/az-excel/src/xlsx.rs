@@ -6,7 +6,6 @@ use crate::worksheet_xml::{
     build_worksheet_xml,
 };
 use anyhow::{Context, Result, bail};
-use az_derive_aliases::{apply, plain_eq};
 use quick_xml::Reader;
 use quick_xml::events::Event;
 use std::fs::File;
@@ -177,7 +176,7 @@ where
     }
 }
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct WorkbookSheetRef {
     name: String,
     relationship_id: String,
@@ -412,7 +411,7 @@ fn parse_worksheet(name: &str, xml: &str, shared_strings: &[String]) -> Result<E
     })
 }
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct PendingCell {
     row: usize,
     col: usize,

@@ -4,11 +4,10 @@
 //! 解析器负责把外部 SQL 文本转换为这些结构，后续 planner/executor
 //! 只依赖这里的稳定形状。
 
-use az_derive_aliases::{apply, plain_copy_eq, plain_partial_eq};
 use serde_json::Value;
 
 /// 已解析的 SQL 语句。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Statement {
     /// `CREATE TABLE` 建表语句。
     CreateTable(CreateTable),
@@ -35,7 +34,7 @@ pub enum Statement {
 }
 
 /// `CREATE TABLE` 的内部表示。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CreateTable {
     pub name: String,
     pub columns: Vec<ColumnDef>,
@@ -43,7 +42,7 @@ pub struct CreateTable {
 }
 
 /// `CREATE TABLE` 中的一列定义。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ColumnDef {
     pub name: String,
     pub data_type: SqlDataType,
@@ -51,7 +50,7 @@ pub struct ColumnDef {
 }
 
 /// GitDB 当前支持的 SQL 数据类型。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SqlDataType {
     Text,
     Integer,
@@ -63,7 +62,7 @@ pub enum SqlDataType {
 }
 
 /// 列约束定义。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ColumnConstraint {
     NotNull,
     Unique,
@@ -72,14 +71,14 @@ pub enum ColumnConstraint {
 }
 
 /// `DROP TABLE` 的内部表示。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DropTable {
     pub name: String,
     pub if_exists: bool,
 }
 
 /// `SELECT` 查询的内部表示。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Select {
     pub columns: Vec<SelectColumn>,
     pub from: String,
@@ -90,7 +89,7 @@ pub struct Select {
 }
 
 /// `SELECT` 子句中的投影列。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SelectColumn {
     /// SELECT *
     Wildcard,
@@ -101,14 +100,14 @@ pub enum SelectColumn {
 }
 
 /// `ORDER BY` 子句中的一个排序项。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct OrderBy {
     pub column: String,
     pub ascending: bool,
 }
 
 /// `INSERT` 语句的内部表示。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Insert {
     pub table: String,
     pub columns: Option<Vec<String>>,
@@ -116,7 +115,7 @@ pub struct Insert {
 }
 
 /// `UPDATE` 语句的内部表示。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Update {
     pub table: String,
     pub assignments: Vec<Assignment>,
@@ -124,21 +123,21 @@ pub struct Update {
 }
 
 /// `SET` 子句中的单列赋值。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Assignment {
     pub column: String,
     pub value: Expr,
 }
 
 /// `DELETE` 语句的内部表示。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Delete {
     pub table: String,
     pub where_clause: Option<Expr>,
 }
 
 /// SQL 表达式树。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
     /// 列引用。
     Column(String),
@@ -180,7 +179,7 @@ pub enum Expr {
 }
 
 /// 字面量值。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LiteralValue {
     Null,
     Boolean(bool),
@@ -207,7 +206,7 @@ impl LiteralValue {
 }
 
 /// SQL 二元运算符。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BinaryOperator {
     // Comparison
     Eq,
@@ -250,7 +249,7 @@ impl BinaryOperator {
 }
 
 /// SQL 一元运算符。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum UnaryOperator {
     Not,
     Minus,

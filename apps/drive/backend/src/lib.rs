@@ -3,7 +3,6 @@
 //! Standalone headless drive app support utilities.
 
 use anyhow::Context;
-use az_derive_aliases::{apply, deserialize_debug, plain_code_default_enum, plain_eq};
 use az_drive_agent::{
     agent::{DriveAgent, DriveAgentConfig, HostedStatus},
     local_state::{LocalState, LocalStateStore},
@@ -375,7 +374,7 @@ async fn migrate_state_paths(
     Ok(statuses)
 }
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct DriveTomlConfig {
     backend: String,
     git_pool_root: Option<PathBuf>,
@@ -406,12 +405,48 @@ enum DriveObjectBackendConfig {
     GitDb(GitDbObjectStoreConfig),
 }
 
-#[apply(plain_code_default_enum)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Default,
+    strum::EnumString,
+    strum::IntoStaticStr,
+    strum::VariantArray,
+)]
+#[strum(serialize_all = "snake_case")]
 enum DriveObjectBackend {
     #[default]
     GitPool,
     #[strum(serialize = "gitdb")]
     GitDb,
+}
+
+impl DriveObjectBackend {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+
+    #[must_use]
+    pub fn from_code_or_default(value: &str) -> Self {
+        Self::from_code(value).unwrap_or_default()
+    }
 }
 
 fn current_object_backend_config() -> anyhow::Result<DriveObjectBackendConfig> {
@@ -659,7 +694,7 @@ pub fn aio_config_dir() -> Option<PathBuf> {
         .map(|config| config.join("aio"))
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct AuthFile {
     username: String,
     #[serde(default)]
@@ -681,13 +716,13 @@ impl AuthFile {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct DriveApiKeyFile {
     #[serde(alias = "owner_space_id")]
     owner_drive_id: String,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct TrustedApiKeyFile {
     #[serde(alias = "owner_space_id")]
     owner_drive_id: String,

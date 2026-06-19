@@ -1,5 +1,6 @@
 use super::value::to_json_value;
 use anyhow::anyhow;
+use az_str::api::quote_sql_string_literal;
 use toasty_core::driver::operation::TypedValue;
 
 pub(crate) fn inline_indexed_params(sql: &str, params: &[TypedValue]) -> anyhow::Result<String> {
@@ -69,16 +70,11 @@ fn json_to_sql_literal(value: &serde_json::Value) -> String {
         serde_json::Value::Bool(true) => "TRUE".to_string(),
         serde_json::Value::Bool(false) => "FALSE".to_string(),
         serde_json::Value::Number(number) => number.to_string(),
-        serde_json::Value::String(text) => quote_sql_string(text),
+        serde_json::Value::String(text) => quote_sql_string_literal(text),
         serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-            quote_sql_string(&value.to_string())
+            quote_sql_string_literal(&value.to_string())
         }
     }
-}
-
-fn quote_sql_string(value: &str) -> String {
-    let escaped = value.replace('\'', "''");
-    format!("'{escaped}'")
 }
 
 #[cfg(test)]

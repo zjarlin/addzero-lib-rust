@@ -1,8 +1,4 @@
 use crate::types::ObjectMetadata;
-use az_derive_aliases::{
-    apply, impl_default, plain_clone, plain_code_display_no_default_enum, plain_default_debug,
-    plain_eq, plain_partial_eq,
-};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -24,7 +20,7 @@ pub trait UploadProgressListener: Send + Sync {
 }
 
 /// 上传进度原始快照。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UploadProgressData {
     /// 已上传字节数。
     pub uploaded: u64,
@@ -39,7 +35,7 @@ pub struct UploadProgressData {
 }
 
 /// 分片上传配置。
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct MultipartUploadConfig {
     /// 单个分片大小，单位字节。
     pub part_size: u64,
@@ -63,17 +59,21 @@ impl MultipartUploadConfig {
     pub const DEFAULT_MULTIPART_THRESHOLD: u64 = 100 * 1024 * 1024;
 }
 
-impl_default!(MultipartUploadConfig => MultipartUploadConfig {
+impl Default for MultipartUploadConfig {
+    fn default() -> Self {
+        MultipartUploadConfig {
     part_size: MultipartUploadConfig::DEFAULT_PART_SIZE,
     concurrency: MultipartUploadConfig::DEFAULT_CONCURRENCY,
     max_retries: MultipartUploadConfig::DEFAULT_MAX_RETRIES,
     timeout_seconds: MultipartUploadConfig::DEFAULT_TIMEOUT_SECONDS,
     multipart_threshold: MultipartUploadConfig::DEFAULT_MULTIPART_THRESHOLD,
     progress_listener: None,
-});
+}
+    }
+}
 
 /// 单个分片的上传状态。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PartInfo {
     /// 分片编号，遵循 S3 multipart upload 的 1-based 语义。
     pub part_number: u32,
@@ -90,7 +90,8 @@ pub struct PartInfo {
 }
 
 /// 分片上传状态。
-#[apply(plain_code_display_no_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum PartStatus {
     /// 尚未开始上传。
     #[display("pending")]
@@ -106,8 +107,27 @@ pub enum PartStatus {
     Failed,
 }
 
+impl PartStatus {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 一次分片上传任务的可持久化状态。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UploadStatus {
     /// S3 multipart upload id。
     pub upload_id: String,
@@ -144,7 +164,8 @@ impl UploadStatus {
 }
 
 /// 分片上传任务状态。
-#[apply(plain_code_display_no_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum UploadStatusType {
     /// 已初始化，尚未正式上传。
     #[display("initialized")]
@@ -163,8 +184,27 @@ pub enum UploadStatusType {
     Cancelled,
 }
 
+impl UploadStatusType {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 分片上传流程返回结果。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MultipartUploadResult {
     /// 上传已成功完成。
     Success {
@@ -190,7 +230,7 @@ pub enum MultipartUploadResult {
 }
 
 /// 面向 UI 或日志展示的上传进度。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UploadProgress {
     /// 总字节数。
     pub total_bytes: u64,
@@ -281,7 +321,7 @@ pub trait UploadProgressStorage: Send + Sync {
 }
 
 /// 内存上传进度状态存储，主要用于测试和单进程本地运行。
-#[apply(plain_default_debug)]
+#[derive(Debug, Default)]
 pub struct InMemoryUploadProgressStorage {
     state: Mutex<HashMap<String, UploadStatus>>,
 }

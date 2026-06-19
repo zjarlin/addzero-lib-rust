@@ -1,11 +1,10 @@
 use anyhow::Result;
-use az_derive_aliases::{apply, plain_default_clone_debug};
 
 use crate::identifier::{quote_identifier, require_table_name};
 use crate::query::Query;
 
 /// A DELETE query builder.
-#[apply(plain_default_clone_debug)]
+#[derive(Clone, Debug, Default)]
 pub struct DeleteQuery {
     table: Option<String>,
     conditions: Vec<(String, Vec<String>)>,

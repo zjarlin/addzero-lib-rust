@@ -5,9 +5,6 @@ use crate::util::{
 };
 use crate::config::ApiConfig;
 use anyhow::{Context, anyhow, bail};
-use az_derive_aliases::{
-    apply, deserialize_debug, plain_clone_debug, serde_eq_default, serde_partial_eq_default,
-};
 use chrono::Utc;
 use hmac::{Hmac, Mac};
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HOST};
@@ -20,7 +17,7 @@ use std::collections::BTreeMap;
 ///
 /// 调用方需要提供已获取的 `Authorization` 和 `X-AUTH-TOKEN`；客户端只负责请求构造、
 /// 响应解析和错误映射，不负责凭证获取或刷新。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct TianyanchaApi {
     authorization: String,
     auth_token: String,
@@ -131,7 +128,7 @@ pub fn create_tianyancha_huawei_api(
 /// 天眼查公司搜索响应数据。
 ///
 /// 未显式建模的上游字段会进入 `extra`，避免接口扩展时丢失排查信息。
-#[apply(serde_partial_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TianyanchaCompanySearchData {
     #[serde(rename = "adviceQuery", default)]
     pub advice_query: Option<Value>,
@@ -158,7 +155,7 @@ pub struct TianyanchaCompanySearchData {
 }
 
 /// 天眼查搜索列表中的公司摘要。
-#[apply(serde_partial_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TianyanchaCompany {
     #[serde(default)]
     pub id: i64,
@@ -191,7 +188,7 @@ pub struct TianyanchaCompany {
 /// 天眼查企业基础详情。
 ///
 /// 字段命名跟随 Rust snake_case，serde rename 保持上游 JSON wire 兼容。
-#[apply(serde_partial_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TianyanchaCompanyDetail {
     #[serde(default)]
     pub id: i64,
@@ -247,7 +244,7 @@ pub struct TianyanchaCompanyDetail {
 ///
 /// 客户端在每次请求时生成 `SDK-HMAC-SHA256` 签名头；调用方只传入 AK/SK，
 /// 不需要手写 canonical request。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct TianyanchaHuaweiApi {
     access_key: String,
     secret_key: String,
@@ -351,7 +348,7 @@ impl TianyanchaHuaweiApi {
 }
 
 /// 华为云签名版企业搜索响应数据。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TianyanchaHuaweiCompanySearchData {
     #[serde(rename = "companyList", default)]
     pub company_list: Vec<TianyanchaHuaweiCompany>,
@@ -362,7 +359,7 @@ pub struct TianyanchaHuaweiCompanySearchData {
 }
 
 /// 华为云签名版企业摘要。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TianyanchaHuaweiCompany {
     #[serde(rename = "companyCode", default)]
     pub company_code: String,
@@ -379,7 +376,7 @@ pub struct TianyanchaHuaweiCompany {
 }
 
 /// 华为云签名版分页信息。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TianyanchaHuaweiPageInfo {
     #[serde(rename = "pageIndex", default)]
     pub page_index: String,
@@ -389,7 +386,7 @@ pub struct TianyanchaHuaweiPageInfo {
     pub total_records: String,
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct TianyanchaSearchResponse {
     #[serde(default)]
     data: Option<TianyanchaCompanySearchData>,
@@ -418,7 +415,7 @@ impl TianyanchaSearchResponse {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct TianyanchaDetailResponse {
     #[serde(default)]
     data: Option<TianyanchaCompanyDetail>,
@@ -451,7 +448,7 @@ impl TianyanchaDetailResponse {
     }
 }
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct TianyanchaHuaweiResponse {
     #[serde(default)]
     code: i32,

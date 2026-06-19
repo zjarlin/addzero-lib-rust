@@ -6,7 +6,6 @@ use crate::model::{SmsActivationRequest, SmsMessage, SmsOrder, SmsOrderStatus};
 use crate::model::{SmsHostingRequest, SmsInbox};
 use crate::provider::SmsProvider;
 use anyhow::{Context, anyhow, bail};
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use reqwest::Url;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use serde::de::DeserializeOwned;
@@ -18,7 +17,7 @@ const DEFAULT_BASE_URL: &str = "https://www.dogesms.com/api/control/";
 const PROVIDER_NAME: &str = "DogeSMS";
 
 /// DogeSMS Control API client configuration.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DogSmsConfig {
     /// DogeSMS static API key, sent with the `X-API-Key` header.
     pub api_key: String,
@@ -55,7 +54,7 @@ impl DogSmsConfig {
 }
 
 /// Builder for [`DogSmsConfig`].
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DogSmsConfigBuilder {
     api_key: String,
     base_url: String,
@@ -119,7 +118,7 @@ impl DogSmsConfigBuilder {
 ///
 /// DogeSMS returns string identifiers such as `requestId`, so the native methods
 /// are the primary API for this provider.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct DogSmsClient {
     client: reqwest::Client,
     base_url: Url,

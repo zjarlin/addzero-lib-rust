@@ -6,7 +6,7 @@ use capability::CAPABILITY_GITDB;
 use sql::inline_indexed_params;
 use value::from_json_value;
 use async_trait::async_trait;
-use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
+use az_str::api::quote_sql_string_literal;
 use gitdb::db::{Database, DatabaseConfig};
 use gitdb::executor::QueryResult;
 use std::borrow::Cow;
@@ -23,7 +23,7 @@ use toasty_core::{Connection, Result, Schema, stmt};
 const MIGRATIONS_TABLE: &str = "__toasty_migrations";
 
 /// 基于文件系统 gitdb 数据库的 Toasty driver。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct GitDb {
     path: PathBuf,
     create_if_missing: bool,
@@ -101,7 +101,7 @@ impl Driver for GitDb {
 ///
 /// 连接内部通过专用工作线程串行执行 gitdb SQL，避免把同步数据库操作直接暴露给 Toasty
 /// 的 async driver 边界。
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct GitDbConnection {
     request_tx: Sender<WorkerRequest>,
 }
@@ -287,15 +287,15 @@ impl Connection for GitDbConnection {
         let applied_at = chrono::Utc::now().to_rfc3339();
         let insert = format!(
             "INSERT INTO {MIGRATIONS_TABLE} (id, name, applied_at) VALUES ({id}, {}, {})",
-            quote_sql(name),
-            quote_sql(&applied_at)
+            quote_sql_string_literal(name),
+            quote_sql_string_literal(&applied_at)
         );
         self.execute_sql(insert)?;
         Ok(())
     }
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 enum WorkerRequest {
     Execute {
         sql: String,
@@ -304,7 +304,7 @@ enum WorkerRequest {
     Shutdown,
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 enum WorkerQueryResult {
     Count(u64),
     Rows {
@@ -449,10 +449,6 @@ fn map_driver_error(error: anyhow::Error) -> toasty_core::Error {
 
 fn map_local_error(error: anyhow::Error) -> toasty_core::Error {
     toasty_core::Error::invalid_result(error.to_string())
-}
-
-fn quote_sql(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
 }
 
 #[cfg(test)]

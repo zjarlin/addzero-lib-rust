@@ -4,11 +4,11 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
-use az_derive_aliases::{apply, serialize_camel_eq};
 
 use crate::backend::installer_scanner_utils as utils;
 
-#[apply(serialize_camel_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InstallerPackage {
     pub id: String,
     pub file_name: String,

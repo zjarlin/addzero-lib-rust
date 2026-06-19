@@ -5,7 +5,6 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, plain_clone_debug, plain_debug, serialize_debug};
 use az_str::api::collapse_whitespace;
 use reqwest::Url;
 use scraper::{ElementRef, Html, Selector};
@@ -16,7 +15,7 @@ use crate::web::{
     manifest_path, normalized_text, parse_selector, same_origin,
 };
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct DownloadConfig {
     pub start_url: Url,
     pub output: PathBuf,
@@ -30,7 +29,7 @@ pub struct DownloadConfig {
     pub ignore_robots: bool,
 }
 
-#[apply(serialize_debug)]
+#[derive(Debug, serde::Serialize)]
 struct DownloadManifest {
     start_url: String,
     page_count: usize,
@@ -38,7 +37,7 @@ struct DownloadManifest {
     pages: Vec<PageManifest>,
 }
 
-#[apply(serialize_debug)]
+#[derive(Debug, serde::Serialize)]
 struct PageManifest {
     index: usize,
     title: String,
@@ -46,7 +45,7 @@ struct PageManifest {
     char_count: usize,
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct DownloadedPage {
     index: usize,
     title: String,
@@ -55,7 +54,7 @@ struct DownloadedPage {
     next_url: Option<Url>,
 }
 
-#[apply(plain_debug)]
+#[derive(Debug)]
 struct Extractor {
     content_selectors: Vec<Selector>,
     title_selector: Option<Selector>,

@@ -4,7 +4,6 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
-use az_derive_aliases::{apply, serialize_camel_eq};
 use az_str::sanitize::to_slug;
 
 const BUILT_IN_TAGS: &[&str] = &[
@@ -20,7 +19,8 @@ const BUILT_IN_TAGS: &[&str] = &[
     "api",
 ];
 
-#[apply(serialize_camel_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScannedSkillAsset {
     pub id: String,
     pub name: String,

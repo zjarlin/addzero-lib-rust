@@ -1,10 +1,9 @@
 use anyhow::bail;
-use az_derive_aliases::{apply, plain_clone_debug, plain_eq};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
 /// 临时邮箱 provider 的 HTTP 客户端配置。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ApiConfig {
     /// 已部署服务的基础 URL，例如 `https://mail.example.com`。
     pub base_url: String,
@@ -46,7 +45,7 @@ impl ApiConfig {
 }
 
 /// [`ApiConfig`] 的链式构建器。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct ApiConfigBuilder {
     base_url: String,
     connect_timeout: Duration,

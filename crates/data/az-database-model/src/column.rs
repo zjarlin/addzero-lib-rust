@@ -1,7 +1,6 @@
-use az_derive_aliases::{apply, serde_eq};
 
 /// Database-agnostic data types for column definitions.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum DataType {
     /// Boolean value.
     Boolean,
@@ -46,7 +45,7 @@ pub enum DataType {
 }
 
 /// Represents a column definition in a table.
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Column {
     /// Column name.
     pub name: String,

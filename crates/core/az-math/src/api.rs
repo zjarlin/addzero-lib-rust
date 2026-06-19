@@ -25,34 +25,33 @@
 //! 默认最大枚举组合数为 500,000。
 
 use anyhow::{Result, bail};
-use az_derive_aliases::{apply, plain_copy_eq, plain_eq, plain_partial_eq};
 
 const DEFAULT_TOLERANCE: f64 = 1e-8;
 const DEFAULT_MAX_COMBINATIONS: u128 = 500_000;
 
 pub type Matrix<T> = Vec<Vec<T>>;
 
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MatrixElement<T> {
     pub row: usize,
     pub col: usize,
     pub value: T,
 }
 
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConstraintRelation {
     LessOrEqual,
     GreaterOrEqual,
     Equal,
 }
 
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GoalType {
     Minimize,
     Maximize,
 }
 
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LinearConstraint {
     pub coefficients: Vec<f64>,
     pub relation: ConstraintRelation,
@@ -73,7 +72,7 @@ impl LinearConstraint {
     }
 }
 
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LinearObjective {
     pub coefficients: Vec<f64>,
     pub constant: f64,
@@ -88,7 +87,7 @@ impl LinearObjective {
     }
 }
 
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LinearProgrammingProblem {
     pub goal: GoalType,
     pub objective: LinearObjective,
@@ -117,7 +116,7 @@ impl LinearProgrammingProblem {
     }
 }
 
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LinearProgrammingSolution {
     pub point: Vec<f64>,
     pub value: f64,

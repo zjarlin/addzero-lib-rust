@@ -6,10 +6,9 @@ use crate::mail_tm::{MailTmTempMailApi, create_mail_tm_api};
 use crate::provider::{
     BoxTempMailProvider, TempMailProviderConfig, TempMailProviderFactory, build_temp_mail_provider,
 };
-use az_derive_aliases::{apply, plain_default_copy_eq};
 
 /// 用于构造临时邮箱客户端的命名空间式入口。
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TempMail;
 
 impl TempMail {

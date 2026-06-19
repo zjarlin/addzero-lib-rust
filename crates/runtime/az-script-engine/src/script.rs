@@ -3,7 +3,6 @@
 //! 本模块只定义脚本运行请求、输出、引擎 trait、工厂和注册表。具体 Rhai、Python、
 //! Bash 等运行器放在各自实现 crate 中，通过 [`ScriptEngineFactory`] 注入宿主。
 
-use az_derive_aliases::{apply, plain_default, serde_eq, serde_lower_code_enum};
 use az_sandbox::sandbox::SandboxPolicy;
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -12,7 +11,9 @@ use std::pin::Pin;
 // ─── Script Types ───────────────────────────────────────────────────
 
 /// 平台当前识别的脚本语言。
-#[apply(serde_lower_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum ScriptLang {
     Curl,
     Rhai,
@@ -21,8 +22,27 @@ pub enum ScriptLang {
     Bash,
 }
 
+impl ScriptLang {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 一次脚本执行的输入。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ScriptInput {
     /// 脚本源码。
     pub source: String,
@@ -37,7 +57,7 @@ pub struct ScriptInput {
 }
 
 /// 一次脚本执行的输出。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ScriptOutput {
     /// 进程式执行语义下的退出码，`0` 表示成功。
     pub exit_code: i32,
@@ -101,7 +121,7 @@ pub trait ScriptEngineRegistry: Send + Sync {
 }
 
 /// 面向直接组合场景的内存脚本引擎注册表。
-#[apply(plain_default)]
+#[derive(Default)]
 pub struct InMemoryScriptEngineRegistry {
     engines: Vec<Box<dyn ScriptEngine>>,
 }

@@ -1,6 +1,5 @@
 use crate::pkce::PkcePair;
 use anyhow::bail;
-use az_derive_aliases::{apply, impl_default, plain_eq};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -11,7 +10,7 @@ const DEFAULT_LOOPBACK_BIND_ADDR: &str = "127.0.0.1:0";
 const DEFAULT_LOOPBACK_PATH: &str = "/oauth/callback";
 
 /// OAuth2 endpoint and client configuration.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OAuth2Config {
     /// Authorization endpoint URL.
     pub authorization_url: String,
@@ -79,7 +78,7 @@ impl OAuth2Config {
 }
 
 /// Builder for [`OAuth2Config`].
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OAuth2ConfigBuilder {
     pub(crate) config: OAuth2Config,
 }
@@ -155,7 +154,7 @@ impl OAuth2ConfigBuilder {
 }
 
 /// Options for one authorization-code request.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthorizationCodeOptions {
     /// Redirect URI for this request. If omitted, the config default is used.
     pub redirect_uri: Option<String>,
@@ -268,7 +267,9 @@ impl AuthorizationCodeOptions {
     }
 }
 
-impl_default!(AuthorizationCodeOptions => AuthorizationCodeOptions {
+impl Default for AuthorizationCodeOptions {
+    fn default() -> Self {
+        AuthorizationCodeOptions {
     redirect_uri: None,
     scopes: Vec::new(),
     state: None,
@@ -279,4 +280,6 @@ impl_default!(AuthorizationCodeOptions => AuthorizationCodeOptions {
     extra_params: BTreeMap::new(),
     loopback_bind_addr: DEFAULT_LOOPBACK_BIND_ADDR.to_owned(),
     loopback_path: DEFAULT_LOOPBACK_PATH.to_owned(),
-});
+}
+    }
+}

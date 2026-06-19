@@ -27,7 +27,6 @@
 //! ```
 
 use anyhow::{Context, Result, bail};
-use az_derive_aliases::{apply, plain_eq, plain_eq_redacted};
 use ssh2::Session;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -37,7 +36,7 @@ use std::thread;
 use std::time::Duration;
 
 /// SSH 连接配置，`Debug` 输出会隐藏密码、私钥路径和私钥口令。
-#[apply(plain_eq_redacted)]
+#[derive(Clone, derive_more::Debug, Eq, PartialEq)]
 pub struct SshConfig {
     /// SSH 主机名或 IP 地址。
     pub host: String,
@@ -139,7 +138,7 @@ impl SshConfig {
 pub type SshConfigBuilder = SshConfig;
 
 /// 远程命令执行完成后的退出码和输出。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SshExecutionResult {
     /// 远程进程退出码。
     pub exit_code: i32,

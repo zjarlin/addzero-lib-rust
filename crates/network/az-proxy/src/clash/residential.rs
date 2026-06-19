@@ -22,7 +22,6 @@ use crate::types::{
     DEFAULT_SPEEDTEST_CONCURRENCY, DEFAULT_SPEEDTEST_TIMEOUT, ProxyNode,
 };
 use anyhow::{Context, Result, bail};
-use az_derive_aliases::{apply, plain_clone_debug};
 use std::fs;
 use std::net::TcpStream;
 use std::path::PathBuf;
@@ -31,7 +30,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 /// 通过本地 Clash 启动住宅代理的配置。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct ResidentialProxyConfig {
     /// 用于获取代理节点的订阅 URL。
     pub subscription_url: String,

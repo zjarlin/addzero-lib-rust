@@ -32,7 +32,6 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
-use az_derive_aliases::{apply, plain_default_copy_eq};
 
 pub use az_email::api::{
     BoxEmailSender, BuiltinEmailSenderFactory, EmailConfig, EmailConfigBuilder, EmailMessage,
@@ -99,7 +98,7 @@ pub use crate::tianyancha::{
 ///
 /// `Creates` 不保存状态，只提供统一的默认构造入口；需要测试替身、租户隔离或运行时注入时，
 /// 优先使用 `*_with_config` 或 `*_with_factory` 方法显式传入配置和工厂。
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Creates;
 
 impl Creates {

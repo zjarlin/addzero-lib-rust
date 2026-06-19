@@ -1,12 +1,9 @@
-use az_derive_aliases::{
-    apply, deserialize_camel_eq, deserialize_eq, deserialize_partial_eq, impl_default,
-    impl_from_match, plain_copy_eq, plain_eq, serde_camel_partial_eq, serde_code_enum,
-    serialize_camel_eq, serialize_eq,
-};
 use serde_json::Value;
 
 /// 当前支持的具体临时邮箱 provider。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum TempMailProviderKind {
     /// Self-hosted Cloudflare Worker from `dreamhunter2333/cloudflare_temp_email`.
     Cloudflare,
@@ -16,8 +13,27 @@ pub enum TempMailProviderKind {
     Emailnator,
 }
 
+impl TempMailProviderKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 列表端点使用的分页参数；取值会归一化到常见 provider 限制。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PageRequest {
     /// 单页数量，构造时会限制到 `1..=100`。
     pub limit: usize,
@@ -42,13 +58,17 @@ impl PageRequest {
     }
 }
 
-impl_default!(PageRequest => PageRequest {
+impl Default for PageRequest {
+    fn default() -> Self {
+        PageRequest {
     limit: 20,
     offset: 0,
-});
+}
+    }
+}
 
 /// provider 中立的邮箱创建请求。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CreateMailboxRequest {
     /// Preferred local part. Providers may sanitize it or generate a random one.
     pub name: Option<String>,
@@ -119,7 +139,8 @@ impl CreateMailboxRequest {
 }
 
 /// `/open_api/settings` 返回的公开设置。
-#[apply(serde_camel_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TempMailSettings {
     /// 站点标题。
     #[serde(default)]
@@ -193,7 +214,8 @@ pub struct TempMailSettings {
 }
 
 /// `/api/new_address` 请求体。
-#[apply(serialize_camel_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NewAddressRequest {
     /// 首选邮箱本地部分。
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -245,17 +267,21 @@ impl NewAddressRequest {
     }
 }
 
-impl_from_match!(&CreateMailboxRequest => NewAddressRequest {
-    value => NewAddressRequest {
+impl From<&CreateMailboxRequest> for NewAddressRequest {
+    fn from(value: &CreateMailboxRequest) -> Self {
+        match value {
+            value => NewAddressRequest {
         name: value.name.clone(),
         domain: value.domain.clone(),
         cf_token: value.cf_token.clone(),
         enable_random_subdomain: Some(value.enable_random_subdomain),
     }
-});
+        }
+    }
+}
 
 /// `/api/new_address` 和 `/api/address_login` 返回的地址凭据。
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct AddressCredential {
     /// 后续访问该邮箱所需的 JWT。
     pub jwt: String,
@@ -269,7 +295,7 @@ pub struct AddressCredential {
 }
 
 /// provider 中立的邮箱凭据。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TempMailMailbox {
     /// 创建该邮箱的 provider。
     pub provider: TempMailProviderKind,
@@ -312,7 +338,7 @@ impl TempMailMailbox {
 }
 
 /// `/api/settings` 返回的地址设置。
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct AddressSettings {
     /// 当前地址。
     pub address: String,
@@ -322,7 +348,7 @@ pub struct AddressSettings {
 }
 
 /// Cloudflare Temp Email worker 使用的分页响应结构。
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(bound(deserialize = "T: ::serde::Deserialize<'de>"))]
 pub struct ListResponse<T> {
     /// 当前页结果。
@@ -334,7 +360,7 @@ pub struct ListResponse<T> {
 }
 
 /// `/api/mails` 返回的原始邮箱记录。
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct MailRow {
     /// worker 内部邮件 ID。
     pub id: u64,
@@ -362,7 +388,7 @@ pub struct MailRow {
 }
 
 /// provider 中立的邮件摘要。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TempMailMessageSummary {
     /// provider 消息 ID。
     pub id: String,
@@ -378,8 +404,10 @@ pub struct TempMailMessageSummary {
     pub created_at: String,
 }
 
-impl_from_match!(MailRow => TempMailMessageSummary {
-    value => TempMailMessageSummary {
+impl From<MailRow> for TempMailMessageSummary {
+    fn from(value: MailRow) -> Self {
+        match value {
+            value => TempMailMessageSummary {
         id: value.id.to_string(),
         from_address: value.source.unwrap_or_default(),
         from_name: String::new(),
@@ -387,10 +415,12 @@ impl_from_match!(MailRow => TempMailMessageSummary {
         intro: String::new(),
         created_at: value.created_at.unwrap_or_default(),
     }
-});
+        }
+    }
+}
 
 /// provider 中立的邮件详情。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TempMailMessageDetail {
     /// provider 消息 ID。
     pub id: String,
@@ -412,8 +442,10 @@ pub struct TempMailMessageDetail {
     pub created_at: String,
 }
 
-impl_from_match!(MailRow => TempMailMessageDetail {
-    value => {
+impl From<MailRow> for TempMailMessageDetail {
+    fn from(value: MailRow) -> Self {
+        match value {
+            value => {
         let subject = extract_raw_subject(value.raw.as_deref()).unwrap_or_default();
         TempMailMessageDetail {
             id: value.id.to_string(),
@@ -435,10 +467,12 @@ impl_from_match!(MailRow => TempMailMessageDetail {
             created_at: value.created_at.unwrap_or_default(),
         }
     }
-});
+        }
+    }
+}
 
 /// provider 中立的邮件收件人。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TempMailRecipient {
     /// 收件人地址。
     pub address: String,
@@ -447,7 +481,7 @@ pub struct TempMailRecipient {
 }
 
 /// `/api/parsed_mails` 返回的已解析邮箱记录。
-#[apply(deserialize_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize)]
 pub struct ParsedMailRow {
     /// worker 内部邮件 ID。
     pub id: u64,
@@ -484,7 +518,8 @@ pub struct ParsedMailRow {
 }
 
 /// `/api/parsed_mails` 返回的已解析附件元数据。
-#[apply(deserialize_camel_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ParsedMailAttachment {
     /// 文件名。
     #[serde(default)]
@@ -501,7 +536,7 @@ pub struct ParsedMailAttachment {
 }
 
 /// `/api/send_mail` 请求体。
-#[apply(serialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct SendMailRequest {
     /// 发件人显示名。
     pub from_name: String,
@@ -566,7 +601,7 @@ impl SendMailRequest {
 }
 
 /// 写操作端点返回的通用成功响应。
-#[apply(deserialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 pub struct SuccessResponse {
     /// 操作是否成功。
     #[serde(default)]
@@ -577,7 +612,7 @@ pub struct SuccessResponse {
 }
 
 /// 启用地址密码部署的登录请求。
-#[apply(serialize_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct AddressLoginRequest {
     /// 登录邮箱地址。
     pub email: String,

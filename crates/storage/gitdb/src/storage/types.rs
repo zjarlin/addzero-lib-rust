@@ -1,9 +1,5 @@
 //! 存储层围绕 Git 原语建立的类型安全包装。
 
-use az_derive_aliases::{
-    apply, impl_default, plain_copy_eq, plain_copy_eq_hash_ord_display, plain_eq,
-    plain_eq_display, plain_string_value_object, serde_string_value_object,
-};
 use git2::Oid;
 use std::path::PathBuf;
 use anyhow::bail;
@@ -12,7 +8,7 @@ use anyhow::bail;
 ///
 /// 包装 `git2::Oid` 是为了避免把 blob/tree/commit ID 误传到错误位置；
 /// 原始 OID 只在存储模块内部暴露。
-#[apply(plain_copy_eq_hash_ord_display)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, derive_more::Display)]
 #[display("{_0}")]
 pub struct CommitId(pub(crate) Oid);
 
@@ -37,7 +33,7 @@ impl CommitId {
 }
 
 /// Git blob 标识符。
-#[apply(plain_copy_eq_hash_ord_display)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, derive_more::Display)]
 #[display("{_0}")]
 pub struct BlobId(pub(crate) Oid);
 
@@ -51,7 +47,7 @@ impl BlobId {
 }
 
 /// Git tree 标识符。
-#[apply(plain_copy_eq_hash_ord_display)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, derive_more::Display)]
 #[display("{_0}")]
 pub struct TreeId(pub(crate) Oid);
 
@@ -70,9 +66,22 @@ impl TreeId {
 /// 表名会进入 Git 路径，因此这里限制字符集，避免路径穿越，并保持和
 /// 文件系统/Git 引用约束兼容。合法表名长度为 1 到 64，只允许 ASCII
 /// 字母、数字、下划线、连字符，且必须以字母或下划线开头。
-#[apply(serde_string_value_object)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize, derive_more::Display, derive_more::AsRef)]
+#[as_ref(forward)]
 #[display("{_0}")]
 pub struct TableName(String);
+
+impl TableName {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        self.as_ref()
+    }
+
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
 
 impl TableName {
     /// 不能作为用户表使用的保留名称。
@@ -122,9 +131,22 @@ impl TableName {
 ///
 /// 行键会作为 JSON 文件名使用，因此需要和表名类似的路径安全约束。
 /// 实际调用中通常由 ULID/UUID 生成，而不是人工输入。
-#[apply(serde_string_value_object)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize, derive_more::Display, derive_more::AsRef)]
+#[as_ref(forward)]
 #[display("{_0}")]
 pub struct RowKey(String);
+
+impl RowKey {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        self.as_ref()
+    }
+
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
 
 impl RowKey {
     pub fn new(key: impl Into<String>) -> anyhow::Result<Self> {
@@ -162,7 +184,7 @@ impl RowKey {
 /// 仓库中一行数据的完整路径。
 ///
 /// 路径格式固定为 `{table}/{row_key}.json`。
-#[apply(plain_eq_display)]
+#[derive(Clone, Debug, Eq, PartialEq, derive_more::Display)]
 #[display("{table}/{key}.json")]
 pub struct RowPath {
     pub table: TableName,
@@ -182,9 +204,22 @@ impl RowPath {
 }
 
 /// Git 分支名，对事务分支有固定前缀约定。
-#[apply(plain_string_value_object)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, derive_more::Display, derive_more::AsRef)]
+#[as_ref(forward)]
 #[display("{_0}")]
 pub struct BranchName(String);
+
+impl BranchName {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        self.as_ref()
+    }
+
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
 
 impl BranchName {
     /// 主分支名。
@@ -237,7 +272,7 @@ impl BranchName {
 }
 
 /// Git 提交签名，包含作者/提交者信息。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GitSignature {
     pub name: String,
     pub email: String,
@@ -263,17 +298,21 @@ impl GitSignature {
     }
 }
 
-impl_default!(GitSignature => GitSignature::gitdb());
+impl Default for GitSignature {
+    fn default() -> Self {
+        GitSignature::gitdb()
+    }
+}
 
 /// 两个提交之间的一条路径变更。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Change {
     pub path: PathBuf,
     pub status: ChangeStatus,
 }
 
 /// diff 中的路径变更类型。
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ChangeStatus {
     Added,
     Deleted,

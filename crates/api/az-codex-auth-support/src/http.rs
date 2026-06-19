@@ -1,12 +1,11 @@
 use crate::config::DuckMailConfig;
 use anyhow::{Context, bail};
-use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::Url;
 use reqwest::blocking::{Client, RequestBuilder, Response};
 use reqwest::header::{ACCEPT, HeaderMap, HeaderValue};
 use serde::de::DeserializeOwned;
 
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct HttpClient {
     base_url: Url,
     client: Client,

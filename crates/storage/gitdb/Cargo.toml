@@ -18,7 +18,6 @@ path = "src/lib.rs"
 
 [dependencies]
 automod.workspace = true
-az-derive-aliases.workspace = true
 anyhow.workspace = true
 derive_more.workspace = true
 git2 = "0.21.0"

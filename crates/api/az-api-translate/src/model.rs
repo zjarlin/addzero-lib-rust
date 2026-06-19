@@ -1,9 +1,8 @@
 //! 翻译 API 的请求选项与响应数据模型。
 
-use az_derive_aliases::{apply, serde_eq_default, serde_partial_eq};
 
 /// 翻译请求的附加选项。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TranslateOptions {
     /// 是否尽量保留换行等原文格式。
     pub preserve_formatting: bool,
@@ -39,7 +38,7 @@ impl TranslateOptions {
 }
 
 /// 单次翻译请求的结果。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TranslateResult {
     /// 主译文。
     pub translated_text: String,
@@ -54,7 +53,7 @@ pub struct TranslateResult {
 }
 
 /// 语言检测结果。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DetectedLanguage {
     /// ISO 639-1 语言代码，或 provider 使用的兼容代码。
     pub language: String,

@@ -8,12 +8,11 @@ use crate::model::{
 use crate::provider::TempMailProvider;
 use crate::util::{required_non_blank, sha256_hex};
 use crate::config::ApiConfig;
-use az_derive_aliases::{apply, plain_clone_debug};
 use reqwest::header::ACCEPT;
 use serde_json::json;
 
 /// `dreamhunter2333/cloudflare_temp_email` 部署的阻塞 API 客户端。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct CloudflareTempMailApi {
     http: HttpApiClient,
 }

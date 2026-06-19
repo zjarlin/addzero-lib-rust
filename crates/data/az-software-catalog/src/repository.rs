@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, anyhow};
-use az_derive_aliases::{apply, plain_clone};
 use chrono::Utc;
 use sea_orm::{
     ActiveValue::NotSet, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
@@ -20,7 +19,7 @@ use crate::{
     },
 };
 
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub(crate) struct SoftwareCatalogRepository {
     db: DatabaseConnection,
 }

@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use az_derive_aliases::{apply, deserialize_debug};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -12,7 +11,7 @@ use crate::types::{Skill, SkillSource, SkillUpsert};
 const KEYWORDS_START: &str = "<!-- keywords:start -->";
 const KEYWORDS_END: &str = "<!-- keywords:end -->";
 
-#[apply(deserialize_debug)]
+#[derive(Debug, serde::Deserialize)]
 struct Frontmatter {
     name: Option<String>,
     description: Option<String>,

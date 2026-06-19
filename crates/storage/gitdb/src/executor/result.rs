@@ -1,11 +1,10 @@
 //! Query result types.
 
-use az_derive_aliases::{apply, plain_clone_debug, plain_debug};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
 /// Result of a query execution.
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub enum QueryResult {
     /// Rows returned from SELECT.
     Select(ResultSet),
@@ -41,7 +40,7 @@ impl QueryResult {
 }
 
 /// A set of rows from a SELECT query.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct ResultSet {
     /// Column names in order.
     pub columns: Vec<String>,

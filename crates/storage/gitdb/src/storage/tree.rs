@@ -10,7 +10,6 @@
 
 use std::path::Path;
 
-use az_derive_aliases::{apply, plain_debug};
 use git2::{FileMode, ObjectType, Repository, Tree, TreeBuilder as Git2TreeBuilder};
 
 use crate::storage::error;
@@ -21,7 +20,7 @@ use crate::storage::types::{RowKey, RowPath, TableName, TreeId};
 ///
 /// this provides safe, immutable access to the tree structure.
 /// think of it as a snapshot - it won't change even if new commits are made.
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct TreeHandle<'repo> {
     tree: Tree<'repo>,
 }

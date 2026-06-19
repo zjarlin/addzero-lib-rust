@@ -1,6 +1,5 @@
 //! Gradle Version Catalog 数据模型。
 
-use az_derive_aliases::{apply, plain_default_eq, plain_eq};
 
 /// `libs.versions.toml` 不存在时写入的默认模板。
 ///
@@ -21,7 +20,7 @@ spring = ["spring-boot", "spring-core"]
 /// Gradle Version Catalog 的结构化表示。
 ///
 /// 对应 `libs.versions.toml` 中的 `[versions]`、`[libraries]`、`[plugins]` 和 `[bundles]` 四个顶层分组。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct VersionCatalog {
     /// `[versions]` 分组中的版本别名。
     pub versions: Vec<VersionEntry>,
@@ -36,7 +35,7 @@ pub struct VersionCatalog {
 /// `[libraries]` 中的单个依赖条目。
 ///
 /// `version` 和 `version_ref` 分别对应 TOML 中的直接版本与 `version.ref` 引用，二者都可能为空。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LibraryEntry {
     /// catalog 内部使用的 library key。
     pub key: String,
@@ -51,7 +50,7 @@ pub struct LibraryEntry {
 }
 
 /// `[plugins]` 中的单个插件条目。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PluginEntry {
     /// catalog 内部使用的 plugin key。
     pub key: String,
@@ -64,7 +63,7 @@ pub struct PluginEntry {
 }
 
 /// `[versions]` 中的单个版本别名。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VersionEntry {
     /// 版本引用名。
     pub version_ref: String,
@@ -73,7 +72,7 @@ pub struct VersionEntry {
 }
 
 /// `[bundles]` 中的单个依赖组合。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BundleEntry {
     /// bundle key。
     pub key: String,

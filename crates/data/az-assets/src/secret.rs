@@ -1,5 +1,4 @@
 use anyhow::{Context, Result, anyhow, bail};
-use az_derive_aliases::{apply, plain_clone, serde_eq};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use ring::{
     aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey},
@@ -10,7 +9,7 @@ use sha2::{Digest, Sha256};
 /// 已加密的 provider 密钥。
 ///
 /// `ciphertext` 当前格式为 `v1:<nonce-base64>:<payload-base64>`。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EncryptedSecret {
     /// 加密主密钥标识。
     pub key_id: String,
@@ -21,7 +20,7 @@ pub struct EncryptedSecret {
 /// API key 加解密工具。
 ///
 /// 当前使用 AES-256-GCM；传入 32 字节 base64 主密钥时直接使用，否则对字符串做 SHA-256 派生。
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct SecretCipher {
     key_id: String,
     key: LessSafeKey,

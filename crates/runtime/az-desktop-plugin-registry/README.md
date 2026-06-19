@@ -28,10 +28,9 @@ use az_desktop_plugin::api::{
     DesktopInitContext, DesktopEvent, DesktopExecContext,
     DesktopViewContext, DesktopRenderLayer, Plugin, EventPropagation,
 };
-use az_derive_aliases::{apply, plain_default};
 use az_desktop_plugin_registry::register_desktop_plugin;
 
-#[apply(plain_default)]
+#[derive(Default)]
 struct MyPlugin;
 
 impl Plugin<DesktopInitContext, DesktopEvent, DesktopExecContext, DesktopViewContext, DesktopRenderLayer>
@@ -63,5 +62,4 @@ for plugin in &plugins {
 ## 依赖的 crates
 
 - `az-desktop-plugin` — 插件 trait 定义和上下文类型
-- `az-derive-aliases` — 示例和内部注册结构使用的 derive alias
 - `inventory` — 编译期分布式切片收集机制

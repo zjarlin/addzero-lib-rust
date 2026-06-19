@@ -1,13 +1,12 @@
 use crate::random::random_bytes;
 use anyhow::Context;
-use az_derive_aliases::{apply, plain_eq};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use reqwest::Url;
 use sha2::{Digest, Sha256};
 
 /// OAuth 授权码流程使用的 RFC 7636 PKCE 材料。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PkcePair {
     /// OAuth PKCE code verifier。
     pub code_verifier: String,

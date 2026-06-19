@@ -10,7 +10,6 @@ authors.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 automod.workspace = true
-az-derive-aliases.workspace = true
 sea-orm.workspace = true
 sea-orm-migration.workspace = true
 tokio.workspace = true

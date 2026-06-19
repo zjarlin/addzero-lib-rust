@@ -385,6 +385,7 @@ fn output_label(output: &az_algorithm::catalog::model::AlgorithmOutputKind) -> S
         az_algorithm::catalog::model::AlgorithmOutputKind::Confidence => "置信度".to_string(),
         az_algorithm::catalog::model::AlgorithmOutputKind::ClassLabel => "分类标签".to_string(),
         az_algorithm::catalog::model::AlgorithmOutputKind::Identity => "身份".to_string(),
+        az_algorithm::catalog::model::AlgorithmOutputKind::SimilarityScore => "相似度".to_string(),
         az_algorithm::catalog::model::AlgorithmOutputKind::Text => "文本内容".to_string(),
         az_algorithm::catalog::model::AlgorithmOutputKind::QrPayload => "二维码载荷".to_string(),
         az_algorithm::catalog::model::AlgorithmOutputKind::EventCount => "事件计数".to_string(),

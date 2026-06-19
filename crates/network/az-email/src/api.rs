@@ -37,10 +37,6 @@
 //! # }
 //! ```
 use anyhow::{Context, Result, bail};
-use az_derive_aliases::{
-    apply, from_plain_eq, impl_enum_kind, plain_clone_debug, plain_default_copy_eq,
-    plain_default_eq, plain_eq_redacted, serde_code_enum,
-};
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
@@ -53,7 +49,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 /// SMTP 连接配置。
 ///
 /// `password` 在 `Debug` 输出中会被脱敏；`enable_ssl` 表示 SMTPS wrapper TLS，`enable_tls` 表示普通 SMTP 上要求 TLS。
-#[apply(plain_eq_redacted)]
+#[derive(Clone, derive_more::Debug, Eq, PartialEq)]
 pub struct EmailConfig {
     /// SMTP 服务器主机名。
     pub host: String,
@@ -150,7 +146,7 @@ pub type EmailConfigBuilder = EmailConfig;
 /// 待发送的邮件消息。
 ///
 /// 支持纯文本、HTML、多收件人以及本地文件附件；附件路径会在 `build_message` 阶段读取。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EmailMessage {
     /// 发件人地址。
     pub from: String,
@@ -264,22 +260,48 @@ pub type BoxEmailSender = Box<dyn EmailSender + Send + Sync>;
 /// 邮件发送器类型代码。
 ///
 /// 该枚举的 serde wire value、`code()` 和 `Display` 统一使用 snake_case 约定。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum EmailSenderKind {
     /// SMTP 发送器。
     Smtp,
 }
 
+impl EmailSenderKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 邮件发送器构造配置。
-#[apply(from_plain_eq)]
+#[derive(Clone, Debug, derive_more::From, PartialEq, Eq)]
 pub enum EmailSenderConfig {
     /// SMTP 发送器配置。
     Smtp(EmailConfig),
 }
 
-impl_enum_kind!(EmailSenderConfig => EmailSenderKind, kind {
-    Self::Smtp(_) => EmailSenderKind::Smtp,
-});
+impl EmailSenderConfig {
+    #[must_use]
+    pub const fn kind(&self) -> EmailSenderKind {
+        match self {
+            Self::Smtp(_) => EmailSenderKind::Smtp
+        }
+    }
+}
 
 /// 邮件发送器工厂抽象。
 ///
@@ -292,7 +314,7 @@ pub trait EmailSenderFactory: Send + Sync {
 /// 内置发送器工厂。
 ///
 /// 当前只支持 SMTP，后续新增 provider 时应在 `EmailSenderKind` 和 `EmailSenderConfig` 中同步扩展。
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct BuiltinEmailSenderFactory;
 
 impl EmailSenderFactory for BuiltinEmailSenderFactory {
@@ -311,7 +333,7 @@ pub fn build_email_sender(config: EmailSenderConfig) -> Result<BoxEmailSender> {
 /// 基于 `lettre` 的 SMTP 邮件发送器。
 ///
 /// 发送器持有构建好的 `SmtpTransport`，适合作为全局默认 sender 或注入到服务层复用。
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct SmtpEmailSender {
     config: EmailConfig,
     transport: SmtpTransport,

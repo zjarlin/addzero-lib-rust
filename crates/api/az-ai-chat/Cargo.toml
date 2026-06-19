@@ -10,7 +10,6 @@ description = "AI/LLM 供应商统一聊天接口，覆盖 OpenAI 兼容接口�
 [dependencies]
 anyhow.workspace = true
 automod.workspace = true
-az-derive-aliases.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true

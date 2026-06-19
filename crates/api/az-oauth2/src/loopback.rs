@@ -1,6 +1,5 @@
 use crate::pkce::PkcePair;
 use anyhow::{Context, anyhow, bail};
-use az_derive_aliases::{apply, plain_debug, plain_eq};
 use reqwest::Url;
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -9,7 +8,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 /// Active loopback authorization-code session.
-#[apply(plain_debug)]
+#[derive(Debug)]
 pub struct LoopbackAuthorizationSession {
     /// URL the user should open in the system browser.
     pub authorization_url: String,
@@ -93,7 +92,7 @@ impl LoopbackAuthorizationSession {
 }
 
 /// Parsed OAuth loopback callback.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OAuth2AuthorizationCallback {
     /// Authorization code returned by the provider.
     pub code: String,

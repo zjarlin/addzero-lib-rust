@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, anyhow};
-use az_derive_aliases::{apply, plain_clone};
 use chrono::Utc;
 use sea_orm::{
     ActiveValue::NotSet,
@@ -15,7 +14,7 @@ use crate::{
     types::{KnowledgeDocument, KnowledgeSourceSpec},
 };
 
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub(crate) struct KnowledgeRepository {
     db: DatabaseConnection,
 }

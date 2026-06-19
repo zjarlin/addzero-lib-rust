@@ -9,7 +9,6 @@
 
 use std::path::PathBuf;
 
-use az_derive_aliases::{apply, plain_clone_debug};
 use chrono::{DateTime, TimeZone, Utc};
 use git2::{Delta, Diff, DiffOptions, Repository, Revwalk, Sort};
 
@@ -18,7 +17,7 @@ use crate::storage::tree::TreeHandle;
 use crate::storage::types::{Change, ChangeStatus, CommitId, GitSignature, TreeId};
 
 /// information about a commit
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct CommitInfo {
     pub id: CommitId,
     pub tree_id: TreeId,

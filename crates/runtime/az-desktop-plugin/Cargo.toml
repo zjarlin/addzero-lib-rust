@@ -7,7 +7,6 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-az-derive-aliases.workspace = true
 az-assets.workspace = true
 az-drive-agent.workspace = true
 az-drive-store.workspace = true

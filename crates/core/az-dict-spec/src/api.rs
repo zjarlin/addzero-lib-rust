@@ -18,11 +18,10 @@
 //! - 整数型字典只能使用 `rawIntValue`，字符串型字典只能使用 `rawTextValue`
 
 use anyhow::{Result, bail};
-use az_derive_aliases::{apply, plain_copy_eq, serde_camel_eq, serde_code_enum};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DictEnumItem<T>
 where
     T: Copy + 'static,
@@ -34,7 +33,8 @@ where
     pub meta_json: Option<&'static str>,
 }
 
-#[apply(serde_camel_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DictionarySpec {
     pub code: String,
     pub name: String,
@@ -120,7 +120,8 @@ impl DictionarySpec {
     }
 }
 
-#[apply(serde_camel_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DictionaryItemSpec {
     pub code: String,
     pub label: String,
@@ -164,10 +165,31 @@ impl DictionaryItemSpec {
     }
 }
 
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum RawValueKind {
     Int,
     String,
+}
+
+impl RawValueKind {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
 }
 
 fn default_true() -> bool {

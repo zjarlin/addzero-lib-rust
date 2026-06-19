@@ -1,4 +1,3 @@
-use az_derive_aliases::{apply, serialize_clone_debug};
 use az_reflection::cache::ExpiringCache;
 use az_reflection::metainfo::{
     MetaInfo, extract_table_name, get_field_infos, get_simple_field_info_str, guess_column_name,
@@ -12,18 +11,18 @@ use std::num::NonZeroUsize;
 use std::thread;
 use std::time::Duration;
 
-#[apply(serialize_clone_debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 struct Address {
     street: String,
     zip_code: String,
 }
 
-#[apply(serialize_clone_debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 struct Role {
     code: String,
 }
 
-#[apply(serialize_clone_debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 struct User {
     id: Option<u64>,
     name: String,

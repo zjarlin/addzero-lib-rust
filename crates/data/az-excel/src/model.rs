@@ -1,10 +1,7 @@
 use crate::cell_reference::{encode_cell_reference, parse_cell_reference};
 use anyhow::{Context, Result, bail};
-use az_derive_aliases::{
-    apply, from_display, plain_copy_eq, plain_default_partial_eq, plain_partial_eq,
-};
 
-#[apply(from_display)]
+#[derive(Clone, Debug, derive_more::From, PartialEq, derive_more::Display)]
 pub enum CellValue {
     #[display("")]
     Empty,
@@ -36,7 +33,7 @@ impl From<f64> for CellValue {
     }
 }
 
-#[apply(plain_copy_eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Range {
     pub start_row: usize,
     pub start_col: usize,
@@ -80,7 +77,7 @@ impl Range {
     }
 }
 
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ExcelSheet {
     pub name: String,
     pub cells: Vec<Vec<CellValue>>,
@@ -117,7 +114,7 @@ impl ExcelSheet {
     }
 }
 
-#[apply(plain_default_partial_eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExcelWorkbook {
     pub sheets: Vec<ExcelSheet>,
 }
@@ -149,7 +146,7 @@ impl ExcelWorkbook {
     }
 }
 
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ExportSheetConfig {
     pub name: String,
     pub headers: Vec<String>,

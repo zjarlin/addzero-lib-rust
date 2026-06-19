@@ -17,7 +17,6 @@ serde_json.workspace = true
 syn.workspace = true
 
 [dev-dependencies]
-az-derive-aliases.workspace = true
 az-dict-spec.workspace = true
 derive_more.workspace = true
 trybuild.workspace = true

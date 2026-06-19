@@ -1,10 +1,9 @@
 use crate::client::{BlockingS3StorageClient, S3StorageClient, S3StorageClientFactory};
 use crate::types::{RustfsConfig, S3ClientConfig};
-use az_derive_aliases::{apply, plain_default_copy_eq};
 use std::sync::Arc;
 
 /// 构造 S3 兼容对象存储客户端的命名空间入口。
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Rustfs;
 
 impl Rustfs {

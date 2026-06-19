@@ -9,7 +9,6 @@
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use az_derive_aliases::{apply, plain_clone, plain_clone_debug, plain_clone_debug_display};
 use git2::Repository;
 use parking_lot::RwLock;
 
@@ -24,7 +23,7 @@ use crate::storage::types::{BranchName, CommitId, GitSignature, RowKey, TableNam
 ///
 /// This provides local shared access to all Git operations.
 /// Clone this handle inside one thread; `git2::Repository` is not a cross-thread handle.
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct GitRepository {
     inner: Rc<GitRepositoryInner>,
 }
@@ -556,14 +555,14 @@ impl GitRepository {
 }
 
 /// A snapshot of the tree structure at a commit.
-#[apply(plain_clone_debug)]
+#[derive(Clone, Debug)]
 pub struct TreeSnapshot {
     pub tree_id: TreeId,
     pub tables: Vec<TableName>,
 }
 
 /// Statistics about the repository.
-#[apply(plain_clone_debug_display)]
+#[derive(Clone, Debug, derive_more::Display)]
 #[display(
     "Repository Statistics:\n  Tables: {table_count}\n  Total Rows: {total_rows}\n  Branches: {branch_count}\n  Active Transactions: {active_transactions}\n"
 )]

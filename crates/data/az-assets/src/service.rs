@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use az_derive_aliases::{apply, plain_clone, plain_default};
 use az_persistence::context::PersistenceContext;
 use chrono::Utc;
 use tokio::sync::Mutex;
@@ -17,7 +16,7 @@ use crate::{
     },
 };
 
-#[apply(plain_default)]
+#[derive(Default)]
 struct MemoryStore {
     assets: BTreeMap<Uuid, Asset>,
     edges: BTreeMap<(Uuid, Uuid, String), AssetEdge>,
@@ -28,7 +27,7 @@ struct MemoryStore {
 /// 资产图谱和 AI provider 配置服务。
 ///
 /// 服务优先使用 PostgreSQL；没有可用连接时使用内存存储，便于本地开发和测试。
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct AssetService {
     pg: Option<PgRepo>,
     memory: Arc<Mutex<MemoryStore>>,

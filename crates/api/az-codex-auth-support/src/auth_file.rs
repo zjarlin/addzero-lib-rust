@@ -1,6 +1,5 @@
 use anyhow::{Context, anyhow, bail};
-use az_derive_aliases::{apply, plain_eq, serde_eq, serde_eq_default};
-use az_str::sanitize::sanitize_ascii_label;
+use az_str::sanitize::sanitize_file_name_with_extension;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE;
 use chrono::{DateTime, FixedOffset, Offset, SecondsFormat, Utc};
@@ -9,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// 写入 Codex 认证文件所需的 OAuth token 响应字段。
-#[apply(serde_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct OAuthTokens {
     /// OAuth access token。
     #[serde(default)]
@@ -23,7 +22,7 @@ pub struct OAuthTokens {
 }
 
 /// 兼容 CLIProxyAPI 的 Codex 认证文件内容。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CodexAuthFile {
     /// 认证文件类型，当前固定为 `codex`。
     #[serde(rename = "type")]
@@ -114,7 +113,7 @@ impl CodexAuthFile {
 }
 
 /// 认证文件写入结果元数据。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthFileWriteOutcome {
     /// 实际写入的文件路径。
     pub path: PathBuf,
@@ -142,17 +141,7 @@ pub fn decode_jwt_payload(token: &str) -> anyhow::Result<Value> {
 
 /// 创建文件系统安全的认证文件名，同时保留可读邮箱标签。
 pub fn safe_auth_filename(email: impl AsRef<str>) -> String {
-    let mut stem = sanitize_ascii_label(email.as_ref(), "@._-+", '_');
-
-    if stem.trim_matches('_').is_empty() {
-        stem = "codex-auth".to_owned();
-    }
-
-    if !stem.ends_with(".json") {
-        stem.push_str(".json");
-    }
-
-    stem
+    sanitize_file_name_with_extension(email.as_ref(), "@._-+", '_', "json", "codex-auth")
 }
 
 #[cfg(test)]

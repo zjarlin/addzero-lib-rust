@@ -38,7 +38,6 @@
 | P1 | `az-excel`、`az-knowledge` | 数据 crate 入口说明存在，但公开模型和操作仍缺少中文契约。 | 补 Excel 导入/导出语义、知识源扫描/正式持久化与临时扫描结果的区别。 |
 | P1 | `az-ssh`、`az-remote-session`、`az-cli-repl` | 已补一轮 item-level 中文 rustdoc，SSH 会话/文件传输、REPL 解析、远程会话中继生命周期已明确。 | 后续新增交互输入、远程帧类型或连接复用能力时同步补失败边界。 |
 | P1 | `az-aio-plugin-config-center`、`az-aio-plugin-edge-gateway` | 插件 crate 通过 README 注入入口，但注册规格和 toolbar/page 贡献边界还可继续中文化。 | 给 provider、route、toolbar action、page contribution 的公开常量和函数补简短 rustdoc。 |
-| P2 | `az-derive-aliases` | README 已有中文 alias 清单；机械扫描显示宏公开项多，但不应逐个堆重复说明。 | 只维护 README 的功能型 alias 分层，新增 alias 时同步说明“功能组合”，避免按 struct/enum 拆语义宏。 |
 | P2 | `gitdb`、`az-browser-automation` | 总体已补多轮中文说明，但仍有大量英文历史 rustdoc。 | 继续按模块切片替换核心公开项，不做全量机械翻译。 |
 
 ### 巡检判断
@@ -86,7 +85,7 @@
 | `api` | 10 | 契约和外部 API crate 普遍已有中文 crate 说明，部分 item-level rustdoc 仍是英文。 | wire 格式、认证边界、外部服务失败语义继续补中文。 |
 | `apps` | 5 | 多数通过 README 注入 rustdoc，适合文档站收录。 | 插件职责、admin 路由挂载和 provider 边界保持 README 优先。 |
 | `config` | 2 | TOML/YAML 都有较完整中文入口说明。 | 错误分支和环境变量替换约束补到公开 API。 |
-| `core` | 18 | 基础工具 crate 基本已有中文说明；`az-derive-aliases` 用 README 承载 alias 全量清单。 | 宏 alias 只补功能层说明，不为每个机械 derive 重复造长注释。 |
+| `core` | 17 | 基础工具 crate 基本已有中文说明；机械 derive alias 已删除，普通类型应直接写显式 `#[derive(...)]`。 | 新增宏时只保留真正的代码生成职责，避免用宏隐藏普通 derive 组合。 |
 | `data` | 12 | 数据、DDL、SQL、持久化 crate 已有中文入口说明。 | AST、迁移、PG 正式数据源边界继续用 crate/module doc 表达。 |
 | `network` | 13 | 协议、远程、邮件、临时邮箱等边界说明较完整；部分自动化/代理 crate 通过 README 承载。 | 外部服务、鉴权、协议脱敏、不可自动化边界需要保持中文可审计。 |
 | `runtime` | 22 | admin、脚本、Drive agent、starter 等 crate 已形成中文入口说明；`az-cli` 是二进制入口。 | 插件注册宏和 CLI 操作定义是最高价值补注释点。 |
@@ -111,8 +110,8 @@
 - `az-rustfs`：补齐 S3 兼容配置、凭证脱敏、对象元数据、客户端 trait、阻塞客户端、内存客户端、分片上传进度和断点续传状态的中文 rustdoc。
 - `toasty-driver-gitdb`：补齐 Toasty 能力矩阵、driver URL、连接工作线程和 gitdb/toasty 错误转换边界的中文 rustdoc。
 - `az-array`、`az-common`、`az-model`：补齐基础集合工具、本地日期时间工具、实体分页模型 trait 的中文 rustdoc，明确边界条件、时区语义、分页零基 offset 和空分页规则。
-- `az-derive-aliases`、`gitdb::catalog`：新增 `serde_code_display_props_enum` 功能型 alias，并把 `DataType` 的 wire code、SQL 展示名和 `strum::EnumProperty` 元数据关系写进中文 rustdoc，替换手写 SQL 类型 match 表。
-- `az-derive-aliases`、`gitdb::storage::types`：新增 `serde_string_value_object` / `plain_string_value_object`，把 `TableName`、`RowKey`、`BranchName` 的 `as_str()` / `into_string()` 样板收进功能型 alias，同时保留各自的业务校验。
+- `gitdb::catalog`：把 `DataType` 的 wire code、SQL 展示名和 `strum::EnumProperty` 元数据关系写进中文 rustdoc，替换手写 SQL 类型 match 表。
+- `gitdb::storage::types`：保留 `TableName`、`RowKey`、`BranchName` 的业务校验，并显式实现 `as_str()` / `into_string()`。
 - `az-str`：补齐字符串规格化、前后缀处理、命名转换、KMP 匹配、模板格式化、Markdown/HTML 提取、键值对解析和特殊字符转义等公开工具函数的中文 rustdoc，明确空值、UTF-8 字节偏移、宽松数值转换和上下文专用编码器边界。
 - `az-creates`：补齐统一错误类型、`Creates` 门面、Maven Central 包装器、天眼查普通/华为云签名客户端和关键响应 DTO 的中文 rustdoc，明确外部 API 凭证边界、上游响应兼容、provider factory 依赖注入入口和错误链保留方式。
 - `az-yml`、`az-toml`：补齐 YAML 路径查询、环境变量替换、Spring profile 激活、数据库配置提取、Version Catalog 解析/初始化/合并和 TOML 插入宏的中文 rustdoc，明确路径语法、默认值、脱敏、排序输出和非解析式文本插入边界。
@@ -127,7 +126,7 @@
 
 ### 继续建议
 
-- `az-derive-aliases`：README 已经是中文 alias 清单，后续只在新增 alias 时维护“功能型分层”，不要再按 struct/enum 或业务语义拆出大量平行宏。
+- 机械 derive alias 已删除；后续新增类型直接写显式 `#[derive(...)]`，不要再按 struct/enum 或业务语义拆出大量平行宏。
 - `az-browser-automation`：后续新增记录步骤时继续用 `strum(message = "...")` 承载长说明，避免手写 match 和注释分离。
 - `az-cli-market-contract`、`az-config-center-contract`：后续扩展字段或新增 wire enum 时同步补中文 rustdoc 和兼容性测试。
 - `az-drive-store`、`gitdb`：存储层仍需继续用模块级中文说明固定对象层、元数据层、shard 层边界；`toasty-driver-gitdb` 的 driver 边界已补一轮。
@@ -135,7 +134,7 @@
 
 ## 不建议补注释的位置
 
-- 纯机械 derive alias 调用，如 `#[apply(plain_eq)]`、`#[apply(serde_eq)]`，除非该类型的语义边界不明显。
+- 纯机械 derive 组合本身不需要注释，除非该类型的语义边界不明显。
 - SQL/DDL AST、协议帧 payload enum、远程输入事件等结构型 enum，不应为了“统一 code enum”而改 wire 形状或加误导性 code 注释。
 - 隐藏宏 helper 的展开细节不应写成公开教程；公开说明放在 README 和对外宏 rustdoc。
 - 测试里不需要解释每个 `assert_eq!` 字面含义，只补关键断言为什么守住某个协议或兼容边界。

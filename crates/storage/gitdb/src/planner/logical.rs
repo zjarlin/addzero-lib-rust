@@ -6,15 +6,13 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use az_derive_aliases::{
-    apply, plain_code_display_no_default_enum, plain_eq_hash, plain_partial_eq,
-};
 
 // Re-export Expr from sql for use in plans.
 pub use crate::sql::Expr;
 
 /// planner 支持的逻辑连接类型。
-#[apply(plain_code_display_no_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum JoinType {
     #[display("INNER")]
     Inner,
@@ -28,8 +26,28 @@ pub enum JoinType {
     Cross,
 }
 
+impl JoinType {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 逻辑聚合函数类型。
-#[apply(plain_code_display_no_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum AggregateFunction {
     #[display("COUNT")]
     Count,
@@ -45,8 +63,28 @@ pub enum AggregateFunction {
     CountDistinct,
 }
 
+impl AggregateFunction {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 排序方向。
-#[apply(plain_code_display_no_default_enum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[strum(serialize_all = "snake_case")]
 pub enum SortDirection {
     #[display("ASC")]
     Ascending,
@@ -54,8 +92,27 @@ pub enum SortDirection {
     Descending,
 }
 
+impl SortDirection {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 排序规则。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SortSpec {
     pub column: String,
     pub direction: SortDirection,
@@ -63,7 +120,7 @@ pub struct SortSpec {
 }
 
 /// 可带表别名的列引用。
-#[apply(plain_eq_hash)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ColumnRef {
     pub table: Option<String>,
     pub column: String,
@@ -98,7 +155,7 @@ impl fmt::Display for ColumnRef {
 /// 逻辑查询计划树。
 ///
 /// 每个节点表达一种关系代数操作，并对其输入节点进行变换。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LogicalPlan {
     /// 扫描表，返回所有行。
     Scan {
@@ -162,7 +219,7 @@ pub enum LogicalPlan {
 }
 
 /// 投影中的一列。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ProjectColumn {
     /// 输入中的所有列。
     Star,
@@ -175,7 +232,7 @@ pub enum ProjectColumn {
 }
 
 /// 聚合表达式。
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AggregateExpr {
     pub function: AggregateFunction,
     pub column: Option<String>,

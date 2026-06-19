@@ -1,4 +1,3 @@
-use az_derive_aliases::{apply, plain_clone};
 use az_persistence::context::PersistenceContext;
 use az_str::{
     api::{MarkdownListMarkerMode, clean_markdown_plain_text, truncate_chars},
@@ -16,12 +15,12 @@ use crate::{
     },
 };
 
-#[apply(plain_clone)]
+#[derive(Clone)]
 pub struct KnowledgeService {
     backend: KnowledgeBackend,
 }
 
-#[apply(plain_clone)]
+#[derive(Clone)]
 enum KnowledgeBackend {
     Postgres(KnowledgeRepository),
     Sqlite(SqliteKnowledgeRepository),

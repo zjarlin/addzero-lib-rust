@@ -9,7 +9,6 @@
 //! - [`Pageable`] — 分页请求参数
 //! - [`PageResult`] — 分页响应容器
 
-use az_derive_aliases::{apply, serde_eq};
 use chrono::{DateTime, Utc};
 
 /// 带主键的实体抽象。
@@ -65,7 +64,7 @@ pub trait Pageable {
 }
 
 /// 分页响应容器。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PageResult<T> {
     /// 当前页的条目列表。
     pub items: Vec<T>,

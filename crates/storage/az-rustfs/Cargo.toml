@@ -10,7 +10,6 @@ description = "S3 兼容对象存储客户端抽象：分片上传、断点续�
 [dependencies]
 anyhow.workspace = true
 automod.workspace = true
-az-derive-aliases.workspace = true
 az-str.workspace = true
 base64.workspace = true
 chrono.workspace = true

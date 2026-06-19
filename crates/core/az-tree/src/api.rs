@@ -33,12 +33,11 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use anyhow::bail;
-use az_derive_aliases::{apply, serde_partial_eq};
 
 /// 通用树节点。
 ///
 /// 每个节点持有标识符、可选的父标识符、子节点列表和可选的 JSON 数据。
-#[apply(serde_partial_eq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TreeNode<T> {
     /// 节点唯一标识符。
     pub id: T,

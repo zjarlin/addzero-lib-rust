@@ -2,9 +2,6 @@
 
 #![allow(non_snake_case)]
 
-use az_derive_aliases::{
-    apply, dioxus_props, impl_from_with_default, plain_default_copy_eq, plain_default_eq, plain_eq,
-};
 use dioxus::prelude::*;
 
 use crate::table::{
@@ -13,7 +10,7 @@ use crate::table::{
 };
 
 /// 表头和单元格内容的水平对齐方式。
-#[apply(plain_default_copy_eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum DataTableAlign {
     /// 内容左对齐。
     #[default]
@@ -34,7 +31,7 @@ impl DataTableAlign {
     }
 }
 /// [`DataTable`] 的列定义。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DataTableColumn {
     /// 调用方使用的稳定列键。
     pub key: String,
@@ -51,7 +48,7 @@ pub struct DataTableColumn {
 }
 
 /// [`DataTable`] 行内的单元格数据。
-#[apply(plain_default_eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DataTableCell {
     /// 可见文本内容。
     pub value: String,
@@ -61,16 +58,26 @@ pub struct DataTableCell {
     pub align: Option<DataTableAlign>,
 }
 
-impl_from_with_default!(&str => DataTableCell {
-    value: |source| source.to_owned(),
-});
+impl From<&str> for DataTableCell {
+    fn from(source: &str) -> Self {
+        Self {
+            value: source.to_owned(),
+            ..Default::default()
+        }
+    }
+}
 
-impl_from_with_default!(String => DataTableCell {
-    value: |source| source,
-});
+impl From<String> for DataTableCell {
+    fn from(source: String) -> Self {
+        Self {
+            value: source,
+            ..Default::default()
+        }
+    }
+}
 
 /// [`DataTable`] 的行数据。
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DataTableRow {
     /// 调用方使用的稳定行键。
     pub key: String,
@@ -81,7 +88,7 @@ pub struct DataTableRow {
 }
 
 /// [`DataTable`] 的组件属性。
-#[apply(dioxus_props)]
+#[derive(dioxus::prelude::Props, Clone, PartialEq)]
 pub struct DataTableProps {
     /// 列定义集合。
     pub columns: Vec<DataTableColumn>,

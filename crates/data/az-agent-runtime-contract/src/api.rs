@@ -21,19 +21,41 @@
 //! - **认证**：[`SessionUser`]、[`LoginRequest`]。
 //! - **制品**：[`AgentArtifact`] — Agent 安装包元数据（下载地址、校验和、安装/启动/卸载命令）。
 
-use az_derive_aliases::{apply, serde_code_enum, serde_eq};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 /// Agent 安装制品分发渠道。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AgentArtifactChannel {
     MacosBinary,
     DockerCompose,
 }
 
+impl AgentArtifactChannel {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// Agent 配对会话状态。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PairingStatus {
     Pending,
     Approved,
@@ -42,8 +64,29 @@ pub enum PairingStatus {
     Revoked,
 }
 
+impl PairingStatus {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// Agent 节点状态。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AgentNodeStatus {
     Pending,
     Online,
@@ -51,15 +94,55 @@ pub enum AgentNodeStatus {
     Revoked,
 }
 
+impl AgentNodeStatus {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 技能同步冲突解决策略。
-#[apply(serde_code_enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum ConflictResolution {
     UseWeb,
     UseAgent,
 }
 
+impl ConflictResolution {
+    #[allow(dead_code)]
+    pub const ALL: &'static [Self] = <Self as strum::VariantArray>::VARIANTS;
+
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        self.into()
+    }
+
+    #[must_use]
+    pub fn code(self) -> &'static str {
+        self.as_str()
+    }
+
+    pub fn from_code(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// 可供用户下载安装的 Agent 制品元数据。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AgentArtifact {
     /// 制品 id。
     pub id: Uuid,
@@ -92,7 +175,7 @@ pub struct AgentArtifact {
 }
 
 /// Agent 发起配对时提交的请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PairingRequest {
     /// Agent 来源渠道。
     pub channel: AgentArtifactChannel,
@@ -105,7 +188,7 @@ pub struct PairingRequest {
 }
 
 /// 配对会话摘要。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PairingSessionSummary {
     /// 配对会话 id。
     pub id: Uuid,
@@ -130,7 +213,7 @@ pub struct PairingSessionSummary {
 }
 
 /// 创建配对会话后的响应。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PairingCreateResponse {
     /// 配对会话摘要。
     pub session: PairingSessionSummary,
@@ -139,14 +222,14 @@ pub struct PairingCreateResponse {
 }
 
 /// Agent 交换节点 token 的请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PairingExchangeRequest {
     /// 创建配对时拿到的轮询 token。
     pub poll_token: String,
 }
 
 /// 已配对的 Agent 节点。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AgentNode {
     /// 节点 id。
     pub id: Uuid,
@@ -175,7 +258,7 @@ pub struct AgentNode {
 }
 
 /// 配对 token 交换完成后的响应。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PairingExchangeResponse {
     /// 配对完成后的节点摘要。
     pub node: AgentNode,
@@ -184,7 +267,7 @@ pub struct PairingExchangeResponse {
 }
 
 /// Agent 心跳请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AgentHeartbeat {
     /// 节点 token。
     pub node_token: String,
@@ -195,7 +278,7 @@ pub struct AgentHeartbeat {
 }
 
 /// 单个技能文件的同步快照。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SkillSnapshot {
     /// 技能名称。
     pub name: String,
@@ -212,7 +295,7 @@ pub struct SkillSnapshot {
 }
 
 /// Agent 上传技能快照并拉取服务端变更的同步请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SkillSyncRequest {
     /// 节点 token。
     pub node_token: String,
@@ -223,7 +306,7 @@ pub struct SkillSyncRequest {
 }
 
 /// 服务端检测到的技能同步冲突。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SkillConflict {
     /// 冲突 id。
     pub id: Uuid,
@@ -248,7 +331,7 @@ pub struct SkillConflict {
 }
 
 /// 技能同步响应。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SkillSyncResponse {
     /// 更新后的节点摘要。
     pub node: AgentNode,
@@ -263,14 +346,14 @@ pub struct SkillSyncResponse {
 }
 
 /// 解决单个技能冲突的请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ResolveConflictRequest {
     /// 冲突解决策略。
     pub resolution: ConflictResolution,
 }
 
 /// Agent 运行时总览视图。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AgentRuntimeOverview {
     /// 可用 Agent 安装制品。
     pub artifacts: Vec<AgentArtifact>,
@@ -287,7 +370,7 @@ pub struct AgentRuntimeOverview {
 }
 
 /// 当前 Web 会话用户摘要。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SessionUser {
     /// 当前会话是否已认证。
     pub authenticated: bool,
@@ -296,7 +379,7 @@ pub struct SessionUser {
 }
 
 /// 登录请求。
-#[apply(serde_eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LoginRequest {
     /// 登录用户名。
     pub username: String,

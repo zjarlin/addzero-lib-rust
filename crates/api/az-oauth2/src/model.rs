@@ -1,9 +1,8 @@
 use anyhow::bail;
-use az_derive_aliases::{apply, plain_eq, plain_partial_eq, serde_partial_eq_default};
 use serde_json::Value;
 
 /// Successful OAuth2 token material.
-#[apply(plain_eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OAuth2TokenSuccess {
     /// Access token string.
     pub access_token: String,
@@ -20,7 +19,7 @@ pub struct OAuth2TokenSuccess {
 }
 
 /// OAuth2 token endpoint response, including structured provider errors.
-#[apply(serde_partial_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct OAuth2TokenResponse {
     #[serde(default)]
     pub access_token: Option<String>,
@@ -90,7 +89,7 @@ impl OAuth2TokenResponse {
 }
 
 /// Device authorization response from an OAuth2 provider.
-#[apply(serde_partial_eq_default)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct OAuth2DeviceAuthorization {
     #[serde(default)]
     pub device_code: String,
@@ -120,7 +119,7 @@ impl OAuth2DeviceAuthorization {
 }
 
 /// Result of one device token polling request.
-#[apply(plain_partial_eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OAuth2DeviceTokenPoll {
     /// User authorization is still pending.
     Pending,
