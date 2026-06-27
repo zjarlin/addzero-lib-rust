@@ -23,7 +23,7 @@ fetch(form.action, { method: 'POST', body: new FormData(form) })
     .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.ok) {
-            throw new Error(payload.error || '上传失败');
+            throw new Error(payload.msg || payload.error || '上传失败');
         }
         if (input) input.value = payload.uploaded_video_url || '';
         if (result) result.textContent = payload.uploaded_video_url || '上传完成';
@@ -31,6 +31,186 @@ fetch(form.action, { method: 'POST', body: new FormData(form) })
     .catch((error) => {
         if (result) result.textContent = error.message || '上传失败';
     });
+"#;
+
+const ALGORITHM_CENTER_STYLE: &str = r#"
+.algorithm-center-page {
+  gap: 22px;
+}
+
+.algorithm-center-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.algorithm-center-mosaic {
+  align-items: stretch;
+}
+
+.algorithm-tile {
+  min-height: 214px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 12px;
+}
+
+.algorithm-tile__icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--page-line);
+  border-radius: 8px;
+  background: var(--page-accent);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.algorithm-tile__body {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.algorithm-tile h2 {
+  margin: 0;
+  color: var(--page-ink);
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.algorithm-tile code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--page-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.algorithm-tile p {
+  margin: 0;
+  color: var(--page-muted);
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.algorithm-tile__meta,
+.algorithm-tile__actions,
+.algorithm-detail-panel__tags,
+.algorithm-selected-stack__chips {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.algorithm-tile__actions {
+  justify-content: flex-end;
+}
+
+.algorithm-detail-panel,
+.algorithm-form-panel,
+.algorithm-doc-panel,
+.algorithm-action-column {
+  display: grid;
+  gap: 16px;
+}
+
+.algorithm-contract-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.algorithm-contract-list {
+  padding: 12px;
+  border: 3px solid var(--page-line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.algorithm-contract-list h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.algorithm-contract-list ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--page-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.algorithm-selected-stack {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 3px solid var(--page-line);
+}
+
+.algorithm-process-form,
+.algorithm-upload-form {
+  display: grid;
+  gap: 12px;
+}
+
+.algorithm-upload-form {
+  padding-top: 14px;
+  border-top: 3px dashed var(--page-line);
+}
+
+.algorithm-result {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 3px solid var(--page-line);
+  border-radius: 8px;
+  background: #bbf7d0;
+}
+
+.algorithm-result__label {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.algorithm-result code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+@media (max-width: 920px) {
+  .algorithm-contract-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .algorithm-center-hero__meta {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .algorithm-center-page {
+    padding: 22px 16px;
+  }
+
+  .algorithm-contract-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .algorithm-tile {
+    min-height: 190px;
+  }
+}
 "#;
 
 #[allow(non_snake_case)]
@@ -46,8 +226,11 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
         .find(|descriptor| descriptor.code == active_code)
         .unwrap_or(&descriptors[0]);
     let video_url = parse_query_param(&context.active_route, "video_url").unwrap_or_default();
-    let has_run = parse_query_param(&context.active_route, "run").as_deref() == Some("1");
-    let processed_video_url = processed_video_url(&video_url, &selected_codes);
+    let processed_video_url =
+        parse_query_param(&context.active_route, "processed_video_url").unwrap_or_default();
+    let job_id = parse_query_param(&context.active_route, "job_id").unwrap_or_default();
+    let process_message = parse_query_param(&context.active_route, "message").unwrap_or_default();
+    let error = parse_query_param(&context.active_route, "error");
     let base_route = route_without_query(&context.active_route);
     let selected_summary = selected_codes
         .iter()
@@ -59,6 +242,10 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
     let curl_example = process_curl_example(&request_json);
 
     rsx! {
+        style {
+            "data-az-style": "algorithm-center-page",
+            dangerous_inner_html: ALGORITHM_CENTER_STYLE,
+        }
         Page { class: "algorithm-center-page",
             Hero { class: "algorithm-center-hero",
                 div { class: "algorithm-center-hero__copy",
@@ -72,6 +259,13 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                     Badge { accent: true, "SSR 组件库" }
                     Badge { "POST /api/algorithm-center/process" }
                     Badge { "多算法叠加" }
+                }
+            }
+
+            if let Some(error) = &error {
+                Card { class: "algorithm-result",
+                    span { class: "algorithm-result__label", "处理错误" }
+                    code { "{error}" }
                 }
             }
 
@@ -134,27 +328,24 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                         }
                         form {
                             class: "algorithm-process-form",
-                            method: "get",
-                            action: "/",
-                            input { r#type: "hidden", name: "route", value: "{base_route}" }
-                            input { r#type: "hidden", name: "active", value: "{active_code}" }
+                            method: "post",
+                            action: "/api/algorithm-center/ui-action",
                             for code in &selected_codes {
-                                input { r#type: "hidden", name: "algorithm", value: "{code}" }
+                                input { r#type: "hidden", name: "algorithms", value: "{code}" }
                             }
                             Field {
                                 label: "视频 URL".to_string(),
-                                hint: "示例: https://example.com/input.mp4".to_string(),
+                                hint: "填写上传接口返回的 URL，或填入可访问的视频地址。".to_string(),
                                 input {
                                     class: "input",
                                     id: "algorithm-video-url",
                                     name: "video_url",
                                     value: "{video_url}",
-                                    placeholder: "https://example.com/input.mp4",
+                                    placeholder: "粘贴视频 URL",
                                     required: "required",
                                 }
                             }
                             Button { primary: true, button_type: "submit", "提交处理" }
-                            input { r#type: "hidden", name: "run", value: "1" }
                         }
                         form {
                             class: "algorithm-upload-form",
@@ -170,10 +361,16 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                             Button { button_type: "submit", "上传并获取 URL" }
                             div { id: "algorithm-upload-result", class: "algorithm-result__label" }
                         }
-                        if has_run && !video_url.is_empty() {
+                        if !processed_video_url.is_empty() {
                             div { class: "algorithm-result",
                                 span { class: "algorithm-result__label", "返回 processed_video_url" }
                                 code { "{processed_video_url}" }
+                                if !job_id.is_empty() {
+                                    span { class: "algorithm-result__label", "job_id: {job_id}" }
+                                }
+                                if !process_message.is_empty() {
+                                    span { class: "algorithm-result__label", "{process_message}" }
+                                }
                             }
                         }
                     }
@@ -321,18 +518,7 @@ fn parse_query_params(route: &str, key: &str) -> Vec<String> {
         .collect()
 }
 
-fn processed_video_url(video_url: &str, selected_codes: &[String]) -> String {
-    let codes = selected_codes.join(",");
-    let job_id = format!("job-{:x}", md5::compute(format!("{video_url}|{codes}")));
-    format!("/api/algorithm-center/results/{job_id}/processed.mp4")
-}
-
 fn process_request_json(video_url: &str, selected_codes: &[String]) -> String {
-    let video_url = if video_url.is_empty() {
-        "https://example.com/input.mp4"
-    } else {
-        video_url
-    };
     let body = serde_json::json!({
         "video_url": video_url,
         "algorithms": selected_codes,

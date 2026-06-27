@@ -1,78 +1,39 @@
 #![allow(non_snake_case)]
 
-//! Lowcode-owned sidebar renderer.
+//! lowcode 插件侧轴导航。
 
 use az_aio_platform::plugin::api::NativeRenderContext;
-use az_dioxus_components::neobrutal::NavLink;
+use az_dioxus_components::prelude::NavLink;
 use dioxus::prelude::*;
 
-use crate::{contract::LowcodeMenuContribution, metadata::configurable_lowcode_menus};
-
-/// Renders the lowcode menu tree from plugin metadata.
+/// 渲染 engine 四块工作台入口。
 pub fn LowcodeSidebar(context: NativeRenderContext) -> Element {
-    let menus = configurable_lowcode_menus();
-    let mut roots = menus
-        .iter()
-        .filter(|menu| menu.visible && menu.parent_id.is_none())
-        .cloned()
-        .collect::<Vec<_>>();
-    roots.sort_by(menu_order);
+    let items = [
+        ("字段", "/?route=/lowcode&tab=fields", "▤"),
+        ("钩子", "/?route=/lowcode&tab=hooks", "⚑"),
+        ("记录", "/?route=/lowcode&tab=records", "▦"),
+    ];
 
     rsx! {
         nav { class: "sidebar-tree sidebar-tree--primary lowcode-sidebar",
-            for root in roots {
-                details { class: "plugin-group plugin-group", open: true,
-                    summary { class: "nav-button nav-button--plugin nav-button nav-button--plugin plugin-group__summary plugin-group__summary",
-                        span { class: "nav-button__icon nav-button__icon", "{root.icon}" }
-                        span { class: "nav-button__label nav-button__label", "{root.label}" }
-                        span { class: "nav-button__detail nav-button__detail", "{root.order}" }
-                    }
-                    nav { class: "sidebar-tree sidebar-tree--nested",
-                        for child in menu_children(&menus, &root.id) {
-                            NavLink {
-                                href: menu_href(&child.route),
-                                icon: child.icon.clone(),
-                                label: child.label.clone(),
-                                detail: child.order.to_string(),
-                                active: menu_active(&context.active_route, &child.route),
-                                plugin: true,
-                                class: "nav-button--nested",
-                            }
-                        }
-                    }
+            for (label, href, icon) in items {
+                NavLink {
+                    href: href.to_string(),
+                    icon: icon.to_string(),
+                    label: label.to_string(),
+                    detail: "engine".to_string(),
+                    active: sidebar_active(&context.active_route, href),
+                    plugin: true,
+                    class: "nav-button--nested",
                 }
             }
         }
     }
 }
 
-fn menu_children(menus: &[LowcodeMenuContribution], parent_id: &str) -> Vec<LowcodeMenuContribution> {
-    let mut children = menus
-        .iter()
-        .filter(|menu| menu.visible && menu.parent_id.as_deref() == Some(parent_id))
-        .cloned()
-        .collect::<Vec<_>>();
-    children.sort_by(menu_order);
-    children
-}
-
-fn menu_order(left: &LowcodeMenuContribution, right: &LowcodeMenuContribution) -> std::cmp::Ordering {
-    left.order.cmp(&right.order).then(left.id.cmp(&right.id))
-}
-
-fn menu_href(route: &str) -> String {
-    if route.starts_with("/?") {
-        route.to_string()
-    } else if let Some((path, query)) = route.split_once('?') {
-        format!("/?route={path}&{query}")
-    } else {
-        format!("/?route={route}")
-    }
-}
-
-fn menu_active(current_route: &str, menu_route: &str) -> bool {
-    if current_route == menu_route {
-        return true;
-    }
-    !current_route.contains('?') && current_route == menu_route.trim_end_matches('/')
+fn sidebar_active(route: &str, href: &str) -> bool {
+    let Some(tab) = href.split("tab=").nth(1) else {
+        return route == "/lowcode";
+    };
+    route.contains(&format!("tab={tab}")) || (tab == "fields" && route == "/lowcode")
 }

@@ -1,11 +1,11 @@
 use axum::{
     Json, Router,
     extract::State,
-    http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
 };
 use anyhow::anyhow;
+use az_aio_platform::core::api_error::{ApiError, ApiJson, ApiResponse, ok_json};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -40,6 +40,19 @@ impl AssetHubApiState {
             store: None,
         }
     }
+
+    pub fn status(&self) -> AssetHubStatusResponse {
+        AssetHubStatusResponse {
+            ok: true,
+            database_configured: self.database_url.as_ref().is_some_and(|value| !value.is_empty()),
+            store_connected: self.store.is_some(),
+            table_prefix: TABLE_NAME_PREFIX.to_string(),
+        }
+    }
+
+    pub fn store(&self) -> Option<AssetHubStore> {
+        self.store.clone()
+    }
 }
 
 pub fn asset_hub_router(state: AssetHubApiState) -> Router {
@@ -52,18 +65,12 @@ pub fn asset_hub_router(state: AssetHubApiState) -> Router {
 }
 
 async fn status_handler(State(state): State<AssetHubApiState>) -> Json<AssetHubStatusResponse> {
-    Json(AssetHubStatusResponse {
-        ok: true,
-        database_configured: state.database_url.as_ref().is_some_and(|value| !value.is_empty()),
-        store_connected: state.store.is_some(),
-        table_prefix: TABLE_NAME_PREFIX.to_string(),
-    })
+    Json(state.status())
 }
 
 async fn scan_skills_handler() -> Result<Json<ApiResponse<Vec<ScannedSkillAsset>>>, Response> {
     scan_skill_assets()
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(asset_hub_error_response)
 }
 
@@ -77,14 +84,13 @@ async fn list_assets_handler(
     store
         .list_assets()
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(asset_hub_error_response)
 }
 
 async fn upsert_asset_handler(
     State(state): State<AssetHubApiState>,
-    Json(request): Json<UpsertAssetRequest>,
+    ApiJson(request): ApiJson<UpsertAssetRequest>,
 ) -> Result<Json<ApiResponse<AssetSummary>>, Response> {
     let store = state
         .store
@@ -99,8 +105,7 @@ async fn upsert_asset_handler(
             source: request.source.unwrap_or_else(|| "asset-hub".to_string()),
         })
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(asset_hub_error_response)
 }
 
@@ -110,23 +115,6 @@ pub struct AssetHubStatusResponse {
     pub database_configured: bool,
     pub store_connected: bool,
     pub table_prefix: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub message: String,
-    pub data: Option<T>,
-}
-
-impl<T> ApiResponse<T> {
-    fn ok(data: T) -> Self {
-        Self {
-            success: true,
-            message: "ok".to_string(),
-            data: Some(data),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -139,24 +127,7 @@ pub struct UpsertAssetRequest {
 }
 
 fn asset_hub_error_response(error: anyhow::Error) -> Response {
-    let message = error.to_string();
-    let status = asset_hub_error_status(&message);
-    let body = ApiResponse::<()> {
-        success: false,
-        message,
-        data: None,
-    };
-    (status, Json(body)).into_response()
-}
-
-fn asset_hub_error_status(message: &str) -> StatusCode {
-    match message {
-        "missing asset-hub database url" => StatusCode::SERVICE_UNAVAILABLE,
-        "asset title must not be blank" | "asset status must not be blank" => {
-            StatusCode::BAD_REQUEST
-        }
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
-    }
+    ApiError::from(error).into_response()
 }
 
 #[cfg(test)]

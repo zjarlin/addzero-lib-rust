@@ -9,8 +9,8 @@ fn surface_card_renders_base_shell_and_children() {
         }
     });
 
-    assert_eq!(
-        markup,
-        "<article class=\"surface-card surface-raised\"><div class=\"surface-card__body\">Body</div></article>"
-    );
+    assert!(markup.contains(r#"data-az-style="az-dioxus-components""#));
+    assert!(markup.contains(
+        r#"<article class="surface-card surface-raised"><div class="surface-card__body">Body</div></article>"#
+    ));
 }

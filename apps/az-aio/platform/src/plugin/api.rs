@@ -3,7 +3,7 @@
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-pub type DynNativeAzAioPlugin = std::sync::Arc<dyn NativeAzAioPlugin>;
+pub type DynAdminPluginProvider = std::sync::Arc<dyn AdminPluginProvider>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -70,6 +70,120 @@ pub struct ContributionSet {
     pub generated_files: Vec<GeneratedFileContribution>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AdminPluginContribution {
+    pub menu: AdminMenuTree,
+    #[serde(default)]
+    pub resources: Vec<AdminResourceContract>,
+    #[serde(default)]
+    pub cli: Vec<AdminCliContribution>,
+    pub native: ContributionSet,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AdminMenuTree {
+    #[serde(default)]
+    pub sections: Vec<AdminMenuSection>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AdminMenuSection {
+    pub domain_id: String,
+    pub label: String,
+    pub default_href: String,
+    pub order: i32,
+    #[serde(default)]
+    pub menus: Vec<AdminMenuNode>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AdminMenuNode {
+    pub id: String,
+    pub kind: AdminMenuNodeKind,
+    pub label: String,
+    pub href: String,
+    pub icon: String,
+    pub order: i32,
+    #[serde(default)]
+    pub active_patterns: Vec<String>,
+    #[serde(default)]
+    pub permissions_any_of: Vec<String>,
+    #[serde(default)]
+    pub children: Vec<AdminMenuNode>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AdminMenuNodeKind {
+    Branch,
+    Page,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AdminResourceContract {
+    pub id: String,
+    pub label: String,
+    pub description: String,
+    pub route: String,
+    pub table_name: String,
+    #[serde(default)]
+    pub permissions_any_of: Vec<String>,
+    #[serde(default)]
+    pub fields: Vec<AdminFieldContract>,
+    #[serde(default)]
+    pub operations: Vec<AdminOperationContract>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AdminFieldContract {
+    pub name: String,
+    pub label: String,
+    pub kind: AdminFieldKind,
+    pub required: bool,
+    pub searchable: bool,
+    pub table_visible: bool,
+    pub form_visible: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AdminFieldKind {
+    Text,
+    Number,
+    Boolean,
+    Badge,
+    Time,
+    Json,
+    Relation,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AdminOperationContract {
+    pub id: String,
+    pub label: String,
+    pub method: String,
+    pub path: String,
+    pub cli: String,
+    pub primary: bool,
+    pub audit: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AdminCliContribution {
+    pub id: String,
+    pub label: String,
+    pub command: String,
+    pub resource_id: Option<String>,
+    pub operation_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AdminRendererContribution {
+    pub renderer_id: String,
+    pub slot: UiContributionSlot,
+    pub route: Option<String>,
+}
+
 impl ContributionSet {
     pub fn merge(&mut self, other: Self) {
         self.nav_items.extend(other.nav_items);
@@ -81,6 +195,71 @@ impl ContributionSet {
         self.settings_sections.extend(other.settings_sections);
         self.shell_entries.extend(other.shell_entries);
         self.generated_files.extend(other.generated_files);
+    }
+}
+
+impl AdminPluginContribution {
+    pub fn from_native(native: ContributionSet) -> Self {
+        Self {
+            menu: AdminMenuTree::default(),
+            resources: Vec::new(),
+            cli: Vec::new(),
+            native,
+        }
+    }
+}
+
+pub fn merge_menu_tree(target: &mut AdminMenuTree, source: AdminMenuTree) {
+    for section in source.sections {
+        match target
+            .sections
+            .iter_mut()
+            .find(|item| item.domain_id == section.domain_id)
+        {
+            Some(existing) => merge_menu_section(existing, section),
+            None => target.sections.push(section),
+        }
+    }
+    sort_menu_sections(&mut target.sections);
+}
+
+fn merge_menu_section(target: &mut AdminMenuSection, source: AdminMenuSection) {
+    if target.default_href.is_empty() {
+        target.default_href = source.default_href;
+    }
+    for node in source.menus {
+        merge_menu_node(&mut target.menus, node);
+    }
+    sort_menu_nodes(&mut target.menus);
+}
+
+fn merge_menu_node(nodes: &mut Vec<AdminMenuNode>, source: AdminMenuNode) {
+    match nodes.iter_mut().find(|node| node.id == source.id) {
+        Some(existing) => {
+            for child in source.children {
+                merge_menu_node(&mut existing.children, child);
+            }
+            sort_menu_nodes(&mut existing.children);
+        }
+        None => nodes.push(source),
+    }
+}
+
+pub fn sort_menu_sections(sections: &mut [AdminMenuSection]) {
+    sections.sort_by(|left, right| {
+        left.order
+            .cmp(&right.order)
+            .then(left.domain_id.cmp(&right.domain_id))
+    });
+    for section in sections {
+        sort_menu_nodes(&mut section.menus);
+    }
+}
+
+pub fn sort_menu_nodes(nodes: &mut [AdminMenuNode]) {
+    nodes.sort_by(|left, right| left.order.cmp(&right.order).then(left.id.cmp(&right.id)));
+    for node in nodes {
+        sort_menu_nodes(&mut node.children);
     }
 }
 
@@ -379,12 +558,56 @@ impl Default for NativePluginRuntime {
     }
 }
 
-pub trait NativeAzAioPlugin: Send + Sync {
+pub trait NativePluginProvider: Send + Sync {
     fn descriptor(&self) -> PluginDescriptor;
 
     fn contributions(&self) -> anyhow::Result<ContributionSet>;
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime>;
+
+    fn admin_menu(&self, contributions: &ContributionSet) -> AdminMenuTree {
+        AdminPluginContribution::from_native(contributions.clone()).menu
+    }
+
+    fn admin_resources(&self) -> Vec<AdminResourceContract> {
+        Vec::new()
+    }
+
+    fn admin_cli(&self) -> Vec<AdminCliContribution> {
+        Vec::new()
+    }
+}
+
+pub trait AdminPluginProvider: Send + Sync {
+    fn admin_descriptor(&self) -> PluginDescriptor;
+
+    fn admin_contribution(&self) -> anyhow::Result<AdminPluginContribution>;
+
+    fn admin_runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime>;
+}
+
+impl<T> AdminPluginProvider for T
+where
+    T: NativePluginProvider,
+{
+    fn admin_descriptor(&self) -> PluginDescriptor {
+        self.descriptor()
+    }
+
+    fn admin_contribution(&self) -> anyhow::Result<AdminPluginContribution> {
+        let native = self.contributions()?;
+        let menu = self.admin_menu(&native);
+        Ok(AdminPluginContribution {
+            menu,
+            resources: self.admin_resources(),
+            cli: self.admin_cli(),
+            native,
+        })
+    }
+
+    fn admin_runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        self.runtime(context)
+    }
 }
 
 pub fn descriptor_to_json(descriptor: &PluginDescriptor) -> anyhow::Result<String> {

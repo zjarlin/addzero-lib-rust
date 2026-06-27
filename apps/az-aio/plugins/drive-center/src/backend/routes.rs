@@ -1,11 +1,11 @@
 use axum::{
     Json, Router,
     extract::State,
-    http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
 };
 use anyhow::anyhow;
+use az_aio_platform::core::api_error::{ApiError, ApiJson, ApiResponse, ok_json};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -39,6 +39,19 @@ impl DriveCenterApiState {
             store: None,
         }
     }
+
+    pub fn status(&self) -> DriveCenterStatusResponse {
+        DriveCenterStatusResponse {
+            ok: true,
+            database_configured: self.database_url.as_ref().is_some_and(|value| !value.is_empty()),
+            store_connected: self.store.is_some(),
+            table_prefix: TABLE_NAME_PREFIX.to_string(),
+        }
+    }
+
+    pub fn store(&self) -> Option<DriveCenterStore> {
+        self.store.clone()
+    }
 }
 
 pub fn drive_center_router(state: DriveCenterApiState) -> Router {
@@ -50,12 +63,7 @@ pub fn drive_center_router(state: DriveCenterApiState) -> Router {
 }
 
 async fn status_handler(State(state): State<DriveCenterApiState>) -> Json<DriveCenterStatusResponse> {
-    Json(DriveCenterStatusResponse {
-        ok: true,
-        database_configured: state.database_url.as_ref().is_some_and(|value| !value.is_empty()),
-        store_connected: state.store.is_some(),
-        table_prefix: TABLE_NAME_PREFIX.to_string(),
-    })
+    Json(state.status())
 }
 
 async fn list_tasks_handler(
@@ -68,14 +76,13 @@ async fn list_tasks_handler(
     store
         .list_tasks()
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(drive_center_error_response)
 }
 
 async fn enqueue_task_handler(
     State(state): State<DriveCenterApiState>,
-    Json(request): Json<EnqueueDriveTaskRequest>,
+    ApiJson(request): ApiJson<EnqueueDriveTaskRequest>,
 ) -> Result<Json<ApiResponse<DriveTaskSummary>>, Response> {
     let store = state
         .store
@@ -89,8 +96,7 @@ async fn enqueue_task_handler(
             status: request.status,
         })
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(drive_center_error_response)
 }
 
@@ -102,23 +108,6 @@ pub struct DriveCenterStatusResponse {
     pub table_prefix: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub message: String,
-    pub data: Option<T>,
-}
-
-impl<T> ApiResponse<T> {
-    fn ok(data: T) -> Self {
-        Self {
-            success: true,
-            message: "ok".to_string(),
-            data: Some(data),
-        }
-    }
-}
-
 #[derive(Debug, Deserialize)]
 pub struct EnqueueDriveTaskRequest {
     pub id: Option<String>,
@@ -128,24 +117,7 @@ pub struct EnqueueDriveTaskRequest {
 }
 
 fn drive_center_error_response(error: anyhow::Error) -> Response {
-    let message = error.to_string();
-    let status = drive_center_error_status(&message);
-    let body = ApiResponse::<()> {
-        success: false,
-        message,
-        data: None,
-    };
-    (status, Json(body)).into_response()
-}
-
-fn drive_center_error_status(message: &str) -> StatusCode {
-    match message {
-        "missing drive-center database url" => StatusCode::SERVICE_UNAVAILABLE,
-        "drive path must not be blank" | "drive action must not be blank" => {
-            StatusCode::BAD_REQUEST
-        }
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
-    }
+    ApiError::from(error).into_response()
 }
 
 #[cfg(test)]

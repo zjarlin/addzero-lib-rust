@@ -3,6 +3,7 @@
 use dioxus::prelude::*;
 
 use crate::class_name::compose_class;
+use crate::component_style::component_style;
 
 fn non_empty_attr(value: String) -> Option<String> {
     if value.is_empty() { None } else { Some(value) }
@@ -31,6 +32,7 @@ pub fn Table(
     );
 
     rsx! {
+        {component_style()}
         div { class: "table-view__scroller",
             table { class: table_class, {children} }
         }

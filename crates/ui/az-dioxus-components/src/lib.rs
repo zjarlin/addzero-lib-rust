@@ -2,6 +2,8 @@
 #![deny(missing_docs)]
 
 mod class_name;
+mod component_style;
+mod style;
 
 /// Accordion primitives for dense workbench panels.
 pub mod accordion;

@@ -1,11 +1,11 @@
 use axum::{
     Json, Router,
     extract::State,
-    http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
 };
 use anyhow::anyhow;
+use az_aio_platform::core::api_error::{ApiError, ApiJson, ApiResponse, ok_json};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -42,6 +42,19 @@ impl SoftwareCenterApiState {
             store: None,
         }
     }
+
+    pub fn status(&self) -> SoftwareCenterStatusResponse {
+        SoftwareCenterStatusResponse {
+            ok: true,
+            database_configured: self.database_url.as_ref().is_some_and(|value| !value.is_empty()),
+            store_connected: self.store.is_some(),
+            table_prefix: TABLE_NAME_PREFIX.to_string(),
+        }
+    }
+
+    pub fn store(&self) -> Option<SoftwareCenterStore> {
+        self.store.clone()
+    }
 }
 
 pub fn software_center_router(state: SoftwareCenterApiState) -> Router {
@@ -57,27 +70,20 @@ pub fn software_center_router(state: SoftwareCenterApiState) -> Router {
 async fn status_handler(
     State(state): State<SoftwareCenterApiState>,
 ) -> Json<SoftwareCenterStatusResponse> {
-    Json(SoftwareCenterStatusResponse {
-        ok: true,
-        database_configured: state.database_url.as_ref().is_some_and(|value| !value.is_empty()),
-        store_connected: state.store.is_some(),
-        table_prefix: TABLE_NAME_PREFIX.to_string(),
-    })
+    Json(state.status())
 }
 
 async fn scan_installers_handler(
 ) -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, Response> {
     scan_installers()
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(software_center_error_response)
 }
 
 async fn organize_installers_handler(
 ) -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, Response> {
     organize_installers()
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(software_center_error_response)
 }
 
@@ -91,14 +97,13 @@ async fn list_packages_handler(
     store
         .list_packages()
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(software_center_error_response)
 }
 
 async fn upsert_package_handler(
     State(state): State<SoftwareCenterApiState>,
-    Json(request): Json<UpsertSoftwarePackageRequest>,
+    ApiJson(request): ApiJson<UpsertSoftwarePackageRequest>,
 ) -> Result<Json<ApiResponse<SoftwarePackageSummary>>, Response> {
     let store = state
         .store
@@ -114,8 +119,7 @@ async fn upsert_package_handler(
             status: request.status,
         })
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(software_center_error_response)
 }
 
@@ -125,23 +129,6 @@ pub struct SoftwareCenterStatusResponse {
     pub database_configured: bool,
     pub store_connected: bool,
     pub table_prefix: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub message: String,
-    pub data: Option<T>,
-}
-
-impl<T> ApiResponse<T> {
-    fn ok(data: T) -> Self {
-        Self {
-            success: true,
-            message: "ok".to_string(),
-            data: Some(data),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -155,23 +142,7 @@ pub struct UpsertSoftwarePackageRequest {
 }
 
 fn software_center_error_response(error: anyhow::Error) -> Response {
-    let message = error.to_string();
-    let status = software_center_error_status(&message);
-    let body = ApiResponse::<()> {
-        success: false,
-        message,
-        data: None,
-    };
-    (status, Json(body)).into_response()
-}
-
-fn software_center_error_status(message: &str) -> StatusCode {
-    match message {
-        "missing software-center database url" => StatusCode::SERVICE_UNAVAILABLE,
-        "software package name must not be blank"
-        | "software package source path must not be blank" => StatusCode::BAD_REQUEST,
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
-    }
+    ApiError::from(error).into_response()
 }
 
 #[cfg(test)]

@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use az_aio_platform::plugin::api::{
-    ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
+    AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
+    DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
 use rudi::Singleton;
@@ -13,13 +14,13 @@ use crate::{
         store::build_edge_gateway_context,
     },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    ui::page::EdgeGatewayPage,
+    ui::{page::EdgeGatewayPage, state::install_state},
 };
 
 #[derive(Default)]
 pub struct EdgeGatewayPlugin;
 
-impl NativeAzAioPlugin for EdgeGatewayPlugin {
+impl NativePluginProvider for EdgeGatewayPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         descriptor()
     }
@@ -28,9 +29,32 @@ impl NativeAzAioPlugin for EdgeGatewayPlugin {
         Ok(contributions())
     }
 
+    fn admin_menu(&self, _contributions: &ContributionSet) -> AdminMenuTree {
+        AdminMenuTree {
+            sections: vec![AdminMenuSection {
+                domain_id: "intelligent-gateway".to_string(),
+                label: "智能网关".to_string(),
+                default_href: ROUTE.to_string(),
+                order: 300,
+                menus: vec![AdminMenuNode {
+                    id: "edge-gateway.nav".to_string(),
+                    kind: AdminMenuNodeKind::Page,
+                    label: "网关编排".to_string(),
+                    href: ROUTE.to_string(),
+                    icon: "↗".to_string(),
+                    order: 10,
+                    active_patterns: vec![ROUTE.to_string()],
+                    permissions_any_of: vec!["outbound-http".to_string()],
+                    children: Vec::new(),
+                }],
+            }],
+        }
+    }
+
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
         let _context = build_edge_gateway_context();
         let state = block_on_state(context.database_url.clone())?;
+        install_state(state.clone());
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
                 renderer_id: RENDERER_ID.to_string(),
@@ -45,7 +69,7 @@ impl NativeAzAioPlugin for EdgeGatewayPlugin {
 }
 
 #[Singleton(name = "edge-gateway")]
-pub fn edge_gateway_plugin() -> DynNativeAzAioPlugin {
+pub fn edge_gateway_plugin() -> DynAdminPluginProvider {
     Arc::new(EdgeGatewayPlugin)
 }
 
@@ -81,6 +105,14 @@ mod tests {
                 .backend_apis
                 .iter()
                 .any(|api| api.path == "/api/edge-gateway/status")
+        );
+        assert_eq!(
+            plugin
+                .admin_menu(&contributions)
+                .sections
+                .first()
+                .map(|section| section.label.as_str()),
+            Some("智能网关")
         );
     }
 }

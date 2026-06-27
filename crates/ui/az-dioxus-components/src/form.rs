@@ -3,6 +3,7 @@
 use dioxus::prelude::*;
 
 use crate::class_name::compose_class;
+use crate::component_style::component_style;
 
 fn non_empty_attr(value: String) -> Option<String> {
     if value.is_empty() { None } else { Some(value) }
@@ -23,6 +24,7 @@ pub fn FormGrid(
     );
 
     rsx! {
+        {component_style()}
         div { class: class, {children} }
     }
 }
@@ -67,6 +69,7 @@ pub fn HiddenInput(
     let class = non_empty_attr(class);
 
     rsx! {
+        {component_style()}
         input {
             r#type: "hidden",
             name: name,
@@ -94,6 +97,7 @@ pub fn FormRow(
     );
 
     rsx! {
+        {component_style()}
         div { class: class,
             label {
                 "{label}"
@@ -176,6 +180,7 @@ pub fn Select(
     let style = non_empty_attr(style);
 
     rsx! {
+        {component_style()}
         select { class: class, style: style, name: name, required: required,
             for option in options {
                 option {
@@ -201,6 +206,7 @@ pub fn CheckboxRow(
     let class = compose_class("checkbox-row", &class, &[]);
 
     rsx! {
+        {component_style()}
         label { class: class,
             input { r#type: "checkbox", name: name, value: value, checked: checked }
             "{label}"

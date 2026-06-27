@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use az_aio_platform::plugin::api::{
-    NativeRenderContext, NativeUiRenderer, NavItemContribution, PageContribution,
+    AdminMenuTree, NativeRenderContext, NativeUiRenderer, PageContribution,
 };
 use az_dioxus_components::neobrutal::{Shell, SidebarToggle, TitlebarControls, TitlebarNav};
 use dioxus::prelude::*;
@@ -18,7 +18,7 @@ use workspace::WorkspaceChrome;
 #[derive(PartialEq, Clone, Props)]
 pub(crate) struct ShellProps {
     pub(crate) renderers: Vec<NativeUiRenderer>,
-    pub(crate) nav_items: Vec<NavItemContribution>,
+    pub(crate) admin_menu_tree: AdminMenuTree,
     pub(crate) pages: Vec<PageContribution>,
     pub(crate) route: String,
     pub(crate) query: String,
@@ -39,7 +39,7 @@ pub(crate) fn AppLayout(props: ShellProps) -> Element {
         Shell {
             ShellTitlebarControls {}
             ShellSidebar {
-                nav_items: props.nav_items.clone(),
+                admin_menu_tree: props.admin_menu_tree.clone(),
                 route: active_route,
                 sidebar_renderer: slots.sidebar.clone(),
                 render_context: render_context.clone(),

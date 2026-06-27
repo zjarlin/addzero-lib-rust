@@ -17,11 +17,11 @@ struct User {
 #[tokio::main]
 async fn main() -> toasty::Result<()> {
     let driver = Sqlite::in_memory();
-    let mut db = toasty::Db::builder()
+                let mut db = toasty::Db::builder()
         .models(toasty::models!(crate::*))
         .build(driver)
         .await?;
-    
+
 
     db.push_schema().await?;
 

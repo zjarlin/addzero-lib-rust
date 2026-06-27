@@ -3,6 +3,7 @@
 use dioxus::prelude::*;
 
 use crate::class_name::compose_class;
+use crate::component_style::component_style;
 
 /// 描述语法式搜索框可提示的一个过滤维度。
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -119,6 +120,7 @@ pub fn GrammarSearchInput(
     let terms = parsed_query.terms;
 
     rsx! {
+        {component_style()}
         div { class: root_class,
             div { class: "grammar-search__box",
                 span { class: "grammar-search__icon", "⌕" }

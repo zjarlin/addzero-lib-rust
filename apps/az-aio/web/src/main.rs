@@ -2,7 +2,7 @@
 
 mod app;
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use axum::{Router, extract::RawQuery, routing::get};
 use az_aio_platform::{core::config::AppConfig, plugin::host};
 use rudi::Context;
@@ -11,8 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tower_http::services::ServeDir;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     enable_plugin_providers();
 
     let mut di = Context::auto_register();
@@ -25,8 +24,20 @@ async fn main() -> Result<()> {
         database_url: config.database_url(),
     };
 
-    let snapshot = host::load_az_aio_native_snapshot(native_context, &mut di);
+    let snapshot = host::load_native_snapshot(native_context, &mut di);
+    let port = config.port();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("创建 AIO web runtime 失败")?;
 
+    runtime.block_on(run_web_server(snapshot, port))
+}
+
+async fn run_web_server(
+    snapshot: az_aio_platform::plugin::host::HostSnapshot,
+    port: u16,
+) -> Result<()> {
     let native_router = snapshot.native_router.clone();
     let state = Arc::new(snapshot);
     let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
@@ -38,9 +49,8 @@ async fn main() -> Result<()> {
         .merge(native_router.with_state(()))
         .with_state(state);
 
-    let port = config.port();
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    println!("AZ AIO web workbench listening on http://{addr}");
+    println!("AIO web workbench listening on http://{addr}");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
@@ -55,8 +65,16 @@ async fn root_page(
     RawQuery(raw_query): RawQuery,
 ) -> axum::response::Html<String> {
     let (route, query) = split_route_query(raw_query.as_deref());
-
-    let html = app::render_app_html(&snapshot, &route, &query);
+    let html = match tokio::task::spawn_blocking(move || {
+        app::render_app_html(&snapshot, &route, &query)
+    })
+    .await
+    {
+        Ok(html) => html,
+        Err(error) => format!(
+            r#"<!doctype html><meta charset="utf-8"><title>AIO</title><main>SSR 渲染失败：{error}</main>"#
+        ),
+    };
     axum::response::Html(html)
 }
 
@@ -65,6 +83,7 @@ async fn health() -> &'static str {
 }
 
 fn enable_plugin_providers() {
+    az_aio_platform::enable();
     algorithm_center::enable();
     asset_hub::enable();
     config_center::enable();
@@ -72,6 +91,7 @@ fn enable_plugin_providers() {
     edge_gateway::enable();
     lowcode::enable();
     software_center::enable();
+    az_linux::enable();
 }
 
 fn split_route_query(raw_query: Option<&str>) -> (String, String) {
@@ -107,33 +127,64 @@ fn split_route_query(raw_query: Option<&str>) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use az_aio_platform::plugin::api::DynNativeAzAioPlugin;
+    use az_aio_platform::plugin::api::{DynAdminPluginProvider, NativePluginContext};
 
     use super::*;
 
     #[test]
-    fn rudi_collects_all_native_plugins() {
+    fn rudi_collects_all_admin_plugin_providers() {
         enable_plugin_providers();
 
         let mut di = Context::auto_register();
         let mut plugin_ids = di
-            .resolve_by_type::<DynNativeAzAioPlugin>()
+            .resolve_by_type::<DynAdminPluginProvider>()
             .into_iter()
-            .map(|plugin| plugin.descriptor().id)
+            .map(|plugin| plugin.admin_descriptor().id)
             .collect::<Vec<_>>();
         plugin_ids.sort();
 
         assert_eq!(
             plugin_ids,
             [
+                "admin-scenes",
                 "algorithm-center",
                 "asset-hub",
+                "linux",
                 "config-center",
                 "drive-center",
                 "edge-gateway",
                 "lowcode",
                 "software-center",
+                "system",
             ]
+        );
+    }
+
+    #[test]
+    fn rudi_menu_reserves_admin_knowledge_base_and_gateway_scenes() {
+        enable_plugin_providers();
+
+        let mut di = Context::auto_register();
+        let snapshot = host::load_native_snapshot(NativePluginContext::default(), &mut di);
+        let labels = snapshot
+            .admin_menu_tree
+            .sections
+            .iter()
+            .map(|section| section.label.as_str())
+            .collect::<Vec<_>>();
+        let gateway = snapshot
+            .admin_menu_tree
+            .sections
+            .iter()
+            .find(|section| section.label == "智能网关");
+
+        assert!(labels.contains(&"管理后台"));
+        assert!(labels.contains(&"知识库"));
+        assert!(labels.contains(&"智能网关"));
+        assert!(
+            gateway
+                .map(|section| section.menus.iter().any(|node| node.label == "算法中心"))
+                .unwrap_or(false)
         );
     }
 

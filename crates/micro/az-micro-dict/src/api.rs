@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use az_dict_spec::api::{DictionaryItemSpec, DictionarySpec, RawValueKind};
+use az_str::api::{is_blank, to_pascal_case};
 use az_str::sanitize::sanitize_file_stem as sanitize_ascii_file_stem;
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream as TokenStream2;
@@ -36,8 +37,10 @@ impl DictionaryContribution {
     }
 
     fn validate_shape(&self) -> Result<()> {
-        ensure_non_empty("enum_name", &self.enum_name)?;
-        if !is_valid_rust_type_name(&self.enum_name) {
+        if is_blank(Some(&self.enum_name)) {
+            bail!("invalid dictionary contribution: enum_name cannot be empty");
+        }
+        if to_pascal_case(&self.enum_name, "", "").is_empty() {
             bail!(
                 "invalid dictionary contribution: enum_name {} is not a Rust type identifier",
                 self.enum_name
@@ -147,13 +150,13 @@ impl DictionaryContributor for RuoyiDictionaryContributor {
                 DictionarySpec {
                     code: dict_code.clone(),
                     scope: self.scope.clone(),
-                name: dict_name,
-                description: None,
-                raw_value_kind: RawValueKind::String,
-                open_enum: false,
-                unknown_variant: None,
-                sort_index: 0,
-                items,
+                    name: dict_name,
+                    description: None,
+                    raw_value_kind: RawValueKind::String,
+                    open_enum: false,
+                    unknown_variant: None,
+                    sort_index: 0,
+                    items,
                 },
             ));
         }
@@ -300,7 +303,10 @@ fn ruoyi_meta_json(row: &RuoyiDictRow) -> Option<Value> {
         map.insert("cssClass".to_string(), Value::String(css_class.to_string()));
     }
     if let Some(list_class) = row.list_class.as_deref().filter(|value| !value.is_empty()) {
-        map.insert("listClass".to_string(), Value::String(list_class.to_string()));
+        map.insert(
+            "listClass".to_string(),
+            Value::String(list_class.to_string()),
+        );
     }
     if map.is_empty() {
         None
@@ -310,26 +316,12 @@ fn ruoyi_meta_json(row: &RuoyiDictRow) -> Option<Value> {
 }
 
 fn sanitize_file_stem(value: &str) -> Result<String> {
-    ensure_non_empty("dictionary code", value)?;
+    if is_blank(Some(value)) {
+        bail!("invalid dictionary contribution: dictionary code cannot be empty");
+    }
     let stem = sanitize_ascii_file_stem(value);
     if stem == "." || stem == ".." {
         bail!("invalid dictionary contribution: dictionary code {value} is not a valid file stem");
     }
     Ok(stem)
-}
-
-fn is_valid_rust_type_name(value: &str) -> bool {
-    let mut chars = value.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    (first == '_' || first.is_ascii_alphabetic())
-        && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
-}
-
-fn ensure_non_empty(field: &str, value: &str) -> Result<()> {
-    if value.trim().is_empty() {
-        bail!("invalid dictionary contribution: {field} cannot be empty");
-    }
-    Ok(())
 }

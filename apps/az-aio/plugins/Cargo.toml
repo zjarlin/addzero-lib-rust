@@ -9,6 +9,7 @@ members = [
     "drive-center",
     "edge-gateway",
     "software-center",
+    "az-linux",
     "lowcode",
 ]
 
@@ -27,17 +28,20 @@ automod = { package = "az-automod", version = "=2026.6.15", path = "../../../cra
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "multipart"] }
 az-admin-plugin-registry = { version = "=2026.5.10", path = "../../../crates/runtime/az-admin-plugin-registry" }
 az-dioxus-components = { version = "=2026.5.10", path = "../../../crates/ui/az-dioxus-components" }
+az-engine = { version = "=2026.5.10", path = "../../../crates/runtime/az-engine" }
 az-system-starters = { version = "=2026.5.10", path = "../../../crates/runtime/az-system-starters" }
 dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
 rudi = "0.8.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 tokio = { version = "1.47.1", features = ["macros", "net", "rt", "sync"] }
-toasty = { version = "0.7.0", features = ["postgresql"] }
+tracing = "0.1.44"
+toasty = { version = "0.7.0", features = ["postgresql", "serde"] }
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
 handlebars = "6.4.1"
 md5 = "0.8.0"
 reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "cookies", "json", "multipart", "rustls-tls"] }
 serde_json_path = "0.7.2"
+tower = { version = "0.5.2", features = ["timeout", "util"] }
 tower-http = { version = "0.6.2", features = ["fs"] }
 urlencoding = "2"

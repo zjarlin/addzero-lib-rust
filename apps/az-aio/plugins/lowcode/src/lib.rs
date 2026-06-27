@@ -1,5 +1,10 @@
 #![forbid(unsafe_code)]
 
-automod::dir!(pub "src");
+pub mod plugin;
+pub mod routes;
+pub mod state;
+pub mod ui;
+
+pub use plugin::LowcodePlugin;
 
 rudi::enable! {}

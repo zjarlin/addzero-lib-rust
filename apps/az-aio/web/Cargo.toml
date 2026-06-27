@@ -20,6 +20,7 @@ drive-center = { path = "../plugins/drive-center" }
 edge-gateway = { path = "../plugins/edge-gateway" }
 algorithm-center = { path = "../plugins/algorithm-center" }
 software-center = { path = "../plugins/software-center" }
+az-linux = { path = "../plugins/az-linux" }
 lowcode = { path = "../plugins/lowcode" }
 dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
 dioxus-ssr = "0.7.9"

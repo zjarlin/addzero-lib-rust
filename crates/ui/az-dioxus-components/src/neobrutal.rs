@@ -7,14 +7,21 @@
 use dioxus::prelude::*;
 
 use crate::class_name::compose_class;
+use crate::style::inline_style;
 
 pub mod shell;
+mod style;
 
 pub use shell::{
     ContentSlot, FloatingPanelSlot, HeaderBar, IconButton, ModelButton, NavLink, PluginGroup,
     ProjectLayout, RightSlot, Shell, Sidebar, SidebarToggle, TitlebarControls, TitlebarNav,
     Workspace, WorkspaceBody,
 };
+use style::{NEOBRUTAL_CSS, NEOBRUTAL_STYLE_ID};
+
+pub(crate) fn neobrutal_style() -> Element {
+    inline_style(NEOBRUTAL_STYLE_ID, NEOBRUTAL_CSS)
+}
 
 /// Full-page surface with a graph-paper background.
 #[allow(non_snake_case)]
@@ -23,6 +30,7 @@ pub fn Page(children: Element, #[props(default, into)] class: String) -> Element
     let root_class = compose_class("page", &class, &[]);
 
     rsx! {
+        {neobrutal_style()}
         section { class: root_class, {children} }
     }
 }

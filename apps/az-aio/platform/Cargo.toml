@@ -14,6 +14,7 @@ anyhow.workspace = true
 axum.workspace = true
 az-admin-plugin-registry.workspace = true
 az-config-center-client = "=2026.6.13"
+az-dioxus-components.workspace = true
 az-str.workspace = true
 az-system-starters.workspace = true
 dirs = "6"
@@ -23,8 +24,14 @@ serde.workspace = true
 serde_json.workspace = true
 toasty.workspace = true
 tokio.workspace = true
+tracing.workspace = true
+tower = { workspace = true, features = ["timeout"] }
 tower-http.workspace = true
+urlencoding.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+dioxus-ssr = "0.7.9"
 
 [lints.rust]
 unsafe_code = "forbid"

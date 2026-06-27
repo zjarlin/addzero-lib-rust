@@ -60,6 +60,7 @@ fn neobrutal_components_render_stable_ssr_classes() {
     });
 
     assert!(markup.contains("page"));
+    assert!(markup.contains(r#"data-az-style="az-dioxus-neobrutal""#));
     assert!(markup.contains("hero--compact"));
     assert!(markup.contains("card--accent"));
     assert!(markup.contains("card--selected"));
@@ -113,4 +114,5 @@ fn neobrutal_shell_components_render_stable_ssr_classes() {
     assert!(markup.contains("icon-button"));
     assert!(markup.contains("workspace__body--lowcode"));
     assert!(markup.contains("content-center-slot--plugin"));
+    assert!(!markup.contains("#0284c7"));
 }

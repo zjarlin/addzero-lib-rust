@@ -5,26 +5,18 @@ edition = "2024"
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
 authors = ["zjarlin"]
-description = "AZ AIO lowcode plugin: meta-model driven AppScreen generation."
+description = "AZ AIO lowcode plugin backed by az-engine."
 
 [dependencies]
-tower-http = { version = "0.6", features = ["cors"] }
 anyhow.workspace = true
 axum.workspace = true
-chrono = { version = "0.4.42", features = ["clock"] }
 az-aio-platform = { path = "../../platform" }
 az-dioxus-components.workspace = true
+az-engine.workspace = true
 automod.workspace = true
 dioxus.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-parking_lot = "0.12"
 rudi.workspace = true
 urlencoding = "2"
 tokio.workspace = true
-toasty.workspace = true
-uuid.workspace = true
-
-[[bin]]
-name = "lowcode-api"
-path = "src/bin/lowcode-api.rs"

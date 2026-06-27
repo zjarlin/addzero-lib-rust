@@ -19,7 +19,7 @@ impl SlotRenderers {
         Self {
             content: pick_renderer(renderers, UiContributionSlot::Content, route),
             settings: pick_renderer(renderers, UiContributionSlot::SettingsContent, route),
-            sidebar: pick_renderer(renderers, UiContributionSlot::AppSidebar, route),
+            sidebar: pick_sidebar_renderer(renderers, route),
             topbar: pick_renderer(renderers, UiContributionSlot::AppTopbar, route),
             project_sidebar: pick_renderer(renderers, UiContributionSlot::ProjectSidebar, route),
             project_content: pick_renderer(renderers, UiContributionSlot::ProjectContent, route),
@@ -60,11 +60,11 @@ impl PageChrome {
         Self {
             title: page
                 .map(|page| page.title.as_str())
-                .unwrap_or("AZ AIO")
+                .unwrap_or("未匹配插件页面")
                 .to_string(),
             subtitle: page
                 .map(|page| page.subtitle.as_str())
-                .unwrap_or("Plugin-first Rust full-stack workbench")
+                .unwrap_or("当前路由没有插件贡献的内容渲染器。")
                 .to_string(),
             mark: page
                 .map(|page| page.placeholder_mark.as_str())
@@ -75,6 +75,22 @@ impl PageChrome {
     }
 }
 
+fn pick_sidebar_renderer(renderers: &[NativeUiRenderer], route: &str) -> Option<RenderSlot> {
+    renderers
+        .iter()
+        .find(|renderer| {
+            renderer.slot == UiContributionSlot::AppSidebar
+                && renderer
+                    .route
+                    .as_deref()
+                    .is_some_and(|value| value == route)
+        })
+        .map(|renderer| RenderSlot {
+            renderer_id: renderer.renderer_id.clone(),
+            render: renderer.render,
+        })
+}
+
 fn pick_renderer(
     renderers: &[NativeUiRenderer],
     slot: UiContributionSlot,
@@ -83,14 +99,14 @@ fn pick_renderer(
     renderers
         .iter()
         .find(|renderer| {
-            renderer.slot == slot && renderer_matches_route(renderer.route.as_deref(), route)
+            renderer.slot == slot
+                && renderer
+                    .route
+                    .as_deref()
+                    .is_some_and(|value| value == route)
         })
         .map(|renderer| RenderSlot {
             renderer_id: renderer.renderer_id.clone(),
             render: renderer.render,
         })
-}
-
-fn renderer_matches_route(candidate: Option<&str>, route: &str) -> bool {
-    candidate.is_none_or(|candidate| candidate == route)
 }

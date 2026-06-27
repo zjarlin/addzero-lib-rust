@@ -6,20 +6,21 @@ use std::{
 };
 
 use crate::{
+    core::api_error::with_global_api_error_layer,
     plugin::api::{
-        BackendApiContribution, CatalogItemContribution, CatalogItemKind, CatalogSource,
-        ContributionSet, DynNativeAzAioPlugin, GeneratedFileContribution, NativePluginContext,
-        NativeRenderFn, NativeUiRenderer, NavItemContribution, PageContribution, PluginActivation,
+        AdminCliContribution, AdminMenuTree, AdminResourceContract, BackendApiContribution,
+        CatalogItemContribution, CatalogItemKind, CatalogSource, ContributionSet,
+        DynAdminPluginProvider, GeneratedFileContribution, NativePluginContext, NativeRenderFn,
+        NativeUiRenderer, NavItemContribution, PageContribution, PluginActivation,
         PluginDescriptor, PluginKind, PluginState, SettingsSectionContribution,
-        ShellEntryContribution, ToolbarActionContribution, UiContribution,
+        ShellEntryContribution, ToolbarActionContribution, UiContribution, merge_menu_tree,
     },
-    system::{navigation::AdminSectionSnapshot, provider::AdminProvider},
 };
 use serde::{Deserialize, Serialize};
 
 const PLUGIN_STATE_FILE: &str = "plugin-state.json";
 
-pub fn load_az_aio_native_snapshot(
+pub fn load_native_snapshot(
     context: NativePluginContext,
     di: &mut rudi::Context,
 ) -> HostSnapshot {
@@ -41,7 +42,7 @@ pub async fn start_native_loopback_server(snapshot: HostSnapshot) -> anyhow::Res
     listener.set_nonblocking(true)?;
     let local_addr = listener.local_addr()?;
     thread::Builder::new()
-        .name("az-aio-native-plugin-server".to_string())
+        .name("aio-native-plugin-server".to_string())
         .spawn(move || {
             let runtime = match tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -49,7 +50,7 @@ pub async fn start_native_loopback_server(snapshot: HostSnapshot) -> anyhow::Res
             {
                 Ok(runtime) => runtime,
                 Err(error) => {
-                    eprintln!("az-aio native plugin runtime failed: {error}");
+                    eprintln!("aio native plugin runtime failed: {error}");
                     return;
                 }
             };
@@ -57,11 +58,11 @@ pub async fn start_native_loopback_server(snapshot: HostSnapshot) -> anyhow::Res
                 match tokio::net::TcpListener::from_std(listener) {
                     Ok(listener) => {
                         if let Err(error) = axum::serve(listener, app).await {
-                            eprintln!("az-aio native plugin server failed: {error}");
+                            eprintln!("aio native plugin server failed: {error}");
                         }
                     }
                     Err(error) => {
-                        eprintln!("az-aio native plugin listener failed: {error}");
+                        eprintln!("aio native plugin listener failed: {error}");
                     }
                 }
             });
@@ -70,7 +71,7 @@ pub async fn start_native_loopback_server(snapshot: HostSnapshot) -> anyhow::Res
 }
 
 pub struct NativePluginHost {
-    plugins: Vec<DynNativeAzAioPlugin>,
+    plugins: Vec<DynAdminPluginProvider>,
     context: NativePluginContext,
 }
 
@@ -83,12 +84,16 @@ impl NativePluginHost {
     }
 
     pub fn from_context(context: NativePluginContext, di: &mut rudi::Context) -> Self {
-        let mut plugins = di.resolve_by_type::<DynNativeAzAioPlugin>();
-        plugins.sort_by(|left, right| left.descriptor().id.cmp(&right.descriptor().id));
+        let mut plugins = di.resolve_by_type::<DynAdminPluginProvider>();
+        plugins.sort_by(|left, right| {
+            left.admin_descriptor()
+                .id
+                .cmp(&right.admin_descriptor().id)
+        });
         Self { plugins, context }
     }
 
-    pub fn with_plugin(mut self, plugin: DynNativeAzAioPlugin) -> Self {
+    pub fn with_plugin(mut self, plugin: DynAdminPluginProvider) -> Self {
         self.plugins.push(plugin);
         self
     }
@@ -99,15 +104,11 @@ impl NativePluginHost {
 
     pub fn load_snapshot_with_enablement(self, enablement: &PluginEnablementStore) -> HostSnapshot {
         let mut snapshot = HostSnapshot::default();
-        let admin_provider = AdminProvider;
-        snapshot.admin_sections = admin_provider.system_sections();
-        merge_snapshot_contributions(&mut snapshot, admin_provider.contributions());
-
         let mut seen_ids = HashSet::new();
         let mut seen_routes = HashSet::new();
 
         for plugin in self.plugins {
-            let descriptor = plugin.descriptor();
+            let descriptor = plugin.admin_descriptor();
             if !seen_ids.insert(descriptor.id.clone()) {
                 snapshot.plugins.push(failed_record(
                     descriptor.clone(),
@@ -120,7 +121,7 @@ impl NativePluginHost {
                 continue;
             }
 
-            let contributions = match plugin.contributions() {
+            let admin_contribution = match plugin.admin_contribution() {
                 Ok(c) => c,
                 Err(error) => {
                     snapshot.plugins.push(failed_record(
@@ -133,13 +134,19 @@ impl NativePluginHost {
                     continue;
                 }
             };
+            let contributions = admin_contribution.native.clone();
 
-            let runtime = match plugin.runtime(self.context.clone()) {
+            let runtime = match plugin.admin_runtime(self.context.clone()) {
                 Ok(r) => r,
                 Err(error) => {
-                    // Merge contributions even when runtime fails
-                    // so nav/pages/metadata are still available.
+                    merge_snapshot_admin_contribution(&mut snapshot, admin_contribution);
                     merge_snapshot_contributions(&mut snapshot, contributions.clone());
+                    snapshot
+                        .plugin_contributions
+                        .push(PluginContributionRecord {
+                            plugin_id: descriptor.id.clone(),
+                            contributions: contributions.clone(),
+                        });
                     snapshot.plugins.push(failed_record(
                         descriptor.clone(),
                         format!(
@@ -174,6 +181,7 @@ impl NativePluginHost {
                 continue;
             }
 
+            merge_snapshot_admin_contribution(&mut snapshot, admin_contribution);
             snapshot
                 .plugin_contributions
                 .push(PluginContributionRecord {
@@ -191,6 +199,7 @@ impl NativePluginHost {
         }
 
         sort_snapshot(&mut snapshot);
+        snapshot.native_router = with_global_api_error_layer(snapshot.native_router);
         snapshot
     }
 }
@@ -244,6 +253,9 @@ impl PluginEnablementStore {
 
 #[derive(Clone, Default)]
 pub struct HostSnapshot {
+    pub admin_menu_tree: AdminMenuTree,
+    pub admin_resources: Vec<AdminResourceContract>,
+    pub admin_cli: Vec<AdminCliContribution>,
     pub nav_items: Vec<NavItemContribution>,
     pub pages: Vec<PageContribution>,
     pub ui_contributions: Vec<UiContribution>,
@@ -257,7 +269,6 @@ pub struct HostSnapshot {
     pub plugins: Vec<PluginRuntimeRecord>,
     pub native_renderers: Vec<NativeUiRenderer>,
     pub native_router: axum::Router,
-    pub admin_sections: Vec<AdminSectionSnapshot>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -310,6 +321,15 @@ fn merge_snapshot_contributions(snapshot: &mut HostSnapshot, contributions: Cont
     }
 }
 
+fn merge_snapshot_admin_contribution(
+    snapshot: &mut HostSnapshot,
+    contribution: crate::plugin::api::AdminPluginContribution,
+) {
+    merge_menu_tree(&mut snapshot.admin_menu_tree, contribution.menu);
+    snapshot.admin_resources.extend(contribution.resources);
+    snapshot.admin_cli.extend(contribution.cli);
+}
+
 fn sort_snapshot(snapshot: &mut HostSnapshot) {
     let mut contributions = ContributionSet {
         nav_items: std::mem::take(&mut snapshot.nav_items),
@@ -331,6 +351,14 @@ fn sort_snapshot(snapshot: &mut HostSnapshot) {
     snapshot.settings_sections = contributions.settings_sections;
     snapshot.shell_entries = contributions.shell_entries;
     snapshot.generated_files = contributions.generated_files;
+    snapshot.admin_resources.sort_by(|left, right| {
+        left.route
+            .cmp(&right.route)
+            .then(left.id.cmp(&right.id))
+    });
+    snapshot
+        .admin_cli
+        .sort_by(|left, right| left.command.cmp(&right.command).then(left.id.cmp(&right.id)));
     snapshot
         .catalog_items
         .extend(plugin_catalog_items(&snapshot.plugins));
@@ -495,4 +523,124 @@ fn write_plugin_enablement_store(path: &Path, store: &PluginEnablementStore) -> 
     }
     let contents = serde_json::to_string_pretty(store).map_err(io::Error::other)?;
     fs::write(path, contents)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::plugin::api::{
+        AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminPluginContribution,
+        AdminPluginProvider, BackendApiContribution, NativePluginRuntime,
+    };
+
+    use super::*;
+
+    #[derive(Clone)]
+    struct TestProvider {
+        id: &'static str,
+        route: &'static str,
+        api_path: &'static str,
+    }
+
+    impl AdminPluginProvider for TestProvider {
+        fn admin_descriptor(&self) -> PluginDescriptor {
+            descriptor(self.id, self.id, "测试插件", 10, Vec::new(), vec!["test"])
+        }
+
+        fn admin_contribution(&self) -> anyhow::Result<AdminPluginContribution> {
+            Ok(AdminPluginContribution {
+                menu: AdminMenuTree {
+                    sections: vec![AdminMenuSection {
+                        domain_id: "test".to_string(),
+                        label: "测试".to_string(),
+                        default_href: self.route.to_string(),
+                        order: 10,
+                        menus: vec![AdminMenuNode {
+                            id: format!("{}.nav", self.id),
+                            kind: AdminMenuNodeKind::Page,
+                            label: self.id.to_string(),
+                            href: self.route.to_string(),
+                            icon: "T".to_string(),
+                            order: 10,
+                            active_patterns: vec![self.route.to_string()],
+                            permissions_any_of: Vec::new(),
+                            children: Vec::new(),
+                        }],
+                    }],
+                },
+                resources: Vec::new(),
+                cli: Vec::new(),
+                native: ContributionSet {
+                    backend_apis: vec![BackendApiContribution {
+                        id: format!("{}.api", self.id),
+                        method: "GET".to_string(),
+                        path: self.api_path.to_string(),
+                        label: "测试 API".to_string(),
+                        description: "测试 API".to_string(),
+                        order: 10,
+                    }],
+                    ..ContributionSet::default()
+                },
+            })
+        }
+
+        fn admin_runtime(
+            &self,
+            _context: NativePluginContext,
+        ) -> anyhow::Result<NativePluginRuntime> {
+            Ok(NativePluginRuntime::default())
+        }
+    }
+
+    #[test]
+    fn empty_host_does_not_create_business_menu() {
+        let snapshot = NativePluginHost::new(NativePluginContext::default()).load_snapshot();
+
+        assert!(snapshot.admin_menu_tree.sections.is_empty());
+        assert!(snapshot.nav_items.is_empty());
+        assert!(snapshot.pages.is_empty());
+    }
+
+    #[test]
+    fn host_menu_comes_from_admin_provider() {
+        let provider = Arc::new(TestProvider {
+            id: "demo",
+            route: "/demo",
+            api_path: "/api/demo",
+        });
+        let snapshot = NativePluginHost::new(NativePluginContext::default())
+            .with_plugin(provider)
+            .load_snapshot();
+
+        assert_eq!(snapshot.admin_menu_tree.sections[0].default_href, "/demo");
+        assert_eq!(snapshot.backend_apis[0].path, "/api/demo");
+    }
+
+    #[test]
+    fn duplicate_backend_route_marks_second_plugin_failed() {
+        let first = Arc::new(TestProvider {
+            id: "first",
+            route: "/first",
+            api_path: "/api/shared",
+        });
+        let second = Arc::new(TestProvider {
+            id: "second",
+            route: "/second",
+            api_path: "/api/shared",
+        });
+
+        let snapshot = NativePluginHost::new(NativePluginContext::default())
+            .with_plugin(first)
+            .with_plugin(second)
+            .load_snapshot();
+        let failed = snapshot
+            .plugins
+            .iter()
+            .filter(|record| record.state == PluginState::Failed)
+            .count();
+
+        assert_eq!(failed, 1);
+        assert_eq!(snapshot.backend_apis.len(), 1);
+    }
 }

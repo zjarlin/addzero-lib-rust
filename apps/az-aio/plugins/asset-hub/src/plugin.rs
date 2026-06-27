@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use az_aio_platform::plugin::api::{
-    ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
+    ContributionSet, DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
 use rudi::Singleton;
@@ -13,13 +13,13 @@ use crate::{
         store::build_asset_hub_context,
     },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    ui::page::AssetHubPage,
+    ui::{page::AssetHubPage, state::install_state},
 };
 
 #[derive(Default)]
 pub struct AssetHubPlugin;
 
-impl NativeAzAioPlugin for AssetHubPlugin {
+impl NativePluginProvider for AssetHubPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         descriptor()
     }
@@ -31,6 +31,7 @@ impl NativeAzAioPlugin for AssetHubPlugin {
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
         let _context = build_asset_hub_context();
         let state = block_on_state(context.database_url.clone())?;
+        install_state(state.clone());
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
                 renderer_id: RENDERER_ID.to_string(),
@@ -45,7 +46,7 @@ impl NativeAzAioPlugin for AssetHubPlugin {
 }
 
 #[Singleton(name = "asset-hub")]
-pub fn asset_hub_plugin() -> DynNativeAzAioPlugin {
+pub fn asset_hub_plugin() -> DynAdminPluginProvider {
     Arc::new(AssetHubPlugin)
 }
 

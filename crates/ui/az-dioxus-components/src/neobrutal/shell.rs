@@ -5,6 +5,7 @@
 use dioxus::prelude::*;
 
 use crate::class_name::compose_class;
+use crate::neobrutal::neobrutal_style;
 
 /// Full application shell grid with optional collapsed sidebar state.
 #[component]
@@ -16,6 +17,7 @@ pub fn Shell(
     let shell_class = compose_class("shell", &class, &[("shell--collapsed", collapsed)]);
 
     rsx! {
+        {neobrutal_style()}
         main { class: shell_class, {children} }
     }
 }
@@ -116,6 +118,7 @@ pub fn NavLink(
     #[props(default)] active: bool,
     #[props(default)] plugin: bool,
     #[props(default, into)] class: String,
+    #[props(default, into)] style: String,
 ) -> Element {
     let link_class = compose_class(
         "nav-button",
@@ -126,12 +129,24 @@ pub fn NavLink(
         ],
     );
 
-    rsx! {
-        a { class: link_class, href: href,
-            span { class: "nav-button__icon", "{icon}" }
-            span { class: "nav-button__label", "{label}" }
-            if !detail.is_empty() {
-                span { class: "nav-button__detail", "{detail}" }
+    if style.is_empty() {
+        rsx! {
+            a { class: link_class, href: href,
+                span { class: "nav-button__icon", "{icon}" }
+                span { class: "nav-button__label", "{label}" }
+                if !detail.is_empty() {
+                    span { class: "nav-button__detail", "{detail}" }
+                }
+            }
+        }
+    } else {
+        rsx! {
+            a { class: link_class, href: href, style: style,
+                span { class: "nav-button__icon", "{icon}" }
+                span { class: "nav-button__label", "{label}" }
+                if !detail.is_empty() {
+                    span { class: "nav-button__detail", "{detail}" }
+                }
             }
         }
     }

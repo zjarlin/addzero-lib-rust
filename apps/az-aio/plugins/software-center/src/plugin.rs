@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use az_aio_platform::plugin::api::{
-    ContributionSet, DynNativeAzAioPlugin, NativeAzAioPlugin, NativePluginContext, NativePluginRuntime,
+    ContributionSet, DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
 };
 use rudi::Singleton;
@@ -13,13 +13,13 @@ use crate::{
         store::build_software_center_context,
     },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    ui::page::SoftwareCenterPage,
+    ui::{page::SoftwareCenterPage, state::install_state},
 };
 
 #[derive(Default)]
 pub struct SoftwareCenterPlugin;
 
-impl NativeAzAioPlugin for SoftwareCenterPlugin {
+impl NativePluginProvider for SoftwareCenterPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         descriptor()
     }
@@ -31,6 +31,7 @@ impl NativeAzAioPlugin for SoftwareCenterPlugin {
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
         let _context = build_software_center_context();
         let state = block_on_state(context.database_url.clone())?;
+        install_state(state.clone());
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
                 renderer_id: RENDERER_ID.to_string(),
@@ -45,7 +46,7 @@ impl NativeAzAioPlugin for SoftwareCenterPlugin {
 }
 
 #[Singleton(name = "software-center")]
-pub fn software_center_plugin() -> DynNativeAzAioPlugin {
+pub fn software_center_plugin() -> DynAdminPluginProvider {
     Arc::new(SoftwareCenterPlugin)
 }
 

@@ -3,6 +3,7 @@
 use dioxus::prelude::*;
 
 use crate::class_name::compose_class;
+use crate::component_style::component_style;
 
 /// Renders a `<details>` accordion.
 #[allow(non_snake_case)]
@@ -24,6 +25,7 @@ pub fn Accordion(
     let body_class = compose_class("accordion__body lowcode-accordion__body", &body_class, &[]);
 
     rsx! {
+        {component_style()}
         details { class: root_class, open: open,
             summary { class: summary_class, "{title}" }
             div { class: body_class, {children} }

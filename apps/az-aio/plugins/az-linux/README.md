@@ -1,0 +1,15 @@
+# AZ Linux
+
+Native AZ AIO plugin for Linux server onboarding from the client side.
+
+## Runtime
+
+- Dioxus renderer: `az-linux.page`
+- Route: `/linux`
+- Axum APIs: `/api/az-linux/status`, `/api/az-linux/profiles`, `/api/az-linux/bootstrap-plan`, `/api/az-linux/bootstrap-script`
+- Persistence: no formal business data yet; generated plans are transient client contracts
+- Target profile: Ubuntu first, via `LinuxEnvironmentAdapter`
+
+## Domain
+
+The plugin keeps client-side Linux onboarding contracts, Ubuntu environment planning, SSH snippet generation, and manual curl bootstrap script rendering in domain-first files. The future server CLI should reuse these contract shapes instead of creating a second drifting interface surface.

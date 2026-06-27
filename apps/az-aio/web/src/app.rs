@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use az_aio_platform::plugin::api::{NavItemContribution, PageContribution};
+use az_aio_platform::plugin::api::AdminMenuTree;
 use dioxus::prelude::*;
 
 mod components;
@@ -13,14 +13,11 @@ pub fn render_app_html(
     route: &str,
     query: &str,
 ) -> String {
-    let nav_items = snapshot_nav_items(snapshot);
-    let pages = snapshot_pages(snapshot);
-
     let body = dioxus_ssr::render_element(rsx! {
         AppLayout {
             renderers: snapshot.native_renderers.clone(),
-            nav_items,
-            pages,
+            admin_menu_tree: snapshot_admin_menu_tree(snapshot),
+            pages: snapshot.pages.clone(),
             route: route.to_string(),
             query: query.to_string(),
         }
@@ -33,118 +30,135 @@ pub fn render_app_html(
             "<head>\n",
             "    <meta charset=\"utf-8\">\n",
             "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n",
-            "    <title>AZ AIO</title>\n",
+            "    <title>AIO</title>\n",
             "    <link rel=\"stylesheet\" href=\"/assets/app.css\">\n",
             "</head>\n",
             "<body>\n",
             "    {body}\n",
-            "    <script>(function(){{var r=document.documentElement;var saved=localStorage.getItem('az-theme');if(saved)r.setAttribute('data-theme',saved);var b=document.getElementById('theme-toggle');if(b)b.onclick=function(){{var t=r.getAttribute('data-theme')==='light'?'dark':'light';r.setAttribute('data-theme',t);localStorage.setItem('az-theme',t);return false;}};var shell=document.querySelector('.shell');var sidebar=document.getElementById('sidebar-toggle');function setCollapsed(v){{if(!shell)return;shell.classList.toggle('shell--collapsed',v);if(sidebar)sidebar.setAttribute('aria-expanded',String(!v));}}setCollapsed(localStorage.getItem('az-sidebar-collapsed')==='true');if(sidebar)sidebar.onclick=function(){{var next=!shell.classList.contains('shell--collapsed');setCollapsed(next);localStorage.setItem('az-sidebar-collapsed',String(next));return false;}};}})();</script>\n",
+            "    <script>{script}</script>\n",
             "</body>\n",
             "</html>",
         ),
         body = body,
+        script = shell_bootstrap_script(),
     )
 }
 
-fn snapshot_nav_items(
+fn snapshot_admin_menu_tree(
     snapshot: &az_aio_platform::plugin::host::HostSnapshot,
-) -> Vec<NavItemContribution> {
-    if snapshot.nav_items.is_empty() {
-        default_nav_items()
-    } else {
-        snapshot.nav_items.clone()
+) -> AdminMenuTree {
+    snapshot.admin_menu_tree.clone()
+}
+
+fn shell_bootstrap_script() -> &'static str {
+    r#"
+(function(){
+  var root = document.documentElement;
+  var savedTheme = localStorage.getItem('az-theme');
+  if (savedTheme) {
+    root.setAttribute('data-theme', savedTheme);
+  }
+
+  var themeButton = document.getElementById('theme-toggle');
+  if (themeButton) {
+    themeButton.onclick = function() {
+      var nextTheme = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', nextTheme);
+      localStorage.setItem('az-theme', nextTheme);
+      return false;
+    };
+  }
+
+  var shell = document.querySelector('.shell');
+  var sidebar = document.getElementById('sidebar-toggle');
+  function setCollapsed(collapsed) {
+    if (!shell) {
+      return;
     }
-}
-
-fn snapshot_pages(snapshot: &az_aio_platform::plugin::host::HostSnapshot) -> Vec<PageContribution> {
-    if snapshot.pages.is_empty() {
-        default_pages()
-    } else {
-        snapshot.pages.clone()
+    shell.classList.toggle('shell--collapsed', collapsed);
+    if (sidebar) {
+      sidebar.setAttribute('aria-expanded', String(!collapsed));
     }
-}
+  }
+  setCollapsed(localStorage.getItem('az-sidebar-collapsed') === 'true');
+  if (sidebar) {
+    sidebar.onclick = function() {
+      var next = !shell.classList.contains('shell--collapsed');
+      setCollapsed(next);
+      localStorage.setItem('az-sidebar-collapsed', String(next));
+      return false;
+    };
+  }
 
-fn default_nav_items() -> Vec<NavItemContribution> {
-    vec![
-        nav("assets", "资产", "◆", "/assets", 10),
-        nav("config", "配置", "⚙", "/config", 20),
-        nav("gateway", "网关", "↗", "/gateway", 30),
-        nav("software", "软件", "⬢", "/software", 40),
-        nav("drive", "网盘", "⇄", "/drive", 50),
-        nav("lowcode", "低代码", "▣", "/lowcode", 60),
-    ]
-}
-
-fn default_pages() -> Vec<PageContribution> {
-    vec![
-        page(
-            "/assets",
-            "资产中心",
-            "知识库 · 资产管理",
-            "◆",
-            "asset-hub.page",
-            10,
-        ),
-        page(
-            "/config",
-            "配置中心",
-            "配置管理",
-            "⚙",
-            "config-center.page",
-            20,
-        ),
-        page(
-            "/gateway",
-            "边缘网关",
-            "运维 · 网络",
-            "↗",
-            "edge-gateway.page",
-            30,
-        ),
-        page(
-            "/software",
-            "软件中心",
-            "安装器 · 目录",
-            "⬢",
-            "software-center.page",
-            40,
-        ),
-        page("/drive", "网盘中心", "云存储", "⇄", "drive-center.page", 50),
-        page(
-            "/lowcode",
-            "低代码工作台",
-            "元数据建模 & AppScreen 低代码管理",
-            "▣",
-            "lowcode.page",
-            60,
-        ),
-    ]
-}
-
-fn nav(id: &str, label: &str, icon: &str, route: &str, order: i32) -> NavItemContribution {
-    NavItemContribution {
-        id: id.into(),
-        label: label.into(),
-        icon: icon.into(),
-        route: route.into(),
-        order,
+  var search = document.getElementById('admin-menu-search');
+  if (!search) {
+    return;
+  }
+  function normalize(value) {
+    return String(value || '').toLowerCase().trim();
+  }
+  function itemMatches(item, query) {
+    if (!query) {
+      return true;
     }
-}
-
-fn page(
-    route: &str,
-    title: &str,
-    subtitle: &str,
-    mark: &str,
-    renderer_id: &str,
-    order: i32,
-) -> PageContribution {
-    PageContribution {
-        route: route.into(),
-        title: title.into(),
-        subtitle: subtitle.into(),
-        renderer_id: renderer_id.into(),
-        placeholder_mark: mark.into(),
-        order,
+    return normalize(item.getAttribute('data-menu-text')).indexOf(query) >= 0;
+  }
+  function parentMenuNode(item) {
+    var parent = item.parentElement;
+    while (parent) {
+      if (parent.matches && parent.matches('[data-menu-node]')) {
+        return parent;
+      }
+      parent = parent.parentElement;
     }
+    return null;
+  }
+  function hasMatchedAncestor(item) {
+    var parent = parentMenuNode(item);
+    while (parent) {
+      if (parent.getAttribute('data-menu-match') === 'self') {
+        return true;
+      }
+      parent = parentMenuNode(parent);
+    }
+    return false;
+  }
+  function refreshMenuSearch() {
+    var query = normalize(search.value);
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-menu-node]'));
+    nodes.forEach(function(item) {
+      item.hidden = false;
+      item.setAttribute('data-menu-match', itemMatches(item, query) ? 'self' : '');
+    });
+    nodes.forEach(function(item) {
+      if (!query) {
+        item.removeAttribute('data-menu-match');
+        return;
+      }
+      var ownMatched = item.getAttribute('data-menu-match') === 'self';
+      var childMatched = !!item.querySelector('[data-menu-node][data-menu-match="self"]');
+      var ancestorMatched = hasMatchedAncestor(item);
+      var matched = ownMatched || childMatched || ancestorMatched;
+      item.hidden = !matched;
+      if ((ownMatched || childMatched) && item.tagName.toLowerCase() === 'details') {
+        item.open = true;
+      }
+    });
+    nodes.forEach(function(item) {
+      item.removeAttribute('data-menu-match');
+    });
+    document.querySelectorAll('[data-menu-domain]').forEach(function(domain) {
+      var domainMatched = itemMatches(domain, query);
+      var panel = domain.nextElementSibling;
+      var childMatched = panel && !!panel.querySelector('[data-menu-node]:not([hidden])');
+      domain.hidden = !!query && !domainMatched && !childMatched;
+      if (panel) {
+        panel.hidden = !!query && !domainMatched && !childMatched;
+      }
+    });
+  }
+  search.addEventListener('input', refreshMenuSearch);
+  refreshMenuSearch();
+})();
+"#
 }

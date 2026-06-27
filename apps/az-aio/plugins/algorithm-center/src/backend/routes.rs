@@ -1,12 +1,16 @@
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, Multipart},
+    extract::DefaultBodyLimit,
     http::StatusCode,
+    response::{IntoResponse, Redirect, Response},
     routing::{get, post},
 };
-use az_aio_platform::core::upload::{
-    DEFAULT_UPLOAD_LIMIT_BYTES, MultipartUploadOptions, save_single_multipart_upload,
-    upload_file_service,
+use az_aio_platform::core::{
+    api_error::{ApiError, ApiForm, ApiJson, ApiMultipart},
+    upload::{
+        DEFAULT_UPLOAD_LIMIT_BYTES, MultipartUploadOptions, save_single_multipart_upload,
+        upload_file_service,
+    },
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -58,18 +62,13 @@ pub struct UploadVideoResponse {
     pub message: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ApiErrorResponse {
-    pub ok: bool,
-    pub error: String,
-}
-
 pub fn algorithm_center_router() -> Router {
     let upload_dir = upload_storage_dir();
     Router::new()
         .route("/api/algorithm-center/status", get(status_handler))
         .route("/api/algorithm-center/components", get(components_handler))
         .route("/api/algorithm-center/process", post(process_handler))
+        .route("/api/algorithm-center/ui-action", post(ui_action_handler))
         .route(
             "/api/algorithm-center/upload",
             post(upload_handler).layer(DefaultBodyLimit::max(DEFAULT_UPLOAD_LIMIT_BYTES)),
@@ -93,14 +92,14 @@ async fn components_handler(
 }
 
 async fn process_handler(
-    Json(request): Json<ProcessVideoRequest>,
-) -> Result<Json<ProcessVideoResponse>, (StatusCode, Json<ApiErrorResponse>)> {
+    ApiJson(request): ApiJson<ProcessVideoRequest>,
+) -> Result<Json<ProcessVideoResponse>, ApiError> {
     process_video(request).map(Json)
 }
 
 async fn upload_handler(
-    multipart: Multipart,
-) -> Result<Json<UploadVideoResponse>, (StatusCode, Json<ApiErrorResponse>)> {
+    ApiMultipart(multipart): ApiMultipart,
+) -> Result<Json<UploadVideoResponse>, ApiError> {
     let upload = save_single_multipart_upload(
         multipart,
         MultipartUploadOptions {
@@ -123,6 +122,20 @@ async fn upload_handler(
     }))
 }
 
+async fn ui_action_handler(ApiForm(form): ApiForm<ProcessVideoForm>) -> Response {
+    let redirect = match process_video(ProcessVideoRequest {
+        video_url: form.video_url,
+        algorithms: form.algorithms,
+    }) {
+        Ok(result) => process_redirect(result),
+        Err(error) => format!(
+            "/?route=/algorithms&error={}",
+            urlencoding::encode(error.message())
+        ),
+    };
+    Redirect::to(&redirect).into_response()
+}
+
 fn upload_storage_dir() -> PathBuf {
     std::env::var_os("AZ_AIO_UPLOAD_DIR")
         .map(PathBuf::from)
@@ -134,9 +147,7 @@ fn upload_storage_dir() -> PathBuf {
         })
 }
 
-fn process_video(
-    request: ProcessVideoRequest,
-) -> Result<ProcessVideoResponse, (StatusCode, Json<ApiErrorResponse>)> {
+fn process_video(request: ProcessVideoRequest) -> Result<ProcessVideoResponse, ApiError> {
     let video_url = request.video_url.trim();
     if video_url.is_empty() {
         return Err(api_error(StatusCode::BAD_REQUEST, "video_url 不能为空"));
@@ -161,9 +172,36 @@ fn process_video(
     })
 }
 
-fn selected_algorithms(
-    requested: &[String],
-) -> Result<Vec<AlgorithmSelection>, (StatusCode, Json<ApiErrorResponse>)> {
+#[derive(Clone, Debug, Deserialize)]
+struct ProcessVideoForm {
+    pub video_url: String,
+    #[serde(default)]
+    pub algorithms: Vec<String>,
+}
+
+fn process_redirect(result: ProcessVideoResponse) -> String {
+    let mut parts = vec![
+        "route=/algorithms".to_string(),
+        "run=1".to_string(),
+        format!("video_url={}", urlencoding::encode(&result.input_video_url)),
+        format!(
+            "processed_video_url={}",
+            urlencoding::encode(&result.processed_video_url)
+        ),
+        format!("job_id={}", urlencoding::encode(&result.job_id)),
+        format!("message={}", urlencoding::encode(&result.message)),
+    ];
+    for algorithm in result.algorithms {
+        parts.push(format!(
+            "algorithm={}",
+            urlencoding::encode(&algorithm.code)
+        ));
+        parts.push(format!("active={}", urlencoding::encode(&algorithm.code)));
+    }
+    format!("/?{}", parts.join("&"))
+}
+
+fn selected_algorithms(requested: &[String]) -> Result<Vec<AlgorithmSelection>, ApiError> {
     let descriptors = az_algorithm::catalog::query::algorithm_component_descriptors();
     let codes = requested
         .iter()
@@ -201,17 +239,8 @@ fn selected_algorithms(
     Ok(selected)
 }
 
-fn api_error(
-    status: StatusCode,
-    error: impl Into<String>,
-) -> (StatusCode, Json<ApiErrorResponse>) {
-    (
-        status,
-        Json(ApiErrorResponse {
-            ok: false,
-            error: error.into(),
-        }),
-    )
+fn api_error(status: StatusCode, error: impl Into<String>) -> ApiError {
+    ApiError::new(status, error)
 }
 
 #[cfg(test)]

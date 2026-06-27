@@ -1,11 +1,13 @@
 use axum::{
     Json, Router,
-    extract::{Query, State},
-    http::StatusCode,
-    response::{IntoResponse, Response},
+    extract::State,
+    response::{IntoResponse, Redirect, Response},
     routing::{get, post},
 };
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
+use az_aio_platform::core::api_error::{
+    ApiError, ApiForm, ApiJson, ApiQuery, ApiResponse, ok_json,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -45,6 +47,21 @@ impl ConfigCenterApiState {
             store: None,
         }
     }
+
+    pub fn status(&self) -> anyhow::Result<ConfigCenterStatusResponse> {
+        let paths = resolve_config_center_paths()?;
+        Ok(ConfigCenterStatusResponse {
+            ok: true,
+            database_configured: self.database_url.as_ref().is_some_and(|value| !value.is_empty()),
+            store_connected: self.store.is_some(),
+            table_prefix: TABLE_NAME_PREFIX.to_string(),
+            paths,
+        })
+    }
+
+    pub fn store(&self) -> Option<ConfigCenterStore> {
+        self.store.clone()
+    }
 }
 
 pub fn config_center_router(state: ConfigCenterApiState) -> Router {
@@ -54,41 +71,33 @@ pub fn config_center_router(state: ConfigCenterApiState) -> Router {
         .route("/api/config-center/pairing", get(pairing_handler))
         .route("/api/config-center/entries", get(list_entries_handler))
         .route("/api/config-center/entry", post(upsert_entry_handler))
+        .route("/api/config-center/ui-action", post(ui_action_handler))
         .with_state(state)
 }
 
 async fn status_handler(
     State(state): State<ConfigCenterApiState>,
 ) -> Result<Json<ConfigCenterStatusResponse>, Response> {
-    let paths = resolve_config_center_paths().map_err(config_center_error_response)?;
-    Ok(Json(ConfigCenterStatusResponse {
-        ok: true,
-        database_configured: state.database_url.as_ref().is_some_and(|value| !value.is_empty()),
-        store_connected: state.store.is_some(),
-        table_prefix: TABLE_NAME_PREFIX.to_string(),
-        paths,
-    }))
+    state.status().map(Json).map_err(config_center_error_response)
 }
 
 async fn dotfiles_handler(
 ) -> Result<Json<ApiResponse<DotfilesMonitorStatus>>, Response> {
     scan_dotfiles_status()
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(config_center_error_response)
 }
 
 async fn pairing_handler() -> Result<Json<ApiResponse<PairingLocalInfo>>, Response> {
     ensure_local_pairing_device_info().map_err(config_center_error_response)?;
     local_pairing_info()
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(config_center_error_response)
 }
 
 async fn list_entries_handler(
     State(state): State<ConfigCenterApiState>,
-    Query(query): Query<ListEntriesQuery>,
+    ApiQuery(query): ApiQuery<ListEntriesQuery>,
 ) -> Result<Json<ApiResponse<Vec<ConfigEntrySummary>>>, Response> {
     let store = state
         .store
@@ -97,14 +106,13 @@ async fn list_entries_handler(
     store
         .list_entries(query.namespace.as_deref().unwrap_or("az-aio.dev"))
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(config_center_error_response)
 }
 
 async fn upsert_entry_handler(
     State(state): State<ConfigCenterApiState>,
-    Json(request): Json<UpsertConfigEntryRequest>,
+    ApiJson(request): ApiJson<UpsertConfigEntryRequest>,
 ) -> Result<Json<ApiResponse<ConfigEntrySummary>>, Response> {
     let store = state
         .store
@@ -118,9 +126,40 @@ async fn upsert_entry_handler(
             value: request.value,
         })
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(config_center_error_response)
+}
+
+async fn ui_action_handler(
+    State(state): State<ConfigCenterApiState>,
+    ApiForm(form): ApiForm<UpsertConfigEntryRequest>,
+) -> Response {
+    let redirect = match apply_ui_action(state, form).await {
+        Ok(()) => "/?route=/config".to_string(),
+        Err(error) => format!(
+            "/?route=/config&error={}",
+            urlencoding::encode(&error.to_string())
+        ),
+    };
+    Redirect::to(&redirect).into_response()
+}
+
+async fn apply_ui_action(
+    state: ConfigCenterApiState,
+    request: UpsertConfigEntryRequest,
+) -> anyhow::Result<()> {
+    let store = state
+        .store
+        .context("missing config-center database url")?;
+    store
+        .upsert_entry(ConfigEntryInput {
+            id: request.id,
+            namespace: request.namespace.unwrap_or_else(|| "az-aio.dev".to_string()),
+            key: request.key,
+            value: request.value,
+        })
+        .await?;
+    Ok(())
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -130,23 +169,6 @@ pub struct ConfigCenterStatusResponse {
     pub store_connected: bool,
     pub table_prefix: String,
     pub paths: ConfigCenterPaths,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub message: String,
-    pub data: Option<T>,
-}
-
-impl<T> ApiResponse<T> {
-    fn ok(data: T) -> Self {
-        Self {
-            success: true,
-            message: "ok".to_string(),
-            data: Some(data),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -163,24 +185,7 @@ pub struct UpsertConfigEntryRequest {
 }
 
 fn config_center_error_response(error: anyhow::Error) -> Response {
-    let message = error.to_string();
-    let status = config_center_error_status(&message);
-    let body = ApiResponse::<()> {
-        success: false,
-        message,
-        data: None,
-    };
-    (status, Json(body)).into_response()
-}
-
-fn config_center_error_status(message: &str) -> StatusCode {
-    match message {
-        "missing config-center database url" => StatusCode::SERVICE_UNAVAILABLE,
-        "config key must not be blank" | "config value must not be blank" => {
-            StatusCode::BAD_REQUEST
-        }
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
-    }
+    ApiError::from(error).into_response()
 }
 
 #[cfg(test)]

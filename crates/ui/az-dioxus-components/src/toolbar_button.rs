@@ -3,6 +3,7 @@
 use dioxus::prelude::*;
 
 use crate::class_name::compose_class;
+use crate::component_style::component_style;
 
 /// Visual intent for [`ToolbarButton`] and [`ToolbarButtonLink`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -39,6 +40,7 @@ pub fn ToolbarButton(
     let class = button_class(&class, tone);
 
     rsx! {
+        {component_style()}
         button { class: class, r#type: button_type, disabled: disabled, {children} }
     }
 }
@@ -55,6 +57,7 @@ pub fn ToolbarButtonLink(
     let class = button_class(&class, tone);
 
     rsx! {
+        {component_style()}
         a { class: class, href: href, {children} }
     }
 }

@@ -3,11 +3,11 @@ use std::collections::BTreeMap;
 use axum::{
     Json, Router,
     extract::State,
-    http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
 };
 use anyhow::anyhow;
+use az_aio_platform::core::api_error::{ApiError, ApiJson, ApiResponse, ok_json};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -44,6 +44,19 @@ impl EdgeGatewayApiState {
             store: None,
         }
     }
+
+    pub fn status(&self) -> EdgeGatewayStatusResponse {
+        EdgeGatewayStatusResponse {
+            ok: true,
+            database_configured: self.database_url.as_ref().is_some_and(|value| !value.is_empty()),
+            store_connected: self.store.is_some(),
+            table_prefix: TABLE_NAME_PREFIX.to_string(),
+        }
+    }
+
+    pub fn store(&self) -> Option<EdgeGatewayStore> {
+        self.store.clone()
+    }
 }
 
 pub fn edge_gateway_router(state: EdgeGatewayApiState) -> Router {
@@ -57,12 +70,7 @@ pub fn edge_gateway_router(state: EdgeGatewayApiState) -> Router {
 }
 
 async fn status_handler(State(state): State<EdgeGatewayApiState>) -> Json<EdgeGatewayStatusResponse> {
-    Json(EdgeGatewayStatusResponse {
-        ok: true,
-        database_configured: state.database_url.as_ref().is_some_and(|value| !value.is_empty()),
-        store_connected: state.store.is_some(),
-        table_prefix: TABLE_NAME_PREFIX.to_string(),
-    })
+    Json(state.status())
 }
 
 async fn example_handler() -> Json<ApiResponse<GatewayRunRequest>> {
@@ -70,12 +78,11 @@ async fn example_handler() -> Json<ApiResponse<GatewayRunRequest>> {
 }
 
 async fn run_handler(
-    Json(request): Json<GatewayRunRequest>,
+    ApiJson(request): ApiJson<GatewayRunRequest>,
 ) -> Result<Json<ApiResponse<GatewayRunResult>>, Response> {
     run_gateway_plan(request)
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(edge_gateway_error_response)
 }
 
@@ -89,14 +96,13 @@ async fn list_flows_handler(
     store
         .list_flows()
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(edge_gateway_error_response)
 }
 
 async fn upsert_flow_handler(
     State(state): State<EdgeGatewayApiState>,
-    Json(request): Json<UpsertGatewayFlowRequest>,
+    ApiJson(request): ApiJson<UpsertGatewayFlowRequest>,
 ) -> Result<Json<ApiResponse<GatewayFlowSummary>>, Response> {
     let store = state
         .store
@@ -110,8 +116,7 @@ async fn upsert_flow_handler(
             status: request.status,
         })
         .await
-        .map(ApiResponse::ok)
-        .map(Json)
+        .map(ok_json)
         .map_err(edge_gateway_error_response)
 }
 
@@ -143,23 +148,6 @@ pub struct EdgeGatewayStatusResponse {
     pub table_prefix: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub message: String,
-    pub data: Option<T>,
-}
-
-impl<T> ApiResponse<T> {
-    fn ok(data: T) -> Self {
-        Self {
-            success: true,
-            message: "ok".to_string(),
-            data: Some(data),
-        }
-    }
-}
-
 #[derive(Debug, Deserialize)]
 pub struct UpsertGatewayFlowRequest {
     pub id: Option<String>,
@@ -169,24 +157,7 @@ pub struct UpsertGatewayFlowRequest {
 }
 
 fn edge_gateway_error_response(error: anyhow::Error) -> Response {
-    let message = error.to_string();
-    let status = edge_gateway_error_status(&message);
-    let body = ApiResponse::<()> {
-        success: false,
-        message,
-        data: None,
-    };
-    (status, Json(body)).into_response()
-}
-
-fn edge_gateway_error_status(message: &str) -> StatusCode {
-    match message {
-        "missing edge-gateway database url" => StatusCode::SERVICE_UNAVAILABLE,
-        "gateway flow name must not be blank" | "gateway flow route must not be blank" => {
-            StatusCode::BAD_REQUEST
-        }
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
-    }
+    ApiError::from(error).into_response()
 }
 
 #[cfg(test)]
