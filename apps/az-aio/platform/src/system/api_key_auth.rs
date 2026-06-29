@@ -21,18 +21,12 @@ pub struct SystemApiKeyAuthState {
 }
 
 impl SystemApiKeyAuthState {
-    pub async fn new(database_url: Option<String>) -> anyhow::Result<Self> {
-        let store = match database_url.as_deref() {
-            Some(value) if !value.trim().is_empty() => {
-                Some(SystemAdminStore::connect(value).await?)
-            }
-            _ => None,
-        };
-        Ok(Self { store })
-    }
-
     pub fn degraded() -> Self {
         Self { store: None }
+    }
+
+    pub fn from_store(store: Option<SystemAdminStore>) -> Self {
+        Self { store }
     }
 
     async fn authorize(&self, api_key: &str) -> anyhow::Result<Option<SystemApiKeySummary>> {

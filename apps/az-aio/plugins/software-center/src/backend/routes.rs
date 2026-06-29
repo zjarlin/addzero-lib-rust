@@ -23,23 +23,17 @@ pub struct SoftwareCenterApiState {
 }
 
 impl SoftwareCenterApiState {
-    pub async fn new(database_url: Option<String>) -> anyhow::Result<Self> {
-        let store = match database_url.as_deref() {
-            Some(value) if !value.trim().is_empty() => {
-                Some(SoftwareCenterStore::connect(value).await?)
-            }
-            _ => None,
-        };
-        Ok(Self {
-            database_url,
-            store,
-        })
-    }
-
     pub fn degraded(database_url: Option<String>) -> Self {
         Self {
             database_url,
             store: None,
+        }
+    }
+
+    pub fn from_store(database_url: Option<String>, store: Option<SoftwareCenterStore>) -> Self {
+        Self {
+            database_url,
+            store,
         }
     }
 

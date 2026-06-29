@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 pub const TABLE_NAME_PREFIX: &str = "biz_edge_gateway_";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_edge_gateway_gateway_flows"]
 pub struct GatewayFlow {
     #[key]
     pub id: String,
@@ -14,6 +15,7 @@ pub struct GatewayFlow {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_edge_gateway_gateway_route_definitions"]
 pub struct GatewayRouteDefinition {
     #[key]
     pub id: String,
@@ -33,6 +35,7 @@ pub struct GatewayRouteDefinition {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_edge_gateway_edge_api_token_records"]
 pub struct EdgeApiTokenRecord {
     #[key]
     pub id: String,
@@ -47,6 +50,7 @@ pub struct EdgeApiTokenRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_edge_gateway_edge_usage_record_rows"]
 pub struct EdgeUsageRecordRow {
     #[key]
     pub id: String,

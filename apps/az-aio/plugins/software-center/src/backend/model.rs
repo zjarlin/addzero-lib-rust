@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 pub const TABLE_NAME_PREFIX: &str = "biz_software_center_";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_software_center_software_package_records"]
 pub struct SoftwarePackageRecord {
     #[key]
     pub id: String,

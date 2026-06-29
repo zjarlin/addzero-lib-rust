@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::Context;
 use az_aio_platform::plugin::api::{
     ContributionSet, DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
@@ -10,7 +9,7 @@ use rudi::Singleton;
 use crate::{
     backend::{
         routes::{AssetHubApiState, asset_hub_router},
-        store::build_asset_hub_context,
+        store::{AssetHubStore, build_asset_hub_context_with_db},
     },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
     ui::{page::AssetHubPage, state::install_state},
@@ -29,8 +28,11 @@ impl NativePluginProvider for AssetHubPlugin {
     }
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let _context = build_asset_hub_context();
-        let state = block_on_state(context.database_url.clone())?;
+        let store = context.shared_db.clone().map(|shared_db| {
+            let mut plugin_context = build_asset_hub_context_with_db(shared_db.clone());
+            plugin_context.resolve::<AssetHubStore>()
+        });
+        let state = AssetHubApiState::from_store(context.database_url.clone(), store);
         install_state(state.clone());
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
@@ -50,18 +52,6 @@ pub fn asset_hub_plugin() -> DynAdminPluginProvider {
     Arc::new(AssetHubPlugin)
 }
 
-fn block_on_state(database_url: Option<String>) -> anyhow::Result<AssetHubApiState> {
-    if database_url.as_ref().is_none_or(|value| value.trim().is_empty()) {
-        return Ok(AssetHubApiState::degraded(database_url));
-    }
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .context("create asset-hub toasty runtime")?;
-    runtime
-        .block_on(AssetHubApiState::new(database_url.clone()))
-        .or_else(|_| Ok(AssetHubApiState::degraded(database_url)))
-}
 
 #[cfg(test)]
 mod tests {

@@ -44,28 +44,19 @@ pub struct EdgeGatewayApiState {
 }
 
 impl EdgeGatewayApiState {
-    pub async fn new(database_url: Option<String>) -> anyhow::Result<Self> {
-        let store = match database_url.as_deref() {
-            Some(value) if !value.trim().is_empty() => {
-                let store = EdgeGatewayStore::connect(value).await?;
-                store.ensure_demo_weather_token().await?;
-                store.ensure_builtin_weather_route().await?;
-                Some(store)
-            }
-            _ => None,
-        };
-        Ok(Self {
-            database_url,
-            store,
-            http: Client::new(),
-            tokens: Arc::new(Mutex::new(default_token_store())),
-        })
-    }
-
     pub fn degraded(database_url: Option<String>) -> Self {
         Self {
             database_url,
             store: None,
+            http: Client::new(),
+            tokens: Arc::new(Mutex::new(default_token_store())),
+        }
+    }
+
+    pub fn from_store(database_url: Option<String>, store: Option<EdgeGatewayStore>) -> Self {
+        Self {
+            database_url,
+            store,
             http: Client::new(),
             tokens: Arc::new(Mutex::new(default_token_store())),
         }

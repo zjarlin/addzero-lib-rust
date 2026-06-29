@@ -9,21 +9,12 @@ use crate::backend::model::{AssetRecord, AssetSummary, TABLE_NAME_PREFIX};
 
 #[derive(Clone)]
 pub struct AssetHubStore {
-    db: db::SharedDb,
+    db: db::Db,
 }
 
 impl AssetHubStore {
-    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
-        let database_url = db::verify_database_url(database_url)?;
-        let toasty = toasty::Db::builder()
-            .models(toasty::models!(AssetRecord))
-            .table_name_prefix(TABLE_NAME_PREFIX)
-            .connect(database_url)
-            .await?;
-        toasty.push_schema().await?;
-        Ok(Self {
-            db: db::SharedDb::new(toasty),
-        })
+    pub fn from_shared(db: db::Db) -> Self {
+        Self { db }
     }
 
     pub async fn list_assets(&self) -> anyhow::Result<Vec<AssetSummary>> {
@@ -104,12 +95,21 @@ pub struct AssetHubModule;
 
 impl Module for AssetHubModule {
     fn providers() -> Vec<DynProvider> {
-        providers![singleton(|_| Arc::new(AssetHubServiceImpl) as Arc<dyn AssetHubService>)]
+        providers![
+            singleton(|_| Arc::new(AssetHubServiceImpl) as Arc<dyn AssetHubService>),
+            singleton(|cx| AssetHubStore::from_shared(cx.resolve::<db::Db>())),
+        ]
     }
 }
 
 pub fn build_asset_hub_context() -> Context {
     Context::create(modules![AssetHubModule])
+}
+
+pub fn build_asset_hub_context_with_db(shared_db: db::Db) -> Context {
+    Context::options()
+        .singleton(shared_db)
+        .create(modules![AssetHubModule])
 }
 
 pub fn validate_asset_input(input: &AssetInput) -> anyhow::Result<()> {

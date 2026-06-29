@@ -27,6 +27,7 @@ anyhow = "1.0.99"
 automod = { package = "az-automod", version = "=2026.6.15", path = "../../../crates/core/az-automod" }
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "multipart"] }
 az-admin-plugin-registry = { version = "=2026.5.10", path = "../../../crates/runtime/az-admin-plugin-registry" }
+az-crud-base = { version = "=2026.5.10", path = "../../../crates/data/az-crud-base" }
 az-dioxus-components = { version = "=2026.5.10", path = "../../../crates/ui/az-dioxus-components" }
 az-engine = { version = "=2026.5.10", path = "../../../crates/runtime/az-engine" }
 az-system-starters = { version = "=2026.5.10", path = "../../../crates/runtime/az-system-starters" }

@@ -9,21 +9,12 @@ use crate::backend::model::{DriveTask, DriveTaskSummary, TABLE_NAME_PREFIX};
 
 #[derive(Clone)]
 pub struct DriveCenterStore {
-    db: db::SharedDb,
+    db: db::Db,
 }
 
 impl DriveCenterStore {
-    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
-        let database_url = db::verify_database_url(database_url)?;
-        let toasty = toasty::Db::builder()
-            .models(toasty::models!(DriveTask))
-            .table_name_prefix(TABLE_NAME_PREFIX)
-            .connect(database_url)
-            .await?;
-        toasty.push_schema().await?;
-        Ok(Self {
-            db: db::SharedDb::new(toasty),
-        })
+    pub fn from_shared(db: db::Db) -> Self {
+        Self { db }
     }
 
     pub async fn list_tasks(&self) -> anyhow::Result<Vec<DriveTaskSummary>> {
@@ -78,12 +69,21 @@ pub struct DriveCenterModule;
 
 impl Module for DriveCenterModule {
     fn providers() -> Vec<DynProvider> {
-        providers![singleton(|_| Arc::new(DriveCenterServiceImpl) as Arc<dyn DriveCenterService>)]
+        providers![
+            singleton(|_| Arc::new(DriveCenterServiceImpl) as Arc<dyn DriveCenterService>),
+            singleton(|cx| DriveCenterStore::from_shared(cx.resolve::<db::Db>())),
+        ]
     }
 }
 
 pub fn build_drive_center_context() -> Context {
     Context::create(modules![DriveCenterModule])
+}
+
+pub fn build_drive_center_context_with_db(shared_db: db::Db) -> Context {
+    Context::options()
+        .singleton(shared_db)
+        .create(modules![DriveCenterModule])
 }
 
 pub fn validate_drive_task_input(input: &DriveTaskInput) -> anyhow::Result<()> {

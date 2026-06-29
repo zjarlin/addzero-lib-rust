@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub const TABLE_NAME_PREFIX: &str = "biz_system_admin_";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_system_admin_system_page_records"]
 pub struct SystemPageRecord {
     #[key]
     pub id: String,
@@ -21,6 +22,7 @@ pub struct SystemPageRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_system_admin_system_operation_records"]
 pub struct SystemOperationRecord {
     #[key]
     pub id: String,
@@ -36,6 +38,7 @@ pub struct SystemOperationRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_system_admin_system_data_records"]
 pub struct SystemDataRecord {
     #[key]
     pub id: String,
@@ -47,6 +50,7 @@ pub struct SystemDataRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_system_admin_system_api_key_records"]
 pub struct SystemApiKeyRecord {
     #[key]
     pub id: String,

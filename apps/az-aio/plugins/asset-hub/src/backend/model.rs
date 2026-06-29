@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 pub const TABLE_NAME_PREFIX: &str = "biz_asset_hub_";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_asset_hub_asset_records"]
 pub struct AssetRecord {
     #[key]
     pub id: String,

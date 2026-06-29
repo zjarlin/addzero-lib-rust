@@ -127,6 +127,7 @@ az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
 az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
 az-context = { version = "=2026.5.10", path = "crates/core/az-context" }
 az-crdt = { version = "=2026.5.10", path = "crates/text/az-crdt" }
+az-crud-base = { version = "=2026.5.10", path = "crates/data/az-crud-base" }
 az-dioxus-components = { version = "=2026.5.10", path = "crates/ui/az-dioxus-components" }
 az-dict-macros = { version = "=2026.5.10", path = "crates/core/az-dict-macros" }
 az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }

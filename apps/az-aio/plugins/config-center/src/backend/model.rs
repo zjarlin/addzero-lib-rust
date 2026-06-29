@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 pub const TABLE_NAME_PREFIX: &str = "biz_config_center_";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_config_center_config_entries"]
 pub struct ConfigEntry {
     #[key]
     pub id: String,

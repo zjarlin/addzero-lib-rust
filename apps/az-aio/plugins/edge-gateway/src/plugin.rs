@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::Context;
 use az_aio_platform::plugin::api::{
     AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
     DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
@@ -11,7 +10,7 @@ use rudi::Singleton;
 use crate::{
     backend::{
         routes::{EdgeGatewayApiState, edge_gateway_router},
-        store::build_edge_gateway_context,
+        store::{EdgeGatewayStore, build_edge_gateway_context_with_db},
     },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
     ui::{page::EdgeGatewayPage, state::install_state},
@@ -52,8 +51,11 @@ impl NativePluginProvider for EdgeGatewayPlugin {
     }
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let _context = build_edge_gateway_context();
-        let state = block_on_state(context.database_url.clone())?;
+        let store = edge_gateway_store(context.shared_db.clone());
+        if let Some(store) = &store {
+            seed_edge_gateway_store(store.clone());
+        }
+        let state = EdgeGatewayApiState::from_store(context.database_url.clone(), store);
         install_state(state.clone());
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
@@ -73,19 +75,33 @@ pub fn edge_gateway_plugin() -> DynAdminPluginProvider {
     Arc::new(EdgeGatewayPlugin)
 }
 
-fn block_on_state(database_url: Option<String>) -> anyhow::Result<EdgeGatewayApiState> {
-    if database_url.as_ref().is_none_or(|value| value.trim().is_empty()) {
-        return Ok(EdgeGatewayApiState::degraded(database_url));
-    }
-    let runtime = tokio::runtime::Builder::new_current_thread()
+
+fn edge_gateway_store(shared_db: Option<az_aio_platform::core::db::Db>) -> Option<EdgeGatewayStore> {
+    shared_db.map(|shared_db| {
+        let mut plugin_context = build_edge_gateway_context_with_db(shared_db);
+        plugin_context.resolve::<EdgeGatewayStore>()
+    })
+}
+
+fn seed_edge_gateway_store(store: EdgeGatewayStore) {
+    let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .context("create edge-gateway toasty runtime")?;
-    runtime
-        .block_on(EdgeGatewayApiState::new(database_url.clone()))
-        .inspect_err(|error| eprintln!("edge-gateway Toasty startup degraded: {error:#}"))
-        .or_else(|_| Ok(EdgeGatewayApiState::degraded(database_url)))
+    {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("edge-gateway Toasty startup degraded: {error:#}");
+            return;
+        }
+    };
+    if let Err(error) = runtime.block_on(async {
+        store.ensure_demo_weather_token().await?;
+        store.ensure_builtin_weather_route().await
+    }) {
+        eprintln!("edge-gateway Toasty startup degraded: {error:#}");
+    }
 }
+
 
 #[cfg(test)]
 mod tests {

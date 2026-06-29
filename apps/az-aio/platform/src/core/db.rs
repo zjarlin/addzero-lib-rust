@@ -7,46 +7,98 @@ use std::sync::Arc;
 
 use anyhow::{Context, anyhow};
 use tokio::sync::Mutex;
+use toasty::{ModelSet, sql};
 
 /// 共享数据库柄。
 ///
 /// 持有 `toasty::Db` 的共享引用，所有插件复用同一连接池。
-/// 插件负责用自身的模型注册 `toasty::Db`，然后传入 `SharedDb` 进行包装。
+/// 平台启动时统一注册所有 Toasty 模型，插件 store 只持有该共享句柄。
 #[derive(Clone)]
-pub struct SharedDb {
+pub struct Db {
     db: Arc<Mutex<toasty::Db>>,
 }
 
-impl SharedDb {
+impl std::fmt::Debug for Db {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Db").finish_non_exhaustive()
+    }
+}
+
+impl Db {
     /// 从已配置好的 `toasty::Db` 创建共享包装。
     ///
-    /// `toasty::Db` 的构造（包括 `.models(...)`、`.table_name_prefix(...)`、
-    /// `.connect(...)` 和 `push_schema()`）由调用方（插件）完成，
-    /// `SharedDb` 只负责提供共享的 `Arc<Mutex<>>` 访问。
+    /// `toasty::Db` 的构造（包括 `.models(...)`、`.connect(...)` 和 `push_schema()`）
+    /// 由平台启动入口统一完成，
+    /// `Db` 只负责提供共享的 `Arc<Mutex<>>` 访问。
     pub fn new(db: toasty::Db) -> Self {
         Self {
             db: Arc::new(Mutex::new(db)),
         }
     }
 
-    /// 使用给定的 PostgreSQL 连接串建立连接并执行 schema 迁移。
-    ///
-    /// 适合不需要自定义模型注册的简单场景。
-    pub async fn connect_raw(database_url: &str, table_prefix: &str) -> anyhow::Result<Self> {
+    /// 使用给定的模型集合建立 PostgreSQL 连接并执行 schema 迁移。
+    pub async fn connect_with_models(
+        database_url: &str,
+        models: ModelSet,
+        bootstrap_sql: &[&str],
+    ) -> anyhow::Result<Self> {
         let database_url = verify_database_url(database_url)?;
-        let db = toasty::Db::builder()
-            .table_name_prefix(table_prefix)
+        let mut db = toasty::Db::builder()
+            .models(models)
             .connect(database_url)
             .await
             .with_context(|| format!("连接数据库失败: {database_url}"))?;
-        db.push_schema().await.context("数据库 schema 迁移失败")?;
+        push_or_bootstrap_schema(&mut db, bootstrap_sql)
+            .await
+            .context("数据库 schema 迁移失败")?;
         Ok(Self::new(db))
     }
 
+    /// 使用给定的 PostgreSQL 连接串建立连接并执行 schema 迁移。
+    ///
     /// 获取内部 `toasty::Db` 的锁守卫。
     pub async fn lock(&self) -> tokio::sync::MutexGuard<'_, toasty::Db> {
         self.db.lock().await
     }
+
+    /// Returns the shared Toasty handle for stores that already own an executor wrapper.
+    pub fn shared_handle(&self) -> Arc<Mutex<toasty::Db>> {
+        Arc::clone(&self.db)
+    }
+}
+
+
+/// 把共享数据库作为 Rudi singleton 写入容器。
+pub async fn install_shared_db_singleton(
+    di: &mut rudi::Context,
+    database_url: Option<&str>,
+    models: ModelSet,
+    bootstrap_sql: &[&str],
+) -> anyhow::Result<Option<Db>> {
+    let Some(database_url) = database_url.filter(|value| !value.trim().is_empty()) else {
+        return Ok(None);
+    };
+    let db = Db::connect_with_models(database_url, models, bootstrap_sql).await?;
+    di.insert_singleton(db.clone());
+    Ok(Some(db))
+}
+
+async fn push_or_bootstrap_schema(db: &mut toasty::Db, bootstrap_sql: &[&str]) -> anyhow::Result<()> {
+    match db.push_schema().await {
+        Ok(()) => Ok(()),
+        Err(error) if is_relation_already_exists(&error.to_string()) && !bootstrap_sql.is_empty() => {
+            for statement in bootstrap_sql {
+                sql::statement(*statement).exec(db).await?;
+            }
+            Ok(())
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// Detects PostgreSQL duplicate-table/index failures emitted by Toasty schema push.
+pub fn is_relation_already_exists(message: &str) -> bool {
+    message.contains("already exists") || message.contains("relation") && message.contains("exists")
 }
 
 /// 校验并规范化数据库连接串。
@@ -97,6 +149,11 @@ mod tests {
             verify_database_url("postgres://localhost/test").unwrap(),
             "postgres://localhost/test"
         );
+    }
+
+    #[test]
+    fn detects_existing_relation_errors() {
+        assert!(is_relation_already_exists("relation demo already exists"));
     }
 
     #[test]

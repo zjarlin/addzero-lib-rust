@@ -504,6 +504,7 @@ pub type NativeRenderFn = fn(NativeRenderContext) -> dioxus::prelude::Element;
 pub struct NativePluginContext {
     pub api_base_url: String,
     pub database_url: Option<String>,
+    pub shared_db: Option<crate::core::db::Db>,
     pub config_dir: std::path::PathBuf,
     pub data_dir: std::path::PathBuf,
 }
@@ -513,6 +514,7 @@ impl Default for NativePluginContext {
         Self {
             api_base_url: "http://127.0.0.1:0".to_string(),
             database_url: None,
+            shared_db: None,
             config_dir: std::path::PathBuf::from("."),
             data_dir: std::path::PathBuf::from("."),
         }

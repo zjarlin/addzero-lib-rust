@@ -20,6 +20,7 @@ use crate::{
             system_page_views,
         },
         navigation::{AdminSectionSnapshot, system_admin_sections},
+        store::SystemAdminStore,
         ui::{SystemAdminPage, SystemAdminSidebar},
     },
 };
@@ -250,7 +251,7 @@ impl AdminPluginProvider for AdminProvider {
     }
 
     fn admin_runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let state = system_admin_api_state(context.database_url);
+        let state = system_admin_api_state(context.database_url, context.shared_db);
         Ok(NativePluginRuntime {
             renderers: self.renderers(),
             router: system_admin_router(state),
@@ -268,19 +269,33 @@ pub fn system_contributions() -> ContributionSet {
     AdminProvider.contributions()
 }
 
-fn system_admin_api_state(database_url: Option<String>) -> SystemAdminApiState {
+fn system_admin_api_state(
+    database_url: Option<String>,
+    shared_db: Option<crate::core::db::Db>,
+) -> SystemAdminApiState {
     if database_url.as_ref().is_none_or(|value| value.trim().is_empty()) {
         return SystemAdminApiState::degraded(database_url);
     }
+    let store = shared_db.map(SystemAdminStore::from_shared);
+    if let Some(store) = &store {
+        sync_system_catalog(store.clone());
+    }
+    SystemAdminApiState::from_store(database_url, store)
+}
 
-    match tokio::runtime::Builder::new_current_thread()
+fn sync_system_catalog(store: SystemAdminStore) {
+    let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
     {
-        Ok(runtime) => runtime
-            .block_on(SystemAdminApiState::new(database_url.clone()))
-            .unwrap_or_else(|_| SystemAdminApiState::degraded(database_url)),
-        Err(_) => SystemAdminApiState::degraded(database_url),
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("system-admin Toasty startup degraded: {error:#}");
+            return;
+        }
+    };
+    if let Err(error) = runtime.block_on(store.sync_catalog_snapshot()) {
+        eprintln!("system-admin Toasty startup degraded: {error:#}");
     }
 }
 

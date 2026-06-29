@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::Context;
 use az_aio_platform::plugin::api::{
     ContributionSet, DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
     NativeUiRenderer, PluginDescriptor, UiContributionSlot,
@@ -10,7 +9,7 @@ use rudi::Singleton;
 use crate::{
     backend::{
         routes::{DriveCenterApiState, drive_center_router},
-        store::build_drive_center_context,
+        store::{DriveCenterStore, build_drive_center_context_with_db},
     },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
     ui::{page::DriveCenterPage, state::install_state},
@@ -29,8 +28,11 @@ impl NativePluginProvider for DriveCenterPlugin {
     }
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let _context = build_drive_center_context();
-        let state = block_on_state(context.database_url.clone())?;
+        let store = context.shared_db.clone().map(|shared_db| {
+            let mut plugin_context = build_drive_center_context_with_db(shared_db.clone());
+            plugin_context.resolve::<DriveCenterStore>()
+        });
+        let state = DriveCenterApiState::from_store(context.database_url.clone(), store);
         install_state(state.clone());
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
@@ -50,18 +52,6 @@ pub fn drive_center_plugin() -> DynAdminPluginProvider {
     Arc::new(DriveCenterPlugin)
 }
 
-fn block_on_state(database_url: Option<String>) -> anyhow::Result<DriveCenterApiState> {
-    if database_url.as_ref().is_none_or(|value| value.trim().is_empty()) {
-        return Ok(DriveCenterApiState::degraded(database_url));
-    }
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .context("create drive-center toasty runtime")?;
-    runtime
-        .block_on(DriveCenterApiState::new(database_url.clone()))
-        .or_else(|_| Ok(DriveCenterApiState::degraded(database_url)))
-}
 
 #[cfg(test)]
 mod tests {

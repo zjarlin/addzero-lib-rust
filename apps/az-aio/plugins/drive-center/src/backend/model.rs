@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 pub const TABLE_NAME_PREFIX: &str = "biz_drive_center_";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "biz_drive_center_drive_tasks"]
 pub struct DriveTask {
     #[key]
     pub id: String,

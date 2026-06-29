@@ -6,10 +6,7 @@
 use anyhow::{Context, anyhow, bail};
 use sha2::{Digest, Sha256};
 use serde_json::Value;
-use toasty::{
-    sql,
-    stmt::{List, Query},
-};
+use toasty::stmt::{List, Query};
 use uuid::Uuid;
 
 use crate::{
@@ -27,31 +24,12 @@ use crate::{
 
 #[derive(Clone)]
 pub struct SystemAdminStore {
-    db: db::SharedDb,
+    db: db::Db,
 }
 
 impl SystemAdminStore {
-    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
-        let database_url = db::verify_database_url(database_url)?;
-        let mut toasty = toasty::Db::builder()
-            .models(toasty::models!(
-                SystemPageRecord,
-                SystemOperationRecord,
-                SystemDataRecord,
-                SystemApiKeyRecord
-            ))
-            .table_name_prefix(TABLE_NAME_PREFIX)
-            .connect(database_url)
-            .await
-            .with_context(|| format!("连接系统后台数据库失败: {database_url}"))?;
-        push_or_bootstrap_schema(&mut toasty)
-            .await
-            .context("迁移系统后台 schema 失败")?;
-        let store = Self {
-            db: db::SharedDb::new(toasty),
-        };
-        store.sync_catalog_snapshot().await?;
-        Ok(store)
+    pub fn from_shared(db: db::Db) -> Self {
+        Self { db }
     }
 
     pub async fn sync_catalog_snapshot(&self) -> anyhow::Result<Vec<SystemPageRecordSummary>> {
@@ -418,28 +396,16 @@ fn validate_operation_input(
     Ok(())
 }
 
-async fn push_or_bootstrap_schema(db: &mut toasty::Db) -> anyhow::Result<()> {
-    match db.push_schema().await {
-        Ok(()) => Ok(()),
-        Err(error) if is_relation_already_exists(&error.to_string()) => {
-            bootstrap_system_admin_tables(db).await
-        }
-        Err(error) => Err(error.into()),
-    }
+pub fn system_admin_models() -> toasty::ModelSet {
+    toasty::models!(
+        SystemPageRecord,
+        SystemOperationRecord,
+        SystemDataRecord,
+        SystemApiKeyRecord
+    )
 }
 
-fn is_relation_already_exists(message: &str) -> bool {
-    message.contains("already exists") || message.contains("relation") && message.contains("exists")
-}
-
-async fn bootstrap_system_admin_tables(db: &mut toasty::Db) -> anyhow::Result<()> {
-    for statement in SYSTEM_ADMIN_BOOTSTRAP_SQL {
-        sql::statement(*statement).exec(db).await?;
-    }
-    Ok(())
-}
-
-const SYSTEM_ADMIN_BOOTSTRAP_SQL: &[&str] = &[
+pub const SYSTEM_ADMIN_BOOTSTRAP_SQL: &[&str] = &[
     "CREATE TABLE IF NOT EXISTS biz_system_admin_system_page_records (id TEXT PRIMARY KEY, route TEXT NOT NULL, label TEXT NOT NULL, status TEXT NOT NULL, pg_tables TEXT NOT NULL, operations TEXT NOT NULL, updated_at TEXT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS biz_system_admin_system_page_records_route_idx ON biz_system_admin_system_page_records (route)",
     "CREATE TABLE IF NOT EXISTS biz_system_admin_system_operation_records (id TEXT PRIMARY KEY, operation_id TEXT NOT NULL, page_id TEXT NOT NULL, method TEXT NOT NULL, api_path TEXT NOT NULL, cli TEXT NOT NULL, payload_json TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)",

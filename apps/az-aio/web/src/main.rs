@@ -1,18 +1,18 @@
 #![forbid(unsafe_code)]
 
-mod app;
-
 use anyhow::{Context as _, Result};
-use axum::{Router, extract::RawQuery, middleware, routing::get};
+use axum::{Router, middleware, response::Html, routing::get};
 use az_aio_platform::{
-    core::config::AppConfig,
+    core::{config::AppConfig, db},
     plugin::host,
-    system::api_key_auth::{SystemApiKeyAuthState, optional_system_api_key_auth},
+    system::{
+        api_key_auth::{SystemApiKeyAuthState, optional_system_api_key_auth},
+        store::{SYSTEM_ADMIN_BOOTSTRAP_SQL, SystemAdminStore},
+    },
 };
 use rudi::Context;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tower_http::services::ServeDir;
 
 fn main() -> Result<()> {
@@ -21,31 +21,53 @@ fn main() -> Result<()> {
     let mut di = Context::auto_register();
     let config = di.resolve::<az_aio_platform::core::config::ConfigCenterConfig>();
 
-    let native_context = az_aio_platform::plugin::api::NativePluginContext {
-        api_base_url: String::new(),
-        config_dir: std::path::PathBuf::from("."),
-        data_dir: std::path::PathBuf::from("."),
-        database_url: config.database_url(),
-    };
-
-    let snapshot = host::load_native_snapshot(native_context, &mut di);
     let port = config.port();
+    let database_url = config.database_url();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .context("创建 AIO web runtime 失败")?;
+    let bootstrap_sql = aio_bootstrap_sql();
+    let shared_db = match runtime.block_on(db::install_shared_db_singleton(
+        &mut di,
+        database_url.as_deref(),
+        aio_toasty_models(),
+        &bootstrap_sql,
+    )) {
+        Ok(shared_db) => shared_db,
+        Err(error) => {
+            eprintln!("AIO shared Toasty startup degraded: {error:#}");
+            None
+        }
+    };
 
-    runtime.block_on(run_web_server(snapshot, port, config.database_url()))
+    let native_context = az_aio_platform::plugin::api::NativePluginContext {
+        api_base_url: String::new(),
+        config_dir: std::path::PathBuf::from("."),
+        data_dir: std::path::PathBuf::from("."),
+        database_url: database_url.clone(),
+        shared_db: shared_db.clone(),
+    };
+
+    let snapshot = host::load_native_snapshot(native_context, &mut di);
+
+    runtime.block_on(run_web_server(snapshot, port, database_url, shared_db))
 }
 
 async fn run_web_server(
     snapshot: az_aio_platform::plugin::host::HostSnapshot,
     port: u16,
     database_url: Option<String>,
+    shared_db: Option<db::Db>,
 ) -> Result<()> {
-    let api_key_auth_state = SystemApiKeyAuthState::new(database_url)
-        .await
-        .unwrap_or_else(|_| SystemApiKeyAuthState::degraded());
+    let api_key_auth_state = if database_url
+        .as_ref()
+        .is_some_and(|value| !value.trim().is_empty())
+    {
+        SystemApiKeyAuthState::from_store(shared_db.map(SystemAdminStore::from_shared))
+    } else {
+        SystemApiKeyAuthState::degraded()
+    };
     let native_router = snapshot
         .native_router
         .clone()
@@ -53,15 +75,14 @@ async fn run_web_server(
             api_key_auth_state,
             optional_system_api_key_auth,
         ));
-    let state = Arc::new(snapshot);
     let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
 
     let app = Router::new()
         .route("/", get(root_page))
+        .route("/gateway", get(root_page))
         .route("/health", get(health))
         .nest_service("/assets", ServeDir::new(&assets_dir))
-        .merge(native_router.with_state(()))
-        .with_state(state);
+        .merge(native_router.with_state(()));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("AIO web workbench listening on http://{addr}");
@@ -72,29 +93,67 @@ async fn run_web_server(
     Ok(())
 }
 
-async fn root_page(
-    axum::extract::State(snapshot): axum::extract::State<
-        Arc<az_aio_platform::plugin::host::HostSnapshot>,
-    >,
-    RawQuery(raw_query): RawQuery,
-) -> axum::response::Html<String> {
-    let (route, query) = split_route_query(raw_query.as_deref());
-    let html = match tokio::task::spawn_blocking(move || {
-        app::render_app_html(&snapshot, &route, &query)
-    })
-    .await
-    {
-        Ok(html) => html,
-        Err(error) => format!(
-            r#"<!doctype html><meta charset="utf-8"><title>AIO</title><main>SSR 渲染失败：{error}</main>"#
-        ),
-    };
-    axum::response::Html(html)
+async fn root_page() -> Html<&'static str> {
+    Html(include_str!("../assets/react/index.html"))
 }
 
 async fn health() -> &'static str {
     "ok"
 }
+
+fn aio_toasty_models() -> toasty::ModelSet {
+    toasty::models!(
+        az_aio_platform::system::model::SystemPageRecord,
+        az_aio_platform::system::model::SystemOperationRecord,
+        az_aio_platform::system::model::SystemDataRecord,
+        az_aio_platform::system::model::SystemApiKeyRecord,
+        config_center::backend::model::ConfigEntry,
+        drive_center::backend::model::DriveTask,
+        asset_hub::backend::model::AssetRecord,
+        software_center::backend::model::SoftwarePackageRecord,
+        edge_gateway::backend::model::GatewayFlow,
+        edge_gateway::backend::model::GatewayRouteDefinition,
+        edge_gateway::backend::model::EdgeApiTokenRecord,
+        edge_gateway::backend::model::EdgeUsageRecordRow,
+        az_engine::MetaModel,
+        az_engine::MetaField,
+        az_engine::HookDefinition,
+        az_engine::DataRecord
+    )
+}
+
+fn aio_bootstrap_sql() -> Vec<&'static str> {
+    let mut statements = Vec::new();
+    statements.extend_from_slice(SYSTEM_ADMIN_BOOTSTRAP_SQL);
+    statements.extend_from_slice(CONFIG_CENTER_BOOTSTRAP_SQL);
+    statements.extend_from_slice(DRIVE_CENTER_BOOTSTRAP_SQL);
+    statements.extend_from_slice(ASSET_HUB_BOOTSTRAP_SQL);
+    statements.extend_from_slice(SOFTWARE_CENTER_BOOTSTRAP_SQL);
+    statements.extend_from_slice(edge_gateway::backend::store::EDGE_GATEWAY_BOOTSTRAP_SQL);
+    statements.extend_from_slice(az_engine::ENGINE_BOOTSTRAP_SQL);
+    statements
+}
+
+const CONFIG_CENTER_BOOTSTRAP_SQL: &[&str] = &[
+    "CREATE TABLE IF NOT EXISTS biz_config_center_config_entries (id TEXT PRIMARY KEY, namespace TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated_at TEXT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS biz_config_center_config_entries_namespace_idx ON biz_config_center_config_entries (namespace)",
+    "CREATE INDEX IF NOT EXISTS biz_config_center_config_entries_key_idx ON biz_config_center_config_entries (key)",
+];
+
+const DRIVE_CENTER_BOOTSTRAP_SQL: &[&str] = &[
+    "CREATE TABLE IF NOT EXISTS biz_drive_center_drive_tasks (id TEXT PRIMARY KEY, drive_path TEXT NOT NULL, action TEXT NOT NULL, status TEXT NOT NULL, updated_at TEXT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS biz_drive_center_drive_tasks_drive_path_idx ON biz_drive_center_drive_tasks (drive_path)",
+];
+
+const ASSET_HUB_BOOTSTRAP_SQL: &[&str] = &[
+    "CREATE TABLE IF NOT EXISTS biz_asset_hub_asset_records (id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL, source TEXT NOT NULL, updated_at TEXT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS biz_asset_hub_asset_records_kind_idx ON biz_asset_hub_asset_records (kind)",
+];
+
+const SOFTWARE_CENTER_BOOTSTRAP_SQL: &[&str] = &[
+    "CREATE TABLE IF NOT EXISTS biz_software_center_software_package_records (id TEXT PRIMARY KEY, name TEXT NOT NULL, source_path TEXT NOT NULL, platform TEXT NOT NULL, arch TEXT NOT NULL, status TEXT NOT NULL, updated_at TEXT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS biz_software_center_software_package_records_name_idx ON biz_software_center_software_package_records (name)",
+];
 
 fn enable_plugin_providers() {
     az_aio_platform::enable();
@@ -106,37 +165,6 @@ fn enable_plugin_providers() {
     lowcode::enable();
     software_center::enable();
     az_linux::enable();
-}
-
-fn split_route_query(raw_query: Option<&str>) -> (String, String) {
-    let mut route = "/".to_string();
-    let mut query_parts = Vec::new();
-
-    for pair in raw_query.unwrap_or_default().split('&') {
-        if pair.is_empty() {
-            continue;
-        }
-        let key = pair.split_once('=').map(|(key, _)| key).unwrap_or(pair);
-        if key == "route" {
-            let raw_value = pair
-                .split_once('=')
-                .map(|(_, value)| value)
-                .unwrap_or_default();
-            route = urlencoding::decode(raw_value)
-                .unwrap_or_else(|_| raw_value.into())
-                .into_owned();
-        } else {
-            query_parts.push(pair.to_string());
-        }
-    }
-
-    let query = if query_parts.is_empty() {
-        String::new()
-    } else {
-        format!("?{}", query_parts.join("&"))
-    };
-
-    (route, query)
 }
 
 #[cfg(test)]
@@ -224,18 +252,5 @@ mod tests {
                 .children
                 .iter()
                 .any(|child| menu_node_contains_href(child, href))
-    }
-
-    #[test]
-    fn split_route_query_preserves_repeated_plugin_params() {
-        let (route, query) = split_route_query(Some(
-            "route=%2Falgorithms&algorithm=flame_detection&algorithm=face_detection&active=flame_detection",
-        ));
-
-        assert_eq!(route, "/algorithms");
-        assert_eq!(
-            query,
-            "?algorithm=flame_detection&algorithm=face_detection&active=flame_detection"
-        );
     }
 }

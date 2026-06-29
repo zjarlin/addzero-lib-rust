@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{Context, anyhow};
+use anyhow::anyhow;
 use az_aio_platform::plugin::api::{
     AdminCliContribution, AdminFieldContract, AdminFieldKind, AdminMenuNode, AdminMenuNodeKind,
     AdminMenuSection, AdminMenuTree, AdminOperationContract, AdminResourceContract,
@@ -10,15 +10,15 @@ use az_aio_platform::plugin::api::{
     UiContributionSlot,
 };
 use az_engine::{
-    API_PREFIX, FIELDS_PATH_TEMPLATE, HOOKS_PATH_TEMPLATE, MODELS_PATH, OP_FIELDS_CREATE,
-    OP_FIELDS_LIST, OP_HOOKS_CREATE, OP_HOOKS_LIST, OP_MODELS_CREATE, OP_MODELS_LIST,
-    OP_RECORDS_CREATE, OP_RECORDS_LIST, RECORDS_PATH_TEMPLATE,
+    FIELDS_PATH_TEMPLATE, HOOKS_PATH_TEMPLATE, MODELS_PATH, OP_FIELDS_CREATE, OP_FIELDS_LIST,
+    OP_HOOKS_CREATE, OP_HOOKS_LIST, OP_MODELS_CREATE, OP_MODELS_LIST, OP_RECORDS_CREATE,
+    OP_RECORDS_LIST, RECORDS_PATH_TEMPLATE,
 };
 use rudi::Singleton;
 
 use crate::{
     routes::{LowcodeApiState, engine_router},
-    state::{connect_store_sync, install_store},
+    state::{install_store, store_from_shared_db},
     ui::{page::LowcodePage, sidebar::LowcodeSidebar},
 };
 
@@ -92,13 +92,17 @@ impl NativePluginProvider for LowcodePlugin {
     }
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let database_url = context
+        if context
             .database_url
             .as_deref()
-            .filter(|value| !value.trim().is_empty())
-            .ok_or_else(|| anyhow!("lowcode 插件启动需要 PostgreSQL DATABASE_URL"))?;
-        let store = connect_store_sync(database_url)
-            .with_context(|| format!("启动 lowcode engine runtime 失败: {API_PREFIX}"))?;
+            .is_none_or(|value| value.trim().is_empty())
+        {
+            return Err(anyhow!("lowcode 插件启动需要 PostgreSQL DATABASE_URL"));
+        }
+        let shared_db = context
+            .shared_db
+            .ok_or_else(|| anyhow!("lowcode 插件启动需要共享 Db 单例"))?;
+        let store = store_from_shared_db(shared_db);
         install_store(store.clone());
 
         let renderers = vec![

@@ -9,21 +9,12 @@ use crate::backend::model::{SoftwarePackageRecord, SoftwarePackageSummary, TABLE
 
 #[derive(Clone)]
 pub struct SoftwareCenterStore {
-    db: db::SharedDb,
+    db: db::Db,
 }
 
 impl SoftwareCenterStore {
-    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
-        let database_url = db::verify_database_url(database_url)?;
-        let toasty = toasty::Db::builder()
-            .models(toasty::models!(SoftwarePackageRecord))
-            .table_name_prefix(TABLE_NAME_PREFIX)
-            .connect(database_url)
-            .await?;
-        toasty.push_schema().await?;
-        Ok(Self {
-            db: db::SharedDb::new(toasty),
-        })
+    pub fn from_shared(db: db::Db) -> Self {
+        Self { db }
     }
 
     pub async fn list_packages(&self) -> anyhow::Result<Vec<SoftwarePackageSummary>> {
@@ -113,12 +104,21 @@ pub struct SoftwareCenterModule;
 
 impl Module for SoftwareCenterModule {
     fn providers() -> Vec<DynProvider> {
-        providers![singleton(|_| Arc::new(SoftwareCenterServiceImpl) as Arc<dyn SoftwareCenterService>)]
+        providers![
+            singleton(|_| Arc::new(SoftwareCenterServiceImpl) as Arc<dyn SoftwareCenterService>),
+            singleton(|cx| SoftwareCenterStore::from_shared(cx.resolve::<db::Db>())),
+        ]
     }
 }
 
 pub fn build_software_center_context() -> Context {
     Context::create(modules![SoftwareCenterModule])
+}
+
+pub fn build_software_center_context_with_db(shared_db: db::Db) -> Context {
+    Context::options()
+        .singleton(shared_db)
+        .create(modules![SoftwareCenterModule])
 }
 
 pub fn validate_software_package_input(

@@ -22,21 +22,17 @@ pub struct DriveCenterApiState {
 }
 
 impl DriveCenterApiState {
-    pub async fn new(database_url: Option<String>) -> anyhow::Result<Self> {
-        let store = match database_url.as_deref() {
-            Some(value) if !value.trim().is_empty() => Some(DriveCenterStore::connect(value).await?),
-            _ => None,
-        };
-        Ok(Self {
-            database_url,
-            store,
-        })
-    }
-
     pub fn degraded(database_url: Option<String>) -> Self {
         Self {
             database_url,
             store: None,
+        }
+    }
+
+    pub fn from_store(database_url: Option<String>, store: Option<DriveCenterStore>) -> Self {
+        Self {
+            database_url,
+            store,
         }
     }
 

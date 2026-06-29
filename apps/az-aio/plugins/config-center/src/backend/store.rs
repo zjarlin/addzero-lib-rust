@@ -9,21 +9,12 @@ use crate::backend::model::{ConfigEntry, ConfigEntrySummary, TABLE_NAME_PREFIX};
 
 #[derive(Clone)]
 pub struct ConfigCenterStore {
-    db: db::SharedDb,
+    db: db::Db,
 }
 
 impl ConfigCenterStore {
-    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
-        let database_url = db::verify_database_url(database_url)?;
-        let toasty = toasty::Db::builder()
-            .models(toasty::models!(ConfigEntry))
-            .table_name_prefix(TABLE_NAME_PREFIX)
-            .connect(database_url)
-            .await?;
-        toasty.push_schema().await?;
-        Ok(Self {
-            db: db::SharedDb::new(toasty),
-        })
+    pub fn from_shared(db: db::Db) -> Self {
+        Self { db }
     }
 
     pub async fn list_entries(
@@ -111,12 +102,21 @@ pub struct ConfigCenterModule;
 
 impl Module for ConfigCenterModule {
     fn providers() -> Vec<DynProvider> {
-        providers![singleton(|_| Arc::new(ConfigCenterServiceImpl) as Arc<dyn ConfigCenterService>)]
+        providers![
+            singleton(|_| Arc::new(ConfigCenterServiceImpl) as Arc<dyn ConfigCenterService>),
+            singleton(|cx| ConfigCenterStore::from_shared(cx.resolve::<db::Db>())),
+        ]
     }
 }
 
 pub fn build_config_center_context() -> Context {
     Context::create(modules![ConfigCenterModule])
+}
+
+pub fn build_config_center_context_with_db(shared_db: db::Db) -> Context {
+    Context::options()
+        .singleton(shared_db)
+        .create(modules![ConfigCenterModule])
 }
 
 pub fn validate_config_entry_input(input: &ConfigEntryInput) -> anyhow::Result<()> {

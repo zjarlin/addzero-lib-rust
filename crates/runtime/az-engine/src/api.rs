@@ -68,6 +68,7 @@ pub const OP_RECORDS_UPDATE: &str = "engine.records.update";
 
 /// 元模型，描述一类动态业务记录。
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "engine_meta_models"]
 pub struct MetaModel {
     #[key]
     pub id: String,
@@ -80,6 +81,7 @@ pub struct MetaModel {
 
 /// 元字段，描述动态记录 payload 中的一个字段。
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "engine_meta_fields"]
 pub struct MetaField {
     #[key]
     pub id: String,
@@ -98,6 +100,7 @@ pub struct MetaField {
 
 /// 生命周期钩子定义。
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+#[table = "engine_hook_definitions"]
 pub struct HookDefinition {
     #[key]
     pub id: String,
@@ -113,6 +116,7 @@ pub struct HookDefinition {
 
 /// 动态业务记录，payload 使用 Toasty JSON 文档字段承载。
 #[derive(Clone, Debug, PartialEq, toasty::Model)]
+#[table = "engine_data_records"]
 pub struct DataRecord {
     #[key]
     pub id: String,
@@ -249,20 +253,24 @@ impl EngineStore {
     pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         let database_url = verify_database_url(database_url)?;
         let db = toasty::Db::builder()
-            .models(toasty::models!(
-                MetaModel,
-                MetaField,
-                HookDefinition,
-                DataRecord
-            ))
-            .table_name_prefix(TABLE_NAME_PREFIX)
+            .models(engine_models())
             .connect(database_url)
             .await
             .with_context(|| format!("连接 engine 数据库失败: {database_url}"))?;
         ensure_schema(&db).await?;
-        Ok(Self {
+        Ok(Self::new(db))
+    }
+
+    /// Wraps a fully configured Toasty database.
+    pub fn new(db: toasty::Db) -> Self {
+        Self {
             db: Arc::new(tokio::sync::Mutex::new(db)),
-        })
+        }
+    }
+
+    /// Reuses the application-wide Toasty executor singleton.
+    pub fn from_shared_db(db: Arc<tokio::sync::Mutex<toasty::Db>>) -> Self {
+        Self { db }
     }
 
     /// 创建执行器。
@@ -1075,6 +1083,23 @@ pub fn timestamp_ms() -> i64 {
         Err(_) => 0,
     }
 }
+
+/// Returns the lowcode engine Toasty model set.
+pub fn engine_models() -> toasty::ModelSet {
+    toasty::models!(MetaModel, MetaField, HookDefinition, DataRecord)
+}
+
+/// Bootstrap DDL used only when Toasty reports existing PostgreSQL relations during startup.
+pub const ENGINE_BOOTSTRAP_SQL: &[&str] = &[
+    "CREATE TABLE IF NOT EXISTS engine_meta_models (id TEXT PRIMARY KEY, name TEXT NOT NULL, display_name TEXT NOT NULL, created_at_ms BIGINT NOT NULL, updated_at_ms BIGINT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS engine_meta_models_name_idx ON engine_meta_models (name)",
+    "CREATE TABLE IF NOT EXISTS engine_meta_fields (id TEXT PRIMARY KEY, model_name TEXT NOT NULL, name TEXT NOT NULL, display_name TEXT NOT NULL, field_type TEXT NOT NULL, is_required BOOLEAN NOT NULL, expression TEXT NULL, dependency_json TEXT NULL, order_index INTEGER NOT NULL, created_at_ms BIGINT NOT NULL, updated_at_ms BIGINT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS engine_meta_fields_model_name_idx ON engine_meta_fields (model_name)",
+    "CREATE TABLE IF NOT EXISTS engine_hook_definitions (id TEXT PRIMARY KEY, model_name TEXT NOT NULL, trigger_event TEXT NOT NULL, script_content TEXT NOT NULL, is_active BOOLEAN NOT NULL, order_index INTEGER NOT NULL, created_at_ms BIGINT NOT NULL, updated_at_ms BIGINT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS engine_hook_definitions_model_name_idx ON engine_hook_definitions (model_name)",
+    "CREATE TABLE IF NOT EXISTS engine_data_records (id TEXT PRIMARY KEY, model_name TEXT NOT NULL, payload TEXT NOT NULL, created_at_ms BIGINT NOT NULL, updated_at_ms BIGINT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS engine_data_records_model_name_idx ON engine_data_records (model_name)",
+];
 
 /// 校验数据库连接串。
 pub fn verify_database_url(value: &str) -> anyhow::Result<&str> {

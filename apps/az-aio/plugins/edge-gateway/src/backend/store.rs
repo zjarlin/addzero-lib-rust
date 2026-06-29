@@ -3,7 +3,7 @@ use az_aio_platform::core::db;
 use az_str::api::normalized_id_or_else;
 use rudi::{Context, DynProvider, Module, modules, providers, singleton};
 use std::{collections::BTreeSet, sync::Arc};
-use toasty::{sql, stmt::{List, Query}};
+use toasty::stmt::{List, Query};
 
 use crate::backend::{
     auth::{
@@ -18,28 +18,13 @@ use crate::backend::{
 
 #[derive(Clone)]
 pub struct EdgeGatewayStore {
-    db: db::SharedDb,
+    db: db::Db,
 }
 
 impl EdgeGatewayStore {
-    pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
-        let database_url = db::verify_database_url(database_url)?;
-        let mut toasty = toasty::Db::builder()
-            .models(toasty::models!(
-                GatewayFlow,
-                GatewayRouteDefinition,
-                EdgeApiTokenRecord,
-                EdgeUsageRecordRow
-            ))
-            .table_name_prefix(TABLE_NAME_PREFIX)
-            .connect(database_url)
-            .await?;
-        push_or_bootstrap_schema(&mut toasty).await?;
-        Ok(Self {
-            db: db::SharedDb::new(toasty),
-        })
+    pub fn from_shared(db: db::Db) -> Self {
+        Self { db }
     }
-
 
 
     pub async fn ensure_builtin_weather_route(&self) -> anyhow::Result<()> {
@@ -294,28 +279,16 @@ impl EdgeGatewayStore {
 }
 
 
-async fn push_or_bootstrap_schema(db: &mut toasty::Db) -> anyhow::Result<()> {
-    match db.push_schema().await {
-        Ok(()) => Ok(()),
-        Err(error) if is_relation_already_exists(&error.to_string()) => {
-            bootstrap_edge_gateway_tables(db).await
-        }
-        Err(error) => Err(error.into()),
-    }
+pub fn edge_gateway_models() -> toasty::ModelSet {
+    toasty::models!(
+        GatewayFlow,
+        GatewayRouteDefinition,
+        EdgeApiTokenRecord,
+        EdgeUsageRecordRow
+    )
 }
 
-fn is_relation_already_exists(message: &str) -> bool {
-    message.contains("already exists") || message.contains("relation") && message.contains("exists")
-}
-
-async fn bootstrap_edge_gateway_tables(db: &mut toasty::Db) -> anyhow::Result<()> {
-    for statement in EDGE_GATEWAY_BOOTSTRAP_SQL {
-        sql::statement(*statement).exec(db).await?;
-    }
-    Ok(())
-}
-
-const EDGE_GATEWAY_BOOTSTRAP_SQL: &[&str] = &[
+pub const EDGE_GATEWAY_BOOTSTRAP_SQL: &[&str] = &[
     "CREATE TABLE IF NOT EXISTS biz_edge_gateway_gateway_flows (id TEXT PRIMARY KEY, route TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL, updated_at TEXT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS biz_edge_gateway_gateway_flows_route_idx ON biz_edge_gateway_gateway_flows (route)",
     "CREATE TABLE IF NOT EXISTS biz_edge_gateway_gateway_route_definitions (id TEXT PRIMARY KEY, route TEXT NOT NULL, method TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL, auth_required TEXT NOT NULL, script_language TEXT NOT NULL, script_code TEXT NOT NULL, request_example TEXT NOT NULL, response_template TEXT NOT NULL, notes TEXT NOT NULL, updated_at TEXT NOT NULL)",
@@ -327,6 +300,7 @@ const EDGE_GATEWAY_BOOTSTRAP_SQL: &[&str] = &[
     "CREATE INDEX IF NOT EXISTS biz_edge_gateway_edge_usage_record_rows_token_id_idx ON biz_edge_gateway_edge_usage_record_rows (token_id)",
     "CREATE INDEX IF NOT EXISTS biz_edge_gateway_edge_usage_record_rows_route_idx ON biz_edge_gateway_edge_usage_record_rows (route)",
 ];
+
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GatewayRouteInput {
@@ -408,12 +382,21 @@ pub struct EdgeGatewayModule;
 
 impl Module for EdgeGatewayModule {
     fn providers() -> Vec<DynProvider> {
-        providers![singleton(|_| Arc::new(EdgeGatewayServiceImpl) as Arc<dyn EdgeGatewayService>)]
+        providers![
+            singleton(|_| Arc::new(EdgeGatewayServiceImpl) as Arc<dyn EdgeGatewayService>),
+            singleton(|cx| EdgeGatewayStore::from_shared(cx.resolve::<db::Db>())),
+        ]
     }
 }
 
 pub fn build_edge_gateway_context() -> Context {
     Context::create(modules![EdgeGatewayModule])
+}
+
+pub fn build_edge_gateway_context_with_db(shared_db: db::Db) -> Context {
+    Context::options()
+        .singleton(shared_db)
+        .create(modules![EdgeGatewayModule])
 }
 
 

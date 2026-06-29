@@ -83,7 +83,10 @@ impl NativePluginHost {
         }
     }
 
-    pub fn from_context(context: NativePluginContext, di: &mut rudi::Context) -> Self {
+    pub fn from_context(mut context: NativePluginContext, di: &mut rudi::Context) -> Self {
+        if context.shared_db.is_none() {
+            context.shared_db = di.resolve_option::<crate::core::db::Db>();
+        }
         let mut plugins = di.resolve_by_type::<DynAdminPluginProvider>();
         plugins.sort_by(|left, right| {
             left.admin_descriptor()

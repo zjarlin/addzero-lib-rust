@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::Context;
 use az_aio_platform::{
     plugin::api::{
         AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
@@ -14,7 +13,7 @@ use rudi::Singleton;
 use crate::{
     backend::{
         routes::{ConfigCenterApiState, config_center_router},
-        store::build_config_center_context,
+        store::{ConfigCenterStore, build_config_center_context_with_db},
     },
     descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
     ui::{page::ConfigCenterPage, state::install_state},
@@ -65,8 +64,11 @@ impl NativePluginProvider for ConfigCenterPlugin {
     }
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let _context = build_config_center_context();
-        let state = block_on_state(context.database_url.clone())?;
+        let store = context.shared_db.clone().map(|shared_db| {
+            let mut plugin_context = build_config_center_context_with_db(shared_db.clone());
+            plugin_context.resolve::<ConfigCenterStore>()
+        });
+        let state = ConfigCenterApiState::from_store(context.database_url.clone(), store);
         install_state(state.clone());
         Ok(NativePluginRuntime {
             renderers: vec![NativeUiRenderer {
@@ -86,18 +88,6 @@ pub fn config_center_plugin() -> DynAdminPluginProvider {
     Arc::new(ConfigCenterPlugin)
 }
 
-fn block_on_state(database_url: Option<String>) -> anyhow::Result<ConfigCenterApiState> {
-    if database_url.as_ref().is_none_or(|value| value.trim().is_empty()) {
-        return Ok(ConfigCenterApiState::degraded(database_url));
-    }
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .context("create config-center toasty runtime")?;
-    runtime
-        .block_on(ConfigCenterApiState::new(database_url.clone()))
-        .or_else(|_| Ok(ConfigCenterApiState::degraded(database_url)))
-}
 
 #[cfg(test)]
 mod tests {

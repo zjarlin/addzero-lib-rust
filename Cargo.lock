@@ -1025,6 +1025,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-crud-base"
+version = "2026.5.10"
+dependencies = [
+ "serde",
+ "toasty",
+ "uuid",
+]
+
+[[package]]
 name = "az-curl"
 version = "2026.5.10"
 dependencies = [

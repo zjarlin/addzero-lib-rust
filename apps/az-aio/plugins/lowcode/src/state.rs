@@ -3,15 +3,14 @@
 use std::sync::OnceLock;
 
 use anyhow::{Context, anyhow};
+use az_aio_platform::core::db::Db;
 use az_engine::EngineStore;
 
 static STORE: OnceLock<EngineStore> = OnceLock::new();
 
-/// 使用 PostgreSQL 连接串初始化全局 engine store。
-pub fn connect_store_sync(database_url: &str) -> anyhow::Result<EngineStore> {
-    build_runtime()?
-        .block_on(EngineStore::connect(database_url))
-        .context("初始化 lowcode engine store 失败")
+/// 使用应用级共享 Toasty 单例初始化 engine store。
+pub fn store_from_shared_db(shared_db: Db) -> EngineStore {
+    EngineStore::from_shared_db(shared_db.shared_handle())
 }
 
 /// 安装插件级全局 store，供 SSR renderer 同步读取。
