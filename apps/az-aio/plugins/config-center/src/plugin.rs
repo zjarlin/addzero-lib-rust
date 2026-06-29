@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use az_aio_platform::plugin::api::{
-    ContributionSet, DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
-    NativeUiRenderer, PluginDescriptor, UiContributionSlot,
+use az_aio_platform::{
+    plugin::api::{
+        AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
+        DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
+        NativeUiRenderer, PluginDescriptor, UiContributionSlot,
+    },
+    system::catalog::{SYSTEM_DOMAIN_ID, SYSTEM_DOMAIN_LABEL},
 };
 use rudi::Singleton;
 
@@ -26,6 +30,38 @@ impl NativePluginProvider for ConfigCenterPlugin {
 
     fn contributions(&self) -> anyhow::Result<ContributionSet> {
         Ok(contributions())
+    }
+
+    fn admin_menu(&self, _contributions: &ContributionSet) -> AdminMenuTree {
+        AdminMenuTree {
+            sections: vec![AdminMenuSection {
+                domain_id: SYSTEM_DOMAIN_ID.to_string(),
+                label: SYSTEM_DOMAIN_LABEL.to_string(),
+                default_href: String::new(),
+                order: 900,
+                menus: vec![AdminMenuNode {
+                    id: "system-config-axis".to_string(),
+                    kind: AdminMenuNodeKind::Branch,
+                    label: "系统配置".to_string(),
+                    href: ROUTE.to_string(),
+                    icon: "▸".to_string(),
+                    order: 30,
+                    active_patterns: vec![ROUTE.to_string()],
+                    permissions_any_of: vec!["config-center:read".to_string()],
+                    children: vec![AdminMenuNode {
+                        id: "config-center.nav".to_string(),
+                        kind: AdminMenuNodeKind::Page,
+                        label: "配置中心".to_string(),
+                        href: ROUTE.to_string(),
+                        icon: "⚙".to_string(),
+                        order: 25,
+                        active_patterns: vec![ROUTE.to_string()],
+                        permissions_any_of: vec!["config-center:read".to_string()],
+                        children: Vec::new(),
+                    }],
+                }],
+            }],
+        }
     }
 
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
@@ -82,6 +118,16 @@ mod tests {
                 .backend_apis
                 .iter()
                 .any(|api| api.path == "/api/config-center/status")
+        );
+        assert!(
+            plugin
+                .admin_menu(&contributions)
+                .sections
+                .iter()
+                .any(|section| section
+                    .menus
+                    .iter()
+                    .any(|node| node.children.iter().any(|child| child.href == "/config")))
         );
     }
 }

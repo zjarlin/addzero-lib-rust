@@ -373,6 +373,7 @@ mod tests {
         assert_eq!(
             routes,
             vec![
+                "/system/account/api-keys",
                 "/system/identity/users",
                 "/system/permission/roles",
                 "/system/organization/departments",

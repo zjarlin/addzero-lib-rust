@@ -10,7 +10,7 @@ use crate::backend::{
     routes::{ConfigCenterApiState, ConfigCenterStatusResponse},
 };
 
-pub const DEFAULT_NAMESPACE: &str = "az-aio.dev";
+pub const DEFAULT_NAMESPACE: &str = "az-aio";
 
 static STATE: OnceLock<RwLock<Option<ConfigCenterApiState>>> = OnceLock::new();
 

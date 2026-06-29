@@ -13,7 +13,7 @@ pub fn descriptor() -> PluginDescriptor {
         id: PLUGIN_ID.to_string(),
         name: "资产中心".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        description: "Asset feed, skill scan, compose assets, and subtype metadata.".to_string(),
+        description: "资产提要、技能扫描、合成资产和子类型元数据。".to_string(),
         activation: PluginActivation::Eager,
         priority: 920,
         dependencies: Vec::new(),

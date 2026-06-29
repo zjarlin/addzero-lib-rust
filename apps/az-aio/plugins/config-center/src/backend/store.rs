@@ -132,7 +132,7 @@ pub fn validate_config_entry_input(input: &ConfigEntryInput) -> anyhow::Result<(
 fn normalize_namespace(value: &str) -> String {
     let value = value.trim();
     if value.is_empty() {
-        "az-aio.dev".to_string()
+        "az-aio".to_string()
     } else {
         value.to_string()
     }
@@ -146,7 +146,7 @@ mod tests {
     fn rejects_blank_config_entry_input() {
         let input = ConfigEntryInput {
             id: None,
-            namespace: "az-aio.dev".to_string(),
+            namespace: "az-aio".to_string(),
             key: "".to_string(),
             value: "secret".to_string(),
         };

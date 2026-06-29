@@ -11,10 +11,8 @@ pub fn ConfigCenterPage(context: NativeRenderContext) -> Element {
     let status_url = api_url(&context.api_base_url, "/api/config-center/status");
     let dotfiles_url = api_url(&context.api_base_url, "/api/config-center/dotfiles");
     let pairing_url = api_url(&context.api_base_url, "/api/config-center/pairing");
-    let entries_url = api_url(
-        &context.api_base_url,
-        "/api/config-center/entries?namespace=az-aio.dev",
-    );
+    let entries_path = format!("/api/config-center/entries?namespace={DEFAULT_NAMESPACE}");
+    let entries_url = api_url(&context.api_base_url, &entries_path);
     let action_url = api_url(&context.api_base_url, "/api/config-center/ui-action");
     let pending_count = snapshot
         .dotfiles

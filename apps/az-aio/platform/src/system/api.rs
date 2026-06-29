@@ -24,11 +24,13 @@ use crate::system::{
         system_pages,
     },
     model::{
-        SystemOperationRecordSummary, SystemPageDataResponse, SystemPageRecordSummary,
-        SystemStoreStatus,
+        CreatedSystemApiKey, SystemApiKeySummary, SystemOperationRecordSummary,
+        SystemPageDataResponse, SystemPageRecordSummary, SystemStoreStatus,
     },
     navigation::{AdminSectionSnapshot, system_admin_sections},
-    store::{SystemAdminStore, SystemOperationInput, system_store_status},
+    store::{
+        CreateSystemApiKeyInput, SystemAdminStore, SystemOperationInput, system_store_status,
+    },
 };
 
 #[derive(Clone)]
@@ -97,7 +99,12 @@ pub fn system_admin_router(state: SystemAdminApiState) -> Router {
         .route("/api/system/navigation", get(navigation_handler))
         .route("/api/system/store/pages", get(store_pages_handler))
         .route("/api/system/store/records", get(data_records_handler))
-        .route("/api/system/store/operations", get(operation_records_handler));
+        .route("/api/system/store/operations", get(operation_records_handler))
+        .route("/api/system/api-keys", get(api_keys_handler))
+        .route("/api/system/api-key", post(create_api_key_handler))
+        .route("/api/system/api-key/revoke", post(revoke_api_key_handler))
+        .route("/admin-api/system/ui-api-key", post(ui_create_api_key_handler))
+        .route("/admin-api/system/ui-api-key/revoke", post(ui_revoke_api_key_handler));
 
     for page in system_pages() {
         for operation in page.operations {
@@ -187,6 +194,112 @@ async fn data_records_handler(
         .await
         .map(ok_json)
         .map_err(system_error_response)
+}
+
+async fn api_keys_handler(
+    State(state): State<SystemAdminApiState>,
+) -> Result<Json<ApiResponse<Vec<SystemApiKeySummary>>>, Response> {
+    let store = require_store(state.store)?;
+    store
+        .list_api_keys()
+        .await
+        .map(ok_json)
+        .map_err(system_error_response)
+}
+
+async fn create_api_key_handler(
+    State(state): State<SystemAdminApiState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<Json<ApiResponse<CreatedSystemApiKey>>, Response> {
+    let payload = payload_from_body(&headers, &body)?;
+    let input = api_key_input_from_payload(&payload)?;
+    let store = require_store(state.store)?;
+    store
+        .create_api_key(input)
+        .await
+        .map(ok_json)
+        .map_err(system_error_response)
+}
+
+async fn revoke_api_key_handler(
+    State(state): State<SystemAdminApiState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<Json<ApiResponse<SystemApiKeySummary>>, Response> {
+    let payload = payload_from_body(&headers, &body)?;
+    let id = required_payload_string(&payload, "id")?;
+    let store = require_store(state.store)?;
+    store
+        .revoke_api_key(&id)
+        .await
+        .map(ok_json)
+        .map_err(system_error_response)
+}
+
+async fn ui_create_api_key_handler(
+    State(state): State<SystemAdminApiState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    let redirect = match create_api_key_for_ui(state, headers, body).await {
+        Ok(created) => format!(
+            "/?route=/system/account/api-keys&created=1&prefix={}",
+            urlencoding::encode(&created.summary.prefix)
+        ),
+        Err(error) => format!(
+            "/?route=/system/account/api-keys&error={}",
+            urlencoding::encode(&error.to_string())
+        ),
+    };
+    axum::response::Redirect::to(&redirect).into_response()
+}
+
+async fn ui_revoke_api_key_handler(
+    State(state): State<SystemAdminApiState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    let redirect = match revoke_api_key_for_ui(state, headers, body).await {
+        Ok(_) => "/?route=/system/account/api-keys&revoked=1".to_string(),
+        Err(error) => format!(
+            "/?route=/system/account/api-keys&error={}",
+            urlencoding::encode(&error.to_string())
+        ),
+    };
+    axum::response::Redirect::to(&redirect).into_response()
+}
+
+async fn create_api_key_for_ui(
+    state: SystemAdminApiState,
+    headers: HeaderMap,
+    body: Bytes,
+) -> anyhow::Result<CreatedSystemApiKey> {
+    let payload = payload_from_body(&headers, &body)
+        .map_err(|response| anyhow!("invalid api_key form: {}", response.status()))?;
+    let input = api_key_input_from_payload(&payload)
+        .map_err(|response| anyhow!("invalid api_key form: {}", response.status()))?;
+    state
+        .store
+        .ok_or_else(|| anyhow!("missing system-admin database url"))?
+        .create_api_key(input)
+        .await
+}
+
+async fn revoke_api_key_for_ui(
+    state: SystemAdminApiState,
+    headers: HeaderMap,
+    body: Bytes,
+) -> anyhow::Result<SystemApiKeySummary> {
+    let payload = payload_from_body(&headers, &body)
+        .map_err(|response| anyhow!("invalid api_key form: {}", response.status()))?;
+    let id = required_payload_string(&payload, "id")
+        .map_err(|response| anyhow!("invalid api_key form: {}", response.status()))?;
+    state
+        .store
+        .ok_or_else(|| anyhow!("missing system-admin database url"))?
+        .revoke_api_key(&id)
+        .await
 }
 
 async fn get_operation_handler(
@@ -319,6 +432,27 @@ fn parse_form_body(body: &Bytes) -> Result<Value, Response> {
     Ok(Value::Object(object))
 }
 
+fn api_key_input_from_payload(payload: &Value) -> Result<CreateSystemApiKeyInput, Response> {
+    Ok(CreateSystemApiKeyInput {
+        name: required_payload_string(payload, "name")?,
+        scope: optional_payload_string(payload, "scope"),
+    })
+}
+
+fn required_payload_string(payload: &Value, key: &str) -> Result<String, Response> {
+    optional_payload_string(payload, key)
+        .ok_or_else(|| system_error_response(anyhow!("api_key {key} is required")))
+}
+
+fn optional_payload_string(payload: &Value, key: &str) -> Option<String> {
+    payload
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
 fn operation_for_http(
     method: &str,
     path: &str,
@@ -379,7 +513,11 @@ mod tests {
 
     #[test]
     fn operation_contract_injects_page_and_operation() {
-        let page = system_pages()[0];
+        let page = system_pages()
+            .iter()
+            .copied()
+            .find(|page| !page.operations.is_empty())
+            .unwrap();
         let operation = page.operations[0];
         let mut payload = json!({});
 
@@ -410,5 +548,17 @@ mod tests {
 
         assert_eq!(query.o, Some(10));
         assert_eq!(query.s, Some(20));
+    }
+
+    #[test]
+    fn api_key_payload_accepts_form_body() {
+        let headers = HeaderMap::new();
+        let body = Bytes::from("name=%E5%A4%A9%E6%B0%94%E8%B0%83%E7%94%A8&scope=all-services");
+        let payload = payload_from_body(&headers, &body).unwrap();
+
+        let input = api_key_input_from_payload(&payload).unwrap();
+
+        assert_eq!(input.name, "天气调用");
+        assert_eq!(input.scope.as_deref(), Some("all-services"));
     }
 }

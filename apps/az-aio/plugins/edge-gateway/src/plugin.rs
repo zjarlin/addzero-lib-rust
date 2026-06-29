@@ -83,6 +83,7 @@ fn block_on_state(database_url: Option<String>) -> anyhow::Result<EdgeGatewayApi
         .context("create edge-gateway toasty runtime")?;
     runtime
         .block_on(EdgeGatewayApiState::new(database_url.clone()))
+        .inspect_err(|error| eprintln!("edge-gateway Toasty startup degraded: {error:#}"))
         .or_else(|_| Ok(EdgeGatewayApiState::degraded(database_url)))
 }
 

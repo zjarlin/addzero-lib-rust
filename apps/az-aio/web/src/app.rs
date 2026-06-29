@@ -31,6 +31,7 @@ pub fn render_app_html(
             "    <meta charset=\"utf-8\">\n",
             "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n",
             "    <title>AIO</title>\n",
+            "    <link rel=\"icon\" href=\"data:,\">\n",
             "    <link rel=\"stylesheet\" href=\"/assets/app.css\">\n",
             "</head>\n",
             "<body>\n",

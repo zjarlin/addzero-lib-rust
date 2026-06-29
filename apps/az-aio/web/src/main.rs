@@ -3,8 +3,12 @@
 mod app;
 
 use anyhow::{Context as _, Result};
-use axum::{Router, extract::RawQuery, routing::get};
-use az_aio_platform::{core::config::AppConfig, plugin::host};
+use axum::{Router, extract::RawQuery, middleware, routing::get};
+use az_aio_platform::{
+    core::config::AppConfig,
+    plugin::host,
+    system::api_key_auth::{SystemApiKeyAuthState, optional_system_api_key_auth},
+};
 use rudi::Context;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -31,14 +35,24 @@ fn main() -> Result<()> {
         .build()
         .context("创建 AIO web runtime 失败")?;
 
-    runtime.block_on(run_web_server(snapshot, port))
+    runtime.block_on(run_web_server(snapshot, port, config.database_url()))
 }
 
 async fn run_web_server(
     snapshot: az_aio_platform::plugin::host::HostSnapshot,
     port: u16,
+    database_url: Option<String>,
 ) -> Result<()> {
-    let native_router = snapshot.native_router.clone();
+    let api_key_auth_state = SystemApiKeyAuthState::new(database_url)
+        .await
+        .unwrap_or_else(|_| SystemApiKeyAuthState::degraded());
+    let native_router = snapshot
+        .native_router
+        .clone()
+        .layer(middleware::from_fn_with_state(
+            api_key_auth_state,
+            optional_system_api_key_auth,
+        ));
     let state = Arc::new(snapshot);
     let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
 
@@ -149,10 +163,10 @@ mod tests {
                 "admin-scenes",
                 "algorithm-center",
                 "asset-hub",
-                "linux",
                 "config-center",
                 "drive-center",
                 "edge-gateway",
+                "linux",
                 "lowcode",
                 "software-center",
                 "system",
@@ -177,15 +191,39 @@ mod tests {
             .sections
             .iter()
             .find(|section| section.label == "智能网关");
+        let system = snapshot
+            .admin_menu_tree
+            .sections
+            .iter()
+            .find(|section| section.label == "管理后台");
 
         assert!(labels.contains(&"管理后台"));
         assert!(labels.contains(&"知识库"));
         assert!(labels.contains(&"智能网关"));
         assert!(
+            system
+                .map(|section| section
+                    .menus
+                    .iter()
+                    .any(|node| menu_node_contains_href(node, "/config")))
+                .unwrap_or(false)
+        );
+        assert!(
             gateway
                 .map(|section| section.menus.iter().any(|node| node.label == "算法中心"))
                 .unwrap_or(false)
         );
+    }
+
+    fn menu_node_contains_href(
+        node: &az_aio_platform::plugin::api::AdminMenuNode,
+        href: &str,
+    ) -> bool {
+        node.href == href
+            || node
+                .children
+                .iter()
+                .any(|child| menu_node_contains_href(child, href))
     }
 
     #[test]

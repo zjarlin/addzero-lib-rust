@@ -1,84 +1,328 @@
 use az_aio_platform::plugin::api::NativeRenderContext;
 use dioxus::prelude::*;
 
-use crate::ui::state::load_snapshot;
+use crate::{
+    backend::model::GatewayRouteSummary,
+    ui::state::{EdgeGatewayPageSnapshot, load_snapshot},
+};
 
-const MAX_LIST_ROWS: usize = 12;
+const MAX_RECENT_USAGE: usize = 6;
 
 #[allow(non_snake_case)]
 pub fn EdgeGatewayPage(context: NativeRenderContext) -> Element {
     let snapshot = load_snapshot();
-    let flow_count = snapshot.flows.len();
+    let selected_id = query_value(&context.active_route, "routeId");
+    let selected_route = selected_route(&snapshot, selected_id.as_deref());
+    let routes_url = api_url(&context.api_base_url, "/api/edge-gateway/routes");
+    let assets_url = api_url(&context.api_base_url, "/api/edge-gateway/assets");
+    let usage_url = api_url(&context.api_base_url, "/api/edge-gateway/assets/usage");
+    let route_action_url = api_url(&context.api_base_url, "/api/edge-gateway/ui-route");
     let status_url = api_url(&context.api_base_url, "/api/edge-gateway/status");
-    let flows_url = api_url(&context.api_base_url, "/api/edge-gateway/flows");
-    let example_url = api_url(&context.api_base_url, "/api/edge-gateway/example");
+    let weather_curl = weather_curl_preview();
+    let saved = context.active_route.contains("saved=route");
+    let error = query_value(&context.active_route, "error");
 
     rsx! {
-        section { class: "native-plugin-page native-plugin-page--edge-gateway",
-            header { class: "native-plugin-page__header",
-                p { class: "native-plugin-page__eyebrow", "Operations / Network" }
-                h1 { "Edge Gateway" }
-                p { "边缘网关流、执行路由与 PostgreSQL 流定义表。" }
-            }
-            div { class: "native-plugin-page__grid",
-                article { class: "native-plugin-card",
-                    h2 { "运行态" }
-                    dl {
-                        dt { "路由" }
-                        dd { "{context.active_route}" }
-                        dt { "状态接口" }
-                        dd { a { href: status_url.clone(), "{status_url}" } }
-                        dt { "流列表接口" }
-                        dd { a { href: flows_url.clone(), "{flows_url}" } }
-                        dt { "DATABASE_URL" }
-                        dd { "{configured_text(snapshot.status.database_configured)}" }
-                        dt { "流表连接" }
-                        dd { "{connected_text(snapshot.status.store_connected)}" }
-                        dt { "表前缀" }
-                        dd { code { "{snapshot.status.table_prefix}" } }
-                    }
-                    if let Some(error) = &snapshot.error {
-                        p { class: "native-plugin-page__error", "{error}" }
-                    }
+        section { class: "gateway-studio",
+            div { class: "gateway-studio__halo" }
+            header { class: "gateway-hero",
+                div { class: "gateway-hero__mark", "EDGE" }
+                div { class: "gateway-hero__copy",
+                    p { class: "gateway-kicker", "Edge API Studio · Toasty PG" }
+                    h1 { "接口、路由与脚本资产管理台" }
+                    p { "在线管理 GET/POST 路由、Bearer token 资产、脚本草稿和调用观测；定义持久化到 edge-gateway Toasty PostgreSQL。" }
                 }
-                article { class: "native-plugin-card",
-                    h2 { "网关流" }
-                    p { "{flow_count} 条来自 edge-gateway Toasty store 的流定义。" }
-                    if !snapshot.status.store_connected {
-                        p { class: "native-plugin-page__empty", "未连接数据库，当前不读取网关流。" }
-                    } else if snapshot.flows.is_empty() {
-                        p { class: "native-plugin-page__empty", "数据库当前没有网关流记录。" }
+                div { class: "gateway-hero__actions",
+                    a { class: "gateway-button gateway-button--primary", href: "#route-editor", "新建/保存路由" }
+                    a { class: "gateway-button", href: routes_url.clone(), "JSON API" }
+                }
+            }
+
+            if saved {
+                div { class: "gateway-message gateway-message--success", "路由定义已保存到 Toasty PG。" }
+            }
+            if let Some(error) = error {
+                div { class: "gateway-message gateway-message--error", "保存失败：{error}" }
+            }
+            if let Some(error) = &snapshot.error {
+                div { class: "gateway-message gateway-message--error", "运行告警：{error}" }
+            }
+
+            div { class: "gateway-metrics",
+                MetricCard { label: "PG Store", value: connected_text(snapshot.status.store_connected), detail: snapshot.status.table_prefix.clone() }
+                MetricCard { label: "Managed Routes", value: snapshot.route_definitions.len().to_string(), detail: "GET / POST definitions".to_string() }
+                MetricCard { label: "Callable Assets", value: snapshot.callable_assets.len().to_string(), detail: "Bearer token gated".to_string() }
+                MetricCard { label: "Usage Events", value: snapshot.usage_records.len().to_string(), detail: "recent asset calls".to_string() }
+            }
+
+            div { class: "gateway-workbench",
+                aside { class: "gateway-left-panel",
+                    div { class: "gateway-panel-title",
+                        span { "01" }
+                        div {
+                            h2 { "路由库" }
+                            p { "在线接口定义" }
+                        }
+                    }
+                    a { class: route_link_class(selected_id.is_none()), href: "/?route=/gateway", "+ 新路由草稿" }
+                    if snapshot.route_definitions.is_empty() {
+                        div { class: "gateway-empty-card",
+                            strong { "还没有自定义路由" }
+                            p { "先保存右侧表单，路由定义会进入 Toasty PG。" }
+                        }
                     } else {
-                        table {
-                            thead {
-                                tr {
-                                    th { "名称" }
-                                    th { "路由" }
-                                    th { "状态" }
-                                    th { "ID" }
+                        nav { class: "gateway-route-list",
+                            for route in &snapshot.route_definitions {
+                                a { class: route_link_class(selected_id.as_deref() == Some(route.id.as_str())), href: format!("/?route=/gateway&routeId={}", route.id),
+                                    span { class: method_class(&route.method), "{route.method}" }
+                                    strong { "{route.name}" }
+                                    code { "{route.route}" }
                                 }
                             }
-                            tbody {
-                                for flow in snapshot.flows.iter().take(MAX_LIST_ROWS) {
-                                    tr {
-                                        td { "{flow.name}" }
-                                        td { code { "{flow.route}" } }
-                                        td { "{flow.status}" }
-                                        td { code { "{flow.id}" } }
-                                    }
+                        }
+                    }
+
+                    div { class: "gateway-panel-title gateway-panel-title--compact",
+                        span { "02" }
+                        div {
+                            h2 { "内置资产" }
+                            p { "可被外部调用" }
+                        }
+                    }
+                    div { class: "gateway-asset-list",
+                        for asset in &snapshot.callable_assets {
+                            article { class: "gateway-asset-card",
+                                strong { "{asset.name}" }
+                                code { "{asset.method} {asset.route}" }
+                                p { "provider={asset.provider}" }
+                            }
+                        }
+                    }
+                }
+
+                main { class: "gateway-editor", id: "route-editor",
+                    div { class: "gateway-editor__summary",
+                        div {
+                            p { class: "gateway-kicker", "Route Contract" }
+                            h2 { "{editor_title(&selected_route)}" }
+                            p { "将接口路径、GET/POST 方法、认证要求和脚本代码作为资产保存。当前版本保存脚本草稿，不直接执行任意代码。" }
+                        }
+                        div { class: "gateway-editor__badges",
+                            span { class: method_class(&selected_route.method), "{selected_route.method}" }
+                            span { class: status_class(&selected_route.status), "{selected_route.status}" }
+                            span { "auth={auth_text(selected_route.auth_required)}" }
+                        }
+                    }
+
+                    form { class: "gateway-route-form", method: "post", action: route_action_url,
+                        input { r#type: "hidden", name: "id", value: "{selected_route.id}" }
+                        div { class: "gateway-form-grid",
+                            label { class: "gateway-field",
+                                span { "接口名称" }
+                                input { name: "name", value: "{selected_route.name}", placeholder: "订单查询 / Weather Proxy" }
+                            }
+                            label { class: "gateway-field",
+                                span { "路由路径" }
+                                input { name: "route", value: "{selected_route.route}", placeholder: "/api/edge/orders/query" }
+                            }
+                            label { class: "gateway-field",
+                                span { "请求方法" }
+                                select { name: "method",
+                                    option { value: "GET", selected: selected_route.method == "GET", "GET" }
+                                    option { value: "POST", selected: selected_route.method == "POST", "POST" }
+                                }
+                            }
+                            label { class: "gateway-field",
+                                span { "状态" }
+                                select { name: "status",
+                                    option { value: "draft", selected: selected_route.status == "draft", "draft" }
+                                    option { value: "active", selected: selected_route.status == "active", "active" }
+                                    option { value: "disabled", selected: selected_route.status == "disabled", "disabled" }
+                                }
+                            }
+                            label { class: "gateway-field",
+                                span { "认证" }
+                                select { name: "auth_required",
+                                    option { value: "true", selected: selected_route.auth_required, "Bearer token required" }
+                                    option { value: "false", selected: !selected_route.auth_required, "Public / no auth" }
+                                }
+                            }
+                            label { class: "gateway-field",
+                                span { "脚本语言" }
+                                input { name: "script_language", value: "{selected_route.script_language}", placeholder: "javascript / json-template / wasm" }
+                            }
+                        }
+
+                        div { class: "gateway-code-grid",
+                            label { class: "gateway-field gateway-field--code",
+                                span { "在线脚本代码" }
+                                textarea { name: "script_code", spellcheck: "false", "{selected_route.script_code}" }
+                            }
+                            div { class: "gateway-side-forms",
+                                label { class: "gateway-field gateway-field--code gateway-field--short",
+                                    span { "请求示例 JSON" }
+                                    textarea { name: "request_example", spellcheck: "false", "{selected_route.request_example}" }
+                                }
+                                label { class: "gateway-field gateway-field--code gateway-field--short",
+                                    span { "响应模板 JSON" }
+                                    textarea { name: "response_template", spellcheck: "false", "{selected_route.response_template}" }
+                                }
+                                label { class: "gateway-field gateway-field--code gateway-field--short",
+                                    span { "备注" }
+                                    textarea { name: "notes", "{selected_route.notes}" }
+                                }
+                            }
+                        }
+
+                        div { class: "gateway-form-actions",
+                            button { class: "gateway-button gateway-button--primary", r#type: "submit", "保存到 Toasty" }
+                            a { class: "gateway-button", href: status_url, "运行态状态" }
+                            a { class: "gateway-button", href: assets_url, "资产目录" }
+                        }
+                    }
+                }
+
+                aside { class: "gateway-right-panel",
+                    div { class: "gateway-panel-title",
+                        span { "03" }
+                        div {
+                            h2 { "调用调试" }
+                            p { "curl / usage" }
+                        }
+                    }
+                    article { class: "gateway-console-card",
+                        h3 { "当前路由 curl" }
+                        pre { "{curl_preview(&selected_route)}" }
+                    }
+                    article { class: "gateway-console-card",
+                        h3 { "天气资产快速测试" }
+                        pre { "{weather_curl}" }
+                    }
+                    article { class: "gateway-console-card gateway-console-card--usage",
+                        div { class: "gateway-console-card__head",
+                            h3 { "最近调用" }
+                            a { href: usage_url, "usage json" }
+                        }
+                        if snapshot.usage_records.is_empty() {
+                            p { class: "gateway-muted", "还没有调用流水。" }
+                        } else {
+                            for record in snapshot.usage_records.iter().rev().take(MAX_RECENT_USAGE) {
+                                div { class: "gateway-usage-row",
+                                    span { class: status_code_class(record.status_code), "{record.status_code}" }
+                                    code { "{record.asset_id}" }
+                                    small { "{record.duration_ms}ms" }
                                 }
                             }
                         }
                     }
                 }
-                article { class: "native-plugin-card",
-                    h2 { "执行合约" }
-                    p { "参考执行计划包含 {snapshot.example_step_count} 个步骤，来自后端合约构造函数。" }
-                    p { a { href: example_url.clone(), "{example_url}" } }
-                }
             }
         }
     }
+}
+
+#[derive(Clone)]
+struct EditorRoute {
+    id: String,
+    route: String,
+    method: String,
+    name: String,
+    status: String,
+    auth_required: bool,
+    script_language: String,
+    script_code: String,
+    request_example: String,
+    response_template: String,
+    notes: String,
+}
+
+#[component]
+fn MetricCard(label: String, value: String, detail: String) -> Element {
+    rsx! {
+        article { class: "gateway-metric-card",
+            span { "{label}" }
+            strong { "{value}" }
+            code { "{detail}" }
+        }
+    }
+}
+
+fn selected_route(snapshot: &EdgeGatewayPageSnapshot, selected_id: Option<&str>) -> EditorRoute {
+    selected_id
+        .and_then(|id| snapshot.route_definitions.iter().find(|route| route.id == id))
+        .or_else(|| snapshot.route_definitions.first())
+        .map(editor_route_from_summary)
+        .unwrap_or_else(blank_editor_route)
+}
+
+fn editor_route_from_summary(route: &GatewayRouteSummary) -> EditorRoute {
+    EditorRoute {
+        id: route.id.clone(),
+        route: route.route.clone(),
+        method: route.method.clone(),
+        name: route.name.clone(),
+        status: route.status.clone(),
+        auth_required: route.auth_required,
+        script_language: route.script_language.clone(),
+        script_code: route.script_code.clone(),
+        request_example: route.request_example.clone(),
+        response_template: route.response_template.clone(),
+        notes: route.notes.clone(),
+    }
+}
+
+fn blank_editor_route() -> EditorRoute {
+    EditorRoute {
+        id: String::new(),
+        route: "/api/edge-gateway/custom/hello".to_string(),
+        method: "POST".to_string(),
+        name: "Hello Edge API".to_string(),
+        status: "draft".to_string(),
+        auth_required: true,
+        script_language: "javascript".to_string(),
+        script_code: "export default async function handle(request) {\n  return { ok: true, input: request.body };\n}".to_string(),
+        request_example: r#"{"name":"az-aio"}"#.to_string(),
+        response_template: r#"{"ok":true,"input":"object"}"#.to_string(),
+        notes: "Script is stored as an edge asset draft. Execution requires a sandbox runner phase.".to_string(),
+    }
+}
+
+fn editor_title(route: &EditorRoute) -> &str {
+    if route.id.is_empty() {
+        "新建接口资产"
+    } else {
+        &route.name
+    }
+}
+
+fn curl_preview(route: &EditorRoute) -> String {
+    let token = if route.auth_required {
+        " \\\n  -H 'Authorization: Bearer edge-demo-weather-token'"
+    } else {
+        ""
+    };
+    let body = if route.method == "POST" {
+        format!(" \\\n  -H 'Content-Type: application/json' \\\n  -d '{}'", route.request_example.replace('\n', ""))
+    } else {
+        String::new()
+    };
+    format!(
+        "curl -X {} http://127.0.0.1:18081{}{}{}",
+        route.method, route.route, token, body
+    )
+}
+
+fn weather_curl_preview() -> String {
+    "curl -X POST http://127.0.0.1:18081/api/edge-gateway/assets/weather/current \\\n  -H 'Authorization: Bearer edge-demo-weather-token' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"latitude\":31.2304,\"longitude\":121.4737,\"timezone\":\"Asia/Shanghai\"}'"
+        .to_string()
+}
+
+fn query_value(route: &str, key: &str) -> Option<String> {
+    let query = route.split_once('?')?.1;
+    query.split('&').find_map(|pair| {
+        let (pair_key, value) = pair.split_once('=')?;
+        (pair_key == key).then(|| value.to_string())
+    })
 }
 
 fn api_url(base: &str, path: &str) -> String {
@@ -90,18 +334,42 @@ fn api_url(base: &str, path: &str) -> String {
     }
 }
 
-fn configured_text(value: bool) -> &'static str {
-    if value {
-        "已配置"
+fn connected_text(value: bool) -> &'static str {
+    if value { "已连接" } else { "未连接" }
+}
+
+fn auth_text(value: bool) -> &'static str {
+    if value { "required" } else { "public" }
+}
+
+fn route_link_class(active: bool) -> &'static str {
+    if active {
+        "gateway-route-link gateway-route-link--active"
     } else {
-        "未配置"
+        "gateway-route-link"
     }
 }
 
-fn connected_text(value: bool) -> &'static str {
-    if value {
-        "已连接"
+fn method_class(method: &str) -> &'static str {
+    match method {
+        "GET" => "gateway-pill gateway-pill--get",
+        "POST" => "gateway-pill gateway-pill--post",
+        _ => "gateway-pill",
+    }
+}
+
+fn status_class(status: &str) -> &'static str {
+    match status {
+        "active" => "gateway-pill gateway-pill--active",
+        "disabled" => "gateway-pill gateway-pill--disabled",
+        _ => "gateway-pill gateway-pill--draft",
+    }
+}
+
+fn status_code_class(status_code: u16) -> &'static str {
+    if status_code < 400 {
+        "gateway-code gateway-code--ok"
     } else {
-        "未连接"
+        "gateway-code gateway-code--error"
     }
 }

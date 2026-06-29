@@ -320,6 +320,85 @@ const SYSTEM_ADMIN_STYLE: &str = r#"
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.system-api-key-grid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+  align-items: stretch;
+}
+
+.system-api-key-card,
+.system-api-key-guide,
+.system-api-key-list {
+  display: grid;
+  gap: 14px;
+}
+
+.system-api-key-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.system-api-key-created {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid var(--page-line);
+  border-radius: 5px;
+  background: #dcfce7;
+  box-shadow: 4px 4px 0 var(--page-line);
+}
+
+.system-api-key-created[hidden] {
+  display: none;
+}
+
+.system-api-key-secret {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.system-api-key-secret input,
+.system-api-key-form input {
+  min-width: 0;
+  height: 40px;
+  padding: 8px 10px;
+  border: 2px solid var(--page-line);
+  border-radius: 5px;
+  background: #ffffff;
+  box-shadow: 4px 4px 0 var(--page-line);
+  color: var(--page-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.system-api-key-list .system-admin-table {
+  min-width: 760px;
+}
+
+.system-api-key-status {
+  min-height: 28px;
+  color: var(--page-muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.system-api-key-guide pre {
+  margin: 0;
+  padding: 12px;
+  border: 2px solid var(--page-line);
+  border-radius: 5px;
+  background: #111111;
+  color: #f8fafc;
+  box-shadow: 4px 4px 0 var(--page-line);
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .system-admin-boundary-card {
   min-height: 150px;
   gap: 12px;
@@ -402,7 +481,8 @@ const SYSTEM_ADMIN_STYLE: &str = r#"
 
 @media (max-width: 1040px) {
   .system-admin-layout,
-  .system-admin-boundaries {
+  .system-admin-boundaries,
+  .system-api-key-grid {
     grid-template-columns: 1fr;
   }
 
@@ -434,12 +514,134 @@ const SYSTEM_ADMIN_STYLE: &str = r#"
     grid-template-columns: 1fr;
   }
 
+  .system-api-key-form,
+  .system-api-key-secret {
+    grid-template-columns: 1fr;
+  }
+
   .system-admin-pagination,
-  .system-admin-store-link {
+  .system-admin-store-link,
+  .system-api-key-form .system-admin-command,
+  .system-api-key-secret .system-admin-command {
     width: 100%;
     justify-content: center;
   }
 }
+"#;
+
+const SYSTEM_API_KEY_SCRIPT: &str = r#"
+(function(){
+  var form = document.getElementById('api-key-create-form');
+  var createdPanel = document.getElementById('api-key-created-panel');
+  var table = document.getElementById('api-key-table-body');
+  var copyButton = document.getElementById('api-key-copy-button');
+  var keyInput = document.getElementById('api-key-created-value');
+  var status = document.getElementById('api-key-action-status');
+
+  function setStatus(text) {
+    if (status) {
+      status.textContent = text;
+    }
+  }
+
+  if (copyButton && keyInput) {
+    copyButton.onclick = function() {
+      keyInput.select();
+      var value = keyInput.value;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(function(){
+          setStatus('已复制 API Key。');
+        }).catch(function(){
+          document.execCommand('copy');
+          setStatus('已复制 API Key。');
+        });
+      } else {
+        document.execCommand('copy');
+        setStatus('已复制 API Key。');
+      }
+      return false;
+    };
+  }
+
+  if (form && window.fetch && keyInput) {
+    form.addEventListener('submit', function(event) {
+      event.preventDefault();
+      setStatus('正在创建 API Key...');
+      var nameInput = form.querySelector('input[name="name"]');
+      var scopeInput = form.querySelector('input[name="scope"]');
+      fetch('/api/system/api-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          name: nameInput ? nameInput.value : 'az-aio 调用密钥',
+          scope: scopeInput ? scopeInput.value : 'all-services'
+        })
+      })
+      .then(function(response) {
+        return response.json().then(function(payload) {
+          return { response: response, payload: payload };
+        });
+      })
+      .then(function(result) {
+        if (!result.response.ok || !result.payload || !result.payload.data) {
+          throw new Error((result.payload && result.payload.msg) || '创建失败');
+        }
+        keyInput.value = result.payload.data.apiKey || '';
+        if (createdPanel) {
+          createdPanel.hidden = false;
+        }
+        setStatus('创建成功，明文密钥只显示一次。');
+        loadApiKeys();
+      })
+      .catch(function(error) {
+        setStatus('创建失败：' + (error && error.message ? error.message : error));
+      });
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+    });
+  }
+
+  function rowHtml(item) {
+    var revoke = item.status === 'active'
+      ? '<form method="post" action="/admin-api/system/ui-api-key/revoke" class="system-admin-action-form"><input type="hidden" name="id" value="' + escapeHtml(item.id) + '"><button class="system-admin-command" type="submit">撤销</button></form>'
+      : '<span class="system-admin-store-chip">已撤销</span>';
+    return '<tr>' +
+      '<td>' + escapeHtml(item.name) + '</td>' +
+      '<td><code>' + escapeHtml(item.prefix) + '</code></td>' +
+      '<td><span class="system-admin-chip system-admin-chip--accent">' + escapeHtml(item.scope) + '</span></td>' +
+      '<td><span class="system-admin-chip ' + (item.status === 'active' ? 'system-admin-chip--success' : 'system-admin-chip--warning') + '">' + escapeHtml(item.status) + '</span></td>' +
+      '<td>' + escapeHtml(item.createdAt) + '</td>' +
+      '<td>' + escapeHtml(item.lastUsedAt || '未使用') + '</td>' +
+      '<td>' + revoke + '</td>' +
+      '</tr>';
+  }
+
+  if (!table || !window.fetch) {
+    return;
+  }
+
+  function loadApiKeys() {
+    fetch('/api/system/api-keys', { headers: { 'Accept': 'application/json' } })
+    .then(function(response){ return response.json(); })
+    .then(function(payload){
+      var items = (payload && payload.data) || [];
+      if (!items.length) {
+        table.innerHTML = '<tr><td colspan="7">还没有 API 密钥，先在上方创建一把。</td></tr>';
+        return;
+      }
+      table.innerHTML = items.map(rowHtml).join('');
+    })
+    .catch(function(error){
+      table.innerHTML = '<tr><td colspan="7">加载失败：' + escapeHtml(error && error.message ? error.message : error) + '</td></tr>';
+    });
+  }
+
+  loadApiKeys();
+})();
 "#;
 
 pub fn SystemAdminPage(context: NativeRenderContext) -> Element {
@@ -455,7 +657,11 @@ pub fn SystemAdminPage(context: NativeRenderContext) -> Element {
         SystemAdminStyle {}
         Page { class: "system-admin-page",
             SystemHero { dashboard: dashboard.clone(), page: page.clone() }
-            SystemPageBody { page: page.clone(), dashboard }
+            SystemPageBody {
+                page: page.clone(),
+                dashboard,
+                active_route: context.active_route.clone(),
+            }
         }
     }
 }
@@ -649,9 +855,20 @@ fn StatTile(props: StatTileProps) -> Element {
 struct SystemPageBodyProps {
     page: SystemPageView,
     dashboard: SystemDashboardView,
+    active_route: String,
 }
 
 fn SystemPageBody(props: SystemPageBodyProps) -> Element {
+    if props.page.id == "api_keys" {
+        return rsx! {
+            SystemApiKeyWorkbench {
+                page: props.page,
+                dashboard: props.dashboard,
+                active_route: props.active_route,
+            }
+        };
+    }
+
     rsx! {
         Split { class: "system-admin-layout",
             div { class: "system-admin-main",
@@ -660,6 +877,145 @@ fn SystemPageBody(props: SystemPageBodyProps) -> Element {
                 SystemBoundaryGrid { page: props.page.clone() }
             }
             SystemContextPanel { page: props.page, dashboard: props.dashboard }
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Props)]
+struct SystemApiKeyWorkbenchProps {
+    page: SystemPageView,
+    dashboard: SystemDashboardView,
+    active_route: String,
+}
+
+fn SystemApiKeyWorkbench(props: SystemApiKeyWorkbenchProps) -> Element {
+    let created = query_value(&props.active_route, "created").unwrap_or_default();
+    let prefix = query_value(&props.active_route, "prefix").unwrap_or_default();
+    let error = query_value(&props.active_route, "error").unwrap_or_default();
+    let key_created = created == "1";
+    let has_error = !error.is_empty();
+
+    rsx! {
+        Split { class: "system-admin-layout",
+            div { class: "system-admin-main",
+                Card { class: "system-admin-toolbar",
+                    div { class: "system-admin-toolbar__title",
+                        span { class: "system-admin-mark", "{props.page.icon}" }
+                        div {
+                            h2 { "API 密钥" }
+                            p { "创建后即可用 X-API-Key、Authorization Bearer 或 api_key 查询参数调用所有服务 API。" }
+                        }
+                    }
+                    div { class: "system-admin-toolbar__actions",
+                        a {
+                            class: "system-admin-command",
+                            href: "/api/system/api-keys",
+                            "密钥 JSON"
+                        }
+                        a {
+                            class: "system-admin-command",
+                            href: "/api/system/status",
+                            "系统状态"
+                        }
+                    }
+                }
+
+                Grid { class: "system-api-key-grid",
+                    Card { class: "system-api-key-card",
+                        BlockTitle {
+                            title: "创建新密钥".to_string(),
+                            subtitle: "明文 API Key 只显示一次；数据库只保存哈希、前缀、状态和使用时间。".to_string(),
+                        }
+                        form {
+                            id: "api-key-create-form",
+                            class: "system-api-key-form",
+                            method: "post",
+                            action: "/admin-api/system/ui-api-key",
+                            label { class: "system-admin-search",
+                                span { "密钥名称" }
+                                input {
+                                    name: "name",
+                                    placeholder: "例如：天气服务调用方 / macmini-worker",
+                                    value: "az-aio 调用密钥",
+                                }
+                            }
+                            input { r#type: "hidden", name: "scope", value: "all-services" }
+                            button {
+                                class: "system-admin-command system-admin-command--primary",
+                                r#type: "submit",
+                                "创建密钥"
+                            }
+                        }
+                        div {
+                            id: "api-key-created-panel",
+                            class: "system-api-key-created",
+                            hidden: !key_created,
+                            strong { "新密钥只显示一次，请立即复制保存。" }
+                            div { class: "system-api-key-secret",
+                                input {
+                                    id: "api-key-created-value",
+                                    readonly: true,
+                                    value: "",
+                                    placeholder: "创建成功，密钥前缀：{prefix}",
+                                }
+                                button {
+                                    id: "api-key-copy-button",
+                                    class: "system-admin-command",
+                                    r#type: "button",
+                                    "复制"
+                                }
+                            }
+                        }
+                        if has_error {
+                            p { class: "system-api-key-status", "错误：{error}" }
+                        } else {
+                            p { id: "api-key-action-status", class: "system-api-key-status", "准备创建 all-services API Key。" }
+                        }
+                    }
+
+                    Card { class: "system-api-key-guide",
+                        BlockTitle {
+                            title: "调用方式".to_string(),
+                            subtitle: "同一把 key 默认覆盖当前已暴露服务；显式传入无效 api_key 会返回 401。".to_string(),
+                        }
+                        pre { "curl -H 'X-API-Key: <api_key>' http://127.0.0.1:18081/api/edge-gateway/assets" }
+                        pre { "curl -X POST 'http://127.0.0.1:18081/api/edge-gateway/assets/weather/current?api_key=<api_key>' \\\n  -H 'Content-Type: application/json' \\\n  -d '{{\"latitude\":31.2304,\"longitude\":121.4737,\"timezone\":\"Asia/Shanghai\"}}'" }
+                    }
+                }
+
+                Card { class: "system-api-key-list",
+                    BlockTitle {
+                        title: "已创建密钥".to_string(),
+                        subtitle: "列表只展示前缀；可在线撤销，撤销后再次使用会被拒绝。".to_string(),
+                    }
+                    div { class: "system-admin-table-scroll",
+                        table { class: "system-admin-table",
+                            thead {
+                                tr {
+                                    th { "名称" }
+                                    th { "前缀" }
+                                    th { "范围" }
+                                    th { "状态" }
+                                    th { "创建时间" }
+                                    th { "最近使用" }
+                                    th { "操作" }
+                                }
+                            }
+                            tbody {
+                                id: "api-key-table-body",
+                                tr {
+                                    td { colspan: "7", "正在加载 API 密钥..." }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            SystemContextPanel { page: props.page, dashboard: props.dashboard }
+        }
+        script {
+            "data-az-script": "system-api-key-page",
+            dangerous_inner_html: SYSTEM_API_KEY_SCRIPT,
         }
     }
 }
@@ -901,6 +1257,20 @@ fn route_without_query(route: &str) -> &str {
     route.split('?').next().unwrap_or(route)
 }
 
+fn query_value(route: &str, key: &str) -> Option<String> {
+    let query = route.split_once('?')?.1;
+    query.split('&').find_map(|pair| {
+        let (raw_key, raw_value) = pair.split_once('=').unwrap_or((pair, ""));
+        if raw_key == key {
+            urlencoding::decode(raw_value)
+                .ok()
+                .map(|value| value.into_owned())
+        } else {
+            None
+        }
+    })
+}
+
 fn section_search_text(section: &crate::system::navigation::AdminSectionSnapshot) -> String {
     format!("{} {}", section.label, section.domain_id)
 }
@@ -994,6 +1364,19 @@ mod tests {
         assert!(markup.contains("data-menu-text"));
     }
 
+    #[test]
+    fn api_key_page_renders_create_and_copy_flow() {
+        let markup = dioxus_ssr::render_element(rsx! {
+            SystemApiKeyPageFixture {}
+        });
+
+        assert!(markup.contains("创建密钥"));
+        assert!(markup.contains("api-key-created-value"));
+        assert!(markup.contains("/api/system/api-key"));
+        assert!(markup.contains("/api/system/api-keys"));
+        assert!(markup.contains("X-API-Key"));
+    }
+
     #[component]
     fn SystemAdminPageFixture() -> Element {
         SystemAdminPage(NativeRenderContext {
@@ -1006,6 +1389,14 @@ mod tests {
     fn SystemAdminSidebarFixture() -> Element {
         SystemAdminSidebar(NativeRenderContext {
             active_route: "/system/menu/mounting".to_string(),
+            api_base_url: String::new(),
+        })
+    }
+
+    #[component]
+    fn SystemApiKeyPageFixture() -> Element {
+        SystemAdminPage(NativeRenderContext {
+            active_route: "/system/account/api-keys?key=az_live_test".to_string(),
             api_base_url: String::new(),
         })
     }

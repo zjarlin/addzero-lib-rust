@@ -46,6 +46,20 @@ pub struct SystemDataRecord {
     pub updated_at: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
+pub struct SystemApiKeyRecord {
+    #[key]
+    pub id: String,
+    #[index]
+    pub key_hash: String,
+    pub name: String,
+    pub prefix: String,
+    pub scope: String,
+    pub status: String,
+    pub created_at: String,
+    pub last_used_at: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SystemStoreStatus {
     pub database_configured: bool,
@@ -84,6 +98,25 @@ pub struct SystemDataRecordSummary {
     pub row_key: String,
     pub cells_json: String,
     pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemApiKeySummary {
+    pub id: String,
+    pub name: String,
+    pub prefix: String,
+    pub scope: String,
+    pub status: String,
+    pub created_at: String,
+    pub last_used_at: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatedSystemApiKey {
+    pub api_key: String,
+    pub summary: SystemApiKeySummary,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -137,6 +170,20 @@ impl From<SystemDataRecord> for SystemDataRecordSummary {
             row_key: record.row_key,
             cells_json: record.cells_json,
             updated_at: record.updated_at,
+        }
+    }
+}
+
+impl From<SystemApiKeyRecord> for SystemApiKeySummary {
+    fn from(record: SystemApiKeyRecord) -> Self {
+        Self {
+            id: record.id,
+            name: record.name,
+            prefix: record.prefix,
+            scope: record.scope,
+            status: record.status,
+            created_at: record.created_at,
+            last_used_at: record.last_used_at,
         }
     }
 }

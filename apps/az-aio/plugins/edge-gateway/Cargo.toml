@@ -18,10 +18,12 @@ handlebars.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 serde_json_path.workspace = true
 rudi.workspace = true
 tokio.workspace = true
 toasty.workspace = true
+urlencoding.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -29,3 +31,6 @@ unsafe_code = "forbid"
 [lints.clippy]
 dbg_macro = "deny"
 todo = "deny"
+
+[dev-dependencies]
+tower.workspace = true

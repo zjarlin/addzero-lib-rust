@@ -52,6 +52,11 @@ struct SystemContextBranch {
 
 const SYSTEM_CONTEXT_BRANCHES: &[SystemContextBranch] = &[
     SystemContextBranch {
+        id: "account-axis",
+        label: "我的账户",
+        page_ids: &["api_keys"],
+    },
+    SystemContextBranch {
         id: "permission-axis",
         label: "权限管理",
         page_ids: &["identity", "role", "menu"],
@@ -209,7 +214,7 @@ mod tests {
 
         assert_eq!(
             branch_labels,
-            vec!["权限管理", "组织租户", "认证接入", "系统配置", "日志消息"]
+            vec!["我的账户", "权限管理", "组织租户", "认证接入", "系统配置", "日志消息"]
         );
 
         // 关键断言：侧轴不是平铺页面，而是按系统上下文树组织。

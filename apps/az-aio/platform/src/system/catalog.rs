@@ -422,6 +422,24 @@ const AUTH_ROWS: &[SystemTableRow] = &[
     ]),
 ];
 
+const API_KEY_COLUMNS: &[SystemTableColumn] = &[
+    column("name", "密钥名称", SystemFieldKind::Text, "16rem"),
+    column("prefix", "密钥前缀", SystemFieldKind::Text, "16rem"),
+    column("scope", "授权范围", SystemFieldKind::Badge, "12rem"),
+    column("status", "状态", SystemFieldKind::Badge, "8rem"),
+    column("last_used_at", "最近使用", SystemFieldKind::Time, "12rem"),
+];
+
+const API_KEY_ROWS: &[SystemTableRow] = &[
+    row(&[
+        cell("name", "在线创建后实时加载", None),
+        cell("prefix", "az_live_********", None),
+        cell("scope", "all-services", Some("accent")),
+        cell("status", "active", Some("success")),
+        cell("last_used_at", "由 PostgreSQL 记录", None),
+    ]),
+];
+
 const TENANT_COLUMNS: &[SystemTableColumn] = &[
     column("tenant", "租户", SystemFieldKind::Text, "16rem"),
     column("package", "套餐", SystemFieldKind::Text, "14rem"),
@@ -533,6 +551,23 @@ const AREA_ROWS: &[SystemTableRow] = &[
 ];
 
 const SYSTEM_PAGES: &[SystemPage] = &[
+    SystemPage {
+        id: "api_keys",
+        label: "API 密钥",
+        description: "为当前账号创建可撤销的 API Key，外部调用方可用 api_key 访问已暴露服务。",
+        route: "/system/account/api-keys",
+        icon: "⚿",
+        order: 5,
+        status: SystemFeatureStatus::StarterBacked,
+        source_modules: &["auth", "api-key", "gateway"],
+        pg_tables: &["biz_system_admin_system_api_key_records"],
+        read_boundary: "只读取密钥元数据、前缀、状态和最近使用时间，永不读取明文密钥。",
+        write_boundary: "创建时只返回一次明文 api_key，PostgreSQL 仅保存 SHA-256 哈希；撤销后立即拒绝显式 api_key 调用。",
+        permissions_any_of: &["system:api-key"],
+        columns: API_KEY_COLUMNS,
+        rows: API_KEY_ROWS,
+        operations: &[],
+    },
     SystemPage {
         id: "identity",
         label: "用户管理",
@@ -843,6 +878,7 @@ mod tests {
         let ids = system_pages().iter().map(|page| page.id).collect::<Vec<_>>();
 
         assert!(ids.contains(&"identity"));
+        assert!(ids.contains(&"api_keys"));
         assert!(ids.contains(&"role"));
         assert!(ids.contains(&"organization"));
         assert!(ids.contains(&"dictionary"));
@@ -864,7 +900,15 @@ mod tests {
 
         assert_eq!(
             visible_ids,
-            vec!["identity", "role", "organization", "dictionary", "menu", "audit"]
+            vec![
+                "api_keys",
+                "identity",
+                "role",
+                "organization",
+                "dictionary",
+                "menu",
+                "audit"
+            ]
         );
     }
 

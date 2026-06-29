@@ -91,9 +91,7 @@ pub(crate) const NEOBRUTAL_CSS: &str = r#"
   z-index: 0;
   border: 3px solid var(--shell-line);
   border-radius: 0;
-  background:
-    radial-gradient(circle at 12% 10%, var(--shell-secondary) 0 34px, transparent 36px),
-    linear-gradient(165deg, #ffffff 0 70%, #fef08a 70% 100%);
+  background: linear-gradient(165deg, #ffffff 0 70%, #fef08a 70% 100%);
   box-shadow: none;
 }
 

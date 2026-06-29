@@ -104,7 +104,7 @@ async fn list_entries_handler(
         .ok_or_else(|| anyhow!("missing config-center database url"))
         .map_err(config_center_error_response)?;
     store
-        .list_entries(query.namespace.as_deref().unwrap_or("az-aio.dev"))
+        .list_entries(query.namespace.as_deref().unwrap_or("az-aio"))
         .await
         .map(ok_json)
         .map_err(config_center_error_response)
@@ -121,7 +121,7 @@ async fn upsert_entry_handler(
     store
         .upsert_entry(ConfigEntryInput {
             id: request.id,
-            namespace: request.namespace.unwrap_or_else(|| "az-aio.dev".to_string()),
+            namespace: request.namespace.unwrap_or_else(|| "az-aio".to_string()),
             key: request.key,
             value: request.value,
         })
@@ -154,7 +154,7 @@ async fn apply_ui_action(
     store
         .upsert_entry(ConfigEntryInput {
             id: request.id,
-            namespace: request.namespace.unwrap_or_else(|| "az-aio.dev".to_string()),
+            namespace: request.namespace.unwrap_or_else(|| "az-aio".to_string()),
             key: request.key,
             value: request.value,
         })

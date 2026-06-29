@@ -55,6 +55,11 @@ pub fn verify_database_url(value: &str) -> anyhow::Result<&str> {
     if value.is_empty() {
         return Err(anyhow!("数据库连接串未配置"));
     }
+    if !value.starts_with("postgresql://") && !value.starts_with("postgres://") {
+        return Err(anyhow!(
+            "AZ AIO 正式持久化只接受 PostgreSQL 连接串，请改用 postgresql://...，当前值: {value}"
+        ));
+    }
     Ok(value)
 }
 
@@ -88,6 +93,21 @@ mod tests {
             verify_database_url("postgresql://localhost/test").unwrap(),
             "postgresql://localhost/test"
         );
+        assert_eq!(
+            verify_database_url("postgres://localhost/test").unwrap(),
+            "postgres://localhost/test"
+        );
+    }
+
+    #[test]
+    fn rejects_sqlite_url() {
+        let error = verify_database_url("sqlite:az-aio.db?mode=rwc").unwrap_err();
+        // 防止正式 admin 数据误落到本地 SQLite，统一走 Toasty PG。
+        assert!(error.to_string().contains("PostgreSQL"));
+
+        let error = verify_database_url("sqlite:sync.db?mode=rwc").unwrap_err();
+        // sync.db 也不再作为正式持久化落点。
+        assert!(error.to_string().contains("PostgreSQL"));
     }
 
     #[test]
