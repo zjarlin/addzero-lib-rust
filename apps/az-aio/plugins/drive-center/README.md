@@ -1,6 +1,6 @@
 # Drive Center
 
-Native AZ AIO plugin for drive queue and hosting workflows.
+Native plugin for drive queue and hosting workflows.
 
 ## Runtime
 

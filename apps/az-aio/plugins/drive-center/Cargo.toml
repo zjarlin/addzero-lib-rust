@@ -1,6 +1,6 @@
 [package]
 name = "drive-center"
-description = "AZ AIO drive center native plugin."
+description = "drive center native plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

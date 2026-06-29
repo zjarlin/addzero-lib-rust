@@ -1,6 +1,6 @@
 # AZ Linux
 
-Native AZ AIO plugin for Linux server onboarding from the client side.
+Native plugin for Linux server onboarding from the client side.
 
 ## Runtime
 

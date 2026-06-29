@@ -1,10 +1,10 @@
-# AZ AIO Plugin Platform Requirements
+# Plugin Platform Requirements
 
 ## Platform Name
 
 The plugin runtime platform is `az-platform`.
 
-`az-platform` is the AZ AIO equivalent of an IDE platform: the desktop shell owns layout, runtime loading, sandboxing, shared UI components, and backend API routing, while plugins contribute UI and API surfaces.
+`az-platform` is the equivalent of an IDE platform: the desktop shell owns layout, runtime loading, sandboxing, shared UI components, and backend API routing, while plugins contribute UI and API surfaces.
 
 ## Plugin Naming
 

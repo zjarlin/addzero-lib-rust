@@ -1,6 +1,6 @@
 [package]
 name = "software-center"
-description = "AZ AIO software center native plugin."
+description = "software center native plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,7 +1,7 @@
 //! 系统后台管理域契约。
 //!
 //! 该模块把天津系统工程中的 auth、dept、dict、menu、logger 等后台能力，
-//! 收敛为 AZ AIO admin 可以消费的双轴页面模型。这里不保存业务数据，
+//! 收敛为 admin 可以消费的双轴页面模型。这里不保存业务数据，
 //! 只声明正式 PostgreSQL 边界、页面结构和 API/CLI 可共享的操作语义。
 
 use serde::Serialize;

@@ -1,6 +1,6 @@
 # Config Center
 
-Native AZ AIO plugin for machine configuration workflows.
+Native plugin for machine configuration workflows.
 
 ## Runtime
 

@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
 authors = ["zjarlin"]
-description = "AZ AIO platform: plugin contract, host loader, DI container, app state."
+description = "platform: plugin contract, host loader, DI container, app state."
 workspace = "../plugins"
 
 [dependencies]

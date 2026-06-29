@@ -1,4 +1,4 @@
-//! AZ AIO Axum 统一错误边界。#{7}
+//! Axum 统一错误边界。#{7}
 //!
 //! Rust 业务层继续使用 `anyhow::Result` 透明传播错误；本模块只在 HTTP
 //! 边界把业务错误、提取器拒绝和 Tower 中间件错误统一转换成 `{ code, msg, data }`
@@ -126,7 +126,7 @@ impl IntoResponse for ApiError {
             tracing::error!(
                 status = self.status.as_u16(),
                 message = %self.message,
-                "AZ AIO API 全局错误边界捕获服务端错误",
+                "API 全局错误边界捕获服务端错误",
             );
         }
 
@@ -168,7 +168,7 @@ pub async fn handle_box_error(error: BoxError) -> Response {
         return ApiError::new(StatusCode::GATEWAY_TIMEOUT, "接口处理超时").into_response();
     }
 
-    tracing::error!(error = ?error, "AZ AIO API 全局错误边界捕获 Tower 错误");
+    tracing::error!(error = ?error, "API 全局错误边界捕获 Tower 错误");
     ApiError::internal("服务未知错误").into_response()
 }
 

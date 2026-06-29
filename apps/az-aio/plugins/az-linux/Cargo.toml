@@ -1,6 +1,6 @@
 [package]
 name = "az-linux"
-description = "AZ AIO Linux environment client plugin."
+description = "Linux environment client plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

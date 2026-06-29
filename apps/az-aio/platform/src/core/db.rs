@@ -1,6 +1,6 @@
 //! 共享数据库底座。
 //!
-//! 为所有 AZ AIO 插件提供统一的 `toasty::Db` 连接管理与工具函数，
+//! 为所有 插件提供统一的 `toasty::Db` 连接管理与工具函数，
 //! 消除每个插件各自重复的 `Arc<Mutex<Db>>`、URL 校验、UUID 和时间戳逻辑。
 
 use std::sync::Arc;
@@ -57,7 +57,7 @@ pub fn verify_database_url(value: &str) -> anyhow::Result<&str> {
     }
     if !value.starts_with("postgresql://") && !value.starts_with("postgres://") {
         return Err(anyhow!(
-            "AZ AIO 正式持久化只接受 PostgreSQL 连接串，请改用 postgresql://...，当前值: {value}"
+            "正式持久化只接受 PostgreSQL 连接串，请改用 postgresql://...，当前值: {value}"
         ));
     }
     Ok(value)

@@ -1,6 +1,6 @@
 [package]
 name = "asset-hub"
-description = "AZ AIO asset hub native plugin."
+description = "asset hub native plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

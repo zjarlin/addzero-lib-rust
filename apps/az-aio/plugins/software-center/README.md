@@ -1,6 +1,6 @@
 # Software Center
 
-Native AZ AIO plugin for installer scanning and software package workflows.
+Native plugin for installer scanning and software package workflows.
 
 ## Runtime
 

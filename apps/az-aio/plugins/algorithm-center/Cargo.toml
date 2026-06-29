@@ -1,6 +1,6 @@
 [package]
 name = "algorithm-center"
-description = "AZ AIO algorithm center native plugin — browse and introspect az-algorithm components."
+description = "algorithm center native plugin — browse and introspect az-algorithm components."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

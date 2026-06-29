@@ -1,6 +1,6 @@
 # Asset Hub
 
-Native AZ AIO plugin for asset workflows.
+Native plugin for asset workflows.
 
 ## Runtime
 

@@ -1,6 +1,6 @@
 [package]
 name = "config-center"
-description = "AZ AIO config center native plugin."
+description = "config center native plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

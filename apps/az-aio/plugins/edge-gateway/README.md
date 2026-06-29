@@ -1,6 +1,6 @@
 # Edge Gateway
 
-Native AZ AIO plugin for gateway flow execution.
+Native plugin for gateway flow execution.
 
 ## Runtime
 

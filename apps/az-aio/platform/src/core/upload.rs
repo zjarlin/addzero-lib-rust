@@ -1,4 +1,4 @@
-//! Shared upload helpers for AZ AIO HTTP endpoints.
+//! Shared upload helpers for HTTP endpoints.
 
 use std::path::{Path, PathBuf};
 
@@ -11,7 +11,7 @@ use tokio::{fs, io::AsyncWriteExt};
 use tower_http::services::ServeDir;
 use uuid::Uuid;
 
-/// Default per-request upload limit for local AZ AIO endpoints.
+/// Default per-request upload limit for local endpoints.
 pub const DEFAULT_UPLOAD_LIMIT_BYTES: usize = 512 * 1024 * 1024;
 
 /// Options for saving a single multipart file field.

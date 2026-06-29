@@ -1,6 +1,6 @@
 [package]
 name = "edge-gateway"
-description = "AZ AIO edge gateway native plugin."
+description = "edge gateway native plugin."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

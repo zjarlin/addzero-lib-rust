@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 //! Drive CRDT sync worker providing WebSocket-based line-CRDT text sync
-//! for the AZ AIO workbench.
+//! for the workbench.
 
 automod::dir!(pub "src");
 
