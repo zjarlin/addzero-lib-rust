@@ -1,7 +1,7 @@
 use az_aio_platform::plugin::api::{
-    BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
-    PluginActivation, PluginDescriptor, PluginKind, ToolbarActionContribution, UiContribution,
-    UiContributionSlot,
+    BackendApiContribution, ClientPageContribution, ContributionSet, NavItemContribution,
+    PageContribution, PluginActivation, PluginDescriptor, PluginKind, ToolbarActionContribution,
+    UiContribution, UiContributionSlot,
 };
 
 pub const PLUGIN_ID: &str = "asset-hub";
@@ -18,7 +18,7 @@ pub fn descriptor() -> PluginDescriptor {
         priority: 920,
         dependencies: Vec::new(),
         capabilities: vec![
-            "dioxus-renderer".to_string(),
+            "dioxus-ui-contract-page".to_string(),
             "axum-api".to_string(),
             "toasty-persistence".to_string(),
             "skill-scan".to_string(),
@@ -46,6 +46,13 @@ pub fn contributions() -> ContributionSet {
             subtitle: "资产订阅 · 技能扫描 · 子类型元数据".to_string(),
             renderer_id: RENDERER_ID.to_string(),
             placeholder_mark: "◆".to_string(),
+            order: 20,
+        }],
+        client_pages: vec![ClientPageContribution {
+            route: ROUTE.to_string(),
+            title: "资产中心".to_string(),
+            renderer_id: RENDERER_ID.to_string(),
+            slot: UiContributionSlot::Content,
             order: 20,
         }],
         ui_contributions: vec![UiContribution {
@@ -92,7 +99,13 @@ pub fn contributions() -> ContributionSet {
         ],
         toolbar_actions: vec![
             toolbar_action("asset-hub.refresh", "Refresh", "RefreshCw", false, 10),
-            toolbar_action("asset-hub.scan-skills", "Scan Skills", "ScanSearch", true, 20),
+            toolbar_action(
+                "asset-hub.scan-skills",
+                "Scan Skills",
+                "ScanSearch",
+                true,
+                20,
+            ),
         ],
         catalog_providers: Vec::new(),
         settings_sections: Vec::new(),

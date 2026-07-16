@@ -1,4 +1,6 @@
+#![cfg(any())]
 use az_aio_platform::plugin::api::NativeRenderContext;
+use adui_dioxus::Card;
 use dioxus::prelude::*;
 
 use crate::{
@@ -23,41 +25,41 @@ pub fn EdgeGatewayPage(context: NativeRenderContext) -> Element {
     let error = query_value(&context.active_route, "error");
 
     rsx! {
-        section { class: "gateway-studio",
-            div { class: "gateway-studio__halo" }
-            header { class: "gateway-hero",
-                div { class: "gateway-hero__mark", "EDGE" }
-                div { class: "gateway-hero__copy",
-                    p { class: "gateway-kicker", "Edge API Studio · Toasty PG" }
+        div { class: "adui-space adui-space-vertical", style: "display:grid;gap:22px;",
+            
+            Card {
+                span { class: "adui-avatar", "EDGE" }
+                div {
+                    p { class: "adui-typography-secondary", "Edge API Studio · Toasty PG" }
                     h1 { "接口、路由与脚本资产管理台" }
                     p { "在线管理 GET/POST 路由、Bearer token 资产、脚本草稿和调用观测；定义持久化到 edge-gateway Toasty PostgreSQL。" }
                 }
-                div { class: "gateway-hero__actions",
-                    a { class: "gateway-button gateway-button--primary", href: "#route-editor", "新建/保存路由" }
-                    a { class: "gateway-button", href: routes_url.clone(), "JSON API" }
+                div { class: "adui-space", style: "display:flex;flex-wrap:wrap;gap:8px;",
+                    a { class: "adui-btn adui-btn-solid adui-btn-primary", href: "#route-editor", "新建/保存路由" }
+                    a { class: "adui-btn adui-btn-outlined adui-btn-default", href: routes_url.clone(), "JSON API" }
                 }
             }
 
             if saved {
-                div { class: "gateway-message gateway-message--success", "路由定义已保存到 Toasty PG。" }
+                div { class: "adui-alert adui-alert-success", "路由定义已保存到 Toasty PG。" }
             }
             if let Some(error) = error {
-                div { class: "gateway-message gateway-message--error", "保存失败：{error}" }
+                div { class: "adui-alert adui-alert-error", "保存失败：{error}" }
             }
             if let Some(error) = &snapshot.error {
-                div { class: "gateway-message gateway-message--error", "运行告警：{error}" }
+                div { class: "adui-alert adui-alert-error", "运行告警：{error}" }
             }
 
-            div { class: "gateway-metrics",
+            div { class: "adui-row", style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;",
                 MetricCard { label: "PG Store", value: connected_text(snapshot.status.store_connected), detail: snapshot.status.table_prefix.clone() }
                 MetricCard { label: "Managed Routes", value: snapshot.route_definitions.len().to_string(), detail: "GET / POST definitions".to_string() }
                 MetricCard { label: "Callable Assets", value: snapshot.callable_assets.len().to_string(), detail: "Bearer token gated".to_string() }
                 MetricCard { label: "Usage Events", value: snapshot.usage_records.len().to_string(), detail: "recent asset calls".to_string() }
             }
 
-            div { class: "gateway-workbench",
-                aside { class: "gateway-left-panel",
-                    div { class: "gateway-panel-title",
+            div { class: "adui-row", style: "display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr) minmax(260px,340px);gap:16px;align-items:start;",
+                aside { class: "adui-space adui-space-vertical", style: "display:grid;gap:16px;",
+                    Card {
                         span { "01" }
                         div {
                             h2 { "路由库" }
@@ -66,12 +68,12 @@ pub fn EdgeGatewayPage(context: NativeRenderContext) -> Element {
                     }
                     a { class: route_link_class(selected_id.is_none()), href: "/?route=/gateway", "+ 新路由草稿" }
                     if snapshot.route_definitions.is_empty() {
-                        div { class: "gateway-empty-card",
+                        Card {
                             strong { "还没有自定义路由" }
                             p { "先保存右侧表单，路由定义会进入 Toasty PG。" }
                         }
                     } else {
-                        nav { class: "gateway-route-list",
+                        nav { class: "adui-menu adui-menu-inline",
                             for route in &snapshot.route_definitions {
                                 a { class: route_link_class(selected_id.as_deref() == Some(route.id.as_str())), href: format!("/?route=/gateway&routeId={}", route.id),
                                     span { class: method_class(&route.method), "{route.method}" }
@@ -82,16 +84,16 @@ pub fn EdgeGatewayPage(context: NativeRenderContext) -> Element {
                         }
                     }
 
-                    div { class: "gateway-panel-title gateway-panel-title--compact",
+                    Card {
                         span { "02" }
                         div {
                             h2 { "内置资产" }
                             p { "可被外部调用" }
                         }
                     }
-                    div { class: "gateway-asset-list",
+                    div { class: "adui-space adui-space-vertical", style: "display:grid;gap:10px;",
                         for asset in &snapshot.callable_assets {
-                            article { class: "gateway-asset-card",
+                            Card {
                                 strong { "{asset.name}" }
                                 code { "{asset.method} {asset.route}" }
                                 p { "provider={asset.provider}" }
@@ -100,114 +102,114 @@ pub fn EdgeGatewayPage(context: NativeRenderContext) -> Element {
                     }
                 }
 
-                main { class: "gateway-editor", id: "route-editor",
-                    div { class: "gateway-editor__summary",
+                main { class: "adui-space adui-space-vertical", style: "display:grid;gap:16px;", id: "route-editor",
+                    Card {
                         div {
-                            p { class: "gateway-kicker", "Route Contract" }
+                            p { class: "adui-typography-secondary", "Route Contract" }
                             h2 { "{editor_title(&selected_route)}" }
                             p { "将接口路径、GET/POST 方法、认证要求和脚本代码作为资产保存。当前版本保存脚本草稿，不直接执行任意代码。" }
                         }
-                        div { class: "gateway-editor__badges",
+                        div { class: "adui-space", style: "display:flex;flex-wrap:wrap;gap:8px;",
                             span { class: method_class(&selected_route.method), "{selected_route.method}" }
                             span { class: status_class(&selected_route.status), "{selected_route.status}" }
                             span { "auth={auth_text(selected_route.auth_required)}" }
                         }
                     }
 
-                    form { class: "gateway-route-form", method: "post", action: route_action_url,
+                    form { class: "adui-form", method: "post", action: route_action_url,
                         input { r#type: "hidden", name: "id", value: "{selected_route.id}" }
-                        div { class: "gateway-form-grid",
-                            label { class: "gateway-field",
+                        div { class: "adui-row", style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;",
+                            label { class: "adui-form-item",
                                 span { "接口名称" }
-                                input { name: "name", value: "{selected_route.name}", placeholder: "订单查询 / Weather Proxy" }
+                                input { class: "adui-input", name: "name", value: "{selected_route.name}", placeholder: "订单查询 / Weather Proxy" }
                             }
-                            label { class: "gateway-field",
+                            label { class: "adui-form-item",
                                 span { "路由路径" }
-                                input { name: "route", value: "{selected_route.route}", placeholder: "/api/edge/orders/query" }
+                                input { class: "adui-input", name: "route", value: "{selected_route.route}", placeholder: "/api/edge/orders/query" }
                             }
-                            label { class: "gateway-field",
+                            label { class: "adui-form-item",
                                 span { "请求方法" }
-                                select { name: "method",
+                                select { class: "adui-select", name: "method",
                                     option { value: "GET", selected: selected_route.method == "GET", "GET" }
                                     option { value: "POST", selected: selected_route.method == "POST", "POST" }
                                 }
                             }
-                            label { class: "gateway-field",
+                            label { class: "adui-form-item",
                                 span { "状态" }
-                                select { name: "status",
+                                select { class: "adui-select", name: "status",
                                     option { value: "draft", selected: selected_route.status == "draft", "draft" }
                                     option { value: "active", selected: selected_route.status == "active", "active" }
                                     option { value: "disabled", selected: selected_route.status == "disabled", "disabled" }
                                 }
                             }
-                            label { class: "gateway-field",
+                            label { class: "adui-form-item",
                                 span { "认证" }
-                                select { name: "auth_required",
+                                select { class: "adui-select", name: "auth_required",
                                     option { value: "true", selected: selected_route.auth_required, "Bearer token required" }
                                     option { value: "false", selected: !selected_route.auth_required, "Public / no auth" }
                                 }
                             }
-                            label { class: "gateway-field",
+                            label { class: "adui-form-item",
                                 span { "脚本语言" }
-                                input { name: "script_language", value: "{selected_route.script_language}", placeholder: "javascript / json-template / wasm" }
+                                input { class: "adui-input", name: "script_language", value: "{selected_route.script_language}", placeholder: "javascript / json-template / wasm" }
                             }
                         }
 
-                        div { class: "gateway-code-grid",
-                            label { class: "gateway-field gateway-field--code",
+                        div { class: "adui-row", style: "display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,360px);gap:12px;",
+                            label { class: "adui-form-item",
                                 span { "在线脚本代码" }
-                                textarea { name: "script_code", spellcheck: "false", "{selected_route.script_code}" }
+                                textarea { class: "adui-input", name: "script_code", spellcheck: "false", "{selected_route.script_code}" }
                             }
-                            div { class: "gateway-side-forms",
-                                label { class: "gateway-field gateway-field--code gateway-field--short",
+                            div { class: "adui-space adui-space-vertical", style: "display:grid;gap:12px;",
+                                label { class: "adui-form-item",
                                     span { "请求示例 JSON" }
-                                    textarea { name: "request_example", spellcheck: "false", "{selected_route.request_example}" }
+                                    textarea { class: "adui-input", name: "request_example", spellcheck: "false", "{selected_route.request_example}" }
                                 }
-                                label { class: "gateway-field gateway-field--code gateway-field--short",
+                                label { class: "adui-form-item",
                                     span { "响应模板 JSON" }
-                                    textarea { name: "response_template", spellcheck: "false", "{selected_route.response_template}" }
+                                    textarea { class: "adui-input", name: "response_template", spellcheck: "false", "{selected_route.response_template}" }
                                 }
-                                label { class: "gateway-field gateway-field--code gateway-field--short",
+                                label { class: "adui-form-item",
                                     span { "备注" }
-                                    textarea { name: "notes", "{selected_route.notes}" }
+                                    textarea { class: "adui-input", name: "notes", "{selected_route.notes}" }
                                 }
                             }
                         }
 
-                        div { class: "gateway-form-actions",
-                            button { class: "gateway-button gateway-button--primary", r#type: "submit", "保存到 Toasty" }
-                            a { class: "gateway-button", href: status_url, "运行态状态" }
-                            a { class: "gateway-button", href: assets_url, "资产目录" }
+                        div { class: "adui-space", style: "display:flex;flex-wrap:wrap;gap:8px;",
+                            button { class: "adui-btn adui-btn-solid adui-btn-primary", r#type: "submit", "保存到 Toasty" }
+                            a { class: "adui-btn adui-btn-outlined adui-btn-default", href: status_url, "运行态状态" }
+                            a { class: "adui-btn adui-btn-outlined adui-btn-default", href: assets_url, "资产目录" }
                         }
                     }
                 }
 
-                aside { class: "gateway-right-panel",
-                    div { class: "gateway-panel-title",
+                aside { class: "adui-space adui-space-vertical", style: "display:grid;gap:16px;",
+                    Card {
                         span { "03" }
                         div {
                             h2 { "调用调试" }
                             p { "curl / usage" }
                         }
                     }
-                    article { class: "gateway-console-card",
+                    Card {
                         h3 { "当前路由 curl" }
                         pre { "{curl_preview(&selected_route)}" }
                     }
-                    article { class: "gateway-console-card",
+                    Card {
                         h3 { "天气资产快速测试" }
                         pre { "{weather_curl}" }
                     }
-                    article { class: "gateway-console-card gateway-console-card--usage",
-                        div { class: "gateway-console-card__head",
+                    Card {
+                        div { class: "adui-space", style: "display:flex;align-items:center;justify-content:space-between;gap:8px;",
                             h3 { "最近调用" }
                             a { href: usage_url, "usage json" }
                         }
                         if snapshot.usage_records.is_empty() {
-                            p { class: "gateway-muted", "还没有调用流水。" }
+                            p { class: "adui-empty-description", "还没有调用流水。" }
                         } else {
                             for record in snapshot.usage_records.iter().rev().take(MAX_RECENT_USAGE) {
-                                div { class: "gateway-usage-row",
+                                div { class: "adui-space", style: "display:flex;align-items:center;gap:8px;",
                                     span { class: status_code_class(record.status_code), "{record.status_code}" }
                                     code { "{record.asset_id}" }
                                     small { "{record.duration_ms}ms" }
@@ -239,7 +241,7 @@ struct EditorRoute {
 #[component]
 fn MetricCard(label: String, value: String, detail: String) -> Element {
     rsx! {
-        article { class: "gateway-metric-card",
+        Card {
             span { "{label}" }
             strong { "{value}" }
             code { "{detail}" }
@@ -344,32 +346,32 @@ fn auth_text(value: bool) -> &'static str {
 
 fn route_link_class(active: bool) -> &'static str {
     if active {
-        "gateway-route-link gateway-route-link--active"
+        "adui-menu-item adui-menu-item-selected"
     } else {
-        "gateway-route-link"
+        "adui-menu-item"
     }
 }
 
 fn method_class(method: &str) -> &'static str {
     match method {
-        "GET" => "gateway-pill gateway-pill--get",
-        "POST" => "gateway-pill gateway-pill--post",
-        _ => "gateway-pill",
+        "GET" => "adui-tag",
+        "POST" => "adui-tag",
+        _ => "adui-tag",
     }
 }
 
 fn status_class(status: &str) -> &'static str {
     match status {
-        "active" => "gateway-pill gateway-pill--active",
-        "disabled" => "gateway-pill gateway-pill--disabled",
-        _ => "gateway-pill gateway-pill--draft",
+        "active" => "adui-tag",
+        "disabled" => "adui-tag",
+        _ => "adui-tag",
     }
 }
 
 fn status_code_class(status_code: u16) -> &'static str {
     if status_code < 400 {
-        "gateway-code gateway-code--ok"
+        "adui-tag"
     } else {
-        "gateway-code gateway-code--error"
+        "adui-tag"
     }
 }

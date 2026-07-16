@@ -1,26 +1,35 @@
+#![cfg(any())]
 use az_aio_platform::plugin::api::NativeRenderContext;
+use adui_dioxus::Card;
 use dioxus::prelude::*;
 
-use crate::ui::state::load_snapshot;
+use crate::ui::state::{DriveCenterPageSnapshot, load_snapshot_server};
 
 const MAX_LIST_ROWS: usize = 12;
 
 #[allow(non_snake_case)]
 pub fn DriveCenterPage(context: NativeRenderContext) -> Element {
-    let snapshot = load_snapshot();
+    DriveCenterPageView(load_snapshot_server(), context)
+}
+
+#[allow(non_snake_case)]
+pub fn DriveCenterPageView(
+    snapshot: DriveCenterPageSnapshot,
+    context: NativeRenderContext,
+) -> Element {
     let task_count = snapshot.tasks.len();
     let status_url = api_url(&context.api_base_url, "/api/drive-center/status");
     let tasks_url = api_url(&context.api_base_url, "/api/drive-center/tasks");
 
     rsx! {
-        section { class: "native-plugin-page native-plugin-page--drive-center",
-            header { class: "native-plugin-page__header",
-                p { class: "native-plugin-page__eyebrow", "Operations / Storage" }
+        div { class: "adui-space adui-space-vertical", style: "display:grid;gap:22px;",
+            Card {
+                p { class: "adui-typography-secondary", "Operations / Storage" }
                 h1 { "Drive Center" }
                 p { "网盘任务、路径动作与 PostgreSQL 队列表。" }
             }
-            div { class: "native-plugin-page__grid",
-                article { class: "native-plugin-card",
+            div { class: "adui-row", style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;",
+                Card {
                     h2 { "运行态" }
                     dl {
                         dt { "路由" }
@@ -37,18 +46,18 @@ pub fn DriveCenterPage(context: NativeRenderContext) -> Element {
                         dd { code { "{snapshot.status.table_prefix}" } }
                     }
                     if let Some(error) = &snapshot.error {
-                        p { class: "native-plugin-page__error", "{error}" }
+                        p { class: "adui-alert-message", "{error}" }
                     }
                 }
-                article { class: "native-plugin-card",
+                Card {
                     h2 { "任务队列" }
                     p { "{task_count} 条来自 drive-center Toasty store 的任务记录。" }
                     if !snapshot.status.store_connected {
-                        p { class: "native-plugin-page__empty", "未连接数据库，当前不读取任务队列。" }
+                        p { class: "adui-empty-description", "未连接数据库，当前不读取任务队列。" }
                     } else if snapshot.tasks.is_empty() {
-                        p { class: "native-plugin-page__empty", "数据库当前没有网盘任务。" }
+                        p { class: "adui-empty-description", "数据库当前没有网盘任务。" }
                     } else {
-                        table {
+                        table { class: "adui-table",
                             thead {
                                 tr {
                                     th { "路径" }
@@ -85,17 +94,9 @@ fn api_url(base: &str, path: &str) -> String {
 }
 
 fn configured_text(value: bool) -> &'static str {
-    if value {
-        "已配置"
-    } else {
-        "未配置"
-    }
+    if value { "已配置" } else { "未配置" }
 }
 
 fn connected_text(value: bool) -> &'static str {
-    if value {
-        "已连接"
-    } else {
-        "未连接"
-    }
+    if value { "已连接" } else { "未连接" }
 }

@@ -22,6 +22,11 @@ automod = { package = "az-automod", version = "2026.6.15" }
 - Directories with a same-name `.rs` entry file are skipped by the parent scan; the entry file stays responsible for its own nested module layout.
 - `src/bin` is treated as Cargo binary source layout and is not collected as a module.
 - Module names normalize `-` to `_`, and names beginning with digits are prefixed with `_`.
+- On nightly Rust, `az-automod` asks rustc to track scanned directories with
+  `proc_macro::tracked::path`, so adding or removing a source file can invalidate
+  the macro expansion. On stable Rust this API is not available yet; after adding
+  or deleting files, touch the file that calls `automod::dir!` or run a clean
+  check if Cargo or the IDE keeps an old expansion.
 
 For example:
 

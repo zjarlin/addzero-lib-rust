@@ -55,6 +55,8 @@ pub struct ContributionSet {
     #[serde(default)]
     pub pages: Vec<PageContribution>,
     #[serde(default)]
+    pub client_pages: Vec<ClientPageContribution>,
+    #[serde(default)]
     pub ui_contributions: Vec<UiContribution>,
     #[serde(default)]
     pub backend_apis: Vec<BackendApiContribution>,
@@ -184,10 +186,29 @@ pub struct AdminRendererContribution {
     pub route: Option<String>,
 }
 
+/// Browser bootstrap contract consumed by the Dioxus web shell.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ClientBootstrapPayload {
+    pub admin_menu_tree: AdminMenuTree,
+    pub pages: Vec<PageContribution>,
+    pub client_pages: Vec<ClientPageContribution>,
+    pub plugins: Vec<ClientPluginRecord>,
+    pub default_route: String,
+    pub api_base_url: String,
+}
+
+/// Enabled plugin metadata exposed to the browser bootstrap payload.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ClientPluginRecord {
+    pub descriptor: PluginDescriptor,
+    pub state: PluginState,
+}
+
 impl ContributionSet {
     pub fn merge(&mut self, other: Self) {
         self.nav_items.extend(other.nav_items);
         self.pages.extend(other.pages);
+        self.client_pages.extend(other.client_pages);
         self.ui_contributions.extend(other.ui_contributions);
         self.backend_apis.extend(other.backend_apis);
         self.toolbar_actions.extend(other.toolbar_actions);
@@ -279,6 +300,16 @@ pub struct PageContribution {
     pub subtitle: String,
     pub renderer_id: String,
     pub placeholder_mark: String,
+    pub order: i32,
+}
+
+/// Browser-side route contribution for a compiled-in admin plugin.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ClientPageContribution {
+    pub route: String,
+    pub title: String,
+    pub renderer_id: String,
+    pub slot: UiContributionSlot,
     pub order: i32,
 }
 

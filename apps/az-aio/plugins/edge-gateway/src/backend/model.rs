@@ -1,3 +1,4 @@
+use az_aio_platform::core::db::ToastyModelContribution;
 use serde::{Deserialize, Serialize};
 
 pub const TABLE_NAME_PREFIX: &str = "biz_edge_gateway_";
@@ -63,6 +64,16 @@ pub struct EdgeUsageRecordRow {
     pub request_units: String,
     pub duration_ms: String,
     pub created_at_epoch_secs: String,
+}
+
+#[rudi::Singleton(name = "edge-gateway-toasty-models")]
+pub fn edge_gateway_model_contribution() -> ToastyModelContribution {
+    ToastyModelContribution::new(toasty::models!(
+        GatewayFlow,
+        GatewayRouteDefinition,
+        EdgeApiTokenRecord,
+        EdgeUsageRecordRow
+    ))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

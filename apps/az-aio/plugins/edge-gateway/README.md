@@ -4,7 +4,7 @@ Native plugin for gateway flow execution.
 
 ## Runtime
 
-- Dioxus renderer: `edge-gateway.page`
+- Dioxus UI contract page: `edge-gateway.page`
 - Route: `/gateway`
 - Axum APIs: `/api/edge-gateway/status`, `/api/edge-gateway/example`, `/api/edge-gateway/run`, `/api/edge-gateway/assets`, `/api/edge-gateway/assets/weather/current`, `/api/edge-gateway/assets/usage`, `/api/edge-gateway/flows`, `/api/edge-gateway/flow`
 - Toasty table prefix: `biz_edge_gateway_`

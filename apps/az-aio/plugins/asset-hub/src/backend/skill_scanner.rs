@@ -19,7 +19,7 @@ const BUILT_IN_TAGS: &[&str] = &[
     "api",
 ];
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScannedSkillAsset {
     pub id: String,

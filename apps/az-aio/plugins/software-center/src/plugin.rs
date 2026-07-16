@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
-use az_aio_platform::plugin::api::{
-    ContributionSet, DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
-    NativeUiRenderer, PluginDescriptor, UiContributionSlot,
+use az_aio_platform::{
+    admin_scenes::{KNOWLEDGE_BASE_DOMAIN_ID, KNOWLEDGE_BASE_DOMAIN_LABEL},
+    plugin::api::{
+        AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
+        DynAdminPluginProvider, NativePluginContext, NativePluginProvider, NativePluginRuntime,
+        PluginDescriptor,
+    },
 };
 use rudi::Singleton;
 
@@ -11,8 +15,8 @@ use crate::{
         routes::{SoftwareCenterApiState, software_center_router},
         store::{SoftwareCenterStore, build_software_center_context_with_db},
     },
-    descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    ui::{page::SoftwareCenterPage, state::install_state},
+    descriptor::{PLUGIN_ID, ROUTE, contributions, descriptor},
+    ui::state::install_state,
 };
 
 #[derive(Default)]
@@ -27,6 +31,28 @@ impl NativePluginProvider for SoftwareCenterPlugin {
         Ok(contributions())
     }
 
+    fn admin_menu(&self, _contributions: &ContributionSet) -> AdminMenuTree {
+        AdminMenuTree {
+            sections: vec![AdminMenuSection {
+                domain_id: KNOWLEDGE_BASE_DOMAIN_ID.to_string(),
+                label: KNOWLEDGE_BASE_DOMAIN_LABEL.to_string(),
+                default_href: ROUTE.to_string(),
+                order: 200,
+                menus: vec![AdminMenuNode {
+                    id: format!("{}.nav", PLUGIN_ID),
+                    kind: AdminMenuNodeKind::Page,
+                    label: "软件中心".to_string(),
+                    href: ROUTE.to_string(),
+                    icon: "⬢".to_string(),
+                    order: 30,
+                    active_patterns: vec![ROUTE.to_string()],
+                    permissions_any_of: Vec::new(),
+                    children: Vec::new(),
+                }],
+            }],
+        }
+    }
+
     fn runtime(&self, context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
         let store = context.shared_db.clone().map(|shared_db| {
             let mut plugin_context = build_software_center_context_with_db(shared_db.clone());
@@ -35,12 +61,7 @@ impl NativePluginProvider for SoftwareCenterPlugin {
         let state = SoftwareCenterApiState::from_store(context.database_url.clone(), store);
         install_state(state.clone());
         Ok(NativePluginRuntime {
-            renderers: vec![NativeUiRenderer {
-                renderer_id: RENDERER_ID.to_string(),
-                slot: UiContributionSlot::Content,
-                route: Some(ROUTE.to_string()),
-                render: SoftwareCenterPage,
-            }],
+            renderers: Vec::new(),
             router: software_center_router(state),
             startup: None,
         })

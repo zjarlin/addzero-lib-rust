@@ -1,7 +1,7 @@
 //! 系统后台聚合 provider。
 //!
 //! `AdminProvider` 是应用侧唯一的系统后台内容提供者，负责把系统 catalog
-//! 投射成 shell 可消费的导航、页面、toolbar、API 与 Dioxus SSR 渲染器。
+//! 投射成 shell 可消费的导航、页面、toolbar 与 API 契约。
 
 use crate::{
     plugin::api::{
@@ -21,7 +21,6 @@ use crate::{
         },
         navigation::{AdminSectionSnapshot, system_admin_sections},
         store::SystemAdminStore,
-        ui::{SystemAdminPage, SystemAdminSidebar},
     },
 };
 use rudi::Singleton;
@@ -171,27 +170,9 @@ impl AdminProvider {
     }
 
     pub fn renderers(&self) -> Vec<NativeUiRenderer> {
-        let mut renderers = Vec::new();
-
-        for page in system_dashboard_view().pages {
-            renderers.push(NativeUiRenderer {
-                renderer_id: SYSTEM_RENDERER_ID.to_string(),
-                slot: UiContributionSlot::Content,
-                route: Some(page.route),
-                render: SystemAdminPage,
-            });
-        }
-
-        for page in system_dashboard_view().pages {
-            renderers.push(NativeUiRenderer {
-                renderer_id: SYSTEM_SIDEBAR_RENDERER_ID.to_string(),
-                slot: UiContributionSlot::AppSidebar,
-                route: Some(page.route),
-                render: SystemAdminSidebar,
-            });
-        }
-
-        renderers
+        // Dioxus UI migration cut: the shell renders page/resource/API contracts
+        // directly with rust-ui/dioxus-ui primitives, so native per-route renderer hooks are intentionally empty.
+        Vec::new()
     }
 
     pub fn contribution_bundle(&self) -> AdminPluginContribution {
@@ -237,7 +218,7 @@ impl AdminPluginProvider for AdminProvider {
             dependencies: Vec::new(),
             capabilities: vec![
                 "admin-resource-contract".to_string(),
-                "dioxus-renderer".to_string(),
+                "dioxus-ui-contract-page".to_string(),
                 "axum-api".to_string(),
                 "postgresql-required".to_string(),
             ],
@@ -412,18 +393,9 @@ mod tests {
     }
 
     #[test]
-    fn provider_exposes_content_and_sidebar_renderers() {
+    fn provider_uses_contract_rendering_without_native_renderer_hooks() {
         let renderers = AdminProvider.renderers();
 
-        assert!(
-            renderers
-                .iter()
-                .any(|renderer| renderer.route.as_deref() == Some("/system/identity/users"))
-        );
-        assert!(
-            renderers
-                .iter()
-                .any(|renderer| renderer.renderer_id == SYSTEM_SIDEBAR_RENDERER_ID)
-        );
+        assert!(renderers.is_empty());
     }
 }

@@ -16,7 +16,7 @@ pub fn descriptor() -> PluginDescriptor {
         activation: PluginActivation::Eager,
         priority: 880,
         dependencies: Vec::new(),
-        capabilities: vec!["dioxus-renderer".to_string(), "axum-api".to_string()],
+        capabilities: vec!["dioxus-ui-contract-page".to_string(), "axum-api".to_string()],
         permissions: vec!["read-algorithm-catalog".to_string()],
         kind: PluginKind::Native,
     }
@@ -39,6 +39,7 @@ pub fn contributions() -> ContributionSet {
             placeholder_mark: "◈".to_string(),
             order: 70,
         }],
+        client_pages: Vec::new(),
         ui_contributions: vec![UiContribution {
             id: "algorithm-center.ui.content".to_string(),
             slot: UiContributionSlot::Content,
@@ -61,7 +62,8 @@ pub fn contributions() -> ContributionSet {
                 method: "GET".to_string(),
                 path: "/api/algorithm-center/components".to_string(),
                 label: "Algorithm Components".to_string(),
-                description: "Returns the full algorithm component catalog as descriptors.".to_string(),
+                description: "Returns the full algorithm component catalog as descriptors."
+                    .to_string(),
                 order: 20,
             },
             BackendApiContribution {

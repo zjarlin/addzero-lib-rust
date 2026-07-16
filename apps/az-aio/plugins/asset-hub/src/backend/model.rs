@@ -1,3 +1,4 @@
+use az_aio_platform::core::db::ToastyModelContribution;
 use serde::{Deserialize, Serialize};
 
 pub const TABLE_NAME_PREFIX: &str = "biz_asset_hub_";
@@ -13,6 +14,11 @@ pub struct AssetRecord {
     pub status: String,
     pub source: String,
     pub updated_at: String,
+}
+
+#[rudi::Singleton(name = "asset-hub-toasty-models")]
+pub fn asset_hub_model_contribution() -> ToastyModelContribution {
+    ToastyModelContribution::new(toasty::models!(AssetRecord))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

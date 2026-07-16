@@ -1,7 +1,13 @@
 #![forbid(unsafe_code)]
 
 use anyhow::{Context as _, Result};
-use axum::{Router, middleware, response::Html, routing::get};
+use axum::{
+    Json, Router,
+    extract::{Query, State},
+    middleware,
+    response::Html,
+    routing::get,
+};
 use az_aio_platform::{
     core::{config::AppConfig, db},
     plugin::host,
@@ -11,9 +17,10 @@ use az_aio_platform::{
     },
 };
 use rudi::Context;
-use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::{collections::HashMap, net::SocketAddr, path::PathBuf};
 use tower_http::services::ServeDir;
+
+mod shell;
 
 fn main() -> Result<()> {
     enable_plugin_providers();
@@ -28,10 +35,11 @@ fn main() -> Result<()> {
         .build()
         .context("创建 AIO web runtime 失败")?;
     let bootstrap_sql = aio_bootstrap_sql();
+    let toasty_models = db::collect_toasty_models(&mut di);
     let shared_db = match runtime.block_on(db::install_shared_db_singleton(
         &mut di,
         database_url.as_deref(),
-        aio_toasty_models(),
+        toasty_models,
         &bootstrap_sql,
     )) {
         Ok(shared_db) => shared_db,
@@ -76,13 +84,20 @@ async fn run_web_server(
             optional_system_api_key_auth,
         ));
     let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
+    let client_dist_dir = client_dist_dir();
 
-    let app = Router::new()
+    let page_snapshot = snapshot.clone();
+    let page_router = Router::new()
         .route("/", get(root_page))
         .route("/gateway", get(root_page))
+        .route("/api/client/bootstrap", get(client_bootstrap))
         .route("/health", get(health))
         .nest_service("/assets", ServeDir::new(&assets_dir))
-        .merge(native_router.with_state(()));
+        .nest_service("/client", ServeDir::new(&client_dist_dir))
+        .nest_service("/wasm", ServeDir::new(client_dist_dir.join("wasm")))
+        .with_state(page_snapshot);
+
+    let app = page_router.merge(native_router.with_state(()));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("AIO web workbench listening on http://{addr}");
@@ -93,33 +108,58 @@ async fn run_web_server(
     Ok(())
 }
 
-async fn root_page() -> Html<&'static str> {
-    Html(include_str!("../assets/react/index.html"))
+async fn root_page(
+    State(snapshot): State<az_aio_platform::plugin::host::HostSnapshot>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Html<String> {
+    let active_route = query
+        .get("route")
+        .cloned()
+        .unwrap_or_else(|| "/system/account/api-keys".to_string());
+    let route_for_error = active_route.clone();
+    let html = tokio::task::spawn_blocking(move || {
+        shell::render_workbench_page(&snapshot, &active_route, "")
+    })
+    .await
+    .unwrap_or_else(|error| shell::render_ssr_error_page(&route_for_error, &error.to_string()));
+    Html(html)
+}
+
+async fn client_bootstrap(
+    State(snapshot): State<az_aio_platform::plugin::host::HostSnapshot>,
+) -> Json<az_aio_platform::plugin::api::ClientBootstrapPayload> {
+    Json(host::client_bootstrap_payload(
+        &snapshot,
+        default_route(&snapshot),
+        "",
+    ))
+}
+
+fn default_route(snapshot: &az_aio_platform::plugin::host::HostSnapshot) -> String {
+    snapshot
+        .pages
+        .first()
+        .map(|page| page.route.clone())
+        .unwrap_or_else(|| "/system/account/api-keys".to_string())
+}
+
+fn client_dist_dir() -> PathBuf {
+    if let Ok(path) = std::env::var("AZ_AIO_CLIENT_DIST") {
+        return PathBuf::from(path);
+    }
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    [
+        manifest_dir.join("../client/dist"),
+        manifest_dir.join("../plugins/target/dx/az-aio-client/release/web/public"),
+        manifest_dir.join("../plugins/target/dx/az-aio-client/debug/web/public"),
+    ]
+    .into_iter()
+    .find(|path| path.join("wasm/az-aio-client.js").exists())
+    .unwrap_or_else(|| manifest_dir.join("../client/dist"))
 }
 
 async fn health() -> &'static str {
     "ok"
-}
-
-fn aio_toasty_models() -> toasty::ModelSet {
-    toasty::models!(
-        az_aio_platform::system::model::SystemPageRecord,
-        az_aio_platform::system::model::SystemOperationRecord,
-        az_aio_platform::system::model::SystemDataRecord,
-        az_aio_platform::system::model::SystemApiKeyRecord,
-        config_center::backend::model::ConfigEntry,
-        drive_center::backend::model::DriveTask,
-        asset_hub::backend::model::AssetRecord,
-        software_center::backend::model::SoftwarePackageRecord,
-        edge_gateway::backend::model::GatewayFlow,
-        edge_gateway::backend::model::GatewayRouteDefinition,
-        edge_gateway::backend::model::EdgeApiTokenRecord,
-        edge_gateway::backend::model::EdgeUsageRecordRow,
-        az_engine::MetaModel,
-        az_engine::MetaField,
-        az_engine::HookDefinition,
-        az_engine::DataRecord
-    )
 }
 
 fn aio_bootstrap_sql() -> Vec<&'static str> {
@@ -214,6 +254,11 @@ mod tests {
             .iter()
             .map(|section| section.label.as_str())
             .collect::<Vec<_>>();
+        let knowledge = snapshot
+            .admin_menu_tree
+            .sections
+            .iter()
+            .find(|section| section.label == "知识库");
         let gateway = snapshot
             .admin_menu_tree
             .sections
@@ -228,6 +273,19 @@ mod tests {
         assert!(labels.contains(&"管理后台"));
         assert!(labels.contains(&"知识库"));
         assert!(labels.contains(&"智能网关"));
+        assert_eq!(
+            knowledge.map(|section| section.default_href.as_str()),
+            Some("/assets")
+        );
+        assert!(
+            knowledge
+                .map(|section| section
+                    .menus
+                    .iter()
+                    .any(|node| node.href == "/assets" && node.label == "资产中心"))
+                .unwrap_or(false)
+        );
+        // The migrated pages must keep SSR renderer IDs aligned with client route entries.
         assert!(
             system
                 .map(|section| section
@@ -240,6 +298,64 @@ mod tests {
             gateway
                 .map(|section| section.menus.iter().any(|node| node.label == "算法中心"))
                 .unwrap_or(false)
+        );
+    }
+
+    #[test]
+    fn rudi_collects_all_toasty_models() {
+        enable_plugin_providers();
+
+        let mut di = Context::auto_register();
+        let models = db::collect_toasty_models(&mut di);
+        let mut model_names = models
+            .iter()
+            .map(|model| model.name().upper_camel_case())
+            .collect::<Vec<_>>();
+        model_names.sort();
+
+        assert_eq!(
+            model_names,
+            [
+                "AssetRecord",
+                "ConfigEntry",
+                "DataRecord",
+                "DriveTask",
+                "EdgeApiTokenRecord",
+                "EdgeUsageRecordRow",
+                "GatewayFlow",
+                "GatewayRouteDefinition",
+                "HookDefinition",
+                "MetaField",
+                "MetaModel",
+                "SoftwarePackageRecord",
+                "SystemApiKeyRecord",
+                "SystemDataRecord",
+                "SystemOperationRecord",
+                "SystemPageRecord",
+            ]
+        );
+    }
+
+    #[test]
+    fn migrated_plugins_expose_matching_client_pages() {
+        enable_plugin_providers();
+
+        let mut di = Context::auto_register();
+        let snapshot = host::load_native_snapshot(NativePluginContext::default(), &mut di);
+        let client_routes = snapshot
+            .client_pages
+            .iter()
+            .map(|page| (page.route.as_str(), page.renderer_id.as_str()))
+            .collect::<Vec<_>>();
+
+        assert!(
+            [
+                ("/assets", "asset-hub.page"),
+                ("/drive", "drive-center.page"),
+                ("/software", "software-center.page"),
+            ]
+            .iter()
+            .all(|route| client_routes.contains(route))
         );
     }
 

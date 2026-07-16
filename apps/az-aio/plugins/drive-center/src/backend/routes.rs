@@ -1,18 +1,16 @@
+use anyhow::anyhow;
 use axum::{
     Json, Router,
     extract::State,
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use anyhow::anyhow;
 use az_aio_platform::core::api_error::{ApiError, ApiJson, ApiResponse, ok_json};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    backend::{
-        model::{DriveTaskSummary, TABLE_NAME_PREFIX},
-        store::{DriveCenterStore, DriveTaskInput},
-    },
+use crate::backend::{
+    model::{DriveTaskSummary, TABLE_NAME_PREFIX},
+    store::{DriveCenterStore, DriveTaskInput},
 };
 
 #[derive(Clone)]
@@ -39,7 +37,10 @@ impl DriveCenterApiState {
     pub fn status(&self) -> DriveCenterStatusResponse {
         DriveCenterStatusResponse {
             ok: true,
-            database_configured: self.database_url.as_ref().is_some_and(|value| !value.is_empty()),
+            database_configured: self
+                .database_url
+                .as_ref()
+                .is_some_and(|value| !value.is_empty()),
             store_connected: self.store.is_some(),
             table_prefix: TABLE_NAME_PREFIX.to_string(),
         }
@@ -58,7 +59,9 @@ pub fn drive_center_router(state: DriveCenterApiState) -> Router {
         .with_state(state)
 }
 
-async fn status_handler(State(state): State<DriveCenterApiState>) -> Json<DriveCenterStatusResponse> {
+async fn status_handler(
+    State(state): State<DriveCenterApiState>,
+) -> Json<DriveCenterStatusResponse> {
     Json(state.status())
 }
 
@@ -96,7 +99,7 @@ async fn enqueue_task_handler(
         .map_err(drive_center_error_response)
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DriveCenterStatusResponse {
     pub ok: bool,
     pub database_configured: bool,

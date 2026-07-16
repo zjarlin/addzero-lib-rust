@@ -10,6 +10,7 @@ use crate::backend::{
 
 static STATE: OnceLock<RwLock<Option<SoftwareCenterApiState>>> = OnceLock::new();
 
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SoftwareCenterPageSnapshot {
     pub status: SoftwareCenterStatusResponse,
     pub installers: Vec<InstallerPackage>,
@@ -24,7 +25,7 @@ pub fn install_state(state: SoftwareCenterApiState) {
     }
 }
 
-pub fn load_snapshot() -> SoftwareCenterPageSnapshot {
+pub fn load_snapshot_server() -> SoftwareCenterPageSnapshot {
     let state = STATE
         .get()
         .and_then(|lock| lock.read().ok().and_then(|guard| guard.clone()));

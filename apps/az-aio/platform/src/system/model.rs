@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::core::db::ToastyModelContribution;
+
 pub const TABLE_NAME_PREFIX: &str = "biz_system_admin_";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, toasty::Model)]
@@ -62,6 +64,16 @@ pub struct SystemApiKeyRecord {
     pub status: String,
     pub created_at: String,
     pub last_used_at: String,
+}
+
+#[rudi::Singleton(name = "system-admin-toasty-models")]
+pub fn system_admin_model_contribution() -> ToastyModelContribution {
+    ToastyModelContribution::new(toasty::models!(
+        SystemPageRecord,
+        SystemOperationRecord,
+        SystemDataRecord,
+        SystemApiKeyRecord
+    ))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

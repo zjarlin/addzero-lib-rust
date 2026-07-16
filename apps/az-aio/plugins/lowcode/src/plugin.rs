@@ -19,13 +19,15 @@ use rudi::Singleton;
 use crate::{
     routes::{LowcodeApiState, engine_router},
     state::{install_store, store_from_shared_db},
-    ui::{page::LowcodePage, sidebar::LowcodeSidebar},
+    ui::page::LowcodePage,
 };
 
 const PLUGIN_ID: &str = "lowcode";
 const RENDERER_ID: &str = "lowcode.page";
 const SIDEBAR_RENDERER_ID: &str = "lowcode.sidebar";
 const ROUTE: &str = "/lowcode";
+#[cfg(test)]
+const API_PREFIX: &str = "/api/engine";
 
 #[derive(Default)]
 pub struct LowcodePlugin;
@@ -34,13 +36,17 @@ impl NativePluginProvider for LowcodePlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: PLUGIN_ID.into(),
-            name: "engine".into(),
+            name: "低代码".into(),
             version: env!("CARGO_PKG_VERSION").into(),
             description: "PostgreSQL 驱动的低代码元模型、钩子和动态记录引擎".into(),
             activation: PluginActivation::Eager,
             priority: 600,
             dependencies: vec![],
-            capabilities: vec!["engine-meta-model".into(), "engine-record-pipeline".into()],
+            capabilities: vec![
+                "dioxus-ui-contract-page".into(),
+                "engine-meta-model".into(),
+                "engine-record-pipeline".into(),
+            ],
             permissions: vec!["PostgreSQL engine_* 表读写".into()],
             kind: PluginKind::Native,
         }
@@ -50,15 +56,15 @@ impl NativePluginProvider for LowcodePlugin {
         Ok(ContributionSet {
             nav_items: vec![NavItemContribution {
                 id: "engine.nav".into(),
-                label: "低代码".into(),
+                label: "低代码引擎".into(),
                 icon: "▣".into(),
                 route: ROUTE.into(),
                 order: 50,
             }],
             pages: vec![PageContribution {
                 route: ROUTE.into(),
-                title: "engine".into(),
-                subtitle: "元模型、字段、钩子、记录".into(),
+                title: "低代码引擎".into(),
+                subtitle: "模型、字段、钩子、记录统一管理".into(),
                 renderer_id: RENDERER_ID.into(),
                 placeholder_mark: "▣".into(),
                 order: 50,
@@ -67,7 +73,7 @@ impl NativePluginProvider for LowcodePlugin {
                 UiContribution {
                     id: "engine.ui.content".into(),
                     slot: UiContributionSlot::Content,
-                    label: "engine 内容区".into(),
+                    label: "低代码内容区".into(),
                     renderer_id: RENDERER_ID.into(),
                     route: Some(ROUTE.into()),
                     order: 50,
@@ -75,7 +81,7 @@ impl NativePluginProvider for LowcodePlugin {
                 UiContribution {
                     id: "engine.ui.sidebar".into(),
                     slot: UiContributionSlot::AppSidebar,
-                    label: "engine 侧边栏".into(),
+                    label: "低代码侧边栏".into(),
                     renderer_id: SIDEBAR_RENDERER_ID.into(),
                     route: Some(ROUTE.into()),
                     order: 50,
@@ -105,23 +111,13 @@ impl NativePluginProvider for LowcodePlugin {
         let store = store_from_shared_db(shared_db);
         install_store(store.clone());
 
-        let renderers = vec![
-            NativeUiRenderer {
+        Ok(NativePluginRuntime {
+            renderers: vec![NativeUiRenderer {
                 renderer_id: RENDERER_ID.into(),
                 slot: UiContributionSlot::Content,
                 route: Some(ROUTE.into()),
                 render: LowcodePage,
-            },
-            NativeUiRenderer {
-                renderer_id: SIDEBAR_RENDERER_ID.into(),
-                slot: UiContributionSlot::AppSidebar,
-                route: Some(ROUTE.into()),
-                render: LowcodeSidebar,
-            },
-        ];
-
-        Ok(NativePluginRuntime {
-            renderers,
+            }],
             router: engine_router(LowcodeApiState { store }),
             startup: None,
         })
@@ -130,14 +126,14 @@ impl NativePluginProvider for LowcodePlugin {
     fn admin_menu(&self, _contributions: &ContributionSet) -> AdminMenuTree {
         AdminMenuTree {
             sections: vec![AdminMenuSection {
-                domain_id: "developer".to_string(),
-                label: "在线开发".to_string(),
+                domain_id: "lowcode".to_string(),
+                label: "低代码".to_string(),
                 default_href: ROUTE.to_string(),
                 order: 600,
                 menus: vec![AdminMenuNode {
                     id: "engine.root".to_string(),
                     kind: AdminMenuNodeKind::Branch,
-                    label: "engine".to_string(),
+                    label: "低代码引擎".to_string(),
                     href: ROUTE.to_string(),
                     icon: "▣".to_string(),
                     order: 10,
@@ -492,7 +488,7 @@ mod tests {
             Err(error) => panic!("贡献声明应创建成功: {error}"),
         };
 
-        // 插件只贡献 engine 的内容区、侧栏和 REST API。
+        // 插件只贡献低代码引擎的内容区、侧栏和 REST API。
         assert!(
             contributions.ui_contributions.iter().any(|ui| {
                 ui.id == "engine.ui.content" && ui.slot == UiContributionSlot::Content
@@ -528,7 +524,7 @@ mod tests {
             Err(error) => panic!("菜单应可序列化: {error}"),
         };
 
-        // Admin 菜单只暴露 engine 四块，不再出现旧的页面类入口。
+        // Admin 菜单只暴露低代码引擎四块，不再出现旧的页面类入口。
         let old_renderer = ["App", "Screen"].join("");
         let old_config = ["页面", "配置"].join("");
         let old_preview = ["发布", "预览"].join("");

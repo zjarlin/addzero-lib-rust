@@ -1,10 +1,8 @@
+#![cfg(any())]
 use std::collections::BTreeSet;
 
 use az_aio_platform::plugin::api::NativeRenderContext;
-use az_dioxus_components::neobrutal::{
-    Badge, BlockTitle, Button, Card, CodeBlock, Eyebrow, Field, Grid, Hero,
-    LinkButton, Page, Split,
-};
+use adui_dioxus::Card;
 use dioxus::prelude::*;
 
 type Descriptor = az_algorithm::catalog::model::AlgorithmComponentDescriptor;
@@ -33,185 +31,6 @@ fetch(form.action, { method: 'POST', body: new FormData(form) })
     });
 "#;
 
-const ALGORITHM_CENTER_STYLE: &str = r#"
-.algorithm-center-page {
-  gap: 22px;
-}
-
-.algorithm-center-hero__meta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.algorithm-center-mosaic {
-  align-items: stretch;
-}
-
-.algorithm-tile {
-  min-height: 214px;
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto auto;
-  gap: 12px;
-}
-
-.algorithm-tile__icon {
-  width: 48px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-  border: 3px solid var(--page-line);
-  border-radius: 8px;
-  background: var(--page-accent);
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 900;
-}
-
-.algorithm-tile__body {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 7px;
-}
-
-.algorithm-tile h2 {
-  margin: 0;
-  color: var(--page-ink);
-  font-size: 17px;
-  font-weight: 900;
-  line-height: 1.15;
-}
-
-.algorithm-tile code {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--page-muted);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.algorithm-tile p {
-  margin: 0;
-  color: var(--page-muted);
-  font-size: 13px;
-  line-height: 1.42;
-}
-
-.algorithm-tile__meta,
-.algorithm-tile__actions,
-.algorithm-detail-panel__tags,
-.algorithm-selected-stack__chips {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.algorithm-tile__actions {
-  justify-content: flex-end;
-}
-
-.algorithm-detail-panel,
-.algorithm-form-panel,
-.algorithm-doc-panel,
-.algorithm-action-column {
-  display: grid;
-  gap: 16px;
-}
-
-.algorithm-contract-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.algorithm-contract-list {
-  padding: 12px;
-  border: 3px solid var(--page-line);
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.algorithm-contract-list h3 {
-  margin: 0 0 10px;
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.algorithm-contract-list ul {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--page-muted);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.algorithm-selected-stack {
-  display: grid;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 3px solid var(--page-line);
-}
-
-.algorithm-process-form,
-.algorithm-upload-form {
-  display: grid;
-  gap: 12px;
-}
-
-.algorithm-upload-form {
-  padding-top: 14px;
-  border-top: 3px dashed var(--page-line);
-}
-
-.algorithm-result {
-  display: grid;
-  gap: 6px;
-  padding: 12px;
-  border: 3px solid var(--page-line);
-  border-radius: 8px;
-  background: #bbf7d0;
-}
-
-.algorithm-result__label {
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.algorithm-result code {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-}
-
-@media (max-width: 920px) {
-  .algorithm-contract-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .algorithm-center-hero__meta {
-    justify-content: flex-start;
-  }
-}
-
-@media (max-width: 720px) {
-  .algorithm-center-page {
-    padding: 22px 16px;
-  }
-
-  .algorithm-contract-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .algorithm-tile {
-    min-height: 190px;
-  }
-}
-"#;
 
 #[allow(non_snake_case)]
 pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
@@ -242,34 +61,30 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
     let curl_example = process_curl_example(&request_json);
 
     rsx! {
-        style {
-            "data-az-style": "algorithm-center-page",
-            dangerous_inner_html: ALGORITHM_CENTER_STYLE,
-        }
-        Page { class: "algorithm-center-page",
-            Hero { class: "algorithm-center-hero",
-                div { class: "algorithm-center-hero__copy",
-                    Eyebrow { "Vision / Algorithm Intake" }
+        div { class: "adui-space adui-space-vertical", style: "display:grid;gap:22px;",
+            Card {
+                div { class: "adui-card-head-title",
+                    span { class: "adui-typography-secondary", "Vision / Algorithm Intake" }
                     h1 { "算法接入中心" }
                     p {
                         "{descriptors.len()} 个视觉算法组件，支持多选叠加。先用视频 URL 或上传入口打通 REST 契约，后续把执行器替换成真实视频加工管线。"
                     }
                 }
-                div { class: "algorithm-center-hero__meta",
-                    Badge { accent: true, "SSR 组件库" }
-                    Badge { "POST /api/algorithm-center/process" }
-                    Badge { "多算法叠加" }
+                div { class: "adui-space", style: "display:flex;flex-wrap:wrap;gap:8px;",
+                    span { class: "adui-tag", "SSR 组件库" }
+                    span { class: "adui-tag", "POST /api/algorithm-center/process" }
+                    span { class: "adui-tag", "多算法叠加" }
                 }
             }
 
             if let Some(error) = &error {
-                Card { class: "algorithm-result",
-                    span { class: "algorithm-result__label", "处理错误" }
+                Card {
+                    span { class: "adui-alert-message", "处理错误" }
                     code { "{error}" }
                 }
             }
 
-            Grid { class: "algorithm-center-mosaic",
+            div { class: "adui-row", style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;",
                 for descriptor in &descriptors {
                     AlgorithmTile {
                         descriptor: descriptor.clone(),
@@ -280,18 +95,16 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                 }
             }
 
-            Split { class: "algorithm-workbench",
-                Card { class: "algorithm-detail-panel", selected: true,
-                    BlockTitle {
-                        title: active_descriptor.label.clone(),
-                        subtitle: active_descriptor.description.clone(),
+            div { class: "adui-row", style: "display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,420px);gap:16px;align-items:start;",
+                Card {
+                    h2 { "{active_descriptor.label}" }
+                    p { class: "adui-typography-secondary", "{active_descriptor.description}" }
+                    div { class: "adui-space", style: "display:flex;flex-wrap:wrap;gap:8px;",
+                        span { class: "adui-tag", "{active_descriptor.code}" }
+                        span { class: "adui-tag", "输入 {active_descriptor.inputs.len()}" }
+                        span { class: "adui-tag", "输出 {active_descriptor.outputs.len()}" }
                     }
-                    div { class: "algorithm-detail-panel__tags",
-                        Badge { accent: true, "{active_descriptor.code}" }
-                        Badge { "输入 {active_descriptor.inputs.len()}" }
-                        Badge { "输出 {active_descriptor.outputs.len()}" }
-                    }
-                    div { class: "algorithm-contract-grid",
+                    div { class: "adui-row", style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;",
                         ContractList {
                             title: "入参",
                             items: active_descriptor.inputs.iter().map(input_label).collect(),
@@ -301,91 +114,78 @@ pub fn AlgorithmCenterPage(context: NativeRenderContext) -> Element {
                             items: active_descriptor.outputs.iter().map(output_label).collect(),
                         }
                     }
-                    div { class: "algorithm-selected-stack",
-                        BlockTitle {
-                            title: "当前叠加链路".to_string(),
-                            subtitle: if selected_summary.is_empty() {
-                                "默认选中第一个算法".to_string()
-                            } else {
-                                selected_summary.clone()
-                            },
-                        }
-                        div { class: "algorithm-selected-stack__chips",
+                    div { class: "adui-divider", style: "margin-top:16px;padding-top:16px;border-top:1px solid var(--adui-color-border);",
+                        h3 { "当前叠加链路" }
+                        p { class: "adui-typography-secondary", "{selected_summary}" }
+                        div { class: "adui-space", style: "display:flex;flex-wrap:wrap;gap:8px;",
                             for code in &selected_codes {
                                 if let Some(descriptor) = descriptors.iter().find(|descriptor| descriptor.code == *code) {
-                                    Badge { "{descriptor.label}" }
+                                    span { class: "adui-tag", "{descriptor.label}" }
                                 }
                             }
                         }
                     }
                 }
 
-                div { class: "algorithm-action-column",
-                    Card { class: "algorithm-form-panel", accent: true,
-                        BlockTitle {
-                            title: "视频处理".to_string(),
-                            subtitle: "入参视频 URL，返回加工后 URL。多选算法按当前叠加链路提交。".to_string(),
-                        }
+                div { class: "adui-space adui-space-vertical", style: "display:grid;gap:16px;",
+                    Card {
+                        h2 { "视频处理" }
+                        p { class: "adui-typography-secondary", "入参视频 URL，返回加工后 URL。多选算法按当前叠加链路提交。" }
                         form {
-                            class: "algorithm-process-form",
+                            class: "adui-form",
                             method: "post",
                             action: "/api/algorithm-center/ui-action",
                             for code in &selected_codes {
                                 input { r#type: "hidden", name: "algorithms", value: "{code}" }
                             }
-                            Field {
-                                label: "视频 URL".to_string(),
-                                hint: "填写上传接口返回的 URL，或填入可访问的视频地址。".to_string(),
+                            label { class: "adui-form-item",
+                                span { class: "adui-form-item-label", "视频 URL" }
                                 input {
-                                    class: "input",
+                                    class: "adui-input",
                                     id: "algorithm-video-url",
                                     name: "video_url",
                                     value: "{video_url}",
                                     placeholder: "粘贴视频 URL",
                                     required: "required",
                                 }
+                                small { class: "adui-form-item-extra", "填写上传接口返回的 URL，或填入可访问的视频地址。" }
                             }
-                            Button { primary: true, button_type: "submit", "提交处理" }
+                            button { class: "adui-btn adui-btn-solid adui-btn-primary", r#type: "submit", "提交处理" }
                         }
                         form {
-                            class: "algorithm-upload-form",
+                            class: "adui-form",
                             "onsubmit": UPLOAD_FORM_SCRIPT,
                             method: "post",
                             action: "/api/algorithm-center/upload",
                             enctype: "multipart/form-data",
-                            Field {
-                                label: "上传视频".to_string(),
-                                hint: "当前接口固定上传契约，后续接对象存储落点。".to_string(),
-                                input { class: "input", r#type: "file", name: "video", accept: "video/*" }
+                            label { class: "adui-form-item",
+                                span { class: "adui-form-item-label", "上传视频" }
+                                input { class: "adui-input", r#type: "file", name: "video", accept: "video/*" }
+                                small { class: "adui-form-item-extra", "当前接口固定上传契约，后续接对象存储落点。" }
                             }
-                            Button { button_type: "submit", "上传并获取 URL" }
-                            div { id: "algorithm-upload-result", class: "algorithm-result__label" }
+                            button { class: "adui-btn adui-btn-outlined adui-btn-default", r#type: "submit", "上传并获取 URL" }
+                            div { id: "algorithm-upload-result", class: "adui-form-item-help" }
                         }
                         if !processed_video_url.is_empty() {
-                            div { class: "algorithm-result",
-                                span { class: "algorithm-result__label", "返回 processed_video_url" }
+                            Card {
+                                span { class: "adui-alert-message", "返回 processed_video_url" }
                                 code { "{processed_video_url}" }
                                 if !job_id.is_empty() {
-                                    span { class: "algorithm-result__label", "job_id: {job_id}" }
+                                    span { class: "adui-typography-secondary", "job_id: {job_id}" }
                                 }
                                 if !process_message.is_empty() {
-                                    span { class: "algorithm-result__label", "{process_message}" }
+                                    span { class: "adui-typography-secondary", "{process_message}" }
                                 }
                             }
                         }
                     }
 
-                    Card { class: "algorithm-doc-panel",
-                        BlockTitle {
-                            title: "REST 调用文档".to_string(),
-                            subtitle: "页面表单与接口使用同一份字段。".to_string(),
-                        }
-                        CodeBlock { code: request_json.clone() }
-                        CodeBlock { code: curl_example }
-                        LinkButton {
-                            href: "/api/algorithm-center/components".to_string(),
-                            "查看组件目录 JSON"
-                        }
+                    Card {
+                        h2 { "REST 调用文档" }
+                        p { class: "adui-typography-secondary", "页面表单与接口使用同一份字段。" }
+                        pre { class: "adui-card", style: "overflow:auto;padding:12px;", code { "{request_json}" } }
+                        pre { class: "adui-card", style: "overflow:auto;padding:12px;", code { "{curl_example}" } }
+                        a { class: "adui-btn adui-btn-link", href: "/api/algorithm-center/components", "查看组件目录 JSON" }
                     }
                 }
             }
@@ -404,24 +204,24 @@ fn AlgorithmTile(
     let selected = selected_codes.contains(&descriptor.code);
     let href = toggle_algorithm_href(&base_route, &selected_codes, &descriptor.code);
     let focus_href = selected_algorithm_href(&base_route, &selected_codes, &descriptor.code);
-
+    
     rsx! {
-        Card { class: "algorithm-tile", selected: selected,
-            div { class: "algorithm-tile__icon", aria_hidden: "true",
+        Card { class: if selected { "adui-card-hoverable adui-card-bordered" } else { "adui-card-bordered" },
+            div { class: "adui-avatar", aria_hidden: "true",
                 "{algorithm_icon(&descriptor.label)}"
             }
-            div { class: "algorithm-tile__body",
+            div { class: "adui-card-meta",
                 h2 { "{descriptor.label}" }
                 code { "{descriptor.code}" }
                 p { "{descriptor.description}" }
             }
-            div { class: "algorithm-tile__meta",
-                Badge { "{descriptor.inputs.len()} 输入" }
-                Badge { "{descriptor.outputs.len()} 输出" }
+            div { class: "adui-space", style: "display:flex;gap:8px;flex-wrap:wrap;",
+                span { class: "adui-tag", "{descriptor.inputs.len()} 输入" }
+                span { class: "adui-tag", "{descriptor.outputs.len()} 输出" }
             }
-            div { class: "algorithm-tile__actions",
-                LinkButton { href: focus_href, primary: descriptor.code == active_code, "详情" }
-                LinkButton { href: href, primary: !selected,
+            div { class: "adui-space", style: "display:flex;justify-content:flex-end;gap:8px;",
+                a { class: if descriptor.code == active_code { "adui-btn adui-btn-solid adui-btn-primary" } else { "adui-btn adui-btn-outlined adui-btn-default" }, href: focus_href, "详情" }
+                a { class: if selected { "adui-btn adui-btn-outlined adui-btn-default" } else { "adui-btn adui-btn-solid adui-btn-primary" }, href,
                     if selected { "移除叠加" } else { "加入叠加" }
                 }
             }
@@ -433,7 +233,7 @@ fn AlgorithmTile(
 #[component]
 fn ContractList(title: String, items: Vec<String>) -> Element {
     rsx! {
-        div { class: "algorithm-contract-list",
+        Card {
             h3 { "{title}" }
             ul {
                 for item in items {

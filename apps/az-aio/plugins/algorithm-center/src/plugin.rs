@@ -3,14 +3,13 @@ use std::sync::Arc;
 use az_aio_platform::plugin::api::{
     AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
     DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
-    NativeUiRenderer, PluginDescriptor, UiContributionSlot,
+    PluginDescriptor,
 };
 use rudi::Singleton;
 
 use crate::{
     backend::routes::algorithm_center_router,
-    descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    ui::page::AlgorithmCenterPage,
+    descriptor::{ROUTE, contributions, descriptor},
 };
 
 #[derive(Default)]
@@ -49,12 +48,7 @@ impl NativePluginProvider for AlgorithmCenterPlugin {
 
     fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
         Ok(NativePluginRuntime {
-            renderers: vec![NativeUiRenderer {
-                renderer_id: RENDERER_ID.to_string(),
-                slot: UiContributionSlot::Content,
-                route: Some(ROUTE.to_string()),
-                render: AlgorithmCenterPage,
-            }],
+            renderers: Vec::new(),
             router: algorithm_center_router(),
             startup: None,
         })

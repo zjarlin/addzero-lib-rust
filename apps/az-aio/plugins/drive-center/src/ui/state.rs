@@ -9,6 +9,7 @@ use crate::backend::{
 
 static STATE: OnceLock<RwLock<Option<DriveCenterApiState>>> = OnceLock::new();
 
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DriveCenterPageSnapshot {
     pub status: DriveCenterStatusResponse,
     pub tasks: Vec<DriveTaskSummary>,
@@ -22,7 +23,7 @@ pub fn install_state(state: DriveCenterApiState) {
     }
 }
 
-pub fn load_snapshot() -> DriveCenterPageSnapshot {
+pub fn load_snapshot_server() -> DriveCenterPageSnapshot {
     let state = STATE
         .get()
         .and_then(|lock| lock.read().ok().and_then(|guard| guard.clone()));

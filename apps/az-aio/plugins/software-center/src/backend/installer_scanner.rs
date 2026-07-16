@@ -7,7 +7,7 @@ use anyhow::{Context, anyhow};
 
 use crate::backend::installer_scanner_utils as utils;
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallerPackage {
     pub id: String,

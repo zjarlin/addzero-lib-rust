@@ -6,8 +6,28 @@
 use std::sync::Arc;
 
 use anyhow::{Context, anyhow};
-use tokio::sync::Mutex;
 use toasty::{ModelSet, sql};
+use tokio::sync::Mutex;
+
+/// Rudi-collected Toasty model contribution.
+///
+/// Each plugin exposes its persistent models as one contribution. The app
+/// entrypoint merges these contributions before constructing the shared
+/// `toasty::Db`, so the web shell does not hard-code every plugin model.
+#[derive(Clone, Debug)]
+pub struct ToastyModelContribution {
+    models: ModelSet,
+}
+
+impl ToastyModelContribution {
+    pub fn new(models: ModelSet) -> Self {
+        Self { models }
+    }
+
+    pub fn into_model_set(self) -> ModelSet {
+        self.models
+    }
+}
 
 /// 共享数据库柄。
 ///
@@ -67,7 +87,6 @@ impl Db {
     }
 }
 
-
 /// 把共享数据库作为 Rudi singleton 写入容器。
 pub async fn install_shared_db_singleton(
     di: &mut rudi::Context,
@@ -83,10 +102,26 @@ pub async fn install_shared_db_singleton(
     Ok(Some(db))
 }
 
-async fn push_or_bootstrap_schema(db: &mut toasty::Db, bootstrap_sql: &[&str]) -> anyhow::Result<()> {
+/// Merge all Rudi-collected Toasty model contributions into one model set.
+pub fn collect_toasty_models(di: &mut rudi::Context) -> ModelSet {
+    let mut models = ModelSet::new();
+    for contribution in di.resolve_by_type::<ToastyModelContribution>() {
+        for model in contribution.into_model_set() {
+            models.add(model);
+        }
+    }
+    models
+}
+
+async fn push_or_bootstrap_schema(
+    db: &mut toasty::Db,
+    bootstrap_sql: &[&str],
+) -> anyhow::Result<()> {
     match db.push_schema().await {
         Ok(()) => Ok(()),
-        Err(error) if is_relation_already_exists(&error.to_string()) && !bootstrap_sql.is_empty() => {
+        Err(error)
+            if is_relation_already_exists(&error.to_string()) && !bootstrap_sql.is_empty() =>
+        {
             for statement in bootstrap_sql {
                 sql::statement(*statement).exec(db).await?;
             }

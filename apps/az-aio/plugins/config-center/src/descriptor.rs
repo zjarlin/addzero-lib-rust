@@ -19,7 +19,7 @@ pub fn descriptor() -> PluginDescriptor {
         priority: 910,
         dependencies: Vec::new(),
         capabilities: vec![
-            "dioxus-renderer".to_string(),
+            "dioxus-ui-contract-page".to_string(),
             "axum-api".to_string(),
             "toasty-persistence".to_string(),
             "dotfiles-monitor".to_string(),

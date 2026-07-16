@@ -1,4 +1,6 @@
+#![cfg(any())]
 use az_aio_platform::plugin::api::NativeRenderContext;
+use adui_dioxus::Card;
 use dioxus::prelude::*;
 
 use crate::ui::state::{LinuxPlanParams, load_snapshot};
@@ -30,14 +32,14 @@ pub fn LinuxPage(context: NativeRenderContext) -> Element {
     let setup_url = api_url(&context.api_base_url, "/api/linux/setup-catalog");
 
     rsx! {
-        section { class: "native-plugin-page native-plugin-page--linux",
-            header { class: "native-plugin-page__header",
-                p { class: "native-plugin-page__eyebrow", "Operations / Linux" }
+        div { class: "adui-space adui-space-vertical", style: "display:grid;gap:22px;",
+            Card {
+                p { class: "adui-typography-secondary", "Operations / Linux" }
                 h1 { "Linux" }
                 p { "Ubuntu 节点引导计划、环境脚本复用与 SSH 配置预览。" }
             }
             if !snapshot.errors.is_empty() {
-                article { class: "native-plugin-card native-plugin-card--danger",
+                Card { class: "adui-alert adui-alert-error",
                     h2 { "计划错误" }
                     ul {
                         for error in snapshot.errors.iter() {
@@ -46,8 +48,8 @@ pub fn LinuxPage(context: NativeRenderContext) -> Element {
                     }
                 }
             }
-            div { class: "native-plugin-page__grid",
-                article { class: "native-plugin-card",
+            div { class: "adui-row", style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;",
+                Card {
                     h2 { "客户端状态" }
                     dl {
                         dt { "路由" }
@@ -64,10 +66,10 @@ pub fn LinuxPage(context: NativeRenderContext) -> Element {
                         dd { "{snapshot.status.updated_at_ms}" }
                     }
                 }
-                article { class: "native-plugin-card",
+                Card {
                     h2 { "生成引导计划" }
                     if visible_base.is_empty() {
-                        p { class: "native-plugin-page__empty", "当前缺少 api_base_url，填写目标主机后仍不会生成可用远端 curl。" }
+                        p { class: "adui-empty-description", "当前缺少 api_base_url，填写目标主机后仍不会生成可用远端 curl。" }
                     } else {
                         p { "填写真实目标主机和配对 token 后生成 curl 与 SSH 配置。" }
                     }
@@ -88,7 +90,7 @@ pub fn LinuxPage(context: NativeRenderContext) -> Element {
                         button { r#type: "submit", "生成计划" }
                     }
                 }
-                article { class: "native-plugin-card",
+                Card {
                     h2 { "发行版适配器" }
                     p { a { href: profiles_url.clone(), "{profiles_url}" } }
                     dl {
@@ -100,7 +102,7 @@ pub fn LinuxPage(context: NativeRenderContext) -> Element {
                         dd { "{snapshot.status.active_profile.default_user}" }
                     }
                     if snapshot.status.active_profile.supported_steps.is_empty() {
-                        p { class: "native-plugin-page__empty", "当前适配器没有声明步骤。" }
+                        p { class: "adui-empty-description", "当前适配器没有声明步骤。" }
                     } else {
                         ul {
                             for step in snapshot.status.active_profile.supported_steps.iter() {
@@ -109,7 +111,7 @@ pub fn LinuxPage(context: NativeRenderContext) -> Element {
                         }
                     }
                 }
-                article { class: "native-plugin-card",
+                Card {
                     h2 { "环境脚本目录" }
                     p { a { href: setup_url.clone(), "{setup_url}" } }
                     dl {
@@ -129,12 +131,12 @@ pub fn LinuxPage(context: NativeRenderContext) -> Element {
                         }
                     }
                 }
-                article { class: "native-plugin-card",
+                Card {
                     h2 { "复用命令" }
                     if snapshot.catalog.commands.is_empty() {
-                        p { class: "native-plugin-page__empty", "当前没有从环境搭建笔记读取到可复用命令。" }
+                        p { class: "adui-empty-description", "当前没有从环境搭建笔记读取到可复用命令。" }
                     } else {
-                        table {
+                        table { class: "adui-table",
                             thead {
                                 tr {
                                     th { "阶段" }
@@ -154,7 +156,7 @@ pub fn LinuxPage(context: NativeRenderContext) -> Element {
                         }
                     }
                 }
-                article { class: "native-plugin-card",
+                Card {
                     h2 { "引导计划" }
                     if let Some(plan) = &snapshot.plan {
                         dl {
@@ -173,17 +175,17 @@ pub fn LinuxPage(context: NativeRenderContext) -> Element {
                             }
                         }
                     } else {
-                        p { class: "native-plugin-page__empty", "尚未填写目标主机，不生成引导计划。" }
+                        p { class: "adui-empty-description", "尚未填写目标主机，不生成引导计划。" }
                     }
                 }
-                article { class: "native-plugin-card",
+                Card {
                     h2 { "SSH 配置" }
                     if let Some(plan) = &snapshot.plan {
                         pre { code { "{plan.ssh_config.config_block}" } }
                         pre { code { "{plan.ssh_config.keygen_command}" } }
                         pre { code { "{plan.ssh_config.authorized_keys_command}" } }
                     } else {
-                        p { class: "native-plugin-page__empty", "生成计划后展示 SSH 配置。" }
+                        p { class: "adui-empty-description", "生成计划后展示 SSH 配置。" }
                     }
                 }
             }

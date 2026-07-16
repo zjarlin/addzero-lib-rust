@@ -4,7 +4,7 @@ Native plugin for drive queue and hosting workflows.
 
 ## Runtime
 
-- Dioxus renderer: `drive-center.page`
+- Dioxus UI contract page: `drive-center.page`
 - Route: `/drive`
 - Axum APIs: `/api/drive-center/status`, `/api/drive-center/tasks`, `/api/drive-center/task`
 - Toasty table prefix: `biz_drive_center_`

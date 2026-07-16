@@ -3,7 +3,7 @@ use std::sync::Arc;
 use az_aio_platform::plugin::api::{
     AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
     DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
-    NativeUiRenderer, PluginDescriptor, UiContributionSlot,
+    PluginDescriptor,
 };
 use rudi::Singleton;
 
@@ -12,8 +12,8 @@ use crate::{
         routes::{EdgeGatewayApiState, edge_gateway_router},
         store::{EdgeGatewayStore, build_edge_gateway_context_with_db},
     },
-    descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    ui::{page::EdgeGatewayPage, state::install_state},
+    descriptor::{ROUTE, contributions, descriptor},
+    ui::state::install_state,
 };
 
 #[derive(Default)]
@@ -58,12 +58,7 @@ impl NativePluginProvider for EdgeGatewayPlugin {
         let state = EdgeGatewayApiState::from_store(context.database_url.clone(), store);
         install_state(state.clone());
         Ok(NativePluginRuntime {
-            renderers: vec![NativeUiRenderer {
-                renderer_id: RENDERER_ID.to_string(),
-                slot: UiContributionSlot::Content,
-                route: Some(ROUTE.to_string()),
-                render: EdgeGatewayPage,
-            }],
+            renderers: Vec::new(),
             router: edge_gateway_router(state),
             startup: None,
         })

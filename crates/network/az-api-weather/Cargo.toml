@@ -1,0 +1,20 @@
+[package]
+name = "az-api-weather"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "2345 historical weather API client and bundled city lookup data"
+
+[dependencies]
+anyhow.workspace = true
+automod.workspace = true
+chrono.workspace = true
+reqwest.workspace = true
+scraper = "0.24.0"
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

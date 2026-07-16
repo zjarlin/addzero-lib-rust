@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "../platform",
     "../web",
+    "../ui",
     "asset-hub",
     "algorithm-center",
     "config-center",
@@ -28,14 +29,17 @@ automod = { package = "az-automod", version = "=2026.6.15", path = "../../../cra
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "multipart"] }
 az-admin-plugin-registry = { version = "=2026.5.10", path = "../../../crates/runtime/az-admin-plugin-registry" }
 az-crud-base = { version = "=2026.5.10", path = "../../../crates/data/az-crud-base" }
-az-dioxus-components = { version = "=2026.5.10", path = "../../../crates/ui/az-dioxus-components" }
+az-aio-ui = { path = "../ui" }
+dioxus = { version = "0.7.9", default-features = false, features = ["macro", "html", "signals", "router"] }
+dioxus-ssr = "0.7.9"
+tw-merge = { package = "tw_merge", version = "0.1.21", features = ["debug"] }
 az-engine = { version = "=2026.5.10", path = "../../../crates/runtime/az-engine" }
 az-system-starters = { version = "=2026.5.10", path = "../../../crates/runtime/az-system-starters" }
-dioxus = { version = "0.7.9", default-features = false, features = ["html", "macro", "signals"] }
 rudi = "0.8.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 sha2 = "0.10.9"
+strum = { version = "0.27.2", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["macros", "net", "rt", "sync"] }
 tracing = "0.1.44"
 toasty = { version = "0.7.0", features = ["postgresql", "serde"] }

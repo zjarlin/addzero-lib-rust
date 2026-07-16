@@ -19,7 +19,7 @@ pub fn descriptor() -> PluginDescriptor {
         priority: 870,
         dependencies: Vec::new(),
         capabilities: vec![
-            "dioxus-renderer".to_string(),
+            "dioxus-ui-contract-page".to_string(),
             "axum-api".to_string(),
             "linux-onboarding-client".to_string(),
             "ubuntu-adapter".to_string(),
@@ -50,6 +50,7 @@ pub fn contributions() -> ContributionSet {
             placeholder_mark: "🐧".to_string(),
             order: 55,
         }],
+        client_pages: Vec::new(),
         ui_contributions: vec![UiContribution {
             id: "linux.ui.content".to_string(),
             slot: UiContributionSlot::Content,

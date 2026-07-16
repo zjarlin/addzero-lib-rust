@@ -56,9 +56,7 @@ dependencies = [
  "az-aio-platform",
  "az-algorithm",
  "az-automod",
- "az-dioxus-components",
  "az-str",
- "dioxus",
  "md5",
  "rudi",
  "serde",
@@ -219,7 +217,6 @@ dependencies = [
  "az-aio-platform",
  "az-automod",
  "az-str",
- "dioxus",
  "rudi",
  "serde",
  "toasty",
@@ -364,11 +361,9 @@ dependencies = [
  "az-admin-plugin-registry",
  "az-automod",
  "az-config-center-client",
- "az-dioxus-components",
  "az-str",
  "az-system-starters",
  "dioxus",
- "dioxus-ssr",
  "dirs",
  "rudi",
  "serde",
@@ -384,6 +379,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-aio-ui"
+version = "2026.5.10"
+dependencies = [
+ "dioxus",
+ "tw_merge",
+]
+
+[[package]]
 name = "az-aio-web"
 version = "2026.5.10"
 dependencies = [
@@ -392,17 +395,22 @@ dependencies = [
  "asset-hub",
  "axum",
  "az-aio-platform",
+ "az-aio-ui",
  "az-engine",
  "az-linux",
  "config-center",
+ "dioxus",
+ "dioxus-ssr",
  "drive-center",
  "edge-gateway",
  "lowcode",
  "rudi",
+ "serde_json",
  "software-center",
  "toasty",
  "tokio",
  "tower-http",
+ "urlencoding",
 ]
 
 [[package]]
@@ -422,6 +430,7 @@ dependencies = [
  "ndarray",
  "ort",
  "rqrr",
+ "rudi",
  "serde",
  "serde_json",
  "strum",
@@ -478,14 +487,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "az-dioxus-components"
-version = "2026.5.10"
-dependencies = [
- "az-automod",
- "dioxus",
-]
-
-[[package]]
 name = "az-engine"
 version = "2026.5.10"
 dependencies = [
@@ -509,8 +510,6 @@ dependencies = [
  "axum",
  "az-aio-platform",
  "az-automod",
- "az-dioxus-components",
- "dioxus",
  "rudi",
  "serde",
  "serde_json",
@@ -607,6 +606,12 @@ dependencies = [
  "az-starter-menu",
  "az-starter-organization",
 ]
+
+[[package]]
+name = "base16"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d27c3610c36aee21ce8ac510e6224498de4228ad772a171ed65643a24693a5a8"
 
 [[package]]
 name = "base64"
@@ -844,9 +849,7 @@ dependencies = [
  "axum",
  "az-aio-platform",
  "az-automod",
- "az-dioxus-components",
  "az-str",
- "dioxus",
  "rudi",
  "serde",
  "serde_json",
@@ -1277,10 +1280,17 @@ dependencies = [
  "dioxus-core",
  "dioxus-core-macro",
  "dioxus-html",
+ "dioxus-router",
  "dioxus-signals",
  "dioxus-stores",
  "subsecond",
 ]
+
+[[package]]
+name = "dioxus-cli-config"
+version = "0.7.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c000f584ddf608e2b272b3074bf11512a474eeeb2eb85a1915f276ce5c4a8615"
 
 [[package]]
 name = "dioxus-config-macros"
@@ -1328,6 +1338,16 @@ name = "dioxus-core-types"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36963eab106b169737762f9cd5ee5fd97f585989dcb2d8e30a596e97a6999009"
+
+[[package]]
+name = "dioxus-history"
+version = "0.7.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a15232302d1933015fcf2d6fe9e286ad36f6e9c205a546089a0f326023bb0d2"
+dependencies = [
+ "dioxus-core",
+ "tracing",
+]
 
 [[package]]
 name = "dioxus-hooks"
@@ -1378,6 +1398,41 @@ dependencies = [
  "convert_case 0.8.0",
  "proc-macro2",
  "quote",
+ "syn",
+]
+
+[[package]]
+name = "dioxus-router"
+version = "0.7.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38e47f62d680429badfcb99bf5dec17ee92b0cb9623f264e36bc003a1359bfdc"
+dependencies = [
+ "dioxus-cli-config",
+ "dioxus-core",
+ "dioxus-core-macro",
+ "dioxus-history",
+ "dioxus-hooks",
+ "dioxus-html",
+ "dioxus-router-macro",
+ "dioxus-signals",
+ "percent-encoding",
+ "rustversion",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "dioxus-router-macro"
+version = "0.7.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f83fb667d27e256f8c9eca49963fbace66a8722cb64ee15a10ffc97d092357e"
+dependencies = [
+ "base16",
+ "digest 0.10.7",
+ "proc-macro2",
+ "quote",
+ "sha2 0.10.9",
+ "slab",
  "syn",
 ]
 
@@ -1496,7 +1551,6 @@ dependencies = [
  "az-aio-platform",
  "az-automod",
  "az-str",
- "dioxus",
  "rudi",
  "serde",
  "toasty",
@@ -1512,7 +1566,6 @@ dependencies = [
  "az-aio-platform",
  "az-automod",
  "az-str",
- "dioxus",
  "handlebars",
  "reqwest",
  "rudi",
@@ -2585,8 +2638,8 @@ dependencies = [
  "anyhow",
  "axum",
  "az-aio-platform",
+ "az-aio-ui",
  "az-automod",
- "az-dioxus-components",
  "az-engine",
  "dioxus",
  "rudi",
@@ -2701,9 +2754,9 @@ dependencies = [
 
 [[package]]
 name = "memmap2"
-version = "0.9.10"
+version = "0.9.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "714098028fe011992e1c3962653c96b2d578c4b4bce9036e15ff220319b1e0e3"
+checksum = "d1219ed1b7f229ee7104d281dd01d6802fe28bb6e95d292942c4daacdeb798c0"
 dependencies = [
  "libc",
 ]
@@ -4353,7 +4406,6 @@ dependencies = [
  "az-aio-platform",
  "az-automod",
  "az-str",
- "dioxus",
  "md5",
  "rudi",
  "serde",
@@ -4973,6 +5025,15 @@ name = "ttf-parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
+
+[[package]]
+name = "tw_merge"
+version = "0.1.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19b094572cbc1a5c8d82590da2aea5acfe671924ac221fc205a7276f0755f6fa"
+dependencies = [
+ "nom 7.1.3",
+]
 
 [[package]]
 name = "typenum"

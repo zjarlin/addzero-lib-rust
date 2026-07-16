@@ -1,9 +1,14 @@
 #![allow(non_snake_case)]
 
-//! lowcode 插件的 engine Admin 页面。
+//! lowcode 插件的低代码引擎 Admin 页面。
 
 use az_aio_platform::plugin::api::NativeRenderContext;
-use az_dioxus_components::prelude::*;
+use az_aio_ui::ui::{
+    badge::Badge,
+    button::{Button, ButtonVariant},
+    card::{Card, CardContent, CardDescription, CardHeader, CardTitle},
+    table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow},
+};
 use az_engine::{DataRecordView, HookDefinition, MetaField, MetaModel, PageData, PageParams};
 use dioxus::prelude::*;
 use serde_json::Value;
@@ -11,6 +16,28 @@ use serde_json::Value;
 use crate::state::{run_engine_future, store};
 
 const ACTION_ENDPOINT: &str = "/api/engine/ui-action";
+
+#[derive(Clone, PartialEq)]
+struct SelectOption {
+    value: String,
+    label: String,
+    selected: bool,
+}
+
+impl SelectOption {
+    fn new(value: impl Into<String>, label: impl Into<String>) -> Self {
+        Self {
+            value: value.into(),
+            label: label.into(),
+            selected: false,
+        }
+    }
+
+    fn selected(mut self, selected: bool) -> Self {
+        self.selected = selected;
+        self
+    }
+}
 
 struct PageSnapshot {
     models: Vec<MetaModel>,
@@ -23,57 +50,76 @@ struct PageSnapshot {
     error: Option<String>,
 }
 
-/// 渲染 engine 的模型、字段、钩子和记录工作台。
+/// 渲染低代码引擎的模型、字段、钩子和记录工作台。
 pub fn LowcodePage(context: NativeRenderContext) -> Element {
     let snapshot = load_snapshot(&context.active_route);
 
     rsx! {
-        WorkbenchPage { class: "engine-page",
-            PageHeader {
-                title: "engine".to_string(),
-                subtitle: "PostgreSQL 元模型与动态记录".to_string(),
-                div { class: "toolbar",
-                    a { class: "toolbar-button toolbar-button--primary", href: "/?route=/lowcode&tab=fields", "模型" }
-                    a { class: "toolbar-button", href: tab_href(snapshot.selected_model.as_deref(), "fields"), "字段" }
-                    a { class: "toolbar-button", href: tab_href(snapshot.selected_model.as_deref(), "hooks"), "钩子" }
-                    a { class: "toolbar-button", href: tab_href(snapshot.selected_model.as_deref(), "records"), "记录" }
+        div { class: "space-y-6",
+            Card {
+                CardHeader {
+                    CardTitle { "低代码引擎" }
+                    CardDescription { "模型、字段、钩子、记录统一管理；字段、钩子、记录入口统一放在左侧菜单。" }
                 }
             }
+
             if let Some(error) = &snapshot.error {
-                div { class: "settings-alert settings-alert--danger", "{error}" }
+                div { class: "rounded-xl border border-destructive bg-destructive/10 p-4 text-sm text-destructive", "{error}" }
             }
-            SplitWorkbench {
-                WorkbenchTree {
-                    WorkbenchTreeHeader { title: "模型树".to_string(),
-                        span { class: "status-badge", "{snapshot.models.len()}" }
+
+            div { class: "lowcode-workbench-grid grid gap-4",
+                Card {
+                    CardHeader {
+                        CardTitle { "模型" }
+                        CardDescription { "当前 {snapshot.models.len()} 个模型" }
                     }
-                    WorkbenchTreeList {
-                        for model in snapshot.models.iter() {
-                            a {
-                                class: if snapshot.selected_model.as_deref() == Some(model.name.as_str()) { "nav-button nav-button--active" } else { "nav-button" },
-                                href: tab_href(Some(&model.name), &snapshot.tab),
-                                span { class: "nav-button__icon", "▤" }
-                                span { class: "nav-button__label", "{model.display_name}" }
-                                span { class: "nav-button__detail", "{model.name}" }
+                    CardContent { class: "space-y-4",
+                        nav { class: "space-y-1",
+                            for model in snapshot.models.iter() {
+                                ModelLink {
+                                    model: model.clone(),
+                                    tab: snapshot.tab.clone(),
+                                    active: snapshot.selected_model.as_deref() == Some(model.name.as_str()),
+                                }
                             }
                         }
+                        {render_model_form()}
                     }
-                    {render_model_form()}
                 }
-                WorkbenchDetail {
+
+                div { class: "min-w-0",
                     if let Some(model_name) = snapshot.selected_model.as_deref() {
-                        {render_detail_header(&snapshot, model_name)}
-                        if snapshot.tab == "hooks" {
-                            {render_hooks(model_name, &snapshot.hooks)}
-                        } else if snapshot.tab == "records" {
-                            {render_records(model_name, &snapshot.fields, &snapshot.records, snapshot.total_records)}
-                        } else {
-                            {render_fields(model_name, &snapshot.fields)}
-                        }
+                        {render_selected_model(&snapshot, model_name)}
                     } else {
-                        WorkbenchDetailHeader {
-                            title: "模型".to_string(),
-                            subtitle: "创建或选择一个模型".to_string(),
+                        {render_empty_model_state()}
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn render_empty_model_state() -> Element {
+    rsx! {
+        Card {
+            CardHeader {
+                CardTitle { "选择或创建模型" }
+                CardDescription { "创建第一个模型后即可维护字段、钩子和记录。" }
+            }
+            CardContent {
+                Table {
+                    TableHeader {
+                        TableRow {
+                            TableHead { "模型名" }
+                            TableHead { "显示名" }
+                            TableHead { "状态" }
+                        }
+                    }
+                    TableBody {
+                        TableRow {
+                            TableCell { "—" }
+                            TableCell { "暂无模型" }
+                            TableCell { Badge { "empty" } }
                         }
                     }
                 }
@@ -82,14 +128,25 @@ pub fn LowcodePage(context: NativeRenderContext) -> Element {
     }
 }
 
+#[component]
+fn ModelLink(model: MetaModel, tab: String, active: bool) -> Element {
+    let class = if active {
+        "flex items-center justify-between gap-3 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground"
+    } else {
+        "flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    };
+    rsx! {
+        a { class, href: tab_href(Some(&model.name), &tab),
+            span { class: "min-w-0 truncate", "{model.display_name}" }
+            Badge { class: "shrink-0 font-mono", "{model.name}" }
+        }
+    }
+}
+
 fn load_snapshot(route: &str) -> PageSnapshot {
     let selected_model = parse_query_param(route, "model");
-    let tab = match parse_query_param(route, "tab") {
-        Some(value) => value,
-        None => "fields".to_string(),
-    };
-    let route_error = parse_query_param(route, "error");
-    let mut error = route_error;
+    let tab = parse_query_param(route, "tab").unwrap_or_else(|| "fields".to_string());
+    let mut error = parse_query_param(route, "error");
     let mut models = Vec::new();
     let mut fields = Vec::new();
     let mut hooks = Vec::new();
@@ -151,44 +208,143 @@ fn load_snapshot(route: &str) -> PageSnapshot {
     }
 }
 
-fn render_detail_header(snapshot: &PageSnapshot, model_name: &str) -> Element {
+fn render_selected_model(snapshot: &PageSnapshot, model_name: &str) -> Element {
     let model = snapshot
         .models
         .iter()
-        .find(|model| model.name == model_name);
-    let title = match model.map(|model| model.display_name.clone()) {
-        Some(value) => value,
-        None => model_name.to_string(),
-    };
+        .find(|model| model.name == model_name)
+        .cloned();
+    let title = model
+        .as_ref()
+        .map(|model| model.display_name.clone())
+        .unwrap_or_else(|| model_name.to_string());
+    let display_name = model
+        .map(|model| model.display_name)
+        .unwrap_or_else(|| model_name.to_string());
     let subtitle = format!(
         "{} fields · {} hooks · {} records",
         snapshot.fields.len(),
         snapshot.hooks.len(),
         snapshot.total_records
     );
-    let display_name = model
-        .map(|model| model.display_name.clone())
-        .unwrap_or_else(|| model_name.to_string());
 
     rsx! {
-        WorkbenchDetailHeader { title, subtitle,
-            ActionForm {
-                method: "post",
-                action: ACTION_ENDPOINT,
-                class: "toolbar",
-                HiddenInput { name: "action", value: "update_model" }
-                HiddenInput { name: "model_name", value: model_name }
-                HiddenInput { name: "name", value: model_name }
-                Input { name: "display_name", value: display_name, required: true }
-                button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "保存模型" }
+        div { class: "space-y-4",
+            Card {
+                CardHeader {
+                    div { class: "flex items-start justify-between gap-4",
+                        div {
+                            CardTitle { "{title}" }
+                            CardDescription { "{subtitle}" }
+                        }
+                        div { class: "flex flex-wrap gap-2",
+                            Badge { "{model_name}" }
+                            Badge { "{snapshot.tab}" }
+                        }
+                    }
+                }
+                CardContent {
+                    div { class: "grid gap-3 md:grid-cols-2",
+                        ActionForm { method: "post", action: ACTION_ENDPOINT,
+                            HiddenInput { name: "action", value: "update_model" }
+                            HiddenInput { name: "model_name", value: model_name }
+                            HiddenInput { name: "name", value: model_name }
+                            div { class: "flex gap-2",
+                                TextInput { name: "display_name", value: display_name, required: true, placeholder: "显示名" }
+                                Button { button_type: "submit", "保存" }
+                            }
+                        }
+                        ActionForm { method: "post", action: ACTION_ENDPOINT,
+                            HiddenInput { name: "action", value: "delete_model" }
+                            HiddenInput { name: "model_name", value: model_name }
+                            Button { variant: ButtonVariant::Destructive, button_type: "submit", "删除模型" }
+                        }
+                    }
+                }
             }
-            ActionForm {
-                method: "post",
-                action: ACTION_ENDPOINT,
-                class: "toolbar",
-                HiddenInput { name: "action", value: "delete_model" }
-                HiddenInput { name: "model_name", value: model_name }
-                button { class: "toolbar-button toolbar-button--danger", r#type: "submit", "删除模型" }
+
+            if snapshot.tab == "hooks" {
+                {render_hooks(model_name, &snapshot.hooks)}
+            } else if snapshot.tab == "records" {
+                {render_records(model_name, &snapshot.fields, &snapshot.records, snapshot.total_records)}
+            } else {
+                {render_fields(model_name, &snapshot.fields)}
+            }
+        }
+    }
+}
+
+#[component]
+fn ActionForm(
+    method: &'static str,
+    action: &'static str,
+    children: Element,
+    #[props(default, into)] class: String,
+    #[props(into, optional)] id: Option<String>,
+) -> Element {
+    rsx! { form { id: id.as_deref(), class: format!("az-form {class}"), method, action, {children} } }
+}
+
+#[component]
+fn HiddenInput(name: &'static str, #[props(into)] value: String) -> Element {
+    rsx! { input { r#type: "hidden", name, value } }
+}
+
+#[component]
+fn TextInput(
+    name: String,
+    #[props(default = "text".to_string(), into)] input_type: String,
+    #[props(default, into)] value: String,
+    #[props(default, into)] placeholder: String,
+    #[props(default)] required: bool,
+    #[props(into, optional)] form: Option<String>,
+) -> Element {
+    rsx! {
+        input {
+            form: form.as_deref(),
+            class: "az-input",
+            r#type: input_type,
+            name,
+            value,
+            placeholder,
+            required,
+        }
+    }
+}
+
+#[component]
+fn SelectInput(
+    name: &'static str,
+    options: Vec<SelectOption>,
+    #[props(default)] required: bool,
+) -> Element {
+    rsx! {
+        select { class: "az-input", name, required,
+            for option in options {
+                option { value: option.value, selected: option.selected, "{option.label}" }
+            }
+        }
+    }
+}
+
+#[component]
+fn CheckboxInput(name: String, label: String, #[props(default)] checked: bool) -> Element {
+    rsx! {
+        label { class: "inline-flex items-center gap-2 text-sm",
+            input { r#type: "checkbox", name, value: "1", checked }
+            span { "{label}" }
+        }
+    }
+}
+
+#[component]
+fn FieldBlock(label: String, children: Element, #[props(default)] required: bool) -> Element {
+    rsx! {
+        label { class: "space-y-1 text-sm",
+            span { class: "font-medium", "{label}" }
+            {children}
+            if required {
+                span { class: "text-xs text-destructive", "必填" }
             }
         }
     }
@@ -196,20 +352,15 @@ fn render_detail_header(snapshot: &PageSnapshot, model_name: &str) -> Element {
 
 fn render_model_form() -> Element {
     rsx! {
-        ActionForm {
-            method: "post",
-            action: ACTION_ENDPOINT,
-            class: "settings-form",
+        ActionForm { method: "post", action: ACTION_ENDPOINT, class: "space-y-3",
             HiddenInput { name: "action", value: "create_model" }
-            FormGrid {
-                FormRow { label: "name".to_string(), required: true,
-                    Input { name: "name", required: true, placeholder: "order" }
-                }
-                FormRow { label: "display".to_string(), required: true,
-                    Input { name: "display_name", required: true, placeholder: "订单" }
-                }
+            FieldBlock { label: "模型名".to_string(), required: true,
+                TextInput { name: "name", required: true, placeholder: "order" }
             }
-            button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "新建模型" }
+            FieldBlock { label: "显示名".to_string(), required: true,
+                TextInput { name: "display_name", required: true, placeholder: "订单" }
+            }
+            Button { button_type: "submit", "新建模型" }
         }
     }
 }
@@ -217,54 +368,50 @@ fn render_model_form() -> Element {
 fn render_fields(model_name: &str, fields: &[MetaField]) -> Element {
     let dependency_placeholder = r#"[{"alias":"vip","source_model_name":"user","local_field":"user_id","source_payload_field":"vip"}]"#;
     rsx! {
-        div { class: "settings-section",
-            ActionForm {
-                method: "post",
-                action: ACTION_ENDPOINT,
-                class: "settings-form",
-                HiddenInput { name: "action", value: "create_field" }
-                HiddenInput { name: "model_name", value: model_name }
-                FormGrid { wide: true,
-                    FormRow { label: "name".to_string(), required: true,
-                        Input { name: "name", required: true, placeholder: "amount" }
-                    }
-                    FormRow { label: "display".to_string(), required: true,
-                        Input { name: "display_name", required: true, placeholder: "金额" }
-                    }
-                    FormRow { label: "type".to_string(), required: true,
-                        Select {
-                            name: "field_type",
-                            required: true,
-                            options: field_type_options("string"),
-                        }
-                    }
-                    FormRow { label: "order".to_string(),
-                        Input { input_type: "number", name: "order_index", value: "0" }
-                    }
-                    FormRow { label: "expression".to_string(), wide: true,
-                        Input { name: "expression", placeholder: "amount * 2" }
-                    }
-                    FormRow { label: "dependency".to_string(), wide: true,
-                        Input { name: "dependency_json", placeholder: dependency_placeholder }
-                    }
-                    CheckboxRow { name: "is_required", label: "必填".to_string() }
-                }
-                button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "添加字段" }
+        Card {
+            CardHeader {
+                CardTitle { "字段" }
+                CardDescription { "定义字段类型、表达式和依赖。" }
             }
-            TableViewport {
-                Table { dense: true, striped: true, bordered: true,
-                    TableHead {
+            CardContent { class: "space-y-4",
+                ActionForm { method: "post", action: ACTION_ENDPOINT, class: "grid gap-3 md:grid-cols-2",
+                    HiddenInput { name: "action", value: "create_field" }
+                    HiddenInput { name: "model_name", value: model_name }
+                    FieldBlock { label: "字段名".to_string(), required: true,
+                        TextInput { name: "name", required: true, placeholder: "amount" }
+                    }
+                    FieldBlock { label: "显示名".to_string(), required: true,
+                        TextInput { name: "display_name", required: true, placeholder: "金额" }
+                    }
+                    FieldBlock { label: "类型".to_string(), required: true,
+                        SelectInput { name: "field_type", required: true, options: field_type_options("string") }
+                    }
+                    FieldBlock { label: "排序".to_string(),
+                        TextInput { input_type: "number", name: "order_index", value: "0" }
+                    }
+                    FieldBlock { label: "表达式".to_string(),
+                        TextInput { name: "expression", placeholder: "amount * 2" }
+                    }
+                    FieldBlock { label: "依赖 JSON".to_string(),
+                        TextInput { name: "dependency_json", placeholder: dependency_placeholder }
+                    }
+                    CheckboxInput { name: "is_required", label: "必填".to_string() }
+                    div { class: "flex items-end", Button { button_type: "submit", "添加字段" } }
+                }
+
+                Table {
+                    TableHeader {
                         TableRow {
-                            TableHeaderCell { "字段" }
-                            TableHeaderCell { "类型" }
-                            TableHeaderCell { "必填" }
-                            TableHeaderCell { "表达式" }
-                            TableHeaderCell { "操作" }
+                            TableHead { "字段" }
+                            TableHead { "类型" }
+                            TableHead { "必填" }
+                            TableHead { "表达式" }
+                            TableHead { "操作" }
                         }
                     }
                     TableBody {
                         for field in fields {
-                            {render_field_edit_row(model_name, field)}
+                            {render_field_row(model_name, field)}
                         }
                     }
                 }
@@ -273,52 +420,33 @@ fn render_fields(model_name: &str, fields: &[MetaField]) -> Element {
     }
 }
 
-fn render_field_edit_row(model_name: &str, field: &MetaField) -> Element {
+fn render_field_row(model_name: &str, field: &MetaField) -> Element {
     rsx! {
         TableRow {
             TableCell {
-                ActionForm { method: "post", action: ACTION_ENDPOINT,
-                    class: "settings-form",
+                ActionForm { method: "post", action: ACTION_ENDPOINT, class: "grid gap-2",
                     HiddenInput { name: "action", value: "update_field" }
                     HiddenInput { name: "model_name", value: model_name }
                     HiddenInput { name: "field_id", value: field.id.clone() }
-                    FormGrid { wide: true,
-                        FormRow { label: "name".to_string(), required: true,
-                            Input { name: "name", value: field.name.clone(), required: true }
-                        }
-                        FormRow { label: "display".to_string(), required: true,
-                            Input { name: "display_name", value: field.display_name.clone(), required: true }
-                        }
-                        FormRow { label: "type".to_string(), required: true,
-                            Select {
-                                name: "field_type",
-                                required: true,
-                                options: field_type_options(&field.field_type),
-                            }
-                        }
-                        FormRow { label: "order".to_string(),
-                            Input { input_type: "number", name: "order_index", value: field.order_index.to_string() }
-                        }
-                        FormRow { label: "expression".to_string(), wide: true,
-                            Input { name: "expression", value: optional_text(&field.expression) }
-                        }
-                        FormRow { label: "dependency".to_string(), wide: true,
-                            Input { name: "dependency_json", value: optional_text(&field.dependency_json) }
-                        }
-                        CheckboxRow { name: "is_required", label: "必填".to_string(), checked: field.is_required }
-                    }
-                    button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "保存" }
+                    TextInput { name: "name", value: field.name.clone(), required: true }
+                    TextInput { name: "display_name", value: field.display_name.clone(), required: true }
+                    SelectInput { name: "field_type", required: true, options: field_type_options(&field.field_type) }
+                    TextInput { input_type: "number", name: "order_index", value: field.order_index.to_string() }
+                    TextInput { name: "expression", value: optional_text(&field.expression) }
+                    TextInput { name: "dependency_json", value: optional_text(&field.dependency_json) }
+                    CheckboxInput { name: "is_required", label: "必填".to_string(), checked: field.is_required }
+                    Button { button_type: "submit", "保存" }
                 }
             }
-            TableCell { "{field.field_type}" }
+            TableCell { Badge { "{field.field_type}" } }
             TableCell { "{yes_no(field.is_required)}" }
-            TableCell { "{field_expression(field)}" }
+            TableCell { code { "{field_expression(field)}" } }
             TableCell {
                 ActionForm { method: "post", action: ACTION_ENDPOINT,
                     HiddenInput { name: "action", value: "delete_field" }
                     HiddenInput { name: "model_name", value: model_name }
                     HiddenInput { name: "field_id", value: field.id.clone() }
-                    button { class: "toolbar-button toolbar-button--danger", r#type: "submit", "删除" }
+                    Button { variant: ButtonVariant::Destructive, button_type: "submit", "删除" }
                 }
             }
         }
@@ -327,50 +455,42 @@ fn render_field_edit_row(model_name: &str, field: &MetaField) -> Element {
 
 fn render_hooks(model_name: &str, hooks: &[HookDefinition]) -> Element {
     rsx! {
-        div { class: "settings-section",
-            ActionForm {
-                method: "post",
-                action: ACTION_ENDPOINT,
-                class: "settings-form",
-                HiddenInput { name: "action", value: "create_hook" }
-                HiddenInput { name: "model_name", value: model_name }
-                FormGrid { wide: true,
-                    FormRow { label: "event".to_string(), required: true,
-                        Select {
-                            name: "trigger_event",
-                            required: true,
-                            options: hook_event_options("before_insert"),
-                        }
-                    }
-                    FormRow { label: "order".to_string(),
-                        Input { input_type: "number", name: "order_index", value: "0" }
-                    }
-                    FormRow { label: "script".to_string(), required: true, wide: true,
-                        textarea {
-                            class: "form-input settings-input",
-                            name: "script_content",
-                            rows: "5",
-                            required: true,
-                        }
-                    }
-                    CheckboxRow { name: "is_active", label: "启用".to_string(), checked: true }
-                }
-                button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "添加钩子" }
+        Card {
+            CardHeader {
+                CardTitle { "钩子" }
+                CardDescription { "维护 before/after 事件脚本。" }
             }
-            TableViewport {
-                Table { dense: true, striped: true, bordered: true,
-                    TableHead {
+            CardContent { class: "space-y-4",
+                ActionForm { method: "post", action: ACTION_ENDPOINT, class: "grid gap-3 md:grid-cols-2",
+                    HiddenInput { name: "action", value: "create_hook" }
+                    HiddenInput { name: "model_name", value: model_name }
+                    FieldBlock { label: "事件".to_string(), required: true,
+                        SelectInput { name: "trigger_event", required: true, options: hook_event_options("before_insert") }
+                    }
+                    FieldBlock { label: "排序".to_string(),
+                        TextInput { input_type: "number", name: "order_index", value: "0" }
+                    }
+                    label { class: "space-y-1 text-sm md:col-span-2",
+                        span { class: "font-medium", "脚本" }
+                        textarea { class: "az-input min-h-24", name: "script_content", required: true }
+                    }
+                    CheckboxInput { name: "is_active", label: "启用".to_string(), checked: true }
+                    div { class: "flex items-end", Button { button_type: "submit", "添加钩子" } }
+                }
+
+                Table {
+                    TableHeader {
                         TableRow {
-                            TableHeaderCell { "事件" }
-                            TableHeaderCell { "状态" }
-                            TableHeaderCell { "顺序" }
-                            TableHeaderCell { "脚本" }
-                            TableHeaderCell { "操作" }
+                            TableHead { "事件" }
+                            TableHead { "状态" }
+                            TableHead { "顺序" }
+                            TableHead { "脚本" }
+                            TableHead { "操作" }
                         }
                     }
                     TableBody {
                         for hook in hooks {
-                            {render_hook_edit_row(model_name, hook)}
+                            {render_hook_row(model_name, hook)}
                         }
                     }
                 }
@@ -379,41 +499,22 @@ fn render_hooks(model_name: &str, hooks: &[HookDefinition]) -> Element {
     }
 }
 
-fn render_hook_edit_row(model_name: &str, hook: &HookDefinition) -> Element {
+fn render_hook_row(model_name: &str, hook: &HookDefinition) -> Element {
     rsx! {
         TableRow {
             TableCell {
-                ActionForm { method: "post", action: ACTION_ENDPOINT,
-                    class: "settings-form",
+                ActionForm { method: "post", action: ACTION_ENDPOINT, class: "grid gap-2",
                     HiddenInput { name: "action", value: "update_hook" }
                     HiddenInput { name: "model_name", value: model_name }
                     HiddenInput { name: "hook_id", value: hook.id.clone() }
-                    FormGrid { wide: true,
-                        FormRow { label: "event".to_string(), required: true,
-                            Select {
-                                name: "trigger_event",
-                                required: true,
-                                options: hook_event_options(&hook.trigger_event),
-                            }
-                        }
-                        FormRow { label: "order".to_string(),
-                            Input { input_type: "number", name: "order_index", value: hook.order_index.to_string() }
-                        }
-                        FormRow { label: "script".to_string(), required: true, wide: true,
-                            textarea {
-                                class: "form-input settings-input",
-                                name: "script_content",
-                                rows: "4",
-                                required: true,
-                                "{hook.script_content}"
-                            }
-                        }
-                        CheckboxRow { name: "is_active", label: "启用".to_string(), checked: hook.is_active }
-                    }
-                    button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "保存" }
+                    SelectInput { name: "trigger_event", required: true, options: hook_event_options(&hook.trigger_event) }
+                    TextInput { input_type: "number", name: "order_index", value: hook.order_index.to_string() }
+                    textarea { class: "az-input min-h-20", name: "script_content", required: true, "{hook.script_content}" }
+                    CheckboxInput { name: "is_active", label: "启用".to_string(), checked: hook.is_active }
+                    Button { button_type: "submit", "保存" }
                 }
             }
-            TableCell { "{active_label(hook.is_active)}" }
+            TableCell { Badge { "{active_label(hook.is_active)}" } }
             TableCell { "{hook.order_index}" }
             TableCell { code { "{compact_script(&hook.script_content)}" } }
             TableCell {
@@ -421,7 +522,7 @@ fn render_hook_edit_row(model_name: &str, hook: &HookDefinition) -> Element {
                     HiddenInput { name: "action", value: "delete_hook" }
                     HiddenInput { name: "model_name", value: model_name }
                     HiddenInput { name: "hook_id", value: hook.id.clone() }
-                    button { class: "toolbar-button toolbar-button--danger", r#type: "submit", "删除" }
+                    Button { variant: ButtonVariant::Destructive, button_type: "submit", "删除" }
                 }
             }
         }
@@ -435,35 +536,34 @@ fn render_records(
     total_records: u64,
 ) -> Element {
     rsx! {
-        div { class: "settings-section",
-            ActionForm {
-                method: "post",
-                action: ACTION_ENDPOINT,
-                class: "settings-form",
-                HiddenInput { name: "action", value: "create_record" }
-                HiddenInput { name: "model_name", value: model_name }
-                FormGrid { wide: true,
+        Card {
+            CardHeader {
+                CardTitle { "记录" }
+                CardDescription { "共 {total_records} 条记录。" }
+            }
+            CardContent { class: "space-y-4",
+                ActionForm { method: "post", action: ACTION_ENDPOINT, class: "grid gap-3 md:grid-cols-2",
+                    HiddenInput { name: "action", value: "create_record" }
+                    HiddenInput { name: "model_name", value: model_name }
                     for field in fields.iter().filter(|field| field.field_type != "computed") {
                         {render_payload_field(field)}
                     }
+                    div { class: "flex items-end", Button { button_type: "submit", "插入记录" } }
                 }
-                button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "插入记录" }
-            }
-            p { class: "lowcode-detail__subtitle", "total {total_records}" }
-            TableViewport {
-                Table { dense: true, striped: true, bordered: true,
-                    TableHead {
+
+                Table {
+                    TableHeader {
                         TableRow {
-                            TableHeaderCell { "id" }
+                            TableHead { "id" }
                             for field in fields {
-                                TableHeaderCell { "{field.display_name}" }
+                                TableHead { "{field.display_name}" }
                             }
-                            TableHeaderCell { "操作" }
+                            TableHead { "操作" }
                         }
                     }
                     TableBody {
                         for record in records {
-                            {render_record_edit_row(model_name, fields, record)}
+                            {render_record_row(model_name, fields, record)}
                         }
                     }
                 }
@@ -472,11 +572,7 @@ fn render_records(
     }
 }
 
-fn render_record_edit_row(
-    model_name: &str,
-    fields: &[MetaField],
-    record: &DataRecordView,
-) -> Element {
+fn render_record_row(model_name: &str, fields: &[MetaField], record: &DataRecordView) -> Element {
     let update_form_id = format!("record-update-{}", record.id);
     rsx! {
         TableRow {
@@ -491,17 +587,19 @@ fn render_record_edit_row(
                 }
             }
             TableCell {
-                ActionForm { method: "post", action: ACTION_ENDPOINT, id: update_form_id.clone(), class: "toolbar",
-                    HiddenInput { name: "action", value: "update_record" }
-                    HiddenInput { name: "model_name", value: model_name }
-                    HiddenInput { name: "record_id", value: record.id.clone() }
-                    button { class: "toolbar-button toolbar-button--primary", r#type: "submit", "保存" }
-                }
-                ActionForm { method: "post", action: ACTION_ENDPOINT, class: "toolbar",
-                    HiddenInput { name: "action", value: "delete_record" }
-                    HiddenInput { name: "model_name", value: model_name }
-                    HiddenInput { name: "record_id", value: record.id.clone() }
-                    button { class: "toolbar-button toolbar-button--danger", r#type: "submit", "删除" }
+                div { class: "flex gap-2",
+                    ActionForm { method: "post", action: ACTION_ENDPOINT, id: update_form_id.clone(),
+                        HiddenInput { name: "action", value: "update_record" }
+                        HiddenInput { name: "model_name", value: model_name }
+                        HiddenInput { name: "record_id", value: record.id.clone() }
+                        Button { button_type: "submit", "保存" }
+                    }
+                    ActionForm { method: "post", action: ACTION_ENDPOINT,
+                        HiddenInput { name: "action", value: "delete_record" }
+                        HiddenInput { name: "model_name", value: model_name }
+                        HiddenInput { name: "record_id", value: record.id.clone() }
+                        Button { variant: ButtonVariant::Destructive, button_type: "submit", "删除" }
+                    }
                 }
             }
         }
@@ -511,24 +609,22 @@ fn render_record_edit_row(
 fn render_payload_field(field: &MetaField) -> Element {
     let input_name = format!("payload_{}", field.name);
     let label = format!("{} · {}", field.display_name, field.field_type);
-    let json_placeholder = "{}";
     match field.field_type.as_str() {
-        "boolean" => rsx! {
-            CheckboxRow { name: input_name, label }
-        },
+        "boolean" => rsx! { CheckboxInput { name: input_name, label } },
         "json" => rsx! {
-            FormRow { label, required: field.is_required, wide: true,
-                Input { name: input_name, required: field.is_required, placeholder: json_placeholder }
+            label { class: "space-y-1 text-sm md:col-span-2",
+                span { class: "font-medium", "{label}" }
+                textarea { class: "az-input min-h-20", name: input_name, required: field.is_required, placeholder: "{{}}" }
             }
         },
         "int" | "decimal" | "datetime" => rsx! {
-            FormRow { label, required: field.is_required,
-                Input { input_type: "number", name: input_name, required: field.is_required }
+            FieldBlock { label, required: field.is_required,
+                TextInput { input_type: "number", name: input_name, required: field.is_required }
             }
         },
         _ => rsx! {
-            FormRow { label, required: field.is_required,
-                Input { name: input_name, required: field.is_required }
+            FieldBlock { label, required: field.is_required,
+                TextInput { name: input_name, required: field.is_required }
             }
         },
     }
@@ -539,42 +635,16 @@ fn render_payload_input_for_form(field: &MetaField, payload: &Value, form_id: &s
     let value = payload_input_value(payload, field);
     match field.field_type.as_str() {
         "boolean" => rsx! {
-            input {
-                form: form_id,
-                r#type: "checkbox",
-                name: input_name,
-                value: "1",
-                checked: payload_bool_value(payload, &field.name),
-            }
+            input { form: form_id, r#type: "checkbox", name: input_name, value: "1", checked: payload_bool_value(payload, &field.name) }
         },
         "json" => rsx! {
-            textarea {
-                form: form_id,
-                class: "form-input settings-input",
-                name: input_name,
-                rows: "2",
-                required: field.is_required,
-                "{value}"
-            }
+            textarea { form: form_id, class: "az-input min-h-16", name: input_name, required: field.is_required, "{value}" }
         },
         "int" | "decimal" | "datetime" => rsx! {
-            input {
-                form: form_id,
-                class: "form-input settings-input",
-                r#type: "number",
-                name: input_name,
-                value: value,
-                required: field.is_required,
-            }
+            input { form: form_id, class: "az-input", r#type: "number", name: input_name, value, required: field.is_required }
         },
         _ => rsx! {
-            input {
-                form: form_id,
-                class: "form-input settings-input",
-                name: input_name,
-                value: value,
-                required: field.is_required,
-            }
+            input { form: form_id, class: "az-input", name: input_name, value, required: field.is_required }
         },
     }
 }
@@ -601,13 +671,14 @@ fn hook_event_options(selected: &str) -> Vec<SelectOption> {
 }
 
 fn tab_href(model_name: Option<&str>, tab: &str) -> String {
-    match model_name {
+    let route = match model_name {
         Some(model_name) => format!(
-            "/?route=/lowcode&model={}&tab={tab}",
+            "/lowcode?model={}&tab={tab}",
             urlencoding::encode(model_name)
         ),
-        None => format!("/?route=/lowcode&tab={tab}"),
-    }
+        None => format!("/lowcode?tab={tab}"),
+    };
+    format!("/?route={}", urlencoding::encode(&route))
 }
 
 fn parse_query_param(route: &str, key: &str) -> Option<String> {
@@ -662,10 +733,7 @@ fn payload_input_value(payload: &Value, field: &MetaField) -> String {
         return String::new();
     };
     match field.field_type.as_str() {
-        "json" => match serde_json::to_string(value) {
-            Ok(text) => text,
-            Err(_) => String::new(),
-        },
+        "json" => serde_json::to_string(value).unwrap_or_default(),
         _ => payload_cell(payload, &field.name),
     }
 }
@@ -695,8 +763,8 @@ mod tests {
     fn tab_href_keeps_lowcode_route() {
         let href = tab_href(Some("order"), "hooks");
 
-        // Admin UI 继续挂在 /lowcode，但不再进入旧页面渲染器。
-        assert_eq!(href, "/?route=/lowcode&model=order&tab=hooks");
+        // Admin UI 继续挂在 route=/lowcode?...，并通过侧轴菜单切换低代码工作台。
+        assert_eq!(href, "/?route=%2Flowcode%3Fmodel%3Dorder%26tab%3Dhooks");
     }
 
     #[test]
@@ -729,14 +797,14 @@ mod tests {
     }
 
     #[test]
-    fn ui_helpers_expose_four_workbench_blocks() {
+    fn ui_helpers_expose_three_detail_tabs() {
         let field_href = tab_href(Some("order"), "fields");
         let hook_href = tab_href(Some("order"), "hooks");
         let record_href = tab_href(Some("order"), "records");
 
-        // SSR 页面固定围绕模型树、字段、钩子、记录工作台组织。
-        assert!(field_href.contains("tab=fields"));
-        assert!(hook_href.contains("tab=hooks"));
-        assert!(record_href.contains("tab=records"));
+        // 侧轴菜单链接必须把 /lowcode?... 整体编码进 route 参数，避免模型和 tab 丢失。
+        assert!(field_href.contains("tab%3Dfields"));
+        assert!(hook_href.contains("tab%3Dhooks"));
+        assert!(record_href.contains("tab%3Drecords"));
     }
 }

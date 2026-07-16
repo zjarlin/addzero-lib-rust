@@ -1,7 +1,7 @@
 use az_aio_platform::plugin::api::{
-    BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
-    PluginActivation, PluginDescriptor, PluginKind, ToolbarActionContribution, UiContribution,
-    UiContributionSlot,
+    BackendApiContribution, ClientPageContribution, ContributionSet, NavItemContribution,
+    PageContribution, PluginActivation, PluginDescriptor, PluginKind, ToolbarActionContribution,
+    UiContribution, UiContributionSlot,
 };
 
 pub const PLUGIN_ID: &str = "software-center";
@@ -13,13 +13,14 @@ pub fn descriptor() -> PluginDescriptor {
         id: PLUGIN_ID.to_string(),
         name: "软件中心".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        description: "Installer scan, organize/archive, and catalog-linked package detail surfaces."
-            .to_string(),
+        description:
+            "Installer scan, organize/archive, and catalog-linked package detail surfaces."
+                .to_string(),
         activation: PluginActivation::Eager,
         priority: 880,
         dependencies: Vec::new(),
         capabilities: vec![
-            "dioxus-renderer".to_string(),
+            "dioxus-ui-contract-page".to_string(),
             "axum-api".to_string(),
             "toasty-persistence".to_string(),
             "installer-scan".to_string(),
@@ -48,6 +49,13 @@ pub fn contributions() -> ContributionSet {
             subtitle: "安装包扫描 · 归档目标 · 目录关联".to_string(),
             renderer_id: RENDERER_ID.to_string(),
             placeholder_mark: "⬢".to_string(),
+            order: 60,
+        }],
+        client_pages: vec![ClientPageContribution {
+            route: ROUTE.to_string(),
+            title: "软件中心".to_string(),
+            renderer_id: RENDERER_ID.to_string(),
+            slot: UiContributionSlot::Content,
             order: 60,
         }],
         ui_contributions: vec![UiContribution {

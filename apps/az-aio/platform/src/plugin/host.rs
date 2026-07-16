@@ -9,21 +9,19 @@ use crate::{
     core::api_error::with_global_api_error_layer,
     plugin::api::{
         AdminCliContribution, AdminMenuTree, AdminResourceContract, BackendApiContribution,
-        CatalogItemContribution, CatalogItemKind, CatalogSource, ContributionSet,
-        DynAdminPluginProvider, GeneratedFileContribution, NativePluginContext, NativeRenderFn,
-        NativeUiRenderer, NavItemContribution, PageContribution, PluginActivation,
-        PluginDescriptor, PluginKind, PluginState, SettingsSectionContribution,
-        ShellEntryContribution, ToolbarActionContribution, UiContribution, merge_menu_tree,
+        CatalogItemContribution, CatalogItemKind, CatalogSource, ClientBootstrapPayload,
+        ClientPageContribution, ClientPluginRecord, ContributionSet, DynAdminPluginProvider,
+        GeneratedFileContribution, NativePluginContext, NativeRenderFn, NativeUiRenderer,
+        NavItemContribution, PageContribution, PluginActivation, PluginDescriptor, PluginKind,
+        PluginState, SettingsSectionContribution, ShellEntryContribution,
+        ToolbarActionContribution, UiContribution, merge_menu_tree,
     },
 };
 use serde::{Deserialize, Serialize};
 
 const PLUGIN_STATE_FILE: &str = "plugin-state.json";
 
-pub fn load_native_snapshot(
-    context: NativePluginContext,
-    di: &mut rudi::Context,
-) -> HostSnapshot {
+pub fn load_native_snapshot(context: NativePluginContext, di: &mut rudi::Context) -> HostSnapshot {
     let enablement = load_plugin_enablement();
     NativePluginHost::from_context(context, di).load_snapshot_with_enablement(&enablement)
 }
@@ -88,11 +86,7 @@ impl NativePluginHost {
             context.shared_db = di.resolve_option::<crate::core::db::Db>();
         }
         let mut plugins = di.resolve_by_type::<DynAdminPluginProvider>();
-        plugins.sort_by(|left, right| {
-            left.admin_descriptor()
-                .id
-                .cmp(&right.admin_descriptor().id)
-        });
+        plugins.sort_by(|left, right| left.admin_descriptor().id.cmp(&right.admin_descriptor().id));
         Self { plugins, context }
     }
 
@@ -261,6 +255,7 @@ pub struct HostSnapshot {
     pub admin_cli: Vec<AdminCliContribution>,
     pub nav_items: Vec<NavItemContribution>,
     pub pages: Vec<PageContribution>,
+    pub client_pages: Vec<ClientPageContribution>,
     pub ui_contributions: Vec<UiContribution>,
     pub backend_apis: Vec<BackendApiContribution>,
     pub toolbar_actions: Vec<ToolbarActionContribution>,
@@ -272,6 +267,29 @@ pub struct HostSnapshot {
     pub plugins: Vec<PluginRuntimeRecord>,
     pub native_renderers: Vec<NativeUiRenderer>,
     pub native_router: axum::Router,
+}
+
+pub fn client_bootstrap_payload(
+    snapshot: &HostSnapshot,
+    default_route: impl Into<String>,
+    api_base_url: impl Into<String>,
+) -> ClientBootstrapPayload {
+    ClientBootstrapPayload {
+        admin_menu_tree: snapshot.admin_menu_tree.clone(),
+        pages: snapshot.pages.clone(),
+        client_pages: snapshot.client_pages.clone(),
+        plugins: snapshot
+            .plugins
+            .iter()
+            .filter(|record| matches!(record.state, PluginState::Active | PluginState::Loaded))
+            .map(|record| ClientPluginRecord {
+                descriptor: record.descriptor.clone(),
+                state: record.state.clone(),
+            })
+            .collect(),
+        default_route: default_route.into(),
+        api_base_url: api_base_url.into(),
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -305,6 +323,7 @@ fn first_duplicate_backend_route(
 fn merge_snapshot_contributions(snapshot: &mut HostSnapshot, contributions: ContributionSet) {
     snapshot.nav_items.extend(contributions.nav_items);
     snapshot.pages.extend(contributions.pages);
+    snapshot.client_pages.extend(contributions.client_pages);
     snapshot
         .ui_contributions
         .extend(contributions.ui_contributions);
@@ -337,6 +356,7 @@ fn sort_snapshot(snapshot: &mut HostSnapshot) {
     let mut contributions = ContributionSet {
         nav_items: std::mem::take(&mut snapshot.nav_items),
         pages: std::mem::take(&mut snapshot.pages),
+        client_pages: std::mem::take(&mut snapshot.client_pages),
         ui_contributions: std::mem::take(&mut snapshot.ui_contributions),
         backend_apis: std::mem::take(&mut snapshot.backend_apis),
         toolbar_actions: std::mem::take(&mut snapshot.toolbar_actions),
@@ -348,20 +368,21 @@ fn sort_snapshot(snapshot: &mut HostSnapshot) {
     sort_contributions(&mut contributions);
     snapshot.nav_items = contributions.nav_items;
     snapshot.pages = contributions.pages;
+    snapshot.client_pages = contributions.client_pages;
     snapshot.ui_contributions = contributions.ui_contributions;
     snapshot.backend_apis = contributions.backend_apis;
     snapshot.toolbar_actions = contributions.toolbar_actions;
     snapshot.settings_sections = contributions.settings_sections;
     snapshot.shell_entries = contributions.shell_entries;
     snapshot.generated_files = contributions.generated_files;
-    snapshot.admin_resources.sort_by(|left, right| {
-        left.route
-            .cmp(&right.route)
+    snapshot
+        .admin_resources
+        .sort_by(|left, right| left.route.cmp(&right.route).then(left.id.cmp(&right.id)));
+    snapshot.admin_cli.sort_by(|left, right| {
+        left.command
+            .cmp(&right.command)
             .then(left.id.cmp(&right.id))
     });
-    snapshot
-        .admin_cli
-        .sort_by(|left, right| left.command.cmp(&right.command).then(left.id.cmp(&right.id)));
     snapshot
         .catalog_items
         .extend(plugin_catalog_items(&snapshot.plugins));
@@ -410,6 +431,12 @@ fn sort_contributions(contributions: &mut ContributionSet) {
         left.order
             .cmp(&right.order)
             .then(left.route.cmp(&right.route))
+    });
+    contributions.client_pages.sort_by(|left, right| {
+        left.order
+            .cmp(&right.order)
+            .then(left.route.cmp(&right.route))
+            .then(left.renderer_id.cmp(&right.renderer_id))
     });
     contributions.ui_contributions.sort_by(|left, right| {
         left.slot
@@ -534,7 +561,8 @@ mod tests {
 
     use crate::plugin::api::{
         AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminPluginContribution,
-        AdminPluginProvider, BackendApiContribution, NativePluginRuntime,
+        AdminPluginProvider, BackendApiContribution, ClientPageContribution, NativePluginRuntime,
+        PageContribution, UiContributionSlot,
     };
 
     use super::*;
@@ -575,6 +603,21 @@ mod tests {
                 resources: Vec::new(),
                 cli: Vec::new(),
                 native: ContributionSet {
+                    pages: vec![PageContribution {
+                        route: self.route.to_string(),
+                        title: self.id.to_string(),
+                        subtitle: "测试页面".to_string(),
+                        renderer_id: format!("{}.page", self.id),
+                        placeholder_mark: "T".to_string(),
+                        order: 10,
+                    }],
+                    client_pages: vec![ClientPageContribution {
+                        route: self.route.to_string(),
+                        title: self.id.to_string(),
+                        renderer_id: format!("{}.page", self.id),
+                        slot: UiContributionSlot::Content,
+                        order: 10,
+                    }],
                     backend_apis: vec![BackendApiContribution {
                         id: format!("{}.api", self.id),
                         method: "GET".to_string(),
@@ -645,5 +688,36 @@ mod tests {
 
         assert_eq!(failed, 1);
         assert_eq!(snapshot.backend_apis.len(), 1);
+    }
+
+    #[test]
+    fn client_bootstrap_excludes_disabled_plugins() {
+        let enabled = Arc::new(TestProvider {
+            id: "enabled",
+            route: "/enabled",
+            api_path: "/api/enabled",
+        });
+        let disabled = Arc::new(TestProvider {
+            id: "disabled",
+            route: "/disabled",
+            api_path: "/api/disabled",
+        });
+        let enablement = PluginEnablementStore {
+            disabled_plugin_ids: ["disabled".to_string()].into_iter().collect(),
+        };
+
+        let snapshot = NativePluginHost::new(NativePluginContext::default())
+            .with_plugin(enabled)
+            .with_plugin(disabled)
+            .load_snapshot_with_enablement(&enablement);
+        let payload = client_bootstrap_payload(&snapshot, "/enabled", "");
+        let plugin_ids = payload
+            .plugins
+            .iter()
+            .map(|record| record.descriptor.id.as_str())
+            .collect::<Vec<_>>();
+
+        // Disabled plugins must not be discoverable by the browser bootstrap payload.
+        assert_eq!(plugin_ids, ["enabled"]);
     }
 }

@@ -15,6 +15,7 @@
 //! recursively. Directories with a same-name `.rs` entry file are left to that
 //! entry file. `src/bin` keeps its Cargo meaning and is not collected.
 
+#![cfg_attr(az_automod_nightly_tracked_path, feature(proc_macro_tracked_path))]
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
@@ -32,7 +33,7 @@ use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::path::{Path, PathBuf};
 use syn::parse::{Parse, ParseStream};
-use syn::{LitStr, Visibility, parse_macro_input};
+use syn::{parse_macro_input, LitStr, Visibility};
 
 struct Arg {
     vis: Visibility,
@@ -124,6 +125,9 @@ enum ModuleKind {
 }
 
 fn source_modules<P: AsRef<Path>>(dir: P) -> Result<Vec<Module>> {
+    let dir = dir.as_ref();
+    track_path(dir);
+
     let mut files = BTreeMap::new();
     let mut dirs = BTreeMap::new();
     let mut failures = Vec::new();
@@ -177,6 +181,14 @@ fn source_modules<P: AsRef<Path>>(dir: P) -> Result<Vec<Module>> {
 
     Ok(modules)
 }
+
+#[cfg(az_automod_nightly_tracked_path)]
+fn track_path(path: &Path) {
+    proc_macro::tracked::path(path);
+}
+
+#[cfg(not(az_automod_nightly_tracked_path))]
+fn track_path(_: &Path) {}
 
 fn should_collect_dir(path: &Path) -> bool {
     !(path.file_name() == Some(OsStr::new("bin"))

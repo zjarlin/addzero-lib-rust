@@ -3,14 +3,13 @@ use std::sync::Arc;
 use az_aio_platform::plugin::api::{
     AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
     DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
-    NativeUiRenderer, PluginDescriptor, UiContributionSlot,
+    PluginDescriptor,
 };
 use rudi::Singleton;
 
 use crate::{
     backend::routes::{LinuxApiState, linux_router},
-    descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    ui::page::LinuxPage,
+    descriptor::{ROUTE, contributions, descriptor},
 };
 
 #[derive(Default)]
@@ -55,12 +54,7 @@ impl NativePluginProvider for LinuxPlugin {
         };
         let state = LinuxApiState::new(install_base_url);
         Ok(NativePluginRuntime {
-            renderers: vec![NativeUiRenderer {
-                renderer_id: RENDERER_ID.to_string(),
-                slot: UiContributionSlot::Content,
-                route: Some(ROUTE.to_string()),
-                render: LinuxPage,
-            }],
+            renderers: Vec::new(),
             router: linux_router(state),
             startup: None,
         })

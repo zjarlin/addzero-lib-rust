@@ -1,3 +1,4 @@
+use az_aio_platform::core::db::ToastyModelContribution;
 use serde::{Deserialize, Serialize};
 
 pub const TABLE_NAME_PREFIX: &str = "biz_software_center_";
@@ -14,6 +15,11 @@ pub struct SoftwarePackageRecord {
     pub arch: String,
     pub status: String,
     pub updated_at: String,
+}
+
+#[rudi::Singleton(name = "software-center-toasty-models")]
+pub fn software_center_model_contribution() -> ToastyModelContribution {
+    ToastyModelContribution::new(toasty::models!(SoftwarePackageRecord))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

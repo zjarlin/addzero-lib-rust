@@ -1,9 +1,9 @@
+#![cfg(any())]
 #![allow(non_snake_case)]
 
 //! lowcode 插件侧轴导航。
 
 use az_aio_platform::plugin::api::NativeRenderContext;
-use az_dioxus_components::prelude::NavLink;
 use dioxus::prelude::*;
 
 /// 渲染 engine 四块工作台入口。
@@ -15,16 +15,14 @@ pub fn LowcodeSidebar(context: NativeRenderContext) -> Element {
     ];
 
     rsx! {
-        nav { class: "sidebar-tree sidebar-tree--primary lowcode-sidebar",
+        nav { class: "adui-menu adui-menu-inline",
             for (label, href, icon) in items {
-                NavLink {
-                    href: href.to_string(),
-                    icon: icon.to_string(),
-                    label: label.to_string(),
-                    detail: "engine".to_string(),
-                    active: sidebar_active(&context.active_route, href),
-                    plugin: true,
-                    class: "nav-button--nested",
+                a {
+                    class: if sidebar_active(&context.active_route, href) { "adui-menu-item adui-menu-item-selected" } else { "adui-menu-item" },
+                    href,
+                    span { class: "adui-menu-item-icon", "{icon}" }
+                    span { class: "adui-menu-item-label", "{label}" }
+                    span { class: "adui-tag", "engine" }
                 }
             }
         }

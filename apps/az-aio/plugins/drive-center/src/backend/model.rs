@@ -1,3 +1,4 @@
+use az_aio_platform::core::db::ToastyModelContribution;
 use serde::{Deserialize, Serialize};
 
 pub const TABLE_NAME_PREFIX: &str = "biz_drive_center_";
@@ -12,6 +13,11 @@ pub struct DriveTask {
     pub action: String,
     pub status: String,
     pub updated_at: String,
+}
+
+#[rudi::Singleton(name = "drive-center-toasty-models")]
+pub fn drive_center_model_contribution() -> ToastyModelContribution {
+    ToastyModelContribution::new(toasty::models!(DriveTask))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

@@ -11,10 +11,8 @@ authors.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 az-aio-platform = { path = "../../platform" }
-az-dioxus-components.workspace = true
 automod.workspace = true
 az-str.workspace = true
-dioxus.workspace = true
 rudi.workspace = true
 serde.workspace = true
 serde_json.workspace = true

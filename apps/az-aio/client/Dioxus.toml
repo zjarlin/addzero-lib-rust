@@ -1,0 +1,13 @@
+[application]
+name = "az-aio-client"
+default_platform = "web"
+out_dir = "dist"
+asset_dir = "assets"
+
+[web.app]
+title = "AZ AIO"
+base_path = "/client"
+
+[web.watcher]
+reload_html = true
+watch_path = ["src", "Cargo.toml", "Dioxus.toml"]

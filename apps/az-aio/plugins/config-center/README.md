@@ -4,7 +4,7 @@ Native plugin for machine configuration workflows.
 
 ## Runtime
 
-- Dioxus renderer: `config-center.page`
+- Dioxus UI contract page: `config-center.page`
 - Route: `/config`
 - Axum APIs: `/api/config-center/status`, `/api/config-center/dotfiles`, `/api/config-center/pairing`, `/api/config-center/entries`, `/api/config-center/entry`
 - Toasty table prefix: `biz_config_center_`

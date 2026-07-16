@@ -41,6 +41,23 @@ assert_eq!(recognition_components.len(), 3);
 assert_eq!(recognition_components[0].label, "OCR文字识别");
 ```
 
+应用运行时通过 Rudi 注入统一服务：
+
+```rust
+use az_algorithm::di::{create_algorithm_context, resolve_algorithm_catalog};
+
+let mut context = create_algorithm_context();
+let catalog = resolve_algorithm_catalog(&mut context)?;
+let components = catalog.components();
+
+assert_eq!(components.len(), 9);
+# Ok::<(), anyhow::Error>(())
+```
+
+`AlgorithmCatalogServiceRef`、`ImagePipelineServiceRef` 和
+`VideoPipelineServiceRef` 都是 singleton。每次任务的输入、输出目录、阈值和可变算法实例
+仍通过方法参数传入，避免把请求状态放进全局容器。
+
 ## 运行测试
 
 目录契约测试：

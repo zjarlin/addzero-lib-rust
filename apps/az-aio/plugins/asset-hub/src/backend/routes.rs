@@ -1,19 +1,17 @@
+use anyhow::anyhow;
 use axum::{
     Json, Router,
     extract::State,
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use anyhow::anyhow;
 use az_aio_platform::core::api_error::{ApiError, ApiJson, ApiResponse, ok_json};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    backend::{
-        model::{AssetSummary, TABLE_NAME_PREFIX},
-        skill_scanner::{ScannedSkillAsset, scan_skill_assets},
-        store::{AssetHubStore, AssetInput},
-    },
+use crate::backend::{
+    model::{AssetSummary, TABLE_NAME_PREFIX},
+    skill_scanner::{ScannedSkillAsset, scan_skill_assets},
+    store::{AssetHubStore, AssetInput},
 };
 
 #[derive(Clone)]
@@ -40,7 +38,10 @@ impl AssetHubApiState {
     pub fn status(&self) -> AssetHubStatusResponse {
         AssetHubStatusResponse {
             ok: true,
-            database_configured: self.database_url.as_ref().is_some_and(|value| !value.is_empty()),
+            database_configured: self
+                .database_url
+                .as_ref()
+                .is_some_and(|value| !value.is_empty()),
             store_connected: self.store.is_some(),
             table_prefix: TABLE_NAME_PREFIX.to_string(),
         }
@@ -105,7 +106,7 @@ async fn upsert_asset_handler(
         .map_err(asset_hub_error_response)
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AssetHubStatusResponse {
     pub ok: bool,
     pub database_configured: bool,

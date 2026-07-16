@@ -1,0 +1,13 @@
+[package]
+name = "az-aio-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "AZ AIO Dioxus UI adapter over rust-ui/dioxus-ui upstream sources."
+workspace = "../plugins"
+
+[dependencies]
+dioxus.workspace = true
+tw-merge.workspace = true

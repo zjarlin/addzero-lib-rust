@@ -4,7 +4,7 @@ use az_aio_platform::{
     plugin::api::{
         AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
         DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
-        NativeUiRenderer, PluginDescriptor, UiContributionSlot,
+        PluginDescriptor,
     },
     system::catalog::{SYSTEM_DOMAIN_ID, SYSTEM_DOMAIN_LABEL},
 };
@@ -15,8 +15,8 @@ use crate::{
         routes::{ConfigCenterApiState, config_center_router},
         store::{ConfigCenterStore, build_config_center_context_with_db},
     },
-    descriptor::{RENDERER_ID, ROUTE, contributions, descriptor},
-    ui::{page::ConfigCenterPage, state::install_state},
+    descriptor::{ROUTE, contributions, descriptor},
+    ui::state::install_state,
 };
 
 #[derive(Default)]
@@ -71,12 +71,7 @@ impl NativePluginProvider for ConfigCenterPlugin {
         let state = ConfigCenterApiState::from_store(context.database_url.clone(), store);
         install_state(state.clone());
         Ok(NativePluginRuntime {
-            renderers: vec![NativeUiRenderer {
-                renderer_id: RENDERER_ID.to_string(),
-                slot: UiContributionSlot::Content,
-                route: Some(ROUTE.to_string()),
-                render: ConfigCenterPage,
-            }],
+            renderers: Vec::new(),
             router: config_center_router(state),
             startup: None,
         })

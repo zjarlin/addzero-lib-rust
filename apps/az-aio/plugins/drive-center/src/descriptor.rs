@@ -1,7 +1,7 @@
 use az_aio_platform::plugin::api::{
-    BackendApiContribution, ContributionSet, NavItemContribution, PageContribution,
-    PluginActivation, PluginDescriptor, PluginKind, ToolbarActionContribution, UiContribution,
-    UiContributionSlot,
+    BackendApiContribution, ClientPageContribution, ContributionSet, NavItemContribution,
+    PageContribution, PluginActivation, PluginDescriptor, PluginKind, ToolbarActionContribution,
+    UiContribution, UiContributionSlot,
 };
 
 pub const PLUGIN_ID: &str = "drive-center";
@@ -19,12 +19,15 @@ pub fn descriptor() -> PluginDescriptor {
         priority: 900,
         dependencies: Vec::new(),
         capabilities: vec![
-            "dioxus-renderer".to_string(),
+            "dioxus-ui-contract-page".to_string(),
             "axum-api".to_string(),
             "toasty-persistence".to_string(),
             "drive-queue".to_string(),
         ],
-        permissions: vec!["postgres-read-write".to_string(), "read hosted paths".to_string()],
+        permissions: vec![
+            "postgres-read-write".to_string(),
+            "read hosted paths".to_string(),
+        ],
         kind: PluginKind::Native,
     }
 }
@@ -45,6 +48,13 @@ pub fn contributions() -> ContributionSet {
                 .to_string(),
             renderer_id: RENDERER_ID.to_string(),
             placeholder_mark: "⇄".to_string(),
+            order: 40,
+        }],
+        client_pages: vec![ClientPageContribution {
+            route: ROUTE.to_string(),
+            title: "网盘中心".to_string(),
+            renderer_id: RENDERER_ID.to_string(),
+            slot: UiContributionSlot::Content,
             order: 40,
         }],
         ui_contributions: vec![UiContribution {

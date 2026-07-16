@@ -1,19 +1,17 @@
+use anyhow::anyhow;
 use axum::{
     Json, Router,
     extract::State,
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use anyhow::anyhow;
 use az_aio_platform::core::api_error::{ApiError, ApiJson, ApiResponse, ok_json};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    backend::{
-        installer_scanner::{InstallerPackage, organize_installers, scan_installers},
-        model::{SoftwarePackageSummary, TABLE_NAME_PREFIX},
-        store::{SoftwareCenterStore, SoftwarePackageInput},
-    },
+use crate::backend::{
+    installer_scanner::{InstallerPackage, organize_installers, scan_installers},
+    model::{SoftwarePackageSummary, TABLE_NAME_PREFIX},
+    store::{SoftwareCenterStore, SoftwarePackageInput},
 };
 
 #[derive(Clone)]
@@ -40,7 +38,10 @@ impl SoftwareCenterApiState {
     pub fn status(&self) -> SoftwareCenterStatusResponse {
         SoftwareCenterStatusResponse {
             ok: true,
-            database_configured: self.database_url.as_ref().is_some_and(|value| !value.is_empty()),
+            database_configured: self
+                .database_url
+                .as_ref()
+                .is_some_and(|value| !value.is_empty()),
             store_connected: self.store.is_some(),
             table_prefix: TABLE_NAME_PREFIX.to_string(),
         }
@@ -54,8 +55,14 @@ impl SoftwareCenterApiState {
 pub fn software_center_router(state: SoftwareCenterApiState) -> Router {
     Router::new()
         .route("/api/software-center/status", get(status_handler))
-        .route("/api/software-center/installers", get(scan_installers_handler))
-        .route("/api/software-center/organize", post(organize_installers_handler))
+        .route(
+            "/api/software-center/installers",
+            get(scan_installers_handler),
+        )
+        .route(
+            "/api/software-center/organize",
+            post(organize_installers_handler),
+        )
         .route("/api/software-center/packages", get(list_packages_handler))
         .route("/api/software-center/package", post(upsert_package_handler))
         .with_state(state)
@@ -67,15 +74,14 @@ async fn status_handler(
     Json(state.status())
 }
 
-async fn scan_installers_handler(
-) -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, Response> {
+async fn scan_installers_handler() -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, Response> {
     scan_installers()
         .map(ok_json)
         .map_err(software_center_error_response)
 }
 
-async fn organize_installers_handler(
-) -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, Response> {
+async fn organize_installers_handler() -> Result<Json<ApiResponse<Vec<InstallerPackage>>>, Response>
+{
     organize_installers()
         .map(ok_json)
         .map_err(software_center_error_response)
@@ -117,7 +123,7 @@ async fn upsert_package_handler(
         .map_err(software_center_error_response)
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SoftwareCenterStatusResponse {
     pub ok: bool,
     pub database_configured: bool,

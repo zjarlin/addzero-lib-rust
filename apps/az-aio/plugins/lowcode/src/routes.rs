@@ -262,10 +262,10 @@ async fn ui_action(
 ) -> Response {
     let redirect = match apply_ui_action(&state.store, form).await {
         Ok(route) => route,
-        Err(error) => format!(
-            "/?route=/lowcode&error={}",
-            urlencoding::encode(&error.to_string())
-        ),
+        Err(error) => {
+            let route = format!("/lowcode?error={}", urlencoding::encode(&error.to_string()));
+            format!("/?route={}", urlencoding::encode(&route))
+        }
     };
     Redirect::to(&redirect).into_response()
 }
@@ -540,13 +540,14 @@ fn form_bool_default_true(form: &BTreeMap<String, String>, key: &str) -> bool {
 }
 
 fn lowcode_route(model_name: Option<&str>, tab: &str) -> String {
-    match model_name {
+    let route = match model_name {
         Some(model_name) => format!(
-            "/?route=/lowcode&model={}&tab={tab}",
+            "/lowcode?model={}&tab={tab}",
             urlencoding::encode(model_name)
         ),
-        None => format!("/?route=/lowcode&tab={tab}"),
-    }
+        None => format!("/lowcode?tab={tab}"),
+    };
+    format!("/?route={}", urlencoding::encode(&route))
 }
 
 #[cfg(test)]
@@ -557,8 +558,8 @@ mod tests {
     fn ui_route_uses_new_lowcode_path() {
         let route = lowcode_route(Some("order"), "records");
 
-        // SSR action 必须回到保留的 /lowcode 路由。
-        assert_eq!(route, "/?route=/lowcode&model=order&tab=records");
+        // SSR action 必须回到编码后的 route=/lowcode?... 路由。
+        assert_eq!(route, "/?route=%2Flowcode%3Fmodel%3Dorder%26tab%3Drecords");
     }
 
     #[test]
