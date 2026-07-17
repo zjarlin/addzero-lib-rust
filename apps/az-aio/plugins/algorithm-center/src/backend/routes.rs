@@ -1,6 +1,6 @@
 use axum::{
     Json, Router,
-    extract::DefaultBodyLimit,
+    extract::{DefaultBodyLimit, State},
     http::StatusCode,
     response::{IntoResponse, Redirect, Response},
     routing::{get, post},
@@ -12,12 +12,18 @@ use az_aio_platform::core::{
         upload_file_service,
     },
 };
+use az_algorithm::spi::AlgorithmCatalogServiceRef;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 const UPLOAD_URL_PREFIX: &str = "/api/algorithm-center/uploads";
 const UPLOAD_FIELD_NAME: &str = "video";
 const FALLBACK_UPLOAD_FILE_NAME: &str = "input-video.mp4";
+
+#[derive(Clone)]
+pub struct AlgorithmCenterApiState {
+    pub catalog: AlgorithmCatalogServiceRef,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StatusResponse {
@@ -62,7 +68,7 @@ pub struct UploadVideoResponse {
     pub message: String,
 }
 
-pub fn algorithm_center_router() -> Router {
+pub fn algorithm_center_router(state: AlgorithmCenterApiState) -> Router {
     let upload_dir = upload_storage_dir();
     Router::new()
         .route("/api/algorithm-center/status", get(status_handler))
@@ -73,13 +79,14 @@ pub fn algorithm_center_router() -> Router {
             "/api/algorithm-center/upload",
             post(upload_handler).layer(DefaultBodyLimit::max(DEFAULT_UPLOAD_LIMIT_BYTES)),
         )
+        .with_state(state)
         .merge(upload_file_service(UPLOAD_URL_PREFIX, upload_dir))
 }
 
-async fn status_handler() -> Json<StatusResponse> {
+async fn status_handler(State(state): State<AlgorithmCenterApiState>) -> Json<StatusResponse> {
     Json(StatusResponse {
         ok: true,
-        component_count: az_algorithm::catalog::query::algorithm_component_descriptors().len(),
+        component_count: state.catalog.components().len(),
         process_endpoint: "/api/algorithm-center/process".to_string(),
         upload_endpoint: "/api/algorithm-center/upload".to_string(),
         mode: "contract_preview".to_string(),
@@ -87,14 +94,16 @@ async fn status_handler() -> Json<StatusResponse> {
 }
 
 async fn components_handler(
+    State(state): State<AlgorithmCenterApiState>,
 ) -> Json<Vec<az_algorithm::catalog::model::AlgorithmComponentDescriptor>> {
-    Json(az_algorithm::catalog::query::algorithm_component_descriptors())
+    Json(state.catalog.components())
 }
 
 async fn process_handler(
+    State(state): State<AlgorithmCenterApiState>,
     ApiJson(request): ApiJson<ProcessVideoRequest>,
 ) -> Result<Json<ProcessVideoResponse>, ApiError> {
-    process_video(request).map(Json)
+    process_video(request, &state.catalog).map(Json)
 }
 
 async fn upload_handler(
@@ -118,15 +127,24 @@ async fn upload_handler(
         file_name: upload.original_file_name,
         uploaded_video_url: upload.public_url,
         process_endpoint: "/api/algorithm-center/process".to_string(),
-        message: format!("上传成功，已接收 {} 字节，可将 URL 传给 process。", upload.byte_len),
+        message: format!(
+            "上传成功，已接收 {} 字节，可将 URL 传给 process。",
+            upload.byte_len
+        ),
     }))
 }
 
-async fn ui_action_handler(ApiForm(form): ApiForm<ProcessVideoForm>) -> Response {
-    let redirect = match process_video(ProcessVideoRequest {
-        video_url: form.video_url,
-        algorithms: form.algorithms,
-    }) {
+async fn ui_action_handler(
+    State(state): State<AlgorithmCenterApiState>,
+    ApiForm(form): ApiForm<ProcessVideoForm>,
+) -> Response {
+    let redirect = match process_video(
+        ProcessVideoRequest {
+            video_url: form.video_url,
+            algorithms: form.algorithms,
+        },
+        &state.catalog,
+    ) {
         Ok(result) => process_redirect(result),
         Err(error) => format!(
             "/?route=/algorithms&error={}",
@@ -147,19 +165,25 @@ fn upload_storage_dir() -> PathBuf {
         })
 }
 
-fn process_video(request: ProcessVideoRequest) -> Result<ProcessVideoResponse, ApiError> {
+fn process_video(
+    request: ProcessVideoRequest,
+    catalog: &AlgorithmCatalogServiceRef,
+) -> Result<ProcessVideoResponse, ApiError> {
     let video_url = request.video_url.trim();
     if video_url.is_empty() {
         return Err(api_error(StatusCode::BAD_REQUEST, "video_url 不能为空"));
     }
 
-    let algorithms = selected_algorithms(&request.algorithms)?;
+    let algorithms = selected_algorithms(&request.algorithms, catalog)?;
     let algorithm_codes = algorithms
         .iter()
         .map(|algorithm| algorithm.code.as_str())
         .collect::<Vec<_>>()
         .join(",");
-    let job_id = format!("job-{:x}", md5::compute(format!("{video_url}|{algorithm_codes}")));
+    let job_id = format!(
+        "job-{:x}",
+        md5::compute(format!("{video_url}|{algorithm_codes}"))
+    );
 
     Ok(ProcessVideoResponse {
         ok: true,
@@ -201,8 +225,11 @@ fn process_redirect(result: ProcessVideoResponse) -> String {
     format!("/?{}", parts.join("&"))
 }
 
-fn selected_algorithms(requested: &[String]) -> Result<Vec<AlgorithmSelection>, ApiError> {
-    let descriptors = az_algorithm::catalog::query::algorithm_component_descriptors();
+fn selected_algorithms(
+    requested: &[String],
+    catalog: &AlgorithmCatalogServiceRef,
+) -> Result<Vec<AlgorithmSelection>, ApiError> {
+    let descriptors = catalog.components();
     let codes = requested
         .iter()
         .map(|code| code.trim())
@@ -221,7 +248,9 @@ fn selected_algorithms(requested: &[String]) -> Result<Vec<AlgorithmSelection>, 
     } else {
         let mut selected = Vec::with_capacity(codes.len());
         for code in codes {
-            let Some(descriptor) = descriptors.iter().find(|descriptor| descriptor.code == code)
+            let Some(descriptor) = descriptors
+                .iter()
+                .find(|descriptor| descriptor.code == code)
             else {
                 return Err(api_error(
                     StatusCode::BAD_REQUEST,
@@ -245,14 +274,23 @@ fn api_error(status: StatusCode, error: impl Into<String>) -> ApiError {
 
 #[cfg(test)]
 mod tests {
+    use az_algorithm::di::{create_algorithm_context, resolve_algorithm_catalog};
+
     use super::*;
     use axum::body::Body;
     use axum::http::{Request, header};
     use tower::ServiceExt;
 
+    fn test_router() -> Router {
+        let mut context = create_algorithm_context();
+        let catalog =
+            resolve_algorithm_catalog(&mut context).expect("测试必须能解析算法目录 Rudi provider");
+        algorithm_center_router(AlgorithmCenterApiState { catalog })
+    }
+
     #[tokio::test]
     async fn status_reports_ok_with_nine_components() {
-        let app = algorithm_center_router();
+        let app = test_router();
         let response = app
             .oneshot(
                 Request::builder()
@@ -263,7 +301,9 @@ mod tests {
             .await
             .unwrap();
         assert!(response.status().is_success());
-        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
         let status: StatusResponse = serde_json::from_slice(&body).unwrap();
         assert!(status.ok);
         assert_eq!(status.component_count, 9);
@@ -272,7 +312,7 @@ mod tests {
 
     #[tokio::test]
     async fn components_contains_known_algorithms() {
-        let app = algorithm_center_router();
+        let app = test_router();
         let response = app
             .oneshot(
                 Request::builder()
@@ -283,7 +323,9 @@ mod tests {
             .await
             .unwrap();
         assert!(response.status().is_success());
-        let body = axum::body::to_bytes(response.into_body(), 65536).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 65536)
+            .await
+            .unwrap();
         let descriptors: Vec<az_algorithm::catalog::model::AlgorithmComponentDescriptor> =
             serde_json::from_slice(&body).unwrap();
         assert_eq!(descriptors.len(), 9);
@@ -295,7 +337,7 @@ mod tests {
 
     #[tokio::test]
     async fn process_accepts_multiple_algorithms_and_returns_processed_url() {
-        let app = algorithm_center_router();
+        let app = test_router();
         let body = serde_json::json!({
             "video_url": "https://example.test/fire.mp4",
             "algorithms": ["flame_detection", "face_detection"]
@@ -312,7 +354,9 @@ mod tests {
             .await
             .unwrap();
         assert!(response.status().is_success());
-        let body = axum::body::to_bytes(response.into_body(), 65536).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 65536)
+            .await
+            .unwrap();
         let process: ProcessVideoResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(process.mode, "contract_preview");
         assert_eq!(process.algorithms.len(), 2);
@@ -321,7 +365,7 @@ mod tests {
 
     #[tokio::test]
     async fn process_rejects_unknown_algorithm_code() {
-        let app = algorithm_center_router();
+        let app = test_router();
         let body = serde_json::json!({
             "video_url": "https://example.test/fire.mp4",
             "algorithms": ["not_exist"]
@@ -342,7 +386,7 @@ mod tests {
 
     #[tokio::test]
     async fn upload_accepts_multipart_video_and_returns_url() {
-        let app = algorithm_center_router();
+        let app = test_router();
         let boundary = "az-aio-test-boundary";
         let body = multipart_video_body(boundary, "demo clip.mp4", b"video-bytes");
         let response = app
@@ -366,13 +410,17 @@ mod tests {
         let upload: UploadVideoResponse = serde_json::from_slice(&body).unwrap();
         assert!(upload.ok);
         assert_eq!(upload.file_name.as_deref(), Some("demo clip.mp4"));
-        assert!(upload.uploaded_video_url.contains("/api/algorithm-center/uploads/"));
+        assert!(
+            upload
+                .uploaded_video_url
+                .contains("/api/algorithm-center/uploads/")
+        );
         assert!(upload.uploaded_video_url.ends_with("-demo-clip.mp4"));
     }
 
     #[tokio::test]
     async fn upload_accepts_video_larger_than_default_body_limit() {
-        let app = algorithm_center_router();
+        let app = test_router();
         let boundary = "az-aio-large-video-boundary";
         let video = vec![b'x'; 3 * 1024 * 1024];
         let body = multipart_video_body(boundary, "large.mp4", &video);
@@ -397,10 +445,8 @@ mod tests {
         let mut body = Vec::new();
         body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
         body.extend_from_slice(
-            format!(
-                "Content-Disposition: form-data; name=\"video\"; filename=\"{file_name}\"\r\n"
-            )
-            .as_bytes(),
+            format!("Content-Disposition: form-data; name=\"video\"; filename=\"{file_name}\"\r\n")
+                .as_bytes(),
         );
         body.extend_from_slice(b"Content-Type: video/mp4\r\n\r\n");
         body.extend_from_slice(content);

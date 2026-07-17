@@ -1,0 +1,31 @@
+[package]
+name = "az-aio-iot-center"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Low-code IoT center plugin for AIO."
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+az-aio-platform = { path = "../../platform" }
+az-aio-ui.workspace = true
+az-engine.workspace = true
+dioxus.workspace = true
+rudi.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+urlencoding.workspace = true
+
+[dev-dependencies]
+tower.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

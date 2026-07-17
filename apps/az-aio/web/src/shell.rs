@@ -1,7 +1,7 @@
 use az_aio_platform::plugin::{
     api::{
-        AdminMenuNode, AdminMenuSection, AdminResourceContract, NativeRenderContext,
-        PageContribution,
+        AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminResourceContract,
+        NativeRenderContext, PageContribution,
     },
     host::{self, HostSnapshot},
 };
@@ -275,7 +275,7 @@ fn workbench_menu(menus: Vec<AdminMenuNode>, active_route: String) -> Element {
 }
 
 fn menu_node(node: AdminMenuNode, active_route: String, depth: usize) -> Element {
-    let active = node_active(&node, &active_route);
+    let active = node_directly_active(&node, &active_route);
     let href = if node.href.is_empty() {
         "#".to_string()
     } else {
@@ -453,15 +453,26 @@ fn active_page<'a>(snapshot: &'a HostSnapshot, active_route: &str) -> Option<&'a
 }
 
 fn node_active(node: &AdminMenuNode, active_route: &str) -> bool {
+    node_directly_active(node, active_route)
+        || node
+            .children
+            .iter()
+            .any(|child| node_active(child, active_route))
+}
+
+fn node_directly_active(node: &AdminMenuNode, active_route: &str) -> bool {
+    if node.kind == AdminMenuNodeKind::Branch && !node.children.is_empty() {
+        return node.href == active_route
+            || node
+                .active_patterns
+                .iter()
+                .any(|pattern| pattern == active_route);
+    }
     route_matches(&node.href, active_route)
         || node
             .active_patterns
             .iter()
             .any(|pattern| route_matches(pattern, active_route))
-        || node
-            .children
-            .iter()
-            .any(|child| node_active(child, active_route))
 }
 
 fn yes_no(value: bool) -> &'static str {
@@ -504,7 +515,7 @@ fn escape_script_json(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use az_aio_platform::plugin::{
-        api::{AdminMenuSection, PageContribution},
+        api::{AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, PageContribution},
         host::HostSnapshot,
     };
 
@@ -539,5 +550,36 @@ mod tests {
         assert!(html.contains("az-aio:sidebar-collapsed:v1"));
         assert!(html.contains("aio-toolbar-actions"));
         assert!(!html.contains("az-aio-client.js"));
+    }
+
+    #[test]
+    fn branch_context_does_not_visually_select_with_active_child() {
+        let branch = AdminMenuNode {
+            id: "engine.root".to_string(),
+            kind: AdminMenuNodeKind::Branch,
+            label: "低代码引擎".to_string(),
+            href: "/lowcode".to_string(),
+            icon: "▣".to_string(),
+            order: 0,
+            active_patterns: vec!["/lowcode".to_string()],
+            permissions_any_of: Vec::new(),
+            children: vec![AdminMenuNode {
+                id: "engine.hooks".to_string(),
+                kind: AdminMenuNodeKind::Page,
+                label: "钩子".to_string(),
+                href: "/lowcode?tab=hooks".to_string(),
+                icon: "⚑".to_string(),
+                order: 0,
+                active_patterns: vec!["/lowcode?tab=hooks".to_string()],
+                permissions_any_of: Vec::new(),
+                children: Vec::new(),
+            }],
+        };
+        let active_route = "/lowcode?tab=hooks";
+
+        // 分支仍用于识别当前上下文，但黑色选中态只属于最具体的叶子菜单。
+        assert!(node_active(&branch, active_route));
+        assert!(!node_directly_active(&branch, active_route));
+        assert!(node_directly_active(&branch.children[0], active_route));
     }
 }

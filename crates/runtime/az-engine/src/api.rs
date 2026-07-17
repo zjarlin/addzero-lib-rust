@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use toasty::stmt::{List, Query};
 
+use crate::validation::text;
+
 /// engine Toasty 表名前缀。
 pub const TABLE_NAME_PREFIX: &str = "engine_";
 
@@ -1103,14 +1105,14 @@ pub const ENGINE_BOOTSTRAP_SQL: &[&str] = &[
 
 /// 校验数据库连接串。
 pub fn verify_database_url(value: &str) -> anyhow::Result<&str> {
-    let value = value.trim();
-    if value.is_empty() {
-        bail!("engine 需要 PostgreSQL DATABASE_URL");
-    }
-    if !value.starts_with("postgres://") && !value.starts_with("postgresql://") {
-        bail!("engine 只支持 PostgreSQL DATABASE_URL");
-    }
-    Ok(value)
+    text(value)
+        .trim()
+        .not_blank("engine 需要 PostgreSQL DATABASE_URL")?
+        .starts_with_any(
+            &["postgres://", "postgresql://"],
+            "engine 只支持 PostgreSQL DATABASE_URL",
+        )
+        .map(|value| value.value())
 }
 
 /// 幂等确认 engine 的 Toasty schema 已经可用。
@@ -1438,6 +1440,19 @@ mod tests {
 
         // 必填字段缺失时应在落库前阻断。
         assert!(validate_payload(&[field], &payload, false).is_err());
+    }
+
+    #[test]
+    fn validates_postgresql_database_url_with_built_ins() {
+        let url = match verify_database_url("  postgresql://engine  ") {
+            Ok(url) => url,
+            Err(error) => panic!("PostgreSQL DATABASE_URL 应通过校验: {error}"),
+        };
+
+        // 校验链应返回去除首尾空白后的正式连接串。
+        assert_eq!(url, "postgresql://engine");
+        // 非 PostgreSQL 协议必须被 starts_with_any 内置阻断。
+        assert!(verify_database_url("mysql://engine").is_err());
     }
 
     #[test]

@@ -103,7 +103,11 @@ async fn run_web_server(
     println!("AIO web workbench listening on http://{addr}");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }
@@ -199,9 +203,11 @@ fn enable_plugin_providers() {
     az_aio_platform::enable();
     algorithm_center::enable();
     asset_hub::enable();
+    codegen::enable();
     config_center::enable();
     drive_center::enable();
     edge_gateway::enable();
+    iot_center::enable();
     lowcode::enable();
     software_center::enable();
     az_linux::enable();
@@ -231,9 +237,11 @@ mod tests {
                 "admin-scenes",
                 "algorithm-center",
                 "asset-hub",
+                "codegen",
                 "config-center",
                 "drive-center",
                 "edge-gateway",
+                "iot-center",
                 "linux",
                 "lowcode",
                 "software-center",

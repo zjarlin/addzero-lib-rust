@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use rudi::{Context, Singleton};
+use rudi::{Context, DynProvider, Module, Singleton, modules, providers, singleton};
 
 use crate::{
     service::{
@@ -12,31 +12,45 @@ use crate::{
 };
 
 /// 注册算法目录 singleton。
-#[Singleton(name = "az-algorithm-catalog")]
+#[Singleton]
 pub fn algorithm_catalog_service() -> AlgorithmCatalogServiceRef {
     Arc::new(DefaultAlgorithmCatalogService)
 }
 
 /// 注册图片流水线 singleton。
-#[Singleton(name = "az-algorithm-image-pipeline")]
+#[Singleton]
 pub fn image_pipeline_service() -> ImagePipelineServiceRef {
     Arc::new(DefaultImagePipelineService)
 }
 
 /// 注册视频流水线 singleton。
-#[Singleton(name = "az-algorithm-video-pipeline")]
+#[Singleton]
 pub fn video_pipeline_service() -> VideoPipelineServiceRef {
     Arc::new(DefaultVideoPipelineService)
 }
 
-/// 创建只包含当前已链接 Rudi provider 的算法上下文。
+/// `az-algorithm` 的独立 Rudi 模块。
+pub struct AlgorithmModule;
+
+impl Module for AlgorithmModule {
+    fn providers() -> Vec<DynProvider> {
+        providers![
+            singleton(|_| {
+                Arc::new(DefaultAlgorithmCatalogService) as AlgorithmCatalogServiceRef
+            }),
+            singleton(|_| Arc::new(DefaultImagePipelineService) as ImagePipelineServiceRef),
+            singleton(|_| Arc::new(DefaultVideoPipelineService) as VideoPipelineServiceRef),
+        ]
+    }
+}
+
+/// 创建只包含算法服务 provider 的独立上下文。
 ///
-/// 独立使用 `az-algorithm` 时先调用 [`crate::enable`]，应用级项目则可把
-/// `crate::enable()` 放进自身的 `rudi::enable!` 聚合入口。
+/// 应用级项目仍可把 [`crate::enable`] 放进自身的 `rudi::enable!` 聚合入口，
+/// 再通过应用的全局上下文解析相同服务类型。
 #[must_use]
 pub fn create_algorithm_context() -> Context {
-    crate::enable();
-    Context::auto_register()
+    Context::create(modules![AlgorithmModule])
 }
 
 /// 从上下文解析算法目录服务。
@@ -90,11 +104,13 @@ mod tests {
         let catalog = resolve_algorithm_catalog(&mut context)?;
         let image_pipeline = resolve_image_pipeline(&mut context)?;
         let video_pipeline = resolve_video_pipeline(&mut context)?;
+        let image_pipeline_again = resolve_image_pipeline(&mut context)?;
+        let video_pipeline_again = resolve_video_pipeline(&mut context)?;
 
         // 三个服务必须由同一个 Rudi 上下文完整提供，调用方不再自行拼装实现。
         assert_eq!(catalog.components().len(), 9);
-        assert!(Arc::strong_count(&image_pipeline) >= 2);
-        assert!(Arc::strong_count(&video_pipeline) >= 2);
+        assert!(Arc::ptr_eq(&image_pipeline, &image_pipeline_again));
+        assert!(Arc::ptr_eq(&video_pipeline, &video_pipeline_again));
         Ok(())
     }
 
@@ -121,7 +137,10 @@ mod tests {
     fn missing_provider_returns_boundary_error() {
         let mut context = Context::default();
 
-        let error = resolve_algorithm_catalog(&mut context).unwrap_err();
+        let error = match resolve_algorithm_catalog(&mut context) {
+            Ok(_) => panic!("expected missing Rudi provider error"),
+            Err(error) => error,
+        };
 
         assert!(error.to_string().contains("AlgorithmCatalogServiceRef"));
     }

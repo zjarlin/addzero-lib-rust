@@ -353,6 +353,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-aio-codegen"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "axum",
+ "az-aio-platform",
+ "az-aio-ui",
+ "az-str",
+ "dioxus",
+ "prettyplease",
+ "rudi",
+ "serde",
+ "serde_json",
+ "syn",
+ "tempfile",
+ "tokio",
+ "tower",
+ "urlencoding",
+]
+
+[[package]]
+name = "az-aio-iot-center"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "axum",
+ "az-aio-platform",
+ "az-aio-ui",
+ "az-engine",
+ "dioxus",
+ "rudi",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+ "urlencoding",
+]
+
+[[package]]
 name = "az-aio-platform"
 version = "2026.5.10"
 dependencies = [
@@ -394,6 +433,8 @@ dependencies = [
  "anyhow",
  "asset-hub",
  "axum",
+ "az-aio-codegen",
+ "az-aio-iot-center",
  "az-aio-platform",
  "az-aio-ui",
  "az-engine",

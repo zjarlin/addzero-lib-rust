@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use az_aio_platform::plugin::api::{
     AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
-    DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
+    DynAdminPluginProvider, NativePluginContext, NativePluginProvider, NativePluginRuntime,
     PluginDescriptor,
 };
+use az_algorithm::di::{create_algorithm_context, resolve_algorithm_catalog};
 use rudi::Singleton;
 
 use crate::{
-    backend::routes::algorithm_center_router,
+    backend::routes::{AlgorithmCenterApiState, algorithm_center_router},
     descriptor::{ROUTE, contributions, descriptor},
 };
 
@@ -47,9 +48,11 @@ impl NativePluginProvider for AlgorithmCenterPlugin {
     }
 
     fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
+        let mut algorithm_context = create_algorithm_context();
+        let catalog = resolve_algorithm_catalog(&mut algorithm_context)?;
         Ok(NativePluginRuntime {
             renderers: Vec::new(),
-            router: algorithm_center_router(),
+            router: algorithm_center_router(AlgorithmCenterApiState { catalog }),
             startup: None,
         })
     }

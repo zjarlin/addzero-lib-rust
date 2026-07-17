@@ -15,10 +15,10 @@ members = [
     "crates/text/*",
     "crates/tool-project-diagnostics",
     "apps/drive/backend",
-    "xtask",
 ]
 exclude = [
     "apps/az-aio/desktop",
+    "crates/data/az-crud-base",
     "crates/network/az-browser-automation",
     "crates/runtime/az-admin-domain-audit",
     "crates/ui/az-remote-ui",
@@ -123,9 +123,7 @@ az-ai-agent = { version = "=2026.5.10", path = "crates/runtime/az-ai-agent" }
 az-ai-chat = { version = "=2026.5.10", path = "crates/api/az-ai-chat" }
 az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
 az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
-az-context = { version = "=2026.5.10", path = "crates/core/az-context" }
 az-crdt = { version = "=2026.5.10", path = "crates/text/az-crdt" }
-az-crud-base = { version = "=2026.5.10", path = "crates/data/az-crud-base" }
 az-dict-macros = { version = "=2026.5.10", path = "crates/core/az-dict-macros" }
 az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }
 az-desktop-plugin = { version = "=2026.5.10", path = "crates/runtime/az-desktop-plugin" }
@@ -137,7 +135,6 @@ az-drive-store = { version = "=2026.5.10", path = "crates/storage/az-drive-store
 az-drive-webdav = { version = "=2026.5.10", path = "crates/network/az-drive-webdav" }
 az-email = { version = "=2026.5.10", path = "crates/network/az-email" }
 az-gmail-code = { version = "=2026.5.10", path = "crates/network/az-gmail-code" }
-az-kiro-auth-support = { version = "=2026.5.10", path = "crates/api/az-kiro-auth-support" }
 az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
 az-maven = { version = "=2026.5.10", path = "crates/api/az-maven" }
 az-micro-dict = { version = "=2026.5.10", path = "crates/micro/az-micro-dict" }

@@ -6,9 +6,11 @@ members = [
     "../ui",
     "asset-hub",
     "algorithm-center",
+    "codegen",
     "config-center",
     "drive-center",
     "edge-gateway",
+    "iot-center",
     "software-center",
     "az-linux",
     "lowcode",
@@ -28,7 +30,6 @@ anyhow = "1.0.99"
 automod = { package = "az-automod", version = "=2026.6.15", path = "../../../crates/core/az-automod" }
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "multipart"] }
 az-admin-plugin-registry = { version = "=2026.5.10", path = "../../../crates/runtime/az-admin-plugin-registry" }
-az-crud-base = { version = "=2026.5.10", path = "../../../crates/data/az-crud-base" }
 az-aio-ui = { path = "../ui" }
 dioxus = { version = "0.7.9", default-features = false, features = ["macro", "html", "signals", "router"] }
 dioxus-ssr = "0.7.9"
@@ -47,7 +48,9 @@ uuid = { version = "1.23.1", features = ["v4", "serde"] }
 handlebars = "6.4.1"
 md5 = "0.8.0"
 reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "cookies", "json", "multipart", "rustls-tls"] }
+prettyplease = "0.2.37"
 serde_json_path = "0.7.2"
+syn = { version = "2.0.108", features = ["full", "parsing"] }
 tower = { version = "0.5.2", features = ["timeout", "util"] }
 tower-http = { version = "0.6.2", features = ["fs"] }
 urlencoding = "2"

@@ -18,7 +18,9 @@ asset-hub = { path = "../plugins/asset-hub" }
 config-center = { path = "../plugins/config-center" }
 drive-center = { path = "../plugins/drive-center" }
 edge-gateway = { path = "../plugins/edge-gateway" }
+iot-center = { package = "az-aio-iot-center", path = "../plugins/iot-center" }
 algorithm-center = { path = "../plugins/algorithm-center" }
+codegen = { package = "az-aio-codegen", path = "../plugins/codegen" }
 software-center = { path = "../plugins/software-center" }
 az-linux = { path = "../plugins/az-linux" }
 lowcode = { path = "../plugins/lowcode" }
