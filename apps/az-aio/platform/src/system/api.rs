@@ -23,6 +23,7 @@ use crate::system::{
         SystemDashboardView, SystemPageView, system_dashboard_view, system_page_for_route,
         system_pages,
     },
+    dictionary_api::{dictionary_routes, is_dictionary_api_path},
     model::{
         CreatedSystemApiKey, SystemApiKeySummary, SystemOperationRecordSummary,
         SystemPageDataResponse, SystemPageRecordSummary, SystemStoreStatus,
@@ -52,6 +53,10 @@ impl SystemAdminApiState {
             database_url,
             store,
         }
+    }
+
+    pub(crate) fn store(&self) -> Option<SystemAdminStore> {
+        self.store.clone()
     }
 }
 
@@ -98,10 +103,14 @@ pub fn system_admin_router(state: SystemAdminApiState) -> Router {
         .route("/api/system/api-key", post(create_api_key_handler))
         .route("/api/system/api-key/revoke", post(revoke_api_key_handler))
         .route("/admin-api/system/ui-api-key", post(ui_create_api_key_handler))
-        .route("/admin-api/system/ui-api-key/revoke", post(ui_revoke_api_key_handler));
+        .route("/admin-api/system/ui-api-key/revoke", post(ui_revoke_api_key_handler))
+        .merge(dictionary_routes());
 
     for page in system_pages() {
         for operation in page.operations {
+            if is_dictionary_api_path(operation.path) {
+                continue;
+            }
             router = route_operation(router, operation.method, operation.path);
         }
     }

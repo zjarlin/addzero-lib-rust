@@ -24,7 +24,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct SystemAdminStore {
-    db: db::Db,
+    pub(crate) db: db::Db,
 }
 
 impl SystemAdminStore {

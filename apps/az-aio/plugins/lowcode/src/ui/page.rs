@@ -3,14 +3,14 @@
 //! lowcode 插件的低代码引擎 Admin 页面。
 
 use az_aio_platform::plugin::api::NativeRenderContext;
-use az_aio_ui::ui::{
+use az_engine::{DataRecordView, HookDefinition, MetaField, MetaModel, PageData, PageParams};
+use dioxus::prelude::*;
+use registry::ui::{
     badge::Badge,
     button::{Button, ButtonVariant},
     card::{Card, CardContent, CardDescription, CardHeader, CardTitle},
     table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow},
 };
-use az_engine::{DataRecordView, HookDefinition, MetaField, MetaModel, PageData, PageParams};
-use dioxus::prelude::*;
 use serde_json::Value;
 
 use crate::state::{run_engine_future, store};

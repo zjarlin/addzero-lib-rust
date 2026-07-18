@@ -164,6 +164,14 @@ pub fn timestamp_secs() -> String {
         .to_string()
 }
 
+/// 生成毫秒级 Unix 时间戳。
+pub fn timestamp_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,6 +180,12 @@ mod tests {
     fn rejects_empty_url() {
         assert!(verify_database_url("").is_err());
         assert!(verify_database_url("   ").is_err());
+    }
+
+    #[test]
+    fn timestamp_ms_uses_millisecond_precision() {
+        // 管理 API 统一返回毫秒时间点，避免前端再猜测时间单位。
+        assert!(timestamp_ms() > 1_000_000_000_000);
     }
 
     #[test]

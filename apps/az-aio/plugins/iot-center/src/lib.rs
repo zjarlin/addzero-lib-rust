@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 pub mod contract;
+pub mod dictionary;
 pub mod plugin;
 pub mod routes;
 pub mod service;

@@ -19,6 +19,7 @@ use crate::{
             SystemFieldKind, SystemPageView, starter_backed_system_pages, system_dashboard_view,
             system_page_views,
         },
+        dictionary_ui::{DICTIONARY_RENDERER_ID, dictionary_workbench_page},
         navigation::{AdminSectionSnapshot, system_admin_sections},
         store::SystemAdminStore,
     },
@@ -58,11 +59,16 @@ impl AdminProvider {
         }
 
         for page in system_dashboard_view().pages {
+            let renderer_id = if page.id == "dictionary" {
+                DICTIONARY_RENDERER_ID
+            } else {
+                SYSTEM_RENDERER_ID
+            };
             pages.push(PageContribution {
                 route: page.route.clone(),
                 title: format!("{SYSTEM_DOMAIN_LABEL} · {}", page.label),
                 subtitle: page.description.clone(),
-                renderer_id: SYSTEM_RENDERER_ID.to_string(),
+                renderer_id: renderer_id.to_string(),
                 placeholder_mark: page.icon.clone(),
                 order: 1_000 + page.order,
             });
@@ -70,7 +76,7 @@ impl AdminProvider {
                 id: format!("{SYSTEM_DOMAIN_ID}.{}.ui.content", page.id),
                 slot: UiContributionSlot::Content,
                 label: format!("{}内容区", page.label),
-                renderer_id: SYSTEM_RENDERER_ID.to_string(),
+                renderer_id: renderer_id.to_string(),
                 route: Some(page.route.clone()),
                 order: 1_000 + page.order,
             });
@@ -170,9 +176,12 @@ impl AdminProvider {
     }
 
     pub fn renderers(&self) -> Vec<NativeUiRenderer> {
-        // Dioxus UI migration cut: the shell renders page/resource/API contracts
-        // directly with rust-ui/dioxus-ui primitives, so native per-route renderer hooks are intentionally empty.
-        Vec::new()
+        vec![NativeUiRenderer {
+            renderer_id: DICTIONARY_RENDERER_ID.to_string(),
+            slot: UiContributionSlot::Content,
+            route: Some("/system/dictionary/note-types".to_string()),
+            render: dictionary_workbench_page,
+        }]
     }
 
     pub fn contribution_bundle(&self) -> AdminPluginContribution {
@@ -393,9 +402,11 @@ mod tests {
     }
 
     #[test]
-    fn provider_uses_contract_rendering_without_native_renderer_hooks() {
+    fn provider_registers_dictionary_native_renderer_only() {
         let renderers = AdminProvider.renderers();
 
-        assert!(renderers.is_empty());
+        // 字典页需要真实 CRUD 工作台，其他系统页继续走资源契约渲染。
+        assert_eq!(renderers.len(), 1);
+        assert_eq!(renderers[0].renderer_id, DICTIONARY_RENDERER_ID);
     }
 }

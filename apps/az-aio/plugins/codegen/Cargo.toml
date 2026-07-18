@@ -11,11 +11,11 @@ description = "AIO client-side Rust enum and struct generator."
 anyhow.workspace = true
 axum.workspace = true
 az-aio-platform = { path = "../../platform" }
-az-aio-ui.workspace = true
 az-str.workspace = true
 dioxus.workspace = true
 prettyplease.workspace = true
 rudi.workspace = true
+registry.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 syn.workspace = true

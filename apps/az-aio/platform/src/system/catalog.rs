@@ -644,8 +644,13 @@ const SYSTEM_PAGES: &[SystemPage] = &[
         columns: DICTIONARY_COLUMNS,
         rows: DICTIONARY_ROWS,
         operations: &[
-            operation("system.dictionary.create", "新建字典", "POST", "/api/system/dictionaries", "az system dict create", true),
-            operation("system.dictionary.refresh", "刷新缓存", "POST", "/api/system/dictionaries/refresh", "az system dict refresh", false),
+            operation("system.dictionary.type.list", "查询字典类型", "GET", "/api/system/dictionary-types", "az system dictionary-type list", false),
+            operation("system.dictionary.type.create", "新建字典类型", "POST", "/api/system/dictionary-types", "az system dictionary-type create", true),
+            operation("system.dictionary.type.update", "更新字典类型", "PUT", "/api/system/dictionary-types/{id}", "az system dictionary-type update --id <id>", false),
+            operation("system.dictionary.type.delete", "删除字典类型", "DELETE", "/api/system/dictionary-types/{id}", "az system dictionary-type delete --id <id>", false),
+            operation("system.dictionary.item.create", "新建字典项", "POST", "/api/system/dictionary-items", "az system dictionary-item create", true),
+            operation("system.dictionary.item.update", "更新字典项", "PUT", "/api/system/dictionary-items/{id}", "az system dictionary-item update --id <id>", false),
+            operation("system.dictionary.item.delete", "删除字典项", "DELETE", "/api/system/dictionary-items/{id}", "az system dictionary-item delete --id <id>", false),
         ],
     },
     SystemPage {

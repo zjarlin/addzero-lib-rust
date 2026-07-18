@@ -3,13 +3,13 @@
 //! 物联网中心 SSR 页面。
 
 use az_aio_platform::plugin::api::NativeRenderContext;
-use az_aio_ui::ui::{
+use dioxus::prelude::*;
+use registry::ui::{
     badge::Badge,
     button::Button,
     card::{Card, CardContent, CardDescription, CardHeader, CardTitle},
     table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow},
 };
-use dioxus::prelude::*;
 
 use crate::{
     contract::{

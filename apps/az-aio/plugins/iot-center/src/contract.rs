@@ -1,5 +1,6 @@
 //! 物联网中心共享契约。
 
+pub use crate::dictionary::IotOnlineStatus;
 use serde::{Deserialize, Serialize};
 
 pub const ROUTE: &str = "/iot";
@@ -51,30 +52,6 @@ pub struct CreateIotDeviceRequest {
     pub expected_heartbeat_secs: i64,
     #[serde(default = "default_data_period_secs")]
     pub expected_data_secs: i64,
-}
-
-/// 设备业务在线状态。
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum IotOnlineStatus {
-    Online,
-    HeartbeatLost,
-    DataAnomaly,
-    Offline,
-    Unknown,
-}
-
-impl IotOnlineStatus {
-    /// 返回页面展示名称。
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Online => "在线",
-            Self::HeartbeatLost => "心跳丢失",
-            Self::DataAnomaly => "数据异常",
-            Self::Offline => "离线",
-            Self::Unknown => "未知",
-        }
-    }
 }
 
 /// 页面展示所需的设备投影。

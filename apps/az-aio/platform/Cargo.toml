@@ -19,6 +19,7 @@ az-str.workspace = true
 az-system-starters.workspace = true
 dirs = "6"
 rudi.workspace = true
+registry.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
@@ -31,6 +32,7 @@ urlencoding.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+dioxus-ssr.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

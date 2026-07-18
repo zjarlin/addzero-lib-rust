@@ -5,11 +5,11 @@ use az_aio_platform::plugin::{
     },
     host::{self, HostSnapshot},
 };
-use az_aio_ui::ui::{
+use dioxus::prelude::*;
+use registry::ui::{
     card::{Card, CardContent, CardDescription, CardHeader, CardTitle},
     table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow},
 };
-use dioxus::prelude::*;
 
 const FAVICON_DATA_URI: &str = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-size='26' font-family='Arial,sans-serif' font-weight='700' fill='%23ffffff'%3EA%3C/text%3E%3C/svg%3E";
 const SHELL_STATE_SCRIPT: &str = r#"(() => {
@@ -144,7 +144,7 @@ fn render_document(title: &str, bootstrap_json: Option<String>, body: Element) -
     let body = dioxus_ssr::render_element(body);
 
     format!(
-        r#"<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title><link rel="icon" href="{FAVICON_DATA_URI}"><link rel="stylesheet" href="/assets/app.css?v=dioxus-shell-codex-layout"></head><body>{bootstrap_script}<div id="az-aio-root">{body}</div><script>{SHELL_STATE_SCRIPT}</script></body></html>"#
+        r#"<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title><link rel="icon" href="{FAVICON_DATA_URI}"><link rel="stylesheet" href="/assets/app.css?v=dictionary-dialog-v2"></head><body>{bootstrap_script}<div id="az-aio-root">{body}</div><script>{SHELL_STATE_SCRIPT}</script></body></html>"#
     )
 }
 
@@ -196,7 +196,18 @@ fn workbench_shell(snapshot: HostSnapshot, active_route: String, api_base_url: S
                             aria_label: "收起侧边栏",
                             aria_expanded: "true",
                             "data-aio-sidebar-toggle": "true",
-                            span { class: "aio-sidebar-toggle-icon", aria_hidden: "true", "☰" }
+                            svg {
+                                class: "aio-sidebar-toggle-icon",
+                                "aria-hidden": "true",
+                                view_box: "0 0 24 24",
+                                fill: "none",
+                                stroke: "currentColor",
+                                stroke_width: "1.8",
+                                stroke_linecap: "round",
+                                stroke_linejoin: "round",
+                                rect { x: "3", y: "4", width: "18", height: "16", rx: "3" }
+                                path { d: "M9 4v16" }
+                            }
                         }
                         div { class: "aio-sidebar-brand min-w-0",
                             p { class: "aio-sidebar-brand-title truncate", "AZ AIO" }

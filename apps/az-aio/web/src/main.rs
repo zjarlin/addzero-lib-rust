@@ -176,6 +176,8 @@ fn aio_bootstrap_sql() -> Vec<&'static str> {
     statements.extend_from_slice(edge_gateway::backend::store::EDGE_GATEWAY_BOOTSTRAP_SQL);
     statements.extend_from_slice(az_engine::ENGINE_BOOTSTRAP_SQL);
     statements
+        .extend_from_slice(az_aio_platform::system::dictionary_model::DICTIONARY_BOOTSTRAP_SQL);
+    statements
 }
 
 const CONFIG_CENTER_BOOTSTRAP_SQL: &[&str] = &[
@@ -327,6 +329,8 @@ mod tests {
                 "AssetRecord",
                 "ConfigEntry",
                 "DataRecord",
+                "DictionaryItemRecord",
+                "DictionaryTypeRecord",
                 "DriveTask",
                 "EdgeApiTokenRecord",
                 "EdgeUsageRecordRow",

@@ -12,7 +12,6 @@ workspace = "../plugins"
 anyhow.workspace = true
 axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
 az-aio-platform = { path = "../platform" }
-az-aio-ui.workspace = true
 az-engine.workspace = true
 asset-hub = { path = "../plugins/asset-hub" }
 config-center = { path = "../plugins/config-center" }
@@ -27,6 +26,7 @@ lowcode = { path = "../plugins/lowcode" }
 dioxus.workspace = true
 dioxus-ssr.workspace = true
 rudi.workspace = true
+registry.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 toasty.workspace = true

@@ -3,11 +3,11 @@
 //! 当前客户机 Rust 代码生成页面。
 
 use az_aio_platform::plugin::api::NativeRenderContext;
-use az_aio_ui::ui::{
+use dioxus::prelude::*;
+use registry::ui::{
     button::Button,
     card::{Card, CardContent, CardDescription, CardHeader, CardTitle},
 };
-use dioxus::prelude::*;
 
 use crate::contract::UI_ACTION_PATH;
 

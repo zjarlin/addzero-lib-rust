@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "../platform",
     "../web",
-    "../ui",
     "asset-hub",
     "algorithm-center",
     "codegen",
@@ -30,12 +29,16 @@ anyhow = "1.0.99"
 automod = { package = "az-automod", version = "=2026.6.15", path = "../../../crates/core/az-automod" }
 axum = { version = "0.8.6", features = ["http1", "json", "tokio", "multipart"] }
 az-admin-plugin-registry = { version = "=2026.5.10", path = "../../../crates/runtime/az-admin-plugin-registry" }
-az-aio-ui = { path = "../ui" }
+az-dict-macros = { version = "=2026.5.10", path = "../../../crates/core/az-dict-macros" }
+az-dict-spec = { version = "=2026.5.10", path = "../../../crates/core/az-dict-spec" }
 dioxus = { version = "0.7.9", default-features = false, features = ["macro", "html", "signals", "router"] }
 dioxus-ssr = "0.7.9"
+registry = { path = "../../../vendor/rust-ui-dioxus-ui/app_crates/registry" }
 tw-merge = { package = "tw_merge", version = "0.1.21", features = ["debug"] }
 az-engine = { version = "=2026.5.10", path = "../../../crates/runtime/az-engine" }
+az-micro-dict = { version = "=2026.5.10", path = "../../../crates/micro/az-micro-dict" }
 az-system-starters = { version = "=2026.5.10", path = "../../../crates/runtime/az-system-starters" }
+derive_more = { version = "2.1.1", features = ["display"] }
 rudi = "0.8.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
