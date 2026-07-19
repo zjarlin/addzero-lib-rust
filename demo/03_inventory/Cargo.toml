@@ -9,4 +9,4 @@ members = [
 ]
 
 [workspace.dependencies]
-automod = { package = "az-automod", version = "=2026.6.15", path = "../../crates/core/az-automod" }
+automod = { package = "az-automod", version = "=2026.6.15", path = "../../crates/core/automod" }

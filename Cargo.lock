@@ -772,6 +772,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "az-addhost"
+version = "2026.5.10"
+dependencies = [
+ "anyhow",
+ "clap",
+ "dirs 6.0.0",
+ "serde",
+ "tempfile",
+ "tokio",
+ "toml_edit 0.22.27",
+]
+
+[[package]]
 name = "az-admin-plugin-registry"
 version = "2026.5.10"
 dependencies = [

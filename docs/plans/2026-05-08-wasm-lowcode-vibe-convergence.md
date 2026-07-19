@@ -26,9 +26,9 @@
 
 仓库里已经有可复用的三块基础：
 
-- `crates/runtime/az-plugin-contract/src/lib.rs`
+- `crates/runtime/plugin-contract/src/lib.rs`
   这里定义了插件页面、菜单、marketplace、shell snapshot。当前的 `PageSchema` 还是结果页 DSL，偏展示，不够承载画布编辑。
-- `crates/apps/az-lowcode/src/schema.rs`
+- `crates/apps/lowcode/src/schema.rs`
   这里已经有 `LayoutSchema`、`ComponentNode`、`GridArea`、`EventBindingRecord`。这其实已经是画布页的核心文档模型。
 - `apps/aio/backend/src/services/vibe_coding.rs`
   这里已经有在线启动 coding session 的后端入口。它现在是“开一个终端会话”，还不是“围绕画布节点做定向生成”。

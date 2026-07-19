@@ -1,0 +1,33 @@
+[package]
+name = "az-addhost"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Publish local HTTP services through SSH and a built-in relay"
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[[bin]]
+name = "addhost"
+path = "src/main.rs"
+
+[package.metadata.dist]
+dist = true
+npm-package = "addhost-cli"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+dirs.workspace = true
+serde.workspace = true
+tokio.workspace = true
+toml_edit.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

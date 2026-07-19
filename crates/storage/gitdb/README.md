@@ -15,7 +15,7 @@
 
 ## 作为 workspace crate 使用
 
-在本仓库内直接依赖本地 crate。路径按调用方 crate 的位置调整，例如 `crates/storage/az-drive-store` 当前使用：
+在本仓库内直接依赖本地 crate。路径按调用方 crate 的位置调整，例如 `crates/storage/drive-store` 当前使用：
 
 ```toml
 [dependencies]

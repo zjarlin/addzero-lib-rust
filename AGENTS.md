@@ -42,6 +42,8 @@
 
 ## Rust Module Convention
 
+- 仓库第一方目录名使用无发布前缀的短领域名，例如 `crates/network/addhost`、`apps/aio`、`plugins/linux`；目录名不携带 `az-`。
+- Cargo 包名作为 crates.io 全局身份继续使用 `az-` 前缀，例如目录 `addhost` 中声明 `name = "az-addhost"`；不在发布阶段临时改写包名。
 - Rust 代码默认遵循 `2018+ file-based modules`，优先使用 `foo.rs` 作为模块入口，不回到 `foo/mod.rs`。
 - 目录模块发现默认优先使用 `automod` 之类的显式模块收集方案，前提是目录本身保持“只放正式模块”的整洁边界。
 - `src/` 下只放正式参与编译的模块文件；草稿、实验、废弃迁移稿不得继续放在 `src/` 模块树内。
