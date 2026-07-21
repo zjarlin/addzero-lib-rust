@@ -9,7 +9,23 @@ use uuid::Uuid;
 /// 软件可试用或可安装的平台。
 ///
 /// `code()` 和 serde wire value 使用稳定小写值，`Display` 用于界面展示。
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, PartialOrd, Ord, Default, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialOrd,
+    Ord,
+    Default,
+    derive_more::Display,
+    strum::EnumString,
+    strum::IntoStaticStr,
+    strum::VariantArray,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum SoftwarePlatform {
@@ -52,7 +68,23 @@ impl SoftwarePlatform {
 /// 软件安装方式类型。
 ///
 /// 这里的 code 是前后端和持久化共享的安装器类别，不等同于具体命令文本。
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, PartialOrd, Ord, Default, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialOrd,
+    Ord,
+    Default,
+    derive_more::Display,
+    strum::EnumString,
+    strum::IntoStaticStr,
+    strum::VariantArray,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum InstallerKind {

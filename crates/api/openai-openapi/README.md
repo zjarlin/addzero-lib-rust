@@ -33,4 +33,4 @@ cargo fmt -p az-openapi-codegen -p az-openai-openapi
 cargo test -p az-openai-openapi
 ```
 
-Module collection follows the addzero automod convention: `src/lib.rs` stays as the crate entrypoint using `automod::dir!`, `src/generated.rs` collects the checked-in generated contract modules, and `src/api.rs`, `src/models.rs`, `src/paths.rs`, and `src/bodies.rs` keep stable public module paths.
+Module collection follows the addzero automod convention: `src/lib.rs` stays as the crate entrypoint using `automod::dir!`, `src/generated.rs` collects the checked-in generated contract modules, and `src/contract.rs`, `src/models.rs`, `src/paths.rs`, and `src/bodies.rs` expose the checked-in public contract.

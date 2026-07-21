@@ -12,8 +12,8 @@ use std::path::Path;
 
 use git2::{FileMode, ObjectType, Repository, Tree, TreeBuilder as Git2TreeBuilder};
 
-use crate::storage::error;
 use crate::storage::blob::BlobId;
+use crate::storage::error;
 use crate::storage::types::{RowKey, RowPath, TableName, TreeId};
 
 /// A read only handle to a git tree at a specific commit
@@ -259,9 +259,9 @@ impl<'repo> TreeMutator<'repo> {
             };
             self.modified_tables.insert(table.to_string(), builder);
         }
-        self.modified_tables.get_mut(table).ok_or_else(|| {
-            error::internal(format!("table builder was not initialized: {table}"))
-        })
+        self.modified_tables
+            .get_mut(table)
+            .ok_or_else(|| error::internal(format!("table builder was not initialized: {table}")))
     }
 
     /// create a new table (empty directory)
@@ -495,10 +495,12 @@ mod tests {
 
         let mut mutator2 = TreeMutator::from_tree(&repo, &new_handle).unwrap();
         let result = mutator2.create_table(&TableName::new("users").unwrap());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .starts_with("table already exists:"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .starts_with("table already exists:")
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
-use crate::config::GmailCodeQuery;
 use crate::config::GmailCodeConfig;
+use crate::config::GmailCodeQuery;
 use crate::model::{ExtractedGmailCode, GmailListMessagesResponse, GmailMessage};
 use crate::parser::{collect_message_body_candidates, extract_verification_code};
 use reqwest::Url;
@@ -160,7 +160,7 @@ fn extract_code_from_message(message: &GmailMessage) -> anyhow::Result<Option<Ex
 mod tests {
     use super::GmailCodeClient;
     use crate::config::{GmailCodeConfig, GmailCodeQuery};
-        use base64::Engine;
+    use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use std::io::{Read, Write};
     use std::net::TcpListener;
@@ -259,7 +259,7 @@ mod tests {
     }
 
     #[derive(Clone, Debug)]
-struct MockResponse {
+    struct MockResponse {
         status: u16,
         content_type: &'static str,
         body: String,

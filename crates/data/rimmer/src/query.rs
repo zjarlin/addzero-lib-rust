@@ -1,10 +1,10 @@
-use anyhow::anyhow;
 use crate::draft::Draft;
 use crate::expression::{IntoPredicate, Order, Predicate, quote_identifier};
 use crate::fetcher::{FetchField, FetchShape, Fetcher};
 use crate::metadata::{EntityDef, FieldKind, Table};
 use crate::save::SaveCommand;
 use crate::value::ScalarValue;
+use anyhow::anyhow;
 
 /// Jimmer 风格 SQL 客户端。
 #[derive(Clone, Copy, Debug, Default)]

@@ -4,8 +4,8 @@
 //! 不是纯静态展示。具体业务表由对应系统模块继续按 `sys_*` 表边界承载。
 
 use anyhow::{Context, anyhow, bail};
-use sha2::{Digest, Sha256};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use toasty::stmt::{List, Query};
 use uuid::Uuid;
 
@@ -62,7 +62,12 @@ impl SystemAdminStore {
             .exec(&mut *db)
             .await
             .context("读取系统后台操作记录失败")?;
-        Ok(records.into_iter().rev().take(limit).map(Into::into).collect())
+        Ok(records
+            .into_iter()
+            .rev()
+            .take(limit)
+            .map(Into::into)
+            .collect())
     }
 
     pub async fn list_page_data_records(
@@ -144,13 +149,12 @@ impl SystemAdminStore {
         }
 
         let mut db = self.db.lock().await;
-        let existing = Query::<List<SystemApiKeyRecord>>::filter(
-            SystemApiKeyRecord::fields().id().eq(id),
-        )
-        .first()
-        .exec(&mut *db)
-        .await
-        .context("读取系统 API 密钥失败")?;
+        let existing =
+            Query::<List<SystemApiKeyRecord>>::filter(SystemApiKeyRecord::fields().id().eq(id))
+                .first()
+                .exec(&mut *db)
+                .await
+                .context("读取系统 API 密钥失败")?;
         if existing.is_none() {
             bail!("not found api_key: {id}");
         }
@@ -259,8 +263,7 @@ impl SystemAdminStore {
     ) -> anyhow::Result<()> {
         let id = format!("{}-{index}", page.id);
         let now = db::timestamp_secs();
-        let cells_json =
-            serde_json::to_string(cells).context("序列化系统后台数据快照失败")?;
+        let cells_json = serde_json::to_string(cells).context("序列化系统后台数据快照失败")?;
         let mut db = self.db.lock().await;
         let existing =
             Query::<List<SystemDataRecord>>::filter(SystemDataRecord::fields().id().eq(&id))
@@ -311,13 +314,12 @@ impl SystemAdminStore {
         let pg_tables = page.pg_tables.join("\n");
         let status = format!("{:?}", page.status);
         let mut db = self.db.lock().await;
-        let existing = Query::<List<SystemPageRecord>>::filter(
-            SystemPageRecord::fields().id().eq(page.id),
-        )
-        .first()
-        .exec(&mut *db)
-        .await
-        .context("读取系统后台页面快照失败")?;
+        let existing =
+            Query::<List<SystemPageRecord>>::filter(SystemPageRecord::fields().id().eq(page.id))
+                .first()
+                .exec(&mut *db)
+                .await
+                .context("读取系统后台页面快照失败")?;
         let record = match existing {
             Some(_) => {
                 SystemPageRecord::filter(SystemPageRecord::fields().id().eq(page.id))
@@ -331,13 +333,11 @@ impl SystemAdminStore {
                     .exec(&mut *db)
                     .await
                     .context("更新系统后台页面快照失败")?;
-                Query::<List<SystemPageRecord>>::filter(
-                    SystemPageRecord::fields().id().eq(page.id),
-                )
-                .one()
-                .exec(&mut *db)
-                .await
-                .context("读取已更新系统后台页面快照失败")?
+                Query::<List<SystemPageRecord>>::filter(SystemPageRecord::fields().id().eq(page.id))
+                    .one()
+                    .exec(&mut *db)
+                    .await
+                    .context("读取已更新系统后台页面快照失败")?
             }
             None => SystemPageRecord::create()
                 .id(page.id.to_string())
@@ -371,9 +371,14 @@ pub struct CreateSystemApiKeyInput {
     pub scope: Option<String>,
 }
 
-pub fn system_store_status(database_url: &Option<String>, store: &Option<SystemAdminStore>) -> SystemStoreStatus {
+pub fn system_store_status(
+    database_url: &Option<String>,
+    store: &Option<SystemAdminStore>,
+) -> SystemStoreStatus {
     SystemStoreStatus {
-        database_configured: database_url.as_ref().is_some_and(|value| !value.trim().is_empty()),
+        database_configured: database_url
+            .as_ref()
+            .is_some_and(|value| !value.trim().is_empty()),
         store_connected: store.is_some(),
         table_prefix: TABLE_NAME_PREFIX.to_string(),
     }

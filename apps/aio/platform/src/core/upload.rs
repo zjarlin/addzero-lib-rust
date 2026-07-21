@@ -3,9 +3,9 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, anyhow, bail};
+use axum::Router;
 use axum::extract::{Multipart, multipart::Field};
 use axum::routing::get_service;
-use axum::Router;
 use az_str::sanitize::sanitize_path_segment;
 use tokio::{fs, io::AsyncWriteExt};
 use tower_http::services::ServeDir;
@@ -79,7 +79,8 @@ async fn save_upload_field(
     options: &MultipartUploadOptions,
 ) -> anyhow::Result<StoredUpload> {
     let original_file_name = field.file_name().map(ToOwned::to_owned);
-    let stored_file_name = stored_file_name(original_file_name.as_deref(), &options.fallback_file_name);
+    let stored_file_name =
+        stored_file_name(original_file_name.as_deref(), &options.fallback_file_name);
     let storage_path = safe_join(&options.storage_dir, &stored_file_name)?;
     let mut file = fs::File::create(&storage_path)
         .await

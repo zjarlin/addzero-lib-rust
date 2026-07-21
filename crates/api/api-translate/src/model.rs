@@ -1,6 +1,5 @@
 //! 翻译 API 的请求选项与响应数据模型。
 
-
 /// 翻译请求的附加选项。
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TranslateOptions {

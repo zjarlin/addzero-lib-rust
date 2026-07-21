@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 use image::RgbImage;
 
-
 /// 一帧已经解码成 RGB 的视频画面。
 ///
 /// 实时场景中该帧可以来自 ffmpeg、摄像头、RTSP、WebRTC 或测试中的内存构造。
@@ -147,10 +146,7 @@ pub trait VideoFrameAlgorithm {
     ///
     /// # Errors
     /// 模型推理、后处理或算法内部 I/O 失败时返回错误。
-    fn process_frame(
-        &mut self,
-        frame: &VideoFrame,
-    ) -> anyhow::Result<VideoAlgorithmFrameResult>;
+    fn process_frame(&mut self, frame: &VideoFrame) -> anyhow::Result<VideoAlgorithmFrameResult>;
 }
 
 /// 一个算法实例及其帧流调度策略。

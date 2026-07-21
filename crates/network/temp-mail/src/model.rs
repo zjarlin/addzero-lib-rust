@@ -1,7 +1,20 @@
 use serde_json::Value;
 
 /// 当前支持的具体临时邮箱 provider。
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    strum::IntoStaticStr,
+    strum::VariantArray,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum TempMailProviderKind {
@@ -61,9 +74,9 @@ impl PageRequest {
 impl Default for PageRequest {
     fn default() -> Self {
         PageRequest {
-    limit: 20,
-    offset: 0,
-}
+            limit: 20,
+            offset: 0,
+        }
     }
 }
 
@@ -271,11 +284,11 @@ impl From<&CreateMailboxRequest> for NewAddressRequest {
     fn from(value: &CreateMailboxRequest) -> Self {
         match value {
             value => NewAddressRequest {
-        name: value.name.clone(),
-        domain: value.domain.clone(),
-        cf_token: value.cf_token.clone(),
-        enable_random_subdomain: Some(value.enable_random_subdomain),
-    }
+                name: value.name.clone(),
+                domain: value.domain.clone(),
+                cf_token: value.cf_token.clone(),
+                enable_random_subdomain: Some(value.enable_random_subdomain),
+            },
         }
     }
 }
@@ -408,13 +421,13 @@ impl From<MailRow> for TempMailMessageSummary {
     fn from(value: MailRow) -> Self {
         match value {
             value => TempMailMessageSummary {
-        id: value.id.to_string(),
-        from_address: value.source.unwrap_or_default(),
-        from_name: String::new(),
-        subject: extract_raw_subject(value.raw.as_deref()).unwrap_or_default(),
-        intro: String::new(),
-        created_at: value.created_at.unwrap_or_default(),
-    }
+                id: value.id.to_string(),
+                from_address: value.source.unwrap_or_default(),
+                from_name: String::new(),
+                subject: extract_raw_subject(value.raw.as_deref()).unwrap_or_default(),
+                intro: String::new(),
+                created_at: value.created_at.unwrap_or_default(),
+            },
         }
     }
 }
@@ -446,27 +459,27 @@ impl From<MailRow> for TempMailMessageDetail {
     fn from(value: MailRow) -> Self {
         match value {
             value => {
-        let subject = extract_raw_subject(value.raw.as_deref()).unwrap_or_default();
-        TempMailMessageDetail {
-            id: value.id.to_string(),
-            from_address: value.source.unwrap_or_default(),
-            from_name: String::new(),
-            to: value
-                .address
-                .map(|address| {
-                    vec![TempMailRecipient {
-                        address,
-                        name: String::new(),
-                    }]
-                })
-                .unwrap_or_default(),
-            subject,
-            text: String::new(),
-            html: String::new(),
-            raw: value.raw.unwrap_or_default(),
-            created_at: value.created_at.unwrap_or_default(),
-        }
-    }
+                let subject = extract_raw_subject(value.raw.as_deref()).unwrap_or_default();
+                TempMailMessageDetail {
+                    id: value.id.to_string(),
+                    from_address: value.source.unwrap_or_default(),
+                    from_name: String::new(),
+                    to: value
+                        .address
+                        .map(|address| {
+                            vec![TempMailRecipient {
+                                address,
+                                name: String::new(),
+                            }]
+                        })
+                        .unwrap_or_default(),
+                    subject,
+                    text: String::new(),
+                    html: String::new(),
+                    raw: value.raw.unwrap_or_default(),
+                    created_at: value.created_at.unwrap_or_default(),
+                }
+            }
         }
     }
 }

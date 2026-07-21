@@ -12,7 +12,18 @@ pub trait Query {
 }
 
 /// Represents a SQL ORDER BY clause direction.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    derive_more::Display,
+    strum::EnumString,
+    strum::IntoStaticStr,
+    strum::VariantArray,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum SortOrder {
     /// Ascending order.
@@ -43,7 +54,18 @@ impl SortOrder {
 }
 
 /// Represents a SQL join type.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, derive_more::Display, strum::EnumString, strum::IntoStaticStr, strum::VariantArray)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    derive_more::Display,
+    strum::EnumString,
+    strum::IntoStaticStr,
+    strum::VariantArray,
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum JoinType {
     /// INNER JOIN.

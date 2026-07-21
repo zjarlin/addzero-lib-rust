@@ -254,9 +254,9 @@ pub struct WaitForSmsOptions {
 impl Default for WaitForSmsOptions {
     fn default() -> Self {
         WaitForSmsOptions {
-    timeout: Duration::from_secs(300),
-    interval: Duration::from_secs(5),
-}
+            timeout: Duration::from_secs(300),
+            interval: Duration::from_secs(5),
+        }
     }
 }
 

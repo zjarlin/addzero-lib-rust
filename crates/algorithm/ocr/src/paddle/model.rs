@@ -16,8 +16,7 @@ pub const RECOGNITION_ALGORITHM_CODE: &str = "ocr_text_recognition";
 pub const DEFAULT_DETECTION_RESULT_DIR: &str = "target/az-algorithm-results/ocr_text_detection";
 
 /// 默认识别输出目录。
-pub const DEFAULT_RECOGNITION_RESULT_DIR: &str =
-    "target/az-algorithm-results/ocr_text_recognition";
+pub const DEFAULT_RECOGNITION_RESULT_DIR: &str = "target/az-algorithm-results/ocr_text_recognition";
 
 /// 默认模型资源目录，基于本 crate 根目录解析。
 pub const DEFAULT_MODEL_RESOURCE_DIR: &str = "resources/ocr_text_recognition/models";

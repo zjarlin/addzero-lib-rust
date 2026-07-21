@@ -1,6 +1,5 @@
 //! Gradle Version Catalog 数据模型。
 
-
 /// `libs.versions.toml` 不存在时写入的默认模板。
 ///
 /// 模板只用于初始化空文件，调用方后续应通过 [`VersionCatalog`] 结构化读写实际 catalog 内容。

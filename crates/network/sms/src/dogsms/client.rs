@@ -698,7 +698,10 @@ impl DogSmsActivationOrder {
 
 #[async_trait::async_trait]
 impl SmsProvider for DogSmsClient {
-    async fn buy_activation_number(&self, request: SmsActivationRequest) -> anyhow::Result<SmsOrder> {
+    async fn buy_activation_number(
+        &self,
+        request: SmsActivationRequest,
+    ) -> anyhow::Result<SmsOrder> {
         let request = DogSmsActivationRequest::from_sms_request(&request)?;
         self.create_activation(request).await?.try_into_sms_order()
     }

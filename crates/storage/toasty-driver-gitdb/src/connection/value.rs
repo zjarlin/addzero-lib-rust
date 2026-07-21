@@ -37,9 +37,7 @@ pub(crate) fn to_json_value(value: &Value) -> anyhow::Result<JsonValue> {
                 .map(to_json_value)
                 .collect::<Result<Vec<_>, _>>()?,
         )),
-        other => bail!(
-            "unsupported gitdb/toasty value conversion: {other:?}"
-        ),
+        other => bail!("unsupported gitdb/toasty value conversion: {other:?}"),
     }
 }
 
@@ -132,8 +130,6 @@ pub(crate) fn from_json_value(value: JsonValue, ty: &stmt::Type) -> anyhow::Resu
                 .map(stmt::ValueRecord::from_vec)
                 .map(Value::from)
         }
-        (ty, value) => bail!(
-            "invalid gitdb result: cannot decode {value:?} as {ty:?}"
-        ),
+        (ty, value) => bail!("invalid gitdb result: cannot decode {value:?} as {ty:?}"),
     }
 }

@@ -75,11 +75,14 @@ fn cargo_bin_directory_is_not_collected() {
         automod::dir!(pub "src");
 
         pub fn assert_modules() {
-            assert_eq!(api::value(), "api");
+            assert_eq!(sample::value(), "sample");
         }
         "#,
     );
-    project.write("src/api.rs", r#"pub fn value() -> &'static str { "api" }"#);
+    project.write(
+        "src/sample.rs",
+        r#"pub fn value() -> &'static str { "sample" }"#,
+    );
     project.write(
         "src/bin/tool.rs",
         r#"compile_error!("src/bin must keep Cargo binary semantics");"#,

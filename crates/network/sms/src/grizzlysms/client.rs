@@ -277,7 +277,10 @@ impl GrizzlySmsClient {
 
 #[async_trait::async_trait]
 impl SmsProvider for GrizzlySmsClient {
-    async fn buy_activation_number(&self, request: SmsActivationRequest) -> anyhow::Result<SmsOrder> {
+    async fn buy_activation_number(
+        &self,
+        request: SmsActivationRequest,
+    ) -> anyhow::Result<SmsOrder> {
         let body = self.send_text(self.activation_url(&request)?).await?;
         parse_number_response(&body).map(|response| response.into_order(&request))
     }
@@ -411,13 +414,10 @@ fn parse_balance_response(body: &str) -> anyhow::Result<f64> {
 
         return Err(error);
     };
-    balance
-        .trim()
-        .parse()
-        .map_err(|_| {
-            let message = format!("invalid balance response: {body}");
-            provider_error(None, message)
-        })
+    balance.trim().parse().map_err(|_| {
+        let message = format!("invalid balance response: {body}");
+        provider_error(None, message)
+    })
 }
 
 fn parse_set_status_response(body: &str) -> anyhow::Result<()> {
