@@ -70,7 +70,7 @@ quote = "1.0.41"
 regex = "1.12.2"
 reqwest = { version = "0.12.24", default-features = false, features = ["blocking", "cookies", "json", "multipart", "rustls-tls"] }
 ring = "0.17.14"
-rudi = { version = "0.8.3", default-features = false }
+rudi = { version = "0.8.3", default-features = false, features = ["auto-register", "rudi-macro"] }
 rqrr = { version = "0.10.1", default-features = false, features = ["img"] }
 rusty-tesseract = "1.1.10"
 rumqttc = "0.25.1"
