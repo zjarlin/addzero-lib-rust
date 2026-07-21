@@ -23,7 +23,7 @@ az-area = { path = "../area" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_area::api::{AreaNode, AreaOps};
+use az_area::hierarchy::{AreaNode, AreaOps};
 use az_area::impl_area_node;
 use std::cmp::Ordering;
 

@@ -3,7 +3,7 @@ use az_rustfs::{
         DefaultS3StorageClientFactory, InMemoryS3StorageClient, S3StorageClient,
         S3StorageClientFactory,
     },
-    helper::{
+    upload::{
         build_list_request, calculate_optimal_part_size, generate_part_infos,
         get_presigned_object_url, should_use_multipart_upload, upload_multipart,
     },

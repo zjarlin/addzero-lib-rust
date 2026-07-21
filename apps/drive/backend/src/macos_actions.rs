@@ -1,7 +1,7 @@
 #![cfg(target_os = "macos")]
 
 use anyhow::{Context, Result};
-use az_str::api::{escape_xml, quote_posix_shell_single};
+use az_str::transformation::{escape_xml, quote_posix_shell_single};
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;

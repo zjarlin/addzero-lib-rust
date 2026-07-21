@@ -1,4 +1,4 @@
-use az_array::api::{
+use az_array::slice::{
     chunk, flatten_nested, frequencies, pad_left, partition, rotate_left, rotate_right, unique,
     window, zip_longest,
 };

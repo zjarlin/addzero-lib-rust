@@ -1,6 +1,6 @@
 use super::value::to_json_value;
 use anyhow::anyhow;
-use az_str::api::quote_sql_string_literal;
+use az_str::transformation::quote_sql_string_literal;
 use toasty_core::driver::operation::TypedValue;
 
 pub(crate) fn inline_indexed_params(sql: &str, params: &[TypedValue]) -> anyhow::Result<String> {

@@ -28,7 +28,7 @@ az-model = { path = "../model" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_model::api::{Identifiable, Timestamped, SoftDeletable, Auditable, Pageable, PageResult};
+use az_model::persistence::{Identifiable, Timestamped, SoftDeletable, Auditable, Pageable, PageResult};
 use chrono::{DateTime, Utc};
 
 // 实现 trait

@@ -6,7 +6,7 @@ use capability::CAPABILITY_GITDB;
 use sql::inline_indexed_params;
 use value::from_json_value;
 use async_trait::async_trait;
-use az_str::api::quote_sql_string_literal;
+use az_str::transformation::quote_sql_string_literal;
 use gitdb::db::{Database, DatabaseConfig};
 use gitdb::executor::QueryResult;
 use std::borrow::Cow;

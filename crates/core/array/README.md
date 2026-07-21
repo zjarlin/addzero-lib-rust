@@ -28,7 +28,7 @@ az-array = { path = "../array" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_array::api::{chunk, frequencies, partition, unique, zip_longest};
+use az_array::slice::{chunk, frequencies, partition, unique, zip_longest};
 
 // 分块
 assert_eq!(chunk(&[1, 2, 3, 4, 5], 2), vec![vec![1, 2], vec![3, 4], vec![5]]);

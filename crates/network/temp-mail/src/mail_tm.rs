@@ -5,7 +5,7 @@ use crate::model::{
     TempMailMessageSummary, TempMailProviderKind, TempMailRecipient,
 };
 use crate::provider::TempMailProvider;
-use crate::util::{random_alpha_numeric, sanitize_local_part, trim_non_blank};
+use crate::input::{random_alpha_numeric, sanitize_local_part, trim_non_blank};
 use anyhow::anyhow;
 use serde_json::{Value, json};
 

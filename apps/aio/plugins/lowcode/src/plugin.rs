@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use az_aio_platform::plugin::api::{
+use az_aio_platform::plugin::contract::{
     AdminCliContribution, AdminFieldContract, AdminFieldKind, AdminMenuNode, AdminMenuNodeKind,
     AdminMenuSection, AdminMenuTree, AdminOperationContract, AdminResourceContract,
     BackendApiContribution, ContributionSet, DynAdminPluginProvider, NativePluginContext,

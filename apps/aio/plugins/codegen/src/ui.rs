@@ -2,7 +2,7 @@
 
 //! 当前客户机 Rust 代码生成页面。
 
-use az_aio_platform::plugin::api::NativeRenderContext;
+use az_aio_platform::plugin::contract::NativeRenderContext;
 use dioxus::prelude::*;
 use registry::ui::{
     button::Button,

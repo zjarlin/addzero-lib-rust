@@ -4,7 +4,7 @@ use az_sandbox::sandbox::SandboxPolicy;
 use az_script_engine::script::{
     ScriptEngine, ScriptEngineFactory, ScriptEngineRegistry, ScriptInput, ScriptLang,
 };
-use az_script_engine_rhai::api::{RhaiEngine, RhaiEngineFactory, rhai_engine_registry};
+use az_script_engine_rhai::engine::{RhaiEngine, RhaiEngineFactory, rhai_engine_registry};
 use rhai::Engine;
 
 fn rhai_input(source: impl Into<String>, vars: BTreeMap<String, serde_json::Value>) -> ScriptInput {

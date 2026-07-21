@@ -28,7 +28,7 @@ az-admin-plugin-registry = { path = "../admin-plugin-registry" }       # workspa
 use az_admin_plugin_registry::{
     register_admin_domain, register_admin_page,
 };
-use az_admin_plugin_registry::api::{registered_domains, section_for_path};
+use az_admin_plugin_registry::navigation::{registered_domains, section_for_path};
 
 // 声明一个业务域
 register_admin_domain! {

@@ -1,7 +1,7 @@
 use crate::builder::CurlBuilder;
 use crate::model::ParsedCurl;
 use crate::parse_support::{next_flag_value, parse_method, split_form_field, split_header};
-use crate::util::normalize_command;
+use crate::normalization::normalize_command;
 use reqwest::Method;
 
 /// Parses a curl command string into a structured HTTP request.

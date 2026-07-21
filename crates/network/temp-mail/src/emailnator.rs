@@ -4,7 +4,7 @@ use crate::model::{
     TempMailMessageSummary, TempMailProviderKind,
 };
 use crate::provider::TempMailProvider;
-use crate::util::trim_non_blank;
+use crate::input::trim_non_blank;
 use crate::config::ApiConfig;
 use anyhow::{Context, anyhow, bail};
 use regex::Regex;

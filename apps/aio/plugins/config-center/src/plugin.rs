@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use az_aio_platform::{
-    plugin::api::{
+    plugin::contract::{
         AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
         DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
         PluginDescriptor,
@@ -86,7 +86,7 @@ pub fn config_center_plugin() -> DynAdminPluginProvider {
 
 #[cfg(test)]
 mod tests {
-    use az_aio_platform::plugin::api::PluginKind;
+    use az_aio_platform::plugin::contract::PluginKind;
 
     use super::*;
 

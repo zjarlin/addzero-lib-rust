@@ -2,7 +2,7 @@
 
 use std::io::{self, BufRead, Write};
 
-use super::api::Database;
+use super::database::Database;
 use crate::executor::QueryResult;
 
 /// REPL configuration.

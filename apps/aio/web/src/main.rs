@@ -49,7 +49,7 @@ fn main() -> Result<()> {
         }
     };
 
-    let native_context = az_aio_platform::plugin::api::NativePluginContext {
+    let native_context = az_aio_platform::plugin::contract::NativePluginContext {
         api_base_url: String::new(),
         config_dir: std::path::PathBuf::from("."),
         data_dir: std::path::PathBuf::from("."),
@@ -131,7 +131,7 @@ async fn root_page(
 
 async fn client_bootstrap(
     State(snapshot): State<az_aio_platform::plugin::host::HostSnapshot>,
-) -> Json<az_aio_platform::plugin::api::ClientBootstrapPayload> {
+) -> Json<az_aio_platform::plugin::contract::ClientBootstrapPayload> {
     Json(host::client_bootstrap_payload(
         &snapshot,
         default_route(&snapshot),
@@ -217,7 +217,7 @@ fn enable_plugin_providers() {
 
 #[cfg(test)]
 mod tests {
-    use az_aio_platform::plugin::api::{DynAdminPluginProvider, NativePluginContext};
+    use az_aio_platform::plugin::contract::{DynAdminPluginProvider, NativePluginContext};
 
     use super::*;
 
@@ -372,7 +372,7 @@ mod tests {
     }
 
     fn menu_node_contains_href(
-        node: &az_aio_platform::plugin::api::AdminMenuNode,
+        node: &az_aio_platform::plugin::contract::AdminMenuNode,
         href: &str,
     ) -> bool {
         node.href == href

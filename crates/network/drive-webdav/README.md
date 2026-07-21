@@ -25,8 +25,8 @@ az-drive-webdav = { path = "../drive-webdav" }  # workspace 内部引用
 ## 用法
 
 ```rust,no_run
-use az_drive_store::api::{DriveMetadataStore, DriveObjectStore};
-use az_drive_webdav::api::{DriveWebdavState, drive_webdav_router};
+use az_drive_store::store::{DriveMetadataStore, DriveObjectStore};
+use az_drive_webdav::routes::{DriveWebdavState, drive_webdav_router};
 use std::sync::Arc;
 
 # fn my_metadata_store() -> Arc<dyn DriveMetadataStore> {

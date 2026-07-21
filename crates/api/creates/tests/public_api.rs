@@ -1,4 +1,4 @@
-use az_creates::api::{
+use az_creates::clients::{
     ApiConfig, BuiltinEmailSenderFactory, BuiltinSmsProviderFactory,
     BuiltinTempMailProviderFactory, Creates, DogSmsConfig, EmailConfig, EmailSenderConfig,
     EmailSenderFactory, EmailSenderKind, EmailnatorEmailMode, EmailnatorEmailRequest,

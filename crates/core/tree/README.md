@@ -25,7 +25,7 @@ az-tree = { path = "../tree" }  # workspace 内部引用
 ## 用法
 
 ```rust
-use az_tree::api::build_tree;
+use az_tree::tree::build_tree;
 
 // 从扁平列表构建树
 let items = vec![
@@ -51,7 +51,7 @@ let path = root.ancestors(&4);            // [1, 2, 4]
 let all = root.flatten();                 // [1, 2, 4, 3]
 
 // 使用 try_build_tree 进行安全构建
-use az_tree::api::try_build_tree;
+use az_tree::tree::try_build_tree;
 let result = try_build_tree(vec![(1, Some(99))]);
 assert!(result.is_err());                 // 缺失父节点 99
 ```

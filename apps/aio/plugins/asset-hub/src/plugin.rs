@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use az_aio_platform::{
     admin_scenes::{KNOWLEDGE_BASE_DOMAIN_ID, KNOWLEDGE_BASE_DOMAIN_LABEL},
-    plugin::api::{
+    plugin::contract::{
         AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
         DynAdminPluginProvider, NativePluginContext, NativePluginProvider, NativePluginRuntime,
         PluginDescriptor,
@@ -76,7 +76,7 @@ pub fn asset_hub_plugin() -> DynAdminPluginProvider {
 
 #[cfg(test)]
 mod tests {
-    use az_aio_platform::plugin::api::PluginKind;
+    use az_aio_platform::plugin::contract::PluginKind;
 
     use super::*;
 

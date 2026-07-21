@@ -1,4 +1,4 @@
-use az_admin_plugin_registry::api::{
+use az_admin_plugin_registry::navigation::{
     AdminNavigationKind, path_matches_patterns, registered_domains, section_for_path,
 };
 

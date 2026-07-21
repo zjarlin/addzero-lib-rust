@@ -1,4 +1,4 @@
-use crate::util::{required_non_blank, trim_non_blank};
+use crate::input::{required_non_blank, trim_non_blank};
 use crate::client::CloudflareTempMailApi;
 use crate::config::ApiConfig;
 use crate::model::{CreateMailboxRequest, NewAddressRequest};

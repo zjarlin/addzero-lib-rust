@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 use az_sandbox::sandbox::SandboxPolicy;
 use az_script_engine::script::{ScriptEngine, ScriptInput, ScriptLang};
-use az_script_engine_rhai::api::RhaiEngine;
+use az_script_engine_rhai::engine::RhaiEngine;
 
 let engine = RhaiEngine::new();
 let output = engine.run(ScriptInput {
@@ -34,7 +34,7 @@ assert_eq!(output.exit_code, 0);
 
 ```rust
 use az_script_engine::script::{ScriptEngineFactory, ScriptLang};
-use az_script_engine_rhai::api::RhaiEngineFactory;
+use az_script_engine_rhai::engine::RhaiEngineFactory;
 
 let factory = RhaiEngineFactory;
 assert_eq!(factory.lang(), ScriptLang::Rhai);

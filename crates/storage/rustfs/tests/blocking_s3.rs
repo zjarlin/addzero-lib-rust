@@ -3,7 +3,7 @@ use az_rustfs::{
     progress::{PartInfo, PartStatus},
     types::S3ClientConfig,
 };
-use az_str::api::escape_xml;
+use az_str::transformation::escape_xml;
 use quick_xml::Reader;
 use quick_xml::events::Event;
 use std::collections::{BTreeMap, HashMap};

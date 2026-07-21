@@ -27,7 +27,7 @@ az-ssh = { path = "../ssh" }             # workspace 内部引用
 ### 使用密码连接并执行命令
 
 ```rust,no_run
-use az_ssh::api::{SshConfig, execute_sync};
+use az_ssh::client::{SshConfig, execute_sync};
 
 fn main() -> anyhow::Result<()> {
 let config = SshConfig::builder("192.168.1.100", "root")
@@ -46,7 +46,7 @@ Ok(())
 ### 使用私钥连接并上传文件
 
 ```rust,no_run
-use az_ssh::api::{SshConfig, SshSession};
+use az_ssh::client::{SshConfig, SshSession};
 
 fn main() -> anyhow::Result<()> {
 let config = SshConfig::builder("example.com", "deploy")
@@ -63,7 +63,7 @@ Ok(())
 ### 流式读取远程命令输出
 
 ```rust,no_run
-use az_ssh::api::{SshConfig, execute_stream};
+use az_ssh::client::{SshConfig, execute_stream};
 
 fn main() -> anyhow::Result<()> {
 let config = SshConfig::builder("example.com", "admin")

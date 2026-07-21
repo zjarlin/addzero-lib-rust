@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use az_desktop_plugin::api::{
+use az_desktop_plugin::contract::{
     DesktopActionOutcome, DesktopBranchRegistration, DesktopContributions,
     DesktopDomainRegistration, DesktopEvent, DesktopExecContext, DesktopHostRegistry,
     DesktopHostServices, DesktopInitContext, DesktopPageContributionSpec, DesktopPageRegistration,
@@ -15,8 +15,8 @@ use uuid::Uuid;
 struct FakeServices;
 
 impl DesktopHostServices for FakeServices {
-    fn load_drive_snapshot(&self) -> Result<az_desktop_plugin::api::DesktopDriveSnapshot, String> {
-        Ok(az_desktop_plugin::api::DesktopDriveSnapshot::default())
+    fn load_drive_snapshot(&self) -> Result<az_desktop_plugin::contract::DesktopDriveSnapshot, String> {
+        Ok(az_desktop_plugin::contract::DesktopDriveSnapshot::default())
     }
 
     fn drive_host_path(&self, _path: &str) -> Result<String, String> {
@@ -50,14 +50,14 @@ impl DesktopHostServices for FakeServices {
         Ok(Vec::new())
     }
 
-    fn drive_conflicts(&self) -> Result<Vec<az_drive_store::api::DriveConflict>, String> {
+    fn drive_conflicts(&self) -> Result<Vec<az_drive_store::store::DriveConflict>, String> {
         Ok(Vec::new())
     }
 
     fn drive_sync_queue(
         &self,
-        _status: Option<az_drive_store::api::DriveSyncTaskStatus>,
-    ) -> Result<Vec<az_drive_store::api::DriveSyncQueueItem>, String> {
+        _status: Option<az_drive_store::store::DriveSyncTaskStatus>,
+    ) -> Result<Vec<az_drive_store::store::DriveSyncQueueItem>, String> {
         Ok(Vec::new())
     }
 

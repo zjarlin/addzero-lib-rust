@@ -25,7 +25,7 @@ az-dict-spec = { path = "../dict-spec" }  # workspace 内部引用
 ## 用法
 
 ```rust
-use az_dict_spec::api::{DictionarySpec, RawValueKind};
+use az_dict_spec::specification::{DictionarySpec, RawValueKind};
 
 let json = r#"{
     "code": "gender",

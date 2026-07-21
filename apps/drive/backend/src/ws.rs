@@ -45,8 +45,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use anyhow::Context;
 use az_crdt::document::LineCrdtDocument;
-use az_drive_core::api::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
-use az_drive_store::api::{DriveEntryKind, DriveMetadataStore, DriveObjectStore};
+use az_drive_core::model::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
+use az_drive_store::store::{DriveEntryKind, DriveMetadataStore, DriveObjectStore};
 use axum::extract::ws::{Message, WebSocket};
 use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
@@ -262,7 +262,7 @@ impl CrdtSyncState {
         self.objects.put_object(&object_key, snapshot.as_bytes()).await?;
         let key = self.entry_key(remote_path)?;
         let entry = self.metadata.upsert_entry(&key, DriveEntryKind::File).await?;
-        let version = az_drive_store::api::DriveVersion {
+        let version = az_drive_store::store::DriveVersion {
             id: uuid::Uuid::new_v4(),
             entry_id: entry.id,
             version: entry.latest_version.saturating_add(1),
@@ -284,7 +284,7 @@ impl CrdtSyncState {
         self.objects.put_object(&object_key, data).await?;
         let key = self.entry_key(remote_path)?;
         let entry = self.metadata.upsert_entry(&key, DriveEntryKind::File).await?;
-        let version = az_drive_store::api::DriveVersion {
+        let version = az_drive_store::store::DriveVersion {
             id: uuid::Uuid::new_v4(),
             entry_id: entry.id,
             version: entry.latest_version.saturating_add(1),

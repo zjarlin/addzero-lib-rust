@@ -5,12 +5,12 @@
 //! 无需手动的 Git 式人工干预。
 
 use anyhow::Context;
-use az_drive_core::api::{
+use az_drive_core::model::{
     ChangeDecision, EntryKey, HostPathMapping, RelativePath, RootAlias, RootRegistry, conflict_file_name,
     content_hash, decide_local_change, expand_path_expression, normalize_absolute_path,
     object_key_for_hash, try_safe_text_merge,
 };
-use az_drive_store::api::{
+use az_drive_store::store::{
     DriveConflict, DriveEntry, DriveEntryKind, DriveIgnoredPath, DriveMetadataStore,
     DriveObjectStore, DriveSuspendedPath, DriveSyncCoordinator, DriveSyncQueueItem,
     DriveSyncTaskKind, DriveSyncTaskStatus, DriveVersion, NoopDriveSyncCoordinator,

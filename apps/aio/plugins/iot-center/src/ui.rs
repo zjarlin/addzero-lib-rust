@@ -2,7 +2,7 @@
 
 //! 物联网中心 SSR 页面。
 
-use az_aio_platform::plugin::api::NativeRenderContext;
+use az_aio_platform::plugin::contract::NativeRenderContext;
 use dioxus::prelude::*;
 use registry::ui::{
     badge::Badge,

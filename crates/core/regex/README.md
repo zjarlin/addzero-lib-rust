@@ -23,7 +23,7 @@ az-regex = { path = "../regex" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_regex::api::{CachedRegex, extract_all, is_valid_pattern};
+use az_regex::cached_regex::{CachedRegex, extract_all, is_valid_pattern};
 
 // 编译一次，多次使用
 let re = CachedRegex::new(r"\d+").unwrap();

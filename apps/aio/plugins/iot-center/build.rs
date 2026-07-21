@@ -1,8 +1,8 @@
 use std::env;
 
 use anyhow::{Context, Result};
-use az_dict_spec::api::{DictionaryItemSpec, DictionarySpec, RawValueKind};
-use az_micro_dict::api::{DictBuildGenerator, DictionaryContribution, StaticDictionaryContributor};
+use az_dict_spec::specification::{DictionaryItemSpec, DictionarySpec, RawValueKind};
+use az_micro_dict::contribution::{DictBuildGenerator, DictionaryContribution, StaticDictionaryContributor};
 
 fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=build.rs");

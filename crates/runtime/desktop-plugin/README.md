@@ -25,7 +25,7 @@ az-desktop-plugin = { path = "../desktop-plugin" }       # workspace 内部引�
 ## 用法
 
 ```rust
-use az_desktop_plugin::api::{
+use az_desktop_plugin::contract::{
     DesktopInitContext, DesktopEvent, DesktopExecContext,
     DesktopViewContext, DesktopRenderLayer, EventPropagation, Plugin,
 };

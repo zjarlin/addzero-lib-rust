@@ -3,7 +3,7 @@ use crate::loopback::LoopbackAuthorizationSession;
 use crate::model::{OAuth2DeviceAuthorization, OAuth2DeviceTokenPoll, OAuth2TokenResponse};
 use crate::pkce::{PkcePair, generate_pkce_pair, generate_state};
 use anyhow::{Context, anyhow, bail};
-use az_str::api::ensure_leading_slash;
+use az_str::transformation::ensure_leading_slash;
 use reqwest::Url;
 use reqwest::blocking::{Client, Response};
 use serde::de::DeserializeOwned;
@@ -51,7 +51,9 @@ impl OAuth2Client {
             authorization_url,
             token_url,
             device_authorization_url,
-            client: builder.build().context("failed to build OAuth2 HTTP client")?,
+            client: builder
+                .build()
+                .context("failed to build OAuth2 HTTP client")?,
         })
     }
 
@@ -112,7 +114,10 @@ impl OAuth2Client {
         mut options: AuthorizationCodeOptions,
     ) -> anyhow::Result<LoopbackAuthorizationSession> {
         let listener = TcpListener::bind(&options.loopback_bind_addr).with_context(|| {
-            format!("failed to bind OAuth2 loopback listener `{}`", options.loopback_bind_addr)
+            format!(
+                "failed to bind OAuth2 loopback listener `{}`",
+                options.loopback_bind_addr
+            )
         })?;
         let local_addr = listener
             .local_addr()
@@ -350,7 +355,7 @@ mod tests {
     use crate::config::{AuthorizationCodeOptions, OAuth2Config};
     use crate::model::{OAuth2DeviceTokenPoll, OAuth2TokenResponse};
     use crate::pkce::PkcePair;
-        use std::io::{Read, Write};
+    use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread::{self, JoinHandle};
     use std::time::Duration;
@@ -519,13 +524,13 @@ mod tests {
     }
 
     #[derive(Clone, Debug)]
-struct CapturedRequest {
+    struct CapturedRequest {
         path: String,
         body: String,
     }
 
     #[derive(Clone, Debug)]
-struct TestResponse {
+    struct TestResponse {
         status: u16,
         content_type: &'static str,
         body: String,

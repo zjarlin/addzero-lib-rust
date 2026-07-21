@@ -34,7 +34,7 @@ az-math = { path = "../math" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_math::api::{
+use az_math::optimization::{
     ConstraintRelation, GoalType, LinearConstraint, LinearObjective,
     LinearProgrammingProblem, create_matrix, transpose_matrix,
 };

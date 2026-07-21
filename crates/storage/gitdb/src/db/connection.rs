@@ -6,7 +6,7 @@ use std::rc::Rc;
 use anyhow::bail;
 use parking_lot::{Mutex, RwLock};
 
-use super::api::DatabaseConfig;
+use super::database::DatabaseConfig;
 use crate::executor::QueryExecutor;
 use crate::storage::GitRepository;
 

@@ -4,7 +4,7 @@
 //! 投射成 shell 可消费的导航、页面、toolbar 与 API 契约。
 
 use crate::{
-    plugin::api::{
+    plugin::contract::{
         AdminCliContribution, AdminFieldContract, AdminFieldKind, AdminMenuTree,
         AdminOperationContract, AdminPluginContribution, AdminPluginProvider,
         AdminResourceContract, BackendApiContribution, ContributionSet, NativePluginContext,
@@ -13,7 +13,7 @@ use crate::{
         UiContributionSlot,
     },
     system::{
-        api::{system_admin_router, SystemAdminApiState},
+        routes::{system_admin_router, SystemAdminApiState},
         catalog::{
             SYSTEM_DOMAIN_ID, SYSTEM_DOMAIN_LABEL, SYSTEM_RENDERER_ID, SYSTEM_SIDEBAR_RENDERER_ID,
             SystemFieldKind, SystemPageView, starter_backed_system_pages, system_dashboard_view,
@@ -27,7 +27,7 @@ use crate::{
 use rudi::Singleton;
 use std::sync::Arc;
 
-use crate::plugin::api::DynAdminPluginProvider;
+use crate::plugin::contract::DynAdminPluginProvider;
 
 #[derive(Clone, Debug, Default)]
 pub struct AdminProvider;

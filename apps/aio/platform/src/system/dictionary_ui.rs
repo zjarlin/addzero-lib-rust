@@ -14,7 +14,7 @@ use registry::ui::{
     table::{Table, TableHead, TableHeader, TableRow},
 };
 
-use crate::plugin::api::NativeRenderContext;
+use crate::plugin::contract::NativeRenderContext;
 
 /// 字典管理专用 renderer 标识。
 pub const DICTIONARY_RENDERER_ID: &str = "system.dictionary.page";

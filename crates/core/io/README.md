@@ -27,7 +27,7 @@ az-io = { path = "../io" }       # workspace 内部引用
 ## 用法
 
 ```rust,no_run
-use az_io::api::{MoveLink, PathExt, mvln};
+use az_io::filesystem::{MoveLink, PathExt, mvln};
 use std::path::Path;
 
 fn main() -> anyhow::Result<()> {
@@ -38,7 +38,7 @@ let new_path = mvln("data.db", "/mnt/external")?;
 let new_path = MoveLink::new("data.db").to("/mnt/external").move_and_link()?;
 
 // 撤销操作
-az_io::api::undo_mvln("data.db")?;
+az_io::filesystem::undo_mvln("data.db")?;
 
 // 确保目录存在
 Path::new("./output/logs").ensure_dir()?;

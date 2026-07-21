@@ -5,7 +5,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use az_str::api::collapse_whitespace;
+use az_str::transformation::collapse_whitespace;
 use reqwest::Url;
 use scraper::{ElementRef, Html, Selector};
 

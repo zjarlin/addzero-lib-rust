@@ -7,7 +7,7 @@ use az_drive_agent::{
     agent::{DriveAgent, DriveAgentConfig, HostedStatus},
     local_state::{LocalState, LocalStateStore},
 };
-use az_drive_store::api::{
+use az_drive_store::store::{
     DEFAULT_AUTO_GIT_POOL_PREFIX, DEFAULT_BLOB_SHARD_PREFIX, DEFAULT_GIT_POOL_LIMIT_BYTES,
     DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES, DriveMetadataStore, DriveObjectStore, DriveSyncCoordinator,
     GitDbObjectStore, GitDbObjectStoreConfig, GitPoolConfig, GitPoolDriveStore, GitPoolRepoConfig,

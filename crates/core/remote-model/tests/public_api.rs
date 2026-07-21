@@ -1,4 +1,4 @@
-use az_remote_model::api::{
+use az_remote_model::contract::{
     DeviceDescriptor, DeviceRole, KeyState, OnlineStatus, PointerButton, RemoteInputEvent,
     RemotePlatform, SessionCapability, SessionState, VideoCodec,
 };

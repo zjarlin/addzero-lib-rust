@@ -1,5 +1,5 @@
 use crate::http::HttpApiClient;
-use crate::util::{
+use crate::signature::{
     canonical_query_string, canonical_uri, encode_url_component, hex_string, sha256_hex,
     trim_non_blank,
 };
@@ -529,7 +529,7 @@ mod tests {
         let headers = api.sign_headers("GET", &url, None, Some("20260421T120000Z"))?;
 
         assert_eq!(
-            crate::util::canonical_query_string(&url),
+            crate::signature::canonical_query_string(&url),
             "keyword=%E6%B5%8B%E8%AF%95&pageNum=2&pageSize=20"
         );
         assert_eq!(

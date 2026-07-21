@@ -1,8 +1,8 @@
 use anyhow::{Result, bail};
 use axum::http::HeaderMap;
-use az_drive_core::api::EntryKey;
+use az_drive_core::model::EntryKey;
 
-use crate::api::{entry_key, header_or};
+use crate::routes::{entry_key, header_or};
 
 pub(crate) fn destination_key(headers: &HeaderMap) -> Result<EntryKey> {
     let destination = header_or(headers, "destination", "")?;

@@ -1,4 +1,4 @@
-use az_model::api::{Auditable, Identifiable, PageResult, Pageable, SoftDeletable, Timestamped};
+use az_model::persistence::{Auditable, Identifiable, PageResult, Pageable, SoftDeletable, Timestamped};
 use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug)]

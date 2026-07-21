@@ -25,7 +25,7 @@ az-pinyin = { path = "../pinyin" }        # workspace 内部引用
 ### 汉字转拼音
 
 ```rust
-use az_pinyin::api::hanzi_to_pinyin;
+use az_pinyin::conversion::hanzi_to_pinyin;
 
 let result = hanzi_to_pinyin("你好世界", Some(" "));
 assert_eq!(result, "ni hao shi jie");
@@ -34,7 +34,7 @@ assert_eq!(result, "ni hao shi jie");
 ### 单字转拼音（含多音字）
 
 ```rust
-use az_pinyin::api::char_to_pinyin;
+use az_pinyin::conversion::char_to_pinyin;
 
 // 单音字
 let result = char_to_pinyin('中', false, None);
@@ -48,7 +48,7 @@ assert_eq!(result, "xing/hang/heng");
 ### 多字串转拼音
 
 ```rust
-use az_pinyin::api::string_to_pinyin;
+use az_pinyin::conversion::string_to_pinyin;
 
 let result = string_to_pinyin(Some("中国"), false, Some(" "));
 assert_eq!(result, Some(vec!["zhong".to_string(), "guo".to_string()]));
@@ -57,7 +57,7 @@ assert_eq!(result, Some(vec!["zhong".to_string(), "guo".to_string()]));
 ### 拼音首字母
 
 ```rust
-use az_pinyin::api::get_head_by_string;
+use az_pinyin::conversion::get_head_by_string;
 
 let heads = get_head_by_string("世界", true, None);
 assert_eq!(heads, vec!["S".to_string(), "J".to_string()]);
@@ -66,7 +66,7 @@ assert_eq!(heads, vec!["S".to_string(), "J".to_string()]);
 ### 标识符清洗
 
 ```rust
-use az_pinyin::api::sanitize;
+use az_pinyin::conversion::sanitize;
 
 // 正常中文 → 拼音大写
 let result = sanitize("我的文件", "DEFAULT");

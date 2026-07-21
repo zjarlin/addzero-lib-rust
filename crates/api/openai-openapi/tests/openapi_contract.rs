@@ -1,4 +1,4 @@
-use az_openai_openapi::api::{OpenAiChatApi, OpenAiResponsesApi, OpenAiVectorStoresApi};
+use az_openai_openapi::contract::{OpenAiChatApi, OpenAiResponsesApi, OpenAiVectorStoresApi};
 use az_openai_openapi::models::{
     CreateChatCompletionRequest, CreateChatCompletionResponse, CreateResponse, Response,
 };

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use axum::{Router, extract::WebSocketUpgrade, routing::get};
 use az_crdt::document::LineCrdtDocument;
 use az_drive_app::ws::{CrdtSyncState, handle_crdt_sync};
-use az_drive_store::api::{InMemoryDriveMetadataStore, InMemoryDriveObjectStore};
+use az_drive_store::store::{InMemoryDriveMetadataStore, InMemoryDriveObjectStore};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use tokio::net::TcpListener;
@@ -254,7 +254,7 @@ async fn binary_upload_single_chunk() {
     assert_eq!(ack["remote_path"], "images/photo.png");
     assert_eq!(ack["size_bytes"].as_u64().unwrap(), payload.len() as u64);
     // Verify the hash matches.
-    let expected_hash = az_drive_core::api::content_hash(payload);
+    let expected_hash = az_drive_core::model::content_hash(payload);
     assert_eq!(ack["hash"].as_str().unwrap(), expected_hash);
 
     let _ = client.close(None).await;

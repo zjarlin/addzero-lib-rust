@@ -18,12 +18,14 @@ members = [
 ]
 exclude = [
     "apps/aio/desktop",
+    "crates/data/az-crud-base",
     "crates/data/crud-base",
     "crates/network/browser-automation",
     "crates/runtime/admin-domain-audit",
     "crates/ui/remote-ui",
     "crates/ui/dioxus-components",
     "crates/ui/dioxus-nox-markdown",
+    "crates/text/az-str",
 ]
 
 [workspace.package]
@@ -130,6 +132,7 @@ az-desktop-plugin = { version = "=2026.5.10", path = "crates/runtime/desktop-plu
 az-desktop-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/desktop-plugin-registry" }
 az-drive-agent = { version = "=2026.5.10", path = "crates/runtime/drive-agent" }
 az-engine = { version = "=2026.5.10", path = "crates/runtime/engine" }
+az-error = { version = "=2026.5.10", path = "crates/core/error" }
 az-drive-core = { version = "=2026.5.10", path = "crates/storage/drive-core" }
 az-drive-store = { version = "=2026.5.10", path = "crates/storage/drive-store" }
 az-drive-webdav = { version = "=2026.5.10", path = "crates/network/drive-webdav" }

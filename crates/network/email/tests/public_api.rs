@@ -1,4 +1,4 @@
-use az_email::api::EmailConfig;
+use az_email::sender::EmailConfig;
 
 #[test]
 fn email_config_debug_does_not_leak_password() {

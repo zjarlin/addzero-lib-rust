@@ -6,11 +6,11 @@ use ignore::WalkBuilder;
 use tokio::task;
 use tree_sitter::{Node, Parser, Point};
 
-use crate::api::{
+use crate::scan::{
     ByteRange, FileDiagnosticReport, ProjectDiagnosticReport, ProjectScanOptions, SkipReason,
     ProjectSourceFile, SkippedFile, SourceRange, SyntaxDiagnostic, SyntaxDiagnosticKind,
 };
-use crate::api::SourceLanguage;
+use crate::scan::SourceLanguage;
 
 pub(crate) async fn scan_project(
     root: PathBuf,

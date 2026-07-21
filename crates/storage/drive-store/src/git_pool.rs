@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use anyhow::{anyhow, bail};
-use az_drive_core::api::{EntryKey, RelativePath, RootAlias};
+use az_drive_core::model::{EntryKey, RelativePath, RootAlias};
 use chrono::Utc;
 use serde::{Serialize, de::DeserializeOwned};
 use std::collections::BTreeMap;
@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use uuid::Uuid;
 
-use crate::api::{
+use crate::store::{
     DriveConflict, DriveEntry, DriveEntryKind, DriveIgnoredPath, DriveLock, DriveMetadataStore,
     DriveObjectStore, DriveSuspendedPath, DriveSyncCoordinator, DriveSyncQueueItem,
     DriveSyncTaskStatus, DriveVersion,
@@ -1365,8 +1365,8 @@ fn default_auto_pool_prefix() -> String {
 #[cfg(test)]
 mod tests {
     use super::{DEFAULT_AUTO_GIT_POOL_PREFIX, GitPoolConfig, GitPoolDriveStore};
-    use crate::api::{DriveEntryKind, DriveMetadataStore, DriveObjectStore, DriveVersion};
-    use az_drive_core::api::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
+    use crate::store::{DriveEntryKind, DriveMetadataStore, DriveObjectStore, DriveVersion};
+    use az_drive_core::model::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
     use chrono::Utc;
     use uuid::Uuid;
 

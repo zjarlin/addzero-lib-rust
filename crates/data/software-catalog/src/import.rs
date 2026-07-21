@@ -544,7 +544,7 @@ fn default_favicon_url(url: &Url) -> String {
 
 #[cfg(test)]
 mod tests {
-    use az_str::api::unescape_basic_html_entities;
+    use az_str::transformation::unescape_basic_html_entities;
 
     #[test]
     fn html_unescape_should_decode_common_entities() {

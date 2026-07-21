@@ -1,4 +1,4 @@
-use crate::util::trim_non_blank;
+use crate::input::trim_non_blank;
 use crate::config::ApiConfig;
 use anyhow::{Context, bail};
 use reqwest::Url;

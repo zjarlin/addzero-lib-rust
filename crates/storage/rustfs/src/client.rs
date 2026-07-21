@@ -1,7 +1,7 @@
 use crate::progress::{InMemoryUploadProgressStorage, PartInfo};
 use crate::types::{ObjectMetadata, PresignedUrl, RustfsConfig, S3ClientConfig};
-use anyhow::{anyhow, bail, Context};
-use az_str::api::escape_xml;
+use anyhow::{Context, anyhow, bail};
+use az_str::transformation::escape_xml;
 use base64::Engine as _;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
@@ -62,7 +62,8 @@ pub trait S3StorageClient: Send + Sync {
         metadata: &BTreeMap<String, String>,
     ) -> anyhow::Result<()>;
     fn get_object(&self, bucket_name: &str, key: &str) -> anyhow::Result<Vec<u8>>;
-    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> anyhow::Result<()>;
+    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path)
+    -> anyhow::Result<()>;
     fn delete_object(&self, bucket_name: &str, key: &str) -> anyhow::Result<()>;
     fn delete_objects(&self, bucket_name: &str, keys: &[String]) -> anyhow::Result<()>;
     fn copy_object(
@@ -148,9 +149,7 @@ impl DefaultS3StorageClientFactory {
 
 impl Default for DefaultS3StorageClientFactory {
     fn default() -> Self {
-        DefaultS3StorageClientFactory::new(|| {
-        S3ClientConfig::from(RustfsConfig::default())
-    })
+        DefaultS3StorageClientFactory::new(|| S3ClientConfig::from(RustfsConfig::default()))
     }
 }
 
@@ -285,8 +284,9 @@ impl BlockingS3StorageClient {
             raw_url.push_str(&canonical_query);
         }
 
-        let url = Url::parse(&raw_url)
-            .with_context(|| format!("invalid storage configuration: failed to build request URL `{raw_url}`"))?;
+        let url = Url::parse(&raw_url).with_context(|| {
+            format!("invalid storage configuration: failed to build request URL `{raw_url}`")
+        })?;
 
         Ok(RequestTarget {
             host_header: build_host_header(&url)?,
@@ -395,7 +395,9 @@ impl BlockingS3StorageClient {
         expiration_seconds: u64,
     ) -> anyhow::Result<PresignedUrl> {
         if expiration_seconds == 0 {
-            bail!("invalid storage configuration: presigned URL expiration must be greater than zero");
+            bail!(
+                "invalid storage configuration: presigned URL expiration must be greater than zero"
+            );
         }
         if expiration_seconds > 7 * 24 * 60 * 60 {
             bail!("invalid storage configuration: presigned URL expiration cannot exceed 7 days");
@@ -618,10 +620,17 @@ impl S3StorageClient for BlockingS3StorageClient {
         response
             .bytes()
             .map(|bytes| bytes.to_vec())
-            .map_err(|error| anyhow!("storage backend error: failed to read response body: {error}"))
+            .map_err(|error| {
+                anyhow!("storage backend error: failed to read response body: {error}")
+            })
     }
 
-    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> anyhow::Result<()> {
+    fn get_object_to_file(
+        &self,
+        bucket_name: &str,
+        key: &str,
+        target: &Path,
+    ) -> anyhow::Result<()> {
         let bytes = self.get_object(bucket_name, key)?;
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)?;
@@ -778,7 +787,12 @@ impl S3StorageClient for BlockingS3StorageClient {
         let body =
             response_to_text(self.ensure_success(response, Some(bucket_name), Some(key))?)?;
         collect_first_path_text(&body, &["InitiateMultipartUploadResult", "UploadId"])?.ok_or_else(
-            || anyhow!("storage backend error: {}", "multipart upload response missing UploadId".to_owned()),
+            || {
+                anyhow!(
+                    "storage backend error: {}",
+                    "multipart upload response missing UploadId".to_owned()
+                )
+            },
         )
     }
 
@@ -948,7 +962,11 @@ fn response_to_storage_error(
             anyhow!("bucket `{}` was not found", bucket_name.to_owned())
         }
         (StatusCode::NOT_FOUND, Some("NoSuchKey"), Some(bucket_name), Some(key)) => {
-            anyhow!("object `{}/{}` was not found", bucket_name.to_owned(), key.to_owned())
+            anyhow!(
+                "object `{}/{}` was not found",
+                bucket_name.to_owned(),
+                key.to_owned()
+            )
         }
         (StatusCode::NOT_FOUND, _, Some(bucket_name), Some(key)) => {
             anyhow!("object `{}/{}` was not found", bucket_name, key)
@@ -1066,7 +1084,9 @@ fn parse_list_objects_response(xml: &str) -> anyhow::Result<ParsedListObjectsRes
             }
             Ok(Event::End(element)) => {
                 let name = local_name(element.name().as_ref());
-                if name == "Contents" && let Some(current) = current.take() {
+                if name == "Contents"
+                    && let Some(current) = current.take()
+                {
                     objects.push(ObjectMetadata {
                         key: current.key,
                         size: current.size,
@@ -1541,10 +1561,21 @@ impl S3StorageClient for InMemoryS3StorageClient {
             .get(bucket_name)
             .and_then(|bucket| bucket.get(key))
             .map(|object| object.bytes.clone())
-            .ok_or_else(|| anyhow!("object `{}/{}` was not found", bucket_name.to_owned(), key.to_owned()))
+            .ok_or_else(|| {
+                anyhow!(
+                    "object `{}/{}` was not found",
+                    bucket_name.to_owned(),
+                    key.to_owned()
+                )
+            })
     }
 
-    fn get_object_to_file(&self, bucket_name: &str, key: &str, target: &Path) -> anyhow::Result<()> {
+    fn get_object_to_file(
+        &self,
+        bucket_name: &str,
+        key: &str,
+        target: &Path,
+    ) -> anyhow::Result<()> {
         let bytes = self.get_object(bucket_name, key)?;
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent)?;
@@ -1558,7 +1589,13 @@ impl S3StorageClient for InMemoryS3StorageClient {
             .buckets
             .get_mut(bucket_name)
             .and_then(|bucket| bucket.remove(key))
-            .ok_or_else(|| anyhow!("object `{}/{}` was not found", bucket_name.to_owned(), key.to_owned()))?;
+            .ok_or_else(|| {
+                anyhow!(
+                    "object `{}/{}` was not found",
+                    bucket_name.to_owned(),
+                    key.to_owned()
+                )
+            })?;
         Ok(())
     }
 

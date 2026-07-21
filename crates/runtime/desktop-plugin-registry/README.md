@@ -4,8 +4,8 @@
 
 ## 功能
 
-- 使用 `inventory::collect!` 在编译期收集所有 `DesktopPluginRegistration` 提交
-- `load_plugins()` — 加载所有已注册插件，按名称排序返回
+- 使用 Rudi 自动 provider 注册表在编译期收集所有桌面插件
+- `load_plugins(&mut Context)` — 从 Rudi 上下文加载所有已注册插件，按名称排序返回
 - 零手动注册：业务插件只需调用 `register_desktop_plugin!` 即可被自动发现
 
 ## 安装
@@ -24,11 +24,12 @@ az-desktop-plugin-registry = { path = "../desktop-plugin-registry" }       # wor
 **注册插件：**
 
 ```rust
-use az_desktop_plugin::api::{
+use az_desktop_plugin::contract::{
     DesktopInitContext, DesktopEvent, DesktopExecContext,
     DesktopViewContext, DesktopRenderLayer, Plugin, EventPropagation,
 };
 use az_desktop_plugin_registry::register_desktop_plugin;
+use rudi::Context;
 
 #[derive(Default)]
 struct MyPlugin;
@@ -52,8 +53,10 @@ register_desktop_plugin!(MyPlugin);
 
 ```rust
 use az_desktop_plugin_registry::load_plugins;
+use rudi::Context;
 
-let plugins = load_plugins();
+let mut context = Context::auto_register();
+let plugins = load_plugins(&mut context);
 for plugin in &plugins {
     println!("Loaded: {}", plugin.name());
 }

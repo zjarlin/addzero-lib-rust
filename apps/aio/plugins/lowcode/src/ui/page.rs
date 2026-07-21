@@ -2,7 +2,7 @@
 
 //! lowcode 插件的低代码引擎 Admin 页面。
 
-use az_aio_platform::plugin::api::NativeRenderContext;
+use az_aio_platform::plugin::contract::NativeRenderContext;
 use az_engine::{DataRecordView, HookDefinition, MetaField, MetaModel, PageData, PageParams};
 use dioxus::prelude::*;
 use registry::ui::{

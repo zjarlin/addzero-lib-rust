@@ -3,12 +3,12 @@
 //! `registered_admin_sections` 保留编译期 starter 注册桥接能力；
 //! `system_admin_sections` 则把完整系统后台 catalog 转成 admin shell 使用的显式树模型。
 
-use az_admin_plugin_registry::api::{
+use az_admin_plugin_registry::navigation::{
     AdminNavigationKind, RegisteredAdminNode, registered_domains, section_for_path,
 };
 
 use crate::{
-    plugin::api::{AdminMenuNode, AdminMenuNodeKind, AdminMenuSection},
+    plugin::contract::{AdminMenuNode, AdminMenuNodeKind, AdminMenuSection},
     system::catalog::{
         SYSTEM_DEFAULT_ROUTE, SYSTEM_DOMAIN_ID, SYSTEM_DOMAIN_LABEL, SystemPage, system_pages,
     },
@@ -19,7 +19,7 @@ pub type AdminNodeSnapshot = AdminMenuNode;
 pub type AdminNodeKind = AdminMenuNodeKind;
 
 pub fn registered_admin_sections() -> Vec<AdminSectionSnapshot> {
-    az_system_starters::api::link_all();
+    az_system_starters::linking::link_all();
     registered_domains()
         .into_iter()
         .filter_map(|domain| {
@@ -40,7 +40,10 @@ pub fn system_admin_sections() -> Vec<AdminSectionSnapshot> {
         label: SYSTEM_DOMAIN_LABEL.to_string(),
         default_href: SYSTEM_DEFAULT_ROUTE.to_string(),
         order: 900,
-        menus: SYSTEM_CONTEXT_BRANCHES.iter().map(to_branch_snapshot).collect(),
+        menus: SYSTEM_CONTEXT_BRANCHES
+            .iter()
+            .map(to_branch_snapshot)
+            .collect(),
     }]
 }
 
@@ -168,7 +171,9 @@ mod tests {
     #[test]
     fn registry_bridge_exposes_system_domain() {
         let sections = registered_admin_sections();
-        let system = sections.iter().find(|section| section.domain_id == "system");
+        let system = sections
+            .iter()
+            .find(|section| section.domain_id == "system");
 
         assert_eq!(
             system.map(|section| section.default_href.as_str()),
@@ -187,7 +192,9 @@ mod tests {
     #[test]
     fn catalog_navigation_exposes_reference_pages_too() {
         let sections = system_admin_sections();
-        let system = sections.iter().find(|section| section.domain_id == "system");
+        let system = sections
+            .iter()
+            .find(|section| section.domain_id == "system");
 
         assert_eq!(
             system.map(|section| section.default_href.as_str()),
@@ -214,11 +221,23 @@ mod tests {
 
         assert_eq!(
             branch_labels,
-            vec!["我的账户", "权限管理", "组织租户", "认证接入", "系统配置", "日志消息"]
+            vec![
+                "我的账户",
+                "权限管理",
+                "组织租户",
+                "认证接入",
+                "系统配置",
+                "日志消息"
+            ]
         );
 
         // 关键断言：侧轴不是平铺页面，而是按系统上下文树组织。
-        assert!(sections[0].menus.iter().all(|node| !node.children.is_empty()));
+        assert!(
+            sections[0]
+                .menus
+                .iter()
+                .all(|node| !node.children.is_empty())
+        );
     }
 
     fn node_contains_href(node: &AdminNodeSnapshot, href: &str) -> bool {

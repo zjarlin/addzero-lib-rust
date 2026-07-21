@@ -25,7 +25,7 @@ az-agent-runtime-contract = { path = "../agent-runtime-contract" }  # workspace 
 ## 用法
 
 ```rust
-use az_agent_runtime_contract::api::{
+use az_agent_runtime_contract::contract::{
     AgentArtifactChannel, PairingRequest, SkillSnapshot, SkillSyncRequest,
 };
 use chrono::Utc;

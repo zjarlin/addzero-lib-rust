@@ -1,4 +1,4 @@
-use az_drive_core::api::{
+use az_drive_core::model::{
     ChangeDecision, LockSnapshot, RelativePath, RootAlias, RootRegistry, conflict_file_name,
     content_hash, decide_local_change, try_safe_text_merge,
 };

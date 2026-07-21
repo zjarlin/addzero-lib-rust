@@ -31,7 +31,7 @@ az-str = { path = "../str" }                 # workspace 内部引用
 ### 变量命名风格互转
 
 ```rust
-use az_str::api::{to_camel_case, to_snake_case, to_pascal_case, to_kebab_name, to_constant_name};
+use az_str::transformation::{to_camel_case, to_snake_case, to_pascal_case, to_kebab_name, to_constant_name};
 
 assert_eq!(to_camel_case("hello world", "", ""), "helloWorld");
 assert_eq!(to_pascal_case("hello_world", "", ""), "HelloWorld");
@@ -43,7 +43,7 @@ assert_eq!(to_constant_name("hello world", "", ""), "HELLO_WORLD");
 ### 前缀后缀处理
 
 ```rust
-use az_str::api::{add_prefix_if_not, add_suffix_if_not, make_surround_with};
+use az_str::transformation::{add_prefix_if_not, add_suffix_if_not, make_surround_with};
 
 assert_eq!(add_prefix_if_not(Some("Value"), "az_", false), "az_Value");
 assert_eq!(add_suffix_if_not(Some("path"), "/", false), "path/");
@@ -53,7 +53,7 @@ assert_eq!(make_surround_with(Some("content"), "\""), "\"content\"");
 ### KMP 字符串搜索与替换
 
 ```rust
-use az_str::api::{contains_kmp, index_of_kmp, find_all_kmp, replace_kmp};
+use az_str::transformation::{contains_kmp, index_of_kmp, find_all_kmp, replace_kmp};
 
 let text = "hello world, hello rust";
 assert!(contains_kmp(text, "world"));
@@ -65,7 +65,7 @@ assert_eq!(replace_kmp(text, "hello", "hi"), "hi world, hi rust");
 ### 格式化模板
 
 ```rust
-use az_str::api::{format_template, FormatArg};
+use az_str::transformation::{format_template, FormatArg};
 
 let result = format_template(
     "Hello %s, you have %d messages (%.2f sec)",
@@ -81,7 +81,7 @@ assert_eq!(result, "Hello Alice, you have 3 messages (0.12 sec)");
 ### 空值安全处理
 
 ```rust
-use az_str::api::{is_blank, is_not_blank, first_not_blank, clean_blank};
+use az_str::transformation::{is_blank, is_not_blank, first_not_blank, clean_blank};
 
 assert!(is_blank(None));
 assert!(is_blank(Some("   ")));
@@ -93,7 +93,7 @@ assert_eq!(clean_blank(Some("  hello   world  ")), "hello world");
 ### HTML / Markdown 文本提取
 
 ```rust
-use az_str::api::{
+use az_str::transformation::{
     MarkdownListMarkerMode, clean_markdown_plain_text, collapse_whitespace,
     extract_markdown_block_content, extract_text_between_p_tags, make_surround_with_html_p,
     truncate_chars_with_ellipsis, unescape_basic_html_entities,
@@ -118,7 +118,7 @@ assert_eq!(
 ### 中文检测与过滤
 
 ```rust
-use az_str::api::{contains_chinese, remove_not_chinese};
+use az_str::transformation::{contains_chinese, remove_not_chinese};
 
 assert!(contains_chinese(Some("hello 世界")));
 assert!(!contains_chinese(Some("hello")));
@@ -128,7 +128,7 @@ assert_eq!(remove_not_chinese(Some("hello 世界！rust")), "世界");
 ### 键值对解析
 
 ```rust
-use az_str::api::extract_key_value_pairs;
+use az_str::transformation::extract_key_value_pairs;
 
 let pairs = extract_key_value_pairs("name: Alice  age：30  city: Beijing");
 assert_eq!(pairs.get("name").map(String::as_str), Some("Alice"));
@@ -138,7 +138,7 @@ assert_eq!(pairs.get("age").map(String::as_str), Some("30"));
 ### 路径工具
 
 ```rust
-use az_str::api::{parent_path_and_mkdir, get_path_from_right, with_pkg};
+use az_str::transformation::{parent_path_and_mkdir, get_path_from_right, with_pkg};
 use az_str::sanitize::{sanitize_path_segment, to_slug};
 
 // 在指定路径下创建子目录

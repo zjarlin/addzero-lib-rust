@@ -5,6 +5,6 @@
 
 automod::dir!("src/db");
 
-pub use api::{Database, DatabaseConfig};
+pub use database::{Database, DatabaseConfig};
 pub use connection::{Connection, ConnectionPool};
 pub use repl::{Repl, ReplConfig};

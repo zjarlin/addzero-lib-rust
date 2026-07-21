@@ -27,7 +27,7 @@ az-remote-model = { path = "../remote-model" }   # workspace 内部引用
 ## 用法
 
 ```rust
-use az_remote_model::api::{
+use az_remote_model::contract::{
     DeviceDescriptor, DeviceRole, OnlineStatus, RemoteInputEvent, RemotePlatform,
     SessionCapability, SessionRequest,
 };

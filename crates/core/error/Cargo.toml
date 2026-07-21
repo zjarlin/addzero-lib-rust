@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Unified error types for the addzero ecosystem"
+description = "Error boundary and recoverable diagnostics utilities for the addzero ecosystem"
 
 [dependencies]
 anyhow.workspace = true

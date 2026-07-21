@@ -27,7 +27,7 @@ az-mqtt = { path = "../mqtt" }          # workspace 内部引用
 ## 用法
 
 \`\`\`rust,no_run
-use az_mqtt::api::{MqttClient, MqttConfig, MqttMessage, MqttQoS};
+use az_mqtt::client::{MqttClient, MqttConfig, MqttMessage, MqttQoS};
 use std::time::Duration;
 
 // 构建配置
@@ -57,7 +57,7 @@ client.disconnect().unwrap();
 ### TLS 连接
 
 \`\`\`rust,no_run
-use az_mqtt::api::{MqttClient, MqttConfig, MqttQoS};
+use az_mqtt::client::{MqttClient, MqttConfig, MqttQoS};
 
 let config = MqttConfig::builder("secure-broker.example.com", "tls-client")
     .port(8883)

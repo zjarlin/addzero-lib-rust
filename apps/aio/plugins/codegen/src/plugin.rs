@@ -2,7 +2,7 @@
 
 use std::{env, sync::Arc};
 
-use az_aio_platform::plugin::api::{
+use az_aio_platform::plugin::contract::{
     AdminCliContribution, AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree,
     BackendApiContribution, ContributionSet, DynAdminPluginProvider, NativePluginContext,
     NativePluginProvider, NativePluginRuntime, NativeUiRenderer, NavItemContribution,

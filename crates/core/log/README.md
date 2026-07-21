@@ -22,7 +22,7 @@ az-log = { path = "../log" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_log::api::{logger_target, value_logger_target};
+use az_log::target::{logger_target, value_logger_target};
 
 // 为泛型类型获取日志目标
 struct MyService;

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use gitdb::blob_store::{BlobShardInfo, BlobStoreConfig, ShardedBlobStore};
 use std::path::PathBuf;
 
-use crate::api::DriveObjectStore;
+use crate::store::DriveObjectStore;
 use anyhow::anyhow;
 
 pub use gitdb::blob_store::{DEFAULT_BLOB_SHARD_PREFIX, DEFAULT_MAX_BLOB_SHARD_SIZE_BYTES};
@@ -118,7 +118,7 @@ fn map_gitdb_object_error(err: anyhow::Error, object_key: &str) -> anyhow::Error
 #[cfg(test)]
 mod tests {
     use super::{GitDbObjectStore, GitDbObjectStoreConfig};
-    use crate::api::DriveObjectStore;
+    use crate::store::DriveObjectStore;
 
     #[tokio::test]
     async fn gitdb_object_store_round_trips_bytes() -> Result<(), Box<dyn std::error::Error>> {

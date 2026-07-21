@@ -7,7 +7,7 @@ use std::sync::Arc;
 use axum::Router;
 use rudi::Singleton;
 
-use crate::plugin::api::{
+use crate::plugin::contract::{
     AdminMenuSection, AdminMenuTree, AdminPluginContribution, AdminPluginProvider,
     ContributionSet, DynAdminPluginProvider, NativePluginContext, NativePluginRuntime,
     PluginActivation, PluginDescriptor, PluginKind,

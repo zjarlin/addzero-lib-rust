@@ -1,4 +1,4 @@
-use az_agent::api::dependency_markers;
+use az_agent::dependency_markers::dependency_markers;
 
 #[test]
 fn dependency_markers_should_expose_agent_runtime_dependencies() {

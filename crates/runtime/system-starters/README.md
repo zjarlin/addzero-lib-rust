@@ -12,7 +12,7 @@
 ## 用法
 
 ```rust
-az_system_starters::api::link_all();
+az_system_starters::linking::link_all();
 // 此后 az-admin-plugin-registry 可发现系统级导航节点。
 ```
 

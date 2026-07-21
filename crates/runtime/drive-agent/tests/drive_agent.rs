@@ -7,7 +7,7 @@ use az_drive_agent::{
     },
     local_state::LocalStateStore,
 };
-use az_drive_store::api::{
+use az_drive_store::store::{
     DriveSyncTaskKind, DriveSyncTaskStatus, InMemoryDriveMetadataStore, InMemoryDriveObjectStore,
 };
 use tempfile::TempDir;

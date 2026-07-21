@@ -1,5 +1,5 @@
 use anyhow::Result;
-use az_music::api::{ApiConfig, Music, MusicSearchApi, MusicSearchType, SunoApi, SunoMusicRequest};
+use az_music::client::{ApiConfig, Music, MusicSearchApi, MusicSearchType, SunoApi, SunoMusicRequest};
 use reqwest::header::ACCEPT;
 use std::collections::BTreeMap;
 use std::error::Error;

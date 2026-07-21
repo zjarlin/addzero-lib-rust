@@ -27,7 +27,7 @@ az-email = { path = "../email" }        # workspace 内部引用
 ## 用法
 
 \`\`\`rust,no_run
-use az_email::api::{EmailConfig, EmailMessage, send_with_config};
+use az_email::sender::{EmailConfig, EmailMessage, send_with_config};
 
 // 构建配置
 let config = EmailConfig::builder("smtp.example.com", "user", "pass")
@@ -52,7 +52,7 @@ send_with_config(&config, &message).unwrap();
 ### 全局默认发送器
 
 \`\`\`rust,no_run
-use az_email::api::{EmailConfig, EmailMessage, SmtpEmailSender, send, set_default_sender};
+use az_email::sender::{EmailConfig, EmailMessage, SmtpEmailSender, send, set_default_sender};
 use std::sync::Arc;
 
 let config = EmailConfig::builder("smtp.example.com", "user", "pass").build().unwrap();
@@ -73,7 +73,7 @@ send(&msg).unwrap();
 ### 通过 factory 构造 sender
 
 \`\`\`rust,no_run
-use az_email::api::{EmailConfig, EmailSenderConfig, EmailSenderKind, build_email_sender};
+use az_email::sender::{EmailConfig, EmailSenderConfig, EmailSenderKind, build_email_sender};
 
 let config = EmailConfig::builder("smtp.example.com", "user", "pass")
     .build()

@@ -34,7 +34,7 @@ az-creates = { path = "/absolute/path/to/addzero-lib-rust/crates/api/creates" }
 ## 基础用法
 
 ```rust,no_run
-use az_creates::api::Creates;
+use az_creates::clients::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let maven = Creates::maven_central()?;
@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Maven Central
 
 ```rust,no_run
-use az_creates::api::Creates;
+use az_creates::clients::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::maven_central()?;
@@ -101,7 +101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## 网易云音乐搜索
 
 ```rust,no_run
-use az_creates::api::Creates;
+use az_creates::clients::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::music_search()?;
@@ -134,7 +134,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Suno
 
 ```rust,no_run
-use az_creates::api::{Creates, SunoMusicRequest};
+use az_creates::clients::{Creates, SunoMusicRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::suno("your-suno-token")?;
@@ -167,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## 天眼查
 
 ```rust,no_run
-use az_creates::api::Creates;
+use az_creates::clients::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha("your-authorization", "your-x-auth-token")?;
@@ -191,7 +191,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 这个版本会在 Rust 侧真实生成 `SDK-HMAC-SHA256` 签名头，而不是简单拼 URL。
 
 ```rust,no_run
-use az_creates::api::Creates;
+use az_creates::clients::Creates;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::tianyancha_huawei("your-ak", "your-sk")?;
@@ -208,7 +208,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Temp Mail
 
 ```rust,no_run
-use az_creates::api::{Creates, TempMailNewAddressRequest, TempMailPageRequest};
+use az_creates::clients::{Creates, TempMailNewAddressRequest, TempMailPageRequest};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api = Creates::temp_mail_cloudflare("https://mail.example.com")?;
@@ -228,7 +228,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 Provider factory 注入：
 
 ```rust,no_run
-use az_creates::api::{
+use az_creates::clients::{
     Creates, TempMailApiConfig, TempMailProviderConfig, TempMailProviderKind,
 };
 
@@ -256,7 +256,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## SMS provider
 
 ```rust
-use az_creates::api::{
+use az_creates::clients::{
     BuiltinSmsProviderFactory, Creates, DogSmsConfig, GrizzlySmsConfig, SmsProviderConfig,
     SmsProviderFactory, SmsProviderKind,
 };
@@ -284,7 +284,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Email sender
 
 ```rust,no_run
-use az_creates::api::{
+use az_creates::clients::{
     BuiltinEmailSenderFactory, Creates, EmailConfig, EmailSenderConfig, EmailSenderFactory,
     EmailSenderKind,
 };
@@ -316,7 +316,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust,no_run
 use std::time::Duration;
-use az_creates::api::{ApiConfig, Creates};
+use az_creates::clients::{ApiConfig, Creates};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ApiConfig::builder("https://api.vectorengine.ai")

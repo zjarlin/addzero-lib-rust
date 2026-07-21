@@ -2,7 +2,7 @@ use crate::column::{Column, ColumnType};
 use crate::dialect::Dialect;
 use crate::table::Table;
 use anyhow::{Result, bail};
-use az_str::api::escape_sql_string_literal;
+use az_str::transformation::escape_sql_string_literal;
 
 /// Quote a SQL identifier to prevent injection.
 ///

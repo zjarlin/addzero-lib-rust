@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use az_aio_platform::plugin::api::{
+use az_aio_platform::plugin::contract::{
     AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminMenuTree, ContributionSet,
     DynAdminPluginProvider, NativePluginProvider, NativePluginContext, NativePluginRuntime,
     PluginDescriptor,
@@ -100,7 +100,7 @@ fn seed_edge_gateway_store(store: EdgeGatewayStore) {
 
 #[cfg(test)]
 mod tests {
-    use az_aio_platform::plugin::api::PluginKind;
+    use az_aio_platform::plugin::contract::PluginKind;
 
     use super::*;
 

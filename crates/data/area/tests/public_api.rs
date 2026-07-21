@@ -1,4 +1,4 @@
-use az_area::api::{AreaOps, compare_versions};
+use az_area::hierarchy::{AreaOps, compare_versions};
 use az_area::impl_area_node;
 use std::cmp::Ordering;
 

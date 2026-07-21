@@ -1,7 +1,7 @@
 use std::fs;
 
-use az_dict_spec::api::{DictionaryItemSpec, DictionarySpec, RawValueKind};
-use az_micro_dict::api::{
+use az_dict_spec::specification::{DictionaryItemSpec, DictionarySpec, RawValueKind};
+use az_micro_dict::contribution::{
     DictBuildGenerator, DictionaryContribution, DictionaryContributor, RuoyiDictRow,
     RuoyiDictionaryContributor, StaticDictionaryContributor,
 };

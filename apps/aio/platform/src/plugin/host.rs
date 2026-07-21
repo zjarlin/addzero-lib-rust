@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     core::api_error::with_global_api_error_layer,
-    plugin::api::{
+    plugin::contract::{
         AdminCliContribution, AdminMenuTree, AdminResourceContract, BackendApiContribution,
         CatalogItemContribution, CatalogItemKind, CatalogSource, ClientBootstrapPayload,
         ClientPageContribution, ClientPluginRecord, ContributionSet, DynAdminPluginProvider,
@@ -345,7 +345,7 @@ fn merge_snapshot_contributions(snapshot: &mut HostSnapshot, contributions: Cont
 
 fn merge_snapshot_admin_contribution(
     snapshot: &mut HostSnapshot,
-    contribution: crate::plugin::api::AdminPluginContribution,
+    contribution: crate::plugin::contract::AdminPluginContribution,
 ) {
     merge_menu_tree(&mut snapshot.admin_menu_tree, contribution.menu);
     snapshot.admin_resources.extend(contribution.resources);
@@ -513,7 +513,7 @@ pub fn descriptor(
     name: &str,
     description: &str,
     priority: i32,
-    dependencies: Vec<crate::plugin::api::PluginDependency>,
+    dependencies: Vec<crate::plugin::contract::PluginDependency>,
     capabilities: Vec<&str>,
 ) -> PluginDescriptor {
     PluginDescriptor {
@@ -559,7 +559,7 @@ fn write_plugin_enablement_store(path: &Path, store: &PluginEnablementStore) -> 
 mod tests {
     use std::sync::Arc;
 
-    use crate::plugin::api::{
+    use crate::plugin::contract::{
         AdminMenuNode, AdminMenuNodeKind, AdminMenuSection, AdminPluginContribution,
         AdminPluginProvider, BackendApiContribution, ClientPageContribution, NativePluginRuntime,
         PageContribution, UiContributionSlot,

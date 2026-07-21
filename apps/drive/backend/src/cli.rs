@@ -4,7 +4,7 @@ use az_drive_agent::agent::{
     PullRemoteStatus, TrackedItem, TrackedItemSource, TrackedItemStatus,
 };
 use az_drive_agent::local_state::LocalRootState;
-use az_drive_store::api::{
+use az_drive_store::store::{
     DriveConflict, DriveSyncQueueItem, DriveSyncTaskKind, DriveSyncTaskStatus,
 };
 use std::path::PathBuf;

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use tree_sitter::Language;
 
-use crate::api::SourceLanguage;
+use crate::scan::SourceLanguage;
 
 impl SourceLanguage {
     pub(crate) fn from_path(path: &Path) -> Option<Self> {

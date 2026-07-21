@@ -1,0 +1,13 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/app",
+    "crates/pay-api",
+    "crates/di-plugin-alipay",
+    "crates/di-plugin-wechat",
+    "crates/di-plugin-other",
+]
+
+[workspace.dependencies]
+automod = { package = "az-automod", version = "=2026.6.15", path = "../../crates/core/automod" }
+rudi = "0.8.3"

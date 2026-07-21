@@ -11,7 +11,7 @@ use crate::{
         api_error::{ApiError, ApiJson, ApiPath, ApiQuery, ApiResponse, ok_json},
     },
     system::{
-        api::SystemAdminApiState,
+        routes::SystemAdminApiState,
         dictionary_model::{
             DictionaryItemInput, DictionaryItemPage, DictionaryItemQuery, DictionaryItemSummary,
             DictionaryTypeInput, DictionaryTypeSummary,

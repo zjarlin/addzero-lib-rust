@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use tempfile::TempDir;
-use tool_project_diagnostics::api::{
+use tool_project_diagnostics::scan::{
     ProjectScanOptions, ProjectSourceFile, SkipReason, SourceLanguage, SyntaxDiagnosticKind,
     scan_project, scan_project_files, scan_project_with_options,
 };

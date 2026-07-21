@@ -11,7 +11,7 @@ source that calls `az_dict_macros::dict_enum!`.
 ## Build script shape
 
 ```rust,ignore
-use az_micro_dict::api::{DictBuildGenerator, StaticDictionaryContributor};
+use az_micro_dict::contribution::{DictBuildGenerator, StaticDictionaryContributor};
 
 fn main() -> anyhow::Result<()> {
     let out_dir = std::env::var("OUT_DIR")?;

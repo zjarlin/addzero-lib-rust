@@ -1,1 +1,1 @@
-pub use az_music::api::{ApiConfig, ApiConfigBuilder};
+pub use az_music::client::{ApiConfig, ApiConfigBuilder};

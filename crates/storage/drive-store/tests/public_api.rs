@@ -1,5 +1,5 @@
-use az_drive_core::api::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
-use az_drive_store::api::{
+use az_drive_core::model::{EntryKey, RelativePath, RootAlias, content_hash, object_key_for_hash};
+use az_drive_store::store::{
     DriveEntryKind, DriveMetadataStore, DriveObjectStore, DriveVersion, InMemoryDriveMetadataStore,
     InMemoryDriveObjectStore,
 };

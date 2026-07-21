@@ -1,4 +1,4 @@
-use az_wasm_plugin_api::api::{ExtensionPoint, PluginState};
+use az_wasm_plugin_api::contract::{ExtensionPoint, PluginState};
 
 #[test]
 fn plugin_state_codes_follow_manifest_values() {

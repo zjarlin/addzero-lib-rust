@@ -1,4 +1,6 @@
+use crate::config::ApiConfig;
 use crate::http::HttpApiClient;
+use crate::input::{required_non_blank, sha256_hex};
 use crate::model::{
     AddressCredential, AddressLoginRequest, AddressSettings, CreateMailboxRequest, ListResponse,
     MailRow, NewAddressRequest, PageRequest, ParsedMailRow, SendMailRequest, SuccessResponse,
@@ -6,8 +8,6 @@ use crate::model::{
     TempMailSettings,
 };
 use crate::provider::TempMailProvider;
-use crate::util::{required_non_blank, sha256_hex};
-use crate::config::ApiConfig;
 use reqwest::header::ACCEPT;
 use serde_json::json;
 

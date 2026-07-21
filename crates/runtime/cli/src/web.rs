@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use az_str::api::collapse_whitespace;
+use az_str::transformation::collapse_whitespace;
 use encoding_rs::{Encoding, UTF_8};
 use regex::Regex;
 use reqwest::Url;

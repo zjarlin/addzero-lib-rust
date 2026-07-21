@@ -1,5 +1,5 @@
+use crate::normalization::{looks_like_json, normalize_header_name};
 use crate::url_params::{extract_path_params, extract_query_params};
-use crate::util::{looks_like_json, normalize_header_name};
 use reqwest::{Method, Url};
 use std::collections::BTreeMap;
 

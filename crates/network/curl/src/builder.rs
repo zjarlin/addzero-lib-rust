@@ -1,6 +1,6 @@
 use crate::model::ParsedCurl;
 use crate::parse_support::parse_method;
-use crate::util::normalize_header_name;
+use crate::normalization::normalize_header_name;
 use base64::Engine;
 use reqwest::Method;
 use std::collections::BTreeMap;

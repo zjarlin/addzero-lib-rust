@@ -1,5 +1,5 @@
 use crate::http::HttpApiClient;
-use crate::util::non_blank;
+use crate::input::non_blank;
 use crate::config::ApiConfig;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

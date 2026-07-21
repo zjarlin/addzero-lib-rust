@@ -1,0 +1,9 @@
+[package]
+name = "di-plugin-alipay"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+automod.workspace = true
+pay-api = { path = "../pay-api" }
+rudi.workspace = true

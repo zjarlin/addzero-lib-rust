@@ -1,9 +1,0 @@
-[package]
-name = "inventory-plugin-alipay"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-automod.workspace = true
-inventory = "0.3.24"
-pay-api = { path = "../pay-api" }

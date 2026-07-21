@@ -1,4 +1,4 @@
-use az_cli_market_contract::api::{CliInstallerKind, CliLocale, CliPlatform};
+use az_cli_market_contract::contract::{CliInstallerKind, CliLocale, CliPlatform};
 
 #[test]
 fn code_enums_keep_public_wire_values() {

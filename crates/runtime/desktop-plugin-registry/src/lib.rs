@@ -3,7 +3,7 @@
 
 automod::dir!(pub "src");
 
-// Re-exports required by macros that expand to $crate::Xxx
-pub use inventory;
+#[doc(hidden)]
+pub use rudi;
 
-pub use crate::api::{DesktopPluginRegistration, default_desktop_plugin_constructor, load_plugins};
+pub use crate::registration::{desktop_plugin_provider, load_plugins};

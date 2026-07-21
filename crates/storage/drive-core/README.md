@@ -27,7 +27,7 @@ az-drive-core = { path = "../drive-core" }       # workspace 内部引用
 ## 用法
 
 ```rust
-use az_drive_core::api::{
+use az_drive_core::model::{
     ChangeDecision, RootAlias, RootRegistry, content_hash, decide_local_change,
 };
 

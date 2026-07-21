@@ -1,6 +1,6 @@
 use az_drive_agent::{agent::DriveAgentConfig, local_state::LocalState};
-use az_drive_core::api::{RelativePath, RootAlias};
-use az_drive_store::api::{DriveEntryKind, InMemoryDriveMetadataStore};
+use az_drive_core::model::{RelativePath, RootAlias};
+use az_drive_store::store::{DriveEntryKind, InMemoryDriveMetadataStore};
 
 #[test]
 fn public_drive_crates_are_importable_for_future_aio_integration() {

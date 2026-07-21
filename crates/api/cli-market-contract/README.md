@@ -25,7 +25,7 @@ az-cli-market-contract = { path = "../cli-market-contract" }  # workspace 内部
 ## 用法
 
 ```rust
-use az_cli_market_contract::api::{
+use az_cli_market_contract::contract::{
     CliEntryKind, CliImportFormat, CliImportMode, CliMarketEntry, CliMarketImportRequest,
     CliMarketSourceType, CliMarketStatus,
 };

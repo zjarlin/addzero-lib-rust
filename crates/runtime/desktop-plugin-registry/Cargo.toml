@@ -8,7 +8,7 @@ authors.workspace = true
 
 [dependencies]
 az-desktop-plugin.workspace = true
-inventory.workspace = true
+rudi = { workspace = true, features = ["auto-register"] }
 
 automod.workspace = true
 [lints]

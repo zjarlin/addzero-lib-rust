@@ -24,7 +24,7 @@ az-stream-wrapper = { path = "../stream-wrapper" }  # workspace 内部引用
 ## 用法
 
 ```rust
-use az_stream_wrapper::api::lambdaquery;
+use az_stream_wrapper::query::lambdaquery;
 
 let items = || vec!["apple", "banana", "avocado", "blueberry"];
 

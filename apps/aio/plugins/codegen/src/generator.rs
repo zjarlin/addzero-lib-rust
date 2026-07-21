@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use az_str::api::to_snake_case;
+use az_str::transformation::to_snake_case;
 
 use crate::contract::{
     CodegenExecutionTarget, GenerateRustFileRequest, GeneratedRustFile, RustTypeDefinition,

@@ -1,4 +1,4 @@
-use az_ssh::api::{SshConfig, SshExecutionResult};
+use az_ssh::client::{SshConfig, SshExecutionResult};
 use std::path::{Path, PathBuf};
 
 #[test]

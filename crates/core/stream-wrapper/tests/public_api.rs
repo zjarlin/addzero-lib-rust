@@ -1,4 +1,4 @@
-use az_stream_wrapper::api::lambdaquery;
+use az_stream_wrapper::query::lambdaquery;
 use az_stream_wrapper::stream_query;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

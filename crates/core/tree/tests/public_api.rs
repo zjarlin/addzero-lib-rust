@@ -1,4 +1,4 @@
-use az_tree::api::{TreeNode, build_tree, try_build_tree};
+use az_tree::tree::{TreeNode, build_tree, try_build_tree};
 
 #[test]
 fn build_tree_from_flat_pairs() {

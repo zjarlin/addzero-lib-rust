@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
-pub mod api;
+pub mod dependency_markers;
 pub mod chat;
 pub mod chat_responses;
 pub mod complete;

@@ -1,5 +1,6 @@
-use az_desktop_plugin::api::{DesktopInitContext, DesktopRenderLayer, Plugin};
+use az_desktop_plugin::contract::{DesktopInitContext, DesktopRenderLayer, Plugin};
 use az_desktop_plugin_registry::{api::load_plugins, declare_desktop_plugin};
+use rudi::Context;
 
 declare_desktop_plugin! {
     struct AlphaPlugin;
@@ -8,9 +9,9 @@ declare_desktop_plugin! {
 impl
     Plugin<
         DesktopInitContext,
-        az_desktop_plugin::api::DesktopEvent,
-        az_desktop_plugin::api::DesktopExecContext,
-        az_desktop_plugin::api::DesktopViewContext,
+        az_desktop_plugin::contract::DesktopEvent,
+        az_desktop_plugin::contract::DesktopExecContext,
+        az_desktop_plugin::contract::DesktopViewContext,
         DesktopRenderLayer,
     > for AlphaPlugin
 {
@@ -30,9 +31,9 @@ declare_desktop_plugin! {
 impl
     Plugin<
         DesktopInitContext,
-        az_desktop_plugin::api::DesktopEvent,
-        az_desktop_plugin::api::DesktopExecContext,
-        az_desktop_plugin::api::DesktopViewContext,
+        az_desktop_plugin::contract::DesktopEvent,
+        az_desktop_plugin::contract::DesktopExecContext,
+        az_desktop_plugin::contract::DesktopViewContext,
         DesktopRenderLayer,
     > for BetaPlugin
 {
@@ -47,7 +48,8 @@ impl
 
 #[test]
 fn load_plugins_returns_registered_plugins_in_stable_name_order() {
-    let plugins = load_plugins();
+    let mut context = Context::auto_register();
+    let plugins = load_plugins(&mut context);
     let names = plugins
         .iter()
         .filter_map(|plugin| match plugin.name() {
