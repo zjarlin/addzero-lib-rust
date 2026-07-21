@@ -51,6 +51,6 @@ let graph = service.graph().await.unwrap();
 ## 依赖的 crates
 
 - `az-persistence` - 数据库连接与持久化上下文
-- `sea-orm` / `sqlx` - PostgreSQL 数据库驱动
+- `toasty` - PostgreSQL 模型和查询 DSL
 - `ring` - AES-256-GCM 加密原语
 - `chrono` / `uuid` / `serde` - 通用数据类型

@@ -8,10 +8,9 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-async-trait.workspace = true
 automod.workspace = true
-sea-orm.workspace = true
-sea-orm-migration.workspace = true
+jiff.workspace = true
+toasty.workspace = true
 tokio.workspace = true
 
 [lints]

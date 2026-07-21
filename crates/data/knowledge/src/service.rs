@@ -1,6 +1,6 @@
 use az_persistence::context::PersistenceContext;
 use az_str::{
-    api::{MarkdownListMarkerMode, clean_markdown_plain_text, truncate_chars},
+    transformation::{MarkdownListMarkerMode, clean_markdown_plain_text, truncate_chars},
     sanitize::to_slug,
 };
 use chrono::Utc;
@@ -8,6 +8,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     discovery::discover_source_documents,
+    models::knowledge_models,
     repository::KnowledgeRepository,
     sqlite_repository::SqliteKnowledgeRepository,
     types::{
@@ -36,7 +37,8 @@ impl KnowledgeService {
             });
         }
 
-        let persistence = PersistenceContext::connect_with_url(database_url).await?;
+        let persistence =
+            PersistenceContext::connect_with_url(database_url, knowledge_models()).await?;
         Ok(Self::from_persistence(&persistence))
     }
 

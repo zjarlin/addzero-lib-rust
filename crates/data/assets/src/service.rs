@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
+    models::asset_models,
     pg_repo::PgRepo,
     secret::{EncryptedSecret, SecretCipher},
     types::{
@@ -46,7 +47,8 @@ impl AssetService {
 
     /// 连接 PostgreSQL，并创建持久化服务实例。
     pub async fn connect(database_url: &str, master_key: Option<&str>) -> Result<Self> {
-        let persistence = PersistenceContext::connect_with_url(database_url).await?;
+        let persistence =
+            PersistenceContext::connect_with_url(database_url, asset_models()).await?;
         Ok(Self::from_persistence(&persistence, master_key))
     }
 

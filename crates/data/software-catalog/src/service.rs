@@ -9,6 +9,7 @@ use crate::{
         SoftwareCatalogDto, SoftwareDraftInput, SoftwareEntryDto, SoftwareEntryInput,
         SoftwareMetadataDto, SoftwareMetadataFetchInput, current_platform,
     },
+    models::software_catalog_models,
     repository::SoftwareCatalogRepository,
 };
 
@@ -23,7 +24,7 @@ pub struct SoftwareCatalogService {
 impl SoftwareCatalogService {
     /// 使用数据库 URL 连接持久化层并启动服务。
     pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
-        let persistence = PersistenceContext::connect_with_url(database_url)
+        let persistence = PersistenceContext::connect_with_url(database_url, software_catalog_models())
             .await
             .with_context(|| format!("connect software catalog persistence `{database_url}`"))?;
         Self::boot(&persistence).await

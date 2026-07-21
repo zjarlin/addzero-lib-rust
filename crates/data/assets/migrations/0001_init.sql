@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS assets (
     kind TEXT NOT NULL,
     title TEXT NOT NULL,
     body TEXT NOT NULL,
-    tags TEXT[] NOT NULL DEFAULT '{}',
+    tags JSONB NOT NULL DEFAULT '[]'::jsonb,
     status TEXT NOT NULL DEFAULT 'active',
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
     content_hash TEXT NOT NULL,
@@ -18,6 +18,10 @@ CREATE INDEX IF NOT EXISTS assets_kind_updated_idx
 
 CREATE INDEX IF NOT EXISTS assets_tags_gin
     ON assets USING GIN (tags);
+
+ALTER TABLE assets
+    ALTER COLUMN tags TYPE JSONB USING to_jsonb(tags),
+    ALTER COLUMN tags SET DEFAULT '[]'::jsonb;
 
 CREATE INDEX IF NOT EXISTS assets_content_hash_idx
     ON assets (content_hash);

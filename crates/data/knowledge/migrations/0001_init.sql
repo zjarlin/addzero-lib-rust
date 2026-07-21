@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS knowledge_documents (
     section_count INTEGER NOT NULL,
     preview TEXT NOT NULL,
     excerpt TEXT NOT NULL,
-    headings TEXT[] NOT NULL DEFAULT '{}',
-    tags TEXT[] NOT NULL DEFAULT '{}',
+    headings JSONB NOT NULL DEFAULT '[]'::jsonb,
+    tags JSONB NOT NULL DEFAULT '[]'::jsonb,
     body TEXT NOT NULL,
     content_hash TEXT NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -42,3 +42,9 @@ CREATE INDEX IF NOT EXISTS knowledge_documents_hash_idx
 
 CREATE INDEX IF NOT EXISTS knowledge_documents_tags_gin_idx
     ON knowledge_documents USING GIN(tags);
+
+ALTER TABLE knowledge_documents
+    ALTER COLUMN headings TYPE JSONB USING to_jsonb(headings),
+    ALTER COLUMN headings SET DEFAULT '[]'::jsonb,
+    ALTER COLUMN tags TYPE JSONB USING to_jsonb(tags),
+    ALTER COLUMN tags SET DEFAULT '[]'::jsonb;

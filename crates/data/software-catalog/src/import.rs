@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use anyhow::{Context, anyhow, bail};
 use az_str::{
-    api::unescape_basic_html_entities,
     sanitize::{title_case_slug, to_slug},
+    transformation::unescape_basic_html_entities,
 };
 use regex::Regex;
 use reqwest::{Client, Url};

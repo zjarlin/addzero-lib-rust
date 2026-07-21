@@ -58,7 +58,7 @@ let input = SoftwareEntryInput {
 ## 依赖的 crates
 
 - `az-persistence` — 数据库连接与迁移基础设施（仅 native）
-- `sea-orm` / `reqwest` — ORM 和 HTTP 客户端（仅 native）
+- `toasty` / `reqwest` — PostgreSQL 模型 DSL 和 HTTP 客户端（仅 native）
 - `serde` / `serde_json` — 数据序列化
 - `uuid` — 软件条目唯一标识
 - `anyhow` — 错误返回与上下文

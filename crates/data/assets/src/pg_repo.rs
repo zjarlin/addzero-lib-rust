@@ -1,13 +1,15 @@
 use anyhow::{Context, Result, anyhow};
-use chrono::Utc;
-use sea_orm::{
-    ActiveValue::NotSet, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryOrder, Set, sea_query::OnConflict,
-};
+use az_persistence::context::PersistenceDb;
+use chrono::{DateTime, Utc};
+use jiff::Timestamp;
+use toasty::stmt::{List, Query};
 use uuid::Uuid;
 
 use crate::{
-    entity::{ai_model_provider, ai_prompt_button, asset, asset_edge},
+    models::{
+        ai_model_provider::AiModelProviderRecord, ai_prompt_button::AiPromptButtonRecord,
+        asset::AssetRecord, asset_edge::AssetEdgeRecord,
+    },
     secret::EncryptedSecret,
     types::{
         AiModelProvider, AiModelProviderUpsert, AiPromptButton, AiPromptButtonUpsert,
@@ -17,144 +19,189 @@ use crate::{
 
 #[derive(Clone)]
 pub struct PgRepo {
-    db: DatabaseConnection,
+    db: PersistenceDb,
 }
 
 impl PgRepo {
-    pub fn new(db: DatabaseConnection) -> Self {
+    pub fn new(db: PersistenceDb) -> Self {
         Self { db }
     }
 
     pub async fn list_assets(&self, kind: Option<AssetKind>) -> Result<Vec<Asset>> {
-        let mut query = asset::Entity::find();
-        if let Some(kind) = kind {
-            query = query.filter(asset::Column::Kind.eq(kind.as_str()));
+        let mut db = self.db.lock().await;
+        let rows = match kind {
+            Some(kind) => Query::<List<AssetRecord>>::filter(
+                AssetRecord::fields().kind().eq(kind.as_str()),
+            )
+            .exec(&mut *db)
+            .await,
+            None => Query::<List<AssetRecord>>::all().exec(&mut *db).await,
         }
-        let rows = query
-            .order_by_asc(asset::Column::Kind)
-            .order_by_desc(asset::Column::UpdatedAt)
-            .order_by_asc(asset::Column::Title)
-            .all(&self.db)
-            .await
-            .context("list assets")?;
-        Ok(rows.into_iter().map(model_to_asset).collect())
+        .context("查询资产列表失败")?;
+        let mut assets = rows
+            .into_iter()
+            .map(record_to_asset)
+            .collect::<Result<Vec<_>>>()?;
+        assets.sort_by(|left, right| {
+            left.kind
+                .code()
+                .cmp(right.kind.code())
+                .then(right.updated_at.cmp(&left.updated_at))
+                .then(left.title.cmp(&right.title))
+        });
+        Ok(assets)
     }
 
     pub async fn upsert_asset(&self, input: &AssetUpsert) -> Result<Asset> {
         let id = input.id.unwrap_or_else(Uuid::new_v4);
-        let active = asset::ActiveModel {
-            id: Set(id),
-            kind: Set(input.kind.to_string()),
-            title: Set(input.title.clone()),
-            body: Set(input.body.clone()),
-            tags: Set(input.tags.clone()),
-            status: Set(input.status.clone()),
-            metadata: Set(input.metadata.clone()),
-            content_hash: Set(input.compute_hash()),
-            created_at: NotSet,
-            updated_at: Set(Utc::now()),
+        let now = Timestamp::now();
+        let mut db = self.db.lock().await;
+        let existing = Query::<List<AssetRecord>>::filter(AssetRecord::fields().id().eq(id))
+            .first()
+            .exec(&mut *db)
+            .await
+            .context("查询待保存资产失败")?;
+        let record = match existing {
+            Some(_) => {
+                AssetRecord::filter(AssetRecord::fields().id().eq(id))
+                    .update()
+                    .kind(input.kind.code())
+                    .title(&input.title)
+                    .body(&input.body)
+                    .tags(input.tags.clone())
+                    .status(&input.status)
+                    .metadata(input.metadata.clone())
+                    .content_hash(input.compute_hash())
+                    .updated_at(now)
+                    .exec(&mut *db)
+                    .await
+                    .context("更新资产失败")?;
+                Query::<List<AssetRecord>>::filter(AssetRecord::fields().id().eq(id))
+                    .one()
+                    .exec(&mut *db)
+                    .await
+                    .context("重新读取资产失败")?
+            }
+            None => AssetRecord::create()
+                .id(id)
+                .kind(input.kind.code())
+                .title(&input.title)
+                .body(&input.body)
+                .tags(input.tags.clone())
+                .status(&input.status)
+                .metadata(input.metadata.clone())
+                .content_hash(input.compute_hash())
+                .created_at(now)
+                .updated_at(now)
+                .exec(&mut *db)
+                .await
+                .context("创建资产失败")?,
         };
-
-        asset::Entity::insert(active)
-            .on_conflict(
-                OnConflict::column(asset::Column::Id)
-                    .update_columns([
-                        asset::Column::Kind,
-                        asset::Column::Title,
-                        asset::Column::Body,
-                        asset::Column::Tags,
-                        asset::Column::Status,
-                        asset::Column::Metadata,
-                        asset::Column::ContentHash,
-                        asset::Column::UpdatedAt,
-                    ])
-                    .to_owned(),
-            )
-            .exec(&self.db)
-            .await
-            .context("upsert asset")?;
-
-        asset::Entity::find_by_id(id)
-            .one(&self.db)
-            .await
-            .context("reload asset after upsert")?
-            .map(model_to_asset)
-            .ok_or_else(|| anyhow!("asset disappeared after upsert"))
+        record_to_asset(record)
     }
 
     pub async fn delete_asset(&self, id: Uuid) -> Result<()> {
-        asset::Entity::delete_many()
-            .filter(asset::Column::Id.eq(id))
-            .exec(&self.db)
+        let mut db = self.db.lock().await;
+        AssetEdgeRecord::filter(
+            AssetEdgeRecord::fields()
+                .source_asset_id()
+                .eq(id)
+                .or(AssetEdgeRecord::fields().target_asset_id().eq(id)),
+        )
+        .delete()
+        .exec(&mut *db)
+        .await
+        .context("删除资产关系失败")?;
+        AssetRecord::filter(AssetRecord::fields().id().eq(id))
+            .delete()
+            .exec(&mut *db)
             .await
-            .context("delete asset")?;
+            .context("删除资产失败")?;
         Ok(())
     }
 
     pub async fn graph(&self) -> Result<AssetGraph> {
         let assets = self.list_assets(None).await?;
-        let edges = asset_edge::Entity::find()
-            .order_by_desc(asset_edge::Column::UpdatedAt)
-            .all(&self.db)
+        let mut db = self.db.lock().await;
+        let rows = Query::<List<AssetEdgeRecord>>::all()
+            .exec(&mut *db)
             .await
-            .context("list asset edges")?;
-        Ok(AssetGraph {
-            assets,
-            edges: edges.into_iter().map(model_to_edge).collect(),
-        })
+            .context("查询资产关系失败")?;
+        let mut edges = rows
+            .into_iter()
+            .map(record_to_edge)
+            .collect::<Result<Vec<_>>>()?;
+        edges.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+        Ok(AssetGraph { assets, edges })
     }
 
     pub async fn upsert_edge(&self, input: &AssetEdgeUpsert) -> Result<AssetEdge> {
-        let active = asset_edge::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            source_asset_id: Set(input.source_asset_id),
-            target_asset_id: Set(input.target_asset_id),
-            relation: Set(input.relation.clone()),
-            confidence: Set(input.confidence),
-            metadata: Set(input.metadata.clone()),
-            created_at: NotSet,
-            updated_at: Set(Utc::now()),
+        let filter = AssetEdgeRecord::fields()
+            .source_asset_id()
+            .eq(input.source_asset_id)
+            .and(
+                AssetEdgeRecord::fields()
+                    .target_asset_id()
+                    .eq(input.target_asset_id),
+            )
+            .and(
+                AssetEdgeRecord::fields()
+                    .relation()
+                    .eq(&input.relation),
+            );
+        let now = Timestamp::now();
+        let mut db = self.db.lock().await;
+        let existing = Query::<List<AssetEdgeRecord>>::filter(filter.clone())
+            .first()
+            .exec(&mut *db)
+            .await
+            .context("查询待保存资产关系失败")?;
+        let record = match existing {
+            Some(existing) => {
+                AssetEdgeRecord::filter(AssetEdgeRecord::fields().id().eq(existing.id))
+                    .update()
+                    .confidence(input.confidence)
+                    .metadata(input.metadata.clone())
+                    .updated_at(now)
+                    .exec(&mut *db)
+                    .await
+                    .context("更新资产关系失败")?;
+                Query::<List<AssetEdgeRecord>>::filter(
+                    AssetEdgeRecord::fields().id().eq(existing.id),
+                )
+                .one()
+                .exec(&mut *db)
+                .await
+                .context("重新读取资产关系失败")?
+            }
+            None => AssetEdgeRecord::create()
+                .id(Uuid::new_v4())
+                .source_asset_id(input.source_asset_id)
+                .target_asset_id(input.target_asset_id)
+                .relation(&input.relation)
+                .confidence(input.confidence)
+                .metadata(input.metadata.clone())
+                .created_at(now)
+                .updated_at(now)
+                .exec(&mut *db)
+                .await
+                .context("创建资产关系失败")?,
         };
-
-        asset_edge::Entity::insert(active)
-            .on_conflict(
-                OnConflict::columns([
-                    asset_edge::Column::SourceAssetId,
-                    asset_edge::Column::TargetAssetId,
-                    asset_edge::Column::Relation,
-                ])
-                .update_columns([
-                    asset_edge::Column::Confidence,
-                    asset_edge::Column::Metadata,
-                    asset_edge::Column::UpdatedAt,
-                ])
-                .to_owned(),
-            )
-            .exec(&self.db)
-            .await
-            .context("upsert asset edge")?;
-
-        asset_edge::Entity::find()
-            .filter(
-                Condition::all()
-                    .add(asset_edge::Column::SourceAssetId.eq(input.source_asset_id))
-                    .add(asset_edge::Column::TargetAssetId.eq(input.target_asset_id))
-                    .add(asset_edge::Column::Relation.eq(input.relation.clone())),
-            )
-            .one(&self.db)
-            .await
-            .context("reload asset edge after upsert")?
-            .map(model_to_edge)
-            .ok_or_else(|| anyhow!("asset edge disappeared after upsert"))
+        record_to_edge(record)
     }
 
     pub async fn list_providers(&self) -> Result<Vec<AiModelProvider>> {
-        let rows = ai_model_provider::Entity::find()
-            .order_by_asc(ai_model_provider::Column::Provider)
-            .all(&self.db)
+        let mut db = self.db.lock().await;
+        let rows = Query::<List<AiModelProviderRecord>>::all()
+            .exec(&mut *db)
             .await
-            .context("list ai model providers")?;
-        Ok(rows.into_iter().map(model_to_provider).collect())
+            .context("查询 AI provider 失败")?;
+        let mut providers = rows
+            .into_iter()
+            .map(record_to_provider)
+            .collect::<Result<Vec<_>>>()?;
+        providers.sort_by_key(|provider| provider.provider.code());
+        Ok(providers)
     }
 
     pub async fn upsert_provider(
@@ -162,76 +209,121 @@ impl PgRepo {
         input: &AiModelProviderUpsert,
         encrypted: Option<EncryptedSecret>,
     ) -> Result<AiModelProvider> {
-        let (key_id, ciphertext, api_key_configured) = match encrypted {
-            Some(secret) => (secret.key_id, Some(secret.ciphertext), true),
-            None => ("default".to_string(), None, false),
+        let provider = input.provider.code();
+        let now = Timestamp::now();
+        let mut db = self.db.lock().await;
+        let existing = Query::<List<AiModelProviderRecord>>::filter(
+            AiModelProviderRecord::fields().provider().eq(provider),
+        )
+        .first()
+        .exec(&mut *db)
+        .await
+        .context("查询待保存 AI provider 失败")?;
+        let record = match existing {
+            Some(existing) => {
+                let key_id = encrypted
+                    .as_ref()
+                    .map(|secret| secret.key_id.clone())
+                    .unwrap_or(existing.key_id);
+                let ciphertext = encrypted
+                    .map(|secret| secret.ciphertext)
+                    .or(existing.encrypted_api_key);
+                AiModelProviderRecord::filter(
+                    AiModelProviderRecord::fields().provider().eq(provider),
+                )
+                .update()
+                .base_url(input.base_url.clone())
+                .default_model(&input.default_model)
+                .enabled(input.enabled)
+                .key_id(key_id)
+                .encrypted_api_key(ciphertext.clone())
+                .api_key_configured(ciphertext.is_some())
+                .updated_at(now)
+                .exec(&mut *db)
+                .await
+                .context("更新 AI provider 失败")?;
+                Query::<List<AiModelProviderRecord>>::filter(
+                    AiModelProviderRecord::fields().provider().eq(provider),
+                )
+                .one()
+                .exec(&mut *db)
+                .await
+                .context("重新读取 AI provider 失败")?
+            }
+            None => {
+                let secret = encrypted.map(|secret| (secret.key_id, secret.ciphertext));
+                let key_id = secret
+                    .as_ref()
+                    .map(|(key_id, _)| key_id.clone())
+                    .unwrap_or_else(|| "default".to_string());
+                let ciphertext = secret.map(|(_, ciphertext)| ciphertext);
+                AiModelProviderRecord::create()
+                    .provider(provider)
+                    .base_url(input.base_url.clone())
+                    .default_model(&input.default_model)
+                    .enabled(input.enabled)
+                    .key_id(key_id)
+                    .encrypted_api_key(ciphertext.clone())
+                    .api_key_configured(ciphertext.is_some())
+                    .created_at(now)
+                    .updated_at(now)
+                    .exec(&mut *db)
+                    .await
+                    .context("创建 AI provider 失败")?
+            }
         };
-        let active = ai_model_provider::ActiveModel {
-            provider: Set(input.provider.to_string()),
-            base_url: Set(input.base_url.clone()),
-            default_model: Set(input.default_model.clone()),
-            enabled: Set(input.enabled),
-            key_id: Set(key_id),
-            encrypted_api_key: Set(ciphertext),
-            api_key_configured: Set(api_key_configured),
-            created_at: NotSet,
-            updated_at: Set(Utc::now()),
-        };
-
-        ai_model_provider::Entity::insert(active)
-            .on_conflict(
-                OnConflict::column(ai_model_provider::Column::Provider)
-                    .update_columns([
-                        ai_model_provider::Column::BaseUrl,
-                        ai_model_provider::Column::DefaultModel,
-                        ai_model_provider::Column::Enabled,
-                        ai_model_provider::Column::KeyId,
-                        ai_model_provider::Column::EncryptedApiKey,
-                        ai_model_provider::Column::ApiKeyConfigured,
-                        ai_model_provider::Column::UpdatedAt,
-                    ])
-                    .to_owned(),
-            )
-            .exec(&self.db)
-            .await
-            .context("upsert ai model provider")?;
-
-        ai_model_provider::Entity::find_by_id(input.provider.to_string())
-            .one(&self.db)
-            .await
-            .context("reload provider after upsert")?
-            .map(model_to_provider)
-            .ok_or_else(|| anyhow!("provider disappeared after upsert"))
+        record_to_provider(record)
     }
 
     pub async fn provider_secret(
         &self,
         provider: AiProviderKind,
     ) -> Result<Option<(AiModelProvider, EncryptedSecret)>> {
-        let row = ai_model_provider::Entity::find_by_id(provider.to_string())
-            .filter(ai_model_provider::Column::Enabled.eq(true))
-            .filter(ai_model_provider::Column::EncryptedApiKey.is_not_null())
-            .one(&self.db)
-            .await
-            .context("get provider secret")?;
-        Ok(row.map(|row| {
+        let mut db = self.db.lock().await;
+        let row = Query::<List<AiModelProviderRecord>>::filter(
+            AiModelProviderRecord::fields()
+                .provider()
+                .eq(provider.code())
+                .and(AiModelProviderRecord::fields().enabled().eq(true))
+                .and(
+                    AiModelProviderRecord::fields()
+                        .encrypted_api_key()
+                        .is_some(),
+                ),
+        )
+        .first()
+        .exec(&mut *db)
+        .await
+        .context("查询 AI provider 密钥失败")?;
+        row.map(|row| {
             let secret = EncryptedSecret {
                 key_id: row.key_id.clone(),
                 ciphertext: row.encrypted_api_key.clone().unwrap_or_default(),
             };
-            (model_to_provider(row), secret)
-        }))
+            Ok((record_to_provider(row)?, secret))
+        })
+        .transpose()
     }
 
     pub async fn stored_provider_secret(
         &self,
         provider: AiProviderKind,
     ) -> Result<Option<EncryptedSecret>> {
-        let row = ai_model_provider::Entity::find_by_id(provider.to_string())
-            .filter(ai_model_provider::Column::EncryptedApiKey.is_not_null())
-            .one(&self.db)
-            .await
-            .context("get stored provider secret")?;
+        let mut db = self.db.lock().await;
+        let row = Query::<List<AiModelProviderRecord>>::filter(
+            AiModelProviderRecord::fields()
+                .provider()
+                .eq(provider.code())
+                .and(
+                    AiModelProviderRecord::fields()
+                        .encrypted_api_key()
+                        .is_some(),
+                ),
+        )
+        .first()
+        .exec(&mut *db)
+        .await
+        .context("查询已保存 AI provider 密钥失败")?;
         Ok(row.map(|row| EncryptedSecret {
             key_id: row.key_id,
             ciphertext: row.encrypted_api_key.unwrap_or_default(),
@@ -239,13 +331,22 @@ impl PgRepo {
     }
 
     pub async fn list_prompt_buttons(&self) -> Result<Vec<AiPromptButton>> {
-        let rows = ai_prompt_button::Entity::find()
-            .order_by_asc(ai_prompt_button::Column::TargetKind)
-            .order_by_asc(ai_prompt_button::Column::Label)
-            .all(&self.db)
+        let mut db = self.db.lock().await;
+        let rows = Query::<List<AiPromptButtonRecord>>::all()
+            .exec(&mut *db)
             .await
-            .context("list prompt buttons")?;
-        Ok(rows.into_iter().map(model_to_prompt).collect())
+            .context("查询 prompt 按钮失败")?;
+        let mut buttons = rows
+            .into_iter()
+            .map(record_to_prompt)
+            .collect::<Result<Vec<_>>>()?;
+        buttons.sort_by(|left, right| {
+            left.target_kind
+                .code()
+                .cmp(right.target_kind.code())
+                .then(left.label.cmp(&right.label))
+        });
+        Ok(buttons)
     }
 
     pub async fn upsert_prompt_button(
@@ -253,96 +354,107 @@ impl PgRepo {
         input: &AiPromptButtonUpsert,
     ) -> Result<AiPromptButton> {
         let id = input.id.unwrap_or_else(Uuid::new_v4);
-        let active = ai_prompt_button::ActiveModel {
-            id: Set(id),
-            label: Set(input.label.clone()),
-            target_kind: Set(input.target_kind.to_string()),
-            prompt_template: Set(input.prompt_template.clone()),
-            provider: Set(input.provider.to_string()),
-            model: Set(input.model.clone()),
-            enabled: Set(input.enabled),
-            created_at: NotSet,
-            updated_at: Set(Utc::now()),
+        let now = Timestamp::now();
+        let mut db = self.db.lock().await;
+        let existing = Query::<List<AiPromptButtonRecord>>::filter(
+            AiPromptButtonRecord::fields().id().eq(id),
+        )
+        .first()
+        .exec(&mut *db)
+        .await
+        .context("查询待保存 prompt 按钮失败")?;
+        let record = match existing {
+            Some(_) => {
+                AiPromptButtonRecord::filter(AiPromptButtonRecord::fields().id().eq(id))
+                    .update()
+                    .label(&input.label)
+                    .target_kind(input.target_kind.code())
+                    .prompt_template(&input.prompt_template)
+                    .provider(input.provider.code())
+                    .model(&input.model)
+                    .enabled(input.enabled)
+                    .updated_at(now)
+                    .exec(&mut *db)
+                    .await
+                    .context("更新 prompt 按钮失败")?;
+                Query::<List<AiPromptButtonRecord>>::filter(
+                    AiPromptButtonRecord::fields().id().eq(id),
+                )
+                .one()
+                .exec(&mut *db)
+                .await
+                .context("重新读取 prompt 按钮失败")?
+            }
+            None => AiPromptButtonRecord::create()
+                .id(id)
+                .label(&input.label)
+                .target_kind(input.target_kind.code())
+                .prompt_template(&input.prompt_template)
+                .provider(input.provider.code())
+                .model(&input.model)
+                .enabled(input.enabled)
+                .created_at(now)
+                .updated_at(now)
+                .exec(&mut *db)
+                .await
+                .context("创建 prompt 按钮失败")?,
         };
-
-        ai_prompt_button::Entity::insert(active)
-            .on_conflict(
-                OnConflict::column(ai_prompt_button::Column::Id)
-                    .update_columns([
-                        ai_prompt_button::Column::Label,
-                        ai_prompt_button::Column::TargetKind,
-                        ai_prompt_button::Column::PromptTemplate,
-                        ai_prompt_button::Column::Provider,
-                        ai_prompt_button::Column::Model,
-                        ai_prompt_button::Column::Enabled,
-                        ai_prompt_button::Column::UpdatedAt,
-                    ])
-                    .to_owned(),
-            )
-            .exec(&self.db)
-            .await
-            .context("upsert prompt button")?;
-
-        ai_prompt_button::Entity::find_by_id(id)
-            .one(&self.db)
-            .await
-            .context("reload prompt button after upsert")?
-            .map(model_to_prompt)
-            .ok_or_else(|| anyhow!("prompt button disappeared after upsert"))
+        record_to_prompt(record)
     }
 
     pub async fn delete_prompt_button(&self, id: Uuid) -> Result<()> {
-        ai_prompt_button::Entity::delete_many()
-            .filter(ai_prompt_button::Column::Id.eq(id))
-            .exec(&self.db)
+        let mut db = self.db.lock().await;
+        AiPromptButtonRecord::filter(AiPromptButtonRecord::fields().id().eq(id))
+            .delete()
+            .exec(&mut *db)
             .await
-            .context("delete prompt button")?;
+            .context("删除 prompt 按钮失败")?;
         Ok(())
     }
 }
 
-fn model_to_asset(row: asset::Model) -> Asset {
-    Asset {
+fn record_to_asset(row: AssetRecord) -> Result<Asset> {
+    Ok(Asset {
         id: row.id,
         kind: AssetKind::from_code_or_default(&row.kind),
         title: row.title,
         body: row.body,
-        tags: row.tags,
+        tags: row.tags.0,
         status: row.status,
-        metadata: row.metadata,
+        metadata: row.metadata.0,
         content_hash: row.content_hash,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-    }
+        created_at: chrono_timestamp(row.created_at)?,
+        updated_at: chrono_timestamp(row.updated_at)?,
+    })
 }
 
-fn model_to_edge(row: asset_edge::Model) -> AssetEdge {
-    AssetEdge {
+fn record_to_edge(row: AssetEdgeRecord) -> Result<AssetEdge> {
+    Ok(AssetEdge {
         id: row.id,
         source_asset_id: row.source_asset_id,
         target_asset_id: row.target_asset_id,
         relation: row.relation,
         confidence: row.confidence,
-        metadata: row.metadata,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-    }
+        metadata: row.metadata.0,
+        created_at: chrono_timestamp(row.created_at)?,
+        updated_at: chrono_timestamp(row.updated_at)?,
+    })
 }
 
-fn model_to_provider(row: ai_model_provider::Model) -> AiModelProvider {
-    AiModelProvider {
+fn record_to_provider(row: AiModelProviderRecord) -> Result<AiModelProvider> {
+    Ok(AiModelProvider {
         provider: AiProviderKind::from_code_or_default(&row.provider),
         base_url: row.base_url,
         default_model: row.default_model,
         enabled: row.enabled,
         key_id: row.key_id,
         api_key_configured: row.api_key_configured,
-        updated_at: row.updated_at,
-    }
+        updated_at: chrono_timestamp(row.updated_at)?,
+    })
 }
 
-fn model_to_prompt(row: ai_prompt_button::Model) -> AiPromptButton {
-    AiPromptButton {
+fn record_to_prompt(row: AiPromptButtonRecord) -> Result<AiPromptButton> {
+    Ok(AiPromptButton {
         id: row.id,
         label: row.label,
         target_kind: AssetKind::from_code_or_default(&row.target_kind),
@@ -350,6 +462,13 @@ fn model_to_prompt(row: ai_prompt_button::Model) -> AiPromptButton {
         provider: AiProviderKind::from_code_or_default(&row.provider),
         model: row.model,
         enabled: row.enabled,
-        updated_at: row.updated_at,
-    }
+        updated_at: chrono_timestamp(row.updated_at)?,
+    })
+}
+
+fn chrono_timestamp(value: Timestamp) -> Result<DateTime<Utc>> {
+    value
+        .to_string()
+        .parse()
+        .map_err(|error| anyhow!("转换 Toasty 时间戳失败: {error}"))
 }

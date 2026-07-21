@@ -62,7 +62,7 @@ async fn main() -> Result<(), az_knowledge::KnowledgeError> {
 ## 依赖的 crates
 
 - `az-persistence` - 数据库连接与持久化上下文
-- `sea-orm` - PostgreSQL ORM
+- `toasty` - PostgreSQL 模型和查询 DSL
 - `sqlx` - SQLite 驱动
 - `chrono` - 时间处理
 - `sha2` - 内容哈希计算
