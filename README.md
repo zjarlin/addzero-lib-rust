@@ -77,7 +77,7 @@ fn main() -> anyhow::Result<()> {
 
 ## 运行桌面/应用
 
-仓库包含多个应用和插件宿主。当前主要应用入口位于 `apps/az-aio/desktop`，但该路径在 workspace 配置中排除，需根据实际项目需求单独运行。
+仓库包含多个应用和插件宿主。当前主要应用入口位于 `apps/aio/desktop`，但该路径在 workspace 配置中排除，需根据实际项目需求单独运行。
 
 如果你要运行其它应用，可查找对应应用目录下的 `Cargo.toml`。
 

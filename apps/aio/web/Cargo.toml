@@ -1,0 +1,41 @@
+[package]
+name = "az-aio-web"
+version = "2026.5.10"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+authors = ["zjarlin"]
+description = "web workbench — Axum + SSR."
+workspace = "../plugins"
+
+[dependencies]
+anyhow.workspace = true
+axum = { version = "0.8.6", features = ["http1", "json", "tokio"] }
+az-aio-platform = { path = "../platform" }
+az-engine.workspace = true
+asset-hub = { path = "../plugins/asset-hub" }
+config-center = { path = "../plugins/config-center" }
+drive-center = { path = "../plugins/drive-center" }
+edge-gateway = { path = "../plugins/edge-gateway" }
+iot-center = { package = "az-aio-iot-center", path = "../plugins/iot-center" }
+algorithm-center = { path = "../plugins/algorithm-center" }
+codegen = { package = "az-aio-codegen", path = "../plugins/codegen" }
+software-center = { path = "../plugins/software-center" }
+az-linux = { path = "../plugins/linux" }
+lowcode = { path = "../plugins/lowcode" }
+dioxus.workspace = true
+dioxus-ssr.workspace = true
+rudi.workspace = true
+registry.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+toasty.workspace = true
+tower-http = { version = "0.6.2", features = ["fs"] }
+urlencoding.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/algorithm/az-algorithm",
-    "crates/algorithm/az-onnx",
-    "crates/algorithm/az-ocr",
+    "crates/algorithm/algorithm",
+    "crates/algorithm/onnx",
+    "crates/algorithm/ocr",
     "crates/api/*",
     "crates/config/*",
     "crates/core/*",
@@ -17,11 +17,11 @@ members = [
     "apps/drive/backend",
 ]
 exclude = [
-    "apps/az-aio/desktop",
-    "crates/data/az-crud-base",
-    "crates/network/az-browser-automation",
-    "crates/runtime/az-admin-domain-audit",
-    "crates/ui/az-remote-ui",
+    "apps/aio/desktop",
+    "crates/data/crud-base",
+    "crates/network/browser-automation",
+    "crates/runtime/admin-domain-audit",
+    "crates/ui/remote-ui",
     "crates/ui/dioxus-components",
     "crates/ui/dioxus-nox-markdown",
 ]
@@ -37,7 +37,7 @@ repository = "https://github.com/zjarlin/addzero-lib-rust"
 
 [workspace.dependencies]
 ab_glyph = "0.2.32"
-automod = { package = "az-automod", version = "=2026.6.15", path = "crates/core/az-automod" }
+automod = { package = "az-automod", version = "=2026.6.15", path = "crates/core/automod" }
 base64 = "0.22.1"
 convert_case = "0.8.0"
 chrono = { version = "0.4.42", features = ["clock"] }
@@ -115,53 +115,53 @@ axum = { version = "0.8.6", features = ["http1", "json", "tokio", "ws"] }
 gpui = { version = "0.2.2", features = ["runtime_shaders"] }
 gpui-component = "0.5.1"
 strum = { version = "0.28.0", features = ["derive"] }
-az-algorithm = { version = "=2026.5.10", path = "crates/algorithm/az-algorithm" }
-az-agent-runtime-contract = { version = "=2026.5.10", path = "crates/data/az-agent-runtime-contract" }
-az-admin-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/az-admin-plugin-registry" }
-az-agent = { version = "=2026.5.10", path = "crates/runtime/az-agent" }
-az-ai-agent = { version = "=2026.5.10", path = "crates/runtime/az-ai-agent" }
-az-ai-chat = { version = "=2026.5.10", path = "crates/api/az-ai-chat" }
-az-assets = { version = "=2026.5.10", path = "crates/data/az-assets" }
-az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/az-cli-market-contract" }
-az-crdt = { version = "=2026.5.10", path = "crates/text/az-crdt" }
-az-dict-macros = { version = "=2026.5.10", path = "crates/core/az-dict-macros" }
-az-dict-spec = { version = "=2026.5.10", path = "crates/core/az-dict-spec" }
-az-desktop-plugin = { version = "=2026.5.10", path = "crates/runtime/az-desktop-plugin" }
-az-desktop-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/az-desktop-plugin-registry" }
-az-drive-agent = { version = "=2026.5.10", path = "crates/runtime/az-drive-agent" }
-az-engine = { version = "=2026.5.10", path = "crates/runtime/az-engine" }
-az-drive-core = { version = "=2026.5.10", path = "crates/storage/az-drive-core" }
-az-drive-store = { version = "=2026.5.10", path = "crates/storage/az-drive-store" }
-az-drive-webdav = { version = "=2026.5.10", path = "crates/network/az-drive-webdav" }
-az-email = { version = "=2026.5.10", path = "crates/network/az-email" }
-az-gmail-code = { version = "=2026.5.10", path = "crates/network/az-gmail-code" }
-az-knowledge = { version = "=2026.5.10", path = "crates/data/az-knowledge" }
-az-maven = { version = "=2026.5.10", path = "crates/api/az-maven" }
-az-micro-dict = { version = "=2026.5.10", path = "crates/micro/az-micro-dict" }
-az-music = { version = "=2026.5.10", path = "crates/network/az-music" }
-az-oauth2 = { version = "=2026.5.10", path = "crates/api/az-oauth2" }
-az-openai-openapi = { version = "=2026.5.10", path = "crates/api/az-openai-openapi" }
-az-onnx = { version = "=2026.5.10", path = "crates/algorithm/az-onnx" }
-az-ocr = { version = "=2026.5.10", path = "crates/algorithm/az-ocr" }
-az-persistence = { version = "=2026.5.10", path = "crates/data/az-persistence" }
-az-remote-model = { version = "=2026.5.10", path = "crates/core/az-remote-model" }
-az-remote-protocol = { version = "=2026.5.10", path = "crates/network/az-remote-protocol" }
-az-rustfs = { version = "=2026.5.10", path = "crates/storage/az-rustfs" }
-az-sandbox = { version = "=2026.5.10", path = "crates/core/az-sandbox" }
-az-sms = { version = "=2026.5.10", path = "crates/network/az-sms" }
-az-script-engine = { version = "=2026.5.10", path = "crates/runtime/az-script-engine" }
-az-script-engine-rhai = { version = "=2026.5.10", path = "crates/runtime/az-script-engine-rhai" }
-az-skills = { version = "=2026.5.10", path = "crates/data/az-skills" }
-az-software-catalog = { version = "=2026.5.10", path = "crates/data/az-software-catalog" }
-az-str = { version = "=2026.5.10", path = "crates/text/az-str" }
-az-starter-audit = { version = "=2026.5.10", path = "crates/runtime/az-starter-audit" }
-az-starter-dictionary = { version = "=2026.5.10", path = "crates/runtime/az-starter-dictionary" }
-az-starter-identity = { version = "=2026.5.10", path = "crates/runtime/az-starter-identity" }
-az-starter-menu = { version = "=2026.5.10", path = "crates/runtime/az-starter-menu" }
-az-starter-organization = { version = "=2026.5.10", path = "crates/runtime/az-starter-organization" }
-az-system-starters = { version = "=2026.5.10", path = "crates/runtime/az-system-starters" }
-az-temp-mail = { version = "=2026.5.10", path = "crates/network/az-temp-mail" }
-az-wasm-plugin-api = { version = "=2026.5.10", path = "crates/runtime/az-wasm-plugin-api" }
+az-algorithm = { version = "=2026.5.10", path = "crates/algorithm/algorithm" }
+az-agent-runtime-contract = { version = "=2026.5.10", path = "crates/data/agent-runtime-contract" }
+az-admin-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/admin-plugin-registry" }
+az-agent = { version = "=2026.5.10", path = "crates/runtime/agent" }
+az-ai-agent = { version = "=2026.5.10", path = "crates/runtime/ai-agent" }
+az-ai-chat = { version = "=2026.5.10", path = "crates/api/ai-chat" }
+az-assets = { version = "=2026.5.10", path = "crates/data/assets" }
+az-cli-market-contract = { version = "=2026.5.10", path = "crates/api/cli-market-contract" }
+az-crdt = { version = "=2026.5.10", path = "crates/text/crdt" }
+az-dict-macros = { version = "=2026.5.10", path = "crates/core/dict-macros" }
+az-dict-spec = { version = "=2026.5.10", path = "crates/core/dict-spec" }
+az-desktop-plugin = { version = "=2026.5.10", path = "crates/runtime/desktop-plugin" }
+az-desktop-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/desktop-plugin-registry" }
+az-drive-agent = { version = "=2026.5.10", path = "crates/runtime/drive-agent" }
+az-engine = { version = "=2026.5.10", path = "crates/runtime/engine" }
+az-drive-core = { version = "=2026.5.10", path = "crates/storage/drive-core" }
+az-drive-store = { version = "=2026.5.10", path = "crates/storage/drive-store" }
+az-drive-webdav = { version = "=2026.5.10", path = "crates/network/drive-webdav" }
+az-email = { version = "=2026.5.10", path = "crates/network/email" }
+az-gmail-code = { version = "=2026.5.10", path = "crates/network/gmail-code" }
+az-knowledge = { version = "=2026.5.10", path = "crates/data/knowledge" }
+az-maven = { version = "=2026.5.10", path = "crates/api/maven" }
+az-micro-dict = { version = "=2026.5.10", path = "crates/micro/micro-dict" }
+az-music = { version = "=2026.5.10", path = "crates/network/music" }
+az-oauth2 = { version = "=2026.5.10", path = "crates/api/oauth2" }
+az-openai-openapi = { version = "=2026.5.10", path = "crates/api/openai-openapi" }
+az-onnx = { version = "=2026.5.10", path = "crates/algorithm/onnx" }
+az-ocr = { version = "=2026.5.10", path = "crates/algorithm/ocr" }
+az-persistence = { version = "=2026.5.10", path = "crates/data/persistence" }
+az-remote-model = { version = "=2026.5.10", path = "crates/core/remote-model" }
+az-remote-protocol = { version = "=2026.5.10", path = "crates/network/remote-protocol" }
+az-rustfs = { version = "=2026.5.10", path = "crates/storage/rustfs" }
+az-sandbox = { version = "=2026.5.10", path = "crates/core/sandbox" }
+az-sms = { version = "=2026.5.10", path = "crates/network/sms" }
+az-script-engine = { version = "=2026.5.10", path = "crates/runtime/script-engine" }
+az-script-engine-rhai = { version = "=2026.5.10", path = "crates/runtime/script-engine-rhai" }
+az-skills = { version = "=2026.5.10", path = "crates/data/skills" }
+az-software-catalog = { version = "=2026.5.10", path = "crates/data/software-catalog" }
+az-str = { version = "=2026.5.10", path = "crates/text/str" }
+az-starter-audit = { version = "=2026.5.10", path = "crates/runtime/starter-audit" }
+az-starter-dictionary = { version = "=2026.5.10", path = "crates/runtime/starter-dictionary" }
+az-starter-identity = { version = "=2026.5.10", path = "crates/runtime/starter-identity" }
+az-starter-menu = { version = "=2026.5.10", path = "crates/runtime/starter-menu" }
+az-starter-organization = { version = "=2026.5.10", path = "crates/runtime/starter-organization" }
+az-system-starters = { version = "=2026.5.10", path = "crates/runtime/system-starters" }
+az-temp-mail = { version = "=2026.5.10", path = "crates/network/temp-mail" }
+az-wasm-plugin-api = { version = "=2026.5.10", path = "crates/runtime/wasm-plugin-api" }
 rimmer = { version = "=2026.5.10", path = "crates/data/rimmer" }
 rimmer-macros = { version = "=2026.5.10", path = "crates/data/rimmer-macros" }
 

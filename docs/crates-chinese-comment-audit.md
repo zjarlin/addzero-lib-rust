@@ -7,7 +7,7 @@
 ## 巡检结论
 
 - 当前 `crates` 下共有 91 个 Cargo manifest。
-- 除 `crates/runtime/az-cli` 是二进制入口、没有常规 `src/lib.rs` 外，其余库 crate 均已有有效 crate 级说明入口。
+- 除 `crates/runtime/cli` 是二进制入口、没有常规 `src/lib.rs` 外，其余库 crate 均已有有效 crate 级说明入口。
 - 其中 65 个库 crate 使用 `//!` 直接写 crate 级说明，25 个库 crate 使用 `#![doc = include_str!("../README.md")]` 复用 README 作为 rustdoc。
 - `crates/**/*.rs` 当前没有未归档的 `TODO` / `FIXME` 标记。
 - 最值得补中文说明的位置不是普通字段和显而易见的派生，而是公开宏、wire/code enum 约定、插件注册边界、协议/持久化边界、以及会被多个 crate 复用的错误和上下文类型。
@@ -21,7 +21,7 @@
 | Cargo manifest | 91 | 来自 `find crates -name Cargo.toml`。 |
 | inline crate doc | 65 | `src/lib.rs` 中存在 `//!` 入口说明。 |
 | README 注入 rustdoc | 25 | `#![doc = include_str!("../README.md")]`。 |
-| 二进制入口 | 1 | `crates/runtime/az-cli`，没有常规 `src/lib.rs`。 |
+| 二进制入口 | 1 | `crates/runtime/cli`，没有常规 `src/lib.rs`。 |
 | 公开 item 粗扫 | 2688 | 匹配 `pub struct/enum/trait/fn/type/const/static/mod` 和 `#[macro_export]`。 |
 | 已有 item rustdoc | 1926 | 公开 item 前 8 行内存在 `///`。 |
 | 中文 item rustdoc | 777 | item rustdoc 中含中文字符。 |
