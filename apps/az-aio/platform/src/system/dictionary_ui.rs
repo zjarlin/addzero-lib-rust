@@ -70,7 +70,7 @@ pub fn dictionary_workbench_page(context: NativeRenderContext) -> Element {
                     CardContent { class: "dictionary-panel-content",
                         input {
                             id: "dictionary-type-search",
-                            class: "az-input",
+                            class: "aio-input",
                             r#type: "search",
                             placeholder: "搜索名称或编码",
                             autocomplete: "off",
@@ -118,7 +118,7 @@ pub fn dictionary_workbench_page(context: NativeRenderContext) -> Element {
                         div { class: "dictionary-table-toolbar",
                             input {
                                 id: "dictionary-item-search",
-                                class: "az-input",
+                                class: "aio-input",
                                 r#type: "search",
                                 placeholder: "搜索标签、编码或原始值",
                                 autocomplete: "off",
@@ -202,7 +202,7 @@ fn DictionaryTypeDialog() -> Element {
                                 FormContent {
                                     Input {
                                         id: "dictionary-type-name",
-                                        class: "az-input",
+                                        class: "aio-input",
                                         name: "name",
                                         required: true,
                                         placeholder: "例如：笔记类型"
@@ -214,7 +214,7 @@ fn DictionaryTypeDialog() -> Element {
                                 FormContent {
                                     Input {
                                         id: "dictionary-type-code",
-                                        class: "az-input font-mono",
+                                        class: "aio-input font-mono",
                                         name: "code",
                                         required: true,
                                         placeholder: "note_type"
@@ -226,7 +226,7 @@ fn DictionaryTypeDialog() -> Element {
                                 FormContent {
                                     Input {
                                         id: "dictionary-type-scope",
-                                        class: "az-input font-mono",
+                                        class: "aio-input font-mono",
                                         name: "scope",
                                         value: "system",
                                         required: true
@@ -236,7 +236,7 @@ fn DictionaryTypeDialog() -> Element {
                             FormFieldWrapper {
                                 FormLabel { html_for: "dictionary-type-raw-kind", "原始值类型" }
                                 FormContent {
-                                    select { id: "dictionary-type-raw-kind", class: "az-input", name: "rawValueKind",
+                                    select { id: "dictionary-type-raw-kind", class: "aio-input", name: "rawValueKind",
                                         option { value: "string", "字符串" }
                                         option { value: "int", "整数" }
                                     }
@@ -247,7 +247,7 @@ fn DictionaryTypeDialog() -> Element {
                                 FormContent {
                                     Input {
                                         id: "dictionary-type-sort",
-                                        class: "az-input",
+                                        class: "aio-input",
                                         name: "sortIndex",
                                         r#type: InputType::Number,
                                         value: "0"
@@ -257,7 +257,7 @@ fn DictionaryTypeDialog() -> Element {
                             FormFieldWrapper {
                                 FormLabel { html_for: "dictionary-type-status", "状态" }
                                 FormContent {
-                                    select { id: "dictionary-type-status", class: "az-input", name: "status",
+                                    select { id: "dictionary-type-status", class: "aio-input", name: "status",
                                         option { value: "enabled", "启用" }
                                         option { value: "disabled", "停用" }
                                     }
@@ -269,7 +269,7 @@ fn DictionaryTypeDialog() -> Element {
                             FormContent {
                                 textarea {
                                     id: "dictionary-type-description",
-                                    class: "az-input",
+                                    class: "aio-input",
                                     name: "description",
                                     rows: "3",
                                     placeholder: "说明字典的业务用途"
@@ -314,7 +314,7 @@ fn DictionaryItemDialog() -> Element {
                                 FormContent {
                                     Input {
                                         id: "dictionary-item-label",
-                                        class: "az-input",
+                                        class: "aio-input",
                                         name: "label",
                                         required: true,
                                         placeholder: "在线"
@@ -326,7 +326,7 @@ fn DictionaryItemDialog() -> Element {
                                 FormContent {
                                     Input {
                                         id: "dictionary-item-code",
-                                        class: "az-input font-mono",
+                                        class: "aio-input font-mono",
                                         name: "code",
                                         required: true,
                                         placeholder: "online"
@@ -338,7 +338,7 @@ fn DictionaryItemDialog() -> Element {
                                 FormContent {
                                     Input {
                                         id: "dictionary-item-raw-value",
-                                        class: "az-input font-mono",
+                                        class: "aio-input font-mono",
                                         name: "rawValue",
                                         required: true,
                                         placeholder: "online"
@@ -350,7 +350,7 @@ fn DictionaryItemDialog() -> Element {
                                 FormContent {
                                     Input {
                                         id: "dictionary-item-sort",
-                                        class: "az-input",
+                                        class: "aio-input",
                                         name: "sortIndex",
                                         r#type: InputType::Number,
                                         value: "0"
@@ -360,7 +360,7 @@ fn DictionaryItemDialog() -> Element {
                             FormFieldWrapper {
                                 FormLabel { html_for: "dictionary-item-status", "状态" }
                                 FormContent {
-                                    select { id: "dictionary-item-status", class: "az-input", name: "status",
+                                    select { id: "dictionary-item-status", class: "aio-input", name: "status",
                                         option { value: "enabled", "启用" }
                                         option { value: "disabled", "停用" }
                                     }
@@ -372,7 +372,7 @@ fn DictionaryItemDialog() -> Element {
                             FormContent {
                                 Input {
                                     id: "dictionary-item-description",
-                                    class: "az-input",
+                                    class: "aio-input",
                                     name: "description",
                                     placeholder: "说明该值的业务语义"
                                 }
@@ -383,7 +383,7 @@ fn DictionaryItemDialog() -> Element {
                             FormContent {
                                 textarea {
                                     id: "dictionary-item-meta",
-                                    class: "az-input font-mono",
+                                    class: "aio-input font-mono",
                                     name: "metaJson",
                                     rows: "3",
                                     value: empty_json

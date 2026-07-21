@@ -4,9 +4,9 @@ Native plugin for Linux server onboarding from the client side.
 
 ## Runtime
 
-- Dioxus UI contract page: `az-linux.page`
+- Dioxus UI contract page: `linux.page`
 - Route: `/linux`
-- Axum APIs: `/api/az-linux/status`, `/api/az-linux/profiles`, `/api/az-linux/bootstrap-plan`, `/api/az-linux/bootstrap-script`
+- Axum APIs: `/api/linux/status`, `/api/linux/profiles`, `/api/linux/bootstrap-plan`, `/api/linux/bootstrap-script`
 - Persistence: no formal business data yet; generated plans are transient client contracts
 - Target profile: Ubuntu first, via `LinuxEnvironmentAdapter`
 

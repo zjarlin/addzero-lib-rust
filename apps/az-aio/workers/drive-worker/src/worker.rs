@@ -8,14 +8,16 @@ use az_aio_plugin_api::register_native_plugin;
 #[derive(Default)]
 pub struct DriveWorkerPlugin;
 
+// `NativeAzAioPlugin` 是外部插件 API crate 的既有协议名称。
 impl NativeAzAioPlugin for DriveWorkerPlugin {
     fn descriptor(&self) -> PluginDescriptor {
         PluginDescriptor {
             id: "drive-worker".to_string(),
             name: "Drive CRDT Sync".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
-            description: "WebSocket-based line-CRDT text synchronization backed by the Drive Git Pool store."
-                .to_string(),
+            description:
+                "WebSocket-based line-CRDT text synchronization backed by the Drive Git Pool store."
+                    .to_string(),
             activation: PluginActivation::Eager,
             priority: 900,
             dependencies: Vec::new(),
@@ -67,8 +69,7 @@ impl NativeAzAioPlugin for DriveWorkerPlugin {
     }
 
     fn runtime(&self, _context: NativePluginContext) -> anyhow::Result<NativePluginRuntime> {
-        let router = Router::new()
-            .route("/api/drive-worker/health", get(health_handler));
+        let router = Router::new().route("/api/drive-worker/health", get(health_handler));
         Ok(NativePluginRuntime {
             router,
             ..Default::default()
@@ -112,20 +113,26 @@ mod tests {
     fn plugin_declares_drive_sync_surfaces() -> anyhow::Result<()> {
         let descriptor = DriveWorkerPlugin.descriptor();
         assert_eq!(descriptor.id, "drive-worker");
-        assert!(descriptor
-            .capabilities
-            .iter()
-            .any(|c| c == "drive-crdt-sync"));
+        assert!(
+            descriptor
+                .capabilities
+                .iter()
+                .any(|c| c == "drive-crdt-sync")
+        );
 
         let contributions = DriveWorkerPlugin.contributions()?;
-        assert!(contributions
-            .backend_apis
-            .iter()
-            .any(|api| api.path == "/ws/drive-sync"));
-        assert!(contributions
-            .backend_apis
-            .iter()
-            .any(|api| api.path == "/api/drive-worker/health"));
+        assert!(
+            contributions
+                .backend_apis
+                .iter()
+                .any(|api| api.path == "/ws/drive-sync")
+        );
+        assert!(
+            contributions
+                .backend_apis
+                .iter()
+                .any(|api| api.path == "/api/drive-worker/health")
+        );
         Ok(())
     }
 }

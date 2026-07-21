@@ -53,7 +53,7 @@ pub fn CodegenPage(context: NativeRenderContext) -> Element {
                         form { method: "post", action: UI_ACTION_PATH, class: "grid gap-4",
                             FieldLabel { title: "客户机目标目录", required: true,
                                 input {
-                                    class: "az-input",
+                                    class: "aio-input",
                                     name: "target_directory",
                                     value: default_directory,
                                     required: true,
@@ -61,22 +61,22 @@ pub fn CodegenPage(context: NativeRenderContext) -> Element {
                             }
                             div { class: "grid gap-4 md:grid-cols-2",
                                 FieldLabel { title: "类型种类", required: true,
-                                    select { class: "az-input", name: "type_kind", required: true,
+                                    select { class: "aio-input", name: "type_kind", required: true,
                                         option { value: "enum", "enum" }
                                         option { value: "struct", "struct" }
                                     }
                                 }
                                 FieldLabel { title: "类型名", required: true,
-                                    input { class: "az-input", name: "type_name", placeholder: "DeviceState", required: true }
+                                    input { class: "aio-input", name: "type_name", placeholder: "DeviceState", required: true }
                                 }
                             }
                             FieldLabel { title: "文件名（留空自动生成）",
-                                input { class: "az-input", name: "file_name", placeholder: "device_state.rs" }
+                                input { class: "aio-input", name: "file_name", placeholder: "device_state.rs" }
                             }
                             label { class: "grid gap-2 text-sm",
                                 span { class: "font-medium", "成员定义" }
                                 textarea {
-                                    class: "az-input min-h-48 font-mono",
+                                    class: "aio-input min-h-48 font-mono",
                                     name: "members",
                                     required: true,
                                     placeholder: "Pending\nRunning = 1\nFailed = 2",

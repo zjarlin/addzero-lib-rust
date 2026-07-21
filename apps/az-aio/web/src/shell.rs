@@ -13,8 +13,8 @@ use registry::ui::{
 
 const FAVICON_DATA_URI: &str = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-size='26' font-family='Arial,sans-serif' font-weight='700' fill='%23ffffff'%3EA%3C/text%3E%3C/svg%3E";
 const SHELL_STATE_SCRIPT: &str = r#"(() => {
-  const scrollStorageKey = 'az-aio:scroll-state:v1';
-  const sidebarStorageKey = 'az-aio:sidebar-collapsed:v1';
+  const scrollStorageKey = 'aio:scroll-state:v1';
+  const sidebarStorageKey = 'aio:sidebar-collapsed:v1';
   const route = new URLSearchParams(window.location.search).get('route') || '/';
   const readScroll = () => {
     try { return JSON.parse(sessionStorage.getItem(scrollStorageKey) || '{}'); }
@@ -138,13 +138,13 @@ fn query_pairs_match(candidate_query: &str, active_query: &str) -> bool {
 fn render_document(title: &str, bootstrap_json: Option<String>, body: Element) -> String {
     let bootstrap_script = bootstrap_json
         .map(|json| {
-            format!(r#"<script id="az-aio-bootstrap" type="application/json">{json}</script>"#)
+            format!(r#"<script id="aio-bootstrap" type="application/json">{json}</script>"#)
         })
         .unwrap_or_default();
     let body = dioxus_ssr::render_element(body);
 
     format!(
-        r#"<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title><link rel="icon" href="{FAVICON_DATA_URI}"><link rel="stylesheet" href="/assets/app.css?v=dictionary-dialog-v2"></head><body>{bootstrap_script}<div id="az-aio-root">{body}</div><script>{SHELL_STATE_SCRIPT}</script></body></html>"#
+        r#"<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title><link rel="icon" href="{FAVICON_DATA_URI}"><link rel="stylesheet" href="/assets/app.css?v=dictionary-dialog-v2"></head><body>{bootstrap_script}<div id="aio-root">{body}</div><script>{SHELL_STATE_SCRIPT}</script></body></html>"#
     )
 }
 
@@ -558,7 +558,7 @@ mod tests {
         assert!(html.contains("data-name=\"Card\""));
         assert!(html.contains("data-aio-shell"));
         assert!(html.contains("data-aio-sidebar-toggle"));
-        assert!(html.contains("az-aio:sidebar-collapsed:v1"));
+        assert!(html.contains("aio:sidebar-collapsed:v1"));
         assert!(html.contains("aio-toolbar-actions"));
         assert!(!html.contains("az-aio-client.js"));
     }

@@ -282,7 +282,7 @@ fn ActionForm(
     #[props(default, into)] class: String,
     #[props(into, optional)] id: Option<String>,
 ) -> Element {
-    rsx! { form { id: id.as_deref(), class: format!("az-form {class}"), method, action, {children} } }
+    rsx! { form { id: id.as_deref(), class: format!("aio-form {class}"), method, action, {children} } }
 }
 
 #[component]
@@ -302,7 +302,7 @@ fn TextInput(
     rsx! {
         input {
             form: form.as_deref(),
-            class: "az-input",
+            class: "aio-input",
             r#type: input_type,
             name,
             value,
@@ -319,7 +319,7 @@ fn SelectInput(
     #[props(default)] required: bool,
 ) -> Element {
     rsx! {
-        select { class: "az-input", name, required,
+        select { class: "aio-input", name, required,
             for option in options {
                 option { value: option.value, selected: option.selected, "{option.label}" }
             }
@@ -472,7 +472,7 @@ fn render_hooks(model_name: &str, hooks: &[HookDefinition]) -> Element {
                     }
                     label { class: "space-y-1 text-sm md:col-span-2",
                         span { class: "font-medium", "脚本" }
-                        textarea { class: "az-input min-h-24", name: "script_content", required: true }
+                        textarea { class: "aio-input min-h-24", name: "script_content", required: true }
                     }
                     CheckboxInput { name: "is_active", label: "启用".to_string(), checked: true }
                     div { class: "flex items-end", Button { button_type: "submit", "添加钩子" } }
@@ -509,7 +509,7 @@ fn render_hook_row(model_name: &str, hook: &HookDefinition) -> Element {
                     HiddenInput { name: "hook_id", value: hook.id.clone() }
                     SelectInput { name: "trigger_event", required: true, options: hook_event_options(&hook.trigger_event) }
                     TextInput { input_type: "number", name: "order_index", value: hook.order_index.to_string() }
-                    textarea { class: "az-input min-h-20", name: "script_content", required: true, "{hook.script_content}" }
+                    textarea { class: "aio-input min-h-20", name: "script_content", required: true, "{hook.script_content}" }
                     CheckboxInput { name: "is_active", label: "启用".to_string(), checked: hook.is_active }
                     Button { button_type: "submit", "保存" }
                 }
@@ -614,7 +614,7 @@ fn render_payload_field(field: &MetaField) -> Element {
         "json" => rsx! {
             label { class: "space-y-1 text-sm md:col-span-2",
                 span { class: "font-medium", "{label}" }
-                textarea { class: "az-input min-h-20", name: input_name, required: field.is_required, placeholder: "{{}}" }
+                textarea { class: "aio-input min-h-20", name: input_name, required: field.is_required, placeholder: "{{}}" }
             }
         },
         "int" | "decimal" | "datetime" => rsx! {
@@ -638,13 +638,13 @@ fn render_payload_input_for_form(field: &MetaField, payload: &Value, form_id: &s
             input { form: form_id, r#type: "checkbox", name: input_name, value: "1", checked: payload_bool_value(payload, &field.name) }
         },
         "json" => rsx! {
-            textarea { form: form_id, class: "az-input min-h-16", name: input_name, required: field.is_required, "{value}" }
+            textarea { form: form_id, class: "aio-input min-h-16", name: input_name, required: field.is_required, "{value}" }
         },
         "int" | "decimal" | "datetime" => rsx! {
-            input { form: form_id, class: "az-input", r#type: "number", name: input_name, value, required: field.is_required }
+            input { form: form_id, class: "aio-input", r#type: "number", name: input_name, value, required: field.is_required }
         },
         _ => rsx! {
-            input { form: form_id, class: "az-input", name: input_name, value, required: field.is_required }
+            input { form: form_id, class: "aio-input", name: input_name, value, required: field.is_required }
         },
     }
 }

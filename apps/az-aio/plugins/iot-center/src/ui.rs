@@ -330,7 +330,7 @@ fn TextField(
     rsx! {
         label { class: "grid gap-1 text-sm",
             span { class: "font-medium", "{label}" }
-            input { class: "az-input", name, placeholder, required }
+            input { class: "aio-input", name, placeholder, required }
         }
     }
 }

@@ -12,7 +12,7 @@ const MAX_LIST_ROWS: usize = 12;
 
 fn main() {
     dioxus::LaunchBuilder::web()
-        .with_cfg(dioxus_web::Config::new().rootname("az-aio-client-root"))
+        .with_cfg(dioxus_web::Config::new().rootname("aio-client-root"))
         .launch(App);
 }
 
@@ -424,7 +424,7 @@ where
 fn load_bootstrap_from_document() -> ClientBootstrapPayload {
     let json = web_sys::window()
         .and_then(|window| window.document())
-        .and_then(|document| document.get_element_by_id("az-aio-bootstrap"))
+        .and_then(|document| document.get_element_by_id("aio-bootstrap"))
         .and_then(|element| element.text_content())
         .unwrap_or_default();
     serde_json::from_str(&json).unwrap_or_else(|_| ClientBootstrapPayload {
