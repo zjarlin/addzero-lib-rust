@@ -1,0 +1,290 @@
+.file-viewer {
+  --file-viewer-surface: #ffffff;
+  --file-viewer-surface-muted: #f2f5f8;
+  --file-viewer-border: #d8e0e8;
+  --file-viewer-text: #172033;
+  --file-viewer-muted: #64748b;
+  --file-viewer-accent: #2563eb;
+  --file-viewer-danger: #b42318;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  min-width: 0;
+  color: var(--file-viewer-text);
+  background: var(--file-viewer-surface);
+  border: 1px solid var(--file-viewer-border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.file-viewer[data-theme="dark"] {
+  --file-viewer-surface: #151a22;
+  --file-viewer-surface-muted: #202732;
+  --file-viewer-border: #374151;
+  --file-viewer-text: #edf2f7;
+  --file-viewer-muted: #a4afbf;
+  --file-viewer-accent: #60a5fa;
+  --file-viewer-danger: #fda29b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .file-viewer[data-theme="system"] {
+    --file-viewer-surface: #151a22;
+    --file-viewer-surface-muted: #202732;
+    --file-viewer-border: #374151;
+    --file-viewer-text: #edf2f7;
+    --file-viewer-muted: #a4afbf;
+    --file-viewer-accent: #60a5fa;
+    --file-viewer-danger: #fda29b;
+  }
+}
+
+.file-viewer__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 8px 10px 8px 14px;
+  background: var(--file-viewer-surface);
+  border-bottom: 1px solid var(--file-viewer-border);
+}
+
+.file-viewer__title {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 6px;
+}
+
+.file-viewer__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--file-viewer-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-viewer__extension {
+  flex: 0 0 auto;
+  color: var(--file-viewer-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.file-viewer__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 9px;
+  color: var(--file-viewer-muted);
+  background: transparent;
+  border: 1px solid var(--file-viewer-border);
+  border-radius: 5px;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.file-viewer__action:hover {
+  color: var(--file-viewer-accent);
+  border-color: var(--file-viewer-accent);
+}
+
+.file-viewer__body,
+.file-viewer__runtime {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.file-viewer__runtime {
+  overflow: auto;
+  background: var(--file-viewer-surface-muted);
+}
+
+.file-viewer__message {
+  margin: 0;
+  padding: 18px 16px;
+  color: var(--file-viewer-muted);
+  font-size: 13px;
+}
+
+.file-viewer__message--error {
+  color: var(--file-viewer-danger);
+}
+
+.file-viewer__unsupported {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px 16px;
+  color: var(--file-viewer-muted);
+  font-size: 13px;
+}
+
+.file-viewer__unsupported p {
+  margin: 0;
+}
+
+.file-viewer__unsupported a {
+  color: var(--file-viewer-accent);
+}
+
+.file-viewer__markdown {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 24px 28px 48px;
+  color: var(--file-viewer-text);
+  background: var(--file-viewer-surface);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.file-viewer__markdown h1,
+.file-viewer__markdown h2,
+.file-viewer__markdown h3,
+.file-viewer__markdown h4 {
+  margin: 1.4em 0 0.55em;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+.file-viewer__markdown h1 {
+  margin-top: 0;
+  font-size: 24px;
+}
+
+.file-viewer__markdown h2 {
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--file-viewer-border);
+  font-size: 18px;
+}
+
+.file-viewer__markdown p,
+.file-viewer__markdown ul,
+.file-viewer__markdown ol,
+.file-viewer__markdown blockquote {
+  margin: 0.8em 0;
+}
+
+.file-viewer__markdown code {
+  padding: 0.15em 0.36em;
+  background: var(--file-viewer-surface-muted);
+  border-radius: 4px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.file-viewer__markdown pre {
+  max-width: 100%;
+  padding: 14px;
+  overflow: auto;
+  background: #101827;
+  border-radius: 6px;
+  color: #e5edf7;
+}
+
+.file-viewer__markdown pre code {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.file-viewer__markdown table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.file-viewer__markdown th,
+.file-viewer__markdown td {
+  padding: 8px 10px;
+  border: 1px solid var(--file-viewer-border);
+  text-align: left;
+}
+
+.file-viewer__text {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 18px;
+  color: var(--file-viewer-text);
+  background: var(--file-viewer-surface);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.file-viewer__pdf-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 16px 40px;
+}
+
+.file-viewer__pdf-page {
+  display: block;
+  max-width: 100%;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 14px rgb(0 0 0 / 18%);
+}
+
+.file-viewer__docx {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--file-viewer-surface-muted);
+}
+
+.file-viewer__docx .docx-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 16px 40px;
+  background: var(--file-viewer-surface-muted);
+}
+
+.file-viewer__docx .docx-wrapper > section.docx {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  background: #fff;
+  box-shadow: 0 2px 14px rgb(0 0 0 / 18%);
+}
+
+.file-viewer__docx section.docx {
+  padding-left: clamp(14px, 5%, 90pt) !important;
+  padding-right: clamp(14px, 5%, 90pt) !important;
+}
+
+.file-viewer__docx section.docx table {
+  float: none !important;
+  width: 100% !important;
+  max-width: 100%;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.file-viewer__docx section.docx td,
+.file-viewer__docx section.docx th {
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 640px) {
+  .file-viewer__markdown {
+    padding: 18px 16px 36px;
+  }
+}

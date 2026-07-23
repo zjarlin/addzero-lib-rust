@@ -1,0 +1,31 @@
+[package]
+name = "az-file-viewer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Unified Markdown, PDF, DOCX, and text preview component for Dioxus."
+readme = "README.md"
+keywords = ["dioxus", "docx", "markdown", "pdf", "viewer"]
+categories = ["gui", "web-programming"]
+
+[dependencies]
+base64.workspace = true
+dioxus = { workspace = true, features = ["asset", "document", "hooks"] }
+manganis.workspace = true
+mime_guess.workspace = true
+
+[dev-dependencies]
+dioxus = { workspace = true, features = ["launch", "web"] }
+dioxus-ssr.workspace = true
+web-sys = { version = "0.3", features = ["History", "Location", "Window"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

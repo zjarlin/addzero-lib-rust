@@ -14,6 +14,7 @@ members = [
     "crates/storage/*",
     "crates/text/*",
     "crates/tool-project-diagnostics",
+    "crates/ui/file-viewer",
     "apps/drive/backend",
 ]
 exclude = [
@@ -47,6 +48,7 @@ deunicode = "1.6.2"
 derive_more = { version = "2.1.1", features = ["as_ref", "debug", "display", "from"] }
 dioxus = { version = "0.7.9", default-features = false, features = ["macro", "html", "signals"] }
 dioxus-ssr = "0.7.9"
+manganis = "0.7.9"
 dirs = "6"
 clap = { version = "4.5.48", features = ["derive"] }
 handlebars = "6.4.1"
@@ -132,6 +134,7 @@ az-desktop-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/de
 az-drive-agent = { version = "=2026.5.10", path = "crates/runtime/drive-agent" }
 az-engine = { version = "=2026.5.10", path = "crates/runtime/engine" }
 az-error = { version = "=2026.5.10", path = "crates/core/error" }
+az-file-viewer = { version = "=2026.5.10", path = "crates/ui/file-viewer" }
 az-drive-core = { version = "=2026.5.10", path = "crates/storage/drive-core" }
 az-drive-store = { version = "=2026.5.10", path = "crates/storage/drive-store" }
 az-drive-webdav = { version = "=2026.5.10", path = "crates/network/drive-webdav" }
