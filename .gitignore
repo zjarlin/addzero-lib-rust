@@ -25,6 +25,7 @@ target
 dist
 out
 crates/storage/gitdb/data/gitdb
+crates/storage/gitdb/data/gitdb-objects
 .syncthing.*
 *.sync-conflict-*
 *sync-conflict*
