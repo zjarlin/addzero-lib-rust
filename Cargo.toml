@@ -23,7 +23,6 @@ exclude = [
     "crates/data/crud-base",
     "crates/network/browser-automation",
     "crates/runtime/admin-domain-audit",
-    "crates/ui/remote-ui",
     "crates/ui/dioxus-components",
     "crates/ui/dioxus-nox-markdown",
     "crates/text/az-str",
@@ -132,7 +131,6 @@ az-dict-spec = { version = "=2026.5.10", path = "crates/core/dict-spec" }
 az-desktop-plugin = { version = "=2026.5.10", path = "crates/runtime/desktop-plugin" }
 az-desktop-plugin-registry = { version = "=2026.5.10", path = "crates/runtime/desktop-plugin-registry" }
 az-drive-agent = { version = "=2026.5.10", path = "crates/runtime/drive-agent" }
-az-engine = { version = "=2026.5.10", path = "crates/runtime/engine" }
 az-error = { version = "=2026.5.10", path = "crates/core/error" }
 az-file-viewer = { version = "=2026.5.10", path = "crates/ui/file-viewer" }
 az-drive-core = { version = "=2026.5.10", path = "crates/storage/drive-core" }
