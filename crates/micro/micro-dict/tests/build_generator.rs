@@ -57,10 +57,57 @@ fn static_contributor_writes_specs_and_enum_source() {
     assert!(enum_source.contains("name = ShellEntryKind"));
     assert!(enum_source.contains("dict = \"shell_entry_kind\""));
     assert!(enum_source.contains("include_str!"));
+    assert!(enum_source.contains("specs/shell_entry_kind.json"));
+    assert!(!enum_source.contains(temp.path().to_string_lossy().as_ref()));
 
     let spec_source =
         fs::read_to_string(&generated.spec_files[0]).expect("generated spec should exist");
     assert!(spec_source.contains("\"label\": \"别名\""));
+}
+
+#[test]
+fn source_bundle_does_not_touch_the_file_system() {
+    let generator =
+        DictBuildGenerator::new().add_contributor(StaticDictionaryContributor::new(vec![
+            DictionaryContribution::new(
+                "Status",
+                DictionarySpec {
+                    code: "status".to_string(),
+                    name: "状态".to_string(),
+                    description: None,
+                    scope: "test".to_string(),
+                    raw_value_kind: RawValueKind::String,
+                    open_enum: false,
+                    unknown_variant: None,
+                    sort_index: 0,
+                    items: vec![DictionaryItemSpec {
+                        code: "enabled".to_string(),
+                        label: "启用".to_string(),
+                        description: None,
+                        raw_int_value: None,
+                        raw_text_value: Some("enabled".to_string()),
+                        sort_index: 0,
+                        enabled: true,
+                        meta: None,
+                    }],
+                },
+            ),
+        ]));
+
+    let bundle = generator.generate_bundle().expect("内存源码应成功生成");
+
+    assert!(
+        bundle
+            .files
+            .iter()
+            .any(|file| file.relative_path == std::path::Path::new("enums.rs"))
+    );
+    assert!(
+        bundle
+            .files
+            .iter()
+            .any(|file| { file.relative_path == std::path::Path::new("specs/status.json") })
+    );
 }
 
 #[test]

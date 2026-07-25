@@ -1,0 +1,22 @@
+{
+  "code": "duplicate_code",
+  "name": "重复编码",
+  "scope": "test",
+  "rawValueKind": "string",
+  "openEnum": false,
+  "sortIndex": 0,
+  "items": [
+    {
+      "code": "same",
+      "label": "第一项",
+      "rawTextValue": "first",
+      "sortIndex": 0
+    },
+    {
+      "code": "same",
+      "label": "第二项",
+      "rawTextValue": "second",
+      "sortIndex": 1
+    }
+  ]
+}

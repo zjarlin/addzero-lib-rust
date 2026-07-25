@@ -9,4 +9,6 @@ dict_enum!(
 fn main() {
     assert!(matches!(BoardTransportType::from_raw("RTU"), Some(BoardTransportType::Rtu)));
     assert!(BoardTransportType::from_raw("UDP").is_none());
+    assert_eq!(BoardTransportType::default(), BoardTransportType::Rtu);
+    assert_eq!(BoardTransportType::Tcp.encode(), "TCP");
 }

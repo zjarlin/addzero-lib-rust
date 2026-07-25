@@ -28,7 +28,7 @@ dict_enum!(
 
 #[test]
 fn int_open_enum_supports_unknown_values() {
-    assert_eq!(BoardParity::from_raw(0).code(), "NONE");
+    assert_eq!(BoardParity::from_raw(0).encode(), "NONE");
     assert_eq!(BoardParity::from_raw(0).raw_value(), 0);
     match BoardParity::from_raw(9) {
         BoardParity::Other(value) => assert_eq!(value, 9),
@@ -48,6 +48,7 @@ fn string_closed_enum_supports_lookup() {
         BoardTransportTypeFromEnv::from_raw("RTU"),
         Some(BoardTransportTypeFromEnv::Rtu)
     ));
+    assert_eq!(BoardTransportType::default(), BoardTransportType::Rtu);
 }
 
 #[test]
@@ -65,4 +66,5 @@ fn ui_compile_tests_pass() {
     tests.pass("tests/ui/pass_int_open.rs");
     tests.pass("tests/ui/pass_string_closed.rs");
     tests.pass("tests/ui/pass_metadata_lookup.rs");
+    tests.compile_fail("tests/ui/fail_duplicate_code.rs");
 }

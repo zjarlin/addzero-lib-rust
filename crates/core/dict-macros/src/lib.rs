@@ -1,7 +1,7 @@
 //! 数据字典枚举生成宏，从 JSON 规格文件自动生成类型安全的 Rust 枚举。
 //!
 //! `dict_enum!` 过程宏根据 [`az-dict-spec`] 定义的 JSON 字典规格，在编译期生成包含
-//! `code()`、`label()`、`Display`、`description()`、`raw_value()`、`meta_json()` 等方法的枚举类型，
+//! `encode()`、`label()`、`Display`、`description()`、`raw_value()`、`meta_json()` 等方法的枚举类型，
 //! 消除手写枚举与字典数据不一致的风险。
 //!
 //! ## 宏参数
@@ -70,6 +70,7 @@ fn expand_dict_enum(
     let mut from_raw_arms = Vec::new();
     let mut try_from_raw_arms = Vec::new();
     let mut item_entries = Vec::new();
+    let mut default_variant = None;
 
     for item in &spec.items {
         let variant_name = to_pascal_case(&item.code);
@@ -83,6 +84,9 @@ fn expand_dict_enum(
             return Err(error);
         }
         let variant_ident = format_ident!("{variant_name}");
+        if default_variant.is_none() {
+            default_variant = Some(variant_ident.clone());
+        }
         let code = LitStr::new(&item.code, proc_macro2::Span::call_site());
         let label = LitStr::new(&item.label, proc_macro2::Span::call_site());
         let display_label = LitStr::new(
@@ -210,6 +214,11 @@ fn expand_dict_enum(
     };
 
     let module_name = format_ident!("__az_dict_macros_{}", enum_name);
+    let Some(default_variant) = default_variant else {
+        return Err(compile_error(
+            "dictionary enum must contain at least one item",
+        ));
+    };
 
     Ok(quote! {
         #[doc(hidden)]
@@ -225,7 +234,7 @@ fn expand_dict_enum(
 
                 #open_impl
 
-                pub fn code(&self) -> &'static str {
+                pub fn encode(&self) -> &'static str {
                     match self {
                         #(#code_arms,)*
                     }
@@ -260,6 +269,12 @@ fn expand_dict_enum(
                         #(#item_entries,)*
                     ];
                     ITEMS
+                }
+            }
+
+            impl Default for #enum_name {
+                fn default() -> Self {
+                    Self::#default_variant
                 }
             }
         }

@@ -1,0 +1,11 @@
+error: invalid dictionary spec: duplicate item code: same
+ --> tests/ui/fail_duplicate_code.rs:3:1
+  |
+3 | / dict_enum!(
+4 | |     name = DuplicateCode,
+5 | |     dict = "duplicate_code",
+6 | |     spec = include_str!("../specs/duplicate_code.json")
+7 | | );
+  | |_^
+  |
+  = note: this error originates in the macro `dict_enum` (in Nightly builds, run with -Z macro-backtrace for more info)

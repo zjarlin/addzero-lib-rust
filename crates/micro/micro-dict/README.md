@@ -4,9 +4,10 @@ Dictionary contribution SPI and build-time Rust enum generator.
 
 This crate sits before `az-dict-macros`: contributors normalize dictionary metadata
 from PostgreSQL, RuoYi-style admin tables, fixtures, or any other source into
-`DictionaryContribution`. `DictBuildGenerator` validates the metadata, writes
-dictionary specs to an output directory such as Cargo `OUT_DIR`, and emits Rust
-source that calls `az_dict_macros::dict_enum!`.
+`DictionaryContribution`. `DictBuildGenerator` validates the metadata and first
+returns a portable in-memory `DictSourceBundle`. The host may commit that bundle
+to a repository or write it to Cargo `OUT_DIR`. Generated `include_str!` paths are
+relative to `enums.rs`.
 
 ## Build script shape
 

@@ -174,6 +174,51 @@ pub struct GeneratedDictFiles {
     pub spec_files: Vec<PathBuf>,
 }
 
+/// 可由宿主写入仓库或构建目录的单个源码文件。
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DictSourceFile {
+    pub relative_path: PathBuf,
+    pub source: String,
+}
+
+/// 不依赖文件系统的字典源码集合。
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DictSourceBundle {
+    pub files: Vec<DictSourceFile>,
+}
+
+impl DictSourceBundle {
+    /// 把内存源码写入指定根目录，路径始终相对该目录解析。
+    pub fn write_to(&self, root_dir: impl AsRef<Path>) -> Result<GeneratedDictFiles> {
+        let root_dir = root_dir.as_ref().to_path_buf();
+        let specs_dir = root_dir.join("specs");
+        let enums_file = root_dir.join("enums.rs");
+        let mut spec_files = Vec::new();
+
+        for file in &self.files {
+            let destination = root_dir.join(&file.relative_path);
+            let Some(parent) = destination.parent() else {
+                bail!("invalid dictionary source path: {}", file.relative_path.display());
+            };
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create {}", parent.display()))?;
+            fs::write(&destination, &file.source)
+                .with_context(|| format!("failed to write {}", destination.display()))?;
+            if file.relative_path.starts_with("specs") {
+                spec_files.push(destination);
+            }
+        }
+        spec_files.sort();
+
+        Ok(GeneratedDictFiles {
+            root_dir,
+            specs_dir,
+            enums_file,
+            spec_files,
+        })
+    }
+}
+
 /// Build-time generator that writes dictionary specs and enum source to disk.
 #[derive(Default)]
 pub struct DictBuildGenerator {
@@ -190,19 +235,8 @@ impl DictBuildGenerator {
         self
     }
 
-    /// Collects dictionaries from all contributors and writes generated files.
-    ///
-    /// The output layout is:
-    ///
-    /// - `<output_dir>/az_micro_dict/specs/<dict_code>.json`
-    /// - `<output_dir>/az_micro_dict/enums.rs`
-    pub fn generate_to(self, output_dir: impl AsRef<Path>) -> Result<GeneratedDictFiles> {
-        let output_dir = output_dir.as_ref();
-        let root_dir = output_dir.join("az_micro_dict");
-        let specs_dir = root_dir.join("specs");
-        fs::create_dir_all(&specs_dir)
-            .with_context(|| format!("failed to create {}", specs_dir.display()))?;
-
+    /// 收集并校验所有字典，返回不依赖文件系统的可移植源码。
+    pub fn generate_bundle(&self) -> Result<DictSourceBundle> {
         let mut contributions = Vec::new();
         for contributor in &self.contributors {
             contributions.extend(contributor.contribute()?);
@@ -216,7 +250,7 @@ impl DictBuildGenerator {
 
         let mut seen_codes = BTreeSet::new();
         let mut seen_names = BTreeSet::new();
-        let mut generated_specs = Vec::new();
+        let mut source_files = Vec::new();
         let mut generated_enums = Vec::new();
 
         for contribution in contributions {
@@ -234,31 +268,45 @@ impl DictBuildGenerator {
                 );
             }
 
-            let enum_name = contribution.enum_name.clone();
+            let enum_name = contribution.enum_name;
             let spec = contribution.spec;
             spec.validate()?;
 
             let spec_file_name = format!("{}.json", sanitize_file_stem(&spec.code)?);
-            let spec_file = specs_dir.join(spec_file_name);
+            let relative_path = PathBuf::from("specs").join(&spec_file_name);
             let spec_json = spec.to_pretty_json_string()?;
-            fs::write(&spec_file, spec_json)
-                .with_context(|| format!("failed to write {}", spec_file.display()))?;
-
-            generated_enums.push(render_dict_enum_invocation(&enum_name, &spec, &spec_file)?);
-            generated_specs.push(spec_file);
+            source_files.push(DictSourceFile {
+                relative_path,
+                source: spec_json,
+            });
+            generated_enums.push(render_dict_enum_invocation(
+                &enum_name,
+                &spec,
+                Path::new("specs").join(spec_file_name).as_path(),
+            )?);
         }
 
-        let enums_file = root_dir.join("enums.rs");
         let enums_source = render_enums_file(generated_enums)?;
-        fs::write(&enums_file, enums_source)
-            .with_context(|| format!("failed to write {}", enums_file.display()))?;
-
-        Ok(GeneratedDictFiles {
-            root_dir,
-            specs_dir,
-            enums_file,
-            spec_files: generated_specs,
+        source_files.push(DictSourceFile {
+            relative_path: PathBuf::from("enums.rs"),
+            source: enums_source,
+        });
+        source_files.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+        Ok(DictSourceBundle {
+            files: source_files,
         })
+    }
+
+    /// Collects dictionaries from all contributors and writes generated files.
+    ///
+    /// The output layout is:
+    ///
+    /// - `<output_dir>/az_micro_dict/specs/<dict_code>.json`
+    /// - `<output_dir>/az_micro_dict/enums.rs`
+    pub fn generate_to(self, output_dir: impl AsRef<Path>) -> Result<GeneratedDictFiles> {
+        let output_dir = output_dir.as_ref();
+        let root_dir = output_dir.join("az_micro_dict");
+        self.generate_bundle()?.write_to(root_dir)
     }
 }
 
